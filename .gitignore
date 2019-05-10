@@ -1,3 +1,5 @@
+# There is way to much stuff in vendor to commit it. We can revisit if it becomes problematic
+/vendor/
 
 # Binaries for programs and plugins
 *.exe
