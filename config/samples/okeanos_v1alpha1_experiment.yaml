@@ -1,9 +1,8 @@
 apiVersion: okeanos.carbonrelay.com/v1alpha1
 kind: Experiment
 metadata:
-  labels:
-    controller-tools.k8s.io: "1.0"
-  name: experiment-sample
+  name: elk-experiment-sample
 spec:
-  # Add fields here
-  foo: bar
+  parameters:
+  metrics:
+  configuration:

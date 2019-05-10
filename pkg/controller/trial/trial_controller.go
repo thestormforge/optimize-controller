@@ -2,15 +2,23 @@ package trial
 
 import (
 	"context"
-	"reflect"
+	"encoding/json"
+	"net/http"
+	"time"
 
 	okeanosv1alpha1 "github.com/gramLabs/okeanos/pkg/apis/okeanos/v1alpha1"
+	prom "github.com/prometheus/client_golang/api"
+	promv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/validation/field"
+	"k8s.io/client-go/util/jsonpath"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -23,10 +31,8 @@ import (
 
 var log = logf.Log.WithName("controller")
 
-/**
-* USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
-* business logic.  Delete these comments after modifying this file.*
- */
+// TODO We need some type of client util to encapsulate this
+var httpClient = &http.Client{Timeout: 10 * time.Second}
 
 // Add creates a new Trial Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
@@ -53,9 +59,8 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	// TODO(user): Modify this to be the types you create
-	// Uncomment watch a Deployment created by Trial - change this for objects you create
-	err = c.Watch(&source.Kind{Type: &appsv1.Deployment{}}, &handler.EnqueueRequestForOwner{
+	// Watch for changes to owned Jobs
+	err = c.Watch(&source.Kind{Type: &batchv1.Job{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &okeanosv1alpha1.Trial{},
 	})
@@ -76,8 +81,6 @@ type ReconcileTrial struct {
 
 // Reconcile reads that state of the cluster for a Trial object and makes changes based on the state read
 // and what is in the Trial.Spec
-// TODO(user): Modify this Reconcile function to implement your Controller logic.  The scaffolding writes
-// a Deployment as an example
 // Automatically generate RBAC rules to allow the Controller to read and write Deployments
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments/status,verbs=get;update;patch
@@ -85,67 +88,195 @@ type ReconcileTrial struct {
 // +kubebuilder:rbac:groups=okeanos.carbonrelay.com,resources=trials/status,verbs=get;update;patch
 func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the Trial instance
-	instance := &okeanosv1alpha1.Trial{}
-	err := r.Get(context.TODO(), request.NamespacedName, instance)
+	trial := &okeanosv1alpha1.Trial{}
+	err := r.Get(context.TODO(), request.NamespacedName, trial)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			// Object not found, return.  Created objects are automatically garbage collected.
-			// For additional cleanup logic use finalizers.
 			return reconcile.Result{}, nil
 		}
-		// Error reading the object - requeue the request.
 		return reconcile.Result{}, err
 	}
 
-	// TODO(user): Change this to be the object type created by your controller
-	// Define the desired Deployment object
-	deploy := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      instance.Name + "-deployment",
-			Namespace: instance.Namespace,
-		},
-		Spec: appsv1.DeploymentSpec{
-			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"deployment": instance.Name + "-deployment"},
-			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"deployment": instance.Name + "-deployment"}},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Name:  "nginx",
-							Image: "nginx",
-						},
-					},
-				},
-			},
-		},
-	}
-	if err := controllerutil.SetControllerReference(instance, deploy, r.scheme); err != nil {
-		return reconcile.Result{}, err
-	}
-
-	// TODO(user): Change this for the object type created by your controller
-	// Check if the Deployment already exists
-	found := &appsv1.Deployment{}
-	err = r.Get(context.TODO(), types.NamespacedName{Name: deploy.Name, Namespace: deploy.Namespace}, found)
-	if err != nil && errors.IsNotFound(err) {
-		log.Info("Creating Deployment", "namespace", deploy.Namespace, "name", deploy.Name)
-		err = r.Create(context.TODO(), deploy)
-		return reconcile.Result{}, err
-	} else if err != nil {
-		return reconcile.Result{}, err
-	}
-
-	// TODO(user): Change this for the object type created by your controller
-	// Update the found object and write the result back if there are any changes
-	if !reflect.DeepEqual(deploy.Spec, found.Spec) {
-		found.Spec = deploy.Spec
-		log.Info("Updating Deployment", "namespace", deploy.Namespace, "name", deploy.Name)
-		err = r.Update(context.TODO(), found)
-		if err != nil {
+	// Pop a patch off the head of the list and apply it
+	if len(trial.Spec.Patches) > 0 {
+		p := trial.Spec.Patches[0]
+		u := unstructured.Unstructured{}
+		u.SetName(p.Reference.Name)
+		u.SetNamespace(p.Reference.Namespace)
+		u.SetGroupVersionKind(p.Reference.GroupVersionKind())
+		if err := r.Patch(context.TODO(), &u, client.ConstantPatch(p.PatchType, p.Data)); err != nil {
 			return reconcile.Result{}, err
 		}
+
+		trial.Spec.Patches = trial.Spec.Patches[1:]
+		trial.Status.Patched = append(trial.Status.Patched, p.Reference)
+		err = r.Update(context.TODO(), trial)
+		return reconcile.Result{}, err
 	}
+
+	// Wait for a stable (ish) state
+	if trial.Status.End == nil && !trial.Spec.Failed {
+		for _, p := range trial.Status.Patched {
+			switch p.Kind {
+			case "StatefulSet":
+				ss := &appsv1.StatefulSet{}
+				if err := r.Get(context.TODO(), client.ObjectKey{Namespace: p.Namespace, Name: p.Name}, ss); err == nil {
+					// TODO We also need to check for errors, if there are failures we never launch the job
+					if ss.Status.ReadyReplicas < ss.Status.Replicas {
+						return reconcile.Result{Requeue: true, RequeueAfter: 5 * time.Second}, nil
+					}
+				}
+			}
+		}
+	}
+
+	// Find jobs matching the selector
+	opts := &client.ListOptions{Namespace: trial.Namespace}
+	if opts.LabelSelector, err = metav1.LabelSelectorAsSelector(trial.Spec.Selector); err != nil {
+		return reconcile.Result{}, err
+	}
+	jobs := &batchv1.JobList{}
+	if err := r.List(context.TODO(), jobs, client.UseListOptions(opts)); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	// Update the trial run status using the job status
+	var dirty bool
+	for _, job := range jobs.Items {
+		// TODO Do we need to filter on the deletion timestamp?
+		dirty = trial.Status.MergeFromJob(&job.Status)
+		// TODO What about failure state? All pods? Any pods?
+	}
+	if dirty {
+		err = r.Update(context.TODO(), trial)
+		return reconcile.Result{}, err
+	}
+
+	// Create a new job if needed (start may be nil if we created a job but it hasn't started yet)
+	if len(jobs.Items) == 0 {
+		if trial.Spec.Template == nil {
+			return reconcile.Result{}, errors.NewInvalid(trial.GroupVersionKind().GroupKind(), trial.Name, field.ErrorList{
+				field.Required(field.NewPath("spec", "template"), "missing required template"),
+			})
+		}
+
+		job := &batchv1.Job{}
+		job.ObjectMeta = *trial.Spec.Template.ObjectMeta.DeepCopy()
+		job.Spec = *trial.Spec.Template.Spec.DeepCopy()
+
+		job.Name = trial.Name + "-job"
+		if job.Namespace == "" {
+			job.Namespace = trial.Namespace
+		}
+
+		if job.Spec.Template.Spec.RestartPolicy == corev1.RestartPolicyAlways || job.Spec.Template.Spec.RestartPolicy == "" {
+			job.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyNever
+		}
+
+		if err := controllerutil.SetControllerReference(trial, job, r.scheme); err != nil {
+			return reconcile.Result{}, err
+		}
+
+		// TODO What needs to be overwritten?
+		// TODO Apply placeholders? Do we need to serialize to JSON, apply Go template, then deserialize?
+
+		// Before creating the job, make sure we are going to be able to find it again
+		if !opts.LabelSelector.Matches(labels.Set(job.Labels)) {
+			return reconcile.Result{}, errors.NewInvalid(trial.GroupVersionKind().GroupKind(), trial.Name, field.ErrorList{
+				field.Invalid(field.NewPath("spec", "selector"), trial.Spec.Selector, "selector does not match evaluated job template"),
+			})
+		}
+		err = r.Create(context.TODO(), job)
+		return reconcile.Result{}, err
+	}
+
+	if trial.Status.End != nil {
+		// Make sure Prometheus is ready if necessary
+		if res, err := isPrometheusReady(trial.Spec.Queries, trial.Status.End); res.Requeue || err != nil {
+			return res, err
+		}
+
+		trial.Spec.Metrics = make(map[string]string, len(trial.Spec.Queries))
+		for _, m := range trial.Spec.Queries {
+			var value string // TODO Why string?
+			switch m.Type {
+			case "prometheus":
+				// Execute query
+				// TODO Cache these by URL
+				c, err := prom.NewClient(prom.Config{Address: m.URL})
+				if err != nil {
+					return reconcile.Result{}, err
+				}
+				promAPI := promv1.NewAPI(c)
+				v, err := promAPI.Query(context.TODO(), m.Query, trial.Status.End.Time)
+				if err != nil {
+					return reconcile.Result{}, err
+				}
+				// TODO No idea what we are looking at here...
+				value = v.String()
+			case "jsonpath":
+				// Fetch the JSON, evaluate the JSON path
+				data := make(map[string]interface{})
+				if err := fetchJSON(m.URL, data); err != nil {
+					return reconcile.Result{}, err
+				}
+				jp := jsonpath.New(m.Name)
+				if err := jp.Parse(m.Query); err != nil {
+					return reconcile.Result{}, err
+				}
+				values, err := jp.FindResults(data)
+				if err != nil {
+					return reconcile.Result{}, err
+				}
+				// TODO No idea what we are looking for here...
+				for _, v := range values {
+					for _, vv := range v {
+						value = vv.String()
+					}
+				}
+			}
+			trial.Spec.Metrics[m.Name] = value
+		}
+
+		err := r.Update(context.TODO(), trial)
+		return reconcile.Result{}, err
+	}
+
+	return reconcile.Result{}, nil
+}
+
+func fetchJSON(url string, target interface{}) error {
+	// TODO Set accept header
+	r, err := httpClient.Get(url)
+	if err != nil {
+		return err
+	}
+	defer r.Body.Close()
+
+	return json.NewDecoder(r.Body).Decode(target)
+}
+
+// For all Prometheus metrics, checks that the last scrape time is after the end time
+func isPrometheusReady(metrics []okeanosv1alpha1.MetricQuery, endTime *metav1.Time) (reconcile.Result, error) {
+	for _, metric := range metrics {
+		if metric.Type == "prometheus" {
+			c, err := prom.NewClient(prom.Config{Address: metric.URL})
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+			promAPI := promv1.NewAPI(c)
+			ts, err := promAPI.Targets(context.TODO())
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+			for _, t := range ts.Active {
+				if t.LastScrape.Before(endTime.Time) {
+					// TODO Can we make a more informed delay?
+					return reconcile.Result{Requeue: true, RequeueAfter: 5 * time.Second}, nil
+				}
+			}
+		}
+	}
+
 	return reconcile.Result{}, nil
 }
