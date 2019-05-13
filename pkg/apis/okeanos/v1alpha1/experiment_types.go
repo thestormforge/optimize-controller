@@ -3,8 +3,8 @@ package v1alpha1
 import (
 	okeanosclient "github.com/gramLabs/okeanos/pkg/apis/okeanos/client"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -18,26 +18,21 @@ type Parameter struct {
 
 // Metric
 type Metric struct {
-	Name     string `json:"name"`
-	Minimize bool   `json:"minimize,omitempty"`
-	Query    string `json:"query"`          // PromQL or a JSON pointer expression
-	Type     string `json:"type,omitempty"` // "prometheus" (default) or "jsonpath"
-	Path     string `json:"path,omitempty"` // Path appended to the endpoint (used as a prefix for prometheus)
-
-	// TODO How do we select the service and port?
+	Name     string                `json:"name"`
+	Minimize bool                  `json:"minimize,omitempty"`
+	Type     string                `json:"type,omitempty"` // "prometheus" or "jsonpath"
+	Query    string                `json:"query"`          // Type specific query, e.g. PromQL or a JSON pointer expression
+	Path     string                `json:"path,omitempty"` // Path appended to the endpoint (used as a prefix for prometheus)
 	Selector *metav1.LabelSelector `json:"selector,omitempty"`
 	Port     intstr.IntOrString    `json:"endpoint,omitempty"`
 }
 
 // PatchTemplate defines a target resource and a patch template to apply
 type PatchTemplate struct {
-	Type  string `json:"type,omitempty"`
-	Patch string `json:"patch"`
-
-	// TODO How do we select target resources?
-	GVK               schema.GroupVersionKind `json:"gvk,omitempty"`
-	Selector          *metav1.LabelSelector   `json:"selector,omitempty"`
-	NamespaceSelector *metav1.LabelSelector   `json:"namespaceSelector,omitempty"`
+	Type      string                 `json:"type"`
+	Patch     string                 `json:"patch"`
+	TargetRef corev1.ObjectReference `json:"targetRef"`
+	Selector  *metav1.LabelSelector  `json:"selector,omitempty"`
 }
 
 // TODO This whole templating thing is a mess
@@ -83,6 +78,8 @@ type ExperimentSpec struct {
 	// cluster into the desired state
 	Patches []PatchTemplate `json:"patches,omitempty"`
 }
+
+// TODO The remote URL should be replaced with a service so we can reference a cluster IP, and that should proxy in the actual remote
 
 // ExperimentStatus defines the observed state of Experiment
 type ExperimentStatus struct {

@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"github.com/gramLabs/okeanos/pkg/apis/okeanos/client"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // CopyToRemote overwrites the state of the supplied (presumably empty) remote experiment representation with the data
@@ -29,9 +30,39 @@ func (in *Experiment) CopyToRemote(e *client.Experiment) {
 	return
 }
 
+func (in *Experiment) EnsureDefaults() bool {
+	var dirty bool
+
+	dirty = in.ensureReplicas() || dirty
+	dirty = in.ensureLabels() || dirty
+	dirty = in.ensureSelector() || dirty
+
+	return dirty
+}
+
+func (in *Experiment) ensureLabels() bool {
+	if l, ok := in.Spec.Template.Labels["experiment"]; ok && l != "" {
+		return false
+	}
+
+	in.Spec.Template.Labels["experiment"] = in.Name
+
+	return true
+}
+
+func (in *Experiment) ensureSelector() bool {
+	if in.Spec.Selector != nil {
+		return false
+	}
+
+	in.Spec.Selector = metav1.SetAsLabelSelector(in.Spec.Template.Labels)
+
+	return true
+}
+
 // EnsureReplicas makes sure the replicas value is explicitly set to a valid value. If omitted, replicas will be set
 // to the current parallelism configuration, if both values are omitted, a default of 1 is assumed.
-func (in *Experiment) EnsureReplicas() bool {
+func (in *Experiment) ensureReplicas() bool {
 	// If there is an explicit replica count that does not exceed the minimal parallelism we are done
 	if in.Spec.Replicas != nil && (*in.Spec.Replicas == 1 || *in.Spec.Replicas <= in.Spec.Configuration.Parallelism) {
 		return false

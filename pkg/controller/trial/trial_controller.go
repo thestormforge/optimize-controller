@@ -1,9 +1,11 @@
 package trial
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
+	"text/template"
 	"time"
 
 	okeanosv1alpha1 "github.com/gramLabs/okeanos/pkg/apis/okeanos/v1alpha1"
@@ -169,7 +171,8 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 			job.Namespace = trial.Namespace
 		}
 
-		if job.Spec.Template.Spec.RestartPolicy == corev1.RestartPolicyAlways || job.Spec.Template.Spec.RestartPolicy == "" {
+		// The default restart policy for a pod is not acceptable in the context of a job
+		if job.Spec.Template.Spec.RestartPolicy == "" {
 			job.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyNever
 		}
 
@@ -191,35 +194,63 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 	}
 
 	if trial.Status.End != nil {
-		// Make sure Prometheus is ready if necessary
-		if res, err := isPrometheusReady(trial.Spec.Queries, trial.Status.End); res.Requeue || err != nil {
-			return res, err
-		}
+		// Stop querying Prometheus if we know it's ready
+		var promReady bool
 
 		trial.Spec.Metrics = make(map[string]string, len(trial.Spec.Queries))
 		for _, m := range trial.Spec.Queries {
 			var value string // TODO Why string?
 			switch m.Type {
+			case "local", "":
+				// Evaluate the query as template against the trial itself
+				tmpl, err := template.New("query").Parse(m.Query)
+				if err != nil {
+					return reconcile.Result{}, err
+				}
+				buf := new(bytes.Buffer)
+				if err = tmpl.Execute(buf, trial); err != nil { // TODO DeepCopy the trial?
+					return reconcile.Result{}, err
+				}
+
+				// TODO Is this right?
+				value = buf.String()
+
 			case "prometheus":
-				// Execute query
+				// Get the Prometheus client based on the metric URL
 				// TODO Cache these by URL
 				c, err := prom.NewClient(prom.Config{Address: m.URL})
 				if err != nil {
 					return reconcile.Result{}, err
 				}
 				promAPI := promv1.NewAPI(c)
+
+				// Make sure Prometheus is ready
+				if !promReady {
+					var requeueDelay time.Duration
+					if promReady, requeueDelay, err = isPrometheusReady(promAPI, trial.Status.End); err != nil {
+						return reconcile.Result{}, err
+					}
+					if !promReady {
+						return reconcile.Result{Requeue: true, RequeueAfter: requeueDelay}, err
+					}
+				}
+
+				// Execute query
 				v, err := promAPI.Query(context.TODO(), m.Query, trial.Status.End.Time)
 				if err != nil {
 					return reconcile.Result{}, err
 				}
+
 				// TODO No idea what we are looking at here...
 				value = v.String()
+
 			case "jsonpath":
 				// Fetch the JSON, evaluate the JSON path
 				data := make(map[string]interface{})
 				if err := fetchJSON(m.URL, data); err != nil {
 					return reconcile.Result{}, err
 				}
+
 				jp := jsonpath.New(m.Name)
 				if err := jp.Parse(m.Query); err != nil {
 					return reconcile.Result{}, err
@@ -228,6 +259,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 				if err != nil {
 					return reconcile.Result{}, err
 				}
+
 				// TODO No idea what we are looking for here...
 				for _, v := range values {
 					for _, vv := range v {
@@ -256,27 +288,18 @@ func fetchJSON(url string, target interface{}) error {
 	return json.NewDecoder(r.Body).Decode(target)
 }
 
-// For all Prometheus metrics, checks that the last scrape time is after the end time
-func isPrometheusReady(metrics []okeanosv1alpha1.MetricQuery, endTime *metav1.Time) (reconcile.Result, error) {
-	for _, metric := range metrics {
-		if metric.Type == "prometheus" {
-			c, err := prom.NewClient(prom.Config{Address: metric.URL})
-			if err != nil {
-				return reconcile.Result{}, err
-			}
-			promAPI := promv1.NewAPI(c)
-			ts, err := promAPI.Targets(context.TODO())
-			if err != nil {
-				return reconcile.Result{}, err
-			}
-			for _, t := range ts.Active {
-				if t.LastScrape.Before(endTime.Time) {
-					// TODO Can we make a more informed delay?
-					return reconcile.Result{Requeue: true, RequeueAfter: 5 * time.Second}, nil
-				}
-			}
+// For a Prometheus, checks that the last scrape time is after the end time
+func isPrometheusReady(promAPI promv1.API, endTime *metav1.Time) (bool, time.Duration, error) {
+	ts, err := promAPI.Targets(context.TODO())
+	if err != nil {
+		return false, 0, err
+	}
+	for _, t := range ts.Active {
+		if t.LastScrape.Before(endTime.Time) {
+			// TODO Can we make a more informed delay?
+			return false, 5 * time.Second, nil
 		}
 	}
 
-	return reconcile.Result{}, nil
+	return true, 0, nil
 }

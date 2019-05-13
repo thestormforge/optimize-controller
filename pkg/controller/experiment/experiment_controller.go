@@ -103,8 +103,8 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, err
 	}
 
-	// Make sure the number of replicas is explicit
-	if experiment.EnsureReplicas() {
+	// Make sure we have explicit values for some of our defaults
+	if experiment.EnsureDefaults() {
 		err := r.Update(context.TODO(), experiment)
 		return reconcile.Result{}, err
 	}
@@ -276,23 +276,32 @@ func (r *ReconcileExperiment) createTrial(experiment *okeanosv1alpha1.Experiment
 		}
 
 		// Find all of the target objects
-		opts := &client.ListOptions{}
-		if opts.LabelSelector, err = metav1.LabelSelectorAsSelector(p.Selector); err != nil {
-			return reconcile.Result{}, err
-		}
-		list := &unstructured.UnstructuredList{}
-		list.SetGroupVersionKind(p.GVK)
-		if err = r.List(context.TODO(), list, client.UseListOptions(opts)); err != nil {
-			return reconcile.Result{}, err
+		var targets []corev1.ObjectReference
+		if p.TargetRef.Name == "" {
+			opts := &client.ListOptions{}
+			if opts.LabelSelector, err = metav1.LabelSelectorAsSelector(p.Selector); err != nil {
+				return reconcile.Result{}, err
+			}
+			list := &unstructured.UnstructuredList{}
+			list.SetGroupVersionKind(p.TargetRef.GroupVersionKind())
+			if err = r.List(context.TODO(), list, client.UseListOptions(opts)); err != nil {
+				return reconcile.Result{}, err
+			}
+			for _, item := range list.Items {
+				// TODO There isn't a function that does this?
+				targets = append(targets, corev1.ObjectReference{
+					Kind:       item.GetKind(),
+					Name:       item.GetName(),
+					Namespace:  item.GetNamespace(),
+					APIVersion: item.GetAPIVersion(),
+				})
+			}
+		} else {
+			targets = []corev1.ObjectReference{p.TargetRef}
 		}
 
 		// For each target resource, record a copy of the patch
-		for _, u := range list.Items {
-			ref := corev1.ObjectReference{
-				Name:      u.GetName(),
-				Namespace: u.GetNamespace(),
-			}
-			ref.SetGroupVersionKind(u.GroupVersionKind())
+		for _, ref := range targets {
 			trial.Spec.Patches = append(trial.Spec.Patches, okeanosv1alpha1.Patch{
 				PatchType: pt,
 				Data:      buf.Bytes(),
@@ -302,35 +311,45 @@ func (r *ReconcileExperiment) createTrial(experiment *okeanosv1alpha1.Experiment
 	}
 
 	for _, m := range experiment.Spec.Metrics {
-		// Find services matching the selector
-		opts := &client.ListOptions{}
-		if opts.LabelSelector, err = metav1.LabelSelectorAsSelector(m.Selector); err != nil {
-			return reconcile.Result{}, err
-		}
-		services := &corev1.ServiceList{}
-		if err := r.List(context.TODO(), services, client.UseListOptions(opts)); err != nil {
-			return reconcile.Result{}, err
-		}
-		for _, s := range services.Items {
-			port := m.Port.IntValue()
-			if port < 1 {
-				for _, sp := range s.Spec.Ports {
-					if m.Port.StrVal == sp.Name {
-						port = int(sp.Port)
-					}
-				}
-			}
-
-			// TODO Build this URL properly
-			thisIsBad, err := url.Parse(fmt.Sprintf("http://%s:%d%s", s.Spec.ClusterIP, port, m.Path))
-			if err != nil {
+		var urls []string
+		if m.Selector != nil {
+			// Find services matching the selector
+			opts := &client.ListOptions{}
+			if opts.LabelSelector, err = metav1.LabelSelectorAsSelector(m.Selector); err != nil {
 				return reconcile.Result{}, err
 			}
+			services := &corev1.ServiceList{}
+			if err := r.List(context.TODO(), services, client.UseListOptions(opts)); err != nil {
+				return reconcile.Result{}, err
+			}
+			for _, s := range services.Items {
+				port := m.Port.IntValue()
+				if port < 1 {
+					for _, sp := range s.Spec.Ports {
+						if m.Port.StrVal == sp.Name {
+							port = int(sp.Port)
+						}
+					}
+				}
 
+				// TODO Build this URL properly
+				thisIsBad, err := url.Parse(fmt.Sprintf("http://%s:%d%s", s.Spec.ClusterIP, port, m.Path))
+				if err != nil {
+					return reconcile.Result{}, err
+				}
+				urls = append(urls, thisIsBad.String())
+			}
+		} else {
+			// If there is no service selector, just use an empty URL
+			urls = append(urls, "")
+		}
+
+		// Add a metric query for every URL
+		for _, u := range urls {
 			trial.Spec.Queries = append(trial.Spec.Queries, okeanosv1alpha1.MetricQuery{
 				Name:  m.Name,
 				Type:  m.Type,
-				URL:   thisIsBad.String(),
+				URL:   u,
 				Query: m.Query,
 			})
 		}

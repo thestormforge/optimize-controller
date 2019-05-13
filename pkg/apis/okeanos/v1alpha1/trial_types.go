@@ -11,7 +11,7 @@ import (
 type Patch struct {
 	PatchType types.PatchType        `json:"patchType"`
 	Data      []byte                 `json:"data"`
-	Reference corev1.ObjectReference `json:"keys"`
+	Reference corev1.ObjectReference `json:"keys"` // Name this `TargetRef`?
 }
 
 // MetricQuery represents the retrieval of a metric value from a specific service within the cluster
