@@ -30,14 +30,29 @@ func (in *Experiment) CopyToRemote(e *client.Experiment) {
 	return
 }
 
-func (in *Experiment) EnsureDefaults() bool {
-	var dirty bool
+// GetReplicas returns the effective replica (trial) count for the experiment. The number of replicas is bound by
+// the optimization's parallelism configuration and may be zero to indicate the experiment is paused or complete.
+func (in *Experiment) GetReplicas() int {
+	if in.Spec.Replicas != nil && (*in.Spec.Replicas == 1 || *in.Spec.Replicas <= in.Spec.Configuration.Parallelism) {
+		return int(*in.Spec.Replicas)
+	}
+	if in.Spec.Configuration.Parallelism > 0 {
+		return int(in.Spec.Configuration.Parallelism)
+	}
+	return 1
+}
 
-	dirty = in.ensureReplicas() || dirty
-	dirty = in.ensureLabels() || dirty
-	dirty = in.ensureSelector() || dirty
-
-	return dirty
+// SetReplicas establishes a new replica (trial) count for the experiment. The value is adjusted to ensure it remains
+// between 0 and the configured parallelism (inclusive).
+func (in *Experiment) SetReplicas(r int) {
+	replicas := int32(r)
+	if replicas < 0 {
+		replicas = 0
+	}
+	if in.Spec.Configuration.Parallelism > 0 && replicas > in.Spec.Configuration.Parallelism {
+		replicas = in.Spec.Configuration.Parallelism
+	}
+	in.Spec.Replicas = &replicas
 }
 
 func (in *Experiment) ensureLabels() bool {
@@ -57,21 +72,5 @@ func (in *Experiment) ensureSelector() bool {
 
 	in.Spec.Selector = metav1.SetAsLabelSelector(in.Spec.Template.Labels)
 
-	return true
-}
-
-// EnsureReplicas makes sure the replicas value is explicitly set to a valid value. If omitted, replicas will be set
-// to the current parallelism configuration, if both values are omitted, a default of 1 is assumed.
-func (in *Experiment) ensureReplicas() bool {
-	// If there is an explicit replica count that does not exceed the minimal parallelism we are done
-	if in.Spec.Replicas != nil && (*in.Spec.Replicas == 1 || *in.Spec.Replicas <= in.Spec.Configuration.Parallelism) {
-		return false
-	}
-
-	replicas := int32(1)
-	if in.Spec.Configuration.Parallelism > 0 {
-		replicas = in.Spec.Configuration.Parallelism
-	}
-	in.Spec.Replicas = &replicas
 	return true
 }

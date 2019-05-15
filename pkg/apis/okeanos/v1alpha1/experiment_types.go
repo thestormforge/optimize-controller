@@ -35,18 +35,10 @@ type PatchTemplate struct {
 	Selector  *metav1.LabelSelector  `json:"selector,omitempty"`
 }
 
-// TODO This whole templating thing is a mess
-
-// Trial template is the user configurable part of the trial
-type TrialTemplate struct {
-	Selector *metav1.LabelSelector         `json:"selector,omitempty"`
-	Template *batchv1beta1.JobTemplateSpec `json:"template"`
-}
-
 // TrialTemplateSpec is used as a template for creating new trials
 type TrialTemplateSpec struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              TrialTemplate `json:"spec"`
+	Spec              TrialSpec `json:"spec"`
 }
 
 // ExperimentSpec defines the desired state of Experiment
@@ -57,9 +49,6 @@ type ExperimentSpec struct {
 	Metrics []Metric `json:"metrics,omitempty"`
 	// Configuration defines the optimization specific configuration options
 	Configuration okeanosclient.Configuration `json:"configuration,omitempty"`
-	// RemoteURL is a reference to the experiment on the remote optimization service. If left blank an attempt will be
-	// made to generate a value and the corresponding remote resource.
-	RemoteURL string `json:"remoteURL,omitempty"`
 	// Replicas is the number of trials to execute at once. It must be no greater then the parallelism defined in the
 	// optimization configuration (which will be used as a default if replicas is left unspecified). When running an
 	// experiment in multiple clusters, the sum of all the replica counts should be used as the parallelism.
@@ -77,13 +66,12 @@ type ExperimentSpec struct {
 	// Patches is a sequence of templates written against the experiment parameters that will be used to put the
 	// cluster into the desired state
 	Patches []PatchTemplate `json:"patches,omitempty"`
+	// JobTemplate is the template used to create trial run jobs
+	JobTemplate *batchv1beta1.JobTemplateSpec `json:"jobTemplate"`
 }
-
-// TODO The remote URL should be replaced with a service so we can reference a cluster IP, and that should proxy in the actual remote
 
 // ExperimentStatus defines the observed state of Experiment
 type ExperimentStatus struct {
-	SuggestionURL string `json:"suggestionURL,omitempty"`
 }
 
 // +genclient

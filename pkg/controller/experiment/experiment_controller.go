@@ -7,17 +7,13 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"text/template"
 	"time"
 
 	okeanosclient "github.com/gramLabs/okeanos/pkg/apis/okeanos/client"
 	okeanosv1alpha1 "github.com/gramLabs/okeanos/pkg/apis/okeanos/v1alpha1"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -103,14 +99,9 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, err
 	}
 
-	// Make sure we have explicit values for some of our defaults
-	if experiment.EnsureDefaults() {
-		err := r.Update(context.TODO(), experiment)
-		return reconcile.Result{}, err
-	}
-
-	// Define experiment on the server
-	if experiment.Spec.RemoteURL == "" && baseUrl != nil {
+	// Define the experiment on the server
+	experimentURL := experiment.GetAnnotations()["okeanos.carbonrelay.com/experiment-url"]
+	if experimentURL == "" && baseUrl != nil {
 		// TODO This is bad, how do we avoid constructing the URL?
 		remoteUrl := baseUrl
 		if remoteUrl, err = url.Parse("/experiment/"); err != nil {
@@ -128,16 +119,17 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 			return reconcile.Result{}, err
 		}
 
-		// Update the remote URL, will create a new reconcile request
-		experiment.Spec.RemoteURL = remoteUrl.String()
+		// Update the experiment URL, will create a new reconcile request
+		experiment.GetAnnotations()["okeanos.carbonrelay.com/experiment-url"] = remoteUrl.String()
 		err := r.Update(context.TODO(), experiment)
 		return reconcile.Result{}, err
 	}
 
-	// Update the URL used to obtain suggestions
-	if experiment.Status.SuggestionURL == "" && experiment.Spec.RemoteURL != "" && *experiment.Spec.Replicas > 0 {
+	// Update the URL used to obtain suggestions (only populated by server after PUT)
+	suggestionURL := experiment.GetAnnotations()["okeanos.carbonrelay.com/suggestion-url"]
+	if suggestionURL == "" && experimentURL != "" && experiment.GetReplicas() > 0 {
 		e := &okeanosclient.Experiment{}
-		if err := getJSON(experiment.Spec.RemoteURL, e); err != nil {
+		if err := getJSON(experimentURL, e); err != nil {
 			// Unable to fetch the remote experiment - requeue the request
 			return reconcile.Result{}, err
 		}
@@ -147,7 +139,7 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 		// The suggestion reference may be missing because the experiment isn't producing suggestions anymore
 		if e.SuggestionRef != "" {
 			log.Info("Obtaining suggestions from: %s", e.SuggestionRef)
-			experiment.Status.SuggestionURL = e.SuggestionRef
+			experiment.GetAnnotations()["okeanos.carbonrelay.com/suggestion-url"] = e.SuggestionRef
 			err := r.Update(context.TODO(), experiment)
 			return reconcile.Result{}, err
 		}
@@ -167,15 +159,15 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 	// TODO Is this something that should be implemented as a finalizer on the trial?
 	for _, t := range list.Items {
 		// TODO Is it necessary to filter deleted objects? Should that be a field selector on the List operation?
-		if (t.Status.End != nil || t.Spec.Failed) && t.DeletionTimestamp == nil {
+		if (t.Status.CompletionTime != nil || t.Status.Failed) && t.DeletionTimestamp == nil {
 			// Post the observation
 			log.Info("Creating remote observation", "trialName", t.Name)
-			err := postJSON(t.Spec.RemoteURL, &okeanosclient.Observation{
-				// TODO If the time is missing, use metadata from the trial itself
-				Start:   &t.Status.Start.Time,
-				End:     &t.Status.End.Time,
-				Failed:  t.Spec.Failed,
-				Metrics: nil, // TODO How do we build this map?
+			err := postJSON(t.GetAnnotations()["okeanos.carbonrelay.com/suggestion-url"], &okeanosclient.Observation{
+				// TODO If the time is missing, use metadata from the trial itself (e.g. patch or wait failed)
+				Start:   &t.Status.StartTime.Time,
+				End:     &t.Status.CompletionTime.Time,
+				Failed:  t.Status.Failed,
+				Metrics: t.Spec.Metrics,
 			})
 			if err != nil {
 				// The observation was not accepted, requeue the request
@@ -189,170 +181,58 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Add additional trials as needed
-	if experiment.Status.SuggestionURL != "" && len(list.Items) < int(*experiment.Spec.Replicas) {
+	if suggestionURL != "" && len(list.Items) < experiment.GetReplicas() {
 		trial := &okeanosv1alpha1.Trial{}
-		if result, err := r.createTrial(experiment, trial); result.Requeue || err != nil {
+		experiment.Spec.Template.ObjectMeta.DeepCopyInto(&trial.ObjectMeta)
+		experiment.Spec.Template.Spec.DeepCopyInto(&trial.Spec)
+
+		if trial.Name == "" {
+			trial.Name = experiment.Name + "-trial"
+		}
+		// TODO Namespace?
+
+		trial.Labels["experiment"] = experiment.Name
+		if trial.Spec.Selector == nil {
+			trial.Spec.Selector = metav1.SetAsLabelSelector(trial.Labels)
+		}
+
+		s, err := httpClient.Post(suggestionURL, "application/octet-stream", nil)
+		if err != nil {
 			return reconcile.Result{}, err
+		}
+		defer s.Body.Close()
+
+		data := &okeanosclient.Suggestion{}
+		if s.StatusCode >= 200 && s.StatusCode < 300 {
+			// Add the suggestions to the trial
+			if err = json.NewDecoder(s.Body).Decode(data); err != nil {
+				return reconcile.Result{}, err
+			}
+			trial.Spec.Suggestions = data.Values
+
+			// Preserve the location of the suggestion we obtained
+			trial.GetAnnotations()["okeanos.carbonrelay.com/suggestion-url"] = s.Header.Get("Location")
+		} else {
+			switch s.StatusCode {
+			case http.StatusGone:
+				// There are no more suggestions, stop the experiment
+				experiment.SetReplicas(0)
+				experiment.GetAnnotations()["okeanos.carbonrelay.com/suggestion-url"] = ""
+				err = r.Update(context.TODO(), experiment)
+				return reconcile.Result{}, err
+			case http.StatusServiceUnavailable:
+				// The optimization service does not have available suggestions, give it a few seconds
+				// TODO Get the expected timeout from the error response
+				return reconcile.Result{Requeue: true, RequeueAfter: 5 * time.Second}, nil
+			default:
+				return reconcile.Result{}, fmt.Errorf("failed to obtain a suggestion: %s", s.Status)
+			}
 		}
 		if err := controllerutil.SetControllerReference(experiment, trial, r.scheme); err != nil {
 			return reconcile.Result{}, err
 		}
 		err = r.Create(context.TODO(), trial)
 		return reconcile.Result{}, err
-	}
-
-	return reconcile.Result{}, nil
-}
-
-func (r *ReconcileExperiment) createTrial(experiment *okeanosv1alpha1.Experiment, trial *okeanosv1alpha1.Trial) (reconcile.Result, error) {
-	// Copy the template into the trial
-	trial.ObjectMeta = *experiment.Spec.Template.ObjectMeta.DeepCopy()
-	if trial.Name == "" {
-		trial.Name = experiment.Name + "-trial"
-	}
-	if experiment.Spec.Template.Spec.Template != nil {
-		trial.Spec.Template = experiment.Spec.Template.Spec.Template.DeepCopy()
-	}
-	if experiment.Spec.Template.Spec.Selector != nil {
-		trial.Spec.Selector = experiment.Spec.Template.Spec.Selector.DeepCopy()
-	}
-
-	// TODO Find a namespace that isn't already being used
-
-	s, err := httpClient.Post(experiment.Status.SuggestionURL, "application/octet-stream", nil)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-	defer s.Body.Close()
-
-	data := &okeanosclient.Suggestion{}
-	if s.StatusCode >= 200 && s.StatusCode < 300 {
-		// Preserve the location of the suggestion and parse the response body
-		trial.Spec.RemoteURL = s.Header.Get("Location")
-		if err = json.NewDecoder(s.Body).Decode(data); err != nil {
-			return reconcile.Result{}, err
-		}
-		// TODO Copy data.Values into trial.Status.Suggestions
-	} else {
-		switch s.StatusCode {
-		case http.StatusGone:
-			// There are no more suggestions, stop the experiment
-			replicas := int32(0)
-			experiment.Spec.Replicas = &replicas
-			experiment.Status.SuggestionURL = ""
-			err = r.Update(context.TODO(), experiment)
-			return reconcile.Result{}, err
-		case http.StatusServiceUnavailable:
-			// The optimization service does not have available suggestions, give it a few seconds
-			// TODO Get the expected timeout from the error response
-			return reconcile.Result{Requeue: true, RequeueAfter: 5 * time.Second}, nil
-		default:
-			return reconcile.Result{}, fmt.Errorf("failed to obtain a suggestion: %s", s.Status)
-		}
-	}
-
-	for _, p := range experiment.Spec.Patches {
-		// Determine the patch type
-		var pt types.PatchType
-		switch p.Type {
-		case "json":
-			pt = types.JSONPatchType
-		case "merge":
-			pt = types.MergePatchType
-		case "strategic":
-			pt = types.StrategicMergePatchType
-		default:
-			return reconcile.Result{}, fmt.Errorf("unknown patch type: %s", p.Type)
-		}
-
-		// Evaluate the template into a patch
-		tmpl, err := template.New("patch").Parse(p.Patch)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-		buf := new(bytes.Buffer)
-		if err = tmpl.Execute(buf, data); err != nil {
-			return reconcile.Result{}, err
-		}
-
-		// Find all of the target objects
-		var targets []corev1.ObjectReference
-		if p.TargetRef.Name == "" {
-			opts := &client.ListOptions{}
-			if opts.LabelSelector, err = metav1.LabelSelectorAsSelector(p.Selector); err != nil {
-				return reconcile.Result{}, err
-			}
-			list := &unstructured.UnstructuredList{}
-			list.SetGroupVersionKind(p.TargetRef.GroupVersionKind())
-			if err = r.List(context.TODO(), list, client.UseListOptions(opts)); err != nil {
-				return reconcile.Result{}, err
-			}
-			for _, item := range list.Items {
-				// TODO There isn't a function that does this?
-				targets = append(targets, corev1.ObjectReference{
-					Kind:       item.GetKind(),
-					Name:       item.GetName(),
-					Namespace:  item.GetNamespace(),
-					APIVersion: item.GetAPIVersion(),
-				})
-			}
-		} else {
-			targets = []corev1.ObjectReference{p.TargetRef}
-		}
-
-		// For each target resource, record a copy of the patch
-		for _, ref := range targets {
-			trial.Spec.Patches = append(trial.Spec.Patches, okeanosv1alpha1.Patch{
-				PatchType: pt,
-				Data:      buf.Bytes(),
-				Reference: ref,
-			})
-		}
-	}
-
-	for _, m := range experiment.Spec.Metrics {
-		var urls []string
-		if m.Selector != nil {
-			// Find services matching the selector
-			opts := &client.ListOptions{}
-			if opts.LabelSelector, err = metav1.LabelSelectorAsSelector(m.Selector); err != nil {
-				return reconcile.Result{}, err
-			}
-			services := &corev1.ServiceList{}
-			if err := r.List(context.TODO(), services, client.UseListOptions(opts)); err != nil {
-				return reconcile.Result{}, err
-			}
-			for _, s := range services.Items {
-				port := m.Port.IntValue()
-				if port < 1 {
-					for _, sp := range s.Spec.Ports {
-						if m.Port.StrVal == sp.Name {
-							port = int(sp.Port)
-						}
-					}
-				}
-
-				// TODO Build this URL properly
-				thisIsBad, err := url.Parse(fmt.Sprintf("http://%s:%d%s", s.Spec.ClusterIP, port, m.Path))
-				if err != nil {
-					return reconcile.Result{}, err
-				}
-				urls = append(urls, thisIsBad.String())
-			}
-		} else {
-			// If there is no service selector, just use an empty URL
-			urls = append(urls, "")
-		}
-
-		// Add a metric query for every URL
-		for _, u := range urls {
-			trial.Spec.Queries = append(trial.Spec.Queries, okeanosv1alpha1.MetricQuery{
-				Name:  m.Name,
-				Type:  m.Type,
-				URL:   u,
-				Query: m.Query,
-			})
-		}
 	}
 
 	return reconcile.Result{}, nil

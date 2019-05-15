@@ -1,45 +1,50 @@
 package v1alpha1
 
 import (
-	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
-// Patch represents a required change to the cluster state that has not yet been made
-type Patch struct {
+type Values map[string]interface{}
+
+type Outcomes map[string]interface{}
+
+type PatchOperation struct {
+	TargetRef corev1.ObjectReference `json:"targetRef"`
 	PatchType types.PatchType        `json:"patchType"`
 	Data      []byte                 `json:"data"`
-	Reference corev1.ObjectReference `json:"keys"` // Name this `TargetRef`?
+	Pending   bool                   `json:"pending,omitempty"`
 }
 
-// MetricQuery represents the retrieval of a metric value from a specific service within the cluster
+// Pending is a stretch to be in the status, technically one can determine it's value by looking at cluster state
+// and confirming re-application of the patch results in a different state
+
 type MetricQuery struct {
-	Name  string `json:"name"`
-	Type  string `json:"type"`
-	URL   string `json:"url"`
-	Query string `json:"query"`
+	Name       string `json:"name"`
+	MetricType string `json:"metricType,omitempty"`
+	Query      string `json:"query"`
+	URL        string `json:"url,omitempty"`
 }
 
 // TrialSpec defines the desired state of Trial
 type TrialSpec struct {
-	RemoteURL string                        `json:"remoteURL"`
-	Patches   []Patch                       `json:"patches,omitempty"`
-	Queries   []MetricQuery                 `json:"queries,omitempty"`
-	Selector  *metav1.LabelSelector         `json:"selector,omitempty"`
-	Template  *batchv1beta1.JobTemplateSpec `json:"template"`
-	Metrics   map[string]string             `json:"metrics,omitempty"` // TODO This should be generic, not strings...
-	Failed    bool                          `json:"failed,omitempty"`
+	ExperimentRef *corev1.ObjectReference `json:"experimentRef,omitempty"` // Defaults to experiment with same name
+	Suggestions   Values                  `json:"suggestions"`
+	Metrics       Outcomes                `json:"metrics"`
+	Selector      *metav1.LabelSelector   `json:"selector,omitempty"`
 }
 
 // TrialStatus defines the observed state of Trial
 type TrialStatus struct {
-	Suggestions map[string]string        `json:"suggestions,omitempty"` // TODO This should be generic not strings...
-	Patched     []corev1.ObjectReference `json:"patched,omitempty"`
-	Start       *metav1.Time             `json:"start,omitempty"`
-	End         *metav1.Time             `json:"end,omitempty"`
+	PatchOperations []PatchOperation `json:"patchOperations,omitempty"`
+	MetricQueries   []MetricQuery    `json:"metricQueries,omitempty"`
+	StartTime       *metav1.Time     `json:"startTime,omitempty"`
+	CompletionTime  *metav1.Time     `json:"completionTime,omitempty"`
+	Failed          bool             `json:"failed,omitempty"` // Can be true without a job if patches or waits fail
 }
+
+// TODO Trial conditions: Patched, Wait?, Complete, Failed
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

@@ -8,8 +8,6 @@ import (
 	"github.com/onsi/gomega"
 	"golang.org/x/net/context"
 	batchv1 "k8s.io/api/batch/v1"
-	batchv1beta1 "k8s.io/api/batch/v1beta1"
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -32,28 +30,17 @@ func TestReconcile(t *testing.T) {
 		Spec: okeanosv1alpha1.TrialSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"test": "foo",
+					"experiment": "foo",
 				},
 			},
-			Template: &batchv1beta1.JobTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						"test": "foo",
-					},
-				},
-				Spec: batchv1.JobSpec{
-					Template: corev1.PodTemplateSpec{
-						Spec: corev1.PodSpec{
-							Containers: []corev1.Container{
-								{
-									Name:    "foobar",
-									Image:   "busybox",
-									Command: []string{"sleep", "10"},
-								},
-							},
-						},
-					},
-				},
+		},
+		Status: okeanosv1alpha1.TrialStatus{
+			// We need this status to bypass the experiment lookup
+			PatchOperations: []okeanosv1alpha1.PatchOperation{
+				{},
+			},
+			MetricQueries: []okeanosv1alpha1.MetricQuery{
+				{},
 			},
 		},
 	}
