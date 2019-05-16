@@ -11,6 +11,7 @@ import (
 
 	okeanosclient "github.com/gramLabs/okeanos/pkg/apis/okeanos/client"
 	okeanosv1alpha1 "github.com/gramLabs/okeanos/pkg/apis/okeanos/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -187,13 +188,23 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 		experiment.Spec.Template.Spec.DeepCopyInto(&trial.Spec)
 
 		if trial.Name == "" {
-			trial.Name = experiment.Name + "-trial"
+			trial.Name = experiment.Name
 		}
 		// TODO Namespace?
 
 		trial.Labels["experiment"] = experiment.Name
 		if trial.Spec.Selector == nil {
 			trial.Spec.Selector = metav1.SetAsLabelSelector(trial.Labels)
+		}
+
+		if trial.Spec.ExperimentRef == nil {
+			// TODO There isn't a function that does this?
+			trial.Spec.ExperimentRef = &corev1.ObjectReference{
+				Kind:       experiment.TypeMeta.Kind,
+				Name:       experiment.GetName(),
+				Namespace:  experiment.GetNamespace(),
+				APIVersion: experiment.TypeMeta.APIVersion,
+			}
 		}
 
 		s, err := httpClient.Post(suggestionURL, "application/octet-stream", nil)
