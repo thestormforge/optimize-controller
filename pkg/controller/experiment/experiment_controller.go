@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"time"
 
 	okeanosclient "github.com/gramLabs/okeanos/pkg/apis/okeanos/client"
@@ -26,10 +27,6 @@ import (
 )
 
 var log = logf.Log.WithName("controller")
-
-// TODO Make this configurable at start up or as part of the manager configuration
-// TODO An empty string effectively disables server communication
-var baseUrl *url.URL
 
 // TODO We need some type of client util to encapsulate this
 var httpClient = &http.Client{Timeout: 10 * time.Second}
@@ -102,27 +99,22 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 
 	// Define the experiment on the server
 	experimentURL := experiment.GetAnnotations()["okeanos.carbonrelay.com/experiment-url"]
-	if experimentURL == "" && baseUrl != nil {
-		// TODO This is bad, how do we avoid constructing the URL?
-		remoteUrl := baseUrl
-		if remoteUrl, err = url.Parse("/experiment/"); err != nil {
-			return reconcile.Result{}, err
-		}
-		if remoteUrl, err = url.Parse(url.PathEscape(experiment.Name)); err != nil {
-			return reconcile.Result{}, err
-		}
+	baseURL := os.Getenv("OKEANOS_BASE_URL")
+	if experimentURL == "" && baseURL != "" {
+		// TODO We need to avoid hard coded URL
+		experimentURL = baseURL + "/experiment/" + url.PathEscape(experiment.Name)
 
 		e := &okeanosclient.Experiment{}
 		experiment.CopyToRemote(e)
-		log.Info("Creating remote experiment", "remoteUrl", remoteUrl)
-		if err = putJSON(remoteUrl.String(), e); err != nil {
+		log.Info("Creating remote experiment", "experimentURL", experimentURL)
+		if err = putJSON(experimentURL, e); err != nil {
 			// Error posting the representation - requeue the request.
 			return reconcile.Result{}, err
 		}
 
 		// Update the experiment URL, will create a new reconcile request
-		experiment.GetAnnotations()["okeanos.carbonrelay.com/experiment-url"] = remoteUrl.String()
-		err := r.Update(context.TODO(), experiment)
+		experiment.GetAnnotations()["okeanos.carbonrelay.com/experiment-url"] = experimentURL
+		err = r.Update(context.TODO(), experiment)
 		return reconcile.Result{}, err
 	}
 
