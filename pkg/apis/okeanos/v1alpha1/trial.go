@@ -49,25 +49,12 @@ func (in *TrialStatus) MergeFromJob(j *batchv1.JobStatus) bool {
 
 // Manually write the deep copy method because of the empty interface usage
 
-func (in *Values) DeepCopy() *Values {
+func (in *Assignments) DeepCopy() *Assignments {
 	if in == nil {
 		return nil
 	}
-	out := Values(make(map[string]interface{}, len(*in)))
+	out := Assignments(make(map[string]interface{}, len(*in)))
 	for key, val := range *in {
-		// TODO Check `val` to see if it needs to be deep copied?
-		out[key] = val
-	}
-	return &out
-}
-
-func (in *Outcomes) DeepCopy() *Outcomes {
-	if in == nil {
-		return nil
-	}
-	out := Outcomes(make(map[string]interface{}, len(*in)))
-	for key, val := range *in {
-		// TODO Check `val` to see if it needs to be deep copied?
 		out[key] = val
 	}
 	return &out

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"text/template"
 	"time"
 
@@ -128,12 +129,11 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 			}
 
 			// Evaluate the template into a patch
-			// TODO We need the utility functions
 			tmpl, err := template.New("patch").Funcs(templateFunctions()).Parse(p.Patch)
 			if err != nil {
 				return reconcile.Result{}, err
 			}
-			data := patchContext{Values: trial.Spec.Suggestions}
+			data := patchContext{Values: trial.Spec.Assignments}
 			buf := new(bytes.Buffer)
 			if err = tmpl.Execute(buf, data); err != nil {
 				return reconcile.Result{}, err
@@ -376,14 +376,16 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 
 	if trial.Status.CompletionTime != nil {
 		// Only allocate for a single metric at a time
-		if trial.Spec.Metrics == nil {
-			trial.Spec.Metrics = make(map[string]interface{}, 1)
+		if trial.Spec.Values == nil {
+			trial.Spec.Values = make(map[string]float64, 1)
 		}
 
 		for _, m := range trial.Status.MetricQueries {
-			if _, ok := trial.Spec.Metrics[m.Name]; !ok {
-				var value string // TODO Why string?
+			if _, ok := trial.Spec.Values[m.Name]; !ok {
+				var value string
 				switch m.MetricType {
+				// TODO Add support for regex extraction over a resource
+
 				case "local", "":
 					// Evaluate the query as template against the trial itself
 					tmpl, err := template.New("query").Funcs(templateFunctions()).Parse(m.Query)
@@ -395,8 +397,6 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 						return reconcile.Result{}, err
 					}
 					value = buf.String()
-
-					// TODO Add support for regex extraction over a resource
 
 				case "prometheus":
 					// Get the Prometheus client based on the metric URL
@@ -449,7 +449,11 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 						}
 					}
 				}
-				trial.Spec.Metrics[m.Name] = value
+
+				trial.Spec.Values[m.Name], err = strconv.ParseFloat(value, 64)
+				if err != nil {
+					return reconcile.Result{}, err
+				}
 
 				err := r.Update(context.TODO(), trial)
 				return reconcile.Result{}, err
@@ -493,6 +497,6 @@ func templateFunctions() template.FuncMap {
 	}
 }
 
-func templateDuration(start, completion metav1.Time) time.Duration {
-	return completion.Sub(start.Time)
+func templateDuration(start, completion metav1.Time) float64 {
+	return completion.Sub(start.Time).Seconds()
 }

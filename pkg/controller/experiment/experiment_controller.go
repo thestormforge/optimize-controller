@@ -102,10 +102,11 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 	experimentURL := experiment.GetAnnotations()["okeanos.carbonrelay.com/experiment-url"]
 	baseURL := os.Getenv("OKEANOS_BASE_URL") // TODO What is a better way to detect this?
 	if experimentURL == "" && baseURL != "" {
+		n := okeanosapi.NewExperimentName(experiment.Name)
 		e := &okeanosapi.Experiment{}
 		experiment.CopyToRemote(e)
 		log.Info("Creating remote experiment", "experimentURL", experimentURL)
-		if experimentURL, err = r.api.PutExperiment(context.TODO(), experiment.Name, *e); err != nil {
+		if experimentURL, err = r.api.PutExperiment(context.TODO(), n, *e); err != nil {
 			// Error posting the representation - requeue the request.
 			return reconcile.Result{}, err
 		}
@@ -152,12 +153,18 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 		// TODO Is it necessary to filter deleted objects? Should that be a field selector on the List operation?
 		if (t.Status.CompletionTime != nil || t.Status.Failed) && t.DeletionTimestamp == nil {
 			// Post the observation
+			values := make([]okeanosapi.Value, len(t.Spec.Values))
+			for k, v := range t.Spec.Values {
+				values = append(values, okeanosapi.Value{
+					Name:  k,
+					Value: v,
+					// TODO Error is the standard deviation for the metric
+				})
+			}
 			log.Info("Creating remote observation", "trialName", t.Name)
 			err = r.api.ReportObservation(context.TODO(), t.GetAnnotations()["okeanos.carbonrelay.com/suggestion-url"], okeanosapi.Observation{
-				Start:   &t.Status.StartTime.Time,
-				End:     &t.Status.CompletionTime.Time,
-				Failed:  t.Status.Failed,
-				Metrics: t.Spec.Metrics,
+				Failed: t.Status.Failed,
+				Values: values,
 			})
 			if err != nil {
 				// The observation was not accepted, requeue the request
@@ -212,7 +219,7 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 			}
 			return reconcile.Result{}, err
 		}
-		trial.Spec.Suggestions = s.Values
+		trial.Spec.Assignments = s.Assignments
 		trial.GetAnnotations()["okeanos.carbonrelay.com/suggestion-url"] = l
 
 		if err := controllerutil.SetControllerReference(experiment, trial, r.scheme); err != nil {

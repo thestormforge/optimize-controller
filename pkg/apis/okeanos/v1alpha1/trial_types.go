@@ -6,9 +6,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-type Values map[string]interface{}
-
-type Outcomes map[string]interface{}
+// Assignments is a type alias for a generic string to value map
+type Assignments map[string]interface{}
 
 type PatchOperation struct {
 	TargetRef corev1.ObjectReference `json:"targetRef"`
@@ -16,9 +15,6 @@ type PatchOperation struct {
 	Data      []byte                 `json:"data"`
 	Pending   bool                   `json:"pending,omitempty"`
 }
-
-// Pending is a stretch to be in the status, technically one can determine it's value by looking at cluster state
-// and confirming re-application of the patch results in a different state
 
 type MetricQuery struct {
 	Name       string `json:"name"`
@@ -30,8 +26,8 @@ type MetricQuery struct {
 // TrialSpec defines the desired state of Trial
 type TrialSpec struct {
 	ExperimentRef *corev1.ObjectReference `json:"experimentRef,omitempty"` // Defaults to experiment with same name
-	Suggestions   Values                  `json:"suggestions"`
-	Metrics       Outcomes                `json:"metrics"`
+	Assignments   Assignments             `json:"assignments"`
+	Values        map[string]float64      `json:"values"`
 	Selector      *metav1.LabelSelector   `json:"selector,omitempty"`
 }
 
@@ -44,6 +40,7 @@ type TrialStatus struct {
 	Failed          bool             `json:"failed,omitempty"` // Can be true without a job if patches or waits fail
 }
 
+// TODO Server side formatting, can display the suggestions and metrics in the default output?
 // TODO Trial conditions: Patched, Wait?, Complete, Failed
 
 // +genclient

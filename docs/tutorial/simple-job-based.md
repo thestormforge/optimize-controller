@@ -96,7 +96,7 @@ kind: Trial
 metadata:
   name: logstash-benchmark
 spec:
-  suggestions:
+  assignments:
     batchSize: 256
     workers: 2
 ```

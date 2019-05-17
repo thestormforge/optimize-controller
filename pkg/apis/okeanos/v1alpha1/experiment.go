@@ -12,13 +12,13 @@ func (in *Experiment) CopyToRemote(e *client.Experiment) {
 	e.Parameters = nil
 	for _, p := range in.Spec.Parameters {
 		e.Parameters = append(e.Parameters, client.Parameter{
-			Name: p.Name,
+			Name:   p.Name,
 			Bounds: client.Bounds{
 				// TODO Min, max configuration?
 				//Min: "",
 				//Max: "",
-				Values: p.Values,
 			},
+			Values: p.Values,
 		})
 	}
 
