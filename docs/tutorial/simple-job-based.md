@@ -97,7 +97,7 @@ metadata:
   name: logstash-benchmark
 spec:
   suggestions:
-    batchSize: 128
+    batchSize: 256
     workers: 2
 ```
 
