@@ -1,7 +1,7 @@
 package v1alpha1
 
 import (
-	okeanosclient "github.com/gramLabs/okeanos/pkg/apis/okeanos/client"
+	okeanosclient "github.com/gramLabs/okeanos/pkg/api/okeanos/v1alpha1"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,7 +20,7 @@ type Parameter struct {
 type Metric struct {
 	Name     string                `json:"name"`
 	Minimize bool                  `json:"minimize,omitempty"`
-	Type     string                `json:"type,omitempty"` // "prometheus" or "jsonpath"
+	Type     string                `json:"type,omitempty"` // "local", "jsonpath", "prometheus" ("regex"?)
 	Query    string                `json:"query"`          // Type specific query, e.g. PromQL or a JSON pointer expression
 	Path     string                `json:"path,omitempty"` // Path appended to the endpoint (used as a prefix for prometheus)
 	Selector *metav1.LabelSelector `json:"selector,omitempty"`
@@ -48,7 +48,7 @@ type ExperimentSpec struct {
 	// Metrics defines the outcomes for the experiment
 	Metrics []Metric `json:"metrics,omitempty"`
 	// Configuration defines the optimization specific configuration options
-	Configuration okeanosclient.Configuration `json:"configuration,omitempty"`
+	Configuration okeanosclient.Optimization `json:"configuration,omitempty"`
 	// Replicas is the number of trials to execute at once. It must be no greater then the parallelism defined in the
 	// optimization configuration (which will be used as a default if replicas is left unspecified). When running an
 	// experiment in multiple clusters, the sum of all the replica counts should be used as the parallelism.
@@ -72,6 +72,7 @@ type ExperimentSpec struct {
 
 // ExperimentStatus defines the observed state of Experiment
 type ExperimentStatus struct {
+	// TODO Put the effective "desired" replica count here?
 }
 
 // +genclient

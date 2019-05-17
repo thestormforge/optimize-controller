@@ -1,20 +1,24 @@
 package v1alpha1
 
 import (
-	"github.com/gramLabs/okeanos/pkg/apis/okeanos/client"
+	client "github.com/gramLabs/okeanos/pkg/api/okeanos/v1alpha1"
 )
 
 // CopyToRemote overwrites the state of the supplied (presumably empty) remote experiment representation with the data
 // stored in the Kubernetes API. This is primarily intended to be used when creating remote resources.
 func (in *Experiment) CopyToRemote(e *client.Experiment) {
-	e.Configuration = in.Spec.Configuration
+	e.Optimization = in.Spec.Configuration
 
 	e.Parameters = nil
 	for _, p := range in.Spec.Parameters {
 		e.Parameters = append(e.Parameters, client.Parameter{
-			Name:   p.Name,
-			Values: p.Values,
-			// TODO Min/Max config?
+			Name: p.Name,
+			Bounds: client.Bounds{
+				// TODO Min, max configuration?
+				//Min: "",
+				//Max: "",
+				Values: p.Values,
+			},
 		})
 	}
 

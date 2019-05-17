@@ -10,7 +10,7 @@ import (
 	"os"
 	"time"
 
-	okeanosclient "github.com/gramLabs/okeanos/pkg/apis/okeanos/client"
+	okeanosclient "github.com/gramLabs/okeanos/pkg/api/okeanos/v1alpha1"
 	okeanosv1alpha1 "github.com/gramLabs/okeanos/pkg/apis/okeanos/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
