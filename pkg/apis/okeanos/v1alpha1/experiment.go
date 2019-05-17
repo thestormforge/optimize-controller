@@ -2,7 +2,6 @@ package v1alpha1
 
 import (
 	"github.com/gramLabs/okeanos/pkg/apis/okeanos/client"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // CopyToRemote overwrites the state of the supplied (presumably empty) remote experiment representation with the data
@@ -33,6 +32,9 @@ func (in *Experiment) CopyToRemote(e *client.Experiment) {
 // GetReplicas returns the effective replica (trial) count for the experiment. The number of replicas is bound by
 // the optimization's parallelism configuration and may be zero to indicate the experiment is paused or complete.
 func (in *Experiment) GetReplicas() int {
+
+	// TODO If the namespace selector is nil, always return 1
+
 	if in.Spec.Replicas != nil && (*in.Spec.Replicas == 1 || *in.Spec.Replicas <= in.Spec.Configuration.Parallelism) {
 		return int(*in.Spec.Replicas)
 	}
@@ -53,24 +55,4 @@ func (in *Experiment) SetReplicas(r int) {
 		replicas = in.Spec.Configuration.Parallelism
 	}
 	in.Spec.Replicas = &replicas
-}
-
-func (in *Experiment) ensureLabels() bool {
-	if l, ok := in.Spec.Template.Labels["experiment"]; ok && l != "" {
-		return false
-	}
-
-	in.Spec.Template.Labels["experiment"] = in.Name
-
-	return true
-}
-
-func (in *Experiment) ensureSelector() bool {
-	if in.Spec.Selector != nil {
-		return false
-	}
-
-	in.Spec.Selector = metav1.SetAsLabelSelector(in.Spec.Template.Labels)
-
-	return true
 }
