@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	okeanosclient "github.com/gramLabs/okeanos/pkg/api"
 	okeanosv1alpha1 "github.com/gramLabs/okeanos/pkg/apis/okeanos/v1alpha1"
 	"github.com/onsi/gomega"
 	"golang.org/x/net/context"
@@ -19,7 +20,7 @@ var c client.Client
 
 var expectedRequest = reconcile.Request{NamespacedName: types.NamespacedName{Name: "foo", Namespace: "default"}}
 
-const timeout = time.Second * 5000000
+const timeout = time.Second * 5
 
 func TestReconcile(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
@@ -33,7 +34,10 @@ func TestReconcile(t *testing.T) {
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	c = mgr.GetClient()
 
-	recFn, requests := SetupTestReconcile(newReconciler(mgr))
+	oc, err := okeanosclient.NewClient(okeanosclient.Config{})
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	recFn, requests := SetupTestReconcile(newReconciler(mgr, oc))
 	g.Expect(add(mgr, recFn)).NotTo(gomega.HaveOccurred())
 
 	stopMgr, mgrStopped := StartTestManager(mgr, g)

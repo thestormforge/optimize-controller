@@ -1,16 +1,12 @@
 package experiment
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"fmt"
-	"net/http"
-	"net/url"
 	"os"
 	"time"
 
-	okeanosclient "github.com/gramLabs/okeanos/pkg/api/okeanos/v1alpha1"
+	okeanosclient "github.com/gramLabs/okeanos/pkg/api"
+	okeanosapi "github.com/gramLabs/okeanos/pkg/api/okeanos/v1alpha1"
 	okeanosv1alpha1 "github.com/gramLabs/okeanos/pkg/apis/okeanos/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -28,18 +24,22 @@ import (
 
 var log = logf.Log.WithName("controller")
 
-// TODO We need some type of client util to encapsulate this
-var httpClient = &http.Client{Timeout: 10 * time.Second}
-
 // Add creates a new Experiment Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
-	return add(mgr, newReconciler(mgr))
+	oc, err := okeanosclient.NewClient(okeanosclient.Config{
+		Address: os.Getenv("OKEANOS_BASE_URL"),
+	})
+	if err != nil {
+		return err
+	}
+
+	return add(mgr, newReconciler(mgr, oc))
 }
 
 // newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileExperiment{Client: mgr.GetClient(), scheme: mgr.GetScheme()}
+func newReconciler(mgr manager.Manager, oc okeanosclient.Client) reconcile.Reconciler {
+	return &ReconcileExperiment{Client: mgr.GetClient(), scheme: mgr.GetScheme(), api: okeanosapi.NewApi(oc)}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -74,6 +74,7 @@ var _ reconcile.Reconciler = &ReconcileExperiment{}
 type ReconcileExperiment struct {
 	client.Client
 	scheme *runtime.Scheme
+	api    okeanosapi.API
 }
 
 // Reconcile reads that state of the cluster for a Experiment object and makes changes based on the state read
@@ -99,15 +100,12 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 
 	// Define the experiment on the server
 	experimentURL := experiment.GetAnnotations()["okeanos.carbonrelay.com/experiment-url"]
-	baseURL := os.Getenv("OKEANOS_BASE_URL")
+	baseURL := os.Getenv("OKEANOS_BASE_URL") // TODO What is a better way to detect this?
 	if experimentURL == "" && baseURL != "" {
-		// TODO We need to avoid hard coded URL
-		experimentURL = baseURL + "/experiment/" + url.PathEscape(experiment.Name)
-
-		e := &okeanosclient.Experiment{}
+		e := &okeanosapi.Experiment{}
 		experiment.CopyToRemote(e)
 		log.Info("Creating remote experiment", "experimentURL", experimentURL)
-		if err = putJSON(experimentURL, e); err != nil {
+		if experimentURL, err = r.api.PutExperiment(context.TODO(), experiment.Name, *e); err != nil {
 			// Error posting the representation - requeue the request.
 			return reconcile.Result{}, err
 		}
@@ -121,8 +119,8 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 	// Update the URL used to obtain suggestions (only populated by server after PUT)
 	suggestionURL := experiment.GetAnnotations()["okeanos.carbonrelay.com/suggestion-url"]
 	if suggestionURL == "" && experimentURL != "" && experiment.GetReplicas() > 0 {
-		e := &okeanosclient.Experiment{}
-		if err := getJSON(experimentURL, e); err != nil {
+		e, err := r.api.GetExperiment(context.TODO(), experimentURL)
+		if err != nil {
 			// Unable to fetch the remote experiment - requeue the request
 			return reconcile.Result{}, err
 		}
@@ -155,8 +153,7 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 		if (t.Status.CompletionTime != nil || t.Status.Failed) && t.DeletionTimestamp == nil {
 			// Post the observation
 			log.Info("Creating remote observation", "trialName", t.Name)
-			err := postJSON(t.GetAnnotations()["okeanos.carbonrelay.com/suggestion-url"], &okeanosclient.Observation{
-				// TODO If the time is missing, use metadata from the trial itself (e.g. patch or wait failed)
+			err = r.api.ReportObservation(context.TODO(), t.GetAnnotations()["okeanos.carbonrelay.com/suggestion-url"], okeanosapi.Observation{
 				Start:   &t.Status.StartTime.Time,
 				End:     &t.Status.CompletionTime.Time,
 				Failed:  t.Status.Failed,
@@ -199,38 +196,25 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 			}
 		}
 
-		s, err := httpClient.Post(suggestionURL, "application/octet-stream", nil)
+		s, l, err := r.api.NextSuggestion(context.TODO(), suggestionURL)
 		if err != nil {
+			if aerr, ok := err.(*okeanosapi.Error); ok {
+				switch aerr.Type {
+				case okeanosapi.ErrExperimentStopped:
+					experiment.SetReplicas(0)
+					experiment.GetAnnotations()["okeanos.carbonrelay.com/suggestion-url"] = ""
+					err = r.Update(context.TODO(), experiment)
+					return reconcile.Result{}, err
+				case okeanosapi.ErrSuggestionUnavailable:
+					// TODO Get the expected timeout from the error response
+					return reconcile.Result{Requeue: true, RequeueAfter: 5 * time.Second}, nil
+				}
+			}
 			return reconcile.Result{}, err
 		}
-		defer s.Body.Close()
+		trial.Spec.Suggestions = s.Values
+		trial.GetAnnotations()["okeanos.carbonrelay.com/suggestion-url"] = l
 
-		data := &okeanosclient.Suggestion{}
-		if s.StatusCode >= 200 && s.StatusCode < 300 {
-			// Add the suggestions to the trial
-			if err = json.NewDecoder(s.Body).Decode(data); err != nil {
-				return reconcile.Result{}, err
-			}
-			trial.Spec.Suggestions = data.Values
-
-			// Preserve the location of the suggestion we obtained
-			trial.GetAnnotations()["okeanos.carbonrelay.com/suggestion-url"] = s.Header.Get("Location")
-		} else {
-			switch s.StatusCode {
-			case http.StatusGone:
-				// There are no more suggestions, stop the experiment
-				experiment.SetReplicas(0)
-				experiment.GetAnnotations()["okeanos.carbonrelay.com/suggestion-url"] = ""
-				err = r.Update(context.TODO(), experiment)
-				return reconcile.Result{}, err
-			case http.StatusServiceUnavailable:
-				// The optimization service does not have available suggestions, give it a few seconds
-				// TODO Get the expected timeout from the error response
-				return reconcile.Result{Requeue: true, RequeueAfter: 5 * time.Second}, nil
-			default:
-				return reconcile.Result{}, fmt.Errorf("failed to obtain a suggestion: %s", s.Status)
-			}
-		}
 		if err := controllerutil.SetControllerReference(experiment, trial, r.scheme); err != nil {
 			return reconcile.Result{}, err
 		}
@@ -239,50 +223,4 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	return reconcile.Result{}, nil
-}
-
-func getJSON(url string, target interface{}) error {
-	r, err := httpClient.Get(url)
-	if err != nil {
-		return err
-	}
-	defer r.Body.Close()
-
-	return json.NewDecoder(r.Body).Decode(target)
-}
-
-func putJSON(url string, request interface{}) error {
-	body, err := json.Marshal(request)
-	if err != nil {
-		return err
-	}
-
-	req, err := http.NewRequest("PUT", url, bytes.NewBuffer(body))
-	if err != nil {
-		return err
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	r, err := httpClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer r.Body.Close()
-
-	return nil
-}
-
-func postJSON(url string, request interface{}) error {
-	body, err := json.Marshal(request)
-	if err != nil {
-		return err
-	}
-
-	r, err := httpClient.Post(url, "application/json", bytes.NewBuffer(body))
-	if err != nil {
-		return err
-	}
-	defer r.Body.Close()
-
-	return nil
 }
