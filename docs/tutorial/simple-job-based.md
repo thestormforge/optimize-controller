@@ -8,7 +8,7 @@ For this experiment we will create an experiment where the application under tes
 
 We will be using the Logstash benchmark CLI tool which is not included as part of the stock image. You can build the `benchmark-cli:6.7.0` image used in this example directly into your minikube cluster using the following commands:
 
-```yml
+```bash
 $ eval $(minikube docker-env)
 $ docker build -t benchmark-cli:6.7.0 - << 'EOF'
 FROM gradle:4.10 as benchmark-cli
