@@ -143,9 +143,15 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 			var targets []corev1.ObjectReference
 			if p.TargetRef.Name == "" {
 				opts := &client.ListOptions{}
+				if p.TargetRef.Namespace != "" {
+					opts.Namespace = p.TargetRef.Namespace
+				} else {
+					opts.Namespace = trial.Spec.TargetNamespace
+				}
 				if opts.LabelSelector, err = metav1.LabelSelectorAsSelector(p.Selector); err != nil {
 					return reconcile.Result{}, err
 				}
+
 				list := &unstructured.UnstructuredList{}
 				list.SetGroupVersionKind(p.TargetRef.GroupVersionKind())
 				if err = r.List(context.TODO(), list, client.UseListOptions(opts)); err != nil {
@@ -163,7 +169,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 			} else {
 				ref := p.TargetRef.DeepCopy()
 				if ref.Namespace == "" {
-					ref.Namespace = trial.Namespace
+					ref.Namespace = trial.Spec.TargetNamespace
 				}
 				targets = []corev1.ObjectReference{*ref}
 			}

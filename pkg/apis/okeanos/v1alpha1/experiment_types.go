@@ -12,8 +12,9 @@ import (
 type Parameter struct {
 	Name   string   `json:"name"`
 	Values []string `json:"values,omitempty"`
-	Min    int      `json:"min,omitempty"` // TODO Not json.Number, but what else can be either float or int?
+	Min    int      `json:"min,omitempty"` // TODO Not json.Number, but what else can be either float or int? String?
 	Max    int      `json:"max,omitempty"`
+	// TODO Default value?
 }
 
 // Metric
@@ -47,8 +48,8 @@ type ExperimentSpec struct {
 	Parameters []Parameter `json:"parameters,omitempty"`
 	// Metrics defines the outcomes for the experiment
 	Metrics []Metric `json:"metrics,omitempty"`
-	// Configuration defines the optimization specific configuration options
-	Configuration okeanosclient.Optimization `json:"configuration,omitempty"`
+	// Optimization defines the optimization specific configuration options
+	Optimization okeanosclient.Optimization `json:"optimization,omitempty"`
 	// Replicas is the number of trials to execute at once. It must be no greater then the parallelism defined in the
 	// optimization configuration (which will be used as a default if replicas is left unspecified). When running an
 	// experiment in multiple clusters, the sum of all the replica counts should be used as the parallelism.
@@ -72,7 +73,6 @@ type ExperimentSpec struct {
 
 // ExperimentStatus defines the observed state of Experiment
 type ExperimentStatus struct {
-	// TODO Put the effective "desired" replica count here?
 }
 
 // +genclient

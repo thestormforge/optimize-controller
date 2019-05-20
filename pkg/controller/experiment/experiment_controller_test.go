@@ -28,6 +28,12 @@ func TestReconcile(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"},
 	}
 
+	// Set the annotations to avoid server communication
+	instance.Labels = map[string]string{annotationExperimentURL: "xxx", annotationSuggestionURL: "xxx"}
+
+	// Set the namespace selector avoid trial creation
+	instance.Spec.NamespaceSelector = &metav1.LabelSelector{MatchLabels: map[string]string{"xxx": "xxx"}}
+
 	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
 	// channel when it is finished.
 	mgr, err := manager.New(cfg, manager.Options{})

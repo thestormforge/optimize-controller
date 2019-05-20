@@ -2,8 +2,9 @@ package experiment
 
 import (
 	"context"
+	"encoding/json"
 	"os"
-	"time"
+	"strconv"
 
 	okeanosclient "github.com/gramLabs/okeanos/pkg/api"
 	okeanosapi "github.com/gramLabs/okeanos/pkg/api/okeanos/v1alpha1"
@@ -22,13 +23,26 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
+const (
+	annotationPrefix = "okeanos.carbonrelay.com/"
+
+	annotationExperimentURL  = annotationPrefix + "experiment-url"
+	annotationSuggestionURL  = annotationPrefix + "suggestion-url"
+	annotationObservationURL = annotationPrefix + "observation-url"
+)
+
 var log = logf.Log.WithName("controller")
 
 // Add creates a new Experiment Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
+	// Without a remote server address, this controller does not have anything to do
+	address := os.Getenv("OKEANOS_BASE_URL")
+	if address == "" {
+		return nil
+	}
 	oc, err := okeanosclient.NewClient(okeanosclient.Config{
-		Address: os.Getenv("OKEANOS_BASE_URL"),
+		Address: address,
 	})
 	if err != nil {
 		return err
@@ -99,26 +113,25 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Define the experiment on the server
-	experimentURL := experiment.GetAnnotations()["okeanos.carbonrelay.com/experiment-url"]
-	baseURL := os.Getenv("OKEANOS_BASE_URL") // TODO What is a better way to detect this?
-	if experimentURL == "" && baseURL != "" {
+	experimentURL := experiment.GetAnnotations()[annotationExperimentURL]
+	if experimentURL == "" && experiment.GetReplicas() > 0 {
 		n := okeanosapi.NewExperimentName(experiment.Name)
-		e := &okeanosapi.Experiment{}
-		experiment.CopyToRemote(e)
+		e := okeanosapi.Experiment{}
+		copyExperimentToRemote(experiment, &e)
 		log.Info("Creating remote experiment", "experimentURL", experimentURL)
-		if experimentURL, err = r.api.PutExperiment(context.TODO(), n, *e); err != nil {
+		if experimentURL, err = r.api.PutExperiment(context.TODO(), n, e); err != nil {
 			// Error posting the representation - requeue the request.
 			return reconcile.Result{}, err
 		}
 
 		// Update the experiment URL, will create a new reconcile request
-		experiment.GetAnnotations()["okeanos.carbonrelay.com/experiment-url"] = experimentURL
+		experiment.GetAnnotations()[annotationExperimentURL] = experimentURL
 		err = r.Update(context.TODO(), experiment)
 		return reconcile.Result{}, err
 	}
 
-	// Update the URL used to obtain suggestions (only populated by server after PUT)
-	suggestionURL := experiment.GetAnnotations()["okeanos.carbonrelay.com/suggestion-url"]
+	// Update information only populated by server after PUT
+	suggestionURL := experiment.GetAnnotations()[annotationSuggestionURL]
 	if suggestionURL == "" && experimentURL != "" && experiment.GetReplicas() > 0 {
 		e, err := r.api.GetExperiment(context.TODO(), experimentURL)
 		if err != nil {
@@ -126,12 +139,15 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 			return reconcile.Result{}, err
 		}
 
-		// TODO Perform additional validation on the local/remote state
+		// Since we have the server representation, enforce a cap on the replica count
+		// NOTE: Do the update in memory, we will only persist it if the suggestion URL needs updating
+		if experiment.GetReplicas() > int(e.Optimization.Parallelism) && e.Optimization.Parallelism > 0 {
+			*experiment.Spec.Replicas = e.Optimization.Parallelism
+		}
 
 		// The suggestion reference may be missing because the experiment isn't producing suggestions anymore
 		if e.SuggestionRef != "" {
-			log.Info("Obtaining suggestions from: %s", e.SuggestionRef)
-			experiment.GetAnnotations()["okeanos.carbonrelay.com/suggestion-url"] = e.SuggestionRef
+			experiment.GetAnnotations()[annotationSuggestionURL] = e.SuggestionRef
 			err := r.Update(context.TODO(), experiment)
 			return reconcile.Result{}, err
 		}
@@ -147,87 +163,181 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, err
 	}
 
+	// Add an additional trial if needed
+	if suggestionURL != "" && experiment.GetReplicas() > len(list.Items) {
+		// Find an available namespace
+		namespace, err := r.findAvailableNamespace(experiment, list.Items)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		if namespace != "" {
+			// The initial trial namespace may be overwritten by the template
+			trial := &okeanosv1alpha1.Trial{}
+			populateTrialFromTemplate(experiment, trial, namespace)
+			if err := controllerutil.SetControllerReference(experiment, trial, r.scheme); err != nil {
+				return reconcile.Result{}, err
+			}
+
+			// Obtain a suggestion from the server
+			suggestion, observationURL, err := r.api.NextSuggestion(context.TODO(), suggestionURL)
+			if err != nil {
+				if aerr, ok := err.(*okeanosapi.Error); ok {
+					switch aerr.Type {
+					case okeanosapi.ErrExperimentStopped:
+						// The experiment is stopped, set replicas to 0 to prevent further interaction with the server
+						experiment.SetReplicas(0)
+						delete(experiment.GetAnnotations(), annotationSuggestionURL) // HTTP "Gone" semantics require us to purge this
+						err = r.Update(context.TODO(), experiment)
+						return reconcile.Result{}, err
+					case okeanosapi.ErrSuggestionUnavailable:
+						// No suggestions available, wait to requeue until after the retry delay
+						return reconcile.Result{Requeue: true, RequeueAfter: aerr.RetryAfter}, nil
+					}
+				}
+				return reconcile.Result{}, err
+			}
+
+			// Add the information from the server
+			trial.Spec.Assignments = suggestion.Assignments
+			trial.GetAnnotations()[annotationObservationURL] = observationURL
+
+			// Create the trial
+			log.Info("Creating new trial", "name", trial.Name, "namespace", trial.Namespace, "observationURL", observationURL)
+			err = r.Create(context.TODO(), trial)
+			// TODO If there is an error, notify server that we failed to adopt the suggestion?
+			return reconcile.Result{}, err
+		}
+	}
+
 	// Record finished trials
-	// TODO Is this something that should be implemented as a finalizer on the trial?
+	// TODO Is this something that should be implemented using a finalizer on the trial? (e.g. just delete the trial here and have a finalizer that does the post?)
 	for _, t := range list.Items {
-		// TODO Is it necessary to filter deleted objects? Should that be a field selector on the List operation?
-		if (t.Status.CompletionTime != nil || t.Status.Failed) && t.DeletionTimestamp == nil {
-			// Post the observation
-			values := make([]okeanosapi.Value, len(t.Spec.Values))
+		if len(t.Spec.Values) == len(t.Status.MetricQueries) || t.Status.Failed {
+			// Create an observation
+			observation := okeanosapi.Observation{
+				Failed: t.Status.Failed,
+				Values: make([]okeanosapi.Value, len(t.Spec.Values)),
+			}
 			for k, v := range t.Spec.Values {
-				values = append(values, okeanosapi.Value{
+				observation.Values = append(observation.Values, okeanosapi.Value{
 					Name:  k,
 					Value: v,
 					// TODO Error is the standard deviation for the metric
 				})
 			}
-			log.Info("Creating remote observation", "trialName", t.Name)
-			err = r.api.ReportObservation(context.TODO(), t.GetAnnotations()["okeanos.carbonrelay.com/suggestion-url"], okeanosapi.Observation{
-				Failed: t.Status.Failed,
-				Values: values,
-			})
+
+			// Send the observation to the server
+			log.Info("Reporting trial observation", "name", t.Name, "namespace", t.Namespace, "values", observation.Values)
+			err = r.api.ReportObservation(context.TODO(), t.GetAnnotations()[annotationObservationURL], observation)
 			if err != nil {
 				// The observation was not accepted, requeue the request
 				return reconcile.Result{}, err
 			}
 
-			// Delete the trial, will create a new reconcile request
+			// Only delete the trial once it has been sent to the server
 			err = r.Delete(context.TODO(), &t)
 			return reconcile.Result{}, err
 		}
 	}
 
-	// Add additional trials as needed
-	if suggestionURL != "" && len(list.Items) < experiment.GetReplicas() {
-		trial := &okeanosv1alpha1.Trial{}
-		experiment.Spec.Template.ObjectMeta.DeepCopyInto(&trial.ObjectMeta)
-		experiment.Spec.Template.Spec.DeepCopyInto(&trial.Spec)
+	return reconcile.Result{}, nil
+}
 
-		if trial.Name == "" {
-			trial.Name = experiment.Name
-		}
-		// TODO Namespace?
+// Copy the custom resource state into a client API representation
+func copyExperimentToRemote(experiment *okeanosv1alpha1.Experiment, e *okeanosapi.Experiment) {
+	e.Optimization = experiment.Spec.Optimization
 
-		trial.Labels["experiment"] = experiment.Name
-		if trial.Spec.Selector == nil {
-			trial.Spec.Selector = metav1.SetAsLabelSelector(trial.Labels)
-		}
-
-		if trial.Spec.ExperimentRef == nil {
-			// TODO There isn't a function that does this?
-			trial.Spec.ExperimentRef = &corev1.ObjectReference{
-				Kind:       experiment.TypeMeta.Kind,
-				Name:       experiment.GetName(),
-				Namespace:  experiment.GetNamespace(),
-				APIVersion: experiment.TypeMeta.APIVersion,
+	e.Parameters = nil
+	for _, p := range experiment.Spec.Parameters {
+		cp := okeanosapi.Parameter{Name: p.Name}
+		// TODO Default value?
+		if len(p.Values) == 0 {
+			cp.Bounds = okeanosapi.Bounds{
+				Min: json.Number(strconv.Itoa(p.Min)),
+				Max: json.Number(strconv.Itoa(p.Max)),
 			}
+		} else {
+			cp.Values = p.Values
 		}
-
-		s, l, err := r.api.NextSuggestion(context.TODO(), suggestionURL)
-		if err != nil {
-			if aerr, ok := err.(*okeanosapi.Error); ok {
-				switch aerr.Type {
-				case okeanosapi.ErrExperimentStopped:
-					experiment.SetReplicas(0)
-					experiment.GetAnnotations()["okeanos.carbonrelay.com/suggestion-url"] = ""
-					err = r.Update(context.TODO(), experiment)
-					return reconcile.Result{}, err
-				case okeanosapi.ErrSuggestionUnavailable:
-					// TODO Get the expected timeout from the error response
-					return reconcile.Result{Requeue: true, RequeueAfter: 5 * time.Second}, nil
-				}
-			}
-			return reconcile.Result{}, err
-		}
-		trial.Spec.Assignments = s.Assignments
-		trial.GetAnnotations()["okeanos.carbonrelay.com/suggestion-url"] = l
-
-		if err := controllerutil.SetControllerReference(experiment, trial, r.scheme); err != nil {
-			return reconcile.Result{}, err
-		}
-		err = r.Create(context.TODO(), trial)
-		return reconcile.Result{}, err
+		e.Parameters = append(e.Parameters, cp)
 	}
 
-	return reconcile.Result{}, nil
+	e.Metrics = nil
+	for _, m := range experiment.Spec.Metrics {
+		e.Metrics = append(e.Metrics, okeanosapi.Metric{
+			Name:     m.Name,
+			Minimize: m.Minimize,
+		})
+	}
+}
+
+// Creates a new trial for an experiment
+func populateTrialFromTemplate(experiment *okeanosv1alpha1.Experiment, trial *okeanosv1alpha1.Trial, namespace string) {
+	experiment.Spec.Template.ObjectMeta.DeepCopyInto(&trial.ObjectMeta)
+	experiment.Spec.Template.Spec.DeepCopyInto(&trial.Spec)
+
+	// Overwrite the target namespace unless we are only running a single trial on the cluster
+	if experiment.GetReplicas() > 1 || experiment.Spec.NamespaceSelector != nil || experiment.Spec.Template.Namespace != "" {
+		trial.Spec.TargetNamespace = namespace
+	}
+
+	// Provide a default for the namespace
+	if trial.Namespace == "" {
+		trial.Namespace = namespace
+	}
+
+	// Provide a default name for the trial
+	if trial.Name == "" {
+		if trial.Namespace != experiment.Namespace {
+			trial.Name = experiment.Name
+		} else {
+			trial.GenerateName = experiment.Name + "-"
+		}
+	}
+
+	// Provide a default reference back to the experiment
+	if trial.Spec.ExperimentRef == nil {
+		trial.Spec.ExperimentRef = experiment.GetSelfReference()
+	}
+
+	// TODO Handle labeling, is this correct?
+	trial.Labels["experiment"] = experiment.Name
+	if trial.Spec.Selector == nil {
+		trial.Spec.Selector = metav1.SetAsLabelSelector(trial.Labels)
+	}
+}
+
+// Searches for a namespace to run a new trial in, returning an empty string if no such namespace can be found
+func (r *ReconcileExperiment) findAvailableNamespace(experiment *okeanosv1alpha1.Experiment, trials []okeanosv1alpha1.Trial) (string, error) {
+	// Determine which namespaces are already in use
+	inuse := make(map[string]bool, len(trials))
+	for _, t := range trials {
+		inuse[t.Namespace] = true
+	}
+
+	// Find eligible namespaces
+	if experiment.Spec.NamespaceSelector != nil {
+		ls, err := metav1.LabelSelectorAsSelector(experiment.Spec.NamespaceSelector)
+		if err != nil {
+			return "", err
+		}
+		list := &corev1.NamespaceList{}
+		if err := r.List(context.TODO(), list, client.UseListOptions(&client.ListOptions{LabelSelector: ls})); err != nil {
+			return "", err
+		}
+
+		// Find the first available namespace
+		for _, item := range list.Items {
+			if !inuse[item.Name] {
+				return item.Name, nil
+			}
+		}
+		return "", nil
+	}
+
+	// Check if the experiment namespace is available
+	if inuse[experiment.Namespace] {
+		return "", nil
+	}
+	return experiment.Namespace, nil
 }

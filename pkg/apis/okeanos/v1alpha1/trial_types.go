@@ -25,10 +25,11 @@ type MetricQuery struct {
 
 // TrialSpec defines the desired state of Trial
 type TrialSpec struct {
-	ExperimentRef *corev1.ObjectReference `json:"experimentRef,omitempty"` // Defaults to experiment with same name
-	Assignments   Assignments             `json:"assignments"`
-	Values        map[string]float64      `json:"values"`
-	Selector      *metav1.LabelSelector   `json:"selector,omitempty"`
+	ExperimentRef   *corev1.ObjectReference `json:"experimentRef,omitempty"`
+	TargetNamespace string                  `json:"targetNamespace"`
+	Assignments     Assignments             `json:"assignments"`
+	Values          map[string]float64      `json:"values"`
+	Selector        *metav1.LabelSelector   `json:"selector,omitempty"`
 }
 
 // TrialStatus defines the observed state of Trial

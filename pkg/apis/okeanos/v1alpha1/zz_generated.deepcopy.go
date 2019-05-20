@@ -99,7 +99,7 @@ func (in *ExperimentSpec) DeepCopyInto(out *ExperimentSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	out.Configuration = in.Configuration
+	out.Optimization = in.Optimization
 	if in.Replicas != nil {
 		in, out := &in.Replicas, &out.Replicas
 		*out = new(int32)
