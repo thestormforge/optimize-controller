@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	address := flag.String("addr", "http://localhost:8080", "The Flax URL.")
+	address := flag.String("addr", "http://localhost:8000", "The Flax URL.")
 	flag.Parse()
 
 	// New client
@@ -43,10 +43,11 @@ func main() {
 					Max: "1.0",
 				},
 			},
-			{
-				Name:   "c",
-				Values: []string{"x", "y", "z"},
-			},
+			//{
+			//	Name:   "c",
+			//  Type: okeanos.ParameterTypeString,
+			//	Values: []string{"x", "y", "z"},
+			//},
 		},
 		Metrics: []okeanos.Metric{
 			{
@@ -55,6 +56,10 @@ func main() {
 			{
 				Name:     "m",
 				Minimize: true,
+			},
+			{
+				Name:     "n",
+				Minimize: false,
 			},
 		},
 	}
@@ -65,6 +70,14 @@ func main() {
 		panic(err)
 	}
 
+	// Delete the experiment
+	defer func() {
+		err = api.DeleteExperiment(context.TODO(), eu)
+		if err != nil {
+			panic(err)
+		}
+	}()
+
 	// Get it back, overwrite pointer
 	*exp, err = api.GetExperiment(context.TODO(), eu)
 	if err != nil {
@@ -74,6 +87,11 @@ func main() {
 	// Check the URL
 	if exp.SuggestionRef == "" {
 		panic("Expected a 'suggestionRef' URL on the result to post suggestions back to")
+	}
+
+	// TODO We need to make some better assertions
+	if exp.Metrics[0].Name == "l" && exp.Metrics[0].Minimize {
+		panic("Expected an unspecified boolean (Metric.Minimize) to default to false")
 	}
 
 	// Get a suggestion
@@ -109,12 +127,6 @@ func main() {
 		},
 	}
 	err = api.ReportObservation(context.TODO(), su, *obs)
-	if err != nil {
-		panic(err)
-	}
-
-	// Delete the experiment
-	err = api.DeleteExperiment(context.TODO(), eu)
 	if err != nil {
 		panic(err)
 	}
