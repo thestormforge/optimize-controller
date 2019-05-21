@@ -1,7 +1,6 @@
 package v1alpha1
 
 import (
-	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -18,33 +17,6 @@ func (in *Trial) ExperimentNamespacedName() types.NamespacedName {
 	}
 
 	return types.NamespacedName{Name: name, Namespace: namespace}
-}
-
-// MergeFromJob merges the job status into the trial status
-func (in *TrialStatus) MergeFromJob(j *batchv1.JobStatus) bool {
-	var dirty bool
-
-	if in.StartTime == nil {
-		// Establish a start time if available
-		in.StartTime = j.StartTime // TODO DeepCopy?
-		dirty = dirty || j.StartTime != nil
-	} else if j.StartTime != nil && j.StartTime.Before(in.StartTime) {
-		// Move the start time up
-		in.StartTime = j.StartTime
-		dirty = true
-	}
-
-	if in.CompletionTime == nil {
-		// Establish an end time if available
-		in.CompletionTime = j.CompletionTime
-		dirty = dirty || j.CompletionTime != nil
-	} else if j.CompletionTime != nil && in.CompletionTime.Before(j.CompletionTime) {
-		// Move the start time back
-		in.CompletionTime = j.CompletionTime
-		dirty = true
-	}
-
-	return dirty
 }
 
 // Manually write the deep copy method because of the empty interface usage

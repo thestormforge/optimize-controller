@@ -1,7 +1,10 @@
 package v1alpha1
 
 import (
+	"fmt"
+
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // GetSelfReference returns an object reference to this experiment
@@ -34,5 +37,19 @@ func (in *Experiment) SetReplicas(r int) {
 			replicas = 0
 		}
 		in.Spec.Replicas = &replicas
+	}
+}
+
+// GetPatchType returns the patch content type or returns an error if the type is not recognized
+func (in *PatchTemplate) GetPatchType() (types.PatchType, error) {
+	switch in.Type {
+	case "json":
+		return types.JSONPatchType, nil
+	case "merge":
+		return types.MergePatchType, nil
+	case "strategic":
+		return types.StrategicMergePatchType, nil
+	default:
+		return "", fmt.Errorf("unknown patch type: %s", in.Type)
 	}
 }

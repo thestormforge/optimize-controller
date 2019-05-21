@@ -14,7 +14,6 @@ import (
 	okeanosv1alpha1 "github.com/gramLabs/okeanos/pkg/apis/okeanos/v1alpha1"
 	prom "github.com/prometheus/client_golang/api"
 	promv1 "github.com/prometheus/client_golang/api/prometheus/v1"
-	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -22,7 +21,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/util/jsonpath"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -107,144 +105,30 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 		return reconcile.Result{}, err
 	}
 
+	// Evaluate the patch operations
 	if len(trial.Status.PatchOperations) == 0 {
 		e := &okeanosv1alpha1.Experiment{}
-		err = r.Get(context.TODO(), trial.ExperimentNamespacedName(), e)
-		if err != nil {
+		if err = r.Get(context.TODO(), trial.ExperimentNamespacedName(), e); err != nil {
 			return reconcile.Result{}, err
 		}
-
-		for _, p := range e.Spec.Patches {
-			// Determine the patch type
-			var pt types.PatchType
-			switch p.Type {
-			case "json":
-				pt = types.JSONPatchType
-			case "merge":
-				pt = types.MergePatchType
-			case "strategic":
-				pt = types.StrategicMergePatchType
-			default:
-				return reconcile.Result{}, fmt.Errorf("unknown patch type: %s", p.Type)
-			}
-
-			// Evaluate the template into a patch
-			tmpl, err := template.New("patch").Funcs(templateFunctions()).Parse(p.Patch)
-			if err != nil {
-				return reconcile.Result{}, err
-			}
-			data := patchContext{Values: trial.Spec.Assignments}
-			buf := new(bytes.Buffer)
-			if err = tmpl.Execute(buf, data); err != nil {
-				return reconcile.Result{}, err
-			}
-
-			// Find all of the target objects
-			var targets []corev1.ObjectReference
-			if p.TargetRef.Name == "" {
-				opts := &client.ListOptions{}
-				if p.TargetRef.Namespace != "" {
-					opts.Namespace = p.TargetRef.Namespace
-				} else {
-					opts.Namespace = trial.Spec.TargetNamespace
-				}
-				if opts.LabelSelector, err = metav1.LabelSelectorAsSelector(p.Selector); err != nil {
-					return reconcile.Result{}, err
-				}
-
-				list := &unstructured.UnstructuredList{}
-				list.SetGroupVersionKind(p.TargetRef.GroupVersionKind())
-				if err = r.List(context.TODO(), list, client.UseListOptions(opts)); err != nil {
-					return reconcile.Result{}, err
-				}
-				for _, item := range list.Items {
-					// TODO There isn't a function that does this?
-					targets = append(targets, corev1.ObjectReference{
-						Kind:       item.GetKind(),
-						Name:       item.GetName(),
-						Namespace:  item.GetNamespace(),
-						APIVersion: item.GetAPIVersion(),
-					})
-				}
-			} else {
-				ref := p.TargetRef.DeepCopy()
-				if ref.Namespace == "" {
-					ref.Namespace = trial.Spec.TargetNamespace
-				}
-				targets = []corev1.ObjectReference{*ref}
-			}
-
-			// For each target resource, record a copy of the patch
-			for _, ref := range targets {
-				trial.Status.PatchOperations = append(trial.Status.PatchOperations, okeanosv1alpha1.PatchOperation{
-					TargetRef: ref,
-					PatchType: pt,
-					Data:      buf.Bytes(),
-					Pending:   true,
-				})
-			}
+		if err = r.evaluatePatches(trial, e); err != nil {
+			return reconcile.Result{}, err
 		}
-
-		// If we created any patch operations, update the trial
 		if len(trial.Status.PatchOperations) > 0 {
 			err = r.Update(context.TODO(), trial)
 			return reconcile.Result{}, err
 		}
 	}
 
+	// Evaluate the metric queries
 	if len(trial.Status.MetricQueries) == 0 {
 		e := &okeanosv1alpha1.Experiment{}
-		err = r.Get(context.TODO(), trial.ExperimentNamespacedName(), e)
-		if err != nil {
+		if err = r.Get(context.TODO(), trial.ExperimentNamespacedName(), e); err != nil {
 			return reconcile.Result{}, err
 		}
-
-		for _, m := range e.Spec.Metrics {
-			var urls []string
-			if m.Selector != nil {
-				// Find services matching the selector
-				opts := &client.ListOptions{}
-				if opts.LabelSelector, err = metav1.LabelSelectorAsSelector(m.Selector); err != nil {
-					return reconcile.Result{}, err
-				}
-				services := &corev1.ServiceList{}
-				if err := r.List(context.TODO(), services, client.UseListOptions(opts)); err != nil {
-					return reconcile.Result{}, err
-				}
-				for _, s := range services.Items {
-					port := m.Port.IntValue()
-					if port < 1 {
-						for _, sp := range s.Spec.Ports {
-							if m.Port.StrVal == sp.Name {
-								port = int(sp.Port)
-							}
-						}
-					}
-
-					// TODO Build this URL properly
-					thisIsBad, err := url.Parse(fmt.Sprintf("http://%s:%d%s", s.Spec.ClusterIP, port, m.Path))
-					if err != nil {
-						return reconcile.Result{}, err
-					}
-					urls = append(urls, thisIsBad.String())
-				}
-			} else {
-				// If there is no service selector, just use an empty URL
-				urls = append(urls, "")
-			}
-
-			// Add a metric query for every URL
-			for _, u := range urls {
-				trial.Status.MetricQueries = append(trial.Status.MetricQueries, okeanosv1alpha1.MetricQuery{
-					Name:       m.Name,
-					MetricType: m.Type,
-					Query:      m.Query,
-					URL:        u,
-				})
-			}
+		if err = r.evaluateMetrics(trial, e); err != nil {
+			return reconcile.Result{}, err
 		}
-
-		// If we created any metric queries, update the trial
 		if len(trial.Status.MetricQueries) > 0 {
 			err = r.Update(context.TODO(), trial)
 			return reconcile.Result{}, err
@@ -254,11 +138,11 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 	// Ensure we have non-nil selector
 	if trial.Spec.Selector == nil {
 		e := &okeanosv1alpha1.Experiment{}
-		err = r.Get(context.TODO(), trial.ExperimentNamespacedName(), e)
-		if err != nil {
+		if err = r.Get(context.TODO(), trial.ExperimentNamespacedName(), e); err != nil {
 			return reconcile.Result{}, err
 		}
 
+		// TODO Are we doing this labeling stuff right?
 		trial.Spec.Selector = metav1.SetAsLabelSelector(map[string]string{"experiment": e.Name})
 
 		err = r.Update(context.TODO(), trial)
@@ -284,6 +168,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 	}
 
 	// Find jobs matching the selector
+	// TODO What about the namespace on the job template?
 	opts := &client.ListOptions{Namespace: trial.Namespace}
 	if opts.LabelSelector, err = metav1.LabelSelectorAsSelector(trial.Spec.Selector); err != nil {
 		return reconcile.Result{}, err
@@ -294,38 +179,36 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 	}
 
 	// Update the trial run status using the job status
-	var dirty bool
-	for _, job := range jobs.Items {
-		// TODO Do we need to filter on the deletion timestamp?
-		dirty = trial.Status.MergeFromJob(&job.Status)
-		// TODO What about failure state? All pods? Any pods?
-	}
-	if dirty {
+	if updateStatusFromJobs(jobs.Items, &trial.Status) {
 		err = r.Update(context.TODO(), trial)
 		return reconcile.Result{}, err
 	}
 
-	// Wait for a stable (ish) state
-	if trial.Status.CompletionTime == nil && !trial.Status.Failed {
-		for _, p := range trial.Status.PatchOperations {
-			switch p.TargetRef.Kind {
-			case "StatefulSet":
-				ss := &appsv1.StatefulSet{}
-				if err := r.Get(context.TODO(), client.ObjectKey{Namespace: p.TargetRef.Namespace, Name: p.TargetRef.Name}, ss); err == nil {
-					// TODO We also need to check for errors, if there are failures we never launch the job
-					if ss.Status.ReadyReplicas < ss.Status.Replicas {
-						return reconcile.Result{Requeue: true, RequeueAfter: 5 * time.Second}, nil
-					}
-				}
-			}
-		}
+	// If we are in a failed state there is nothing more for us to do
+	if trial.Status.Failed {
+		return reconcile.Result{}, nil
 	}
 
 	// Create a new job if needed (start may be nil if we created a job but it hasn't started yet)
 	if len(jobs.Items) == 0 {
-		job := &batchv1.Job{}
+		// Wait for a stable (ish) state
+		if err = waitForStableState(r, context.TODO(), trial.Status.PatchOperations); err != nil {
+			if serr, ok := err.(*StabilityError); ok {
+				if serr.RetryAfter > 0 {
+					// We are not ready to being yet, wait the specified timeout and try again
+					return reconcile.Result{Requeue: true, RequeueAfter: serr.RetryAfter}, nil
+				} else {
+					// The cluster is in a bad state, set the failed flag and update
+					trial.Status.Failed = true
+					err = r.Update(context.TODO(), trial)
+					return reconcile.Result{}, err
+				}
+			}
+			return reconcile.Result{}, err
+		}
 
 		// Try to get the job template off the experiment
+		job := &batchv1.Job{}
 		e := &okeanosv1alpha1.Experiment{}
 		if err = r.Get(context.TODO(), trial.ExperimentNamespacedName(), e); err == nil {
 			e.Spec.JobTemplate.ObjectMeta.DeepCopyInto(&job.ObjectMeta)
@@ -334,11 +217,13 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 
 		// Provide default metadata
 		if job.Name == "" {
-			job.Name = trial.Name + "-job"
+			job.Name = trial.Name
 		}
 		if job.Namespace == "" {
 			job.Namespace = trial.Namespace
 		}
+
+		// TODO Are we doing the labeling correctly?
 		if len(job.Labels) == 0 {
 			job.Labels = make(map[string]string, 1)
 			if e.Name != "" {
@@ -353,13 +238,13 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 			job.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyNever
 		}
 
-		// Containers cannot be null, inject a sleep by default
+		// Containers cannot be null, inject a small sleep by default
 		if job.Spec.Template.Spec.Containers == nil {
 			job.Spec.Template.Spec.Containers = []corev1.Container{
 				{
 					Name:    "default-trial-run",
 					Image:   "busybox",
-					Command: []string{"sleep", "10"},
+					Command: []string{"sleep", "120"},
 				},
 			}
 		}
@@ -468,6 +353,167 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 	}
 
 	return reconcile.Result{}, nil
+}
+
+func (r *ReconcileTrial) evaluatePatches(trial *okeanosv1alpha1.Trial, e *okeanosv1alpha1.Experiment) error {
+	for _, p := range e.Spec.Patches {
+		// Determine the patch type
+		pt, err := p.GetPatchType()
+		if err != nil {
+			return err
+		}
+
+		// Evaluate the template into a patch
+		tmpl, err := template.New("patch").Funcs(templateFunctions()).Parse(p.Patch)
+		if err != nil {
+			return err
+		}
+		data := patchContext{Values: trial.Spec.Assignments}
+		buf := new(bytes.Buffer)
+		if err = tmpl.Execute(buf, data); err != nil {
+			return err
+		}
+
+		// Find the targets to apply the patch to
+		targets, err := r.findPatchTargets(trial, p)
+		if err != nil {
+			return err
+		}
+
+		// For each target resource, record a copy of the patch
+		for _, ref := range targets {
+			trial.Status.PatchOperations = append(trial.Status.PatchOperations, okeanosv1alpha1.PatchOperation{
+				TargetRef: ref,
+				PatchType: pt,
+				Data:      buf.Bytes(),
+				Pending:   true,
+			})
+		}
+	}
+
+	return nil
+}
+
+// Finds the patch targets
+func (r *ReconcileTrial) findPatchTargets(trial *okeanosv1alpha1.Trial, p okeanosv1alpha1.PatchTemplate) ([]corev1.ObjectReference, error) {
+	var targets []corev1.ObjectReference
+	if p.TargetRef.Name == "" {
+		ls, err := metav1.LabelSelectorAsSelector(p.Selector)
+		if err != nil {
+			return nil, err
+		}
+		opts := &client.ListOptions{LabelSelector: ls}
+		if p.TargetRef.Namespace != "" {
+			opts.Namespace = p.TargetRef.Namespace
+		} else {
+			opts.Namespace = trial.Spec.TargetNamespace
+		}
+		list := &unstructured.UnstructuredList{}
+		list.SetGroupVersionKind(p.TargetRef.GroupVersionKind())
+		if err := r.List(context.TODO(), list, client.UseListOptions(opts)); err != nil {
+			return nil, err
+		}
+		for _, item := range list.Items {
+			// TODO There isn't a function that does this?
+			targets = append(targets, corev1.ObjectReference{
+				Kind:       item.GetKind(),
+				Name:       item.GetName(),
+				Namespace:  item.GetNamespace(),
+				APIVersion: item.GetAPIVersion(),
+			})
+		}
+	} else {
+		ref := p.TargetRef.DeepCopy()
+		if ref.Namespace == "" {
+			ref.Namespace = trial.Spec.TargetNamespace
+		}
+		targets = []corev1.ObjectReference{*ref}
+	}
+	return targets, nil
+}
+
+func (r *ReconcileTrial) evaluateMetrics(trial *okeanosv1alpha1.Trial, e *okeanosv1alpha1.Experiment) error {
+	for _, m := range e.Spec.Metrics {
+		var urls []string
+		if m.Selector != nil {
+			// Find services matching the selector
+			ls, err := metav1.LabelSelectorAsSelector(m.Selector)
+			if err != nil {
+				return err
+			}
+			services := &corev1.ServiceList{}
+			if err := r.List(context.TODO(), services, client.UseListOptions(&client.ListOptions{LabelSelector: ls})); err != nil {
+				return err
+			}
+			for _, s := range services.Items {
+				port := m.Port.IntValue()
+				if port < 1 {
+					for _, sp := range s.Spec.Ports {
+						if m.Port.StrVal == sp.Name {
+							port = int(sp.Port)
+						}
+					}
+				}
+
+				// TODO Build this URL properly
+				thisIsBad, err := url.Parse(fmt.Sprintf("http://%s:%d%s", s.Spec.ClusterIP, port, m.Path))
+				if err != nil {
+					return err
+				}
+				urls = append(urls, thisIsBad.String())
+			}
+		} else {
+			// If there is no service selector, just use an empty URL
+			urls = append(urls, "")
+		}
+
+		// Add a metric query for every URL
+		for _, u := range urls {
+			trial.Status.MetricQueries = append(trial.Status.MetricQueries, okeanosv1alpha1.MetricQuery{
+				Name:       m.Name,
+				MetricType: m.Type,
+				Query:      m.Query,
+				URL:        u,
+			})
+		}
+	}
+
+	return nil
+}
+
+// Updates a trial status based on the status of the individual job(s), returns true if any changes were necessary
+func updateStatusFromJobs(jobs []batchv1.Job, status *okeanosv1alpha1.TrialStatus) bool {
+	var dirty bool
+
+	for _, j := range jobs {
+		if status.StartTime == nil {
+			// Establish a start time if available
+			status.StartTime = j.Status.StartTime // TODO DeepCopy?
+			dirty = dirty || j.Status.StartTime != nil
+		} else if j.Status.StartTime != nil && j.Status.StartTime.Before(status.StartTime) {
+			// Move the start time up
+			status.StartTime = j.Status.StartTime
+			dirty = true
+		}
+
+		if status.CompletionTime == nil {
+			// Establish an end time if available
+			status.CompletionTime = j.Status.CompletionTime
+			dirty = dirty || j.Status.CompletionTime != nil
+		} else if j.Status.CompletionTime != nil && status.CompletionTime.Before(j.Status.CompletionTime) {
+			// Move the start time back
+			status.CompletionTime = j.Status.CompletionTime
+			dirty = true
+		}
+
+		// Mark the trial as failed if there are any failed pods
+		if !status.Failed && j.Status.Failed > 0 {
+			status.Failed = true
+			dirty = true
+		}
+	}
+
+	return dirty
 }
 
 func fetchJSON(url string, target interface{}) error {
