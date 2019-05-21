@@ -29,10 +29,18 @@ const (
 	//ParameterTypeFloat indicates a parameter has a floating point value
 	ParameterTypeFloat ParameterType = "float"
 
+	// ErrExperimentNameInvalid indicates that the experiment name is unacceptable
+	ErrExperimentNameInvalid ErrorType = "experiment-name-invalid"
+	// ErrExperimentNameConflict indicates that the experiment name causes a conflict
+	ErrExperimentNameConflict = "experiment-name-conflict"
+	// ErrExperimentNotFound indicates the requested experiment was not found on the server
+	ErrExperimentNotFound = "experiment-not-found"
 	// ErrExperimentStopped indicates that the experiment is over and no more suggestions will be provided
-	ErrExperimentStopped ErrorType = "stopped"
+	ErrExperimentStopped = "experiment-stopped"
 	// ErrSuggestionUnavailable indicates that no suggestions are currently available
-	ErrSuggestionUnavailable ErrorType = "unavailable"
+	ErrSuggestionUnavailable = "suggestion-unavailable"
+	// ErrSuggestionNotFound indicates an observation cannot be reported because the corresponding suggestion does not exist
+	ErrSuggestionNotFound = "suggestion-not-found"
 )
 
 // ExperimentName exists to clearly separate cases where an actual name can be used
@@ -59,7 +67,7 @@ type Error struct {
 }
 
 func (e *Error) Error() string {
-	return fmt.Sprintf("%s: ", e.Type)
+	return fmt.Sprintf("%s", e.Type)
 }
 
 // Optimization controls how the optimizer will generate suggestions
@@ -82,6 +90,7 @@ type Bounds struct {
 type Parameter struct {
 	// The name of the parameter
 	Name string `json:"name"`
+	// TODO DisplayName?
 	// The type of the parameter
 	Type ParameterType `json:"type"`
 	// The default value of the parameter
@@ -96,6 +105,7 @@ type Parameter struct {
 type Metric struct {
 	// The name of the parameter
 	Name string `json:"name"`
+	// TODO DisplayName?
 	// The flag indicating this metric should be minimized
 	Minimize bool `json:"minimize,omitempty"`
 }
@@ -155,6 +165,7 @@ type API interface {
 	// Deletes the experiment with the specified URL
 	DeleteExperiment(context.Context, string) error
 	// Manually creates a new suggestion
+	// TODO There is no way to obtain the necessary reference for this call
 	CreateSuggestion(context.Context, string, Suggestion) (string, error)
 	// Obtains the next suggestion from a suggestion reference
 	NextSuggestion(context.Context, string) (Suggestion, string, error)
@@ -187,8 +198,23 @@ func (h *httpAPI) PutExperiment(ctx context.Context, n ExperimentName, exp Exper
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	_, _, err = h.client.Do(ctx, req)
-	return u.String(), err
+	resp, _, err := h.client.Do(ctx, req)
+	if err != nil {
+		return "", err
+	}
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return u.String(), nil
+	case http.StatusCreated:
+		return u.String(), nil
+	case http.StatusConflict:
+		return "", &Error{Type: ErrExperimentNameConflict}
+	case http.StatusBadRequest:
+		return "", &Error{Type: ErrExperimentNameInvalid}
+	default:
+		return "", unexpected(resp)
+	}
 }
 
 func (h *httpAPI) GetExperiment(ctx context.Context, u string) (Experiment, error) {
@@ -199,10 +225,20 @@ func (h *httpAPI) GetExperiment(ctx context.Context, u string) (Experiment, erro
 		return e, err
 	}
 
-	_, body, err := h.client.Do(ctx, req)
+	resp, body, err := h.client.Do(ctx, req)
+	if err != nil {
+		return e, err
+	}
 
-	err = json.Unmarshal(body, &e)
-	return e, err
+	switch resp.StatusCode {
+	case http.StatusOK:
+		err = json.Unmarshal(body, &e)
+		return e, err
+	case http.StatusNotFound:
+		return e, &Error{Type: ErrExperimentNotFound}
+	default:
+		return e, unexpected(resp)
+	}
 }
 
 func (h *httpAPI) DeleteExperiment(ctx context.Context, u string) error {
@@ -211,12 +247,47 @@ func (h *httpAPI) DeleteExperiment(ctx context.Context, u string) error {
 		return err
 	}
 
-	_, _, err = h.client.Do(ctx, req)
-	return err
+	resp, _, err := h.client.Do(ctx, req)
+	if err != nil {
+		return err
+	}
+
+	switch resp.StatusCode {
+	case http.StatusNoContent:
+		return nil
+	case http.StatusNotFound:
+		return &Error{Type: ErrExperimentNotFound}
+	default:
+		return unexpected(resp)
+	}
 }
 
-func (h *httpAPI) CreateSuggestion(context.Context, string, Suggestion) (string, error) {
-	return "", nil
+func (h *httpAPI) CreateSuggestion(ctx context.Context, u string, sug Suggestion) (string, error) {
+	l := ""
+
+	body, err := json.Marshal(sug)
+	if err != nil {
+		return l, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, u, bytes.NewBuffer(body))
+	if err != nil {
+		return l, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, _, err := h.client.Do(ctx, req)
+	if err != nil {
+		return l, err
+	}
+
+	switch resp.StatusCode {
+	case http.StatusCreated:
+		l = resp.Header.Get("Location")
+		return l, nil
+	default:
+		return l, unexpected(resp)
+	}
 }
 
 func (h *httpAPI) NextSuggestion(ctx context.Context, u string) (Suggestion, string, error) {
@@ -234,6 +305,12 @@ func (h *httpAPI) NextSuggestion(ctx context.Context, u string) (Suggestion, str
 	}
 
 	switch resp.StatusCode {
+	case http.StatusCreated:
+		fallthrough // TODO This doesn't match the documentation
+	case http.StatusOK:
+		l = resp.Header.Get("Location")
+		err = json.Unmarshal(body, &s)
+		return s, l, err
 	case http.StatusGone:
 		return s, l, &Error{Type: ErrExperimentStopped}
 	case http.StatusServiceUnavailable:
@@ -242,13 +319,9 @@ func (h *httpAPI) NextSuggestion(ctx context.Context, u string) (Suggestion, str
 			ra = 5
 		}
 		return s, l, &Error{Type: ErrSuggestionUnavailable, RetryAfter: time.Duration(ra) * time.Second}
+	default:
+		return s, l, unexpected(resp)
 	}
-
-	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		l = resp.Header.Get("Location")
-		err = json.Unmarshal(body, &s)
-	}
-	return s, l, err
 }
 
 func (h *httpAPI) ReportObservation(ctx context.Context, u string, obs Observation) error {
@@ -263,20 +336,43 @@ func (h *httpAPI) ReportObservation(ctx context.Context, u string, obs Observati
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	_, _, err = h.client.Do(ctx, req)
-	return err
+	resp, _, err := h.client.Do(ctx, req)
+	if err != nil {
+		return err
+	}
+
+	switch resp.StatusCode {
+	case http.StatusCreated:
+		return nil
+	case http.StatusNotFound:
+		return &Error{Type: ErrSuggestionNotFound}
+	default:
+		return unexpected(resp)
+	}
 }
 
 func (h *httpAPI) GetObservations(ctx context.Context, u string) (ObservationList, error) {
-	l := ObservationList{}
+	lst := ObservationList{}
 
 	req, err := http.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
-		return l, err
+		return lst, err
 	}
 
-	_, body, err := h.client.Do(ctx, req)
+	resp, body, err := h.client.Do(ctx, req)
+	if err != nil {
+		return lst, err
+	}
 
-	err = json.Unmarshal(body, &l)
-	return l, err
+	switch resp.StatusCode {
+	case http.StatusOK:
+		err = json.Unmarshal(body, &lst)
+		return lst, nil
+	default:
+		return lst, unexpected(resp)
+	}
+}
+
+func unexpected(resp *http.Response) error {
+	return fmt.Errorf("unexpected server response: %d", resp.StatusCode)
 }

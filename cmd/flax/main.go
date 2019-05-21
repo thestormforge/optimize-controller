@@ -24,7 +24,7 @@ func main() {
 	api := okeanos.NewApi(c)
 
 	// New experiment
-	name := okeanos.NewExperimentName("test")
+	name := okeanos.NewExperimentName("this-is-not-a-test")
 	in := &okeanos.Experiment{
 		Parameters: []okeanos.Parameter{
 			{
