@@ -25,7 +25,7 @@ func main() {
 
 	// New experiment
 	name := okeanos.NewExperimentName("test")
-	exp := &okeanos.Experiment{
+	in := &okeanos.Experiment{
 		Parameters: []okeanos.Parameter{
 			{
 				Name: "a",
@@ -65,7 +65,7 @@ func main() {
 	}
 
 	// Put it out there
-	eu, err := api.PutExperiment(context.TODO(), name, *exp)
+	eu, err := api.PutExperiment(context.TODO(), name, *in)
 	if err != nil {
 		panic(err)
 	}
@@ -78,8 +78,18 @@ func main() {
 		}
 	}()
 
+	// Index the parameters and metrics for easy lookup
+	pi := make(map[string]okeanos.Parameter, len(in.Parameters))
+	for _, p := range in.Parameters {
+		pi[p.Name] = p
+	}
+	mi := make(map[string]okeanos.Metric, len(in.Metrics))
+	for _, m := range in.Metrics {
+		mi[m.Name] = m
+	}
+
 	// Get it back, overwrite pointer
-	*exp, err = api.GetExperiment(context.TODO(), eu)
+	exp, err := api.GetExperiment(context.TODO(), eu)
 	if err != nil {
 		panic(err)
 	}
@@ -89,9 +99,27 @@ func main() {
 		panic("Expected a 'suggestionRef' URL on the result to post suggestions back to")
 	}
 
-	// TODO We need to make some better assertions
-	if exp.Metrics[0].Name == "l" && exp.Metrics[0].Minimize {
-		panic("Expected an unspecified boolean (Metric.Minimize) to default to false")
+	// Check the parameters
+	for _, p := range exp.Parameters {
+		if pp, ok := pi[p.Name]; ok {
+			if p.Type != pp.Type {
+				panic(fmt.Sprintf("Parameter type mismatch for '%s': was '%s', expected '%s'", p.Name, p.Type, pp.Type))
+			}
+			// TODO Check bounds, etc.
+		} else {
+			panic(fmt.Sprintf("Missing parameter '%s' from server", p.Name))
+		}
+	}
+
+	// Check the metrics
+	for _, m := range exp.Metrics {
+		if mm, ok := mi[m.Name]; ok {
+			if m.Minimize != mm.Minimize {
+				panic(fmt.Sprintf("Metric direction mismatch for '%s': was '%t', expected '%t'", m.Name, m.Minimize, mm.Minimize))
+			}
+		} else {
+			panic(fmt.Sprintf("Missing metric '%s' from server", m.Name))
+		}
 	}
 
 	// Get a suggestion
