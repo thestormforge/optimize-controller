@@ -17,15 +17,25 @@ type Parameter struct {
 	// TODO Default value?
 }
 
+type MetricType string
+
+const (
+	MetricLocal      MetricType = "local"
+	MetricPrometheus            = "prometheus"
+	MetricJSONPath              = "jsonpath"
+	// TODO "regex"?
+)
+
 // Metric
 type Metric struct {
 	Name     string                `json:"name"`
 	Minimize bool                  `json:"minimize,omitempty"`
-	Type     string                `json:"type,omitempty"` // "local", "jsonpath", "prometheus" ("regex"?)
+	Type     MetricType            `json:"type,omitempty"`
 	Query    string                `json:"query"`          // Type specific query, e.g. PromQL or a JSON pointer expression
 	Path     string                `json:"path,omitempty"` // Path appended to the endpoint (used as a prefix for prometheus)
 	Selector *metav1.LabelSelector `json:"selector,omitempty"`
 	Port     intstr.IntOrString    `json:"endpoint,omitempty"`
+	//IntervalSeconds *int32                `json:"intervalSeconds,omitempty"` // Approximate interval over the entire run the metric should be collected
 }
 
 // PatchTemplate defines a target resource and a patch template to apply

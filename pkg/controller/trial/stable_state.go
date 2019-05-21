@@ -14,8 +14,6 @@ import (
 
 // StabilityError indicates that the cluster has not reached a sufficiently stable state
 type StabilityError struct {
-	// The reference to the object that has not yet stabilized
-	TargetRef corev1.ObjectReference
 	// The minimum amount of time until the object is expected to stabilize, if left unspecified there is no expectation of stability
 	RetryAfter time.Duration
 }
@@ -23,6 +21,31 @@ type StabilityError struct {
 func (e *StabilityError) Error() string {
 	// TODO Make something nice
 	return "not stable"
+}
+
+// Check a stateful set to see if it has reached a stable state
+func checkStatefulSet(ss *appsv1.StatefulSet) error {
+	// TODO We also need to check for errors, if there are failures we never launch the job
+
+	if ss.Status.ReadyReplicas < ss.Status.Replicas {
+		return &StabilityError{RetryAfter: 5 * time.Second}
+	}
+
+	return nil
+}
+
+func checkDeployment(d *appsv1.Deployment) error {
+	for _, c := range d.Status.Conditions {
+		if c.Type == appsv1.DeploymentReplicaFailure {
+			return &StabilityError{}
+		}
+	}
+
+	if d.Status.ReadyReplicas < d.Status.Replicas {
+		return &StabilityError{RetryAfter: 5 * time.Second}
+	}
+
+	return nil
 }
 
 // Iterates over all of the supplied patches and ensures that the targets are in a "stable" state (where "stable"
@@ -38,11 +61,8 @@ func waitForStableState(r client.Reader, ctx context.Context, patches []okeanosv
 				}
 				return err
 			}
-
-			// TODO We also need to check for errors, if there are failures we never launch the job
-
-			if ss.Status.ReadyReplicas < ss.Status.Replicas {
-				return &StabilityError{TargetRef: p.TargetRef, RetryAfter: 5 * time.Second}
+			if err := checkStatefulSet(ss); err != nil {
+				return err
 			}
 
 		case "Deployment":
@@ -53,15 +73,8 @@ func waitForStableState(r client.Reader, ctx context.Context, patches []okeanosv
 				}
 				return err
 			}
-
-			for _, c := range d.Status.Conditions {
-				if c.Type == appsv1.DeploymentReplicaFailure {
-					return &StabilityError{TargetRef: p.TargetRef}
-				}
-			}
-
-			if d.Status.ReadyReplicas < d.Status.Replicas {
-				return &StabilityError{TargetRef: p.TargetRef, RetryAfter: 5 * time.Second}
+			if err := checkDeployment(d); err != nil {
+				return err
 			}
 		}
 	}

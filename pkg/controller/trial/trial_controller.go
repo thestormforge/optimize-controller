@@ -1,19 +1,12 @@
 package trial
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"net/url"
-	"strconv"
-	"text/template"
 	"time"
 
 	okeanosv1alpha1 "github.com/gramLabs/okeanos/pkg/apis/okeanos/v1alpha1"
-	prom "github.com/prometheus/client_golang/api"
-	promv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -22,7 +15,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/client-go/util/jsonpath"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -34,9 +26,6 @@ import (
 )
 
 var log = logf.Log.WithName("controller")
-
-// TODO We need some type of client util to encapsulate this
-var httpClient = &http.Client{Timeout: 10 * time.Second}
 
 // Add creates a new Trial Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
@@ -81,10 +70,6 @@ var _ reconcile.Reconciler = &ReconcileTrial{}
 type ReconcileTrial struct {
 	client.Client
 	scheme *runtime.Scheme
-}
-
-type patchContext struct {
-	Values map[string]interface{}
 }
 
 // Reconcile reads that state of the cluster for a Trial object and makes changes based on the state read
@@ -189,7 +174,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 		return reconcile.Result{}, nil
 	}
 
-	// Create a new job if needed (start may be nil if we created a job but it hasn't started yet)
+	// Create a new job if needed
 	if len(jobs.Items) == 0 {
 		// Wait for a stable (ish) state
 		if err = waitForStableState(r, context.TODO(), trial.Status.PatchOperations); err != nil {
@@ -207,50 +192,12 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 			return reconcile.Result{}, err
 		}
 
-		// Try to get the job template off the experiment
+		// Create a new job
 		job := &batchv1.Job{}
-		e := &okeanosv1alpha1.Experiment{}
-		if err = r.Get(context.TODO(), trial.ExperimentNamespacedName(), e); err == nil {
-			e.Spec.JobTemplate.ObjectMeta.DeepCopyInto(&job.ObjectMeta)
-			e.Spec.JobTemplate.Spec.DeepCopyInto(&job.Spec)
-		}
-
-		// Provide default metadata
-		if job.Name == "" {
-			job.Name = trial.Name
-		}
-		if job.Namespace == "" {
-			job.Namespace = trial.Namespace
-		}
-
-		// TODO Are we doing the labeling correctly?
-		if len(job.Labels) == 0 {
-			job.Labels = make(map[string]string, 1)
-			if e.Name != "" {
-				job.Labels["experiment"] = e.Name
-			} else {
-				job.Labels["experiment"] = trial.Name
-			}
-		}
-
-		// The default restart policy for a pod is not acceptable in the context of a job
-		if job.Spec.Template.Spec.RestartPolicy == "" {
-			job.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyNever
-		}
-
-		// Containers cannot be null, inject a small sleep by default
-		if job.Spec.Template.Spec.Containers == nil {
-			job.Spec.Template.Spec.Containers = []corev1.Container{
-				{
-					Name:    "default-trial-run",
-					Image:   "busybox",
-					Command: []string{"sleep", "120"},
-				},
-			}
-		}
+		r.createJob(trial, job)
 
 		// Update the controller reference so we get updates when the job changes status
-		if err := controllerutil.SetControllerReference(trial, job, r.scheme); err != nil {
+		if err = controllerutil.SetControllerReference(trial, job, r.scheme); err != nil {
 			return reconcile.Result{}, err
 		}
 
@@ -271,82 +218,20 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 			trial.Spec.Values = make(map[string]float64, 1)
 		}
 
+		// Look for metrics that have not been collected yet
 		for _, m := range trial.Status.MetricQueries {
 			if _, ok := trial.Spec.Values[m.Name]; !ok {
-				var value string
-				switch m.MetricType {
-				// TODO Add support for regex extraction over a resource
-
-				case "local", "":
-					// Evaluate the query as template against the trial itself
-					tmpl, err := template.New("query").Funcs(templateFunctions()).Parse(m.Query)
+				var retryAfter *time.Duration
+				if trial.Spec.Values[m.Name], retryAfter, err = captureMetric(&m, trial); retryAfter != nil || err != nil {
+					if retryAfter != nil {
+						return reconcile.Result{Requeue: true, RequeueAfter: *retryAfter}, nil
+					}
 					if err != nil {
 						return reconcile.Result{}, err
-					}
-					buf := new(bytes.Buffer)
-					if err = tmpl.Execute(buf, trial); err != nil { // TODO DeepCopy the trial?
-						return reconcile.Result{}, err
-					}
-					value = buf.String()
-
-				case "prometheus":
-					// Get the Prometheus client based on the metric URL
-					// TODO Cache these by URL
-					c, err := prom.NewClient(prom.Config{Address: m.URL})
-					if err != nil {
-						return reconcile.Result{}, err
-					}
-					promAPI := promv1.NewAPI(c)
-
-					// Make sure Prometheus is ready
-					var promReady bool
-					var requeueDelay time.Duration
-					if promReady, requeueDelay, err = isPrometheusReady(promAPI, trial.Status.CompletionTime); err != nil {
-						return reconcile.Result{}, err
-					}
-					if !promReady {
-						return reconcile.Result{Requeue: true, RequeueAfter: requeueDelay}, err
-					}
-
-					// Execute query
-					v, err := promAPI.Query(context.TODO(), m.Query, trial.Status.CompletionTime.Time)
-					if err != nil {
-						return reconcile.Result{}, err
-					}
-
-					// TODO No idea what we are looking at here...
-					value = v.String()
-
-				case "jsonpath":
-					// Fetch the JSON, evaluate the JSON path
-					data := make(map[string]interface{})
-					if err := fetchJSON(m.URL, data); err != nil {
-						return reconcile.Result{}, err
-					}
-
-					jp := jsonpath.New(m.Name)
-					if err := jp.Parse(m.Query); err != nil {
-						return reconcile.Result{}, err
-					}
-					values, err := jp.FindResults(data)
-					if err != nil {
-						return reconcile.Result{}, err
-					}
-
-					// TODO No idea what we are looking for here...
-					for _, v := range values {
-						for _, vv := range v {
-							value = vv.String()
-						}
 					}
 				}
 
-				trial.Spec.Values[m.Name], err = strconv.ParseFloat(value, 64)
-				if err != nil {
-					return reconcile.Result{}, err
-				}
-
-				err := r.Update(context.TODO(), trial)
+				err = r.Update(context.TODO(), trial)
 				return reconcile.Result{}, err
 			}
 		}
@@ -357,25 +242,14 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 
 func (r *ReconcileTrial) evaluatePatches(trial *okeanosv1alpha1.Trial, e *okeanosv1alpha1.Experiment) error {
 	for _, p := range e.Spec.Patches {
-		// Determine the patch type
-		pt, err := p.GetPatchType()
+		// Evaluate the patch template
+		pt, data, err := executePatchTemplate(&p, trial)
 		if err != nil {
-			return err
-		}
-
-		// Evaluate the template into a patch
-		tmpl, err := template.New("patch").Funcs(templateFunctions()).Parse(p.Patch)
-		if err != nil {
-			return err
-		}
-		data := patchContext{Values: trial.Spec.Assignments}
-		buf := new(bytes.Buffer)
-		if err = tmpl.Execute(buf, data); err != nil {
 			return err
 		}
 
 		// Find the targets to apply the patch to
-		targets, err := r.findPatchTargets(trial, p)
+		targets, err := r.findPatchTargets(&p, trial)
 		if err != nil {
 			return err
 		}
@@ -385,7 +259,7 @@ func (r *ReconcileTrial) evaluatePatches(trial *okeanosv1alpha1.Trial, e *okeano
 			trial.Status.PatchOperations = append(trial.Status.PatchOperations, okeanosv1alpha1.PatchOperation{
 				TargetRef: ref,
 				PatchType: pt,
-				Data:      buf.Bytes(),
+				Data:      data,
 				Pending:   true,
 			})
 		}
@@ -395,7 +269,7 @@ func (r *ReconcileTrial) evaluatePatches(trial *okeanosv1alpha1.Trial, e *okeano
 }
 
 // Finds the patch targets
-func (r *ReconcileTrial) findPatchTargets(trial *okeanosv1alpha1.Trial, p okeanosv1alpha1.PatchTemplate) ([]corev1.ObjectReference, error) {
+func (r *ReconcileTrial) findPatchTargets(p *okeanosv1alpha1.PatchTemplate, trial *okeanosv1alpha1.Trial) ([]corev1.ObjectReference, error) {
 	var targets []corev1.ObjectReference
 	if p.TargetRef.Name == "" {
 		ls, err := metav1.LabelSelectorAsSelector(p.Selector)
@@ -516,39 +390,46 @@ func updateStatusFromJobs(jobs []batchv1.Job, status *okeanosv1alpha1.TrialStatu
 	return dirty
 }
 
-func fetchJSON(url string, target interface{}) error {
-	// TODO Set accept header
-	r, err := httpClient.Get(url)
-	if err != nil {
-		return err
-	}
-	defer r.Body.Close()
+func (r *ReconcileTrial) createJob(trial *okeanosv1alpha1.Trial, job *batchv1.Job) {
+	// Try to get the job template off the experiment
 
-	return json.NewDecoder(r.Body).Decode(target)
-}
-
-// For a Prometheus, checks that the last scrape time is after the end time
-func isPrometheusReady(promAPI promv1.API, endTime *metav1.Time) (bool, time.Duration, error) {
-	ts, err := promAPI.Targets(context.TODO())
-	if err != nil {
-		return false, 0, err
+	e := &okeanosv1alpha1.Experiment{}
+	if err := r.Get(context.TODO(), trial.ExperimentNamespacedName(), e); err == nil {
+		e.Spec.JobTemplate.ObjectMeta.DeepCopyInto(&job.ObjectMeta)
+		e.Spec.JobTemplate.Spec.DeepCopyInto(&job.Spec)
 	}
-	for _, t := range ts.Active {
-		if t.LastScrape.Before(endTime.Time) {
-			// TODO Can we make a more informed delay?
-			return false, 5 * time.Second, nil
+
+	// Provide default metadata
+	if job.Name == "" {
+		job.Name = trial.Name
+	}
+	if job.Namespace == "" {
+		job.Namespace = trial.Namespace
+	}
+
+	// TODO Are we doing the labeling correctly?
+	if len(job.Labels) == 0 {
+		job.Labels = make(map[string]string, 1)
+		if e.Name != "" {
+			job.Labels["experiment"] = e.Name
+		} else {
+			job.Labels["experiment"] = trial.Name
 		}
 	}
 
-	return true, 0, nil
-}
-
-func templateFunctions() template.FuncMap {
-	return template.FuncMap{
-		"duration": templateDuration,
+	// The default restart policy for a pod is not acceptable in the context of a job
+	if job.Spec.Template.Spec.RestartPolicy == "" {
+		job.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyNever
 	}
-}
 
-func templateDuration(start, completion metav1.Time) float64 {
-	return completion.Sub(start.Time).Seconds()
+	// Containers cannot be null, inject a small sleep by default
+	if job.Spec.Template.Spec.Containers == nil {
+		job.Spec.Template.Spec.Containers = []corev1.Container{
+			{
+				Name:    "default-trial-run",
+				Image:   "busybox",
+				Command: []string{"sleep", "120"},
+			},
+		}
+	}
 }

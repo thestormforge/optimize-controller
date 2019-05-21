@@ -17,10 +17,10 @@ type PatchOperation struct {
 }
 
 type MetricQuery struct {
-	Name       string `json:"name"`
-	MetricType string `json:"metricType,omitempty"`
-	Query      string `json:"query"`
-	URL        string `json:"url,omitempty"`
+	Name       string     `json:"name"`
+	MetricType MetricType `json:"metricType,omitempty"`
+	Query      string     `json:"query"`
+	URL        string     `json:"url,omitempty"`
 }
 
 // TrialSpec defines the desired state of Trial
@@ -30,6 +30,8 @@ type TrialSpec struct {
 	Assignments     Assignments             `json:"assignments"`
 	Values          map[string]float64      `json:"values"`
 	Selector        *metav1.LabelSelector   `json:"selector,omitempty"`
+	// TODO Have a values time series ("ValuesMatrix"?) that we can append to for interval based collections?
+	// TODO Then have functions that can operate on those ts arrays...map[string][][]float64?
 }
 
 // TrialStatus defines the observed state of Trial
