@@ -65,7 +65,7 @@ func main() {
 	}
 
 	// Put it out there
-	eu, err := api.PutExperiment(context.TODO(), name, *in)
+	eu, err := api.CreateExperiment(context.TODO(), name, *in)
 	if err != nil {
 		panic(err)
 	}

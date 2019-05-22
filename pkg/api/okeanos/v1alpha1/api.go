@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	endpointExperiment = "/api/experiment"
+	endpointExperiment = "/api/experiments"
 )
 
 // ParameterType enumerates the possible parameter types
@@ -90,7 +90,6 @@ type Bounds struct {
 type Parameter struct {
 	// The name of the parameter
 	Name string `json:"name"`
-	// TODO DisplayName?
 	// The type of the parameter
 	Type ParameterType `json:"type"`
 	// The default value of the parameter
@@ -103,9 +102,8 @@ type Parameter struct {
 
 // Metric is a target that we are trying to optimize
 type Metric struct {
-	// The name of the parameter
+	// The name of the metric
 	Name string `json:"name"`
-	// TODO DisplayName?
 	// The flag indicating this metric should be minimized
 	Minimize bool `json:"minimize,omitempty"`
 }
@@ -122,16 +120,25 @@ type Value struct {
 
 // Experiment combines the search space, outcomes and optimization configuration
 type Experiment struct {
+	// The display name of the experiment
+	DisplayName string `json:"displayName,omitempty"`
 	// The optimization configuration for the experiment
 	Optimization Optimization `json:"optimization,omitempty"`
 	// The search space of the experiment
 	Parameters []Parameter `json:"parameters"`
-	// The outcomes of the experiment
+	// The possible outcomes of the experiment
 	Metrics []Metric `json:"metrics"`
 	// The absolute URL used to obtain suggestions via a POST request
 	SuggestionRef string `json:"suggestionRef,omitempty"`
 	// The absolute URL used to fetch the entire list of observations
 	ObservationRef string `json:"observationRef,omitempty"`
+}
+
+// A list of experiments
+type ExperimentList struct {
+	// The actual list of experiments
+	// TODO This is missing the itemRef
+	Experiments []Experiment `json:"experiments"`
 }
 
 // Suggestion represents the assignments of parameter values for a trial run
@@ -158,10 +165,12 @@ type ObservationList struct {
 
 // API provides bindings for the Flax endpoints
 type API interface {
-	// Creates or updates an experiment with the specified name and returns the URL
-	PutExperiment(context.Context, ExperimentName, Experiment) (string, error)
+	// Gets a list of all experiments
+	GetAllExperiments(context.Context) (ExperimentList, error)
 	// Retrieves the experiment with the specified URL
 	GetExperiment(context.Context, string) (Experiment, error)
+	// Creates or updates an experiment with the specified name and returns the URL
+	CreateExperiment(context.Context, ExperimentName, Experiment) (string, error)
 	// Deletes the experiment with the specified URL
 	DeleteExperiment(context.Context, string) error
 	// Manually creates a new suggestion
@@ -172,7 +181,7 @@ type API interface {
 	// Reports an observation for a suggestion reference
 	ReportObservation(context.Context, string, Observation) error
 	// Gets a list of all observations
-	GetObservations(context.Context, string) (ObservationList, error)
+	GetAllObservations(context.Context, string) (ObservationList, error)
 }
 
 // NewApi returns a new version specific API for the specified client
@@ -184,7 +193,54 @@ type httpAPI struct {
 	client api.Client
 }
 
-func (h *httpAPI) PutExperiment(ctx context.Context, n ExperimentName, exp Experiment) (string, error) {
+func (h *httpAPI) GetAllExperiments(ctx context.Context) (ExperimentList, error) {
+	u := h.client.URL(endpointExperiment)
+	lst := ExperimentList{}
+
+	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+	if err != nil {
+		return lst, err
+	}
+
+	resp, body, err := h.client.Do(ctx, req)
+	if err != nil {
+		return lst, err
+	}
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		err = json.Unmarshal(body, &lst)
+		return lst, nil
+	default:
+		return lst, unexpected(resp)
+	}
+}
+
+func (h *httpAPI) GetExperiment(ctx context.Context, u string) (Experiment, error) {
+	e := Experiment{}
+
+	req, err := http.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return e, err
+	}
+
+	resp, body, err := h.client.Do(ctx, req)
+	if err != nil {
+		return e, err
+	}
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		err = json.Unmarshal(body, &e)
+		return e, err
+	case http.StatusNotFound:
+		return e, &Error{Type: ErrExperimentNotFound}
+	default:
+		return e, unexpected(resp)
+	}
+}
+
+func (h *httpAPI) CreateExperiment(ctx context.Context, n ExperimentName, exp Experiment) (string, error) {
 	u := h.client.URL(endpointExperiment + "/" + url.PathEscape(n.Name()))
 
 	body, err := json.Marshal(exp)
@@ -214,30 +270,6 @@ func (h *httpAPI) PutExperiment(ctx context.Context, n ExperimentName, exp Exper
 		return "", &Error{Type: ErrExperimentNameInvalid}
 	default:
 		return "", unexpected(resp)
-	}
-}
-
-func (h *httpAPI) GetExperiment(ctx context.Context, u string) (Experiment, error) {
-	e := Experiment{}
-
-	req, err := http.NewRequest(http.MethodGet, u, nil)
-	if err != nil {
-		return e, err
-	}
-
-	resp, body, err := h.client.Do(ctx, req)
-	if err != nil {
-		return e, err
-	}
-
-	switch resp.StatusCode {
-	case http.StatusOK:
-		err = json.Unmarshal(body, &e)
-		return e, err
-	case http.StatusNotFound:
-		return e, &Error{Type: ErrExperimentNotFound}
-	default:
-		return e, unexpected(resp)
 	}
 }
 
@@ -351,7 +383,7 @@ func (h *httpAPI) ReportObservation(ctx context.Context, u string, obs Observati
 	}
 }
 
-func (h *httpAPI) GetObservations(ctx context.Context, u string) (ObservationList, error) {
+func (h *httpAPI) GetAllObservations(ctx context.Context, u string) (ObservationList, error) {
 	lst := ObservationList{}
 
 	req, err := http.NewRequest(http.MethodGet, u, nil)

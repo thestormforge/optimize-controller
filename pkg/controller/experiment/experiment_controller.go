@@ -119,7 +119,7 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 		e := okeanosapi.Experiment{}
 		copyExperimentToRemote(experiment, &e)
 		log.Info("Creating remote experiment", "experimentURL", experimentURL)
-		if experimentURL, err = r.api.PutExperiment(context.TODO(), n, e); err != nil {
+		if experimentURL, err = r.api.CreateExperiment(context.TODO(), n, e); err != nil {
 			// Error posting the representation - requeue the request.
 			return reconcile.Result{}, err
 		}
