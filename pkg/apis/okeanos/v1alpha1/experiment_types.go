@@ -35,7 +35,6 @@ type Metric struct {
 	Path     string                `json:"path,omitempty"` // Path appended to the endpoint (used as a prefix for prometheus)
 	Selector *metav1.LabelSelector `json:"selector,omitempty"`
 	Port     intstr.IntOrString    `json:"endpoint,omitempty"`
-	//IntervalSeconds *int32                `json:"intervalSeconds,omitempty"` // Approximate interval over the entire run the metric should be collected
 }
 
 // PatchTemplate defines a target resource and a patch template to apply
@@ -79,6 +78,10 @@ type ExperimentSpec struct {
 	Patches []PatchTemplate `json:"patches,omitempty"`
 	// JobTemplate is the template used to create trial run jobs
 	JobTemplate *batchv1beta1.JobTemplateSpec `json:"jobTemplate"`
+	// The offset used to adjust the start time to account ignore spin up of the trial run
+	StartTimeOffset *metav1.Duration
+	// The approximate amount of time the trial run should execute (not inclusive of the start time offset)
+	ApproximateRuntime *metav1.Duration
 }
 
 // ExperimentStatus defines the observed state of Experiment

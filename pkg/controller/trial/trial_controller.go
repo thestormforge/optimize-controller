@@ -164,7 +164,16 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 	}
 
 	// Update the trial run status using the job status
-	if updateStatusFromJobs(jobs.Items, &trial.Status) {
+	if dirty, adjustStartTime := updateStatusFromJobs(jobs.Items, &trial.Status); dirty {
+		if adjustStartTime {
+			e := &okeanosv1alpha1.Experiment{}
+			if err = r.Get(context.TODO(), trial.ExperimentNamespacedName(), e); err != nil {
+				return reconcile.Result{}, err
+			}
+			if e.Spec.StartTimeOffset != nil {
+				*trial.Status.StartTime = metav1.NewTime(trial.Status.StartTime.Add(e.Spec.StartTimeOffset.Duration))
+			}
+		}
 		err = r.Update(context.TODO(), trial)
 		return reconcile.Result{}, err
 	}
@@ -220,6 +229,8 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 
 		// Look for metrics that have not been collected yet
 		for _, m := range trial.Status.MetricQueries {
+
+			// Collect the first metric query we have not yet captured and return
 			if _, ok := trial.Spec.Values[m.Name]; !ok {
 				var retryAfter *time.Duration
 				if trial.Spec.Values[m.Name], retryAfter, err = captureMetric(&m, trial); retryAfter != nil || err != nil {
@@ -356,27 +367,29 @@ func (r *ReconcileTrial) evaluateMetrics(trial *okeanosv1alpha1.Trial, e *okeano
 }
 
 // Updates a trial status based on the status of the individual job(s), returns true if any changes were necessary
-func updateStatusFromJobs(jobs []batchv1.Job, status *okeanosv1alpha1.TrialStatus) bool {
+func updateStatusFromJobs(jobs []batchv1.Job, status *okeanosv1alpha1.TrialStatus) (bool, bool) {
 	var dirty bool
+	var adjustStartTime bool
 
 	for _, j := range jobs {
 		if status.StartTime == nil {
 			// Establish a start time if available
-			status.StartTime = j.Status.StartTime // TODO DeepCopy?
+			status.StartTime = j.Status.StartTime.DeepCopy()
 			dirty = dirty || j.Status.StartTime != nil
-		} else if j.Status.StartTime != nil && j.Status.StartTime.Before(status.StartTime) {
-			// Move the start time up
-			status.StartTime = j.Status.StartTime
+			adjustStartTime = true
+		} else if j.Status.StartTime != nil && status.StartTime.Before(j.Status.StartTime) {
+			// Move the start time back
+			status.StartTime = j.Status.StartTime.DeepCopy()
 			dirty = true
 		}
 
 		if status.CompletionTime == nil {
 			// Establish an end time if available
-			status.CompletionTime = j.Status.CompletionTime
+			status.CompletionTime = j.Status.CompletionTime.DeepCopy()
 			dirty = dirty || j.Status.CompletionTime != nil
 		} else if j.Status.CompletionTime != nil && status.CompletionTime.Before(j.Status.CompletionTime) {
-			// Move the start time back
-			status.CompletionTime = j.Status.CompletionTime
+			// Move the completion time back
+			status.CompletionTime = j.Status.CompletionTime.DeepCopy()
 			dirty = true
 		}
 
@@ -387,7 +400,7 @@ func updateStatusFromJobs(jobs []batchv1.Job, status *okeanosv1alpha1.TrialStatu
 		}
 	}
 
-	return dirty
+	return dirty, adjustStartTime
 }
 
 func (r *ReconcileTrial) createJob(trial *okeanosv1alpha1.Trial, job *batchv1.Job) {
@@ -422,13 +435,20 @@ func (r *ReconcileTrial) createJob(trial *okeanosv1alpha1.Trial, job *batchv1.Jo
 		job.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyNever
 	}
 
-	// Containers cannot be null, inject a small sleep by default
+	// Containers cannot be null, inject a sleep by default
 	if job.Spec.Template.Spec.Containers == nil {
+		s := e.Spec.ApproximateRuntime
+		if s == nil || s.Duration == 0 {
+			s = &metav1.Duration{Duration: 2 * time.Minute}
+		}
+		if e.Spec.StartTimeOffset != nil {
+			s = &metav1.Duration{Duration: s.Duration + e.Spec.StartTimeOffset.Duration}
+		}
 		job.Spec.Template.Spec.Containers = []corev1.Container{
 			{
 				Name:    "default-trial-run",
 				Image:   "busybox",
-				Command: []string{"sleep", "120"},
+				Command: []string{"sleep", fmt.Sprintf("%.0f", s.Seconds())},
 			},
 		}
 	}

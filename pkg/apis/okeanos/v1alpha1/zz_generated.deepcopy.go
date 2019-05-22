@@ -128,6 +128,16 @@ func (in *ExperimentSpec) DeepCopyInto(out *ExperimentSpec) {
 		*out = new(v1beta1.JobTemplateSpec)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.StartTimeOffset != nil {
+		in, out := &in.StartTimeOffset, &out.StartTimeOffset
+		*out = new(v1.Duration)
+		**out = **in
+	}
+	if in.ApproximateRuntime != nil {
+		in, out := &in.ApproximateRuntime, &out.ApproximateRuntime
+		*out = new(v1.Duration)
+		**out = **in
+	}
 	return
 }
 
