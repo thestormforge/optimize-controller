@@ -14,6 +14,7 @@ type patchContext struct {
 }
 
 type metricContext struct {
+	Status *okeanosv1alpha1.TrialStatus
 }
 
 func executePatchTemplate(p *okeanosv1alpha1.PatchTemplate, trial *okeanosv1alpha1.Trial) (types.PatchType, []byte, error) {
@@ -53,7 +54,9 @@ func executeMetricQuery(m *okeanosv1alpha1.MetricQuery, trial *okeanosv1alpha1.T
 	funcMap := template.FuncMap{
 		"duration": templateDuration,
 	}
-	data := metricContext{}
+	data := metricContext{
+		Status: &trial.Status,
+	}
 
 	// Evaluate the template into a query
 	tmpl, err := template.New("query").Funcs(funcMap).Parse(m.Query)
