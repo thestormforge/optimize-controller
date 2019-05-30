@@ -3,7 +3,6 @@ package experiment
 import (
 	"context"
 	"encoding/json"
-	"os"
 	"strconv"
 
 	okeanosclient "github.com/gramLabs/okeanos/pkg/api"
@@ -37,17 +36,15 @@ var log = logf.Log.WithName("controller")
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
 	// Without a remote server address, this controller does not have anything to do
-	address := os.Getenv("OKEANOS_BASE_URL")
-	if address == "" {
-		return nil
+	config, err := okeanosclient.DefaultConfig()
+	// TODO Just log the error instead of allowing it to propagate?
+	if err != nil || config.Address == "" {
+		return err
 	}
-	oc, err := okeanosclient.NewClient(okeanosclient.Config{
-		Address: address,
-	})
+	oc, err := okeanosclient.NewClient(*config)
 	if err != nil {
 		return err
 	}
-
 	return add(mgr, newReconciler(mgr, oc))
 }
 
