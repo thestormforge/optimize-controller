@@ -250,14 +250,30 @@ func copyExperimentToRemote(experiment *okeanosv1alpha1.Experiment, e *okeanosap
 	e.Parameters = nil
 	for _, p := range experiment.Spec.Parameters {
 		cp := okeanosapi.Parameter{Name: p.Name}
-		// TODO Default value?
-		if len(p.Values) == 0 {
-			cp.Bounds = okeanosapi.Bounds{
-				Min: json.Number(strconv.Itoa(p.Min)),
-				Max: json.Number(strconv.Itoa(p.Max)),
+		if len(p.Values) > 0 {
+			cp.Type = okeanosapi.ParameterTypeString
+			if p.Default != "" {
+				cp.Default = p.Default
 			}
-		} else {
 			cp.Values = p.Values
+		} else if p.Min != p.Max {
+			cp.Type = okeanosapi.ParameterTypeInteger
+			if d, err := strconv.Atoi(p.Default); err == nil {
+				cp.Default = d
+			}
+			cp.Bounds = okeanosapi.Bounds{
+				Min: json.Number(strconv.FormatInt(p.Min, 10)),
+				Max: json.Number(strconv.FormatInt(p.Max, 10)),
+			}
+		} else if p.MinFloat != p.MaxFloat {
+			cp.Type = okeanosapi.ParameterTypeDouble
+			if d, err := strconv.ParseFloat(p.Default, 64); err == nil {
+				cp.Default = d
+			}
+			cp.Bounds = okeanosapi.Bounds{
+				Min: json.Number(strconv.FormatFloat(p.MinFloat, 'f', -1, 64)),
+				Max: json.Number(strconv.FormatFloat(p.MaxFloat, 'f', -1, 64)),
+			}
 		}
 		e.Parameters = append(e.Parameters, cp)
 	}

@@ -37,7 +37,7 @@ func main() {
 			},
 			{
 				Name: "b",
-				Type: okeanos.ParameterTypeFloat,
+				Type: okeanos.ParameterTypeDouble,
 				Bounds: okeanos.Bounds{
 					Min: "-1.0",
 					Max: "1.0",

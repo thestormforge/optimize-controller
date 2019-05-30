@@ -26,8 +26,10 @@ type ErrorType string
 const (
 	// ParameterTypeInteger indicates a parameter has an integer value
 	ParameterTypeInteger ParameterType = "int"
-	//ParameterTypeFloat indicates a parameter has a floating point value
-	ParameterTypeFloat ParameterType = "float"
+	// ParameterTypeDouble indicates a parameter has a floating point value
+	ParameterTypeDouble ParameterType = "double"
+	// ParameterTypeString indicates a parameter has an enumerated value
+	ParameterTypeString ParameterType = "string"
 
 	// ErrExperimentNameInvalid indicates that the experiment name is unacceptable
 	ErrExperimentNameInvalid ErrorType = "experiment-name-invalid"
