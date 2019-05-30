@@ -399,8 +399,13 @@ func updateStatusFromJobs(jobs []batchv1.Job, status *okeanosv1alpha1.TrialStatu
 
 		// Mark the trial as failed if there are any failed pods
 		if !status.Failed && j.Status.Failed > 0 {
-			status.Failed = true
-			dirty = true
+			for _, c := range j.Status.Conditions {
+				if c.Type == batchv1.JobFailed {
+					// If activeDeadlineSeconds was used a workaround for having a sidecar, ignore the failure
+					status.Failed = c.Reason != "DeadlineExceeded"
+				}
+			}
+			dirty = dirty || status.Failed
 		}
 	}
 
