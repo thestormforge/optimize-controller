@@ -36,7 +36,7 @@ func DefaultConfig() (*Config, error) {
 		p = filepath.Join(home, p)
 	}
 	f, err := os.Open(p)
-	if err != nil {
+	if err == nil {
 		if err = yaml.NewYAMLOrJSONDecoder(bufio.NewReader(f), 4096).Decode(config); err != nil {
 			return nil, err
 		}
