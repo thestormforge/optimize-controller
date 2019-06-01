@@ -6,17 +6,16 @@ import (
 
 // ExperimentNamespacedName returns the namespaced name of the experiment for this trial
 func (in *Trial) ExperimentNamespacedName() types.NamespacedName {
-	name := in.Name
-	namespace := in.Namespace
-
-	if in.Spec.ExperimentRef != nil && in.Spec.ExperimentRef.Name != "" {
-		name = in.Spec.ExperimentRef.Name
+	nn := types.NamespacedName{Namespace: in.Namespace, Name: in.Name}
+	if in.Spec.ExperimentRef != nil {
+		if in.Spec.ExperimentRef.Namespace != "" {
+			nn.Namespace = in.Spec.ExperimentRef.Namespace
+		}
+		if in.Spec.ExperimentRef.Name != "" {
+			nn.Name = in.Spec.ExperimentRef.Name
+		}
 	}
-	if in.Spec.ExperimentRef != nil && in.Spec.ExperimentRef.Namespace != "" {
-		namespace = in.Spec.ExperimentRef.Namespace
-	}
-
-	return types.NamespacedName{Name: name, Namespace: namespace}
+	return nn
 }
 
 // Manually write the deep copy method because of the empty interface usage
