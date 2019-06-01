@@ -90,6 +90,16 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 		return reconcile.Result{}, err
 	}
 
+	// If we are in a finished state there is nothing more for us to do with this trial
+	if IsTrialFinished(trial) {
+		return reconcile.Result{}, nil
+	}
+
+	// Ensure the value map is empty, never nil (no need to persist unless we otherwise need to)
+	if trial.Spec.Values == nil {
+		trial.Spec.Values = make(map[string]float64, 1)
+	}
+
 	// Evaluate the patch operations
 	if len(trial.Status.PatchOperations) == 0 {
 		e := &okeanosv1alpha1.Experiment{}
@@ -120,16 +130,18 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 		}
 	}
 
-	// Ensure we have non-nil selector
+	// Ensure we have non-nil selector to avoid repeatedly fetching the experiment for the job template
 	if trial.Spec.Selector == nil {
 		e := &okeanosv1alpha1.Experiment{}
 		if err = r.Get(context.TODO(), trial.ExperimentNamespacedName(), e); err != nil {
 			return reconcile.Result{}, err
 		}
-
-		// TODO Are we doing this labeling stuff right?
-		trial.Spec.Selector = metav1.SetAsLabelSelector(map[string]string{"experiment": e.Name})
-
+		if e.Spec.JobTemplate != nil {
+			trial.Spec.Selector = metav1.SetAsLabelSelector(e.Spec.JobTemplate.Labels)
+		}
+		if trial.Spec.Selector == nil {
+			trial.Spec.Selector = metav1.SetAsLabelSelector(trial.GetDefaultLabels())
+		}
 		err = r.Update(context.TODO(), trial)
 		return reconcile.Result{}, err
 	}
@@ -152,19 +164,18 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 		}
 	}
 
-	// Find jobs matching the selector
-	// TODO What about the namespace on the job template?
-	opts := &client.ListOptions{Namespace: trial.Namespace}
+	// Find jobs labeled for this trial
+	list := &batchv1.JobList{}
+	opts := &client.ListOptions{}
 	if opts.LabelSelector, err = metav1.LabelSelectorAsSelector(trial.Spec.Selector); err != nil {
 		return reconcile.Result{}, err
 	}
-	jobs := &batchv1.JobList{}
-	if err := r.List(context.TODO(), jobs, client.UseListOptions(opts)); err != nil {
+	if err := r.List(context.TODO(), list, client.UseListOptions(opts)); err != nil {
 		return reconcile.Result{}, err
 	}
 
 	// Update the trial run status using the job status
-	if dirty, adjustStartTime := updateStatusFromJobs(jobs.Items, &trial.Status); dirty {
+	if dirty, adjustStartTime := updateStatusFromJobs(list.Items, trial); dirty {
 		if adjustStartTime {
 			e := &okeanosv1alpha1.Experiment{}
 			if err = r.Get(context.TODO(), trial.ExperimentNamespacedName(), e); err != nil {
@@ -178,13 +189,8 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 		return reconcile.Result{}, err
 	}
 
-	// If we are in a failed state there is nothing more for us to do
-	if trial.Status.Failed {
-		return reconcile.Result{}, nil
-	}
-
 	// Create a new job if needed
-	if len(jobs.Items) == 0 {
+	if len(list.Items) == 0 {
 		// Wait for a stable (ish) state
 		if err = waitForStableState(r, context.TODO(), trial.Status.PatchOperations); err != nil {
 			if serr, ok := err.(*StabilityError); ok {
@@ -192,8 +198,9 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 					// We are not ready to being yet, wait the specified timeout and try again
 					return reconcile.Result{Requeue: true, RequeueAfter: serr.RetryAfter}, nil
 				} else {
-					// The cluster is in a bad state, set the failed flag and update
-					trial.Status.Failed = true
+					// The cluster is in a bad state, fail the experiment
+					failureReason := "WaitFailed"
+					trial.Status.Conditions = append(trial.Status.Conditions, newCondition(okeanosv1alpha1.TrialFailed, failureReason, serr.Error()))
 					err = r.Update(context.TODO(), trial)
 					return reconcile.Result{}, err
 				}
@@ -222,15 +229,8 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 	}
 
 	if trial.Status.CompletionTime != nil {
-		// Only allocate for a single metric at a time
-		if trial.Spec.Values == nil {
-			trial.Spec.Values = make(map[string]float64, 1)
-		}
-
 		// Look for metrics that have not been collected yet
 		for _, m := range trial.Status.MetricQueries {
-
-			// Collect the first metric query we have not yet captured and return
 			if _, ok := trial.Spec.Values[m.Name]; !ok {
 				var retryAfter *time.Duration
 				if trial.Spec.Values[m.Name], retryAfter, err = captureMetric(&m, trial); retryAfter != nil || err != nil {
@@ -246,9 +246,37 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 				return reconcile.Result{}, err
 			}
 		}
+
+		// TODO Delete the job before marking ourselves as complete to avoid accidentally adopting the job by a future trial?
+
+		// If all of the metrics are collected, mark the trial as completed
+		trial.Status.Conditions = append(trial.Status.Conditions, newCondition(okeanosv1alpha1.TrialComplete, "", ""))
+		err = r.Update(context.TODO(), trial)
+		return reconcile.Result{}, err
 	}
 
+	// This fall through case may occur while getting the job started
 	return reconcile.Result{}, nil
+}
+
+func IsTrialFinished(trial *okeanosv1alpha1.Trial) bool {
+	for _, c := range trial.Status.Conditions {
+		if (c.Type == okeanosv1alpha1.TrialComplete || c.Type == okeanosv1alpha1.TrialFailed) && c.Status == corev1.ConditionTrue {
+			return true
+		}
+	}
+	return false
+}
+
+func newCondition(conditionType okeanosv1alpha1.TrialConditionType, reason, message string) okeanosv1alpha1.TrialCondition {
+	return okeanosv1alpha1.TrialCondition{
+		Type:               conditionType,
+		Status:             corev1.ConditionTrue,
+		LastProbeTime:      metav1.Now(),
+		LastTransitionTime: metav1.Now(),
+		Reason:             reason,
+		Message:            message,
+	}
 }
 
 func (r *ReconcileTrial) evaluatePatches(trial *okeanosv1alpha1.Trial, e *okeanosv1alpha1.Experiment) error {
@@ -371,41 +399,40 @@ func (r *ReconcileTrial) evaluateMetrics(trial *okeanosv1alpha1.Trial, e *okeano
 }
 
 // Updates a trial status based on the status of the individual job(s), returns true if any changes were necessary
-func updateStatusFromJobs(jobs []batchv1.Job, status *okeanosv1alpha1.TrialStatus) (bool, bool) {
+func updateStatusFromJobs(jobs []batchv1.Job, trial *okeanosv1alpha1.Trial) (bool, bool) {
 	var dirty bool
 	var adjustStartTime bool
 
 	for _, j := range jobs {
-		if status.StartTime == nil {
+
+		if trial.Status.StartTime == nil {
 			// Establish a start time if available
-			status.StartTime = j.Status.StartTime.DeepCopy()
+			trial.Status.StartTime = j.Status.StartTime.DeepCopy()
 			dirty = dirty || j.Status.StartTime != nil
 			adjustStartTime = true
-		} else if j.Status.StartTime != nil && status.StartTime.Before(j.Status.StartTime) {
+		} else if j.Status.StartTime != nil && trial.Status.StartTime.Before(j.Status.StartTime) {
 			// Move the start time back
-			status.StartTime = j.Status.StartTime.DeepCopy()
+			trial.Status.StartTime = j.Status.StartTime.DeepCopy()
 			dirty = true
 		}
 
-		if status.CompletionTime == nil {
+		if trial.Status.CompletionTime == nil {
 			// Establish an end time if available
-			status.CompletionTime = j.Status.CompletionTime.DeepCopy()
+			trial.Status.CompletionTime = j.Status.CompletionTime.DeepCopy()
 			dirty = dirty || j.Status.CompletionTime != nil
-		} else if j.Status.CompletionTime != nil && status.CompletionTime.Before(j.Status.CompletionTime) {
+		} else if j.Status.CompletionTime != nil && trial.Status.CompletionTime.Before(j.Status.CompletionTime) {
 			// Move the completion time back
-			status.CompletionTime = j.Status.CompletionTime.DeepCopy()
+			trial.Status.CompletionTime = j.Status.CompletionTime.DeepCopy()
 			dirty = true
 		}
 
-		// Mark the trial as failed if there are any failed pods
-		if !status.Failed && j.Status.Failed > 0 {
-			for _, c := range j.Status.Conditions {
-				if c.Type == batchv1.JobFailed {
-					// If activeDeadlineSeconds was used a workaround for having a sidecar, ignore the failure
-					status.Failed = c.Reason != "DeadlineExceeded"
-				}
+		// Mark the trial as failed if the job itself failed
+		for _, c := range j.Status.Conditions {
+			// If activeDeadlineSeconds was used a workaround for having a sidecar, ignore the failure
+			if c.Type == batchv1.JobFailed && c.Status == corev1.ConditionTrue && c.Reason != "DeadlineExceeded" {
+				trial.Status.Conditions = append(trial.Status.Conditions, newCondition(okeanosv1alpha1.TrialFailed, c.Reason, c.Message))
+				dirty = true
 			}
-			dirty = dirty || status.Failed
 		}
 	}
 
@@ -414,7 +441,6 @@ func updateStatusFromJobs(jobs []batchv1.Job, status *okeanosv1alpha1.TrialStatu
 
 func (r *ReconcileTrial) createJob(trial *okeanosv1alpha1.Trial, job *batchv1.Job) {
 	// Try to get the job template off the experiment
-
 	e := &okeanosv1alpha1.Experiment{}
 	if err := r.Get(context.TODO(), trial.ExperimentNamespacedName(), e); err == nil {
 		e.Spec.JobTemplate.ObjectMeta.DeepCopyInto(&job.ObjectMeta)
@@ -429,14 +455,9 @@ func (r *ReconcileTrial) createJob(trial *okeanosv1alpha1.Trial, job *batchv1.Jo
 		job.Namespace = trial.Namespace
 	}
 
-	// TODO Are we doing the labeling correctly?
+	// Provide default labels
 	if len(job.Labels) == 0 {
-		job.Labels = make(map[string]string, 1)
-		if e.Name != "" {
-			job.Labels["experiment"] = e.Name
-		} else {
-			job.Labels["experiment"] = trial.Name
-		}
+		job.Labels = trial.GetDefaultLabels()
 	}
 
 	// The default restart policy for a pod is not acceptable in the context of a job

@@ -20,10 +20,13 @@ func (in *Experiment) GetSelfReference() *corev1.ObjectReference {
 
 // GetReplicas returns the effective replica (trial) count for the experiment
 func (in *Experiment) GetReplicas() int {
-	if in == nil || in.Spec.Replicas == nil {
-		return 1
+	if in == nil || in.DeletionTimestamp != nil {
+		return 0
 	}
-	return int(*in.Spec.Replicas)
+	if in.Spec.Replicas != nil {
+		return int(*in.Spec.Replicas)
+	}
+	return 1
 }
 
 // SetReplicas establishes a new replica (trial) count for the experiment
@@ -35,4 +38,9 @@ func (in *Experiment) SetReplicas(r int) {
 		}
 		in.Spec.Replicas = &replicas
 	}
+}
+
+// Returns a fall back label for when the user has not specified anything
+func (in *Experiment) GetDefaultLabels() map[string]string {
+	return map[string]string{"experiment": in.Name}
 }

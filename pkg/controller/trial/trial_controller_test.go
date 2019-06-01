@@ -27,23 +27,12 @@ func TestReconcile(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	instance := &okeanosv1alpha1.Trial{
 		ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"},
-		Spec: okeanosv1alpha1.TrialSpec{
-			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"experiment": "foo",
-				},
-			},
-		},
-		Status: okeanosv1alpha1.TrialStatus{
-			// We need this status to bypass the experiment lookup
-			PatchOperations: []okeanosv1alpha1.PatchOperation{
-				{},
-			},
-			MetricQueries: []okeanosv1alpha1.MetricQuery{
-				{},
-			},
-		},
 	}
+
+	// We need this status to bypass the experiment lookup
+	instance.Spec.Selector = metav1.SetAsLabelSelector(instance.GetDefaultLabels())
+	instance.Status.PatchOperations = []okeanosv1alpha1.PatchOperation{{}}
+	instance.Status.MetricQueries = []okeanosv1alpha1.MetricQuery{{}}
 
 	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
 	// channel when it is finished.

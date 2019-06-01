@@ -30,3 +30,8 @@ func (in *Assignments) DeepCopy() *Assignments {
 	}
 	return &out
 }
+
+// Returns a fall back label for when the user has not specified anything
+func (in *Trial) GetDefaultLabels() map[string]string {
+	return map[string]string{"trial": in.Name}
+}

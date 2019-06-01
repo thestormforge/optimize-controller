@@ -21,6 +21,24 @@ type MetricQuery struct {
 	MetricType MetricType `json:"metricType,omitempty"`
 	Query      string     `json:"query"`
 	URL        string     `json:"url,omitempty"`
+	// TODO ErrorQuery?
+}
+
+type TrialConditionType string
+
+const (
+	TrialComplete TrialConditionType = "Complete"
+	TrialFailed                      = "Failed"
+	// TODO TrialPatched?
+)
+
+type TrialCondition struct {
+	Type               TrialConditionType     `json:"type"`
+	Status             corev1.ConditionStatus `json:"status"`
+	LastProbeTime      metav1.Time            `json:"lastProbeTime"`
+	LastTransitionTime metav1.Time            `json:"lastTransitionTime"`
+	Reason             string                 `json:"reason,omitempty"`
+	Message            string                 `json:"message,omitempty"`
 }
 
 // TrialSpec defines the desired state of Trial
@@ -38,11 +56,10 @@ type TrialStatus struct {
 	MetricQueries   []MetricQuery    `json:"metricQueries,omitempty"`
 	StartTime       *metav1.Time     `json:"startTime,omitempty"`
 	CompletionTime  *metav1.Time     `json:"completionTime,omitempty"`
-	Failed          bool             `json:"failed,omitempty"` // Can be true without a job if patches or waits fail
+	Conditions      []TrialCondition `json:"conditions,omitempty"`
 }
 
-// TODO Server side formatting, can display the suggestions and metrics in the default output?
-// TODO Trial conditions: Patched, Wait?, Complete, Failed
+// TODO Server side formatting, can display the suggestions and metrics in the default output? We need to format a string field in the status
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

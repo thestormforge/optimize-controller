@@ -8,6 +8,7 @@ import (
 	okeanosclient "github.com/gramLabs/okeanos/pkg/api"
 	okeanosapi "github.com/gramLabs/okeanos/pkg/api/okeanos/v1alpha1"
 	okeanosv1alpha1 "github.com/gramLabs/okeanos/pkg/apis/okeanos/v1alpha1"
+	okeanostrial "github.com/gramLabs/okeanos/pkg/controller/trial"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,6 +29,8 @@ const (
 	annotationExperimentURL  = annotationPrefix + "experiment-url"
 	annotationSuggestionURL  = annotationPrefix + "suggestion-url"
 	annotationObservationURL = annotationPrefix + "observation-url"
+
+	finalizer = "finalizer.okeanos.carbonrelay.com"
 )
 
 var log = logf.Log.WithName("controller")
@@ -35,9 +38,8 @@ var log = logf.Log.WithName("controller")
 // Add creates a new Experiment Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
-	// Without a remote server address, this controller does not have anything to do
+	// We need a remote address to do anything in this controller
 	config, err := okeanosclient.DefaultConfig()
-	// TODO Just log the error instead of allowing it to propagate?
 	if err != nil || config.Address == "" {
 		return err
 	}
@@ -109,66 +111,42 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, err
 	}
 
-	// Define the experiment on the server
-	experimentURL := experiment.GetAnnotations()[annotationExperimentURL]
-	if experimentURL == "" && experiment.GetReplicas() > 0 {
-		n := okeanosapi.NewExperimentName(experiment.Name)
-		e := okeanosapi.Experiment{}
-		copyExperimentToRemote(experiment, &e)
-		log.Info("Creating remote experiment", "experimentURL", experimentURL)
-		if experimentURL, err = r.api.CreateExperiment(context.TODO(), n, e); err != nil {
-			// Error posting the representation - requeue the request.
-			return reconcile.Result{}, err
-		}
+	// Make sure we aren't deleted without a chance to clean up
+	if dirty := addFinalizer(experiment); dirty {
+		err := r.Update(context.TODO(), experiment)
+		return reconcile.Result{}, err
+	}
 
-		// Update the experiment URL, will create a new reconcile request
-		experiment.GetAnnotations()[annotationExperimentURL] = experimentURL
+	// Synchronize with the server
+	if dirty, err := r.syncWithServer(experiment); err != nil {
+		return reconcile.Result{}, err
+	} else if dirty {
 		err = r.Update(context.TODO(), experiment)
 		return reconcile.Result{}, err
 	}
 
-	// Update information only populated by server after PUT
-	suggestionURL := experiment.GetAnnotations()[annotationSuggestionURL]
-	if suggestionURL == "" && experimentURL != "" && experiment.GetReplicas() > 0 {
-		e, err := r.api.GetExperiment(context.TODO(), experimentURL)
-		if err != nil {
-			// Unable to fetch the remote experiment - requeue the request
-			return reconcile.Result{}, err
-		}
-
-		// Since we have the server representation, enforce a cap on the replica count
-		// NOTE: Do the update in memory, we will only persist it if the suggestion URL needs updating
-		if experiment.GetReplicas() > int(e.Optimization.Parallelism) && e.Optimization.Parallelism > 0 {
-			*experiment.Spec.Replicas = e.Optimization.Parallelism
-		}
-
-		// The suggestion reference may be missing because the experiment isn't producing suggestions anymore
-		if e.SuggestionRef != "" {
-			experiment.GetAnnotations()[annotationSuggestionURL] = e.SuggestionRef
-			err := r.Update(context.TODO(), experiment)
-			return reconcile.Result{}, err
-		}
-	}
-
 	// Find trials labeled for this experiment
+	list := &okeanosv1alpha1.TrialList{}
 	opts := &client.ListOptions{}
-	if opts.LabelSelector, err = metav1.LabelSelectorAsSelector(experiment.Spec.Selector); err != nil {
+	if experiment.Spec.Selector == nil {
+		opts.MatchingLabels(experiment.Spec.Template.Labels)
+		if opts.LabelSelector.Empty() {
+			opts.MatchingLabels(experiment.GetDefaultLabels())
+		}
+	} else if opts.LabelSelector, err = metav1.LabelSelectorAsSelector(experiment.Spec.Selector); err != nil {
 		return reconcile.Result{}, err
 	}
-	list := &okeanosv1alpha1.TrialList{}
 	if err := r.List(context.TODO(), list, client.UseListOptions(opts)); err != nil {
 		return reconcile.Result{}, err
 	}
 
 	// Add an additional trial if needed
+	suggestionURL := experiment.GetAnnotations()[annotationSuggestionURL]
 	if suggestionURL != "" && experiment.GetReplicas() > len(list.Items) {
 		// Find an available namespace
-		namespace, err := r.findAvailableNamespace(experiment, list.Items)
-		if err != nil {
+		if namespace, err := r.findAvailableNamespace(experiment, list.Items); err != nil {
 			return reconcile.Result{}, err
-		}
-		if namespace != "" {
-			// The initial trial namespace may be overwritten by the template
+		} else if namespace != "" {
 			trial := &okeanosv1alpha1.Trial{}
 			populateTrialFromTemplate(experiment, trial, namespace)
 			if err := controllerutil.SetControllerReference(experiment, trial, r.scheme); err != nil {
@@ -199,45 +177,156 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 			trial.GetAnnotations()[annotationObservationURL] = observationURL
 
 			// Create the trial
-			log.Info("Creating new trial", "name", trial.Name, "namespace", trial.Namespace, "observationURL", observationURL)
-			err = r.Create(context.TODO(), trial)
 			// TODO If there is an error, notify server that we failed to adopt the suggestion?
+			log.Info("Creating new trial", "namespace", trial.Namespace, "observationURL", observationURL, "assignments", trial.Spec.Assignments)
+			err = r.Create(context.TODO(), trial)
 			return reconcile.Result{}, err
 		}
 	}
 
-	// Record finished trials
-	// TODO Is this something that should be implemented using a finalizer on the trial? (e.g. just delete the trial here and have a finalizer that does the post?)
+	// Reconcile each trial
 	for _, t := range list.Items {
-		if len(t.Spec.Values) == len(t.Status.MetricQueries) || t.Status.Failed {
-			// Create an observation
-			observation := okeanosapi.Observation{
-				Failed: t.Status.Failed,
-				Values: make([]okeanosapi.Value, len(t.Spec.Values)),
-			}
-			for k, v := range t.Spec.Values {
-				observation.Values = append(observation.Values, okeanosapi.Value{
-					Name:  k,
-					Value: v,
-					// TODO Error is the standard deviation for the metric
-				})
-			}
-
-			// Send the observation to the server
-			log.Info("Reporting trial observation", "name", t.Name, "namespace", t.Namespace, "values", observation.Values)
-			err = r.api.ReportObservation(context.TODO(), t.GetAnnotations()[annotationObservationURL], observation)
-			if err != nil {
-				// The observation was not accepted, requeue the request
+		if okeanostrial.IsTrialFinished(&t) {
+			if t.DeletionTimestamp == nil {
+				// Delete the trial to force finalization
+				err = r.Delete(context.TODO(), &t)
 				return reconcile.Result{}, err
-			}
+			} else {
+				// Create an observation for the remote server
+				observation := okeanosapi.Observation{}
+				for _, c := range t.Status.Conditions {
+					if c.Type == okeanosv1alpha1.TrialFailed && c.Status == corev1.ConditionTrue {
+						observation.Failed = true
+					}
+				}
+				for k, v := range t.Spec.Values {
+					observation.Values = append(observation.Values, okeanosapi.Value{
+						Name:  k,
+						Value: v,
+						// TODO Error is the standard deviation for the metric
+					})
+				}
 
-			// Only delete the trial once it has been sent to the server
+				// Send the observation to the server
+				observationURL := t.GetAnnotations()[annotationObservationURL]
+				log.Info("Reporting observation", "namespace", t.Namespace, "observationURL", observationURL, "assignments", t.Spec.Assignments, "values", observation.Values)
+				if err := r.api.ReportObservation(context.TODO(), observationURL, observation); err != nil {
+					// This error only matters if the experiment itself is not deleted, otherwise ignore it so we can remove the finalizer
+					if experiment.DeletionTimestamp == nil {
+						return reconcile.Result{}, err
+					}
+				}
+
+				// Remove the trial finalizer once we have sent information to the server
+				for i, _ := range t.Finalizers {
+					if t.Finalizers[i] == finalizer {
+						t.Finalizers[i] = t.Finalizers[len(t.Finalizers)-1]
+						t.Finalizers = t.Finalizers[:len(t.Finalizers)-1]
+						err := r.Update(context.TODO(), &t)
+						return reconcile.Result{}, err
+					}
+				}
+			}
+		} else if t.DeletionTimestamp != nil {
+			// The trial was explicitly deleted before it finished, remove the finalizer so it can go away
+			for i, _ := range t.Finalizers {
+				if t.Finalizers[i] == finalizer {
+					// TODO Notify the server that the trial was abandoned
+					t.Finalizers[i] = t.Finalizers[len(t.Finalizers)-1]
+					t.Finalizers = t.Finalizers[:len(t.Finalizers)-1]
+					err := r.Update(context.TODO(), &t)
+					return reconcile.Result{}, err
+				}
+			}
+		} else if experiment.DeletionTimestamp != nil {
+			// The experiment is deleted, delete the trial as well
 			err = r.Delete(context.TODO(), &t)
 			return reconcile.Result{}, err
 		}
 	}
 
+	// Remove our finalizer if we have been deleted and all trials were reconciled
+	if experiment.DeletionTimestamp != nil {
+		for i, _ := range experiment.Finalizers {
+			if experiment.Finalizers[i] == finalizer {
+				experiment.Finalizers[i] = experiment.Finalizers[len(experiment.Finalizers)-1]
+				experiment.Finalizers = experiment.Finalizers[:len(experiment.Finalizers)-1]
+				err := r.Update(context.TODO(), experiment)
+				return reconcile.Result{}, err
+			}
+		}
+	}
+
+	// No action
 	return reconcile.Result{}, nil
+}
+
+func addFinalizer(experiment *okeanosv1alpha1.Experiment) bool {
+	if experiment.DeletionTimestamp != nil {
+		return false
+	}
+	for _, f := range experiment.Finalizers {
+		if f == finalizer {
+			return false
+		}
+	}
+	experiment.Finalizers = append(experiment.Finalizers, finalizer)
+	return true
+}
+
+func (r *ReconcileExperiment) syncWithServer(experiment *okeanosv1alpha1.Experiment) (bool, error) {
+	experimentURL := experiment.GetAnnotations()[annotationExperimentURL]
+	suggestionURL := experiment.GetAnnotations()[annotationSuggestionURL]
+
+	if experiment.GetReplicas() > 0 {
+		// Define the experiment on the server
+		if experimentURL == "" {
+			n := okeanosapi.NewExperimentName(experiment.Name)
+			e := okeanosapi.Experiment{}
+			copyExperimentToRemote(experiment, &e)
+
+			log.Info("Creating remote experiment", "name", n)
+			if experimentRef, err := r.api.CreateExperiment(context.TODO(), n, e); err == nil {
+				experiment.GetAnnotations()[annotationExperimentURL] = experimentRef
+				return true, nil
+			} else {
+				return false, err
+			}
+		}
+
+		// Update information only populated by server after PUT
+		if suggestionURL == "" && experimentURL != "" {
+			e, err := r.api.GetExperiment(context.TODO(), experimentURL)
+			if err != nil {
+				return false, err
+			}
+
+			// Since we have the server representation, enforce a cap on the replica count
+			// NOTE: Do the update in memory, we will only persist it if the suggestion URL needs updating
+			if experiment.GetReplicas() > int(e.Optimization.Parallelism) && e.Optimization.Parallelism > 0 {
+				*experiment.Spec.Replicas = e.Optimization.Parallelism
+			}
+
+			// The suggestion reference may be missing because the experiment isn't producing suggestions anymore
+			if e.SuggestionRef != "" {
+				experiment.GetAnnotations()[annotationSuggestionURL] = e.SuggestionRef
+				return true, nil
+			}
+		}
+	}
+
+	// Notify the server of the deletion
+	if experiment.DeletionTimestamp != nil && experimentURL != "" {
+		if err := r.api.DeleteExperiment(context.TODO(), experimentURL); err != nil {
+			log.Error(err, "Failed to delete experiment", "experimentURL", experimentURL)
+		}
+		delete(experiment.GetAnnotations(), annotationExperimentURL)
+		delete(experiment.GetAnnotations(), annotationSuggestionURL)
+		experiment.SetReplicas(0)
+		return true, nil
+	}
+
+	return false, nil
 }
 
 // Copy the custom resource state into a client API representation
@@ -286,6 +375,7 @@ func copyExperimentToRemote(experiment *okeanosv1alpha1.Experiment, e *okeanosap
 
 // Creates a new trial for an experiment
 func populateTrialFromTemplate(experiment *okeanosv1alpha1.Experiment, trial *okeanosv1alpha1.Trial, namespace string) {
+	// Start with the trial template
 	experiment.Spec.Template.ObjectMeta.DeepCopyInto(&trial.ObjectMeta)
 	experiment.Spec.Template.Spec.DeepCopyInto(&trial.Spec)
 
@@ -294,29 +384,38 @@ func populateTrialFromTemplate(experiment *okeanosv1alpha1.Experiment, trial *ok
 		trial.Spec.TargetNamespace = namespace
 	}
 
-	// Provide a default for the namespace
+	trial.Finalizers = append(trial.Finalizers, finalizer)
+
 	if trial.Namespace == "" {
 		trial.Namespace = namespace
 	}
 
-	// Provide a default name for the trial
 	if trial.Name == "" {
 		if trial.Namespace != experiment.Namespace {
 			trial.Name = experiment.Name
-		} else {
+		} else if trial.GenerateName == "" {
 			trial.GenerateName = experiment.Name + "-"
 		}
 	}
 
-	// Provide a default reference back to the experiment
+	if len(trial.Labels) == 0 {
+		trial.Labels = experiment.GetDefaultLabels()
+	}
+
+	if trial.Annotations == nil {
+		trial.Annotations = make(map[string]string)
+	}
+
+	if trial.Spec.Values == nil {
+		trial.Spec.Values = make(map[string]float64)
+	}
+
 	if trial.Spec.ExperimentRef == nil {
 		trial.Spec.ExperimentRef = experiment.GetSelfReference()
 	}
 
-	// TODO Handle labeling, is this correct?
-	trial.Labels["experiment"] = experiment.Name
-	if trial.Spec.Selector == nil {
-		trial.Spec.Selector = metav1.SetAsLabelSelector(trial.Labels)
+	if trial.Spec.Selector == nil && experiment.Spec.JobTemplate != nil {
+		trial.Spec.Selector = metav1.SetAsLabelSelector(experiment.Spec.JobTemplate.Labels)
 	}
 }
 
