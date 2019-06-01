@@ -62,6 +62,10 @@ func (n experimentName) Name() string {
 	return n.name
 }
 
+func (n experimentName) String() string {
+	return n.name
+}
+
 // Error represents the API specific error messages and may be used in response to HTTP status codes
 type Error struct {
 	Type       ErrorType
