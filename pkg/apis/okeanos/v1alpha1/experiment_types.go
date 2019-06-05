@@ -83,9 +83,9 @@ type ExperimentSpec struct {
 	// JobTemplate is the template used to create trial run jobs
 	JobTemplate *batchv1beta1.JobTemplateSpec `json:"jobTemplate"`
 	// The offset used to adjust the start time to account ignore spin up of the trial run
-	StartTimeOffset *metav1.Duration
+	StartTimeOffset *metav1.Duration `json:"startTimeOffset,omitempty"`
 	// The approximate amount of time the trial run should execute (not inclusive of the start time offset)
-	ApproximateRuntime *metav1.Duration
+	ApproximateRuntime *metav1.Duration `json:"approximateRuntime,omitempty"`
 }
 
 // ExperimentStatus defines the observed state of Experiment
