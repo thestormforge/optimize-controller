@@ -2,12 +2,10 @@ package okeanosctl
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 
 	cmdutil "github.com/gramLabs/okeanos/pkg/okeanosctl/util"
 	"github.com/spf13/cobra"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
