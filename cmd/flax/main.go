@@ -145,12 +145,12 @@ func main() {
 	obs := &okeanos.Observation{
 		Values: []okeanos.Value{
 			{
-				Name:  "l",
-				Value: 0.99,
+				MetricName: "l",
+				Value:      0.99,
 			},
 			{
-				Name:  "m",
-				Value: 2.0,
+				MetricName: "m",
+				Value:      2.0,
 			},
 		},
 	}

@@ -25,8 +25,6 @@ const (
 	ParameterTypeInteger ParameterType = "int"
 	// ParameterTypeDouble indicates a parameter has a floating point value
 	ParameterTypeDouble = "double"
-	// ParameterTypeString indicates a parameter has an enumerated value
-	ParameterTypeString = "string"
 )
 
 // ErrorType enumerates the possible API specific error conditions
@@ -37,14 +35,20 @@ const (
 	ErrExperimentNameInvalid ErrorType = "experiment-name-invalid"
 	// ErrExperimentNameConflict indicates that the experiment name causes a conflict
 	ErrExperimentNameConflict = "experiment-name-conflict"
+	// ErrExperimentInvalid indicates that the experiment does not pass validation
+	ErrExperimentInvalid = "experiment-invalid"
 	// ErrExperimentNotFound indicates the requested experiment was not found on the server
 	ErrExperimentNotFound = "experiment-not-found"
 	// ErrExperimentStopped indicates that the experiment is over and no more suggestions will be provided
 	ErrExperimentStopped = "experiment-stopped"
+	// ErrSuggestionInvalid indicates that the suggestion does not pass validation
+	ErrSuggestionInvalid = "suggestion-invalid"
 	// ErrSuggestionUnavailable indicates that no suggestions are currently available
 	ErrSuggestionUnavailable = "suggestion-unavailable"
 	// ErrSuggestionNotFound indicates an observation cannot be reported because the corresponding suggestion does not exist
 	ErrSuggestionNotFound = "suggestion-not-found"
+	// ErrObservationInvalid indicates that the observation does not pass validation
+	ErrObservationInvalid = "observation-invalid"
 )
 
 // ExperimentName exists to clearly separate cases where an actual name can be used
@@ -85,6 +89,8 @@ type Optimization struct {
 	ObservationBudget int32 `json:"observation_budget,omitempty"`
 	// The total number of concurrent trial runs supported for an experiment
 	ParallelSuggestions int32 `json:"parallelSuggestions,omitempty"`
+	// The total number of random search suggestions used to start experiment
+	BurnIn int32 `json:"burnIn,omitempty"`
 }
 
 // Bounds are used to define the domain for a parameter
@@ -101,12 +107,8 @@ type Parameter struct {
 	Name string `json:"name"`
 	// The type of the parameter
 	Type ParameterType `json:"type"`
-	// The default value of the parameter
-	Default interface{} `json:"default,omitempty"`
 	// The domain of the parameter
 	Bounds Bounds `json:"bounds"`
-	// The possible values for string parameter
-	Values []string `json:"values,omitempty"`
 }
 
 // Metric is a target that we are trying to optimize
@@ -119,8 +121,8 @@ type Metric struct {
 
 // Value is a recorded metric value
 type Value struct {
-	// The name of the value, must correspond to a metric name on the experiment
-	Name string `json:"name"`
+	// The name of the metric in the experiment the value corresponds to
+	MetricName string `json:"metricName"`
 	// The observed value of the metric
 	Value float64 `json:"value"`
 	// The observed error of the metric
@@ -288,6 +290,8 @@ func (h *httpAPI) CreateExperiment(ctx context.Context, n ExperimentName, exp Ex
 		return "", &Error{Type: ErrExperimentNameConflict}
 	case http.StatusBadRequest:
 		return "", &Error{Type: ErrExperimentNameInvalid}
+	case http.StatusUnprocessableEntity:
+		return "", &Error{Type: ErrExperimentInvalid}
 	default:
 		return "", unexpected(resp)
 	}
@@ -337,6 +341,8 @@ func (h *httpAPI) CreateSuggestion(ctx context.Context, u string, sug Suggestion
 	case http.StatusCreated:
 		l = resp.Header.Get("Location")
 		return l, nil
+	case http.StatusUnprocessableEntity:
+		return "", &Error{Type: ErrSuggestionInvalid}
 	default:
 		return l, unexpected(resp)
 	}
@@ -396,6 +402,8 @@ func (h *httpAPI) ReportObservation(ctx context.Context, u string, obs Observati
 		return nil
 	case http.StatusNotFound:
 		return &Error{Type: ErrSuggestionNotFound}
+	case http.StatusUnprocessableEntity:
+		return &Error{Type: ErrObservationInvalid}
 	default:
 		return unexpected(resp)
 	}
