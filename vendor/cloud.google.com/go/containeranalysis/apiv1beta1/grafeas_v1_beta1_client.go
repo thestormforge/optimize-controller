@@ -64,7 +64,6 @@ func defaultGrafeasV1Beta1CallOptions() *GrafeasV1Beta1CallOptions {
 		{"default", "idempotent"}: {
 			gax.WithRetry(func() gax.Retryer {
 				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
 					codes.Unavailable,
 				}, gax.Backoff{
 					Initial:    100 * time.Millisecond,
@@ -213,6 +212,7 @@ func (c *GrafeasV1Beta1Client) ListOccurrences(ctx context.Context, req *grafeas
 	}
 	it.pageInfo, it.nextFunc = iterator.NewPageInfo(fetch, it.bufLen, it.takeBuf)
 	it.pageInfo.MaxSize = int(req.PageSize)
+	it.pageInfo.Token = req.PageToken
 	return it
 }
 
@@ -352,6 +352,7 @@ func (c *GrafeasV1Beta1Client) ListNotes(ctx context.Context, req *grafeaspb.Lis
 	}
 	it.pageInfo, it.nextFunc = iterator.NewPageInfo(fetch, it.bufLen, it.takeBuf)
 	it.pageInfo.MaxSize = int(req.PageSize)
+	it.pageInfo.Token = req.PageToken
 	return it
 }
 
@@ -456,6 +457,7 @@ func (c *GrafeasV1Beta1Client) ListNoteOccurrences(ctx context.Context, req *gra
 	}
 	it.pageInfo, it.nextFunc = iterator.NewPageInfo(fetch, it.bufLen, it.takeBuf)
 	it.pageInfo.MaxSize = int(req.PageSize)
+	it.pageInfo.Token = req.PageToken
 	return it
 }
 

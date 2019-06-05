@@ -63,7 +63,6 @@ func defaultInstanceAdminCallOptions() *InstanceAdminCallOptions {
 		{"default", "idempotent"}: {
 			gax.WithRetry(func() gax.Retryer {
 				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
 					codes.Unavailable,
 				}, gax.Backoff{
 					Initial:    1000 * time.Millisecond,
@@ -213,6 +212,7 @@ func (c *InstanceAdminClient) ListInstanceConfigs(ctx context.Context, req *inst
 	}
 	it.pageInfo, it.nextFunc = iterator.NewPageInfo(fetch, it.bufLen, it.takeBuf)
 	it.pageInfo.MaxSize = int(req.PageSize)
+	it.pageInfo.Token = req.PageToken
 	return it
 }
 
@@ -268,6 +268,7 @@ func (c *InstanceAdminClient) ListInstances(ctx context.Context, req *instancepb
 	}
 	it.pageInfo, it.nextFunc = iterator.NewPageInfo(fetch, it.bufLen, it.takeBuf)
 	it.pageInfo.MaxSize = int(req.PageSize)
+	it.pageInfo.Token = req.PageToken
 	return it
 }
 

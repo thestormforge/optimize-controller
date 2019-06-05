@@ -69,7 +69,6 @@ func defaultDeviceManagerCallOptions() *DeviceManagerCallOptions {
 		{"default", "idempotent"}: {
 			gax.WithRetry(func() gax.Retryer {
 				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
 					codes.Unavailable,
 				}, gax.Backoff{
 					Initial:    100 * time.Millisecond,
@@ -81,7 +80,6 @@ func defaultDeviceManagerCallOptions() *DeviceManagerCallOptions {
 		{"rate_limited_aware", "rate_limited_aware"}: {
 			gax.WithRetry(func() gax.Retryer {
 				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
 					codes.ResourceExhausted,
 					codes.Unavailable,
 				}, gax.Backoff{
@@ -269,6 +267,7 @@ func (c *DeviceManagerClient) ListDeviceRegistries(ctx context.Context, req *iot
 	}
 	it.pageInfo, it.nextFunc = iterator.NewPageInfo(fetch, it.bufLen, it.takeBuf)
 	it.pageInfo.MaxSize = int(req.PageSize)
+	it.pageInfo.Token = req.PageToken
 	return it
 }
 
@@ -371,6 +370,7 @@ func (c *DeviceManagerClient) ListDevices(ctx context.Context, req *iotpb.ListDe
 	}
 	it.pageInfo, it.nextFunc = iterator.NewPageInfo(fetch, it.bufLen, it.takeBuf)
 	it.pageInfo.MaxSize = int(req.PageSize)
+	it.pageInfo.Token = req.PageToken
 	return it
 }
 

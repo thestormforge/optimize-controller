@@ -19,13 +19,16 @@ import (
 )
 
 // Format formats a file with a given range.
-func Format(ctx context.Context, f File, rng span.Range) ([]TextEdit, error) {
+func Format(ctx context.Context, f GoFile, rng span.Range) ([]TextEdit, error) {
+	file := f.GetAST(ctx)
+	if file == nil {
+		return nil, fmt.Errorf("no AST for %s", f.URI())
+	}
 	pkg := f.GetPackage(ctx)
 	if hasParseErrors(pkg.GetErrors()) {
 		return nil, fmt.Errorf("%s has parse errors, not formatting", f.URI())
 	}
-	fAST := f.GetAST(ctx)
-	path, exact := astutil.PathEnclosingInterval(fAST, rng.Start, rng.End)
+	path, exact := astutil.PathEnclosingInterval(file, rng.Start, rng.End)
 	if !exact || len(path) == 0 {
 		return nil, fmt.Errorf("no exact AST node matching the specified range")
 	}
@@ -34,7 +37,7 @@ func Format(ctx context.Context, f File, rng span.Range) ([]TextEdit, error) {
 	// of Go used to build the LSP server will determine how it formats code.
 	// This should be acceptable for all users, who likely be prompted to rebuild
 	// the LSP server on each Go release.
-	fset := f.GetFileSet(ctx)
+	fset := f.FileSet()
 	buf := &bytes.Buffer{}
 	if err := format.Node(buf, fset, node); err != nil {
 		return nil, err
@@ -52,8 +55,16 @@ func hasParseErrors(errors []packages.Error) bool {
 }
 
 // Imports formats a file using the goimports tool.
-func Imports(ctx context.Context, f File, rng span.Range) ([]TextEdit, error) {
-	formatted, err := imports.Process(f.GetToken(ctx).Name(), f.GetContent(ctx), nil)
+func Imports(ctx context.Context, f GoFile, rng span.Range) ([]TextEdit, error) {
+	fc := f.Content(ctx)
+	if fc.Error != nil {
+		return nil, fc.Error
+	}
+	tok := f.GetToken(ctx)
+	if tok == nil {
+		return nil, fmt.Errorf("no token file for %s", f.URI())
+	}
+	formatted, err := imports.Process(tok.Name(), fc.Data, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +72,12 @@ func Imports(ctx context.Context, f File, rng span.Range) ([]TextEdit, error) {
 }
 
 func computeTextEdits(ctx context.Context, file File, formatted string) (edits []TextEdit) {
-	u := diff.SplitLines(string(file.GetContent(ctx)))
+	fc := file.Content(ctx)
+	if fc.Error != nil {
+		file.View().Session().Logger().Errorf(ctx, "Cannot compute text edits: %v", fc.Error)
+		return nil
+	}
+	u := diff.SplitLines(string(fc.Data))
 	f := diff.SplitLines(formatted)
 	return DiffToEdits(file.URI(), diff.Operations(u, f))
 }

@@ -54,7 +54,6 @@ func defaultJobControllerCallOptions() *JobControllerCallOptions {
 		{"default", "idempotent"}: {
 			gax.WithRetry(func() gax.Retryer {
 				return gax.OnCodes([]codes.Code{
-					codes.DeadlineExceeded,
 					codes.Internal,
 					codes.Unavailable,
 				}, gax.Backoff{
@@ -207,6 +206,7 @@ func (c *JobControllerClient) ListJobs(ctx context.Context, req *dataprocpb.List
 	}
 	it.pageInfo, it.nextFunc = iterator.NewPageInfo(fetch, it.bufLen, it.takeBuf)
 	it.pageInfo.MaxSize = int(req.PageSize)
+	it.pageInfo.Token = req.PageToken
 	return it
 }
 

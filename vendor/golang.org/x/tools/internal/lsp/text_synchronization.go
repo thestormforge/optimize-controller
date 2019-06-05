@@ -13,6 +13,12 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
+func (s *Server) didOpen(ctx context.Context, params *protocol.DidOpenTextDocumentParams) error {
+	uri := span.NewURI(params.TextDocument.URI)
+	s.session.DidOpen(uri)
+	return s.cacheAndDiagnose(ctx, uri, []byte(params.TextDocument.Text))
+}
+
 func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDocumentParams) error {
 	if len(params.ContentChanges) < 1 {
 		return jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "no content changes provided")
@@ -34,8 +40,19 @@ func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDo
 		}
 		text = change.Text
 	}
-	s.log.Debugf(ctx, "didChange: %s", params.TextDocument.URI)
-	return s.cacheAndDiagnose(ctx, span.NewURI(params.TextDocument.URI), text)
+	return s.cacheAndDiagnose(ctx, span.NewURI(params.TextDocument.URI), []byte(text))
+}
+
+func (s *Server) cacheAndDiagnose(ctx context.Context, uri span.URI, content []byte) error {
+	view := s.session.ViewOf(uri)
+	if err := view.SetContent(ctx, uri, content); err != nil {
+		return err
+	}
+	go func() {
+		ctx := view.BackgroundContext()
+		s.Diagnostics(ctx, view, uri)
+	}()
+	return nil
 }
 
 func (s *Server) applyChanges(ctx context.Context, params *protocol.DidChangeTextDocumentParams) (string, error) {
@@ -49,13 +66,20 @@ func (s *Server) applyChanges(ctx context.Context, params *protocol.DidChangeTex
 	}
 
 	uri := span.NewURI(params.TextDocument.URI)
-	view := s.findView(ctx, uri)
-	file, m, err := newColumnMap(ctx, view, uri)
-	if err != nil {
+	fc := s.session.ReadFile(uri)
+	if fc.Error != nil {
 		return "", jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "file not found")
 	}
-	content := file.GetContent(ctx)
+	content := fc.Data
+	fset := s.session.Cache().FileSet()
+	filename, err := uri.Filename()
+	if err != nil {
+		return "", jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "no filename for %s", uri)
+	}
 	for _, change := range params.ContentChanges {
+		// Update column mapper along with the content.
+		m := protocol.NewColumnMapper(uri, filename, fset, nil, content)
+
 		spn, err := m.RangeSpan(*change.Range)
 		if err != nil {
 			return "", err
@@ -64,7 +88,7 @@ func (s *Server) applyChanges(ctx context.Context, params *protocol.DidChangeTex
 			return "", jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "invalid range for content change")
 		}
 		start, end := spn.Start().Offset(), spn.End().Offset()
-		if end <= start {
+		if end < start {
 			return "", jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "invalid range for content change")
 		}
 		var buf bytes.Buffer
@@ -77,11 +101,14 @@ func (s *Server) applyChanges(ctx context.Context, params *protocol.DidChangeTex
 }
 
 func (s *Server) didSave(ctx context.Context, params *protocol.DidSaveTextDocumentParams) error {
+	uri := span.NewURI(params.TextDocument.URI)
+	s.session.DidSave(uri)
 	return nil // ignore
 }
 
 func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocumentParams) error {
 	uri := span.NewURI(params.TextDocument.URI)
-	view := s.findView(ctx, uri)
+	s.session.DidClose(uri)
+	view := s.session.ViewOf(uri)
 	return view.SetContent(ctx, uri, nil)
 }

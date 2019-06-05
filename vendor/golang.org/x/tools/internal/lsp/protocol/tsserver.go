@@ -1,6 +1,6 @@
 package protocol
 
-//automatically generated
+// Code generated (see typescript/README.md) DO NOT EDIT.
 
 import (
 	"context"
@@ -29,7 +29,6 @@ type Server interface {
 	ColorPresentation(context.Context, *ColorPresentationParams) ([]ColorPresentation, error)
 	FoldingRange(context.Context, *FoldingRangeParams) ([]FoldingRange, error)
 	Declaration(context.Context, *TextDocumentPositionParams) ([]DeclarationLink, error)
-	SelectionRange(context.Context, *SelectionRangeParams) ([][]SelectionRange, error)
 	Initialize(context.Context, *InitializeParams) (*InitializeResult, error)
 	Shutdown(context.Context) error
 	WillSaveWaitUntil(context.Context, *WillSaveTextDocumentParams) ([]TextEdit, error)
@@ -228,16 +227,6 @@ func serverHandler(log xlog.Logger, server Server) jsonrpc2.Handler {
 			if err := conn.Reply(ctx, r, resp, err); err != nil {
 				log.Errorf(ctx, "%v", err)
 			}
-		case "textDocument/selectionRange": // req
-			var params SelectionRangeParams
-			if err := json.Unmarshal(*r.Params, &params); err != nil {
-				sendParseError(ctx, log, conn, r, err)
-				return
-			}
-			resp, err := server.SelectionRange(ctx, &params)
-			if err := conn.Reply(ctx, r, resp, err); err != nil {
-				log.Errorf(ctx, "%v", err)
-			}
 		case "initialize": // req
 			var params InitializeParams
 			if err := json.Unmarshal(*r.Params, &params); err != nil {
@@ -253,7 +242,8 @@ func serverHandler(log xlog.Logger, server Server) jsonrpc2.Handler {
 				conn.Reply(ctx, r, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeInvalidParams, "Expected no params"))
 				return
 			}
-			if err := server.Shutdown(ctx); err != nil {
+			err := server.Shutdown(ctx)
+			if err := conn.Reply(ctx, r, nil, err); err != nil {
 				log.Errorf(ctx, "%v", err)
 			}
 		case "textDocument/willSaveWaitUntil": // req
@@ -569,14 +559,6 @@ func (s *serverDispatcher) FoldingRange(ctx context.Context, params *FoldingRang
 func (s *serverDispatcher) Declaration(ctx context.Context, params *TextDocumentPositionParams) ([]DeclarationLink, error) {
 	var result []DeclarationLink
 	if err := s.Conn.Call(ctx, "textDocument/declaration", params, &result); err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-func (s *serverDispatcher) SelectionRange(ctx context.Context, params *SelectionRangeParams) ([][]SelectionRange, error) {
-	var result [][]SelectionRange
-	if err := s.Conn.Call(ctx, "textDocument/selectionRange", params, &result); err != nil {
 		return nil, err
 	}
 	return result, nil

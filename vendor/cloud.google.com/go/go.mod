@@ -12,13 +12,14 @@ require (
 	go.opencensus.io v0.21.0
 	golang.org/x/exp v0.0.0-20190121172915-509febef88a4
 	golang.org/x/lint v0.0.0-20190301231843-5614ed5bae6f
+	golang.org/x/net v0.0.0-20190311183353-d8887717615a
 	golang.org/x/oauth2 v0.0.0-20190226205417-e64efc72b421
 	golang.org/x/sync v0.0.0-20190227155943-e225da77a7e6
 	golang.org/x/text v0.3.1-0.20180807135948-17ff2d5776d2
 	golang.org/x/time v0.0.0-20181108054448-85acf8d2951c
 	golang.org/x/tools v0.0.0-20190312170243-e65039ee4138
-	google.golang.org/api v0.4.0
-	google.golang.org/genproto v0.0.0-20190418145605-e7d98fc518a7
+	google.golang.org/api v0.5.0
+	google.golang.org/genproto v0.0.0-20190508193815-b515fa19cec8
 	google.golang.org/grpc v1.19.0
 	honnef.co/go/tools v0.0.0-20190106161140-3f1c8253044a
 )
