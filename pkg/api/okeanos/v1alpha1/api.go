@@ -20,17 +20,19 @@ const (
 // ParameterType enumerates the possible parameter types
 type ParameterType string
 
-// ErrorType enumerates the possible API specific error conditions
-type ErrorType string
-
 const (
 	// ParameterTypeInteger indicates a parameter has an integer value
 	ParameterTypeInteger ParameterType = "int"
 	// ParameterTypeDouble indicates a parameter has a floating point value
-	ParameterTypeDouble ParameterType = "double"
+	ParameterTypeDouble = "double"
 	// ParameterTypeString indicates a parameter has an enumerated value
-	ParameterTypeString ParameterType = "string"
+	ParameterTypeString = "string"
+)
 
+// ErrorType enumerates the possible API specific error conditions
+type ErrorType string
+
+const (
 	// ErrExperimentNameInvalid indicates that the experiment name is unacceptable
 	ErrExperimentNameInvalid ErrorType = "experiment-name-invalid"
 	// ErrExperimentNameConflict indicates that the experiment name causes a conflict
@@ -50,6 +52,7 @@ type ExperimentName interface {
 	Name() string
 }
 
+// NewExperimentName returns an experiment name for a given string
 func NewExperimentName(n string) ExperimentName {
 	return experimentName{name: n}
 }
@@ -81,7 +84,7 @@ type Optimization struct {
 	// The estimated number of trial runs to perform for an experiment
 	ObservationBudget int32 `json:"observation_budget,omitempty"`
 	// The total number of concurrent trial runs supported for an experiment
-	Parallelism int32 `json:"parallelism,omitempty"`
+	ParallelSuggestions int32 `json:"parallelSuggestions,omitempty"`
 }
 
 // Bounds are used to define the domain for a parameter
@@ -140,17 +143,21 @@ type Experiment struct {
 	ObservationRef string `json:"observationRef,omitempty"`
 }
 
+// ExperimentItem is an experiment in an experiment list
+type ExperimentItem struct {
+	Experiment
+	ItemRef string `json:"itemRef"`
+}
+
 // A list of experiments
 type ExperimentList struct {
 	// The actual list of experiments
-	// TODO This is missing the itemRef
-	Experiments []Experiment `json:"experiments"`
+	Experiments []ExperimentItem `json:"experiments"`
 }
 
 // Suggestion represents the assignments of parameter values for a trial run
 type Suggestion struct {
 	// The mapping of parameter names to their assigned value
-	// TODO Should this be a list of `Assignment` instances?
 	Assignments map[string]interface{} `json:"assignments"`
 }
 
@@ -162,11 +169,18 @@ type Observation struct {
 	Values []Value `json:"values"`
 }
 
+// ObservationItem is an observation in an observation list
+type ObservationItem struct {
+	// The observation labels
+	Labels map[string]string `json:"labels"`
+	// The observed values
+	Values []Value `json:"values"`
+}
+
 // A list of observations
 type ObservationList struct {
 	// The actual list of observations
-	// TODO The observation returned here is different (it has labels and assignments but no "failed")
-	Observations []Observation `json:"observations"`
+	Observations []ObservationItem `json:"observations"`
 }
 
 // API provides bindings for the Flax endpoints
@@ -343,8 +357,6 @@ func (h *httpAPI) NextSuggestion(ctx context.Context, u string) (Suggestion, str
 	}
 
 	switch resp.StatusCode {
-	case http.StatusCreated:
-		fallthrough // TODO This doesn't match the documentation
 	case http.StatusOK:
 		l = resp.Header.Get("Location")
 		err = json.Unmarshal(body, &s)

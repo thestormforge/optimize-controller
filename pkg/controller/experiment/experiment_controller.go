@@ -186,6 +186,7 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 
 	// Reconcile each trial
 	for _, t := range list.Items {
+		// TODO Check if the trial has a remote server annotation, if not, we need to manually create the trial on the server before we can report it
 		if okeanostrial.IsTrialFinished(&t) {
 			if t.DeletionTimestamp == nil {
 				// Delete the trial to force finalization
@@ -303,8 +304,8 @@ func (r *ReconcileExperiment) syncWithServer(experiment *okeanosv1alpha1.Experim
 
 			// Since we have the server representation, enforce a cap on the replica count
 			// NOTE: Do the update in memory, we will only persist it if the suggestion URL needs updating
-			if experiment.GetReplicas() > int(e.Optimization.Parallelism) && e.Optimization.Parallelism > 0 {
-				*experiment.Spec.Replicas = e.Optimization.Parallelism
+			if experiment.GetReplicas() > int(e.Optimization.ParallelSuggestions) && e.Optimization.ParallelSuggestions > 0 {
+				*experiment.Spec.Replicas = e.Optimization.ParallelSuggestions
 			}
 
 			// The suggestion reference may be missing because the experiment isn't producing suggestions anymore
