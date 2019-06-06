@@ -11,7 +11,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
@@ -26,7 +25,7 @@ func newHandler(mgr manager.Manager) admission.Handler {
 }
 
 func add(mgr manager.Manager, p string, h admission.Handler) error {
-	mgr.GetWebhookServer().Register(p, &webhook.Admission{Handler: h})
+	//mgr.GetWebhookServer().Register(p, &webhook.Admission{Handler: h})
 	return nil
 }
 
@@ -36,7 +35,7 @@ type TrialHandler struct {
 	client.Client
 }
 
-// +kubebuilder:webhook:failurePolicy=fail,groups=apps,resources=deployments;statefulsets,verbs=create,versions=v1,name=trial-patches.carbonrelay.com,path=/trial-patches,mutating=true
+// kubebuilder:webhook:failurePolicy=fail,groups=apps,resources=deployments;statefulsets,verbs=create,versions=v1,name=trial-patches.carbonrelay.com,path=/trial-patches,mutating=true
 
 func (h *TrialHandler) Handle(ctx context.Context, request admission.Request) admission.Response {
 	// We are only interested in patching create operations
