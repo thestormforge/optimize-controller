@@ -10,15 +10,9 @@ import (
 
 // Parameter
 type Parameter struct {
-	Name     string   `json:"name"`
-	Default  string   `json:"default,omitempty"`
-	Values   []string `json:"values,omitempty"`
-	Min      int64    `json:"min,omitempty"`
-	Max      int64    `json:"max,omitempty"`
-	MinFloat float64  `json:"minFloat,omitempty"`
-	MaxFloat float64  `json:"maxFloat,omitempty"`
-
-	// TODO Is there a better way to represent min/max as either int or float?
+	Name string `json:"name"`
+	Min  int64  `json:"min,omitempty"`
+	Max  int64  `json:"max,omitempty"`
 }
 
 type MetricType string

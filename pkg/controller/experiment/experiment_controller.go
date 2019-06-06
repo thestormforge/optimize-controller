@@ -336,21 +336,14 @@ func copyExperimentToRemote(experiment *okeanosv1alpha1.Experiment, e *okeanosap
 
 	e.Parameters = nil
 	for _, p := range experiment.Spec.Parameters {
-		cp := okeanosapi.Parameter{Name: p.Name}
-		if p.Min != p.Max {
-			cp.Type = okeanosapi.ParameterTypeInteger
-			cp.Bounds = okeanosapi.Bounds{
+		e.Parameters = append(e.Parameters, okeanosapi.Parameter{
+			Type: okeanosapi.ParameterTypeInteger,
+			Name: p.Name,
+			Bounds: okeanosapi.Bounds{
 				Min: json.Number(strconv.FormatInt(p.Min, 10)),
 				Max: json.Number(strconv.FormatInt(p.Max, 10)),
-			}
-		} else if p.MinFloat != p.MaxFloat {
-			cp.Type = okeanosapi.ParameterTypeDouble
-			cp.Bounds = okeanosapi.Bounds{
-				Min: json.Number(strconv.FormatFloat(p.MinFloat, 'f', -1, 64)),
-				Max: json.Number(strconv.FormatFloat(p.MaxFloat, 'f', -1, 64)),
-			}
-		}
-		e.Parameters = append(e.Parameters, cp)
+			},
+		})
 	}
 
 	e.Metrics = nil
