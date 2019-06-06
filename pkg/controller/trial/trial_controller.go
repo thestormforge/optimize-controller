@@ -116,21 +116,6 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 		}
 	}
 
-	// Evaluate the metric queries
-	if len(trial.Status.MetricQueries) == 0 {
-		e := &okeanosv1alpha1.Experiment{}
-		if err = r.Get(context.TODO(), trial.ExperimentNamespacedName(), e); err != nil {
-			return reconcile.Result{}, err
-		}
-		if err = r.evaluateMetrics(trial, e); err != nil {
-			return reconcile.Result{}, err
-		}
-		if len(trial.Status.MetricQueries) > 0 {
-			err = r.Update(context.TODO(), trial)
-			return reconcile.Result{}, err
-		}
-	}
-
 	// Ensure we have non-nil selector to avoid repeatedly fetching the experiment for the job template
 	if trial.Spec.Selector == nil {
 		e := &okeanosv1alpha1.Experiment{}
@@ -231,27 +216,35 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 
 	if trial.Status.CompletionTime != nil {
 		// Look for metrics that have not been collected yet
-		for _, m := range trial.Status.MetricQueries {
+		e := &okeanosv1alpha1.Experiment{}
+		if err = r.Get(context.TODO(), trial.ExperimentNamespacedName(), e); err != nil {
+			return reconcile.Result{}, err
+		}
+		for _, m := range e.Spec.Metrics {
 			if _, ok := trial.Spec.Values[m.Name]; !ok {
-				if value, retryAfter, err := captureMetric(&m, trial); retryAfter != nil || err != nil {
-					if retryAfter != nil {
-						return reconcile.Result{Requeue: true, RequeueAfter: *retryAfter}, nil
+				var urls []string
+				if urls, err = r.findMetricTargets(trial, &m); err == nil {
+					for _, u := range urls {
+						if value, retryAfter, err := captureMetric(&m, u, trial); retryAfter != nil {
+							// The metric could not be captured at this time, wait and try again
+							return reconcile.Result{Requeue: true, RequeueAfter: *retryAfter}, nil
+						} else if err == nil {
+							trial.Spec.Values[m.Name] = strconv.FormatFloat(value, 'f', -1, 64)
+							err = r.Update(context.TODO(), trial)
+							return reconcile.Result{}, err
+						}
 					}
-					if err != nil {
-						return reconcile.Result{}, err
-					}
-				} else {
-					trial.Spec.Values[m.Name] = strconv.FormatFloat(value, 'f', -1, 64)
 				}
 
-				err = r.Update(context.TODO(), trial)
-				return reconcile.Result{}, err
+				// Failure either from either findMetricTargets or captureMetric
+				if err != nil {
+					return reconcile.Result{}, err
+				}
 			}
 		}
 
-		// TODO Delete the job before marking ourselves as complete to avoid accidentally adopting the job by a future trial?
-
 		// If all of the metrics are collected, mark the trial as completed
+		log.Info("Completing trial", "namespace", trial.Namespace, "name", trial.Name)
 		trial.Status.Conditions = append(trial.Status.Conditions, newCondition(okeanosv1alpha1.TrialComplete, "", ""))
 		err = r.Update(context.TODO(), trial)
 		return reconcile.Result{}, err
@@ -351,53 +344,41 @@ func (r *ReconcileTrial) findPatchTargets(p *okeanosv1alpha1.PatchTemplate, tria
 	return targets, nil
 }
 
-func (r *ReconcileTrial) evaluateMetrics(trial *okeanosv1alpha1.Trial, e *okeanosv1alpha1.Experiment) error {
-	for _, m := range e.Spec.Metrics {
-		var urls []string
-		if m.Selector != nil {
-			// Find services matching the selector
-			ls, err := metav1.LabelSelectorAsSelector(m.Selector)
-			if err != nil {
-				return err
-			}
-			services := &corev1.ServiceList{}
-			if err := r.List(context.TODO(), services, client.UseListOptions(&client.ListOptions{LabelSelector: ls})); err != nil {
-				return err
-			}
-			for _, s := range services.Items {
-				port := m.Port.IntValue()
-				if port < 1 {
-					for _, sp := range s.Spec.Ports {
-						if m.Port.StrVal == sp.Name {
-							port = int(sp.Port)
-						}
+func (r *ReconcileTrial) findMetricTargets(trial *okeanosv1alpha1.Trial, m *okeanosv1alpha1.Metric) ([]string, error) {
+	var urls []string
+	if m.Selector != nil {
+		// Find services matching the selector
+		ls, err := metav1.LabelSelectorAsSelector(m.Selector)
+		if err != nil {
+			return nil, err
+		}
+		services := &corev1.ServiceList{}
+		if err := r.List(context.TODO(), services, client.UseListOptions(&client.ListOptions{LabelSelector: ls})); err != nil {
+			return nil, err
+		}
+		for _, s := range services.Items {
+			port := m.Port.IntValue()
+			if port < 1 {
+				for _, sp := range s.Spec.Ports {
+					if m.Port.StrVal == sp.Name {
+						port = int(sp.Port)
 					}
 				}
-
-				// TODO Build this URL properly
-				thisIsBad, err := url.Parse(fmt.Sprintf("http://%s:%d%s", s.Spec.ClusterIP, port, m.Path))
-				if err != nil {
-					return err
-				}
-				urls = append(urls, thisIsBad.String())
 			}
-		} else {
-			// If there is no service selector, just use an empty URL
-			urls = append(urls, "")
-		}
 
-		// Add a metric query for every URL
-		for _, u := range urls {
-			trial.Status.MetricQueries = append(trial.Status.MetricQueries, okeanosv1alpha1.MetricQuery{
-				Name:       m.Name,
-				MetricType: m.Type,
-				Query:      m.Query,
-				URL:        u,
-			})
+			// TODO Build this URL properly
+			thisIsBad, err := url.Parse(fmt.Sprintf("http://%s:%d%s", s.Spec.ClusterIP, port, m.Path))
+			if err != nil {
+				return nil, err
+			}
+			urls = append(urls, thisIsBad.String())
 		}
+	} else {
+		// If there is no service selector, just use an empty URL
+		urls = append(urls, "")
 	}
 
-	return nil
+	return urls, nil
 }
 
 // Updates a trial status based on the status of the individual job(s), returns true if any changes were necessary

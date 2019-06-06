@@ -338,7 +338,12 @@ func (r *ReconcileExperiment) syncWithServer(experiment *okeanosv1alpha1.Experim
 
 // Copy the custom resource state into a client API representation
 func copyExperimentToRemote(experiment *okeanosv1alpha1.Experiment, e *okeanosapi.Experiment) {
-	e.Optimization = experiment.Spec.Optimization
+	e.Optimization = okeanosapi.Optimization{}
+	if experiment.Spec.Parallelism != nil {
+		e.Optimization.ParallelSuggestions = *experiment.Spec.Parallelism
+	} else {
+		e.Optimization.ParallelSuggestions = int32(experiment.GetReplicas())
+	}
 
 	e.Parameters = nil
 	for _, p := range experiment.Spec.Parameters {

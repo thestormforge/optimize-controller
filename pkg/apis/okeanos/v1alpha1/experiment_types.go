@@ -1,7 +1,6 @@
 package v1alpha1
 
 import (
-	okeanosclient "github.com/gramLabs/okeanos/pkg/api/okeanos/v1alpha1"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,6 +32,7 @@ type Metric struct {
 	Path     string                `json:"path,omitempty"` // Path appended to the endpoint (used as a prefix for prometheus)
 	Selector *metav1.LabelSelector `json:"selector,omitempty"`
 	Port     intstr.IntOrString    `json:"endpoint,omitempty"`
+	// TODO ErrorQuery?
 }
 
 // PatchTemplate defines a target resource and a patch template to apply
@@ -55,19 +55,17 @@ type ExperimentSpec struct {
 	Parameters []Parameter `json:"parameters,omitempty"`
 	// Metrics defines the outcomes for the experiment
 	Metrics []Metric `json:"metrics,omitempty"`
-	// Optimization defines the optimization specific configuration options
-	Optimization okeanosclient.Optimization `json:"optimization,omitempty"`
-	// Replicas is the number of trials to execute at once. It must be no greater then the parallelism defined in the
-	// optimization configuration (which will be used as a default if replicas is left unspecified). When running an
-	// experiment in multiple clusters, the sum of all the replica counts should be used as the parallelism.
+	// Replicas is the number of trials to execute concurrently, defaults to 1
 	Replicas *int32 `json:"replicas,omitempty"`
+	// Parallelism is the total number of expected replicas across all clusters, defaults to the replica count
+	Parallelism *int32 `json:"parallelism,omitempty"`
 	// Selector locates trial resources that are part of this experiment
 	Selector *metav1.LabelSelector `json:"selector,omitempty"`
 	// NamespaceSelector is used to determine which namespaces on a cluster can be used to create trials. Only a single
 	// trial can be created in each namespace so if there are fewer matching namespaces then replicas, no trials will
-	// be created.
+	// be created
 	NamespaceSelector *metav1.LabelSelector `json:"namespaceSelector,omitempty"`
-	// Template for create a new trial. The resulting trial must be matched by Selector. If the template can provide an
+	// Template for creating a new trial. The resulting trial must be matched by Selector. The template can provide an
 	// initial namespace, however other namespaces (matched by NamespaceSelector) will be used if the effective
 	// replica count is more then one
 	Template TrialTemplateSpec `json:"template"`
@@ -84,6 +82,7 @@ type ExperimentSpec struct {
 
 // ExperimentStatus defines the observed state of Experiment
 type ExperimentStatus struct {
+	// TODO Number of trials? Active? Failed?
 }
 
 // +genclient

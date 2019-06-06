@@ -13,14 +13,6 @@ type PatchOperation struct {
 	Pending   bool                   `json:"pending,omitempty"`
 }
 
-type MetricQuery struct {
-	Name       string     `json:"name"`
-	MetricType MetricType `json:"metricType,omitempty"`
-	Query      string     `json:"query"`
-	URL        string     `json:"url,omitempty"`
-	// TODO ErrorQuery?
-}
-
 type TrialConditionType string
 
 const (
@@ -40,11 +32,16 @@ type TrialCondition struct {
 
 // TrialSpec defines the desired state of Trial
 type TrialSpec struct {
-	ExperimentRef   *corev1.ObjectReference `json:"experimentRef,omitempty"`
-	TargetNamespace string                  `json:"targetNamespace"`
-	Assignments     map[string]string       `json:"assignments"`
-	Values          map[string]string       `json:"values"`
-	Selector        *metav1.LabelSelector   `json:"selector,omitempty"`
+	// ExperimentRef is the reference to the experiment that contains the definitions to use for this trial
+	ExperimentRef *corev1.ObjectReference `json:"experimentRef,omitempty"`
+	// TargetNamespace defines the default namespace of the objects to apply patches to
+	TargetNamespace string `json:"targetNamespace"`
+	// Assignments are used to patch the cluster state prior to the trial run
+	Assignments map[string]string `json:"assignments"`
+	// Values are the collected metrics at the end of the trial run
+	Values map[string]string `json:"values"`
+	// Selector matches the job representing the trial run
+	Selector *metav1.LabelSelector `json:"selector,omitempty"`
 }
 
 // TODO Should `Assignments` be `k8s.io/apimachinery/pkg/apis/meta/v1/unstructured/Unstructured`? CT doesn't have that in known_types.go
@@ -52,13 +49,13 @@ type TrialSpec struct {
 // TrialStatus defines the observed state of Trial
 type TrialStatus struct {
 	PatchOperations []PatchOperation `json:"patchOperations,omitempty"`
-	MetricQueries   []MetricQuery    `json:"metricQueries,omitempty"`
 	StartTime       *metav1.Time     `json:"startTime,omitempty"`
 	CompletionTime  *metav1.Time     `json:"completionTime,omitempty"`
 	Conditions      []TrialCondition `json:"conditions,omitempty"`
 }
 
 // TODO Server side formatting, can display the suggestions and metrics in the default output? We need to format a string field in the status
+// TODO How do we get rid of PatchOperations? Or does it just go on the Spec instead?
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

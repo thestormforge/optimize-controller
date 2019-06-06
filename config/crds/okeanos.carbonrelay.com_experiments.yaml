@@ -5891,7 +5891,7 @@ spec:
                 description: NamespaceSelector is used to determine which namespaces
                   on a cluster can be used to create trials. Only a single trial can
                   be created in each namespace so if there are fewer matching namespaces
-                  then replicas, no trials will be created.
+                  then replicas, no trials will be created
                 properties:
                   matchExpressions:
                     description: matchExpressions is a list of label selector requirements.
@@ -5931,26 +5931,11 @@ spec:
                       are ANDed.
                     type: object
                 type: object
-              optimization:
-                description: Optimization defines the optimization specific configuration
-                  options
-                properties:
-                  burnIn:
-                    description: The total number of random search suggestions used
-                      to start experiment
-                    format: int32
-                    type: integer
-                  observation_budget:
-                    description: The estimated number of trial runs to perform for
-                      an experiment
-                    format: int32
-                    type: integer
-                  parallelSuggestions:
-                    description: The total number of concurrent trial runs supported
-                      for an experiment
-                    format: int32
-                    type: integer
-                type: object
+              parallelism:
+                description: Parallelism is the total number of expected replicas
+                  across all clusters, defaults to the replica count
+                format: int32
+                type: integer
               parameters:
                 description: Parameters defines the search space for the experiment
                 items:
@@ -6060,11 +6045,8 @@ spec:
                   type: object
                 type: array
               replicas:
-                description: Replicas is the number of trials to execute at once.
-                  It must be no greater then the parallelism defined in the optimization
-                  configuration (which will be used as a default if replicas is left
-                  unspecified). When running an experiment in multiple clusters, the
-                  sum of all the replica counts should be used as the parallelism.
+                description: Replicas is the number of trials to execute concurrently,
+                  defaults to 1
                 format: int32
                 type: integer
               selector:
@@ -6114,8 +6096,8 @@ spec:
                   spin up of the trial run
                 type: string
               template:
-                description: Template for create a new trial. The resulting trial
-                  must be matched by Selector. If the template can provide an initial
+                description: Template for creating a new trial. The resulting trial
+                  must be matched by Selector. The template can provide an initial
                   namespace, however other namespaces (matched by NamespaceSelector)
                   will be used if the effective replica count is more then one
                 properties:
@@ -6517,8 +6499,12 @@ spec:
                       assignments:
                         additionalProperties:
                           type: string
+                        description: Assignments are used to patch the cluster state
+                          prior to the trial run
                         type: object
                       experimentRef:
+                        description: ExperimentRef is the reference to the experiment
+                          that contains the definitions to use for this trial
                         properties:
                           apiVersion:
                             description: API version of the referent.
@@ -6555,6 +6541,8 @@ spec:
                             type: string
                         type: object
                       selector:
+                        description: Selector matches the job representing the trial
+                          run
                         properties:
                           matchExpressions:
                             description: matchExpressions is a list of label selector
@@ -6596,10 +6584,14 @@ spec:
                             type: object
                         type: object
                       targetNamespace:
+                        description: TargetNamespace defines the default namespace
+                          of the objects to apply patches to
                         type: string
                       values:
                         additionalProperties:
                           type: string
+                        description: Values are the collected metrics at the end of
+                          the trial run
                         type: object
                     required:
                     - targetNamespace

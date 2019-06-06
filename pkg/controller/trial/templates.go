@@ -49,7 +49,7 @@ func executePatchTemplate(p *okeanosv1alpha1.PatchTemplate, trial *okeanosv1alph
 	return patchType, buf.Bytes(), nil
 }
 
-func executeMetricQuery(m *okeanosv1alpha1.MetricQuery, trial *okeanosv1alpha1.Trial) (string, error) {
+func executeMetricQueryTemplate(m *okeanosv1alpha1.Metric, trial *okeanosv1alpha1.Trial) (string, error) {
 	// Create the functions and data for template evaluation
 	funcMap := template.FuncMap{
 		"duration": templateDuration,

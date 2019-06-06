@@ -18,24 +18,30 @@ import (
 // TODO Combine it with the Prometheus clients?
 var httpClient = &http.Client{Timeout: 10 * time.Second}
 
-func captureMetric(m *okeanosv1alpha1.MetricQuery, trial *okeanosv1alpha1.Trial) (float64, *time.Duration, error) {
+func captureMetric(m *okeanosv1alpha1.Metric, u string, trial *okeanosv1alpha1.Trial) (float64, *time.Duration, error) {
 	// Execute the query as a template against the current state of the trial
-	q, err := executeMetricQuery(m, trial)
+	q, err := executeMetricQueryTemplate(m, trial)
 	if err != nil {
 		return 0, nil, err
 	}
 
 	// Capture the value based on the metric type
-	switch m.MetricType {
+	switch m.Type {
 	case okeanosv1alpha1.MetricLocal, "":
-		value, err := strconv.ParseFloat(q, 64)
-		return value, nil, err
+		return captureLocalMetric(q)
 	case okeanosv1alpha1.MetricPrometheus:
-		return capturePrometheusMetric(m.URL, q, trial.Status.CompletionTime.Time)
+		return capturePrometheusMetric(u, q, trial.Status.CompletionTime.Time)
 	case okeanosv1alpha1.MetricJSONPath:
-		return captureJSONPathMetric(m.URL, m.Name, q)
+		return captureJSONPathMetric(u, m.Name, q)
+	default:
+		return 0, nil, fmt.Errorf("unknown metric type: %s", m.Type)
 	}
-	return 0, nil, fmt.Errorf("unknown metric type: %s", m.MetricType)
+}
+
+func captureLocalMetric(query string) (float64, *time.Duration, error) {
+	// Just parse the query as a float
+	value, err := strconv.ParseFloat(query, 64)
+	return value, nil, err
 }
 
 func capturePrometheusMetric(address, query string, completionTime time.Time) (float64, *time.Duration, error) {
