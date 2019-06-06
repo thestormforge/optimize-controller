@@ -36,10 +36,8 @@ type TrialHandler struct {
 	client.Client
 }
 
-// +kubebuilder:webhook:groups=apps,versions=v1,resources=deployments,verbs=create
-// +kubebuilder:webhook:name=trial-patches.carbonrelay.com
-// +kubebuilder:webhook:path=/trial-patches
-// +kubebuilder:webhook:type=mutating,failure-policy=fail
+// +kubebuilder:webhook:failurePolicy=fail,groups=apps,resources=deployments;statefulsets,verbs=create,versions=v1,name=trial-patches.carbonrelay.com,path=/trial-patches,mutating=true
+
 func (h *TrialHandler) Handle(ctx context.Context, request admission.Request) admission.Response {
 	// We are only interested in patching create operations
 	if request.Operation == v1beta1.Create {
