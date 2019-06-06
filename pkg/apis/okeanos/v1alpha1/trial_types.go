@@ -6,9 +6,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-// Assignments is a type alias for a generic string to value map
-type Assignments map[string]interface{}
-
 type PatchOperation struct {
 	TargetRef corev1.ObjectReference `json:"targetRef"`
 	PatchType types.PatchType        `json:"patchType"`
@@ -45,10 +42,12 @@ type TrialCondition struct {
 type TrialSpec struct {
 	ExperimentRef   *corev1.ObjectReference `json:"experimentRef,omitempty"`
 	TargetNamespace string                  `json:"targetNamespace"`
-	Assignments     Assignments             `json:"assignments"`
-	Values          map[string]float64      `json:"values"`
+	Assignments     map[string]string       `json:"assignments"`
+	Values          map[string]string       `json:"values"`
 	Selector        *metav1.LabelSelector   `json:"selector,omitempty"`
 }
+
+// TODO Should `Assignments` be `k8s.io/apimachinery/pkg/apis/meta/v1/unstructured/Unstructured`? CT doesn't have that in known_types.go
 
 // TrialStatus defines the observed state of Trial
 type TrialStatus struct {

@@ -3,6 +3,7 @@ package experiment
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strconv"
 
 	okeanosclient "github.com/gramLabs/okeanos/pkg/api"
@@ -173,8 +174,11 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 			}
 
 			// Add the information from the server
-			trial.Spec.Assignments = suggestion.Assignments
 			trial.GetAnnotations()[annotationObservationURL] = observationURL
+			trial.Spec.Assignments = make(map[string]string, len(suggestion.Assignments))
+			for k, v := range suggestion.Assignments {
+				trial.Spec.Assignments[k] = fmt.Sprint(v)
+			}
 
 			// Create the trial
 			// TODO If there is an error, notify server that we failed to adopt the suggestion?
@@ -201,11 +205,13 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 					}
 				}
 				for k, v := range t.Spec.Values {
-					observation.Values = append(observation.Values, okeanosapi.Value{
-						MetricName: k,
-						Value:      v,
-						// TODO Error is the standard deviation for the metric
-					})
+					if fv, err := strconv.ParseFloat(v, 64); err == nil {
+						observation.Values = append(observation.Values, okeanosapi.Value{
+							MetricName: k,
+							Value:      fv,
+							// TODO Error is the standard deviation for the metric
+						})
+					}
 				}
 
 				// Send the observation to the server
@@ -389,7 +395,7 @@ func populateTrialFromTemplate(experiment *okeanosv1alpha1.Experiment, trial *ok
 	}
 
 	if trial.Spec.Values == nil {
-		trial.Spec.Values = make(map[string]float64)
+		trial.Spec.Values = make(map[string]string)
 	}
 
 	if trial.Spec.ExperimentRef == nil {

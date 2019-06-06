@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"strconv"
 	"time"
 
 	okeanosv1alpha1 "github.com/gramLabs/okeanos/pkg/apis/okeanos/v1alpha1"
@@ -97,7 +98,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 
 	// Ensure the value map is empty, never nil (no need to persist unless we otherwise need to)
 	if trial.Spec.Values == nil {
-		trial.Spec.Values = make(map[string]float64, 1)
+		trial.Spec.Values = make(map[string]string, 1)
 	}
 
 	// Evaluate the patch operations
@@ -232,14 +233,15 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 		// Look for metrics that have not been collected yet
 		for _, m := range trial.Status.MetricQueries {
 			if _, ok := trial.Spec.Values[m.Name]; !ok {
-				var retryAfter *time.Duration
-				if trial.Spec.Values[m.Name], retryAfter, err = captureMetric(&m, trial); retryAfter != nil || err != nil {
+				if value, retryAfter, err := captureMetric(&m, trial); retryAfter != nil || err != nil {
 					if retryAfter != nil {
 						return reconcile.Result{Requeue: true, RequeueAfter: *retryAfter}, nil
 					}
 					if err != nil {
 						return reconcile.Result{}, err
 					}
+				} else {
+					trial.Spec.Values[m.Name] = strconv.FormatFloat(value, 'f', -1, 64)
 				}
 
 				err = r.Update(context.TODO(), trial)

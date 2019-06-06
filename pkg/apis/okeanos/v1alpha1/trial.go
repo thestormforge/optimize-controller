@@ -18,19 +18,6 @@ func (in *Trial) ExperimentNamespacedName() types.NamespacedName {
 	return nn
 }
 
-// Manually write the deep copy method because of the empty interface usage
-
-func (in *Assignments) DeepCopy() *Assignments {
-	if in == nil {
-		return nil
-	}
-	out := Assignments(make(map[string]interface{}, len(*in)))
-	for key, val := range *in {
-		out[key] = val
-	}
-	return &out
-}
-
 // Returns a fall back label for when the user has not specified anything
 func (in *Trial) GetDefaultLabels() map[string]string {
 	return map[string]string{"trial": in.Name}

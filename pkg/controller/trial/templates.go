@@ -10,7 +10,7 @@ import (
 )
 
 type patchContext struct {
-	Values map[string]interface{}
+	Values map[string]string
 }
 
 type metricContext struct {
