@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -32,7 +33,8 @@ type TrialCondition struct {
 
 // TrialSpec defines the desired state of Trial
 type TrialSpec struct {
-	// ExperimentRef is the reference to the experiment that contains the definitions to use for this trial
+	// ExperimentRef is the reference to the experiment that contains the definitions to use for this trial,
+	// defaults to an experiment in the same namespace with the same name
 	ExperimentRef *corev1.ObjectReference `json:"experimentRef,omitempty"`
 	// TargetNamespace defines the default namespace of the objects to apply patches to
 	TargetNamespace string `json:"targetNamespace"`
@@ -42,8 +44,15 @@ type TrialSpec struct {
 	Values map[string]string `json:"values"`
 	// Selector matches the job representing the trial run
 	Selector *metav1.LabelSelector `json:"selector,omitempty"`
+	// Template is the job template used to create trial run jobs
+	Template *batchv1beta1.JobTemplateSpec `json:"jobTemplate"`
+	// The offset used to adjust the start time to account for spin up of the trial run
+	StartTimeOffset *metav1.Duration `json:"startTimeOffset,omitempty"`
+	// The approximate amount of time the trial run should execute (not inclusive of the start time offset)
+	ApproximateRuntime *metav1.Duration `json:"approximateRuntime,omitempty"`
 }
 
+// TODO What should TargetNamespace default to? The trial namespace or the default namespace?
 // TODO Should `Assignments` be `k8s.io/apimachinery/pkg/apis/meta/v1/unstructured/Unstructured`? CT doesn't have that in known_types.go
 
 // TrialStatus defines the observed state of Trial

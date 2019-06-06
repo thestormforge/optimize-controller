@@ -1,7 +1,6 @@
 package v1alpha1
 
 import (
-	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -51,33 +50,27 @@ type TrialTemplateSpec struct {
 
 // ExperimentSpec defines the desired state of Experiment
 type ExperimentSpec struct {
-	// Parameters defines the search space for the experiment
-	Parameters []Parameter `json:"parameters,omitempty"`
-	// Metrics defines the outcomes for the experiment
-	Metrics []Metric `json:"metrics,omitempty"`
 	// Replicas is the number of trials to execute concurrently, defaults to 1
 	Replicas *int32 `json:"replicas,omitempty"`
 	// Parallelism is the total number of expected replicas across all clusters, defaults to the replica count
 	Parallelism *int32 `json:"parallelism,omitempty"`
-	// Selector locates trial resources that are part of this experiment
-	Selector *metav1.LabelSelector `json:"selector,omitempty"`
+	// Parameters defines the search space for the experiment
+	Parameters []Parameter `json:"parameters,omitempty"`
+	// Metrics defines the outcomes for the experiment
+	Metrics []Metric `json:"metrics,omitempty"`
+	// Patches is a sequence of templates written against the experiment parameters that will be used to put the
+	// cluster into the desired state
+	Patches []PatchTemplate `json:"patches,omitempty"`
 	// NamespaceSelector is used to determine which namespaces on a cluster can be used to create trials. Only a single
 	// trial can be created in each namespace so if there are fewer matching namespaces then replicas, no trials will
 	// be created
 	NamespaceSelector *metav1.LabelSelector `json:"namespaceSelector,omitempty"`
+	// Selector locates trial resources that are part of this experiment
+	Selector *metav1.LabelSelector `json:"selector,omitempty"`
 	// Template for creating a new trial. The resulting trial must be matched by Selector. The template can provide an
 	// initial namespace, however other namespaces (matched by NamespaceSelector) will be used if the effective
 	// replica count is more then one
 	Template TrialTemplateSpec `json:"template"`
-	// Patches is a sequence of templates written against the experiment parameters that will be used to put the
-	// cluster into the desired state
-	Patches []PatchTemplate `json:"patches,omitempty"`
-	// JobTemplate is the template used to create trial run jobs
-	JobTemplate *batchv1beta1.JobTemplateSpec `json:"jobTemplate"`
-	// The offset used to adjust the start time to account ignore spin up of the trial run
-	StartTimeOffset *metav1.Duration `json:"startTimeOffset,omitempty"`
-	// The approximate amount of time the trial run should execute (not inclusive of the start time offset)
-	ApproximateRuntime *metav1.Duration `json:"approximateRuntime,omitempty"`
 }
 
 // ExperimentStatus defines the observed state of Experiment

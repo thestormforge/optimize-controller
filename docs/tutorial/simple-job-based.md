@@ -64,16 +64,18 @@ spec:
   - name: time
     minimize: true
     query: "{{duration .Status.StartTime .Status.CompletionTime}}"
-  jobTemplate:
+  template: # trial
     spec:
-      template:
+      template: # job
         spec:
-          containers:
-          - name: benchmark-cli
-            image: benchmark-cli:6.7.0
-            envFrom:
-            - configMapRef:
-                name: logstash-benchmark
+          template: # pod
+            spec:
+              containers:
+              - name: benchmark-cli
+                image: benchmark-cli:6.7.0
+                envFrom:
+                - configMapRef:
+                    name: logstash-benchmark
   patches:
   - type: json
     targetRef:

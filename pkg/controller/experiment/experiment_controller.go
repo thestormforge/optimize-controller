@@ -406,10 +406,6 @@ func populateTrialFromTemplate(experiment *okeanosv1alpha1.Experiment, trial *ok
 	if trial.Spec.ExperimentRef == nil {
 		trial.Spec.ExperimentRef = experiment.GetSelfReference()
 	}
-
-	if trial.Spec.Selector == nil && experiment.Spec.JobTemplate != nil {
-		trial.Spec.Selector = metav1.SetAsLabelSelector(experiment.Spec.JobTemplate.Labels)
-	}
 }
 
 // Searches for a namespace to run a new trial in, returning an empty string if no such namespace can be found

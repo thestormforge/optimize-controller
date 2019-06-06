@@ -116,22 +116,6 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 		}
 	}
 
-	// Ensure we have non-nil selector to avoid repeatedly fetching the experiment for the job template
-	if trial.Spec.Selector == nil {
-		e := &okeanosv1alpha1.Experiment{}
-		if err = r.Get(context.TODO(), trial.ExperimentNamespacedName(), e); err != nil {
-			return reconcile.Result{}, err
-		}
-		if e.Spec.JobTemplate != nil {
-			trial.Spec.Selector = metav1.SetAsLabelSelector(e.Spec.JobTemplate.Labels)
-		}
-		if trial.Spec.Selector == nil {
-			trial.Spec.Selector = metav1.SetAsLabelSelector(trial.GetDefaultLabels())
-		}
-		err = r.Update(context.TODO(), trial)
-		return reconcile.Result{}, err
-	}
-
 	// Apply the patches
 	for i := range trial.Status.PatchOperations {
 		p := &trial.Status.PatchOperations[i]
@@ -153,7 +137,12 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 	// Find jobs labeled for this trial
 	list := &batchv1.JobList{}
 	opts := &client.ListOptions{}
-	if opts.LabelSelector, err = metav1.LabelSelectorAsSelector(trial.Spec.Selector); err != nil {
+	if trial.Spec.Selector == nil {
+		opts.MatchingLabels(trial.Spec.Template.Labels)
+		if opts.LabelSelector.Empty() {
+			opts.MatchingLabels(trial.GetDefaultLabels())
+		}
+	} else if opts.LabelSelector, err = metav1.LabelSelectorAsSelector(trial.Spec.Selector); err != nil {
 		return reconcile.Result{}, err
 	}
 	if err := r.List(context.TODO(), list, client.UseListOptions(opts)); err != nil {
@@ -161,16 +150,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 	}
 
 	// Update the trial run status using the job status
-	if dirty, adjustStartTime := updateStatusFromJobs(list.Items, trial); dirty {
-		if adjustStartTime {
-			e := &okeanosv1alpha1.Experiment{}
-			if err = r.Get(context.TODO(), trial.ExperimentNamespacedName(), e); err != nil {
-				return reconcile.Result{}, err
-			}
-			if e.Spec.StartTimeOffset != nil {
-				*trial.Status.StartTime = metav1.NewTime(trial.Status.StartTime.Add(e.Spec.StartTimeOffset.Duration))
-			}
-		}
+	if dirty := updateStatusFromJobs(list.Items, trial); dirty {
 		err = r.Update(context.TODO(), trial)
 		return reconcile.Result{}, err
 	}
@@ -305,7 +285,7 @@ func (r *ReconcileTrial) evaluatePatches(trial *okeanosv1alpha1.Trial, e *okeano
 // Finds the patch targets
 func (r *ReconcileTrial) findPatchTargets(p *okeanosv1alpha1.PatchTemplate, trial *okeanosv1alpha1.Trial) ([]corev1.ObjectReference, error) {
 	if trial.Spec.TargetNamespace == "" {
-		trial.Spec.TargetNamespace = "default"
+		trial.Spec.TargetNamespace = "default" // TODO Should this be trial.Namespace?
 	}
 
 	var targets []corev1.ObjectReference
@@ -382,9 +362,8 @@ func (r *ReconcileTrial) findMetricTargets(trial *okeanosv1alpha1.Trial, m *okea
 }
 
 // Updates a trial status based on the status of the individual job(s), returns true if any changes were necessary
-func updateStatusFromJobs(jobs []batchv1.Job, trial *okeanosv1alpha1.Trial) (bool, bool) {
+func updateStatusFromJobs(jobs []batchv1.Job, trial *okeanosv1alpha1.Trial) bool {
 	var dirty bool
-	var adjustStartTime bool
 
 	for _, j := range jobs {
 
@@ -392,7 +371,9 @@ func updateStatusFromJobs(jobs []batchv1.Job, trial *okeanosv1alpha1.Trial) (boo
 			// Establish a start time if available
 			trial.Status.StartTime = j.Status.StartTime.DeepCopy()
 			dirty = dirty || j.Status.StartTime != nil
-			adjustStartTime = true
+			if dirty && trial.Spec.StartTimeOffset != nil {
+				*trial.Status.StartTime = metav1.NewTime(trial.Status.StartTime.Add(trial.Spec.StartTimeOffset.Duration))
+			}
 		} else if j.Status.StartTime != nil && trial.Status.StartTime.Before(j.Status.StartTime) {
 			// Move the start time back
 			trial.Status.StartTime = j.Status.StartTime.DeepCopy()
@@ -419,15 +400,14 @@ func updateStatusFromJobs(jobs []batchv1.Job, trial *okeanosv1alpha1.Trial) (boo
 		}
 	}
 
-	return dirty, adjustStartTime
+	return dirty
 }
 
 func (r *ReconcileTrial) createJob(trial *okeanosv1alpha1.Trial, job *batchv1.Job) {
-	// Try to get the job template off the experiment
-	e := &okeanosv1alpha1.Experiment{}
-	if err := r.Get(context.TODO(), trial.ExperimentNamespacedName(), e); err == nil {
-		e.Spec.JobTemplate.ObjectMeta.DeepCopyInto(&job.ObjectMeta)
-		e.Spec.JobTemplate.Spec.DeepCopyInto(&job.Spec)
+	// Start with the job template
+	if trial.Spec.Template != nil {
+		trial.Spec.Template.ObjectMeta.DeepCopyInto(&job.ObjectMeta)
+		trial.Spec.Template.Spec.DeepCopyInto(&job.Spec)
 	}
 
 	// Provide default metadata
@@ -450,12 +430,12 @@ func (r *ReconcileTrial) createJob(trial *okeanosv1alpha1.Trial, job *batchv1.Jo
 
 	// Containers cannot be null, inject a sleep by default
 	if job.Spec.Template.Spec.Containers == nil {
-		s := e.Spec.ApproximateRuntime
+		s := trial.Spec.ApproximateRuntime
 		if s == nil || s.Duration == 0 {
 			s = &metav1.Duration{Duration: 2 * time.Minute}
 		}
-		if e.Spec.StartTimeOffset != nil {
-			s = &metav1.Duration{Duration: s.Duration + e.Spec.StartTimeOffset.Duration}
+		if trial.Spec.StartTimeOffset != nil {
+			s = &metav1.Duration{Duration: s.Duration + trial.Spec.StartTimeOffset.Duration}
 		}
 		job.Spec.Template.Spec.Containers = []corev1.Container{
 			{
