@@ -2,6 +2,7 @@ package trial
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"strconv"
@@ -13,9 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/validation/field"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -96,9 +95,10 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 		return reconcile.Result{}, nil
 	}
 
-	// Ensure the value map is empty, never nil (no need to persist unless we otherwise need to)
-	if trial.Spec.Values == nil {
-		trial.Spec.Values = make(map[string]string, 1)
+	// Update the display status
+	if dirty := syncStatus(trial); dirty {
+		err = r.Update(context.TODO(), trial)
+		return reconcile.Result{}, err
 	}
 
 	// Evaluate the patch operations
@@ -161,7 +161,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 		if err = waitForStableState(r, context.TODO(), trial.Status.PatchOperations); err != nil {
 			if serr, ok := err.(*StabilityError); ok {
 				if serr.RetryAfter > 0 {
-					// We are not ready to being yet, wait the specified timeout and try again
+					// We are not ready to create a job yet, wait the specified timeout and try again
 					return reconcile.Result{Requeue: true, RequeueAfter: serr.RetryAfter}, nil
 				} else {
 					// The cluster is in a bad state, fail the experiment
@@ -176,20 +176,9 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 
 		// Create a new job
 		job := &batchv1.Job{}
-		r.createJob(trial, job)
-
-		// Update the controller reference so we get updates when the job changes status
-		if err = controllerutil.SetControllerReference(trial, job, r.scheme); err != nil {
+		if err = r.createJob(trial, job); err != nil {
 			return reconcile.Result{}, err
 		}
-
-		// Before creating the job, make sure we are going to be able to find it again
-		if !opts.LabelSelector.Matches(labels.Set(job.Labels)) {
-			return reconcile.Result{}, errors.NewInvalid(trial.GroupVersionKind().GroupKind(), trial.Name, field.ErrorList{
-				field.Invalid(field.NewPath("spec", "selector"), trial.Spec.Selector, "selector does not match evaluated job template"),
-			})
-		}
-
 		err = r.Create(context.TODO(), job)
 		return reconcile.Result{}, err
 	}
@@ -241,6 +230,32 @@ func IsTrialFinished(trial *okeanosv1alpha1.Trial) bool {
 		}
 	}
 	return false
+}
+
+func syncStatus(trial *okeanosv1alpha1.Trial) bool {
+	var dirty bool
+
+	// This isn't really status, but having it nil looks ugly in the output
+	if trial.Spec.Values == nil {
+		trial.Spec.Values = make(map[string]string, 1)
+		dirty = true
+	}
+
+	// TODO Instead of JSON should we just generate "a=b, c=d, ..." for readability
+
+	if b, err := json.Marshal(trial.Spec.Assignments); err == nil {
+		s := string(b)
+		dirty = dirty || trial.Status.Assignments != s
+		trial.Status.Assignments = s
+	}
+
+	if b, err := json.Marshal(trial.Spec.Values); err == nil {
+		s := string(b)
+		dirty = dirty || trial.Status.Values != s
+		trial.Status.Values = s
+	}
+
+	return dirty
 }
 
 func newCondition(conditionType okeanosv1alpha1.TrialConditionType, reason, message string) okeanosv1alpha1.TrialCondition {
@@ -403,7 +418,7 @@ func updateStatusFromJobs(jobs []batchv1.Job, trial *okeanosv1alpha1.Trial) bool
 	return dirty
 }
 
-func (r *ReconcileTrial) createJob(trial *okeanosv1alpha1.Trial, job *batchv1.Job) {
+func (r *ReconcileTrial) createJob(trial *okeanosv1alpha1.Trial, job *batchv1.Job) error {
 	// Start with the job template
 	if trial.Spec.Template != nil {
 		trial.Spec.Template.ObjectMeta.DeepCopyInto(&job.ObjectMeta)
@@ -445,4 +460,8 @@ func (r *ReconcileTrial) createJob(trial *okeanosv1alpha1.Trial, job *batchv1.Jo
 			},
 		}
 	}
+
+	// Set the owner reference back to the trial
+	err := controllerutil.SetControllerReference(trial, job, r.scheme)
+	return err
 }

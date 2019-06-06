@@ -58,12 +58,18 @@ type TrialSpec struct {
 // TrialStatus defines the observed state of Trial
 type TrialStatus struct {
 	PatchOperations []PatchOperation `json:"patchOperations,omitempty"`
-	StartTime       *metav1.Time     `json:"startTime,omitempty"`
-	CompletionTime  *metav1.Time     `json:"completionTime,omitempty"`
-	Conditions      []TrialCondition `json:"conditions,omitempty"`
+	// Assignments is a string representation of the trial assignments for reporting purposes
+	Assignments string `json:"assignments"`
+	// Values is a string representation of the trial values for reporting purposes
+	Values string `json:"values"`
+	// StartTime is the effective (possibly adjusted) time the trial run job started
+	StartTime *metav1.Time `json:"startTime,omitempty"`
+	// CompletionTime is the effective (possibly adjusted) time the trial run job completed
+	CompletionTime *metav1.Time `json:"completionTime,omitempty"`
+	// Condition is the current state of the trial
+	Conditions []TrialCondition `json:"conditions,omitempty"`
 }
 
-// TODO Server side formatting, can display the suggestions and metrics in the default output? We need to format a string field in the status
 // TODO How do we get rid of PatchOperations? Or does it just go on the Spec instead?
 
 // +genclient
@@ -71,6 +77,8 @@ type TrialStatus struct {
 
 // Trial is the Schema for the trials API
 // +k8s:openapi-gen=true
+// +kubebuilder:printcolumn:name="Assignments",type="string",JSONPath=".status.assignments",description="Current assignments"
+// +kubebuilder:printcolumn:name="Values",type="string",JSONPath=".status.values",description="Current values"
 type Trial struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

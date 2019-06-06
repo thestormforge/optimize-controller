@@ -12,7 +12,16 @@ spec:
     plural: trials
   scope: ""
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - JSONPath: .status.assignments
+      description: Current assignments
+      name: Assignments
+      type: string
+    - JSONPath: .status.values
+      description: Current values
+      name: Values
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: Trial is the Schema for the trials API
@@ -5931,10 +5940,17 @@ spec:
             type: object
           status:
             properties:
+              assignments:
+                description: Assignments is a string representation of the trial assignments
+                  for reporting purposes
+                type: string
               completionTime:
+                description: CompletionTime is the effective (possibly adjusted) time
+                  the trial run job completed
                 format: date-time
                 type: string
               conditions:
+                description: Condition is the current state of the trial
                 items:
                   properties:
                     lastProbeTime:
@@ -6011,12 +6027,22 @@ spec:
                   type: object
                 type: array
               startTime:
+                description: StartTime is the effective (possibly adjusted) time the
+                  trial run job started
                 format: date-time
                 type: string
+              values:
+                description: Values is a string representation of the trial values
+                  for reporting purposes
+                type: string
+            required:
+            - assignments
+            - values
             type: object
         type: object
     served: true
     storage: true
+    subresources: {}
 status:
   acceptedNames:
     kind: ""
