@@ -113,7 +113,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 		if err = r.Get(context.TODO(), trial.ExperimentNamespacedName(), e); err != nil {
 			return reconcile.Result{}, err
 		}
-		if err = r.evaluatePatches(trial, e); err != nil {
+		if err = evaluatePatches(r, trial, e); err != nil {
 			return reconcile.Result{}, err
 		}
 		if len(trial.Status.PatchOperations) > 0 {
@@ -275,7 +275,7 @@ func newCondition(conditionType okeanosv1alpha1.TrialConditionType, reason, mess
 	}
 }
 
-func (r *ReconcileTrial) evaluatePatches(trial *okeanosv1alpha1.Trial, e *okeanosv1alpha1.Experiment) error {
+func evaluatePatches(r client.Reader, trial *okeanosv1alpha1.Trial, e *okeanosv1alpha1.Experiment) error {
 	for _, p := range e.Spec.Patches {
 		// Evaluate the patch template
 		pt, data, err := executePatchTemplate(&p, trial)
@@ -284,7 +284,7 @@ func (r *ReconcileTrial) evaluatePatches(trial *okeanosv1alpha1.Trial, e *okeano
 		}
 
 		// Find the targets to apply the patch to
-		targets, err := r.findPatchTargets(&p, trial)
+		targets, err := findPatchTargets(r, &p, trial)
 		if err != nil {
 			return err
 		}
@@ -304,7 +304,7 @@ func (r *ReconcileTrial) evaluatePatches(trial *okeanosv1alpha1.Trial, e *okeano
 }
 
 // Finds the patch targets
-func (r *ReconcileTrial) findPatchTargets(p *okeanosv1alpha1.PatchTemplate, trial *okeanosv1alpha1.Trial) ([]corev1.ObjectReference, error) {
+func findPatchTargets(r client.Reader, p *okeanosv1alpha1.PatchTemplate, trial *okeanosv1alpha1.Trial) ([]corev1.ObjectReference, error) {
 	if trial.Spec.TargetNamespace == "" {
 		trial.Spec.TargetNamespace = trial.Namespace
 	}
