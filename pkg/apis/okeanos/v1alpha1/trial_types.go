@@ -7,6 +7,22 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+type SetupTask struct {
+	// The name that uniquely identifies the setup task
+	Name string `json:"name"`
+	// Override the default image used for performing setup tasks
+	Image string `json:"image"`
+	// Flag to indicate the creation part of the task can be skipped
+	SkipCreate bool `json:"skipCreate,omitempty"`
+	// Flag to indicate the deletion part of the task can be skipped
+	SkipDelete bool `json:"skipDelete,omitempty"`
+	// The Helm chart reference to release as part of this task
+	Chart string `json:"chart,omitempty"`
+	// Volume mounts for the setup task. Note the default task only expects mount points at "/values", "/manifests" and "/setup.d"
+	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
+	// TODO Special case for Helm values from a config map?
+}
+
 type PatchOperation struct {
 	TargetRef corev1.ObjectReference `json:"targetRef"`
 	PatchType types.PatchType        `json:"patchType"`
@@ -50,6 +66,13 @@ type TrialSpec struct {
 	StartTimeOffset *metav1.Duration `json:"startTimeOffset,omitempty"`
 	// The approximate amount of time the trial run should execute (not inclusive of the start time offset)
 	ApproximateRuntime *metav1.Duration `json:"approximateRuntime,omitempty"`
+
+	// Setup tasks that must run before the trial starts (and possibly after it ends)
+	SetupTasks []SetupTask `json:"setupTasks,omitempty"`
+	// Volumes to make available to setup tasks, typically ConfigMap backed volumes
+	SetupVolumes []corev1.Volume `json:"setupVolumes,omitempty"`
+	// Service account name for running setup tasks, needs enough permissions to add and remove software
+	SetupServiceAccountName string `json:"setupServiceAccountName,omitempty"`
 }
 
 // TODO What should TargetNamespace default to? The trial namespace or the default namespace?

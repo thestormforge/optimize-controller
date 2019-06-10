@@ -90,6 +90,12 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 		return reconcile.Result{}, err
 	}
 
+	// Ahead of everything is the setup/teardown
+	// TODO This was meant to be in a webhook, but for various reasons we aren't doing that, yet...
+	if resp, ret, err := manageSetup(r.Client, r.scheme, trial); resp.Requeue || ret || err != nil {
+		return resp, err
+	}
+
 	// If we are in a finished state there is nothing more for us to do with this trial
 	if IsTrialFinished(trial) {
 		return reconcile.Result{}, nil
