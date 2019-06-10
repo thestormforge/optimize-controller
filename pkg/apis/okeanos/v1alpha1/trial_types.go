@@ -52,7 +52,7 @@ type TrialSpec struct {
 	// ExperimentRef is the reference to the experiment that contains the definitions to use for this trial,
 	// defaults to an experiment in the same namespace with the same name
 	ExperimentRef *corev1.ObjectReference `json:"experimentRef,omitempty"`
-	// TargetNamespace defines the default namespace of the objects to apply patches to
+	// TargetNamespace defines the default namespace of the objects to apply patches to, defaults to the namespace of the trial
 	TargetNamespace string `json:"targetNamespace"`
 	// Assignments are used to patch the cluster state prior to the trial run
 	Assignments map[string]string `json:"assignments"`
@@ -75,7 +75,6 @@ type TrialSpec struct {
 	SetupServiceAccountName string `json:"setupServiceAccountName,omitempty"`
 }
 
-// TODO What should TargetNamespace default to? The trial namespace or the default namespace?
 // TODO Should `Assignments` be `k8s.io/apimachinery/pkg/apis/meta/v1/unstructured/Unstructured`? CT doesn't have that in known_types.go
 
 // TrialStatus defines the observed state of Trial

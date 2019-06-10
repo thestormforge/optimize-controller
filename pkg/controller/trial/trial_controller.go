@@ -306,7 +306,7 @@ func (r *ReconcileTrial) evaluatePatches(trial *okeanosv1alpha1.Trial, e *okeano
 // Finds the patch targets
 func (r *ReconcileTrial) findPatchTargets(p *okeanosv1alpha1.PatchTemplate, trial *okeanosv1alpha1.Trial) ([]corev1.ObjectReference, error) {
 	if trial.Spec.TargetNamespace == "" {
-		trial.Spec.TargetNamespace = "default" // TODO Should this be trial.Namespace?
+		trial.Spec.TargetNamespace = trial.Namespace
 	}
 
 	var targets []corev1.ObjectReference

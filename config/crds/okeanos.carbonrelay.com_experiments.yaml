@@ -8652,7 +8652,8 @@ spec:
                         type: string
                       targetNamespace:
                         description: TargetNamespace defines the default namespace
-                          of the objects to apply patches to
+                          of the objects to apply patches to, defaults to the namespace
+                          of the trial
                         type: string
                       values:
                         additionalProperties:

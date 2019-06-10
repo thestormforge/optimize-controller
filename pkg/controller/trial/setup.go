@@ -104,7 +104,7 @@ func newSetupJob(trial *okeanosv1alpha1.Trial, scheme *runtime.Scheme, mode stri
 		// Determine the namespace to operate in
 		namespace := trial.Spec.TargetNamespace
 		if namespace == "" {
-			namespace = "default" // TODO Or should this be trial.Namespace? Needs to match what happens in the controller
+			namespace = trial.Namespace
 		}
 
 		// Determine a name that is going to be unique
