@@ -816,7 +816,7 @@
   revision = "6999998975a717e7f5fc2a7476497044cb111854"
 
 [[projects]]
-  digest = "1:7357b38827b3c60e238415f2d4d33380469f8b9a592fd5bd07e4afbd7d65c1cd"
+  digest = "1:75f4885e3d3d4efd162166b3ab10095054bba2fbb5151e56d9b3f0df1414a3ee"
   name = "sigs.k8s.io/controller-runtime"
   packages = [
     "pkg/cache",
@@ -854,14 +854,15 @@
     "pkg/webhook",
     "pkg/webhook/admission",
     "pkg/webhook/conversion",
+    "pkg/webhook/internal/certwatcher",
     "pkg/webhook/internal/metrics",
   ]
   pruneopts = "T"
-  revision = "38483b2ad5f940ddc7356c8a34155c5170061859"
-  version = "v0.2.0-beta.1"
+  revision = "f60c87ec713cb8da81257228530605457ebf7220"
+  version = "v0.2.0-beta.2"
 
 [[projects]]
-  digest = "1:39e86202d2fcba583ef3cf8bea93f815fdb458beea241397d69d72164984b824"
+  digest = "1:92f3a861f6d14b61ddd0eeaade692baee6f885754dc3b33ffe58223eb3d45fa4"
   name = "sigs.k8s.io/controller-tools"
   packages = [
     "cmd/controller-gen",
@@ -875,8 +876,8 @@
     "pkg/webhook",
   ]
   pruneopts = "T"
-  revision = "7092eac7a804c8efae60fa2f563c2a973d6d05c7"
-  version = "v0.2.0-beta.1"
+  revision = "4d432d9dbc86bbf594c03f853878af64df8b95ec"
+  version = "v0.2.0-beta.2"
 
 [[projects]]
   digest = "1:290b4da306982122bcdff12dbababbb95c6e4a94a2995db88baf235ef2f6e93e"
@@ -918,12 +919,10 @@
     "k8s.io/apimachinery/pkg/api/errors",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
     "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured",
-    "k8s.io/apimachinery/pkg/labels",
     "k8s.io/apimachinery/pkg/runtime",
     "k8s.io/apimachinery/pkg/runtime/schema",
     "k8s.io/apimachinery/pkg/types",
     "k8s.io/apimachinery/pkg/util/intstr",
-    "k8s.io/apimachinery/pkg/util/validation/field",
     "k8s.io/apimachinery/pkg/util/yaml",
     "k8s.io/client-go/kubernetes",
     "k8s.io/client-go/kubernetes/scheme",
