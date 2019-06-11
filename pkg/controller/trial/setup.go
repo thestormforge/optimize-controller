@@ -15,20 +15,32 @@ import (
 )
 
 const (
-	defaultImage string = "setuptools:latest"
-	create              = "create"
-	delete              = "delete"
+	defaultImage   string = "setuptools:latest"
+	setupFinalizer        = "setupFinalizer.okeanos.carbonrelay.com"
+	create                = "create"
+	delete                = "delete"
 )
 
 func manageSetup(c client.Client, s *runtime.Scheme, trial *okeanosv1alpha1.Trial) (reconcile.Result, bool, error) {
 	// Determine which jobs are initially required
-	var needsCreate, needsDelete, finishedCreate bool
+	var needsCreate, needsDelete, finishedCreate, finishedDelete bool
 	for _, t := range trial.Spec.SetupTasks {
 		needsCreate = needsCreate || !t.SkipCreate
 		needsDelete = needsDelete || !t.SkipDelete
 	}
 	if !needsCreate && !needsDelete {
 		return reconcile.Result{}, false, nil
+	}
+
+	// Trap for the delete job
+	if needsDelete && addSetupFinalizer(trial) {
+		err := c.Update(context.TODO(), trial)
+		return reconcile.Result{}, true, err
+	}
+
+	// We do not need a delete job if the trial is still in progress and has not been deleted
+	if !IsTrialFinished(trial) && trial.DeletionTimestamp == nil {
+		needsDelete = false
 	}
 
 	// Update which jobs are required based on the existing jobs
@@ -47,6 +59,7 @@ func manageSetup(c client.Client, s *runtime.Scheme, trial *okeanosv1alpha1.Tria
 						finishedCreate = isJobFinished(&j)
 					case delete:
 						needsDelete = false
+						finishedDelete = isJobFinished(&j)
 					}
 					break
 				}
@@ -55,7 +68,7 @@ func manageSetup(c client.Client, s *runtime.Scheme, trial *okeanosv1alpha1.Tria
 	}
 
 	// Create any jobs that are required
-	if needsCreate || (needsDelete && IsTrialFinished(trial)) { // TODO Check trial deletion timestamp
+	if needsCreate || needsDelete {
 		mode := delete
 		if needsCreate {
 			mode = create
@@ -74,7 +87,32 @@ func manageSetup(c client.Client, s *runtime.Scheme, trial *okeanosv1alpha1.Tria
 		return reconcile.Result{Requeue: true, RequeueAfter: 1 * time.Second}, false, nil
 	}
 
+	// If the delete job is finished remove our finalizer
+	if finishedDelete {
+		for i := range trial.Finalizers {
+			if trial.Finalizers[i] == setupFinalizer {
+				trial.Finalizers[i] = trial.Finalizers[len(trial.Finalizers)-1]
+				trial.Finalizers = trial.Finalizers[:len(trial.Finalizers)-1]
+				err := c.Update(context.TODO(), trial)
+				return reconcile.Result{}, true, err
+			}
+		}
+	}
+
 	return reconcile.Result{}, false, nil
+}
+
+func addSetupFinalizer(trial *okeanosv1alpha1.Trial) bool {
+	if trial.DeletionTimestamp != nil {
+		return false
+	}
+	for _, f := range trial.Finalizers {
+		if f == setupFinalizer {
+			return false
+		}
+	}
+	trial.Finalizers = append(trial.Finalizers, setupFinalizer)
+	return true
 }
 
 func isJobFinished(job *batchv1.Job) bool {
