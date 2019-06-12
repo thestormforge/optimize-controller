@@ -33,8 +33,12 @@ func executePatchTemplate(p *okeanosv1alpha1.PatchTemplate, trial *okeanosv1alph
 
 	// Create the functions and data for template evaluation
 	funcMap := template.FuncMap{}
-	data := patchContext{
-		Values: trial.Spec.Assignments,
+	data := patchContext{}
+
+	// Copy the assignments into the values map
+	data.Values = make(map[string]string, len(trial.Spec.Assignments))
+	for _, a := range trial.Spec.Assignments {
+		data.Values[a.Name] = a.Value
 	}
 
 	// Evaluate the template into a patch

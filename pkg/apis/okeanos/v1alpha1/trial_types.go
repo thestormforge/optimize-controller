@@ -30,6 +30,19 @@ type PatchOperation struct {
 	AttemptsRemaining int                    `json:"attemptsRemaining,omitempty"`
 }
 
+type Assignment struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+type Value struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`           // float64
+	Error string `json:"error,omitempty"` // float64
+	// TODO Initial value captured prior to job execution for local metrics?
+	// TODO AttemptsRemaining so we can eventually fail the trial?
+}
+
 type TrialConditionType string
 
 const (
@@ -55,9 +68,9 @@ type TrialSpec struct {
 	// TargetNamespace defines the default namespace of the objects to apply patches to, defaults to the namespace of the trial
 	TargetNamespace string `json:"targetNamespace,omitempty"`
 	// Assignments are used to patch the cluster state prior to the trial run
-	Assignments map[string]string `json:"assignments"`
+	Assignments []Assignment `json:"assignments"`
 	// Values are the collected metrics at the end of the trial run
-	Values map[string]string `json:"values"`
+	Values []Value `json:"values"`
 	// Selector matches the job representing the trial run
 	Selector *metav1.LabelSelector `json:"selector,omitempty"`
 	// Template is the job template used to create trial run jobs
@@ -74,8 +87,6 @@ type TrialSpec struct {
 	// Service account name for running setup tasks, needs enough permissions to add and remove software
 	SetupServiceAccountName string `json:"setupServiceAccountName,omitempty"`
 }
-
-// TODO Should `Assignments` be `k8s.io/apimachinery/pkg/apis/meta/v1/unstructured/Unstructured`? CT doesn't have that in known_types.go
 
 // TrialStatus defines the observed state of Trial
 type TrialStatus struct {

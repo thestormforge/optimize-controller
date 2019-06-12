@@ -167,9 +167,9 @@ func newSetupJob(trial *okeanosv1alpha1.Trial, scheme *runtime.Scheme, mode stri
 		}
 
 		// Add the trial assignments to the environment
-		for k, v := range trial.Spec.Assignments {
+		for _, a := range trial.Spec.Assignments {
 			// TODO Prefix assignment names? Adjust them to be upper-underscore?
-			c.Env = append(c.Env, corev1.EnvVar{Name: k, Value: v})
+			c.Env = append(c.Env, corev1.EnvVar{Name: a.Name, Value: a.Value})
 		}
 
 		// For Helm installs, include the chart name

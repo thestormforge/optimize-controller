@@ -175,9 +175,11 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 
 			// Add the information from the server
 			trial.GetAnnotations()[annotationObservationURL] = observationURL
-			trial.Spec.Assignments = make(map[string]string, len(suggestion.Assignments))
 			for k, v := range suggestion.Assignments {
-				trial.Spec.Assignments[k] = fmt.Sprint(v)
+				trial.Spec.Assignments = append(trial.Spec.Assignments, okeanosv1alpha1.Assignment{
+					Name:  k,
+					Value: fmt.Sprint(v),
+				})
 			}
 
 			// Create the trial
@@ -204,10 +206,10 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 						observation.Failed = true
 					}
 				}
-				for k, v := range t.Spec.Values {
-					if fv, err := strconv.ParseFloat(v, 64); err == nil {
+				for _, v := range t.Spec.Values {
+					if fv, err := strconv.ParseFloat(v.Value, 64); err == nil {
 						observation.Values = append(observation.Values, okeanosapi.Value{
-							MetricName: k,
+							MetricName: v.Name,
 							Value:      fv,
 							// TODO Error is the standard deviation for the metric
 						})
@@ -397,10 +399,6 @@ func populateTrialFromTemplate(experiment *okeanosv1alpha1.Experiment, trial *ok
 
 	if trial.Annotations == nil {
 		trial.Annotations = make(map[string]string)
-	}
-
-	if trial.Spec.Values == nil {
-		trial.Spec.Values = make(map[string]string)
 	}
 
 	if trial.Spec.ExperimentRef == nil {

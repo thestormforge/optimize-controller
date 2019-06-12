@@ -2,10 +2,10 @@ package trial
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	okeanosv1alpha1 "github.com/gramLabs/okeanos/pkg/apis/okeanos/v1alpha1"
@@ -203,28 +203,33 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 			return reconcile.Result{}, err
 		}
 		for _, m := range e.Spec.Metrics {
-			if _, ok := trial.Spec.Values[m.Name]; !ok {
-				// TODO This needs to be like patches where we eventually fail the trial
-				if urls, err := r.findMetricTargets(trial, &m); err != nil {
-					return reconcile.Result{}, err
-				} else if len(urls) == 0 {
-					return reconcile.Result{}, fmt.Errorf("unable to find metric targets", "metricName", m.Name)
-				} else {
-					var cerr error
-					for _, u := range urls {
-						if value, _, retryAfter, err := captureMetric(&m, u, trial); err != nil {
-							cerr = err
-						} else if retryAfter != nil {
-							return reconcile.Result{Requeue: true, RequeueAfter: *retryAfter}, nil
-						} else {
-							trial.Spec.Values[m.Name] = strconv.FormatFloat(value, 'f', -1, 64)
-							err = r.Update(context.TODO(), trial)
-							return reconcile.Result{}, err
-						}
+			v := findOrCreateValue(trial, m.Name)
+			if v.Value != "" {
+				continue
+			}
+
+			// TODO This needs to be like patches where we eventually fail the trial
+			if urls, err := r.findMetricTargets(trial, &m); err != nil {
+				return reconcile.Result{}, err
+			} else if len(urls) == 0 {
+				return reconcile.Result{}, fmt.Errorf("unable to find metric targets for %s", m.Name)
+			} else {
+				var cerr error
+				for _, u := range urls {
+					if value, error, retryAfter, err := captureMetric(&m, u, trial); err != nil {
+						cerr = err
+					} else if retryAfter != nil {
+						return reconcile.Result{Requeue: true, RequeueAfter: *retryAfter}, nil
+					} else {
+						v.Value = strconv.FormatFloat(value, 'f', -1, 64)
+						v.Error = strconv.FormatFloat(error, 'f', -1, 64)
+						syncStatus(trial)
+						err = r.Update(context.TODO(), trial)
+						return reconcile.Result{}, err
 					}
-					if cerr != nil {
-						return reconcile.Result{}, cerr
-					}
+				}
+				if cerr != nil {
+					return reconcile.Result{}, cerr
 				}
 			}
 		}
@@ -251,26 +256,23 @@ func IsTrialFinished(trial *okeanosv1alpha1.Trial) bool {
 
 func syncStatus(trial *okeanosv1alpha1.Trial) bool {
 	var dirty bool
+	var s string
 
-	// This isn't really status, but having it nil looks ugly in the output
-	if trial.Spec.Values == nil {
-		trial.Spec.Values = make(map[string]string, 1)
-		dirty = true
+	assignments := make([]string, len(trial.Spec.Assignments))
+	for i := range trial.Spec.Assignments {
+		assignments[i] = fmt.Sprintf("%s=%s", trial.Spec.Assignments[i].Name, trial.Spec.Assignments[i].Value)
 	}
+	s = strings.Join(assignments, ", ")
+	dirty = dirty || trial.Status.Assignments != s
+	trial.Status.Assignments = s
 
-	// TODO Instead of JSON should we just generate "a=b, c=d, ..." for readability
-
-	if b, err := json.Marshal(trial.Spec.Assignments); err == nil {
-		s := string(b)
-		dirty = dirty || trial.Status.Assignments != s
-		trial.Status.Assignments = s
+	values := make([]string, len(trial.Spec.Values))
+	for i := range trial.Spec.Values {
+		values[i] = fmt.Sprintf("%s=%s", trial.Spec.Values[i].Name, trial.Spec.Values[i].Value)
 	}
-
-	if b, err := json.Marshal(trial.Spec.Values); err == nil {
-		s := string(b)
-		dirty = dirty || trial.Status.Values != s
-		trial.Status.Values = s
-	}
+	s = strings.Join(values, ", ")
+	dirty = dirty || trial.Status.Values != s
+	trial.Status.Values = s
 
 	return dirty
 }
@@ -398,6 +400,18 @@ func (r *ReconcileTrial) findMetricTargets(trial *okeanosv1alpha1.Trial, m *okea
 	}
 
 	return urls, nil
+}
+
+func findOrCreateValue(trial *okeanosv1alpha1.Trial, name string) *okeanosv1alpha1.Value {
+	for i := range trial.Spec.Values {
+		if trial.Spec.Values[i].Name == name {
+			return &trial.Spec.Values[i]
+		}
+	}
+
+	v := &okeanosv1alpha1.Value{Name: name}
+	trial.Spec.Values = append(trial.Spec.Values, *v)
+	return v
 }
 
 // Updates a trial status based on the status of the individual job(s), returns true if any changes were necessary

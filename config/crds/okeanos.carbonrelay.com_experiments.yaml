@@ -1064,11 +1064,19 @@ spec:
                           should execute (not inclusive of the start time offset)
                         type: string
                       assignments:
-                        additionalProperties:
-                          type: string
                         description: Assignments are used to patch the cluster state
                           prior to the trial run
-                        type: object
+                        items:
+                          properties:
+                            name:
+                              type: string
+                            value:
+                              type: string
+                          required:
+                          - name
+                          - value
+                          type: object
+                        type: array
                       experimentRef:
                         description: ExperimentRef is the reference to the experiment
                           that contains the definitions to use for this trial, defaults
@@ -8655,11 +8663,21 @@ spec:
                             type: object
                         type: object
                       values:
-                        additionalProperties:
-                          type: string
                         description: Values are the collected metrics at the end of
                           the trial run
-                        type: object
+                        items:
+                          properties:
+                            error:
+                              type: string
+                            name:
+                              type: string
+                            value:
+                              type: string
+                          required:
+                          - name
+                          - value
+                          type: object
+                        type: array
                     required:
                     - assignments
                     - values
