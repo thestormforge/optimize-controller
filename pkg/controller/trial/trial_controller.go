@@ -132,14 +132,14 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 			u.SetGroupVersionKind(p.TargetRef.GroupVersionKind())
 			if err := r.Patch(context.TODO(), &u, client.ConstantPatch(p.PatchType, p.Data)); err != nil {
 				p.AttemptsRemaining = p.AttemptsRemaining - 1
-				if p.AttemptsRemaining > 0 {
-					err = r.Update(context.TODO(), trial)
-					return reconcile.Result{}, err
+				if p.AttemptsRemaining == 0 {
+					// The patch cannot be applied, fail the experiment
+					failureReason := "PatchFailed"
+					trial.Status.Conditions = append(trial.Status.Conditions, newCondition(okeanosv1alpha1.TrialFailed, failureReason, err.Error()))
 				}
-				return reconcile.Result{}, err
+			} else {
+				p.AttemptsRemaining = 0
 			}
-
-			p.AttemptsRemaining = 0
 			err = r.Update(context.TODO(), trial)
 			return reconcile.Result{}, err
 		}
