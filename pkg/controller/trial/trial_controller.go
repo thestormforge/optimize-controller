@@ -96,8 +96,8 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 		return resp, err
 	}
 
-	// If we are in a finished state there is nothing more for us to do with this trial
-	if IsTrialFinished(trial) {
+	// If we are in a finished or deleted state there is nothing more for us to do with this trial
+	if IsTrialFinished(trial) || trial.DeletionTimestamp != nil {
 		return reconcile.Result{}, nil
 	}
 
@@ -144,8 +144,10 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 	list := &batchv1.JobList{}
 	opts := &client.ListOptions{}
 	if trial.Spec.Selector == nil {
-		opts.MatchingLabels(trial.Spec.Template.Labels)
-		if opts.LabelSelector.Empty() {
+		if trial.Spec.Template != nil {
+			opts.MatchingLabels(trial.Spec.Template.Labels)
+		}
+		if opts.LabelSelector == nil || opts.LabelSelector.Empty() {
 			opts.MatchingLabels(trial.GetDefaultLabels())
 		}
 	} else if opts.LabelSelector, err = metav1.LabelSelectorAsSelector(trial.Spec.Selector); err != nil {

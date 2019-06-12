@@ -45,7 +45,7 @@ func manageSetup(c client.Client, s *runtime.Scheme, trial *okeanosv1alpha1.Tria
 
 	// Update which jobs are required based on the existing jobs
 	list := &batchv1.JobList{}
-	setupJobLabels := map[string]string{"role": "trialSetup", "trial": trial.Name}
+	setupJobLabels := map[string]string{"role": "trialSetup", "setupFor": trial.Name}
 	if err := c.List(context.TODO(), list, client.MatchingLabels(setupJobLabels)); err != nil {
 		return reconcile.Result{}, false, err
 	}
@@ -128,7 +128,7 @@ func newSetupJob(trial *okeanosv1alpha1.Trial, scheme *runtime.Scheme, mode stri
 	job := &batchv1.Job{}
 	job.Namespace = trial.Namespace
 	job.Name = fmt.Sprintf("%s-%s", trial.Name, mode)
-	job.Labels = map[string]string{"role": "trialSetup", "trial": trial.Name}
+	job.Labels = map[string]string{"role": "trialSetup", "setupFor": trial.Name}
 
 	job.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyNever
 	job.Spec.Template.Spec.Volumes = trial.Spec.SetupVolumes
