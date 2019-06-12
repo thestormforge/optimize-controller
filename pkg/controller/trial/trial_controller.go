@@ -414,9 +414,8 @@ func findOrCreateValue(trial *okeanosv1alpha1.Trial, name string) *okeanosv1alph
 		}
 	}
 
-	v := &okeanosv1alpha1.Value{Name: name, AttemptsRemaining: 3}
-	trial.Spec.Values = append(trial.Spec.Values, *v)
-	return v
+	trial.Spec.Values = append(trial.Spec.Values, okeanosv1alpha1.Value{Name: name, AttemptsRemaining: 3})
+	return &trial.Spec.Values[len(trial.Spec.Values)-1]
 }
 
 // Updates a trial status based on the status of the individual job(s), returns true if any changes were necessary
