@@ -204,22 +204,20 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 		}
 		for _, m := range e.Spec.Metrics {
 			if _, ok := trial.Spec.Values[m.Name]; !ok {
-				var urls []string
-				if urls, err = r.findMetricTargets(trial, &m); err == nil {
+				if urls, err := r.findMetricTargets(trial, &m); err == nil {
 					for _, u := range urls {
 						if value, retryAfter, err := captureMetric(&m, u, trial); retryAfter != nil {
 							// The metric could not be captured at this time, wait and try again
 							return reconcile.Result{Requeue: true, RequeueAfter: *retryAfter}, nil
-						} else if err == nil {
+						} else if err != nil {
+							return reconcile.Result{}, err
+						} else {
 							trial.Spec.Values[m.Name] = strconv.FormatFloat(value, 'f', -1, 64)
 							err = r.Update(context.TODO(), trial)
 							return reconcile.Result{}, err
 						}
 					}
-				}
-
-				// Failure either from either findMetricTargets or captureMetric
-				if err != nil {
+				} else {
 					return reconcile.Result{}, err
 				}
 			}
