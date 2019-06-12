@@ -36,11 +36,11 @@ type Assignment struct {
 }
 
 type Value struct {
-	Name  string `json:"name"`
-	Value string `json:"value"`           // float64
-	Error string `json:"error,omitempty"` // float64
+	Name              string `json:"name"`
+	Value             string `json:"value"`           // float64
+	Error             string `json:"error,omitempty"` // float64
+	AttemptsRemaining int    `json:"attemptsRemaining,omitempty"`
 	// TODO Initial value captured prior to job execution for local metrics?
-	// TODO AttemptsRemaining so we can eventually fail the trial?
 }
 
 type TrialConditionType string

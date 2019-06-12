@@ -8667,6 +8667,8 @@ spec:
                           the trial run
                         items:
                           properties:
+                            attemptsRemaining:
+                              type: integer
                             error:
                               type: string
                             name:

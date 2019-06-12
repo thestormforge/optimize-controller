@@ -204,34 +204,36 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 		}
 		for _, m := range e.Spec.Metrics {
 			v := findOrCreateValue(trial, m.Name)
-			if v.Value != "" {
+			if v.AttemptsRemaining == 0 {
 				continue
 			}
 
-			// TODO This needs to be like patches where we eventually fail the trial
-			if urls, err := r.findMetricTargets(trial, &m); err != nil {
-				return reconcile.Result{}, err
-			} else if len(urls) == 0 {
-				return reconcile.Result{}, fmt.Errorf("unable to find metric targets for %s", m.Name)
-			} else {
-				var cerr error
-				for _, u := range urls {
-					if value, error, retryAfter, err := captureMetric(&m, u, trial); err != nil {
-						cerr = err
-					} else if retryAfter != nil {
-						return reconcile.Result{Requeue: true, RequeueAfter: *retryAfter}, nil
-					} else {
-						v.Value = strconv.FormatFloat(value, 'f', -1, 64)
-						v.Error = strconv.FormatFloat(error, 'f', -1, 64)
-						syncStatus(trial)
-						err = r.Update(context.TODO(), trial)
-						return reconcile.Result{}, err
-					}
-				}
-				if cerr != nil {
-					return reconcile.Result{}, cerr
+			urls, verr := r.findMetricTargets(trial, &m)
+			for _, u := range urls {
+				if value, error, retryAfter, err := captureMetric(&m, u, trial); err != nil {
+					verr = err
+				} else if retryAfter != nil {
+					return reconcile.Result{Requeue: true, RequeueAfter: *retryAfter}, nil
+				} else {
+					v.AttemptsRemaining = 0
+					v.Value = strconv.FormatFloat(value, 'f', -1, 64)
+					v.Error = strconv.FormatFloat(error, 'f', -1, 64)
+					syncStatus(trial)
+					break
 				}
 			}
+
+			if verr != nil && v.AttemptsRemaining > 0 {
+				v.AttemptsRemaining = v.AttemptsRemaining - 1
+				if v.AttemptsRemaining == 0 {
+					// The metric cannot be captured, fail the experiment
+					failureReason := "MetricFailed"
+					trial.Status.Conditions = append(trial.Status.Conditions, newCondition(okeanosv1alpha1.TrialFailed, failureReason, verr.Error()))
+				}
+			}
+
+			err = r.Update(context.TODO(), trial)
+			return reconcile.Result{}, err
 		}
 
 		// If all of the metrics are collected, mark the trial as completed
@@ -399,6 +401,9 @@ func (r *ReconcileTrial) findMetricTargets(trial *okeanosv1alpha1.Trial, m *okea
 		urls = append(urls, thisIsBad.String())
 	}
 
+	if len(urls) == 0 {
+		return nil, fmt.Errorf("unable to find metric targets for %s", m.Name)
+	}
 	return urls, nil
 }
 
@@ -409,7 +414,7 @@ func findOrCreateValue(trial *okeanosv1alpha1.Trial, name string) *okeanosv1alph
 		}
 	}
 
-	v := &okeanosv1alpha1.Value{Name: name}
+	v := &okeanosv1alpha1.Value{Name: name, AttemptsRemaining: 3}
 	trial.Spec.Values = append(trial.Spec.Values, *v)
 	return v
 }
