@@ -7229,13 +7229,13 @@ spec:
               patchOperations:
                 items:
                   properties:
+                    attemptsRemaining:
+                      type: integer
                     data:
                       format: byte
                       type: string
                     patchType:
                       type: string
-                    pending:
-                      type: boolean
                     targetRef:
                       properties:
                         apiVersion:

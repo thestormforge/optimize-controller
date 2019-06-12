@@ -125,16 +125,21 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 	// Apply the patches
 	for i := range trial.Status.PatchOperations {
 		p := &trial.Status.PatchOperations[i]
-		if p.Pending {
+		if p.AttemptsRemaining > 0 {
 			u := unstructured.Unstructured{}
 			u.SetName(p.TargetRef.Name)
 			u.SetNamespace(p.TargetRef.Namespace)
 			u.SetGroupVersionKind(p.TargetRef.GroupVersionKind())
 			if err := r.Patch(context.TODO(), &u, client.ConstantPatch(p.PatchType, p.Data)); err != nil {
+				p.AttemptsRemaining = p.AttemptsRemaining - 1
+				if p.AttemptsRemaining > 0 {
+					err = r.Update(context.TODO(), trial)
+					return reconcile.Result{}, err
+				}
 				return reconcile.Result{}, err
 			}
 
-			p.Pending = false
+			p.AttemptsRemaining = 0
 			err = r.Update(context.TODO(), trial)
 			return reconcile.Result{}, err
 		}
@@ -294,10 +299,10 @@ func evaluatePatches(r client.Reader, trial *okeanosv1alpha1.Trial, e *okeanosv1
 		// For each target resource, record a copy of the patch
 		for _, ref := range targets {
 			trial.Status.PatchOperations = append(trial.Status.PatchOperations, okeanosv1alpha1.PatchOperation{
-				TargetRef: ref,
-				PatchType: pt,
-				Data:      data,
-				Pending:   true,
+				TargetRef:         ref,
+				PatchType:         pt,
+				Data:              data,
+				AttemptsRemaining: 3,
 			})
 		}
 	}

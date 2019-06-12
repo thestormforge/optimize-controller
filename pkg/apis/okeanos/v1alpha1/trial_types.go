@@ -24,10 +24,10 @@ type SetupTask struct {
 }
 
 type PatchOperation struct {
-	TargetRef corev1.ObjectReference `json:"targetRef"`
-	PatchType types.PatchType        `json:"patchType"`
-	Data      []byte                 `json:"data"`
-	Pending   bool                   `json:"pending,omitempty"`
+	TargetRef         corev1.ObjectReference `json:"targetRef"`
+	PatchType         types.PatchType        `json:"patchType"`
+	Data              []byte                 `json:"data"`
+	AttemptsRemaining int                    `json:"attemptsRemaining,omitempty"`
 }
 
 type TrialConditionType string

@@ -47,7 +47,7 @@ func (h *TrialHandler) Handle(ctx context.Context, request admission.Request) ad
 		for _, t := range list.Items {
 			// TODO If patch operations is empty, we need to compute it here instead of in the controller (requires refactoring common code)
 			for _, p := range t.Status.PatchOperations {
-				if p.Pending && matches(&p, &request) {
+				if p.AttemptsRemaining > 0 && matches(&p, &request) {
 					if response, err := allowed(&p); err != nil {
 						log.Error(err, "Ignoring failed patch conversion")
 					} else {
