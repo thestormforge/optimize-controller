@@ -368,7 +368,7 @@ func (r *ReconcileTrial) findMetricTargets(trial *okeanosv1alpha1.Trial, m *okea
 			port := m.Port.IntValue()
 			if port < 1 {
 				for _, sp := range s.Spec.Ports {
-					if m.Port.StrVal == sp.Name {
+					if m.Port.StrVal == sp.Name || len(s.Spec.Ports) == 1 {
 						port = int(sp.Port)
 					}
 				}
