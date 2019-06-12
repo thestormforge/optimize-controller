@@ -204,21 +204,27 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 		}
 		for _, m := range e.Spec.Metrics {
 			if _, ok := trial.Spec.Values[m.Name]; !ok {
-				if urls, err := r.findMetricTargets(trial, &m); err == nil {
+				// TODO This needs to be like patches where we eventually fail the trial
+				if urls, err := r.findMetricTargets(trial, &m); err != nil {
+					return reconcile.Result{}, err
+				} else if len(urls) == 0 {
+					return reconcile.Result{}, fmt.Errorf("unable to find metric targets", "metricName", m.Name)
+				} else {
+					var cerr error
 					for _, u := range urls {
-						if value, retryAfter, err := captureMetric(&m, u, trial); retryAfter != nil {
-							// The metric could not be captured at this time, wait and try again
+						if value, _, retryAfter, err := captureMetric(&m, u, trial); err != nil {
+							cerr = err
+						} else if retryAfter != nil {
 							return reconcile.Result{Requeue: true, RequeueAfter: *retryAfter}, nil
-						} else if err != nil {
-							return reconcile.Result{}, err
 						} else {
 							trial.Spec.Values[m.Name] = strconv.FormatFloat(value, 'f', -1, 64)
 							err = r.Update(context.TODO(), trial)
 							return reconcile.Result{}, err
 						}
 					}
-				} else {
-					return reconcile.Result{}, err
+					if cerr != nil {
+						return reconcile.Result{}, cerr
+					}
 				}
 			}
 		}
@@ -347,41 +353,48 @@ func findPatchTargets(r client.Reader, p *okeanosv1alpha1.PatchTemplate, trial *
 		}
 		targets = []corev1.ObjectReference{*ref}
 	}
+
 	return targets, nil
 }
 
 func (r *ReconcileTrial) findMetricTargets(trial *okeanosv1alpha1.Trial, m *okeanosv1alpha1.Metric) ([]string, error) {
+	// Local metrics don't need to resolve service URLs
+	if m.Type == okeanosv1alpha1.MetricLocal {
+		return []string{""}, nil
+	}
+
+	// Find services matching the selector
+	list := &corev1.ServiceList{}
+	opts := &client.ListOptions{}
+	if ls, err := metav1.LabelSelectorAsSelector(m.Selector); err == nil {
+		opts.LabelSelector = ls
+	} else {
+		return nil, err
+	}
+	if err := r.List(context.TODO(), list, client.UseListOptions(opts)); err != nil {
+		return nil, err
+	}
+
+	// Construct a URL for each service (use IP literals instead of host names to avoid DNS lookups)
 	var urls []string
-	if m.Selector != nil {
-		// Find services matching the selector
-		ls, err := metav1.LabelSelectorAsSelector(m.Selector)
+	for _, s := range list.Items {
+		port := m.Port.IntValue()
+		if port < 1 {
+			for _, sp := range s.Spec.Ports {
+				if m.Port.StrVal == sp.Name || len(s.Spec.Ports) == 1 {
+					port = int(sp.Port)
+				}
+			}
+		}
+
+		// TODO TLS support
+		// TODO Port < 1
+		// TODO Build this URL properly
+		thisIsBad, err := url.Parse(fmt.Sprintf("http://%s:%d%s", s.Spec.ClusterIP, port, m.Path))
 		if err != nil {
 			return nil, err
 		}
-		services := &corev1.ServiceList{}
-		if err := r.List(context.TODO(), services, client.UseListOptions(&client.ListOptions{LabelSelector: ls})); err != nil {
-			return nil, err
-		}
-		for _, s := range services.Items {
-			port := m.Port.IntValue()
-			if port < 1 {
-				for _, sp := range s.Spec.Ports {
-					if m.Port.StrVal == sp.Name || len(s.Spec.Ports) == 1 {
-						port = int(sp.Port)
-					}
-				}
-			}
-
-			// TODO Build this URL properly
-			thisIsBad, err := url.Parse(fmt.Sprintf("http://%s:%d%s", s.Spec.ClusterIP, port, m.Path))
-			if err != nil {
-				return nil, err
-			}
-			urls = append(urls, thisIsBad.String())
-		}
-	} else {
-		// If there is no service selector, just use an empty URL
-		urls = append(urls, "")
+		urls = append(urls, thisIsBad.String())
 	}
 
 	return urls, nil
