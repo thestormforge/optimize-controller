@@ -63,7 +63,7 @@ spec:
   metrics:
   - name: time
     minimize: true
-    query: "{{duration .Status.StartTime .Status.CompletionTime}}"
+    query: "{{duration .StartTime .CompletionTime}}"
   template: # trial
     spec:
       template: # job

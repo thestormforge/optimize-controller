@@ -11,6 +11,7 @@ import (
 	okeanosv1alpha1 "github.com/gramLabs/okeanos/pkg/apis/okeanos/v1alpha1"
 	prom "github.com/prometheus/client_golang/api"
 	promv1 "github.com/prometheus/client_golang/api/prometheus/v1"
+	"github.com/prometheus/common/model"
 	"k8s.io/client-go/util/jsonpath"
 )
 
@@ -72,12 +73,14 @@ func capturePrometheusMetric(address, query string, completionTime time.Time) (f
 		return 0, 0, nil, err
 	}
 
-	// TODO No idea what we are looking at here...
-	value, err := strconv.ParseFloat(v.String(), 64)
-	if err != nil {
-		return 0, 0, nil, err
+	// Scalar result
+	if v.Type() == model.ValScalar {
+		return float64(v.(*model.Scalar).Value), 0, nil, nil
 	}
-	return value, 0, nil, nil
+
+	// TODO Imply `scalar(<q>)` for vector types?
+	// TODO Should we handle any other types?
+	return 0, 0, nil, fmt.Errorf("unable to get metric value from %s", v.Type())
 }
 
 func captureJSONPathMetric(url, name, query string) (float64, float64, *time.Duration, error) {
