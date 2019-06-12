@@ -11,7 +11,7 @@ type SetupTask struct {
 	// The name that uniquely identifies the setup task
 	Name string `json:"name"`
 	// Override the default image used for performing setup tasks
-	Image string `json:"image"`
+	Image string `json:"image,omitempty"`
 	// Flag to indicate the creation part of the task can be skipped
 	SkipCreate bool `json:"skipCreate,omitempty"`
 	// Flag to indicate the deletion part of the task can be skipped
@@ -53,7 +53,7 @@ type TrialSpec struct {
 	// defaults to an experiment in the same namespace with the same name
 	ExperimentRef *corev1.ObjectReference `json:"experimentRef,omitempty"`
 	// TargetNamespace defines the default namespace of the objects to apply patches to, defaults to the namespace of the trial
-	TargetNamespace string `json:"targetNamespace"`
+	TargetNamespace string `json:"targetNamespace,omitempty"`
 	// Assignments are used to patch the cluster state prior to the trial run
 	Assignments map[string]string `json:"assignments"`
 	// Values are the collected metrics at the end of the trial run
@@ -61,7 +61,7 @@ type TrialSpec struct {
 	// Selector matches the job representing the trial run
 	Selector *metav1.LabelSelector `json:"selector,omitempty"`
 	// Template is the job template used to create trial run jobs
-	Template *batchv1beta1.JobTemplateSpec `json:"jobTemplate"`
+	Template *batchv1beta1.JobTemplateSpec `json:"template,omitempty"`
 	// The offset used to adjust the start time to account for spin up of the trial run
 	StartTimeOffset *metav1.Duration `json:"startTimeOffset,omitempty"`
 	// The approximate amount of time the trial run should execute (not inclusive of the start time offset)

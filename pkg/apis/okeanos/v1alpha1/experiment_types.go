@@ -30,7 +30,7 @@ type Metric struct {
 	Query    string                `json:"query"`          // Type specific query, e.g. PromQL or a JSON pointer expression
 	Path     string                `json:"path,omitempty"` // Path appended to the endpoint (used as a prefix for prometheus)
 	Selector *metav1.LabelSelector `json:"selector,omitempty"`
-	Port     intstr.IntOrString    `json:"endpoint,omitempty"`
+	Port     intstr.IntOrString    `json:"port,omitempty"`
 	// TODO ErrorQuery?
 }
 
