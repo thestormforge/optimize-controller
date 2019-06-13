@@ -3,6 +3,7 @@ package trial
 import (
 	"context"
 	"fmt"
+	"math"
 	"net/url"
 	"strconv"
 	"strings"
@@ -214,10 +215,14 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 					verr = err
 				} else if retryAfter != nil {
 					return reconcile.Result{Requeue: true, RequeueAfter: *retryAfter}, nil
+				} else if math.IsNaN(value) || math.IsNaN(error) {
+					verr = fmt.Errorf("capturing metric %s got NaN", m.Name)
 				} else {
 					v.AttemptsRemaining = 0
 					v.Value = strconv.FormatFloat(value, 'f', -1, 64)
-					v.Error = strconv.FormatFloat(error, 'f', -1, 64)
+					if error != 0 {
+						v.Error = strconv.FormatFloat(error, 'f', -1, 64)
+					}
 					syncStatus(trial)
 					break
 				}
