@@ -309,13 +309,19 @@ func evaluatePatches(r client.Reader, trial *okeanosv1alpha1.Trial, e *okeanosv1
 			return err
 		}
 
+		// TODO This is a hack to allow stability checks on arbitrary objects by omitting the patch data
+		attempts := 3
+		if len(data) == 0 {
+			attempts = 0
+		}
+
 		// For each target resource, record a copy of the patch
 		for _, ref := range targets {
 			trial.Status.PatchOperations = append(trial.Status.PatchOperations, okeanosv1alpha1.PatchOperation{
 				TargetRef:         ref,
 				PatchType:         pt,
 				Data:              data,
-				AttemptsRemaining: 3,
+				AttemptsRemaining: attempts,
 			})
 		}
 	}
