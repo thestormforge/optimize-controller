@@ -36,7 +36,7 @@ type Metric struct {
 
 // PatchTemplate defines a target resource and a patch template to apply
 type PatchTemplate struct {
-	Type      string                 `json:"type"`
+	Type      string                 `json:"type,omitempty"`
 	Patch     string                 `json:"patch"`
 	TargetRef corev1.ObjectReference `json:"targetRef"`
 	Selector  *metav1.LabelSelector  `json:"selector,omitempty"`

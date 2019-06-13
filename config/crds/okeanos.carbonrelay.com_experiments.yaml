@@ -606,7 +606,6 @@ spec:
                     type:
                       type: string
                   required:
-                  - type
                   - patch
                   - targetRef
                   type: object

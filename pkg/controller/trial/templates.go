@@ -31,7 +31,7 @@ func executePatchTemplate(p *okeanosv1alpha1.PatchTemplate, trial *okeanosv1alph
 		patchType = types.JSONPatchType
 	case "merge":
 		patchType = types.MergePatchType
-	case "strategic":
+	case "strategic", "":
 		patchType = types.StrategicMergePatchType
 	default:
 		return "", nil, fmt.Errorf("unknown patch type: %s", p.Type)
