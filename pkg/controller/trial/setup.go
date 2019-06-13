@@ -32,14 +32,12 @@ func manageSetup(c client.Client, s *runtime.Scheme, trial *okeanosv1alpha1.Tria
 		return reconcile.Result{}, false, nil
 	}
 
-	// Trap for the delete job
-	if needsDelete && addSetupFinalizer(trial) {
-		err := c.Update(context.TODO(), trial)
-		return reconcile.Result{}, true, err
-	}
-
 	// We do not need a delete job if the trial is still in progress and has not been deleted
 	if !IsTrialFinished(trial) && trial.DeletionTimestamp == nil {
+		if needsDelete && addSetupFinalizer(trial) {
+			err := c.Update(context.TODO(), trial)
+			return reconcile.Result{}, true, err
+		}
 		needsDelete = false
 	}
 
@@ -103,9 +101,6 @@ func manageSetup(c client.Client, s *runtime.Scheme, trial *okeanosv1alpha1.Tria
 }
 
 func addSetupFinalizer(trial *okeanosv1alpha1.Trial) bool {
-	if trial.DeletionTimestamp != nil {
-		return false
-	}
 	for _, f := range trial.Finalizers {
 		if f == setupFinalizer {
 			return false
