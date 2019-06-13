@@ -29,7 +29,7 @@ func TestReconcile(t *testing.T) {
 	}
 
 	// Set the annotations to avoid server communication
-	instance.Labels = map[string]string{annotationExperimentURL: "xxx", annotationSuggestionURL: "xxx"}
+	instance.Labels = map[string]string{annotationExperimentURL: "xxx", annotationNextTrialURL: "xxx"}
 
 	// Set the namespace selector avoid trial creation
 	instance.Spec.NamespaceSelector = &metav1.LabelSelector{MatchLabels: map[string]string{"xxx": "xxx"}}

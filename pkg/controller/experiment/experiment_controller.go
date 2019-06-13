@@ -28,8 +28,8 @@ const (
 	annotationPrefix = "okeanos.carbonrelay.com/"
 
 	annotationExperimentURL  = annotationPrefix + "experiment-url"
-	annotationSuggestionURL  = annotationPrefix + "suggestion-url"
-	annotationObservationURL = annotationPrefix + "observation-url"
+	annotationNextTrialURL   = annotationPrefix + "next-trial-url"
+	annotationReportTrialURL = annotationPrefix + "report-trial-url"
 
 	finalizer = "finalizer.okeanos.carbonrelay.com"
 )
@@ -142,8 +142,8 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Add an additional trial if needed
-	suggestionURL := experiment.GetAnnotations()[annotationSuggestionURL]
-	if suggestionURL != "" && experiment.GetReplicas() > len(list.Items) {
+	nextTrialURL := experiment.GetAnnotations()[annotationNextTrialURL]
+	if nextTrialURL != "" && experiment.GetReplicas() > len(list.Items) {
 		// Find an available namespace
 		if namespace, err := r.findAvailableNamespace(experiment, list.Items); err != nil {
 			return reconcile.Result{}, err
@@ -155,17 +155,17 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 			}
 
 			// Obtain a suggestion from the server
-			suggestion, observationURL, err := r.api.NextSuggestion(context.TODO(), suggestionURL)
+			suggestion, reportTrialURL, err := r.api.NextTrial(context.TODO(), nextTrialURL)
 			if err != nil {
 				if aerr, ok := err.(*okeanosapi.Error); ok {
 					switch aerr.Type {
 					case okeanosapi.ErrExperimentStopped:
 						// The experiment is stopped, set replicas to 0 to prevent further interaction with the server
 						experiment.SetReplicas(0)
-						delete(experiment.GetAnnotations(), annotationSuggestionURL) // HTTP "Gone" semantics require us to purge this
+						delete(experiment.GetAnnotations(), annotationNextTrialURL) // HTTP "Gone" semantics require us to purge this
 						err = r.Update(context.TODO(), experiment)
 						return reconcile.Result{}, err
-					case okeanosapi.ErrSuggestionUnavailable:
+					case okeanosapi.ErrTrialUnavailable:
 						// No suggestions available, wait to requeue until after the retry delay
 						return reconcile.Result{Requeue: true, RequeueAfter: aerr.RetryAfter}, nil
 					}
@@ -174,7 +174,7 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 			}
 
 			// Add the information from the server
-			trial.GetAnnotations()[annotationObservationURL] = observationURL
+			trial.GetAnnotations()[annotationReportTrialURL] = reportTrialURL
 			for k, v := range suggestion.Assignments {
 				trial.Spec.Assignments = append(trial.Spec.Assignments, okeanosv1alpha1.Assignment{
 					Name:  k,
@@ -184,7 +184,7 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 
 			// Create the trial
 			// TODO If there is an error, notify server that we failed to adopt the suggestion?
-			log.Info("Creating new trial", "namespace", trial.Namespace, "observationURL", observationURL, "assignments", trial.Spec.Assignments)
+			log.Info("Creating new trial", "namespace", trial.Namespace, "reportTrialURL", reportTrialURL, "assignments", trial.Spec.Assignments)
 			err = r.Create(context.TODO(), trial)
 			return reconcile.Result{}, err
 		}
@@ -200,15 +200,15 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 				return reconcile.Result{}, err
 			} else {
 				// Create an observation for the remote server
-				observation := okeanosapi.Observation{}
+				trialValues := okeanosapi.TrialValues{}
 				for _, c := range t.Status.Conditions {
 					if c.Type == okeanosv1alpha1.TrialFailed && c.Status == corev1.ConditionTrue {
-						observation.Failed = true
+						trialValues.Failed = true
 					}
 				}
 				for _, v := range t.Spec.Values {
 					if fv, err := strconv.ParseFloat(v.Value, 64); err == nil {
-						observation.Values = append(observation.Values, okeanosapi.Value{
+						trialValues.Values = append(trialValues.Values, okeanosapi.Value{
 							MetricName: v.Name,
 							Value:      fv,
 							// TODO Error is the standard deviation for the metric
@@ -217,9 +217,9 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 				}
 
 				// Send the observation to the server
-				observationURL := t.GetAnnotations()[annotationObservationURL]
-				log.Info("Reporting observation", "namespace", t.Namespace, "observationURL", observationURL, "assignments", t.Spec.Assignments, "values", observation.Values)
-				if err := r.api.ReportObservation(context.TODO(), observationURL, observation); err != nil {
+				reportTrialURL := t.GetAnnotations()[annotationReportTrialURL]
+				log.Info("Reporting trial", "namespace", t.Namespace, "reportTrialURL", reportTrialURL, "assignments", t.Spec.Assignments, "values", trialValues.Values)
+				if err := r.api.ReportTrial(context.TODO(), reportTrialURL, trialValues); err != nil {
 					// This error only matters if the experiment itself is not deleted, otherwise ignore it so we can remove the finalizer
 					if experiment.DeletionTimestamp == nil {
 						return reconcile.Result{}, err
@@ -285,7 +285,7 @@ func addFinalizer(experiment *okeanosv1alpha1.Experiment) bool {
 
 func (r *ReconcileExperiment) syncWithServer(experiment *okeanosv1alpha1.Experiment) (bool, error) {
 	experimentURL := experiment.GetAnnotations()[annotationExperimentURL]
-	suggestionURL := experiment.GetAnnotations()[annotationSuggestionURL]
+	nextTrialURL := experiment.GetAnnotations()[annotationNextTrialURL]
 
 	if experiment.GetReplicas() > 0 {
 		// Define the experiment on the server
@@ -304,7 +304,7 @@ func (r *ReconcileExperiment) syncWithServer(experiment *okeanosv1alpha1.Experim
 		}
 
 		// Update information only populated by server after PUT
-		if suggestionURL == "" && experimentURL != "" {
+		if nextTrialURL == "" && experimentURL != "" {
 			e, err := r.api.GetExperiment(context.TODO(), experimentURL)
 			if err != nil {
 				return false, err
@@ -312,13 +312,13 @@ func (r *ReconcileExperiment) syncWithServer(experiment *okeanosv1alpha1.Experim
 
 			// Since we have the server representation, enforce a cap on the replica count
 			// NOTE: Do the update in memory, we will only persist it if the suggestion URL needs updating
-			if experiment.GetReplicas() > int(e.Optimization.ParallelSuggestions) && e.Optimization.ParallelSuggestions > 0 {
-				*experiment.Spec.Replicas = e.Optimization.ParallelSuggestions
+			if experiment.GetReplicas() > int(e.Optimization.ParallelTrials) && e.Optimization.ParallelTrials > 0 {
+				*experiment.Spec.Replicas = e.Optimization.ParallelTrials
 			}
 
 			// The suggestion reference may be missing because the experiment isn't producing suggestions anymore
-			if e.SuggestionRef != "" {
-				experiment.GetAnnotations()[annotationSuggestionURL] = e.SuggestionRef
+			if e.GenerateRef != "" {
+				experiment.GetAnnotations()[annotationNextTrialURL] = e.GenerateRef
 				return true, nil
 			}
 		}
@@ -330,7 +330,7 @@ func (r *ReconcileExperiment) syncWithServer(experiment *okeanosv1alpha1.Experim
 			log.Error(err, "Failed to delete experiment", "experimentURL", experimentURL)
 		}
 		delete(experiment.GetAnnotations(), annotationExperimentURL)
-		delete(experiment.GetAnnotations(), annotationSuggestionURL)
+		delete(experiment.GetAnnotations(), annotationNextTrialURL)
 		experiment.SetReplicas(0)
 		return true, nil
 	}
@@ -342,9 +342,9 @@ func (r *ReconcileExperiment) syncWithServer(experiment *okeanosv1alpha1.Experim
 func copyExperimentToRemote(experiment *okeanosv1alpha1.Experiment, e *okeanosapi.Experiment) {
 	e.Optimization = okeanosapi.Optimization{}
 	if experiment.Spec.Parallelism != nil {
-		e.Optimization.ParallelSuggestions = *experiment.Spec.Parallelism
+		e.Optimization.ParallelTrials = *experiment.Spec.Parallelism
 	} else {
-		e.Optimization.ParallelSuggestions = int32(experiment.GetReplicas())
+		e.Optimization.ParallelTrials = int32(experiment.GetReplicas())
 	}
 
 	e.Parameters = nil

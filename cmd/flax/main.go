@@ -95,7 +95,7 @@ func main() {
 	}
 
 	// Check the URL
-	if exp.SuggestionRef == "" {
+	if exp.GenerateRef == "" {
 		panic("Expected a 'suggestionRef' URL on the result to post suggestions back to")
 	}
 
@@ -125,8 +125,8 @@ func main() {
 	// Get a suggestion
 	var su string
 	for i := 0; i < 5; i++ {
-		_, su, err = api.NextSuggestion(context.TODO(), exp.SuggestionRef)
-		if aerr, ok := err.(*okeanos.Error); ok && aerr.Type == okeanos.ErrSuggestionUnavailable {
+		_, su, err = api.NextTrial(context.TODO(), exp.GenerateRef)
+		if aerr, ok := err.(*okeanos.Error); ok && aerr.Type == okeanos.ErrTrialUnavailable {
 			time.Sleep(aerr.RetryAfter)
 			continue
 		}
@@ -142,7 +142,7 @@ func main() {
 	}
 
 	// Report an observation back
-	obs := &okeanos.Observation{
+	obs := &okeanos.TrialValues{
 		Values: []okeanos.Value{
 			{
 				MetricName: "l",
@@ -154,7 +154,7 @@ func main() {
 			},
 		},
 	}
-	err = api.ReportObservation(context.TODO(), su, *obs)
+	err = api.ReportTrial(context.TODO(), su, *obs)
 	if err != nil {
 		panic(err)
 	}
