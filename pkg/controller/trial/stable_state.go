@@ -24,27 +24,53 @@ func (e *StabilityError) Error() string {
 }
 
 // Check a stateful set to see if it has reached a stable state
-func checkStatefulSet(ss *appsv1.StatefulSet) error {
-	// TODO We also need to check for errors, if there are failures we never launch the job
-
-	if ss.Status.ReadyReplicas < ss.Status.Replicas {
+func checkStatefulSet(sts *appsv1.StatefulSet) error {
+	// Same tests used by `kubectl rollout status`
+	// https://github.com/kubernetes/kubernetes/blob/master/pkg/kubectl/rollout_status.go
+	if sts.Spec.UpdateStrategy.Type != appsv1.RollingUpdateStatefulSetStrategyType {
+		// TODO Log this?
+		return nil // Nothing we can do
+	}
+	if sts.Status.ObservedGeneration == 0 || sts.Generation > sts.Status.ObservedGeneration {
 		return &StabilityError{RetryAfter: 5 * time.Second}
 	}
-
+	if sts.Spec.Replicas != nil && sts.Status.ReadyReplicas < *sts.Spec.Replicas {
+		return &StabilityError{RetryAfter: 5 * time.Second}
+	}
+	if sts.Spec.UpdateStrategy.Type == appsv1.RollingUpdateStatefulSetStrategyType && sts.Spec.UpdateStrategy.RollingUpdate != nil {
+		if sts.Spec.Replicas != nil && sts.Spec.UpdateStrategy.RollingUpdate.Partition != nil {
+			if sts.Status.UpdatedReplicas < (*sts.Spec.Replicas - *sts.Spec.UpdateStrategy.RollingUpdate.Partition) {
+				return &StabilityError{RetryAfter: 5 * time.Second}
+			}
+		}
+		return nil
+	}
+	if sts.Status.UpdateRevision != sts.Status.CurrentRevision {
+		return &StabilityError{RetryAfter: 5 * time.Second}
+	}
 	return nil
 }
 
 func checkDeployment(d *appsv1.Deployment) error {
+	// Same tests used by `kubectl rollout status`
+	// https://github.com/kubernetes/kubernetes/blob/master/pkg/kubectl/rollout_status.go
+	if d.Generation > d.Status.ObservedGeneration {
+		return &StabilityError{RetryAfter: 5 * time.Second}
+	}
 	for _, c := range d.Status.Conditions {
-		if c.Type == appsv1.DeploymentReplicaFailure {
+		if c.Type == appsv1.DeploymentProgressing && c.Reason == "ProgressDeadlineExceeded" {
 			return &StabilityError{}
 		}
 	}
-
-	if d.Status.ReadyReplicas < d.Status.Replicas {
+	if d.Spec.Replicas != nil && d.Status.UpdatedReplicas < *d.Spec.Replicas {
 		return &StabilityError{RetryAfter: 5 * time.Second}
 	}
-
+	if d.Status.Replicas > d.Status.UpdatedReplicas {
+		return &StabilityError{RetryAfter: 5 * time.Second}
+	}
+	if d.Status.AvailableReplicas < d.Status.UpdatedReplicas {
+		return &StabilityError{RetryAfter: 5 * time.Second}
+	}
 	return nil
 }
 
@@ -76,6 +102,8 @@ func waitForStableState(r client.Reader, ctx context.Context, patches []okeanosv
 			if err := checkDeployment(d); err != nil {
 				return err
 			}
+
+			// TODO Should we also get DaemonSet like rollout?
 		}
 	}
 	return nil
