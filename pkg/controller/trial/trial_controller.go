@@ -114,10 +114,9 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 		if err = r.Get(context.TODO(), trial.ExperimentNamespacedName(), e); err != nil {
 			return reconcile.Result{}, err
 		}
-		if err = evaluatePatches(r, trial, e); err != nil {
+		if dirty, err := evaluatePatches(r, trial, e); err != nil {
 			return reconcile.Result{}, err
-		}
-		if len(trial.Status.PatchOperations) > 0 {
+		} else if dirty {
 			err = r.Update(context.TODO(), trial)
 			return reconcile.Result{}, err
 		}
@@ -295,18 +294,23 @@ func newCondition(conditionType okeanosv1alpha1.TrialConditionType, reason, mess
 	}
 }
 
-func evaluatePatches(r client.Reader, trial *okeanosv1alpha1.Trial, e *okeanosv1alpha1.Experiment) error {
+func evaluatePatches(r client.Reader, trial *okeanosv1alpha1.Trial, e *okeanosv1alpha1.Experiment) (bool, error) {
+	if dirty, err := checkAssignments(trial, e); dirty || err != nil {
+		return dirty, err
+	}
+
+	var dirty bool
 	for _, p := range e.Spec.Patches {
 		// Evaluate the patch template
 		pt, data, err := executePatchTemplate(&p, trial)
 		if err != nil {
-			return err
+			return false, err
 		}
 
 		// Find the targets to apply the patch to
 		targets, err := findPatchTargets(r, &p, trial)
 		if err != nil {
-			return err
+			return false, err
 		}
 
 		// TODO This is a hack to allow stability checks on arbitrary objects by omitting the patch data
@@ -323,10 +327,11 @@ func evaluatePatches(r client.Reader, trial *okeanosv1alpha1.Trial, e *okeanosv1
 				Data:              data,
 				AttemptsRemaining: attempts,
 			})
+			dirty = true
 		}
 	}
 
-	return nil
+	return dirty, nil
 }
 
 // Finds the patch targets
@@ -370,6 +375,31 @@ func findPatchTargets(r client.Reader, p *okeanosv1alpha1.PatchTemplate, trial *
 	}
 
 	return targets, nil
+}
+
+func checkAssignments(trial *okeanosv1alpha1.Trial, experiment *okeanosv1alpha1.Experiment) (bool, error) {
+	// Index the assignments
+	assignments := make(map[string]int64, len(trial.Spec.Assignments))
+	for _, a := range trial.Spec.Assignments {
+		assignments[a.Name] = a.Value
+	}
+
+	// Verify against the parameter specifications
+	var missing []string
+	for _, p := range experiment.Spec.Parameters {
+		if a, ok := assignments[p.Name]; ok {
+			if a < p.Min || a > p.Max {
+				log.Info("Assignment out of bounds", "trialName", trial.Name, "parameterName", p.Name, "assignment", a, "min", p.Min, "max", p.Max)
+			}
+		} else {
+			missing = append(missing, p.Name)
+		}
+	}
+
+	if len(missing) > 0 {
+		return false, fmt.Errorf("trial %s is missing assignments for %s", trial.Name, missing)
+	}
+	return false, nil
 }
 
 func (r *ReconcileTrial) findMetricTargets(trial *okeanosv1alpha1.Trial, m *okeanosv1alpha1.Metric) ([]string, error) {
