@@ -8,6 +8,7 @@ import (
 
 	okeanosv1alpha1 "github.com/gramLabs/okeanos/pkg/apis/okeanos/v1alpha1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
 type patchContext struct {
@@ -62,7 +63,9 @@ func executePatchTemplate(p *okeanosv1alpha1.PatchTemplate, trial *okeanosv1alph
 	if err = tmpl.Execute(buf, data); err != nil {
 		return "", nil, err
 	}
-	return patchType, buf.Bytes(), nil
+
+	json, err := yaml.ToJSON(buf.Bytes())
+	return patchType, json, err
 }
 
 func executeMetricQueryTemplate(m *okeanosv1alpha1.Metric, trial *okeanosv1alpha1.Trial) (string, error) {
