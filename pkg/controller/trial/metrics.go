@@ -73,14 +73,13 @@ func capturePrometheusMetric(address, query string, completionTime time.Time) (f
 		return 0, 0, nil, err
 	}
 
-	// Scalar result
-	if v.Type() == model.ValScalar {
-		return float64(v.(*model.Scalar).Value), 0, nil, nil
+	// Only accept scalar results
+	if v.Type() != model.ValScalar {
+		return 0, 0, nil, fmt.Errorf("expected scalar query result, got %s", v.Type())
 	}
 
-	// TODO Imply `scalar(<q>)` for vector types?
-	// TODO Should we handle any other types?
-	return 0, 0, nil, fmt.Errorf("unable to get metric value from %s", v.Type())
+	// Scalar result
+	return float64(v.(*model.Scalar).Value), 0, nil, nil
 }
 
 func captureJSONPathMetric(url, name, query string) (float64, float64, *time.Duration, error) {
