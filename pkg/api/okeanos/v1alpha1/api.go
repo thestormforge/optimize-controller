@@ -139,7 +139,7 @@ type Assignment struct {
 
 type TrialAssignments struct {
 	// The list of parameter names and their assigned values.
-	Assignments map[string]interface{} `json:"assignments"`
+	Assignments []Assignment `json:"assignments"`
 }
 
 type Value struct {
