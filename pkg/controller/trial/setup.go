@@ -3,6 +3,7 @@ package trial
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	okeanosv1alpha1 "github.com/gramLabs/okeanos/pkg/apis/okeanos/v1alpha1"
@@ -160,8 +161,8 @@ func newSetupJob(trial *okeanosv1alpha1.Trial, scheme *runtime.Scheme, mode stri
 
 		// Add the trial assignments to the environment
 		for _, a := range trial.Spec.Assignments {
-			// TODO Prefix assignment names? Adjust them to be upper-underscore?
-			c.Env = append(c.Env, corev1.EnvVar{Name: a.Name, Value: a.Value})
+			name := strings.ReplaceAll(strings.ToUpper(a.Name), ".", "_")
+			c.Env = append(c.Env, corev1.EnvVar{Name: name, Value: fmt.Sprintf("%d", a.Value)})
 		}
 
 		// For Helm installs, include the chart name
