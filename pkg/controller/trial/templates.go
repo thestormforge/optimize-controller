@@ -12,6 +12,11 @@ import (
 
 type patchContext struct {
 	Values map[string]string
+	Trial  patchTrial
+}
+
+type patchTrial struct {
+	Name string
 }
 
 type metricContext struct {
@@ -43,6 +48,7 @@ func executePatchTemplate(p *okeanosv1alpha1.PatchTemplate, trial *okeanosv1alph
 	// Create the data context
 	data := patchContext{}
 	data.Values = make(map[string]string, len(trial.Spec.Assignments))
+	data.Trial = patchTrial{Name: trial.Name}
 	for _, a := range trial.Spec.Assignments {
 		data.Values[a.Name] = a.Value
 	}
