@@ -8,6 +8,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -22,6 +23,8 @@ func (e *StabilityError) Error() string {
 	// TODO Make something nice
 	return "not stable"
 }
+
+// TODO We are not properly detecting unrecoverable scenarios like "pod cannot be scheduled because of insufficient resources"
 
 // Check a stateful set to see if it has reached a stable state
 func checkStatefulSet(sts *appsv1.StatefulSet) error {
@@ -88,7 +91,7 @@ func waitForStableState(r client.Reader, ctx context.Context, patches []okeanosv
 				return err
 			}
 			if err := checkStatefulSet(ss); err != nil {
-				return err
+				return checkPods(err, r, ss.Spec.Selector)
 			}
 
 		case "Deployment":
@@ -100,7 +103,7 @@ func waitForStableState(r client.Reader, ctx context.Context, patches []okeanosv
 				return err
 			}
 			if err := checkDeployment(d); err != nil {
-				return err
+				return checkPods(err, r, d.Spec.Selector)
 			}
 
 			// TODO Should we also get DaemonSet like rollout?
@@ -118,4 +121,32 @@ func get(r client.Reader, ctx context.Context, ref corev1.ObjectReference, obj r
 		return err, false
 	}
 	return nil, true
+}
+
+func checkPods(e error, r client.Reader, selector *metav1.LabelSelector) error {
+	// BE SURE TO RETURN THE ORIGINAL ERROR IN PREFERENCE TO A NEWLY CREATED ERROR
+
+	// We are checking if we should "upgrade" from delay to a hard fail
+	if serr, ok := e.(*StabilityError); !ok || serr.RetryAfter == 0 {
+		return e
+	}
+
+	// We were already going to initiate a delay, so the overhead of checking pods shouldn't hurt
+	var err error
+	list := &corev1.PodList{}
+	opts := &client.ListOptions{}
+	if opts.LabelSelector, err = metav1.LabelSelectorAsSelector(selector); err != nil {
+		return e
+	}
+	if err = r.List(context.TODO(), list, client.UseListOptions(opts)); err != nil {
+		return e
+	}
+	for _, p := range list.Items {
+		for _, c := range p.Status.Conditions {
+			if c.Type == corev1.PodScheduled && c.Status == corev1.ConditionFalse && c.Reason == corev1.PodReasonUnschedulable {
+				return &StabilityError{}
+			}
+		}
+	}
+	return e
 }
