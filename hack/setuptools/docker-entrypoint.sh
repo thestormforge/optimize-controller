@@ -17,8 +17,8 @@ if [ ! -z "$CHART" ]; then
         fi
 
         # Check if a values file was mounted for this chart
-        if [ -f "/values/$CHART.yaml" ]; then
-            HELM_OPTS="${HELM_OPTS} --values /values/$CHART.yaml"
+        if [ -f "/values/$NAME.yaml" ]; then
+            HELM_OPTS="${HELM_OPTS} --values /values/$NAME.yaml"
         fi
 
         helm install $HELM_OPTS --namespace "$NAMESPACE" --name "$NAME" "$CHART"

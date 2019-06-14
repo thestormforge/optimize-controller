@@ -140,17 +140,14 @@ func newSetupJob(trial *okeanosv1alpha1.Trial, scheme *runtime.Scheme, mode stri
 			namespace = trial.Namespace
 		}
 
-		// Determine a name that is going to be unique
-		name := fmt.Sprintf("%s-%s", trial.Name, task.Name)
-
 		// Create a container with an environment that can be used to create or delete the required software
 		c := corev1.Container{
-			Name:  name,
+			Name:  fmt.Sprintf("%s-%s", job.Name, task.Name),
 			Image: task.Image,
 			Env: []corev1.EnvVar{
 				{Name: "MODE", Value: mode},
 				{Name: "NAMESPACE", Value: namespace},
-				{Name: "NAME", Value: name},
+				{Name: "NAME", Value: task.Name},
 			},
 			VolumeMounts: task.VolumeMounts,
 		}
