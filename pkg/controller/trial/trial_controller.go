@@ -267,7 +267,7 @@ func syncStatus(trial *okeanosv1alpha1.Trial) bool {
 
 	assignments := make([]string, len(trial.Spec.Assignments))
 	for i := range trial.Spec.Assignments {
-		assignments[i] = fmt.Sprintf("%s=%s", trial.Spec.Assignments[i].Name, trial.Spec.Assignments[i].Value)
+		assignments[i] = fmt.Sprintf("%s=%d", trial.Spec.Assignments[i].Name, trial.Spec.Assignments[i].Value)
 	}
 	s = strings.Join(assignments, ", ")
 	dirty = dirty || trial.Status.Assignments != s

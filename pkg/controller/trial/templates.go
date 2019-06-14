@@ -11,8 +11,8 @@ import (
 )
 
 type patchContext struct {
-	Values map[string]string
 	Trial  patchTrial
+	Values map[string]int64
 }
 
 type patchTrial struct {
@@ -47,8 +47,8 @@ func executePatchTemplate(p *okeanosv1alpha1.PatchTemplate, trial *okeanosv1alph
 
 	// Create the data context
 	data := patchContext{}
-	data.Values = make(map[string]string, len(trial.Spec.Assignments))
 	data.Trial = patchTrial{Name: trial.Name}
+	data.Values = make(map[string]int64, len(trial.Spec.Assignments))
 	for _, a := range trial.Spec.Assignments {
 		data.Values[a.Name] = a.Value
 	}

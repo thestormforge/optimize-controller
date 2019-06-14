@@ -412,7 +412,8 @@ spec:
                     name:
                       type: string
                     value:
-                      type: string
+                      format: int64
+                      type: integer
                   required:
                   - name
                   - value

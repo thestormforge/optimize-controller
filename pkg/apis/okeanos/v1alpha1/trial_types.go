@@ -32,7 +32,7 @@ type PatchOperation struct {
 
 type Assignment struct {
 	Name  string `json:"name"`
-	Value string `json:"value"`
+	Value int64  `json:"value"`
 }
 
 type Value struct {

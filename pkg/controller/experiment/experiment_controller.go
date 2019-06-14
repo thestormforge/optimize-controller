@@ -3,7 +3,6 @@ package experiment
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strconv"
 
 	okeanosclient "github.com/gramLabs/okeanos/pkg/api"
@@ -175,11 +174,13 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 
 			// Add the information from the server
 			trial.GetAnnotations()[annotationReportTrialURL] = reportTrialURL
-			for k, v := range suggestion.Assignments {
-				trial.Spec.Assignments = append(trial.Spec.Assignments, okeanosv1alpha1.Assignment{
-					Name:  k,
-					Value: fmt.Sprint(v),
-				})
+			for _, a := range suggestion.Assignments {
+				if v, err := a.Value.Int64(); err == nil {
+					trial.Spec.Assignments = append(trial.Spec.Assignments, okeanosv1alpha1.Assignment{
+						Name:  a.ParameterName,
+						Value: v,
+					})
+				}
 			}
 
 			// Create the trial
