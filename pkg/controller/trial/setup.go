@@ -63,6 +63,7 @@ func manageSetup(c client.Client, s *runtime.Scheme, trial *okeanosv1alpha1.Tria
 					break
 				}
 			}
+			break // All containers have the same environment
 		}
 	}
 
@@ -116,6 +117,9 @@ func isJobFinished(job *batchv1.Job) bool {
 		if (c.Type == batchv1.JobComplete || c.Type == batchv1.JobFailed) && c.Status == corev1.ConditionTrue {
 			return true
 		}
+	}
+	if job.Status.Failed > 0 {
+		return true
 	}
 	return false
 }
