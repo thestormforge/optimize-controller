@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	address := flag.String("addr", "http://localhost:8000", "The Flax URL.")
+	address := flag.String("addr", "http://localhost:8000/api", "The Flax URL.")
 	flag.Parse()
 
 	// New client
@@ -57,26 +57,35 @@ func main() {
 				Name:     "m",
 				Minimize: true,
 			},
-			{
-				Name:     "n",
-				Minimize: false,
-			},
 		},
 	}
 
 	// Put it out there
-	eu, err := api.CreateExperiment(context.TODO(), name, *in)
+	exp, err := api.CreateExperiment(context.TODO(), name, *in)
 	if err != nil {
 		panic(err)
 	}
 
+	// Check the self link
+	if exp.Self == "" {
+		panic("Missing self link")
+	}
+
 	// Delete the experiment
 	defer func() {
-		err = api.DeleteExperiment(context.TODO(), eu)
+		err = api.DeleteExperiment(context.TODO(), exp.Self)
 		if err != nil {
 			panic(err)
 		}
 	}()
+
+	// Check the rest of the links
+	if exp.Trials == "" {
+		panic("Missing trials link")
+	}
+	if exp.NextTrial == "" {
+		panic("Missing nextTrial link")
+	}
 
 	// Index the parameters and metrics for easy lookup
 	pi := make(map[string]okeanos.Parameter, len(in.Parameters))
@@ -86,17 +95,6 @@ func main() {
 	mi := make(map[string]okeanos.Metric, len(in.Metrics))
 	for _, m := range in.Metrics {
 		mi[m.Name] = m
-	}
-
-	// Get it back, overwrite pointer
-	exp, err := api.GetExperiment(context.TODO(), eu)
-	if err != nil {
-		panic(err)
-	}
-
-	// Check the URL
-	if exp.GenerateRef == "" {
-		panic("Expected a 'suggestionRef' URL on the result to post suggestions back to")
 	}
 
 	// Check the parameters
@@ -125,7 +123,7 @@ func main() {
 	// Get a suggestion
 	var su string
 	for i := 0; i < 5; i++ {
-		_, su, err = api.NextTrial(context.TODO(), exp.GenerateRef)
+		_, su, err = api.NextTrial(context.TODO(), exp.NextTrial)
 		if aerr, ok := err.(*okeanos.Error); ok && aerr.Type == okeanos.ErrTrialUnavailable {
 			time.Sleep(aerr.RetryAfter)
 			continue

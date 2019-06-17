@@ -286,7 +286,6 @@ func addFinalizer(experiment *okeanosv1alpha1.Experiment) bool {
 
 func (r *ReconcileExperiment) syncWithServer(experiment *okeanosv1alpha1.Experiment) (bool, error) {
 	experimentURL := experiment.GetAnnotations()[annotationExperimentURL]
-	nextTrialURL := experiment.GetAnnotations()[annotationNextTrialURL]
 
 	if experiment.GetReplicas() > 0 {
 		// Define the experiment on the server
@@ -296,31 +295,15 @@ func (r *ReconcileExperiment) syncWithServer(experiment *okeanosv1alpha1.Experim
 			copyExperimentToRemote(experiment, &e)
 
 			log.Info("Creating remote experiment", "name", n)
-			if experimentRef, err := r.api.CreateExperiment(context.TODO(), n, e); err == nil {
-				experiment.GetAnnotations()[annotationExperimentURL] = experimentRef
+			if ee, err := r.api.CreateExperiment(context.TODO(), n, e); err == nil {
+				experiment.GetAnnotations()[annotationExperimentURL] = ee.Self
+				experiment.GetAnnotations()[annotationNextTrialURL] = ee.NextTrial
+				if experiment.GetReplicas() > int(ee.Optimization.ParallelTrials) && ee.Optimization.ParallelTrials > 0 {
+					*experiment.Spec.Replicas = ee.Optimization.ParallelTrials
+				}
 				return true, nil
 			} else {
 				return false, err
-			}
-		}
-
-		// Update information only populated by server after PUT
-		if nextTrialURL == "" && experimentURL != "" {
-			e, err := r.api.GetExperiment(context.TODO(), experimentURL)
-			if err != nil {
-				return false, err
-			}
-
-			// Since we have the server representation, enforce a cap on the replica count
-			// NOTE: Do the update in memory, we will only persist it if the suggestion URL needs updating
-			if experiment.GetReplicas() > int(e.Optimization.ParallelTrials) && e.Optimization.ParallelTrials > 0 {
-				*experiment.Spec.Replicas = e.Optimization.ParallelTrials
-			}
-
-			// The suggestion reference may be missing because the experiment isn't producing suggestions anymore
-			if e.GenerateRef != "" {
-				experiment.GetAnnotations()[annotationNextTrialURL] = e.GenerateRef
-				return true, nil
 			}
 		}
 	}

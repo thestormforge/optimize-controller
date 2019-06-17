@@ -8,13 +8,17 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gramLabs/okeanos/pkg/api"
 )
 
 const (
-	endpointExperiment = "/api/experiments"
+	endpointExperiment = "/experiments"
+
+	relationTrials    = "https://carbonrelay.com/rel/trials"
+	relationNextTrial = "https://carbonrelay.com/rel/nextTrial"
 )
 
 type ErrorType string
@@ -102,8 +106,17 @@ type Parameter struct {
 	Bounds Bounds `json:"bounds"`
 }
 
+type ExperimentMeta struct {
+	Self      string `json:"-"`
+	Trials    string `json:"-"`
+	NextTrial string `json:"-"`
+	// TODO LastModified
+}
+
 // Experiment combines the search space, outcomes and optimization configuration
 type Experiment struct {
+	ExperimentMeta
+
 	// The display name of the experiment. Do not use for generating URLs!
 	DisplayName string `json:"displayName,omitempty"`
 	// Controls how the optimizer will generate trials.
@@ -112,11 +125,6 @@ type Experiment struct {
 	Metrics []Metric `json:"metrics"`
 	// The search space of the experiment.
 	Parameters []Parameter `json:"parameters"`
-
-	// The absolute URL used to generate trials via a POST request.
-	GenerateRef string `json:"generateRef,omitempty"`
-	// The absolute URL used to fetch the entire list of trials.
-	TrialsRef string `json:"trialsRef,omitempty"`
 }
 
 type ExperimentItem struct {
@@ -186,7 +194,7 @@ type TrialList struct {
 type API interface {
 	GetAllExperiments(context.Context) (ExperimentList, error)
 	GetExperiment(context.Context, string) (Experiment, error)
-	CreateExperiment(context.Context, ExperimentName, Experiment) (string, error)
+	CreateExperiment(context.Context, ExperimentName, Experiment) (Experiment, error)
 	DeleteExperiment(context.Context, string) error
 	GetAllTrials(context.Context, string) (TrialList, error)
 	CreateTrial(context.Context, string, TrialAssignments) (string, error)
@@ -241,6 +249,7 @@ func (h *httpAPI) GetExperiment(ctx context.Context, u string) (Experiment, erro
 
 	switch resp.StatusCode {
 	case http.StatusOK:
+		unmarshalExperimentMetadata(resp, &e.ExperimentMeta)
 		err = json.Unmarshal(body, &e)
 		return e, err
 	case http.StatusNotFound:
@@ -250,38 +259,43 @@ func (h *httpAPI) GetExperiment(ctx context.Context, u string) (Experiment, erro
 	}
 }
 
-func (h *httpAPI) CreateExperiment(ctx context.Context, n ExperimentName, exp Experiment) (string, error) {
+func (h *httpAPI) CreateExperiment(ctx context.Context, n ExperimentName, exp Experiment) (Experiment, error) {
+	e := Experiment{}
 	u := h.client.URL(endpointExperiment + "/" + url.PathEscape(n.Name()))
 
 	body, err := json.Marshal(exp)
 	if err != nil {
-		return "", err
+		return e, err
 	}
 
 	req, err := http.NewRequest(http.MethodPut, u.String(), bytes.NewBuffer(body))
 	if err != nil {
-		return "", err
+		return e, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, _, err := h.client.Do(ctx, req)
 	if err != nil {
-		return "", err
+		return e, err
 	}
 
 	switch resp.StatusCode {
 	case http.StatusOK:
-		return u.String(), nil
+		unmarshalExperimentMetadata(resp, &e.ExperimentMeta)
+		err = json.Unmarshal(body, &e)
+		return e, nil
 	case http.StatusCreated:
-		return u.String(), nil
+		unmarshalExperimentMetadata(resp, &e.ExperimentMeta)
+		err = json.Unmarshal(body, &e)
+		return e, nil
 	case http.StatusBadRequest:
-		return "", &Error{Type: ErrExperimentNameInvalid}
+		return e, &Error{Type: ErrExperimentNameInvalid}
 	case http.StatusConflict:
-		return "", &Error{Type: ErrExperimentNameConflict}
+		return e, &Error{Type: ErrExperimentNameConflict}
 	case http.StatusUnprocessableEntity:
-		return "", &Error{Type: ErrExperimentInvalid}
+		return e, &Error{Type: ErrExperimentInvalid}
 	default:
-		return "", unexpected(resp)
+		return e, unexpected(resp)
 	}
 }
 
@@ -425,4 +439,37 @@ func (h *httpAPI) ReportTrial(ctx context.Context, u string, vls TrialValues) er
 
 func unexpected(resp *http.Response) error {
 	return fmt.Errorf("unexpected server response: %d", resp.StatusCode)
+}
+
+func unmarshalExperimentMetadata(resp *http.Response, meta *ExperimentMeta) {
+	for _, rh := range resp.Header[http.CanonicalHeaderKey("Link")] {
+		for _, h := range strings.Split(rh, ",") {
+			var link, rel string
+			for _, l := range strings.Split(h, ";") {
+				l = strings.Trim(l, " ")
+				if l == "" {
+					continue
+				}
+
+				if l[0] == '<' && l[len(l)-1] == '>' {
+					link = strings.Trim(l, "<>")
+					continue
+				}
+
+				p := strings.SplitN(l, "=", 2)
+				if len(p) == 2 && strings.ToLower(p[0]) == "rel" {
+					rel = strings.Trim(p[1], "\"")
+					continue
+				}
+			}
+			switch rel {
+			case "self":
+				meta.Self = link
+			case relationTrials:
+				meta.Trials = link
+			case relationNextTrial:
+				meta.NextTrial = link
+			}
+		}
+	}
 }
