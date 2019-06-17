@@ -7,6 +7,7 @@ jobs:
     steps:
       - checkout
       - run:
+          name: Install kubebuilder
           command: |
             version=1.0.8
             arch=amd64
@@ -14,7 +15,12 @@ jobs:
             tar -zxvf kubebuilder_${version}_linux_${arch}.tar.gz
             mv kubebuilder_${version}_linux_${arch} kubebuilder && sudo mv kubebuilder /usr/local/
             export PATH=$PATH:/usr/local/kubebuilder/bin
-      - run: make
+      - run:
+          name: Run tests
+          command: make test
+      - run:
+          name: Build manager binary
+          command: make manager
 workflows:
   version: 2
   build:
