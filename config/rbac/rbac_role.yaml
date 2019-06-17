@@ -25,7 +25,7 @@ rules:
   - update
   - patch
 - apiGroups:
-  - okeanos.carbonrelay.com
+  - cordelia.carbonrelay.com
   resources:
   - experiments
   verbs:
@@ -37,7 +37,7 @@ rules:
   - patch
   - delete
 - apiGroups:
-  - okeanos.carbonrelay.com
+  - cordelia.carbonrelay.com
   resources:
   - experiments/status
   verbs:
@@ -65,7 +65,7 @@ rules:
   - update
   - patch
 - apiGroups:
-  - okeanos.carbonrelay.com
+  - cordelia.carbonrelay.com
   resources:
   - trials
   verbs:
@@ -77,7 +77,7 @@ rules:
   - patch
   - delete
 - apiGroups:
-  - okeanos.carbonrelay.com
+  - cordelia.carbonrelay.com
   resources:
   - trials/status
   verbs:

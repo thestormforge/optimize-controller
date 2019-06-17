@@ -27,7 +27,7 @@ type Client interface {
 func DefaultConfig() (*Config, error) {
 	config := &Config{}
 
-	p := ".okeanos"
+	p := ".cordelia"
 	home := os.Getenv("HOME")
 	if home == "" {
 		home = os.Getenv("USERPROFILE")

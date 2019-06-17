@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	okeanosv1alpha1 "github.com/gramLabs/okeanos/pkg/apis/okeanos/v1alpha1"
+	cordeliav1alpha1 "github.com/gramLabs/cordelia/pkg/apis/cordelia/v1alpha1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -17,12 +17,12 @@ import (
 
 const (
 	defaultImage   string = "setuptools:latest"
-	setupFinalizer        = "setupFinalizer.okeanos.carbonrelay.com"
+	setupFinalizer        = "setupFinalizer.cordelia.carbonrelay.com"
 	create                = "create"
 	delete                = "delete"
 )
 
-func manageSetup(c client.Client, s *runtime.Scheme, trial *okeanosv1alpha1.Trial) (reconcile.Result, bool, error) {
+func manageSetup(c client.Client, s *runtime.Scheme, trial *cordeliav1alpha1.Trial) (reconcile.Result, bool, error) {
 	// Determine which jobs are initially required
 	var needsCreate, needsDelete, finishedCreate, finishedDelete bool
 	for _, t := range trial.Spec.SetupTasks {
@@ -102,7 +102,7 @@ func manageSetup(c client.Client, s *runtime.Scheme, trial *okeanosv1alpha1.Tria
 	return reconcile.Result{}, false, nil
 }
 
-func addSetupFinalizer(trial *okeanosv1alpha1.Trial) bool {
+func addSetupFinalizer(trial *cordeliav1alpha1.Trial) bool {
 	for _, f := range trial.Finalizers {
 		if f == setupFinalizer {
 			return false
@@ -124,7 +124,7 @@ func isJobFinished(job *batchv1.Job) bool {
 	return false
 }
 
-func newSetupJob(trial *okeanosv1alpha1.Trial, scheme *runtime.Scheme, mode string) (*batchv1.Job, error) {
+func newSetupJob(trial *cordeliav1alpha1.Trial, scheme *runtime.Scheme, mode string) (*batchv1.Job, error) {
 	job := &batchv1.Job{}
 	job.Namespace = trial.Namespace
 	job.Name = fmt.Sprintf("%s-%s", trial.Name, mode)

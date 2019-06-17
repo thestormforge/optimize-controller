@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gramLabs/okeanos/pkg/api"
-	okeanos "github.com/gramLabs/okeanos/pkg/api/okeanos/v1alpha1"
+	"github.com/gramLabs/cordelia/pkg/api"
+	cordelia "github.com/gramLabs/cordelia/pkg/api/cordelia/v1alpha1"
 )
 
 func main() {
@@ -21,35 +21,35 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	api := okeanos.NewApi(c)
+	api := cordelia.NewApi(c)
 
 	// New experiment
-	name := okeanos.NewExperimentName("this-is-not-a-test")
-	in := &okeanos.Experiment{
-		Parameters: []okeanos.Parameter{
+	name := cordelia.NewExperimentName("this-is-not-a-test")
+	in := &cordelia.Experiment{
+		Parameters: []cordelia.Parameter{
 			{
 				Name: "a",
-				Type: okeanos.ParameterTypeInteger,
-				Bounds: okeanos.Bounds{
+				Type: cordelia.ParameterTypeInteger,
+				Bounds: cordelia.Bounds{
 					Min: "1",
 					Max: "5",
 				},
 			},
 			{
 				Name: "b",
-				Type: okeanos.ParameterTypeDouble,
-				Bounds: okeanos.Bounds{
+				Type: cordelia.ParameterTypeDouble,
+				Bounds: cordelia.Bounds{
 					Min: "-1.0",
 					Max: "1.0",
 				},
 			},
 			//{
 			//	Name:   "c",
-			//  Type: okeanos.ParameterTypeString,
+			//  Type: cordelia.ParameterTypeString,
 			//	Values: []string{"x", "y", "z"},
 			//},
 		},
-		Metrics: []okeanos.Metric{
+		Metrics: []cordelia.Metric{
 			{
 				Name: "l",
 			},
@@ -88,11 +88,11 @@ func main() {
 	}
 
 	// Index the parameters and metrics for easy lookup
-	pi := make(map[string]okeanos.Parameter, len(in.Parameters))
+	pi := make(map[string]cordelia.Parameter, len(in.Parameters))
 	for _, p := range in.Parameters {
 		pi[p.Name] = p
 	}
-	mi := make(map[string]okeanos.Metric, len(in.Metrics))
+	mi := make(map[string]cordelia.Metric, len(in.Metrics))
 	for _, m := range in.Metrics {
 		mi[m.Name] = m
 	}
@@ -124,7 +124,7 @@ func main() {
 	var su string
 	for i := 0; i < 5; i++ {
 		_, su, err = api.NextTrial(context.TODO(), exp.NextTrial)
-		if aerr, ok := err.(*okeanos.Error); ok && aerr.Type == okeanos.ErrTrialUnavailable {
+		if aerr, ok := err.(*cordelia.Error); ok && aerr.Type == cordelia.ErrTrialUnavailable {
 			time.Sleep(aerr.RetryAfter)
 			continue
 		}
@@ -140,8 +140,8 @@ func main() {
 	}
 
 	// Report an observation back
-	obs := &okeanos.TrialValues{
-		Values: []okeanos.Value{
+	obs := &cordelia.TrialValues{
+		Values: []cordelia.Value{
 			{
 				MetricName: "l",
 				Value:      0.99,

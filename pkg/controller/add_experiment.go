@@ -1,7 +1,7 @@
 package controller
 
 import (
-	"github.com/gramLabs/okeanos/pkg/controller/experiment"
+	"github.com/gramLabs/cordelia/pkg/controller/experiment"
 )
 
 func init() {

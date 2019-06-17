@@ -1,10 +1,10 @@
-package okeanosctl
+package cordeliactl
 
 import (
 	"fmt"
 	"path/filepath"
 
-	cmdutil "github.com/gramLabs/okeanos/pkg/okeanosctl/util"
+	cmdutil "github.com/gramLabs/cordelia/pkg/cordeliactl/util"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -29,8 +29,8 @@ func newInitCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "init",
-		Short: "Initialize Okeanos in a cluster",
-		Long:  "The initialize command will install (or optionally generate) the required Okeanos manifests.",
+		Short: "Initialize Cordelia in a cluster",
+		Long:  "The initialize command will install (or optionally generate) the required Cordelia manifests.",
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.run())
 		},

@@ -1,7 +1,7 @@
 package webhook
 
 import (
-	"github.com/gramLabs/okeanos/pkg/webhook/patch"
+	"github.com/gramLabs/cordelia/pkg/webhook/patch"
 )
 
 func init() {

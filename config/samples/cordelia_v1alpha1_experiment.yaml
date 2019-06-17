@@ -1,4 +1,4 @@
-apiVersion: okeanos.carbonrelay.com/v1alpha1
+apiVersion: cordelia.carbonrelay.com/v1alpha1
 kind: Experiment
 metadata:
   name: elk-experiment-sample

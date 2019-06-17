@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	okeanosv1alpha1 "github.com/gramLabs/okeanos/pkg/apis/okeanos/v1alpha1"
+	cordeliav1alpha1 "github.com/gramLabs/cordelia/pkg/apis/cordelia/v1alpha1"
 	"github.com/onsi/gomega"
 	"golang.org/x/net/context"
 	batchv1 "k8s.io/api/batch/v1"
@@ -25,13 +25,13 @@ const timeout = time.Second * 5
 
 func TestReconcile(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	instance := &okeanosv1alpha1.Trial{
+	instance := &cordeliav1alpha1.Trial{
 		ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"},
 	}
 
 	// We need this status to bypass the experiment lookup
 	instance.Spec.Selector = metav1.SetAsLabelSelector(instance.GetDefaultLabels())
-	instance.Status.PatchOperations = []okeanosv1alpha1.PatchOperation{{}}
+	instance.Status.PatchOperations = []cordeliav1alpha1.PatchOperation{{}}
 
 	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
 	// channel when it is finished.

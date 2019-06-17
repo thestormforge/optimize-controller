@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	okeanosclient "github.com/gramLabs/okeanos/pkg/api"
-	okeanosv1alpha1 "github.com/gramLabs/okeanos/pkg/apis/okeanos/v1alpha1"
+	cordeliaclient "github.com/gramLabs/cordelia/pkg/api"
+	cordeliav1alpha1 "github.com/gramLabs/cordelia/pkg/apis/cordelia/v1alpha1"
 	"github.com/onsi/gomega"
 	"golang.org/x/net/context"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -24,7 +24,7 @@ const timeout = time.Second * 5
 
 func TestReconcile(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	instance := &okeanosv1alpha1.Experiment{
+	instance := &cordeliav1alpha1.Experiment{
 		ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"},
 	}
 
@@ -40,7 +40,7 @@ func TestReconcile(t *testing.T) {
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	c = mgr.GetClient()
 
-	oc, err := okeanosclient.NewClient(okeanosclient.Config{})
+	oc, err := cordeliaclient.NewClient(cordeliaclient.Config{})
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	recFn, requests := SetupTestReconcile(newReconciler(mgr, oc))

@@ -6,7 +6,7 @@ import (
 	"text/template"
 	"time"
 
-	okeanosv1alpha1 "github.com/gramLabs/okeanos/pkg/apis/okeanos/v1alpha1"
+	cordeliav1alpha1 "github.com/gramLabs/cordelia/pkg/apis/cordelia/v1alpha1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
@@ -29,7 +29,7 @@ type metricContext struct {
 	Range string
 }
 
-func executePatchTemplate(p *okeanosv1alpha1.PatchTemplate, trial *okeanosv1alpha1.Trial) (types.PatchType, []byte, error) {
+func executePatchTemplate(p *cordeliav1alpha1.PatchTemplate, trial *cordeliav1alpha1.Trial) (types.PatchType, []byte, error) {
 	// Determine the patch type
 	var patchType types.PatchType
 	switch p.Type {
@@ -68,7 +68,7 @@ func executePatchTemplate(p *okeanosv1alpha1.PatchTemplate, trial *okeanosv1alph
 	return patchType, json, err
 }
 
-func executeMetricQueryTemplate(m *okeanosv1alpha1.Metric, trial *okeanosv1alpha1.Trial) (string, error) {
+func executeMetricQueryTemplate(m *cordeliav1alpha1.Metric, trial *cordeliav1alpha1.Trial) (string, error) {
 	// Create the functions map
 	funcMap := template.FuncMap{
 		"duration": templateDuration,

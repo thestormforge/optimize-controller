@@ -1,4 +1,4 @@
-package okeanosctl
+package cordeliactl
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use: "okeanosctl",
+	Use: "cordeliactl",
 }
 
 func init() {
