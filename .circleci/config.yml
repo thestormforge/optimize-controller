@@ -3,6 +3,7 @@ jobs:
   build:
     docker:
       - image: "circleci/golang:1.12.5"
+    working_directory: /go/src/github.com/gramLabs/okeanos
     steps:
       - checkout
       - run: make
