@@ -1,11 +1,19 @@
 version: 2
 jobs:
   build:
+    working_directory: /go/src/github.com/gramLabs/okeanos
     docker:
       - image: "circleci/golang:1.12.5"
-    working_directory: /go/src/github.com/gramLabs/okeanos
     steps:
       - checkout
+      - run:
+          command: |
+            version=1.0.8
+            arch=amd64
+            curl -L -O https://github.com/kubernetes-sigs/kubebuilder/releases/download/v${version}/kubebuilder_${version}_linux_${arch}.tar.gz
+            tar -zxvf kubebuilder_${version}_linux_${arch}.tar.gz
+            mv kubebuilder_${version}_linux_${arch} /usr/local/kubebuilder
+            export PATH=$PATH:/usr/local/kubebuilder/bin
       - run: make
 workflows:
   version: 2
