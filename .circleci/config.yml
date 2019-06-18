@@ -25,10 +25,10 @@ jobs:
     docker:
       - image: google/cloud-sdk
     steps:
+      - checkout
       - run:
           name: Set Environment
           command: .circleci/envvars >> $BASH_ENV
-      - checkout
       - setup_remote_docker
       - run:
           name: Authorize Google Cloud
