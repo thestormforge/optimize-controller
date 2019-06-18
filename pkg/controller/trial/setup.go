@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	defaultImage   string = "setuptools:latest"
+	defaultImage   string = "gcr.io/carbon-relay-oss/setuptools:latest"
 	setupFinalizer        = "setupFinalizer.cordelia.carbonrelay.com"
 	create                = "create"
 	delete                = "delete"
@@ -160,7 +160,6 @@ func newSetupJob(trial *cordeliav1alpha1.Trial, scheme *runtime.Scheme, mode str
 		// Make sure we have an image
 		if c.Image == "" {
 			c.Image = defaultImage
-			c.ImagePullPolicy = corev1.PullIfNotPresent // TODO Is this just for dev?
 		}
 
 		// Add the trial assignments to the environment
