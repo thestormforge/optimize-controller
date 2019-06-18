@@ -12,11 +12,19 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/oauth2/clientcredentials"
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
+type OAuth2 struct {
+	ClientID     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
+	TokenURL     string `json:"token_url,omitempty"`
+}
+
 type Config struct {
-	Address string `json:"address,omitempty"`
+	Address string  `json:"address,omitempty"`
+	OAuth2  *OAuth2 `json:"oauth2,omitempty"`
 }
 
 type Client interface {
@@ -51,6 +59,23 @@ func DefaultConfig() (*Config, error) {
 		config.Address = os.Getenv("CORDELIA_ADDRESS")
 	}
 
+	if config.OAuth2 == nil {
+		oauth2 := OAuth2{
+			ClientID:     os.Getenv("CORDELIA_OAUTH2_CLIENT_ID"),
+			ClientSecret: os.Getenv("CORDELIA_OAUTH2_CLIENT_SECRET"),
+		}
+		if oauth2.ClientID != "" && oauth2.ClientSecret != "" {
+			config.OAuth2 = &oauth2
+		}
+	}
+
+	if config.OAuth2 != nil && config.OAuth2.TokenURL == "" {
+		config.OAuth2.TokenURL = os.Getenv("CORDELIA_OAUTH2_TOKEN_URL")
+		if config.OAuth2.TokenURL == "" {
+			config.OAuth2.TokenURL = "../auth/token"
+		}
+	}
+
 	return config, nil
 }
 
@@ -60,9 +85,27 @@ func NewClient(cfg Config) (Client, error) {
 		return nil, err
 	}
 	u.Path = strings.TrimRight(u.Path, "/")
+
+	var hc http.Client
+	if cfg.OAuth2 != nil && cfg.OAuth2.TokenURL != "" {
+		t, err := url.Parse(cfg.OAuth2.TokenURL)
+		if err != nil {
+			return nil, err
+		}
+
+		oauth2 := clientcredentials.Config{
+			ClientID:     cfg.OAuth2.ClientID,
+			ClientSecret: cfg.OAuth2.ClientSecret,
+			TokenURL:     u.ResolveReference(t).String(),
+		}
+		hc = *oauth2.Client(context.TODO())
+	} else {
+		hc = http.Client{Timeout: 10 * time.Second}
+	}
+
 	return &httpClient{
 		endpoint: u,
-		client:   http.Client{Timeout: 10 * time.Second},
+		client:   hc,
 	}, nil
 }
 
