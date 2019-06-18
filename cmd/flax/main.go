@@ -4,18 +4,32 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"math/rand"
 	"time"
 
-	"github.com/gramLabs/cordelia/pkg/api"
+	client "github.com/gramLabs/cordelia/pkg/api"
 	cordelia "github.com/gramLabs/cordelia/pkg/api/cordelia/v1alpha1"
 )
 
 func main() {
-	address := flag.String("addr", "http://localhost:8000/api", "The Flax URL.")
+	address := flag.String("addr", "", "The Flax URL.")
 	flag.Parse()
 
+	cfg, err := client.DefaultConfig()
+	if err != nil {
+		panic(err)
+	}
+
+	// Only override the address if it is explicitly passed in as an argument
+	if *address != "" {
+		cfg.Address = *address
+	}
+	if cfg.Address == "" {
+		cfg.Address = "http://localhost:8000/api"
+	}
+
 	// New client
-	c, err := api.NewClient(api.Config{
+	c, err := client.NewClient(client.Config{
 		Address: *address,
 	})
 	if err != nil {
@@ -24,7 +38,6 @@ func main() {
 	api := cordelia.NewApi(c)
 
 	// New experiment
-	name := cordelia.NewExperimentName("this-is-not-a-test")
 	in := &cordelia.Experiment{
 		Parameters: []cordelia.Parameter{
 			{
@@ -43,11 +56,6 @@ func main() {
 					Max: "1.0",
 				},
 			},
-			//{
-			//	Name:   "c",
-			//  Type: cordelia.ParameterTypeString,
-			//	Values: []string{"x", "y", "z"},
-			//},
 		},
 		Metrics: []cordelia.Metric{
 			{
@@ -60,8 +68,18 @@ func main() {
 		},
 	}
 
-	// Put it out there
-	exp, err := api.CreateExperiment(context.TODO(), name, *in)
+	// Try a few random names
+	var exp cordelia.Experiment
+	for i := 0; i < 10; i++ {
+		name := cordelia.NewExperimentName(GetRandomName(i))
+		exp, err = api.CreateExperiment(context.TODO(), name, *in)
+		if err != nil {
+			if aerr, ok := err.(*cordelia.Error); ok && aerr.Type == cordelia.ErrExperimentNameConflict {
+				continue
+			}
+		}
+		break
+	}
 	if err != nil {
 		panic(err)
 	}
@@ -71,7 +89,7 @@ func main() {
 		panic("Missing self link")
 	}
 
-	// Delete the experiment
+	// Delete the experiment when we are done
 	defer func() {
 		err = api.DeleteExperiment(context.TODO(), exp.Self)
 		if err != nil {
@@ -120,10 +138,10 @@ func main() {
 		}
 	}
 
-	// Get a suggestion
-	var su string
+	// Get the next trial assignments
+	var rt string
 	for i := 0; i < 5; i++ {
-		_, su, err = api.NextTrial(context.TODO(), exp.NextTrial)
+		_, rt, err = api.NextTrial(context.TODO(), exp.NextTrial)
 		if aerr, ok := err.(*cordelia.Error); ok && aerr.Type == cordelia.ErrTrialUnavailable {
 			time.Sleep(aerr.RetryAfter)
 			continue
@@ -134,13 +152,13 @@ func main() {
 		panic(err)
 	}
 
-	// Check the URL
-	if su == "" {
-		panic("Expected POST to suggestion to return a Location header to post observations back to")
+	// Check the report trial URL
+	if rt == "" {
+		panic("Missing reportTrial link")
 	}
 
 	// Report an observation back
-	obs := &cordelia.TrialValues{
+	v := &cordelia.TrialValues{
 		Values: []cordelia.Value{
 			{
 				MetricName: "l",
@@ -152,10 +170,53 @@ func main() {
 			},
 		},
 	}
-	err = api.ReportTrial(context.TODO(), su, *obs)
+	err = api.ReportTrial(context.TODO(), rt, *v)
 	if err != nil {
 		panic(err)
 	}
 
 	fmt.Println("Much Success!")
+}
+
+var (
+	left = [...]string{
+		"agitated",
+		"awesome",
+		"bold",
+		"cranky",
+		"determined",
+		"elated",
+		"epic",
+		"frosty",
+		"happy",
+		"jolly",
+		"nostalgic",
+		"quirky",
+		"thirsty",
+		"vigilant",
+	}
+
+	right = [...]string{
+		"fenwick",
+		"gustie",
+		"hochadel",
+		"idan",
+		"joyce",
+		"pacheco",
+		"perol",
+		"platt",
+		"provo",
+		"sich",
+		"sutherland",
+		"zhang",
+	}
+)
+
+func GetRandomName(retry int) string {
+	name := fmt.Sprintf("%s_%s", left[rand.Intn(len(left))], right[rand.Intn(len(right))])
+
+	if retry > 0 {
+		name = fmt.Sprintf("%s%d", name, rand.Intn(10))
+	}
+	return name
 }
