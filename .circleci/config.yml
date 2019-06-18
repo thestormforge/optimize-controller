@@ -29,7 +29,8 @@ jobs:
       - run:
           name: Bootstrap Deployment
           command: .circleci/bootstrap.sh
-      - setup_remote_docker
+      - setup_remote_docker:
+          docker_layer_caching: true
       - run:
           name: Authorize Google Cloud
           command: |
@@ -51,8 +52,8 @@ jobs:
       - run:
           name: Push Setup Tools
           command: |
-            docker tag setuptools gcr.io/${GOOGLE_PROJECT_ID}/setuptools:${IMG##*:}
-            docker push gcr.io/${GOOGLE_PROJECT_ID}/setuptools:${IMG##*:}
+            docker tag setuptools gcr.io/${GOOGLE_PROJECT_ID}/setuptools:${DOCKER_TAG}
+            docker push gcr.io/${GOOGLE_PROJECT_ID}/setuptools:${DOCKER_TAG}
             docker tag setuptools gcr.io/${GOOGLE_PROJECT_ID}/setuptools:latest
             docker push gcr.io/${GOOGLE_PROJECT_ID}/setuptools:latest
 workflows:

@@ -1,24 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Install make
-apt-get update -y && apt-get install -yq make
+echo "Installing make"
+apt-get update -yq && apt-get install -yq make
 
-# Determine what version information to embed
+function defineEnvvar {
+    echo "  $1=$2"
+    echo "export $1=\"$2\"" >> $BASH_ENV
+}
+
+echo "Using environment variables from bootstrap script"
 if [[ -n "${CIRCLE_TAG:-}" ]]; then
-  VERSION="${CIRCLE_TAG}"
-  BUILD_METADATA=""
-  IMG_TAG="${VERSION}"
+    defineEnvvar VERSION "${CIRCLE_TAG}"
+    defineEnvvar BUILD_METADATA ""
+    DOCKER_TAG="${CIRCLE_TAG#v}"
 else
-  VERSION="$(sed -n 's/[[:blank:]]Version[[:blank:]]*=[[:blank:]]*"\(.*\)"/\1/p' pkg/version/version.go)"
-  BUILD_METADATA="build.${CIRCLE_BUILD_NUM:-0}"
-  IMG_TAG="${VERSION}+${BUILD_METADATA}"
+    defineEnvvar VERSION "$(sed -n 's/[[:blank:]]Version[[:blank:]]*=[[:blank:]]*"\(.*\)"/\1/p' pkg/version/version.go)"
+    defineEnvvar BUILD_METADATA "build.${CIRCLE_BUILD_NUM}"
+    DOCKER_TAG="${CIRCLE_SHA1:0:8}.${CIRCLE_BUILD_NUM}"
 fi
-
-# Expose the environment variables
-echo "Cordelia tag is $IMG_TAG"
-echo "export IMG=\"gcr.io/${GOOGLE_PROJECT_ID}/cordelia:${IMG_TAG}\"" >> $BASH_ENV
-echo "export VERSION=\"${VERSION}\"" >> $BASH_ENV
-echo "export BUILD_METADATA=\"${BUILD_METADATA}\"" >> $BASH_ENV
-
-
+defineEnvvar DOCKER_TAG "${DOCKER_TAG}"
+defineEnvvar IMG "gcr.io/${GOOGLE_PROJECT_ID}/${CIRCLE_PROJECT_REPONAME}:${DOCKER_TAG}"
