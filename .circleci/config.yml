@@ -26,6 +26,8 @@ jobs:
       - image: google/cloud-sdk
         environment:
           IMG: gcr.io/${GOOGLE_PROJECT_ID}/cordelia:${CIRCLE_TAG}
+          VERSION: ${CIRCLE_TAG}
+          BUILD_METADATA: ""
     steps:
       - checkout
       - setup_remote_docker

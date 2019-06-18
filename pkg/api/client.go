@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gramLabs/cordelia/pkg/version"
 	"golang.org/x/oauth2/clientcredentials"
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
@@ -103,15 +104,19 @@ func NewClient(cfg Config) (Client, error) {
 		hc = http.Client{Timeout: 10 * time.Second}
 	}
 
+	ua := "Cordelia/" + strings.TrimLeft(version.Version, "v")
+
 	return &httpClient{
-		endpoint: u,
-		client:   hc,
+		endpoint:  u,
+		client:    hc,
+		userAgent: ua,
 	}, nil
 }
 
 type httpClient struct {
-	endpoint *url.URL
-	client   http.Client
+	endpoint  *url.URL
+	client    http.Client
+	userAgent string
 }
 
 func (c *httpClient) URL(ep string) *url.URL {
@@ -122,6 +127,10 @@ func (c *httpClient) URL(ep string) *url.URL {
 }
 
 func (c *httpClient) Do(ctx context.Context, req *http.Request) (*http.Response, []byte, error) {
+	if c.userAgent != "" {
+		req.Header.Set("User-Agent", c.userAgent)
+	}
+
 	if ctx != nil {
 		req = req.WithContext(ctx)
 	}

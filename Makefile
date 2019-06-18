@@ -1,3 +1,11 @@
+# Collect version information
+ifdef VERSION
+    LDFLAGS += -X github.com/gramLabs/cordelia/pkg/version.Version=${VERSION}
+endif
+ifdef BUILD_METADATA
+    LDFLAGS += -X github.com/gramLabs/cordelia/pkg/version.BuildMetadata=${BUILD_METADATA}
+endif
+LDFLAGS += -X github.com/gramLabs/cordelia/pkg/version.GitCommit=$(shell git rev-parse HEAD)
 
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
@@ -10,7 +18,7 @@ test: generate fmt vet manifests
 
 # Build manager binary
 manager: generate fmt vet
-	go build -o bin/manager github.com/gramLabs/cordelia/cmd/manager
+	go build -ldflags '$(LDFLAGS)' -o bin/manager github.com/gramLabs/cordelia/cmd/manager
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate fmt vet
@@ -46,7 +54,7 @@ endif
 
 # Build the docker image
 docker-build: test
-	docker build . -t ${IMG}
+	docker build . -t ${IMG} --build-arg LDFLAGS='$(LDFLAGS)'
 	@echo "updating kustomize image patch file for manager resource"
 	sed -i'' -e 's@image: .*@image: '"${IMG}"'@' ./config/default/manager_image_patch.yaml
 
