@@ -27,8 +27,8 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Set Environment
-          command: cat .circleci/envvars >> $BASH_ENV
+          name: Bootstrap Deployment
+          command: .circleci/bootstrap.sh
       - setup_remote_docker
       - run:
           name: Authorize Google Cloud
