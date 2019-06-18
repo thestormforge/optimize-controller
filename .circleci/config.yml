@@ -52,10 +52,10 @@ jobs:
             kustomize build config/init > cordelia-init.yaml
       - store_artifacts:
           path: cordelia-manager.yaml
-          destination: manifests
+          destination: manifests/
       - store_artifacts:
           path: cordelia-init.yaml
-          destination: manifests
+          destination: manifests/
       - run:
           name: Push Manager
           command: |
