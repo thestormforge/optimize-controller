@@ -21,8 +21,48 @@ jobs:
       - run:
           name: Build manager binary
           command: make manager
+  deploy:
+    docker:
+      - image: google/cloud-sdk
+        environment:
+          IMG: gcr.io/${GOOGLE_PROJECT_ID}/cordelia:${CIRCLE_TAG}
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Authorize Google Cloud
+          command: |
+            echo $GCLOUD_SERVICE_KEY | gcloud auth activate-service-account --key-file=-
+            gcloud --quiet config set project ${GOOGLE_PROJECT_ID}
+            gcloud --quiet config set compute/zone ${GOOGLE_COMPUTE_ZONE}
+      - run:
+          name: Build Manager
+          command: |
+            make docker-build
+      - run:
+          name: Build Setup Tools
+          command: |
+            docker build -t setuptools hack/setuptools
+      - run:
+          name: Push Manager
+          command: |
+            make docker-push
+      - run:
+          name: Push Setup Tools
+          command: |
+            docker tag setuptools gcr.io/${GOOGLE_PROJECT_ID}/setuptools:${CIRCLE_TAG}
+            docker push gcr.io/${GOOGLE_PROJECT_ID}/setuptools:${CIRCLE_TAG}
+            docker tag setuptools gcr.io/${GOOGLE_PROJECT_ID}/setuptools:latest
+            docker push gcr.io/${GOOGLE_PROJECT_ID}/setuptools:latest
 workflows:
   version: 2
   build:
     jobs:
       - build
+      - deploy:
+          context: carbon-relay-oss
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
