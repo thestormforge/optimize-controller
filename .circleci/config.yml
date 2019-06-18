@@ -28,7 +28,7 @@ jobs:
       - checkout
       - run:
           name: Set Environment
-          command: .circleci/envvars >> $BASH_ENV
+          command: cat .circleci/envvars >> $BASH_ENV
       - setup_remote_docker
       - run:
           name: Authorize Google Cloud
