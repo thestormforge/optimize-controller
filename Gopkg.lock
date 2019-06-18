@@ -420,6 +420,7 @@
   name = "golang.org/x/oauth2"
   packages = [
     ".",
+    "clientcredentials",
     "google",
     "internal",
     "jws",
@@ -911,6 +912,7 @@
     "github.com/prometheus/common/model",
     "github.com/spf13/cobra",
     "golang.org/x/net/context",
+    "golang.org/x/oauth2/clientcredentials",
     "k8s.io/api/admission/v1beta1",
     "k8s.io/api/apps/v1",
     "k8s.io/api/batch/v1",
