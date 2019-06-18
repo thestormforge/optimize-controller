@@ -24,11 +24,10 @@ jobs:
   deploy:
     docker:
       - image: google/cloud-sdk
-        environment:
-          IMG: gcr.io/${GOOGLE_PROJECT_ID}/cordelia:${CIRCLE_TAG}
-          VERSION: ${CIRCLE_TAG}
-          BUILD_METADATA: ""
     steps:
+      - run:
+          name: Set Environment
+          command: .circleci/envvars >> $BASH_ENV
       - checkout
       - setup_remote_docker
       - run:
@@ -52,8 +51,8 @@ jobs:
       - run:
           name: Push Setup Tools
           command: |
-            docker tag setuptools gcr.io/${GOOGLE_PROJECT_ID}/setuptools:${CIRCLE_TAG}
-            docker push gcr.io/${GOOGLE_PROJECT_ID}/setuptools:${CIRCLE_TAG}
+            docker tag setuptools gcr.io/${GOOGLE_PROJECT_ID}/setuptools:${IMG##*:}
+            docker push gcr.io/${GOOGLE_PROJECT_ID}/setuptools:${IMG##*:}
             docker tag setuptools gcr.io/${GOOGLE_PROJECT_ID}/setuptools:latest
             docker push gcr.io/${GOOGLE_PROJECT_ID}/setuptools:latest
 workflows:
@@ -61,6 +60,11 @@ workflows:
   build:
     jobs:
       - build
+      - deploy:
+          context: carbon-relay-dev
+          filters:
+            branches:
+              only: master
       - deploy:
           context: carbon-relay-oss
           filters:
