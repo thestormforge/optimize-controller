@@ -46,6 +46,17 @@ jobs:
           command: |
             docker build -t setuptools hack/setuptools
       - run:
+          name: Generate Configuration
+          command: |
+            kustomize build config/default > "${CIRCLE_PROJECT_REPONAME}-manager-${VERSION}.yaml"
+            kustomize build config/init > "${CIRCLE_PROJECT_REPONAME}-init-${VERSION}.yaml"
+      - store_artifacts:
+          path: "${CIRCLE_PROJECT_REPONAME}-manager-${VERSION}.yaml"
+          destination: manifests
+      - store_artifacts:
+          path: "${CIRCLE_PROJECT_REPONAME}-init-${VERSION}.yaml"
+          destination: manifests
+      - run:
           name: Push Manager
           command: |
             make docker-push
