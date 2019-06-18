@@ -48,13 +48,13 @@ jobs:
       - run:
           name: Generate Configuration
           command: |
-            kustomize build config/default > "${CIRCLE_PROJECT_REPONAME}-manager-${VERSION}.yaml"
-            kustomize build config/init > "${CIRCLE_PROJECT_REPONAME}-init-${VERSION}.yaml"
+            kustomize build config/default > cordelia-manager.yaml
+            kustomize build config/init > cordelia-init.yaml
       - store_artifacts:
-          path: "${CIRCLE_PROJECT_REPONAME}-manager-${VERSION}.yaml"
+          path: cordelia-manager.yaml
           destination: manifests
       - store_artifacts:
-          path: "${CIRCLE_PROJECT_REPONAME}-init-${VERSION}.yaml"
+          path: cordelia-init.yaml
           destination: manifests
       - run:
           name: Push Manager
