@@ -49,6 +49,8 @@ jobs:
           name: Push Manager
           command: |
             make docker-push
+            docker tag "${IMG}" "${IMG%%:*}:latest"
+            docker push "${IMG%%:*}:latest"
       - run:
           name: Push Setup Tools
           command: |
