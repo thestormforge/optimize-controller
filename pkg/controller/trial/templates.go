@@ -44,7 +44,9 @@ func executePatchTemplate(p *cordeliav1alpha1.PatchTemplate, trial *cordeliav1al
 	}
 
 	// Create the functions map
-	funcMap := template.FuncMap{}
+	funcMap := template.FuncMap{
+		"percent": templatePercent,
+	}
 
 	// Create the data context
 	data := patchContext{}
@@ -96,9 +98,15 @@ func executeMetricQueryTemplate(m *cordeliav1alpha1.Metric, trial *cordeliav1alp
 	return buf.String(), nil
 }
 
+// TODO Should we use http://masterminds.github.io/sprig/
+
 func templateDuration(start, completion time.Time) float64 {
 	if start.Before(completion) {
 		return completion.Sub(start).Seconds()
 	}
 	return 0
+}
+
+func templatePercent(value int64, percent int64) string {
+	return fmt.Sprintf("%d", int64(float64(value)*(float64(percent)/100.0)))
 }
