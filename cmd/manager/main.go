@@ -4,9 +4,9 @@ import (
 	"flag"
 	"os"
 
-	"github.com/gramLabs/okeanos/pkg/apis"
-	"github.com/gramLabs/okeanos/pkg/controller"
-	"github.com/gramLabs/okeanos/pkg/webhook"
+	"github.com/gramLabs/cordelia/pkg/apis"
+	"github.com/gramLabs/cordelia/pkg/controller"
+	"github.com/gramLabs/cordelia/pkg/webhook"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"

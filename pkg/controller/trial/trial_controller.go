@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	okeanosv1alpha1 "github.com/gramLabs/okeanos/pkg/apis/okeanos/v1alpha1"
+	cordeliav1alpha1 "github.com/gramLabs/cordelia/pkg/apis/cordelia/v1alpha1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -48,7 +48,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for changes to Trial
-	err = c.Watch(&source.Kind{Type: &okeanosv1alpha1.Trial{}}, &handler.EnqueueRequestForObject{})
+	err = c.Watch(&source.Kind{Type: &cordeliav1alpha1.Trial{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
 	}
@@ -56,7 +56,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Watch for changes to owned Jobs
 	err = c.Watch(&source.Kind{Type: &batchv1.Job{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
-		OwnerType:    &okeanosv1alpha1.Trial{},
+		OwnerType:    &cordeliav1alpha1.Trial{},
 	})
 	if err != nil {
 		return err
@@ -78,11 +78,11 @@ type ReconcileTrial struct {
 // Automatically generate RBAC rules to allow the Controller to read and write Deployments
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=okeanos.carbonrelay.com,resources=trials,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=okeanos.carbonrelay.com,resources=trials/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=cordelia.carbonrelay.com,resources=trials,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=cordelia.carbonrelay.com,resources=trials/status,verbs=get;update;patch
 func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the Trial instance
-	trial := &okeanosv1alpha1.Trial{}
+	trial := &cordeliav1alpha1.Trial{}
 	err := r.Get(context.TODO(), request.NamespacedName, trial)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -110,7 +110,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 
 	// Evaluate the patch operations
 	if len(trial.Status.PatchOperations) == 0 {
-		e := &okeanosv1alpha1.Experiment{}
+		e := &cordeliav1alpha1.Experiment{}
 		if err = r.Get(context.TODO(), trial.ExperimentNamespacedName(), e); err != nil {
 			return reconcile.Result{}, err
 		}
@@ -135,7 +135,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 				if p.AttemptsRemaining == 0 {
 					// The patch cannot be applied, fail the experiment
 					failureReason := "PatchFailed"
-					trial.Status.Conditions = append(trial.Status.Conditions, newCondition(okeanosv1alpha1.TrialFailed, failureReason, err.Error()))
+					trial.Status.Conditions = append(trial.Status.Conditions, newCondition(cordeliav1alpha1.TrialFailed, failureReason, err.Error()))
 				}
 			} else {
 				p.AttemptsRemaining = 0
@@ -179,7 +179,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 				} else {
 					// The cluster is in a bad state, fail the experiment
 					failureReason := "WaitFailed"
-					trial.Status.Conditions = append(trial.Status.Conditions, newCondition(okeanosv1alpha1.TrialFailed, failureReason, serr.Error()))
+					trial.Status.Conditions = append(trial.Status.Conditions, newCondition(cordeliav1alpha1.TrialFailed, failureReason, serr.Error()))
 					err = r.Update(context.TODO(), trial)
 					return reconcile.Result{}, err
 				}
@@ -198,7 +198,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 
 	if trial.Status.CompletionTime != nil {
 		// Look for metrics that have not been collected yet
-		e := &okeanosv1alpha1.Experiment{}
+		e := &cordeliav1alpha1.Experiment{}
 		if err = r.Get(context.TODO(), trial.ExperimentNamespacedName(), e); err != nil {
 			return reconcile.Result{}, err
 		}
@@ -232,7 +232,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 				if v.AttemptsRemaining == 0 {
 					// The metric cannot be captured, fail the experiment
 					failureReason := "MetricFailed"
-					trial.Status.Conditions = append(trial.Status.Conditions, newCondition(okeanosv1alpha1.TrialFailed, failureReason, verr.Error()))
+					trial.Status.Conditions = append(trial.Status.Conditions, newCondition(cordeliav1alpha1.TrialFailed, failureReason, verr.Error()))
 				}
 			}
 
@@ -242,7 +242,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 
 		// If all of the metrics are collected, mark the trial as completed
 		log.Info("Completing trial", "namespace", trial.Namespace, "name", trial.Name)
-		trial.Status.Conditions = append(trial.Status.Conditions, newCondition(okeanosv1alpha1.TrialComplete, "", ""))
+		trial.Status.Conditions = append(trial.Status.Conditions, newCondition(cordeliav1alpha1.TrialComplete, "", ""))
 		err = r.Update(context.TODO(), trial)
 		return reconcile.Result{}, err
 	}
@@ -251,16 +251,16 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 	return reconcile.Result{}, nil
 }
 
-func IsTrialFinished(trial *okeanosv1alpha1.Trial) bool {
+func IsTrialFinished(trial *cordeliav1alpha1.Trial) bool {
 	for _, c := range trial.Status.Conditions {
-		if (c.Type == okeanosv1alpha1.TrialComplete || c.Type == okeanosv1alpha1.TrialFailed) && c.Status == corev1.ConditionTrue {
+		if (c.Type == cordeliav1alpha1.TrialComplete || c.Type == cordeliav1alpha1.TrialFailed) && c.Status == corev1.ConditionTrue {
 			return true
 		}
 	}
 	return false
 }
 
-func syncStatus(trial *okeanosv1alpha1.Trial) bool {
+func syncStatus(trial *cordeliav1alpha1.Trial) bool {
 	var dirty bool
 	var s string
 
@@ -283,8 +283,8 @@ func syncStatus(trial *okeanosv1alpha1.Trial) bool {
 	return dirty
 }
 
-func newCondition(conditionType okeanosv1alpha1.TrialConditionType, reason, message string) okeanosv1alpha1.TrialCondition {
-	return okeanosv1alpha1.TrialCondition{
+func newCondition(conditionType cordeliav1alpha1.TrialConditionType, reason, message string) cordeliav1alpha1.TrialCondition {
+	return cordeliav1alpha1.TrialCondition{
 		Type:               conditionType,
 		Status:             corev1.ConditionTrue,
 		LastProbeTime:      metav1.Now(),
@@ -294,7 +294,7 @@ func newCondition(conditionType okeanosv1alpha1.TrialConditionType, reason, mess
 	}
 }
 
-func evaluatePatches(r client.Reader, trial *okeanosv1alpha1.Trial, e *okeanosv1alpha1.Experiment) (bool, error) {
+func evaluatePatches(r client.Reader, trial *cordeliav1alpha1.Trial, e *cordeliav1alpha1.Experiment) (bool, error) {
 	if dirty, err := checkAssignments(trial, e); dirty || err != nil {
 		return dirty, err
 	}
@@ -321,7 +321,7 @@ func evaluatePatches(r client.Reader, trial *okeanosv1alpha1.Trial, e *okeanosv1
 
 		// For each target resource, record a copy of the patch
 		for _, ref := range targets {
-			trial.Status.PatchOperations = append(trial.Status.PatchOperations, okeanosv1alpha1.PatchOperation{
+			trial.Status.PatchOperations = append(trial.Status.PatchOperations, cordeliav1alpha1.PatchOperation{
 				TargetRef:         ref,
 				PatchType:         pt,
 				Data:              data,
@@ -335,7 +335,7 @@ func evaluatePatches(r client.Reader, trial *okeanosv1alpha1.Trial, e *okeanosv1
 }
 
 // Finds the patch targets
-func findPatchTargets(r client.Reader, p *okeanosv1alpha1.PatchTemplate, trial *okeanosv1alpha1.Trial) ([]corev1.ObjectReference, error) {
+func findPatchTargets(r client.Reader, p *cordeliav1alpha1.PatchTemplate, trial *cordeliav1alpha1.Trial) ([]corev1.ObjectReference, error) {
 	if trial.Spec.TargetNamespace == "" {
 		trial.Spec.TargetNamespace = trial.Namespace
 	}
@@ -377,7 +377,7 @@ func findPatchTargets(r client.Reader, p *okeanosv1alpha1.PatchTemplate, trial *
 	return targets, nil
 }
 
-func checkAssignments(trial *okeanosv1alpha1.Trial, experiment *okeanosv1alpha1.Experiment) (bool, error) {
+func checkAssignments(trial *cordeliav1alpha1.Trial, experiment *cordeliav1alpha1.Experiment) (bool, error) {
 	// Index the assignments
 	assignments := make(map[string]int64, len(trial.Spec.Assignments))
 	for _, a := range trial.Spec.Assignments {
@@ -402,9 +402,9 @@ func checkAssignments(trial *okeanosv1alpha1.Trial, experiment *okeanosv1alpha1.
 	return false, nil
 }
 
-func (r *ReconcileTrial) findMetricTargets(trial *okeanosv1alpha1.Trial, m *okeanosv1alpha1.Metric) ([]string, error) {
+func (r *ReconcileTrial) findMetricTargets(trial *cordeliav1alpha1.Trial, m *cordeliav1alpha1.Metric) ([]string, error) {
 	// Local metrics don't need to resolve service URLs
-	if m.Type == okeanosv1alpha1.MetricLocal {
+	if m.Type == cordeliav1alpha1.MetricLocal {
 		return []string{""}, nil
 	}
 
@@ -448,19 +448,19 @@ func (r *ReconcileTrial) findMetricTargets(trial *okeanosv1alpha1.Trial, m *okea
 	return urls, nil
 }
 
-func findOrCreateValue(trial *okeanosv1alpha1.Trial, name string) *okeanosv1alpha1.Value {
+func findOrCreateValue(trial *cordeliav1alpha1.Trial, name string) *cordeliav1alpha1.Value {
 	for i := range trial.Spec.Values {
 		if trial.Spec.Values[i].Name == name {
 			return &trial.Spec.Values[i]
 		}
 	}
 
-	trial.Spec.Values = append(trial.Spec.Values, okeanosv1alpha1.Value{Name: name, AttemptsRemaining: 3})
+	trial.Spec.Values = append(trial.Spec.Values, cordeliav1alpha1.Value{Name: name, AttemptsRemaining: 3})
 	return &trial.Spec.Values[len(trial.Spec.Values)-1]
 }
 
 // Updates a trial status based on the status of the individual job(s), returns true if any changes were necessary
-func updateStatusFromJobs(jobs []batchv1.Job, trial *okeanosv1alpha1.Trial) bool {
+func updateStatusFromJobs(jobs []batchv1.Job, trial *cordeliav1alpha1.Trial) bool {
 	var dirty bool
 
 	for _, j := range jobs {
@@ -492,7 +492,7 @@ func updateStatusFromJobs(jobs []batchv1.Job, trial *okeanosv1alpha1.Trial) bool
 		for _, c := range j.Status.Conditions {
 			// If activeDeadlineSeconds was used a workaround for having a sidecar, ignore the failure
 			if c.Type == batchv1.JobFailed && c.Status == corev1.ConditionTrue && c.Reason != "DeadlineExceeded" {
-				trial.Status.Conditions = append(trial.Status.Conditions, newCondition(okeanosv1alpha1.TrialFailed, c.Reason, c.Message))
+				trial.Status.Conditions = append(trial.Status.Conditions, newCondition(cordeliav1alpha1.TrialFailed, c.Reason, c.Message))
 				dirty = true
 			}
 		}
@@ -501,7 +501,7 @@ func updateStatusFromJobs(jobs []batchv1.Job, trial *okeanosv1alpha1.Trial) bool
 	return dirty
 }
 
-func (r *ReconcileTrial) createJob(trial *okeanosv1alpha1.Trial, job *batchv1.Job) error {
+func (r *ReconcileTrial) createJob(trial *cordeliav1alpha1.Trial, job *batchv1.Job) error {
 	// Start with the job template
 	if trial.Spec.Template != nil {
 		trial.Spec.Template.ObjectMeta.DeepCopyInto(&job.ObjectMeta)

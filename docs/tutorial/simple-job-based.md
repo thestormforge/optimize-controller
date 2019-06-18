@@ -1,4 +1,4 @@
-# Okeanos Tutorial
+# Cordelia Tutorial
 
 ## Simple Job Based Experiment
 
@@ -48,7 +48,7 @@ In general, experiments can either vary the amount of work they perform or the a
 The configuration map represents the application state which we have control over, the experiment will need to patch the configuration map, therefore impacting the environment of the trial run job.
 
 ```yml
-apiVersion: okeanos.carbonrelay.com/v1alpha1
+apiVersion: cordelia.carbonrelay.com/v1alpha1
 kind: Experiment
 metadata:
   name: logstash-benchmark
@@ -93,7 +93,7 @@ spec:
 This particular experiment is unlikely to produce interesting results using an external optimization platform, we can manually create trial instances in an attempt to understand the effect of the batch size and worker count on benchmark runtime.
 
 ```yml
-apiVersion: okeanos.carbonrelay.com/v1alpha1
+apiVersion: cordelia.carbonrelay.com/v1alpha1
 kind: Trial
 metadata:
   name: logstash-benchmark
@@ -123,7 +123,7 @@ $ minikube mount "$PWD:/benchmark"
 Now you can alter the definition of your experiment to use the stock image by overriding the container command and arguments and mounting the JAR to the container:
 
 ```yml
-apiVersion: okeanos.carbonrelay.com/v1alpha1
+apiVersion: cordelia.carbonrelay.com/v1alpha1
 kind: Experiment
 metadata:
   name: logstash-benchmark

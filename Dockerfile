@@ -2,16 +2,16 @@
 FROM golang:1.12.5 as builder
 
 # Copy in the go src
-WORKDIR /go/src/github.com/gramLabs/okeanos
+WORKDIR /go/src/github.com/gramLabs/cordelia
 COPY pkg/    pkg/
 COPY cmd/    cmd/
 COPY vendor/ vendor/
 
 # Build
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o manager github.com/gramLabs/okeanos/cmd/manager
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o manager github.com/gramLabs/cordelia/cmd/manager
 
 # Copy the controller-manager into a thin image
 FROM gcr.io/distroless/static:latest
 WORKDIR /
-COPY --from=builder /go/src/github.com/gramLabs/okeanos/manager .
+COPY --from=builder /go/src/github.com/gramLabs/cordelia/manager .
 ENTRYPOINT ["/manager"]

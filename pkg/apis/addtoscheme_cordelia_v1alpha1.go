@@ -1,7 +1,7 @@
 package apis
 
 import (
-	"github.com/gramLabs/okeanos/pkg/apis/okeanos/v1alpha1"
+	"github.com/gramLabs/cordelia/pkg/apis/cordelia/v1alpha1"
 )
 
 func init() {
