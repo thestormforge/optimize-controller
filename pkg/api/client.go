@@ -48,7 +48,7 @@ func DefaultConfig() (*Config, error) {
 	}
 
 	if config.Address == "" {
-		config.Address = os.Getenv("OKEANOS_ADDRESS")
+		config.Address = os.Getenv("CORDELIA_ADDRESS")
 	}
 
 	return config, nil
