@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gramLabs/cordelia/pkg/version"
+	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
@@ -73,7 +74,7 @@ func DefaultConfig() (*Config, error) {
 	if config.OAuth2 != nil && config.OAuth2.TokenURL == "" {
 		config.OAuth2.TokenURL = os.Getenv("CORDELIA_OAUTH2_TOKEN_URL")
 		if config.OAuth2.TokenURL == "" {
-			config.OAuth2.TokenURL = "../auth/token"
+			config.OAuth2.TokenURL = "../auth/token/"
 		}
 	}
 
@@ -94,12 +95,13 @@ func NewClient(cfg Config) (Client, error) {
 			return nil, err
 		}
 
-		oauth2 := clientcredentials.Config{
+		c := clientcredentials.Config{
 			ClientID:     cfg.OAuth2.ClientID,
 			ClientSecret: cfg.OAuth2.ClientSecret,
 			TokenURL:     u.ResolveReference(t).String(),
+			AuthStyle:    oauth2.AuthStyleInParams,
 		}
-		hc = *oauth2.Client(context.TODO())
+		hc = *c.Client(context.TODO())
 	} else {
 		hc = http.Client{Timeout: 10 * time.Second}
 	}
