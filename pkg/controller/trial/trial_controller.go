@@ -82,6 +82,17 @@ type ReconcileTrial struct {
 // Reconcile reads that state of the cluster for a Trial object and makes changes based on the state read
 // and what is in the Trial.Spec
 func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	log.Info("ReconcileTrial.Reconcile Start")
+	result, err := r.xxx(request)
+	if err != nil {
+		log.Error(err, "ReconcileTrial.Reconcile Failure")
+	} else {
+		log.Info("ReconcileTrial.Reconcile Finish")
+	}
+	return result, err
+}
+
+func (r *ReconcileTrial) xxx(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the Trial instance
 	trial := &cordeliav1alpha1.Trial{}
 	err := r.Get(context.TODO(), request.NamespacedName, trial)
