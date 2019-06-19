@@ -46,17 +46,6 @@ jobs:
           command: |
             docker build -t setuptools hack/setuptools
       - run:
-          name: Generate Configuration
-          command: |
-            kustomize build config/default > cordelia-manager.yaml
-            kustomize build config/init > cordelia-init.yaml
-      - store_artifacts:
-          path: cordelia-manager.yaml
-          destination: manifests/cordelia-manager.yaml
-      - store_artifacts:
-          path: cordelia-init.yaml
-          destination: manifests/cordelia-init.yaml
-      - run:
           name: Push Manager
           command: |
             make docker-push
@@ -69,6 +58,17 @@ jobs:
             docker push gcr.io/${GOOGLE_PROJECT_ID}/setuptools:${DOCKER_TAG}
             docker tag setuptools gcr.io/${GOOGLE_PROJECT_ID}/setuptools:latest
             docker push gcr.io/${GOOGLE_PROJECT_ID}/setuptools:latest
+      - run:
+          name: Generate Configuration
+          command: |
+            kustomize build config/default > cordelia-manager.yaml
+            kustomize build config/init > cordelia-init.yaml
+      - store_artifacts:
+          path: cordelia-manager.yaml
+          destination: manifests/cordelia-manager.yaml
+      - store_artifacts:
+          path: cordelia-init.yaml
+          destination: manifests/cordelia-init.yaml
 workflows:
   version: 2
   build-and-deploy:
