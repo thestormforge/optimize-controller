@@ -73,8 +73,9 @@ type ReconcileTrial struct {
 	scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=batch,resources=jobs/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=batch;extensions,resources=jobs,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=batch;extensions,resources=jobs/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=apps;extensions,resources=deployments;statefulsets,verbs=patch
 // +kubebuilder:rbac:groups=cordelia.carbonrelay.com,resources=trials,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=cordelia.carbonrelay.com,resources=trials/status,verbs=get;update;patch
 
@@ -134,6 +135,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 				p.AttemptsRemaining = p.AttemptsRemaining - 1
 				if p.AttemptsRemaining == 0 {
 					// The patch cannot be applied, fail the experiment
+					log.Error(err, "Failed to apply patch", "trialName", trial.Name, "targetKind", p.TargetRef.Kind, "targetName", p.TargetRef.Name)
 					failureReason := "PatchFailed"
 					trial.Status.Conditions = append(trial.Status.Conditions, newCondition(cordeliav1alpha1.TrialFailed, failureReason, err.Error()))
 				}
@@ -174,6 +176,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 		if err = waitForStableState(r, context.TODO(), trial.Status.PatchOperations); err != nil {
 			if serr, ok := err.(*StabilityError); ok {
 				if serr.RetryAfter > 0 {
+					log.Info("Waiting for stabilization", "trialName", trial.Name)
 					// We are not ready to create a job yet, wait the specified timeout and try again
 					return reconcile.Result{Requeue: true, RequeueAfter: serr.RetryAfter}, nil
 				} else {
