@@ -35,8 +35,15 @@ rules:
   - deployments
   - statefulsets
   verbs:
+  - get
   - list
   - patch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - list
 - apiGroups:
   - cordelia.carbonrelay.com
   resources:
