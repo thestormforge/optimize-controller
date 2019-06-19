@@ -5,6 +5,9 @@ endif
 ifdef BUILD_METADATA
     LDFLAGS += -X github.com/gramLabs/cordelia/pkg/version.BuildMetadata=${BUILD_METADATA}
 endif
+ifdef SETUPTOOLS_IMG
+    LDFLAGS += -X github.com/gramLabs/cordelia/pkg/controller/trial.DefaultImage=${SETUPTOOLS_IMG}
+endif
 LDFLAGS += -X github.com/gramLabs/cordelia/pkg/version.GitCommit=$(shell git rev-parse HEAD)
 
 # Image URL to use all building/pushing image targets

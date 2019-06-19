@@ -15,11 +15,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+var (
+	DefaultImage = "gcr.io/carbon-relay-oss/setuptools:latest"
+)
+
 const (
-	defaultImage   string = "gcr.io/carbon-relay-oss/setuptools:latest"
-	setupFinalizer        = "setupFinalizer.cordelia.carbonrelay.com"
-	create                = "create"
-	delete                = "delete"
+	setupFinalizer = "setupFinalizer.cordelia.carbonrelay.com"
+	create         = "create"
+	delete         = "delete"
 )
 
 func manageSetup(c client.Client, s *runtime.Scheme, trial *cordeliav1alpha1.Trial) (reconcile.Result, bool, error) {
@@ -159,7 +162,7 @@ func newSetupJob(trial *cordeliav1alpha1.Trial, scheme *runtime.Scheme, mode str
 
 		// Make sure we have an image
 		if c.Image == "" {
-			c.Image = defaultImage
+			c.Image = DefaultImage
 		}
 
 		// Add the trial assignments to the environment

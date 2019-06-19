@@ -37,7 +37,7 @@ jobs:
             echo $GCLOUD_SERVICE_KEY | gcloud auth activate-service-account --key-file=-
             gcloud --quiet config set project ${GOOGLE_PROJECT_ID}
             gcloud --quiet config set compute/zone ${GOOGLE_COMPUTE_ZONE}
-            gcloud auth configure-docker
+            gcloud --quiet auth configure-docker
       - run:
           name: Build Manager
           command: |
@@ -45,7 +45,7 @@ jobs:
       - run:
           name: Build Setup Tools
           command: |
-            docker build -t setuptools hack/setuptools
+            docker build -t ${SETUPTOOLS_IMG} hack/setuptools
       - run:
           name: Push Manager
           command: |
@@ -55,10 +55,9 @@ jobs:
       - run:
           name: Push Setup Tools
           command: |
-            docker tag setuptools gcr.io/${GOOGLE_PROJECT_ID}/setuptools:${DOCKER_TAG}
-            docker push gcr.io/${GOOGLE_PROJECT_ID}/setuptools:${DOCKER_TAG}
-            docker tag setuptools gcr.io/${GOOGLE_PROJECT_ID}/setuptools:latest
-            docker push gcr.io/${GOOGLE_PROJECT_ID}/setuptools:latest
+            docker push "${SETUPTOOLS_IMG}"
+            docker tag "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:latest"
+            docker push "${SETUPTOOLS_IMG%%:*}:latest"
       - run:
           name: Generate Configuration
           command: |

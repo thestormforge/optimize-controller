@@ -24,5 +24,5 @@ else
     defineEnvvar BUILD_METADATA "build.${CIRCLE_BUILD_NUM}"
     DOCKER_TAG="${CIRCLE_SHA1:0:8}.${CIRCLE_BUILD_NUM}"
 fi
-defineEnvvar DOCKER_TAG "${DOCKER_TAG}"
+defineEnvvar SETUPTOOLS_IMG "gcr.io/${GOOGLE_PROJECT_ID}/setuptools:${DOCKER_TAG}"
 defineEnvvar IMG "gcr.io/${GOOGLE_PROJECT_ID}/${CIRCLE_PROJECT_REPONAME}:${DOCKER_TAG}"
