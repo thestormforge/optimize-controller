@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	crypto_rand "crypto/rand"
+	"encoding/binary"
 	"flag"
 	"fmt"
 	"math/rand"
@@ -10,6 +12,16 @@ import (
 	client "github.com/gramLabs/cordelia/pkg/api"
 	cordelia "github.com/gramLabs/cordelia/pkg/api/cordelia/v1alpha1"
 )
+
+func init() {
+	// https://stackoverflow.com/a/54491783
+	var b [8]byte
+	_, err := crypto_rand.Read(b[:])
+	if err != nil {
+		panic(err)
+	}
+	rand.Seed(int64(binary.LittleEndian.Uint64(b[:])))
+}
 
 func main() {
 	address := flag.String("addr", "", "The Flax URL.")
@@ -29,9 +41,7 @@ func main() {
 	}
 
 	// New client
-	c, err := client.NewClient(client.Config{
-		Address: *address,
-	})
+	c, err := client.NewClient(*cfg)
 	if err != nil {
 		panic(err)
 	}
