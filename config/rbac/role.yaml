@@ -35,6 +35,7 @@ rules:
   - deployments
   - statefulsets
   verbs:
+  - list
   - patch
 - apiGroups:
   - cordelia.carbonrelay.com
