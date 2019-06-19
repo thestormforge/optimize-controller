@@ -73,13 +73,13 @@ type ReconcileTrial struct {
 	scheme *runtime.Scheme
 }
 
-// Reconcile reads that state of the cluster for a Trial object and makes changes based on the state read
-// and what is in the Trial.Spec
-// Automatically generate RBAC rules to allow the Controller to read and write Deployments
-// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=apps,resources=deployments/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=batch,resources=jobs/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=cordelia.carbonrelay.com,resources=trials,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=cordelia.carbonrelay.com,resources=trials/status,verbs=get;update;patch
+
+// Reconcile reads that state of the cluster for a Trial object and makes changes based on the state read
+// and what is in the Trial.Spec
 func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the Trial instance
 	trial := &cordeliav1alpha1.Trial{}

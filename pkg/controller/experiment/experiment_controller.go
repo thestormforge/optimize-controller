@@ -90,13 +90,11 @@ type ReconcileExperiment struct {
 	api    cordeliaapi.API
 }
 
-// Reconcile reads that state of the cluster for a Experiment object and makes changes based on the state read
-// and what is in the Experiment.Spec
-// Automatically generate RBAC rules to allow the Controller to read and write Deployments
-// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=apps,resources=deployments/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=cordelia.carbonrelay.com,resources=experiments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=cordelia.carbonrelay.com,resources=experiments/status,verbs=get;update;patch
+
+// Reconcile reads that state of the cluster for a Experiment object and makes changes based on the state read
+// and what is in the Experiment.Spec
 func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the Experiment instance
 	experiment := &cordeliav1alpha1.Experiment{}

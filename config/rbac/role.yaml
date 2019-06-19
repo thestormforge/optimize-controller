@@ -1,3 +1,5 @@
+
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -5,9 +7,9 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - apps
+  - batch
   resources:
-  - deployments
+  - jobs
   verbs:
   - get
   - list
@@ -17,49 +19,9 @@ rules:
   - patch
   - delete
 - apiGroups:
-  - apps
+  - batch
   resources:
-  - deployments/status
-  verbs:
-  - get
-  - update
-  - patch
-- apiGroups:
-  - cordelia.carbonrelay.com
-  resources:
-  - experiments
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - cordelia.carbonrelay.com
-  resources:
-  - experiments/status
-  verbs:
-  - get
-  - update
-  - patch
-- apiGroups:
-  - apps
-  resources:
-  - deployments
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - apps
-  resources:
-  - deployments/status
+  - jobs/status
   verbs:
   - get
   - update
@@ -85,10 +47,9 @@ rules:
   - update
   - patch
 - apiGroups:
-  - admissionregistration.k8s.io
+  - cordelia.carbonrelay.com
   resources:
-  - mutatingwebhookconfigurations
-  - validatingwebhookconfigurations
+  - experiments
   verbs:
   - get
   - list
@@ -98,26 +59,10 @@ rules:
   - patch
   - delete
 - apiGroups:
-  - ""
+  - cordelia.carbonrelay.com
   resources:
-  - secrets
+  - experiments/status
   verbs:
   - get
-  - list
-  - watch
-  - create
   - update
   - patch
-  - delete
-- apiGroups:
-  - ""
-  resources:
-  - services
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
