@@ -1,3 +1,7 @@
+# Image URL to use all building/pushing image targets
+IMG ?= controller:latest
+SETUPTOOLS_IMG ?= setuptools:latest
+
 # Collect version information
 ifdef VERSION
     LDFLAGS += -X github.com/gramLabs/cordelia/pkg/version.Version=${VERSION}
@@ -5,13 +9,8 @@ endif
 ifdef BUILD_METADATA
     LDFLAGS += -X github.com/gramLabs/cordelia/pkg/version.BuildMetadata=${BUILD_METADATA}
 endif
-ifdef SETUPTOOLS_IMG
-    LDFLAGS += -X github.com/gramLabs/cordelia/pkg/controller/trial.DefaultImage=${SETUPTOOLS_IMG}
-endif
 LDFLAGS += -X github.com/gramLabs/cordelia/pkg/version.GitCommit=$(shell git rev-parse HEAD)
-
-# Image URL to use all building/pushing image targets
-IMG ?= controller:latest
+LDFLAGS += -X github.com/gramLabs/cordelia/pkg/controller/trial.DefaultImage=${SETUPTOOLS_IMG}
 
 all: test manager
 
@@ -58,9 +57,11 @@ endif
 # Build the docker image
 docker-build:
 	docker build . -t ${IMG} --build-arg LDFLAGS='$(LDFLAGS)'
+	docker build . -t ${SETUPTOOLS_IMG} -f hack/setuptools/Dockerfile
 	@echo "updating kustomize image patch file for manager resource"
 	sed -i'' -e 's@image: .*@image: '"${IMG}"'@' ./config/default/manager_image_patch.yaml
 
 # Push the docker image
 docker-push:
 	docker push ${IMG}
+	docker push ${SETUPTOOLS_IMG}

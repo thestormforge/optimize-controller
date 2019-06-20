@@ -39,23 +39,15 @@ jobs:
             gcloud --quiet config set compute/zone ${GOOGLE_COMPUTE_ZONE}
             gcloud --quiet auth configure-docker
       - run:
-          name: Build Manager
+          name: Docker Build
           command: |
             make docker-build
       - run:
-          name: Build Setup Tools
-          command: |
-            docker build -t ${SETUPTOOLS_IMG} hack/setuptools
-      - run:
-          name: Push Manager
+          name: Docker Push
           command: |
             make docker-push
             docker tag "${IMG}" "${IMG%%:*}:latest"
             docker push "${IMG%%:*}:latest"
-      - run:
-          name: Push Setup Tools
-          command: |
-            docker push "${SETUPTOOLS_IMG}"
             docker tag "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:latest"
             docker push "${SETUPTOOLS_IMG%%:*}:latest"
       - run:

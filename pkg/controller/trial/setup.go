@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	DefaultImage = "gcr.io/carbon-relay-oss/setuptools:latest"
+	DefaultImage = "setuptools:latest"
 )
 
 const (
