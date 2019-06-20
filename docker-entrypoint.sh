@@ -9,7 +9,7 @@ fi
 
 if [ ! -z "$CHART" ]; then
     # Handle Helm Chart
-    case "$MODE" in
+    case "$1" in
     create)
         # Only run `helm init` if it hasn't already been run so you can change the repo using setup scripts
         if [ ! -d "$(helm home)" ]; then
@@ -30,7 +30,7 @@ if [ ! -z "$CHART" ]; then
 elif [ -d "/manifests" ]; then
     if [ -n "$(ls -A /manifests)" ]; then
         # Handle Kubectl manifests
-        case "$MODE" in
+        case "$1" in
         create)
             kubectl create --namespace "$NAMESPACE" --filename "/manifests"
             ;;

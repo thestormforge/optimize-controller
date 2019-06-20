@@ -53,20 +53,17 @@ func manageSetup(c client.Client, s *runtime.Scheme, trial *cordeliav1alpha1.Tri
 	}
 	for _, j := range list.Items {
 		for _, c := range j.Spec.Template.Spec.Containers {
-			for _, e := range c.Env {
-				if e.Name == "MODE" {
-					switch e.Value {
-					case create:
-						needsCreate = false
-						finishedCreate = isJobFinished(&j)
-					case delete:
-						needsDelete = false
-						finishedDelete = isJobFinished(&j)
-					}
-					break
+			if len(c.Args) > 0 {
+				switch c.Args[0] {
+				case create:
+					needsCreate = false
+					finishedCreate = isJobFinished(&j)
+				case delete:
+					needsDelete = false
+					finishedDelete = isJobFinished(&j)
 				}
+				break
 			}
-			break // All containers have the same environment
 		}
 	}
 
@@ -152,8 +149,8 @@ func newSetupJob(trial *cordeliav1alpha1.Trial, scheme *runtime.Scheme, mode str
 		c := corev1.Container{
 			Name:  fmt.Sprintf("%s-%s", job.Name, task.Name),
 			Image: task.Image,
+			Args:  []string{mode},
 			Env: []corev1.EnvVar{
-				{Name: "MODE", Value: mode},
 				{Name: "NAMESPACE", Value: namespace},
 				{Name: "NAME", Value: task.Name},
 			},
