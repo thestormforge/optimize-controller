@@ -38,7 +38,7 @@ deploy: manifests
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests:
-	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd output:crd:dir="config/crds" rbac:roleName=manager-role object webhook paths="./pkg/...;./cmd/..."
+	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd output:crd:dir="config/crd/bases" rbac:roleName=manager-role object webhook paths="./pkg/...;./cmd/..."
 
 # Run go fmt against code
 fmt:

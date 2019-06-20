@@ -62,7 +62,7 @@ jobs:
           name: Generate Configuration
           command: |
             kustomize build config/default > cordelia-manager.yaml
-            kustomize build config/init > cordelia-init.yaml
+            kustomize build config/crd > cordelia-init.yaml
       - store_artifacts:
           path: cordelia-manager.yaml
           destination: manifests/cordelia-manager.yaml

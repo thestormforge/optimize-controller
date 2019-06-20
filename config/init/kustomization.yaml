@@ -1,3 +1,0 @@
-resources:
-- ../crds/cordelia.carbonrelay.com_experiments.yaml
-- ../crds/cordelia.carbonrelay.com_trials.yaml
