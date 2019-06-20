@@ -1,0 +1,7 @@
+# The address the remote API
+address: https://example.carbonrelay.io/api
+
+# To enable client credential OAuth2, uncomment the following configuration with your values:
+#oauth2:
+#  client_id: xxx
+#  client_secret: yyy

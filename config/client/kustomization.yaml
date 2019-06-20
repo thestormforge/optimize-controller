@@ -1,0 +1,15 @@
+namespace: cordelia-system
+
+resources:
+- ../default
+
+patches:
+- manager_client_patch.yaml
+
+secretGenerator:
+- name: client-config
+  files:
+  - client.yaml
+
+generatorOptions:
+  disableNameSuffixHash: true

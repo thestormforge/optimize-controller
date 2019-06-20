@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: controller-manager
+  namespace: system
+spec:
+  template:
+    spec:
+      containers:
+      - name: manager
+        volumeMounts:
+        - name: client-config
+          mountPath: "/home"
+          readOnly: true
+      volumes:
+      - name: client-config
+        secret:
+          secretName: client-config
+          items:
+          - key: client.yaml
+            path: .cordelia
