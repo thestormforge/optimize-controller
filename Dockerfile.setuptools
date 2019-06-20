@@ -13,5 +13,5 @@ RUN apk --no-cache add curl && \
     curl -L "$KUBECTL_URL" -o /usr/local/bin/kubectl && \
     chmod +x /usr/local/bin/kubectl
 
-COPY hack/setuptools/docker-entrypoint.sh /
+COPY docker-entrypoint.sh /
 ENTRYPOINT ["/docker-entrypoint.sh"]

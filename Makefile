@@ -54,14 +54,14 @@ ifndef GOPATH
 endif
 	go generate ./pkg/... ./cmd/...
 
-# Build the docker image
+# Build the docker images
 docker-build:
 	docker build . -t ${IMG} --build-arg LDFLAGS='$(LDFLAGS)'
-	docker build . -t ${SETUPTOOLS_IMG} -f hack/setuptools/Dockerfile
+	docker build . -t ${SETUPTOOLS_IMG} -f Dockerfile.setuptools
 	@echo "updating kustomize image patch file for manager resource"
 	sed -i'' -e 's@image: .*@image: '"${IMG}"'@' ./config/default/manager_image_patch.yaml
 
-# Push the docker image
+# Push the docker images
 docker-push:
 	docker push ${IMG}
 	docker push ${SETUPTOOLS_IMG}
