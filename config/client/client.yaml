@@ -1,7 +1,10 @@
-# The address the remote API
-address: https://example.carbonrelay.io/api
+# This is a sample client configuration file. Example values are wrapped in [], otherwise default values are shown.
 
-# To enable client credential OAuth2, uncomment the following configuration with your values:
+# The address the remote API
+#address: [https://example.carbonrelay.io/api]
+
+# OAuth2 client credential configuration
 #oauth2:
-#  client_id: xxx
-#  client_secret: yyy
+#  token_url: ../auth/token/
+#  client_id: [xxx]
+#  client_secret: [yyy]
