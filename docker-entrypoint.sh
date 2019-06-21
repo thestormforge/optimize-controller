@@ -1,5 +1,12 @@
 #!/bin/sh
 
+if [ "$1" == "install" ]; then
+    kubectl create -k /cordelia/crd
+    kubectl create -k /cordelia/client
+    exit
+fi
+
+
 # Handle shell scripts; do this first so they can have side effects
 if [ -d "/setup.d" ]; then
     for f in /setup.d/*.sh; do
