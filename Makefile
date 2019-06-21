@@ -12,6 +12,9 @@ endif
 LDFLAGS += -X github.com/gramLabs/cordelia/pkg/version.GitCommit=$(shell git rev-parse HEAD)
 LDFLAGS += -X github.com/gramLabs/cordelia/pkg/controller/trial.DefaultImage=${SETUPTOOLS_IMG}
 
+# DO NOT Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
+CRD_OPTIONS ?= "crd:trivialVersions=false"
+
 all: test manager
 
 # Run tests
@@ -36,8 +39,8 @@ deploy: manifests
 	kustomize build config/default | kubectl apply -f -
 
 # Generate manifests e.g. CRD, RBAC etc.
-manifests:
-	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd output:crd:dir="config/crd/bases" rbac:roleName=manager-role object webhook paths="./pkg/...;./cmd/..."
+manifests: controller-gen
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./pkg/...;./cmd/..." output:crd:artifacts:config=config/crd/bases
 
 # Run go fmt against code
 fmt:
@@ -48,11 +51,8 @@ vet:
 	go vet ./pkg/... ./cmd/...
 
 # Generate code
-generate:
-ifndef GOPATH
-	$(error GOPATH not defined, please define GOPATH. Run "go help gopath" to learn more about GOPATH)
-endif
-	go generate ./pkg/... ./cmd/...
+generate: controller-gen
+	$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths="./pkg/...;./cmd/..."
 
 # Build the docker images
 docker-build:
@@ -65,3 +65,14 @@ docker-build:
 docker-push:
 	docker push ${IMG}
 	docker push ${SETUPTOOLS_IMG}
+
+# find or download controller-gen
+# download controller-gen if necessary
+controller-gen:
+ifeq (, $(shell which controller-gen))
+	#go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.0-beta.2
+	go build -o $(shell go env GOPATH)/bin/controller-gen ./vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go
+CONTROLLER_GEN=$(shell go env GOPATH)/bin/controller-gen
+else
+CONTROLLER_GEN=$(shell which controller-gen)
+endif
