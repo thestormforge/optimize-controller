@@ -1,8 +1,9 @@
 #!/bin/sh
+set -eo pipefail
 
 if [ "$1" == "install" ]; then
-    kubectl create -k /cordelia/crd
-    kubectl create -k /cordelia/client
+    kustomize build /cordelia/crd | kubectl create -f -
+    kustomize build /cordelia/client | kubectl create -f -
     exit
 fi
 
