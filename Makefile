@@ -12,14 +12,18 @@ endif
 LDFLAGS += -X github.com/gramLabs/cordelia/pkg/version.GitCommit=$(shell git rev-parse HEAD)
 LDFLAGS += -X github.com/gramLabs/cordelia/pkg/controller/trial.DefaultImage=${SETUPTOOLS_IMG}
 
-# DO NOT Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
-CRD_OPTIONS ?= "crd:trivialVersions=false"
+# Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
+CRD_OPTIONS ?= "crd:trivialVersions=true"
 
 all: test manager
 
 # Run tests
 test: generate fmt vet manifests
 	go test ./pkg/... ./cmd/... -coverprofile cover.out
+
+# Build tool binary
+tool: generate fmt vet
+    go build -ldflags '$(LDFLAGS)' -o bin/cordeliactl github.com/gramLabs/cordelia/cmd/cordeliactl
 
 # Build manager binary
 manager: generate fmt vet

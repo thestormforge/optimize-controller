@@ -18,7 +18,19 @@ func TestStorageExperiment(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: "default",
-		}}
+		},
+		Spec: ExperimentSpec{
+			Template: TrialTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					CreationTimestamp: metav1.Now(), // TODO Validation shouldn't flag this
+				},
+				Spec: TrialSpec{
+					Assignments: []Assignment{},
+					Values:      []Value{},
+				},
+			},
+		},
+	}
 	g := gomega.NewGomegaWithT(t)
 
 	// Test Create

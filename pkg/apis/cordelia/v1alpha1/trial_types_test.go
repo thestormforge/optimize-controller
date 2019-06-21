@@ -18,7 +18,12 @@ func TestStorageTrial(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: "default",
-		}}
+		},
+		Spec: TrialSpec{
+			Assignments: []Assignment{},
+			Values:      []Value{},
+		},
+	}
 	g := gomega.NewGomegaWithT(t)
 
 	// Test Create
