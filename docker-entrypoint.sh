@@ -5,6 +5,11 @@ if [ "$1" == "install" ]; then
     kustomize build /cordelia/crd | kubectl create -f -
     kustomize build /cordelia/client | kubectl create -f -
     exit
+elif [ "$1" == "install-manifests-only" ]; then
+    kustomize build /cordelia/crd
+    echo "---"
+    kustomize build /cordelia/client
+    exit
 fi
 
 
