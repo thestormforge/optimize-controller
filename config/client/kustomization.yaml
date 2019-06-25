@@ -3,7 +3,7 @@ namespace: cordelia-system
 resources:
 - ../default
 
-patches:
+patchesStrategicMerge:
 - manager_client_patch.yaml
 
 secretGenerator:
