@@ -43,6 +43,16 @@ func executePatchTemplate(p *cordeliav1alpha1.PatchTemplate, trial *cordeliav1al
 		return "", nil, fmt.Errorf("unknown patch type: %s", p.Type)
 	}
 
+	// Execute the patch and ensure the result is JSON (not YAML)
+	data, err := executeAssignmentTemplate(p.Patch, trial)
+	if err != nil {
+		return "", nil, err
+	}
+	json, err := yaml.ToJSON(data)
+	return patchType, json, err
+}
+
+func executeAssignmentTemplate(t string, trial *cordeliav1alpha1.Trial) ([]byte, error) {
 	// Create the functions map
 	funcMap := template.FuncMap{
 		"percent": templatePercent,
@@ -57,17 +67,15 @@ func executePatchTemplate(p *cordeliav1alpha1.PatchTemplate, trial *cordeliav1al
 	}
 
 	// Evaluate the template into a patch
-	tmpl, err := template.New("patch").Funcs(funcMap).Parse(p.Patch)
+	tmpl, err := template.New("patch").Funcs(funcMap).Parse(t)
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 	buf := new(bytes.Buffer)
 	if err = tmpl.Execute(buf, data); err != nil {
-		return "", nil, err
+		return nil, err
 	}
-
-	json, err := yaml.ToJSON(buf.Bytes())
-	return patchType, json, err
+	return buf.Bytes(), nil
 }
 
 func executeMetricQueryTemplate(m *cordeliav1alpha1.Metric, trial *cordeliav1alpha1.Trial) (string, error) {
