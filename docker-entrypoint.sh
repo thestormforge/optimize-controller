@@ -1,56 +1,72 @@
 #!/bin/sh
 set -eo pipefail
 
-if [ "$1" == "install" ]; then
-    kustomize build /cordelia/crd | kubectl create -f -
-    kustomize build /cordelia/client | kubectl create -f -
-    exit
-elif [ "$1" == "install-manifests-only" ]; then
-    kustomize build /cordelia/crd
-    echo "---"
-    kustomize build /cordelia/client
-    exit
+
+# Update the Kustomization to account for mounted files
+# This only applies to the "base" (default from Dockerfile) root, so do it before processing arguments
+if [ -e kustomization.yaml ]; then
+    find . -name "*_resource.yaml" -o -path "./resources/*.yaml" -exec kustomize edit add resource {} +
+    find . -name "*_patch.yaml" -o -path "./patches/*.yaml" -exec kustomize edit add patch {} +
 fi
 
 
-# Handle shell scripts; do this first so they can have side effects
-if [ -d "/setup.d" ]; then
-    for f in /setup.d/*.sh; do
-        /bin/sh -c "$f"
+# Process arguments
+while [ "$#" != "0" ] ; do
+    case "$1" in
+    install)
+        cd /cordelia/client
+        # TODO This is temporary until the CRD is part of the default Kustomization
+        kustomize edit add base ../crd
+        handle () { kubectl create -f - ; }
+        shift
+        ;;
+    create)
+        handle () { kubectl create -f - ; }
+        shift
+        ;;
+    apply)
+        handle () { kubectl apply -f - ; }
+        shift
+        ;;
+    delete)
+        handle () { kubectl delete -f - ; }
+        shift
+        ;;
+    --manifests)
+        handle () { cat ; }
+        shift
+        ;;
+    *)
+        echo "unknown argument: $1"
+        exit 1
+        ;;
+    esac
+done
+
+
+# Helm support
+if [ -n "$CHART" ] ; then
+    if [ ! -d "$(helm home)" ]; then
+        echo "Helm home ($(helm home)) is not a directory, initializing"
+        helm init --client-only
+    fi
+
+    mkdir -p /workspace/helm
+    cd /workspace/helm
+    touch kustomization.yaml
+    kustomize edit add base ../base
+
+    find . -name "*patch.yaml" -exec kustomize edit add patch {} +
+    values=$(find . -name "*values.yaml" -exec echo -n "--values {} " \;)
+
+    helm fetch "$CHART"
+    for c in *.tgz ; do
+        # TODO HELM_OPTS can't be trusted, how do we sanitize that?
+        helm template $values $HELM_OPTS $c > ${c%%.tgz}.yaml
+        kustomize edit add resource ${c%%.tgz}.yaml
     done
 fi
 
-if [ ! -z "$CHART" ]; then
-    # Handle Helm Chart
-    case "$1" in
-    create)
-        # Only run `helm init` if it hasn't already been run so you can change the repo using setup scripts
-        if [ ! -d "$(helm home)" ]; then
-            helm init --client-only
-        fi
 
-        # Check if a values file was mounted for this chart
-        if [ -f "/values/$NAME.yaml" ]; then
-            HELM_OPTS="${HELM_OPTS} --values /values/$NAME.yaml"
-        fi
-
-        helm install $HELM_OPTS --namespace "$NAMESPACE" --name "$NAME" "$CHART"
-        ;;
-    delete)
-        helm delete $HELM_OPTS --purge "$NAME"
-        ;;
-    esac
-elif [ -d "/manifests" ]; then
-    if [ -n "$(ls -A /manifests)" ]; then
-        # Handle Kubectl manifests
-        case "$1" in
-        create)
-            kubectl create --namespace "$NAMESPACE" --filename "/manifests"
-            ;;
-        delete)
-            kubectl delete --namespace "$NAMESPACE" --filename "/manifests"
-            ;;
-        esac
-    fi
-fi
-
+# Run Kustomize and pipe it into the handler
+kustomize build | handle

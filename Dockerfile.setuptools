@@ -19,6 +19,10 @@ RUN apk --no-cache add curl && \
     chmod +x /usr/local/bin/kubectl /usr/local/bin/kustomize
 
 COPY config /cordelia/
-
 COPY docker-entrypoint.sh /
+
+RUN mkdir -p /workspace/base && touch /workspace/base/kustomization.yaml
+WORKDIR "/workspace/base"
+
 ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["install", "--manifests"]
