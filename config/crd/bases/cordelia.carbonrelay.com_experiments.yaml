@@ -1151,10 +1151,61 @@ spec:
                         (and possibly after it ends)
                       items:
                         properties:
-                          chart:
+                          helmChart:
                             description: The Helm chart reference to release as part
                               of this task
                             type: string
+                          helmValues:
+                            description: The Helm values to set, ignored unless helmChart
+                              is also set
+                            items:
+                              properties:
+                                name:
+                                  description: The name of Helm value as passed to
+                                    one of the set options
+                                  type: string
+                                value:
+                                  description: Set a Helm value using the evaluated
+                                    template. Templates are evaluated using the same
+                                    rules as patches
+                                  type: string
+                                valueFrom:
+                                  description: Source for a Helm value
+                                  properties:
+                                    parameterRef:
+                                      description: Selects a trial parameter assignment
+                                        as a Helm value
+                                      properties:
+                                        name:
+                                          description: The name of the trial parameter
+                                            to use
+                                          type: string
+                                      required:
+                                      - name
+                                      type: object
+                                  type: object
+                              required:
+                              - name
+                              type: object
+                            type: array
+                          helmValuesFrom:
+                            description: The Helm values, ignored unless helmChart
+                              is also set
+                            items:
+                              properties:
+                                configMap:
+                                  properties:
+                                    name:
+                                      description: 'Name of the referent. More info:
+                                        https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                        TODO: Add other useful fields. apiVersion,
+                                        kind, uid?'
+                                      type: string
+                                  type: object
+                              required:
+                              - configMap
+                              type: object
+                            type: array
                           image:
                             description: Override the default image used for performing
                               setup tasks
@@ -1172,9 +1223,7 @@ spec:
                               task can be skipped
                             type: boolean
                           volumeMounts:
-                            description: Volume mounts for the setup task. Note the
-                              default task only expects mount points at "/values",
-                              "/manifests" and "/setup.d"
+                            description: Volume mounts for the setup task
                             items:
                               properties:
                                 mountPath:

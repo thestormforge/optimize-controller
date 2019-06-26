@@ -7,6 +7,43 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+// HelmValue represents a value in a Helm template
+type HelmValue struct {
+	// The name of Helm value as passed to one of the set options
+	Name string `json:"name"`
+	// Set a Helm value using the evaluated template. Templates are evaluated using the same rules as patches
+	Value string `json:"value,omitempty"`
+	// Source for a Helm value
+	ValueFrom *HelmValueSource `json:"valueFrom,omitempty"`
+}
+
+// HelmValueSource represents a source for a Helm value
+type HelmValueSource struct {
+	// Selects a trial parameter assignment as a Helm value
+	ParameterRef *ParameterSelector `json:"parameterRef,omitempty"`
+	// TODO Also support the corev1.EnvVarSource selectors?
+}
+
+// ParameterSelector selects a trial parameter assignment. Note that parameters values are used as is (i.e. in
+// numeric form), for more control over the formatting of a parameter assignment use the template option on HelmValue.
+type ParameterSelector struct {
+	// The name of the trial parameter to use
+	Name string `json:"name"`
+	// TODO String bool to force usage of --set-string?
+}
+
+// HelmValueFromSource represents a source of a values mapping
+type HelmValuesFromSource struct {
+	ConfigMap *ConfigMapHelmValuesFromSource `json:"configMap"`
+	// TODO Secret support?
+}
+
+// ConfigMapHelmValuesFromSource is a reference to a ConfigMap that contains "*values.yaml" keys
+// TODO How do document the side effect of things like patches in the ConfigMap also being applied?
+type ConfigMapHelmValuesFromSource struct {
+	corev1.LocalObjectReference `json:",inline"`
+}
+
 type SetupTask struct {
 	// The name that uniquely identifies the setup task
 	Name string `json:"name"`
@@ -16,11 +53,14 @@ type SetupTask struct {
 	SkipCreate bool `json:"skipCreate,omitempty"`
 	// Flag to indicate the deletion part of the task can be skipped
 	SkipDelete bool `json:"skipDelete,omitempty"`
-	// The Helm chart reference to release as part of this task
-	Chart string `json:"chart,omitempty"`
-	// Volume mounts for the setup task. Note the default task only expects mount points at "/values", "/manifests" and "/setup.d"
+	// Volume mounts for the setup task
 	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
-	// TODO Special case for Helm values from a config map?
+	// The Helm chart reference to release as part of this task
+	HelmChart string `json:"helmChart,omitempty"`
+	// The Helm values to set, ignored unless helmChart is also set
+	HelmValues []HelmValue `json:"helmValues,omitempty"`
+	// The Helm values, ignored unless helmChart is also set
+	HelmValuesFrom []HelmValuesFromSource `json:"helmValuesFrom,omitempty"`
 }
 
 type PatchOperation struct {
@@ -48,7 +88,7 @@ type TrialConditionType string
 const (
 	TrialComplete TrialConditionType = "Complete"
 	TrialFailed                      = "Failed"
-	// TODO TrialPatched?
+	// TODO TrialPatched? TrialStable?
 )
 
 type TrialCondition struct {
