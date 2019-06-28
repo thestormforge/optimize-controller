@@ -31,8 +31,6 @@ jobs:
           name: Docker Push
           command: make docker-push
       - run:
-          # This MUST run AFTER `make docker-build` or the manager image name will be wrong
-          # This MUST run AFTER `make docker-push` or we may build a CLI that references non-existent images
           name: Build Tool
           command: make tool_all
       - run:
