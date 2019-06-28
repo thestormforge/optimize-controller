@@ -8,8 +8,8 @@ if [[ -n "${CIRCLE_TAG:-}" ]]; then
     export BUILD_METADATA=""
     DOCKER_TAG="${CIRCLE_TAG#v}"
 else
-    defineEnvvar VERSION "$(sed -n 's/[[:blank:]]Version[[:blank:]]*=[[:blank:]]*"\(.*\)"/\1/p' pkg/version/version.go)"
-    defineEnvvar BUILD_METADATA "build.${CIRCLE_BUILD_NUM}"
+    export VERSION="$(sed -n 's/[[:blank:]]Version[[:blank:]]*=[[:blank:]]*"\(.*\)"/\1/p' pkg/version/version.go)"
+    export BUILD_METADATA="build.${CIRCLE_BUILD_NUM}"
     DOCKER_TAG="${CIRCLE_SHA1:0:8}.${CIRCLE_BUILD_NUM}"
 fi
 export SETUPTOOLS_IMG="gcr.io/${GOOGLE_PROJECT_ID}/setuptools:${DOCKER_TAG}"
