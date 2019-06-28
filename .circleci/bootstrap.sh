@@ -28,7 +28,7 @@ echo "Installing Kubebuilder"
 curl -LOq https://github.com/kubernetes-sigs/kubebuilder/releases/download/v${KUBEBUILDER_VERSION}/kubebuilder_${KUBEBUILDER_VERSION}_linux_amd64.tar.gz
 tar -zxvf kubebuilder_${KUBEBUILDER_VERSION}_linux_amd64.tar.gz
 sudo mv kubebuilder_${KUBEBUILDER_VERSION}_linux_amd64 /usr/local/kubebuilder
-export PATH=$PATH:/usr/local/kubebuilder/bin
+PATH=$PATH:/usr/local/kubebuilder/bin
 echo
 
 
@@ -41,6 +41,10 @@ echo
 
 echo "Installing Google Cloud SDK"
 curl -q https://sdk.cloud.google.com | bash -s -- --disable-prompts > /dev/null
-export PATH=$PATH:~/google-cloud-sdk/bin
+PATH=$PATH:~/google-cloud-sdk/bin
 echo
 
+
+echo "Updating PATH"
+defineEnvvar PATH "$PATH"
+export PATH
