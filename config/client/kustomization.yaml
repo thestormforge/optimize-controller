@@ -1,4 +1,4 @@
-namespace: cordelia-system
+namespace: redsky-system
 
 resources:
 - ../default

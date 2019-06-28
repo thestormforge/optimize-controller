@@ -4,10 +4,10 @@ import (
 	"flag"
 	"os"
 
-	"github.com/gramLabs/cordelia/pkg/apis"
-	"github.com/gramLabs/cordelia/pkg/controller"
-	"github.com/gramLabs/cordelia/pkg/version"
-	"github.com/gramLabs/cordelia/pkg/webhook"
+	"github.com/gramLabs/redsky/pkg/apis"
+	"github.com/gramLabs/redsky/pkg/controller"
+	"github.com/gramLabs/redsky/pkg/version"
+	"github.com/gramLabs/redsky/pkg/webhook"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -22,7 +22,7 @@ func main() {
 	logf.SetLogger(logf.ZapLogger(false))
 	log := logf.Log.WithName("entrypoint")
 
-	log.Info("Cordelia", "version", version.GetVersion(), "gitCommit", version.GitCommit)
+	log.Info("Red Sky", "version", version.GetVersion(), "gitCommit", version.GitCommit)
 
 	// Get a config to talk to the apiserver
 	log.Info("setting up client for manager")

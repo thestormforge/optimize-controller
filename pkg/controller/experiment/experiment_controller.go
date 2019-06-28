@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"strconv"
 
-	cordeliaclient "github.com/gramLabs/cordelia/pkg/api"
-	cordeliaapi "github.com/gramLabs/cordelia/pkg/api/cordelia/v1alpha1"
-	cordeliav1alpha1 "github.com/gramLabs/cordelia/pkg/apis/cordelia/v1alpha1"
-	cordeliatrial "github.com/gramLabs/cordelia/pkg/controller/trial"
+	redskyclient "github.com/gramLabs/redsky/pkg/api"
+	redskyapi "github.com/gramLabs/redsky/pkg/api/redsky/v1alpha1"
+	redskyv1alpha1 "github.com/gramLabs/redsky/pkg/apis/redsky/v1alpha1"
+	redskytrial "github.com/gramLabs/redsky/pkg/controller/trial"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,13 +24,13 @@ import (
 )
 
 const (
-	annotationPrefix = "cordelia.carbonrelay.com/"
+	annotationPrefix = "redsky.carbonrelay.com/"
 
 	annotationExperimentURL  = annotationPrefix + "experiment-url"
 	annotationNextTrialURL   = annotationPrefix + "next-trial-url"
 	annotationReportTrialURL = annotationPrefix + "report-trial-url"
 
-	finalizer = "finalizer.cordelia.carbonrelay.com"
+	finalizer = "finalizer.redsky.carbonrelay.com"
 )
 
 var log = logf.Log.WithName("controller")
@@ -39,11 +39,11 @@ var log = logf.Log.WithName("controller")
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
 	// We need a remote address to do anything in this controller
-	config, err := cordeliaclient.DefaultConfig()
+	config, err := redskyclient.DefaultConfig()
 	if err != nil || config.Address == "" {
 		return err
 	}
-	oc, err := cordeliaclient.NewClient(*config)
+	oc, err := redskyclient.NewClient(*config)
 	if err != nil {
 		return err
 	}
@@ -51,8 +51,8 @@ func Add(mgr manager.Manager) error {
 }
 
 // newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager, oc cordeliaclient.Client) reconcile.Reconciler {
-	return &ReconcileExperiment{Client: mgr.GetClient(), scheme: mgr.GetScheme(), api: cordeliaapi.NewApi(oc)}
+func newReconciler(mgr manager.Manager, oc redskyclient.Client) reconcile.Reconciler {
+	return &ReconcileExperiment{Client: mgr.GetClient(), scheme: mgr.GetScheme(), api: redskyapi.NewApi(oc)}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -64,15 +64,15 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for changes to Experiment
-	err = c.Watch(&source.Kind{Type: &cordeliav1alpha1.Experiment{}}, &handler.EnqueueRequestForObject{})
+	err = c.Watch(&source.Kind{Type: &redskyv1alpha1.Experiment{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
 	}
 
 	// Watch for changes to owned Trials
-	err = c.Watch(&source.Kind{Type: &cordeliav1alpha1.Trial{}}, &handler.EnqueueRequestForOwner{
+	err = c.Watch(&source.Kind{Type: &redskyv1alpha1.Trial{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
-		OwnerType:    &cordeliav1alpha1.Experiment{},
+		OwnerType:    &redskyv1alpha1.Experiment{},
 	})
 	if err != nil {
 		return err
@@ -87,17 +87,17 @@ var _ reconcile.Reconciler = &ReconcileExperiment{}
 type ReconcileExperiment struct {
 	client.Client
 	scheme *runtime.Scheme
-	api    cordeliaapi.API
+	api    redskyapi.API
 }
 
-// +kubebuilder:rbac:groups=cordelia.carbonrelay.com,resources=experiments,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=cordelia.carbonrelay.com,resources=experiments/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=redsky.carbonrelay.com,resources=experiments,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=redsky.carbonrelay.com,resources=experiments/status,verbs=get;update;patch
 
 // Reconcile reads that state of the cluster for a Experiment object and makes changes based on the state read
 // and what is in the Experiment.Spec
 func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the Experiment instance
-	experiment := &cordeliav1alpha1.Experiment{}
+	experiment := &redskyv1alpha1.Experiment{}
 	err := r.Get(context.TODO(), request.NamespacedName, experiment)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -124,7 +124,7 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Find trials labeled for this experiment
-	list := &cordeliav1alpha1.TrialList{}
+	list := &redskyv1alpha1.TrialList{}
 	opts := &client.ListOptions{}
 	if experiment.Spec.Selector == nil {
 		opts.MatchingLabels(experiment.Spec.Template.Labels)
@@ -145,7 +145,7 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 		if namespace, err := r.findAvailableNamespace(experiment, list.Items); err != nil {
 			return reconcile.Result{}, err
 		} else if namespace != "" {
-			trial := &cordeliav1alpha1.Trial{}
+			trial := &redskyv1alpha1.Trial{}
 			populateTrialFromTemplate(experiment, trial, namespace)
 			if err := controllerutil.SetControllerReference(experiment, trial, r.scheme); err != nil {
 				return reconcile.Result{}, err
@@ -154,15 +154,15 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 			// Obtain a suggestion from the server
 			suggestion, reportTrialURL, err := r.api.NextTrial(context.TODO(), nextTrialURL)
 			if err != nil {
-				if aerr, ok := err.(*cordeliaapi.Error); ok {
+				if aerr, ok := err.(*redskyapi.Error); ok {
 					switch aerr.Type {
-					case cordeliaapi.ErrExperimentStopped:
+					case redskyapi.ErrExperimentStopped:
 						// The experiment is stopped, set replicas to 0 to prevent further interaction with the server
 						experiment.SetReplicas(0)
 						delete(experiment.GetAnnotations(), annotationNextTrialURL) // HTTP "Gone" semantics require us to purge this
 						err = r.Update(context.TODO(), experiment)
 						return reconcile.Result{}, err
-					case cordeliaapi.ErrTrialUnavailable:
+					case redskyapi.ErrTrialUnavailable:
 						// No suggestions available, wait to requeue until after the retry delay
 						return reconcile.Result{Requeue: true, RequeueAfter: aerr.RetryAfter}, nil
 					}
@@ -174,7 +174,7 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 			trial.GetAnnotations()[annotationReportTrialURL] = reportTrialURL
 			for _, a := range suggestion.Assignments {
 				if v, err := a.Value.Int64(); err == nil {
-					trial.Spec.Assignments = append(trial.Spec.Assignments, cordeliav1alpha1.Assignment{
+					trial.Spec.Assignments = append(trial.Spec.Assignments, redskyv1alpha1.Assignment{
 						Name:  a.ParameterName,
 						Value: v,
 					})
@@ -192,22 +192,22 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 	// Reconcile each trial
 	for _, t := range list.Items {
 		// TODO Check if the trial has a remote server annotation, if not, we need to manually create the trial on the server before we can report it
-		if cordeliatrial.IsTrialFinished(&t) {
+		if redskytrial.IsTrialFinished(&t) {
 			if t.DeletionTimestamp == nil {
 				// Delete the trial to force finalization
 				err = r.Delete(context.TODO(), &t)
 				return reconcile.Result{}, err
 			} else {
 				// Create an observation for the remote server
-				trialValues := cordeliaapi.TrialValues{}
+				trialValues := redskyapi.TrialValues{}
 				for _, c := range t.Status.Conditions {
-					if c.Type == cordeliav1alpha1.TrialFailed && c.Status == corev1.ConditionTrue {
+					if c.Type == redskyv1alpha1.TrialFailed && c.Status == corev1.ConditionTrue {
 						trialValues.Failed = true
 					}
 				}
 				for _, v := range t.Spec.Values {
 					if fv, err := strconv.ParseFloat(v.Value, 64); err == nil {
-						trialValues.Values = append(trialValues.Values, cordeliaapi.Value{
+						trialValues.Values = append(trialValues.Values, redskyapi.Value{
 							MetricName: v.Name,
 							Value:      fv,
 							// TODO Error is the standard deviation for the metric
@@ -269,7 +269,7 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 	return reconcile.Result{}, nil
 }
 
-func addFinalizer(experiment *cordeliav1alpha1.Experiment) bool {
+func addFinalizer(experiment *redskyv1alpha1.Experiment) bool {
 	if experiment.DeletionTimestamp != nil {
 		return false
 	}
@@ -282,14 +282,14 @@ func addFinalizer(experiment *cordeliav1alpha1.Experiment) bool {
 	return true
 }
 
-func (r *ReconcileExperiment) syncWithServer(experiment *cordeliav1alpha1.Experiment) (bool, error) {
+func (r *ReconcileExperiment) syncWithServer(experiment *redskyv1alpha1.Experiment) (bool, error) {
 	experimentURL := experiment.GetAnnotations()[annotationExperimentURL]
 
 	if experiment.GetReplicas() > 0 {
 		// Define the experiment on the server
 		if experimentURL == "" {
-			n := cordeliaapi.NewExperimentName(experiment.Name)
-			e := cordeliaapi.Experiment{}
+			n := redskyapi.NewExperimentName(experiment.Name)
+			e := redskyapi.Experiment{}
 			copyExperimentToRemote(experiment, &e)
 
 			log.Info("Creating remote experiment", "name", n)
@@ -321,8 +321,8 @@ func (r *ReconcileExperiment) syncWithServer(experiment *cordeliav1alpha1.Experi
 }
 
 // Copy the custom resource state into a client API representation
-func copyExperimentToRemote(experiment *cordeliav1alpha1.Experiment, e *cordeliaapi.Experiment) {
-	e.Optimization = cordeliaapi.Optimization{}
+func copyExperimentToRemote(experiment *redskyv1alpha1.Experiment, e *redskyapi.Experiment) {
+	e.Optimization = redskyapi.Optimization{}
 	if experiment.Spec.Parallelism != nil {
 		e.Optimization.ParallelTrials = *experiment.Spec.Parallelism
 	} else {
@@ -331,10 +331,10 @@ func copyExperimentToRemote(experiment *cordeliav1alpha1.Experiment, e *cordelia
 
 	e.Parameters = nil
 	for _, p := range experiment.Spec.Parameters {
-		e.Parameters = append(e.Parameters, cordeliaapi.Parameter{
-			Type: cordeliaapi.ParameterTypeInteger,
+		e.Parameters = append(e.Parameters, redskyapi.Parameter{
+			Type: redskyapi.ParameterTypeInteger,
 			Name: p.Name,
-			Bounds: cordeliaapi.Bounds{
+			Bounds: redskyapi.Bounds{
 				Min: json.Number(strconv.FormatInt(p.Min, 10)),
 				Max: json.Number(strconv.FormatInt(p.Max, 10)),
 			},
@@ -343,7 +343,7 @@ func copyExperimentToRemote(experiment *cordeliav1alpha1.Experiment, e *cordelia
 
 	e.Metrics = nil
 	for _, m := range experiment.Spec.Metrics {
-		e.Metrics = append(e.Metrics, cordeliaapi.Metric{
+		e.Metrics = append(e.Metrics, redskyapi.Metric{
 			Name:     m.Name,
 			Minimize: m.Minimize,
 		})
@@ -351,7 +351,7 @@ func copyExperimentToRemote(experiment *cordeliav1alpha1.Experiment, e *cordelia
 }
 
 // Creates a new trial for an experiment
-func populateTrialFromTemplate(experiment *cordeliav1alpha1.Experiment, trial *cordeliav1alpha1.Trial, namespace string) {
+func populateTrialFromTemplate(experiment *redskyv1alpha1.Experiment, trial *redskyv1alpha1.Trial, namespace string) {
 	// Start with the trial template
 	experiment.Spec.Template.ObjectMeta.DeepCopyInto(&trial.ObjectMeta)
 	experiment.Spec.Template.Spec.DeepCopyInto(&trial.Spec)
@@ -389,7 +389,7 @@ func populateTrialFromTemplate(experiment *cordeliav1alpha1.Experiment, trial *c
 }
 
 // Searches for a namespace to run a new trial in, returning an empty string if no such namespace can be found
-func (r *ReconcileExperiment) findAvailableNamespace(experiment *cordeliav1alpha1.Experiment, trials []cordeliav1alpha1.Trial) (string, error) {
+func (r *ReconcileExperiment) findAvailableNamespace(experiment *redskyv1alpha1.Experiment, trials []redskyv1alpha1.Trial) (string, error) {
 	// Determine which namespaces are already in use
 	inuse := make(map[string]bool, len(trials))
 	for _, t := range trials {

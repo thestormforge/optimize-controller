@@ -1,11 +1,11 @@
-package cordeliactl
+package redskyctl
 
 import (
 	"io"
 	"strings"
 
-	"github.com/gramLabs/cordelia/pkg/api"
-	"github.com/gramLabs/cordelia/pkg/controller/trial"
+	"github.com/gramLabs/redsky/pkg/api"
+	"github.com/gramLabs/redsky/pkg/controller/trial"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -143,7 +143,7 @@ func newBootstrapConfig(namespace, name string, cfg *api.Config) (*bootstrapConf
 		Job: batchv1.Job{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:   name,
-				Labels: map[string]string{"app": "cordelia", "role": "install"},
+				Labels: map[string]string{"app": "redsky", "role": "install"},
 			},
 			Spec: batchv1.JobSpec{
 				BackoffLimit:            new(int32),
@@ -170,7 +170,7 @@ func newBootstrapConfig(namespace, name string, cfg *api.Config) (*bootstrapConf
 								VolumeMounts: []corev1.VolumeMount{
 									{
 										Name:      "client-config",
-										MountPath: "/cordelia/client/client.yaml",
+										MountPath: "/redsky/client/client.yaml",
 										SubPath:   "client.yaml",
 									},
 								},

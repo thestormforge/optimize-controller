@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	cordeliav1alpha1 "github.com/gramLabs/cordelia/pkg/apis/cordelia/v1alpha1"
+	redskyv1alpha1 "github.com/gramLabs/redsky/pkg/apis/redsky/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -79,7 +79,7 @@ func checkDeployment(d *appsv1.Deployment) error {
 
 // Iterates over all of the supplied patches and ensures that the targets are in a "stable" state (where "stable"
 // is determined by the object kind).
-func waitForStableState(r client.Reader, ctx context.Context, patches []cordeliav1alpha1.PatchOperation) error {
+func waitForStableState(r client.Reader, ctx context.Context, patches []redskyv1alpha1.PatchOperation) error {
 	for _, p := range patches {
 		switch p.TargetRef.Kind {
 		case "StatefulSet":

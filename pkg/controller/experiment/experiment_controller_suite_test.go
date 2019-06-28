@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/gramLabs/cordelia/pkg/apis"
+	"github.com/gramLabs/redsky/pkg/apis"
 	"github.com/onsi/gomega"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"

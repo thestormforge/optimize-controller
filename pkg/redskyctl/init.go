@@ -1,12 +1,12 @@
-package cordeliactl
+package redskyctl
 
 import (
 	"fmt"
 	"io"
 	"os"
 
-	"github.com/gramLabs/cordelia/pkg/api"
-	cmdutil "github.com/gramLabs/cordelia/pkg/cordeliactl/util"
+	"github.com/gramLabs/redsky/pkg/api"
+	cmdutil "github.com/gramLabs/redsky/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,8 +27,8 @@ type initOptions struct {
 
 func newInitOptions() *initOptions {
 	return &initOptions{
-		installNamespace: "cordelia-system",
-		installName:      "cordelia-bootstrap",
+		installNamespace: "redsky-system",
+		installName:      "redsky-bootstrap",
 	}
 }
 
@@ -37,8 +37,8 @@ func newInitCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "init",
-		Short: "Initialize Cordelia in a cluster",
-		Long:  "The initialize command will install (or optionally generate) the required Cordelia manifests.",
+		Short: "Initialize Red Sky in a cluster",
+		Long:  "The initialize command will install (or optionally generate) the required Red Sky manifests.",
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.run())
 		},

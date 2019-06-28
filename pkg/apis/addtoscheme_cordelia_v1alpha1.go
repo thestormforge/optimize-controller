@@ -1,7 +1,7 @@
 package apis
 
 import (
-	"github.com/gramLabs/cordelia/pkg/apis/cordelia/v1alpha1"
+	"github.com/gramLabs/redsky/pkg/apis/redsky/v1alpha1"
 )
 
 func init() {

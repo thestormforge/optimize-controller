@@ -14,7 +14,7 @@ fi
 while [ "$#" != "0" ] ; do
     case "$1" in
     install)
-        cd /cordelia/client
+        cd /redsky/client
         kustomize edit set namespace "$NAMESPACE"
         # TODO This is temporary until the CRD is part of the default Kustomization
         kustomize edit add base ../crd
@@ -22,7 +22,7 @@ while [ "$#" != "0" ] ; do
         shift
         ;;
     uninstall)
-        cd /cordelia/client
+        cd /redsky/client
         handle () { kubectl delete -f - ; }
         shift
         ;;

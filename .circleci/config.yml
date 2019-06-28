@@ -1,7 +1,7 @@
 version: 2
 jobs:
   build:
-    working_directory: /go/src/github.com/gramLabs/cordelia
+    working_directory: /go/src/github.com/gramLabs/redsky
     docker:
       - image: "circleci/golang:1.12.5"
     steps:
@@ -41,11 +41,11 @@ jobs:
             docker tag "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:latest"
             docker push "${SETUPTOOLS_IMG%%:*}:latest"
       - store_artifacts:
-          path: bin/cordeliactl-darwin-amd64
-          destination: cordeliactl-darwin-amd64
+          path: bin/redskyctl-darwin-amd64
+          destination: redskyctl-darwin-amd64
       - store_artifacts:
-          path: bin/cordeliactl-linux-amd64
-          destination: cordeliactl-linux-amd64
+          path: bin/redskyctl-linux-amd64
+          destination: redskyctl-linux-amd64
 workflows:
   version: 2
   dev-build:

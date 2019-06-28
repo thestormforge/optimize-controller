@@ -9,8 +9,8 @@ import (
 	"math/rand"
 	"time"
 
-	client "github.com/gramLabs/cordelia/pkg/api"
-	cordelia "github.com/gramLabs/cordelia/pkg/api/cordelia/v1alpha1"
+	client "github.com/gramLabs/redsky/pkg/api"
+	redsky "github.com/gramLabs/redsky/pkg/api/redsky/v1alpha1"
 )
 
 func init() {
@@ -45,29 +45,29 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	api := cordelia.NewApi(c)
+	api := redsky.NewApi(c)
 
 	// New experiment
-	in := &cordelia.Experiment{
-		Parameters: []cordelia.Parameter{
+	in := &redsky.Experiment{
+		Parameters: []redsky.Parameter{
 			{
 				Name: "a",
-				Type: cordelia.ParameterTypeInteger,
-				Bounds: cordelia.Bounds{
+				Type: redsky.ParameterTypeInteger,
+				Bounds: redsky.Bounds{
 					Min: "1",
 					Max: "5",
 				},
 			},
 			{
 				Name: "b",
-				Type: cordelia.ParameterTypeDouble,
-				Bounds: cordelia.Bounds{
+				Type: redsky.ParameterTypeDouble,
+				Bounds: redsky.Bounds{
 					Min: "-1.0",
 					Max: "1.0",
 				},
 			},
 		},
-		Metrics: []cordelia.Metric{
+		Metrics: []redsky.Metric{
 			{
 				Name: "l",
 			},
@@ -79,12 +79,12 @@ func main() {
 	}
 
 	// Try a few random names
-	var exp cordelia.Experiment
+	var exp redsky.Experiment
 	for i := 0; i < 10; i++ {
-		name := cordelia.NewExperimentName(GetRandomName(i))
+		name := redsky.NewExperimentName(GetRandomName(i))
 		exp, err = api.CreateExperiment(context.TODO(), name, *in)
 		if err != nil {
-			if aerr, ok := err.(*cordelia.Error); ok && aerr.Type == cordelia.ErrExperimentNameConflict {
+			if aerr, ok := err.(*redsky.Error); ok && aerr.Type == redsky.ErrExperimentNameConflict {
 				continue
 			}
 		}
@@ -116,11 +116,11 @@ func main() {
 	}
 
 	// Index the parameters and metrics for easy lookup
-	pi := make(map[string]cordelia.Parameter, len(in.Parameters))
+	pi := make(map[string]redsky.Parameter, len(in.Parameters))
 	for _, p := range in.Parameters {
 		pi[p.Name] = p
 	}
-	mi := make(map[string]cordelia.Metric, len(in.Metrics))
+	mi := make(map[string]redsky.Metric, len(in.Metrics))
 	for _, m := range in.Metrics {
 		mi[m.Name] = m
 	}
@@ -152,7 +152,7 @@ func main() {
 	var rt string
 	for i := 0; i < 5; i++ {
 		_, rt, err = api.NextTrial(context.TODO(), exp.NextTrial)
-		if aerr, ok := err.(*cordelia.Error); ok && aerr.Type == cordelia.ErrTrialUnavailable {
+		if aerr, ok := err.(*redsky.Error); ok && aerr.Type == redsky.ErrTrialUnavailable {
 			time.Sleep(aerr.RetryAfter)
 			continue
 		}
@@ -168,8 +168,8 @@ func main() {
 	}
 
 	// Report an observation back
-	v := &cordelia.TrialValues{
-		Values: []cordelia.Value{
+	v := &redsky.TrialValues{
+		Values: []redsky.Value{
 			{
 				MetricName: "l",
 				Value:      0.99,

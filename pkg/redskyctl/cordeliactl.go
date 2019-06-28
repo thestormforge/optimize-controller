@@ -1,15 +1,15 @@
-package cordeliactl
+package redskyctl
 
 import (
 	"fmt"
 	"os"
 
-	"github.com/gramLabs/cordelia/pkg/version"
+	"github.com/gramLabs/redsky/pkg/version"
 	"github.com/spf13/cobra"
 )
 
 var rootCmd = &cobra.Command{
-	Use: "cordeliactl",
+	Use: "redskyctl",
 }
 
 func init() {
@@ -20,7 +20,6 @@ func init() {
 
 	// TODO Add additional commands to the client
 	// create experiment [--remote-only]
-
 
 }
 

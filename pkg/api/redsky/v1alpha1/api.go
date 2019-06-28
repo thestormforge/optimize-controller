@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gramLabs/cordelia/pkg/api"
+	"github.com/gramLabs/redsky/pkg/api"
 )
 
 const (

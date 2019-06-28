@@ -1,7 +1,7 @@
-package cordeliactl
+package redskyctl
 
 import (
-	cmdutil "github.com/gramLabs/cordelia/pkg/cordeliactl/util"
+	cmdutil "github.com/gramLabs/redsky/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 )
 
@@ -19,8 +19,8 @@ func newResetCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "reset",
-		Short: "Uninstall Cordelia from a cluster",
-		Long:  "The reset command will uninstall the Cordelia manifests.",
+		Short: "Uninstall Red Sky from a cluster",
+		Long:  "The reset command will uninstall the Red Sky manifests.",
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.run())
 		},
