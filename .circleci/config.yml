@@ -5,8 +5,7 @@ jobs:
     docker:
       - image: "circleci/golang:1.12.5"
     steps:
-      - setup_remote_docker:
-          docker_layer_caching: true
+      - setup_remote_docker
       - checkout
       - run:
           name: Bootstrap
