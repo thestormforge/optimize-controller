@@ -43,8 +43,10 @@ jobs:
             docker push "${SETUPTOOLS_IMG%%:*}:latest"
       - store_artifacts:
           path: bin/cordeliactl-darwin-amd64
+          destination: cordeliactl-darwin-amd64
       - store_artifacts:
           path: bin/cordeliactl-linux-amd64
+          destination: cordeliactl-linux-amd64
 workflows:
   version: 2
   dev-build:
