@@ -15,15 +15,20 @@ LDFLAGS += -X github.com/gramLabs/cordelia/pkg/controller/trial.DefaultImage=${S
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
-all: test manager
+all: test manager tool_all
 
 # Run tests
 test: generate fmt vet manifests
 	go test ./pkg/... ./cmd/... -coverprofile cover.out
 
-# Build tool binary
-tool: generate fmt vet
-    go build -ldflags '$(LDFLAGS)' -o bin/cordeliactl github.com/gramLabs/cordelia/cmd/cordeliactl
+# Build tool binary for the current platform
+tool: fmt vet
+	go build -ldflags '$(LDFLAGS)' -o bin/cordeliactl github.com/gramLabs/cordelia/cmd/cordeliactl
+
+# Build tool binary for all supported platforms
+tool_all: fmt vet
+	GOOS=darwin GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o bin/cordeliactl-darwin-amd64 github.com/gramLabs/cordelia/cmd/cordeliactl
+	GOOS=linux GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o bin/cordeliactl-linux-amd64 github.com/gramLabs/cordelia/cmd/cordeliactl
 
 # Build manager binary
 manager: generate fmt vet

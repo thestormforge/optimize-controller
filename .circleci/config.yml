@@ -51,16 +51,13 @@ jobs:
             docker tag "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:latest"
             docker push "${SETUPTOOLS_IMG%%:*}:latest"
       - run:
-          name: Generate Configuration
+          name: Build Tool
           command: |
-            kustomize build config/default > cordelia-manager.yaml
-            kustomize build config/crd > cordelia-init.yaml
+            make tool_all
       - store_artifacts:
-          path: cordelia-manager.yaml
-          destination: manifests/cordelia-manager.yaml
+          path: bin/cordelia-darwin-amd64
       - store_artifacts:
-          path: cordelia-init.yaml
-          destination: manifests/cordelia-init.yaml
+          path: bin/cordelia-linux-amd64
 workflows:
   version: 2
   build-and-deploy:
