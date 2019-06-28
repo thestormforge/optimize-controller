@@ -25,7 +25,7 @@ echo
 
 
 echo "Installing Kubebuilder"
-curl -LOq https://github.com/kubernetes-sigs/kubebuilder/releases/download/v${KUBEBUILDER_VERSION}/kubebuilder_${KUBEBUILDER_VERSION}_linux_amd64.tar.gz
+curl -LOs https://github.com/kubernetes-sigs/kubebuilder/releases/download/v${KUBEBUILDER_VERSION}/kubebuilder_${KUBEBUILDER_VERSION}_linux_amd64.tar.gz
 tar -zxvf kubebuilder_${KUBEBUILDER_VERSION}_linux_amd64.tar.gz
 sudo mv kubebuilder_${KUBEBUILDER_VERSION}_linux_amd64 /usr/local/kubebuilder
 PATH=$PATH:/usr/local/kubebuilder/bin
@@ -33,14 +33,14 @@ echo
 
 
 echo "Installing Kustomize"
-curl -LOq https://github.com/kubernetes-sigs/kustomize/releases/download/v${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64
+curl -LOs https://github.com/kubernetes-sigs/kustomize/releases/download/v${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64
 chmod +x kustomize_${KUSTOMIZE_VERSION}_linux_amd64
 sudo mv kustomize_${KUSTOMIZE_VERSION}_linux_amd64 /usr/local/bin/kustomize
 echo
 
 
 echo "Installing Google Cloud SDK"
-curl -q https://sdk.cloud.google.com | bash -s -- --disable-prompts > /dev/null
+curl -s https://sdk.cloud.google.com | bash -s -- --disable-prompts > /dev/null
 PATH=$PATH:~/google-cloud-sdk/bin
 echo
 
