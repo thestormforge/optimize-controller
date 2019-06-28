@@ -5,6 +5,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // HelmValue represents a value in a Helm template
@@ -12,7 +13,7 @@ type HelmValue struct {
 	// The name of Helm value as passed to one of the set options
 	Name string `json:"name"`
 	// Set a Helm value using the evaluated template. Templates are evaluated using the same rules as patches
-	Value string `json:"value,omitempty"`
+	Value intstr.IntOrString `json:"value,omitempty"`
 	// Source for a Helm value
 	ValueFrom *HelmValueSource `json:"valueFrom,omitempty"`
 }

@@ -1165,10 +1165,12 @@ spec:
                                     one of the set options
                                   type: string
                                 value:
+                                  anyOf:
+                                  - type: string
+                                  - type: integer
                                   description: Set a Helm value using the evaluated
                                     template. Templates are evaluated using the same
                                     rules as patches
-                                  type: string
                                 valueFrom:
                                   description: Source for a Helm value
                                   properties:

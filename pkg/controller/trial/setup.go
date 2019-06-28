@@ -237,8 +237,9 @@ func generateHelmOptions(trial *cordeliav1alpha1.Trial, task *cordeliav1alpha1.S
 	// Add individual --set* options
 	// TODO Do we need to support --set-string?
 	for _, hv := range task.HelmValues {
-		if hv.Value != "" {
-			v, err := executeAssignmentTemplate(hv.Value, trial)
+		v := hv.Value.String()
+		if v != "" {
+			v, err := executeAssignmentTemplate(v, trial)
 			if err != nil {
 				return nil, err
 			}
