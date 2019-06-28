@@ -15,6 +15,7 @@ func init() {
 	rootCmd.Run = rootCmd.HelpFunc()
 	rootCmd.Version = Version()
 	rootCmd.AddCommand(newInitCommand())
+	rootCmd.AddCommand(newResetCommand())
 
 	// TODO Add additional commands to the client
 	// create experiment [--remote-only]

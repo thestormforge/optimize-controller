@@ -3,6 +3,9 @@ package util
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+
+	"github.com/spf13/cobra"
 )
 
 // CheckErr ensures the supplied error is reported and handled correctly. Errors may be reported and/or may cause the process to exit.
@@ -16,12 +19,17 @@ func CheckErr(err error) {
 	os.Exit(1)
 }
 
-// TODO Should we combine `HomeDir` with `filepath.Join`? If so we need to add an `error` to the return since we can't check for ""
-
-// HomeDir returns the user's home directory.
-func HomeDir() string {
-	if h := os.Getenv("HOME"); h != "" {
-		return h
+func KubeConfig(cmd *cobra.Command, kubeconfig *string) {
+	homeDir := os.Getenv("HOME")
+	if homeDir == "" {
+		homeDir = os.Getenv("USERPROFILE")
 	}
-	return os.Getenv("USERPROFILE")
+	if homeDir != "" {
+		*kubeconfig = filepath.Join(homeDir, ".kube", "config")
+	}
+
+	cmd.Flags().StringVar(kubeconfig, "kubeconfig", *kubeconfig, "absolute path to the kubeconfig file")
+	if *kubeconfig == "" {
+		_ = cmd.MarkFlagRequired("kubeconfig")
+	}
 }

@@ -15,9 +15,15 @@ while [ "$#" != "0" ] ; do
     case "$1" in
     install)
         cd /cordelia/client
+        kustomize edit set namespace "$NAMESPACE"
         # TODO This is temporary until the CRD is part of the default Kustomization
         kustomize edit add base ../crd
-        handle () { kubectl create -f - ; }
+        handle () { kubectl apply -f - ; }
+        shift
+        ;;
+    uninstall)
+        cd /cordelia/client
+        handle () { kubectl delete -f - ; }
         shift
         ;;
     create)
@@ -32,7 +38,8 @@ while [ "$#" != "0" ] ; do
         handle () { kubectl delete -f - ; }
         shift
         ;;
-    --manifests)
+    --dry-run)
+        # TODO Should this just add --dry-run to the kubectl invocation?
         handle () { cat ; }
         shift
         ;;
@@ -66,6 +73,7 @@ if [ -n "$CHART" ] ; then
         kustomize edit add resource ${c%%.tgz}.yaml
     done
 fi
+# TODO If this is not Helm, should we do a `kustomize edit set namespace "$NAMESPACE"`?
 
 
 # Run Kustomize and pipe it into the handler
