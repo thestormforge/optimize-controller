@@ -66,9 +66,9 @@ generate: controller-gen
 # Build the docker images
 docker-build:
 	docker build . -t ${IMG} --build-arg LDFLAGS='$(LDFLAGS)'
-	docker build . -t ${SETUPTOOLS_IMG} -f Dockerfile.setuptools
 	@echo "updating kustomize image patch file for manager resource"
 	sed -i'' -e 's@image: .*@image: '"${IMG}"'@' ./config/default/manager_image_patch.yaml
+	docker build . -t ${SETUPTOOLS_IMG} -f Dockerfile.setuptools
 
 # Push the docker images
 docker-push:
