@@ -75,8 +75,7 @@ func (o *initOptions) run() error {
 
 	// A bootstrap dry run just means serialize the bootstrap config
 	if o.bootstrap && o.dryRun {
-		bootstrapConfig.Marshal(os.Stdout)
-		return nil
+		return bootstrapConfig.Marshal(os.Stdout)
 	}
 
 	// Create, but do not execute the job
@@ -186,7 +185,6 @@ func (o *initOptions) run() error {
 							if err := dumpLog(podsClient, p.Name, os.Stderr); err != nil {
 								return err
 							}
-
 							return fmt.Errorf("installation encountered an error")
 						}
 					}
@@ -201,7 +199,7 @@ func (o *initOptions) run() error {
 }
 
 func dumpLog(podsClient clientcorev1.PodInterface, name string, w io.Writer) error {
-	r, err := podsClient.GetLogs(name, nil).Stream()
+	r, err := podsClient.GetLogs(name, &corev1.PodLogOptions{}).Stream()
 	if err != nil {
 		return err
 	}
