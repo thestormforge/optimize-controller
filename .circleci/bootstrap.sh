@@ -40,13 +40,7 @@ echo
 
 
 echo "Installing Google Cloud SDK"
-curl -q https://sdk.cloud.google.com | bash -s -- --disable-prompts
+curl -q https://sdk.cloud.google.com | bash -s -- --disable-prompts > /dev/null
 export PATH=$PATH:~/google-cloud-sdk/bin
 echo
 
-echo "Authorizing Google Cloud SDK"
-echo $GCLOUD_SERVICE_KEY | gcloud auth activate-service-account --key-file=-
-gcloud --quiet config set project ${GOOGLE_PROJECT_ID}
-gcloud --quiet config set compute/zone ${GOOGLE_COMPUTE_ZONE}
-gcloud --quiet auth configure-docker
-echo
