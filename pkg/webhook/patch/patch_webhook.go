@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/gramLabs/cordelia/pkg/apis/cordelia/v1alpha1"
+	"github.com/gramLabs/redsky/pkg/apis/redsky/v1alpha1"
 	"k8s.io/api/admission/v1beta1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"

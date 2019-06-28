@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gramLabs/cordelia/pkg/version"
+	"github.com/gramLabs/redsky/pkg/version"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 	"k8s.io/apimachinery/pkg/util/yaml"
@@ -37,7 +37,7 @@ type Client interface {
 func DefaultConfig() (*Config, error) {
 	config := &Config{}
 
-	p := ".cordelia"
+	p := ".redsky"
 	home := os.Getenv("HOME")
 	if home == "" {
 		home = os.Getenv("USERPROFILE")
@@ -58,13 +58,13 @@ func DefaultConfig() (*Config, error) {
 	}
 
 	if config.Address == "" {
-		config.Address = os.Getenv("CORDELIA_ADDRESS")
+		config.Address = os.Getenv("REDSKY_ADDRESS")
 	}
 
 	if config.OAuth2 == nil {
 		oauth2 := OAuth2{
-			ClientID:     os.Getenv("CORDELIA_OAUTH2_CLIENT_ID"),
-			ClientSecret: os.Getenv("CORDELIA_OAUTH2_CLIENT_SECRET"),
+			ClientID:     os.Getenv("REDSKY_OAUTH2_CLIENT_ID"),
+			ClientSecret: os.Getenv("REDSKY_OAUTH2_CLIENT_SECRET"),
 		}
 		if oauth2.ClientID != "" && oauth2.ClientSecret != "" {
 			config.OAuth2 = &oauth2
@@ -72,7 +72,7 @@ func DefaultConfig() (*Config, error) {
 	}
 
 	if config.OAuth2 != nil && config.OAuth2.TokenURL == "" {
-		config.OAuth2.TokenURL = os.Getenv("CORDELIA_OAUTH2_TOKEN_URL")
+		config.OAuth2.TokenURL = os.Getenv("REDSKY_OAUTH2_TOKEN_URL")
 		if config.OAuth2.TokenURL == "" {
 			config.OAuth2.TokenURL = "../auth/token/"
 		}
@@ -106,7 +106,7 @@ func NewClient(cfg Config) (Client, error) {
 		hc = http.Client{Timeout: 10 * time.Second}
 	}
 
-	ua := "Cordelia/" + strings.TrimLeft(version.Version, "v")
+	ua := "RedSky/" + strings.TrimLeft(version.Version, "v")
 
 	return &httpClient{
 		endpoint:  u,

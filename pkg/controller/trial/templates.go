@@ -6,7 +6,7 @@ import (
 	"text/template"
 	"time"
 
-	cordeliav1alpha1 "github.com/gramLabs/cordelia/pkg/apis/cordelia/v1alpha1"
+	redskyv1alpha1 "github.com/gramLabs/redsky/pkg/apis/redsky/v1alpha1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
@@ -29,7 +29,7 @@ type metricContext struct {
 	Range string
 }
 
-func executePatchTemplate(p *cordeliav1alpha1.PatchTemplate, trial *cordeliav1alpha1.Trial) (types.PatchType, []byte, error) {
+func executePatchTemplate(p *redskyv1alpha1.PatchTemplate, trial *redskyv1alpha1.Trial) (types.PatchType, []byte, error) {
 	// Determine the patch type
 	var patchType types.PatchType
 	switch p.Type {
@@ -52,7 +52,7 @@ func executePatchTemplate(p *cordeliav1alpha1.PatchTemplate, trial *cordeliav1al
 	return patchType, json, err
 }
 
-func executeAssignmentTemplate(t string, trial *cordeliav1alpha1.Trial) ([]byte, error) {
+func executeAssignmentTemplate(t string, trial *redskyv1alpha1.Trial) ([]byte, error) {
 	// Create the functions map
 	funcMap := template.FuncMap{
 		"percent": templatePercent,
@@ -78,7 +78,7 @@ func executeAssignmentTemplate(t string, trial *cordeliav1alpha1.Trial) ([]byte,
 	return buf.Bytes(), nil
 }
 
-func executeMetricQueryTemplate(m *cordeliav1alpha1.Metric, trial *cordeliav1alpha1.Trial) (string, error) {
+func executeMetricQueryTemplate(m *redskyv1alpha1.Metric, trial *redskyv1alpha1.Trial) (string, error) {
 	// Create the functions map
 	funcMap := template.FuncMap{
 		"duration": templateDuration,

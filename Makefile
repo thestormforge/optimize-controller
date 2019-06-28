@@ -4,13 +4,13 @@ SETUPTOOLS_IMG ?= setuptools:latest
 
 # Collect version information
 ifdef VERSION
-    LDFLAGS += -X github.com/gramLabs/cordelia/pkg/version.Version=${VERSION}
+    LDFLAGS += -X github.com/gramLabs/redsky/pkg/version.Version=${VERSION}
 endif
 ifdef BUILD_METADATA
-    LDFLAGS += -X github.com/gramLabs/cordelia/pkg/version.BuildMetadata=${BUILD_METADATA}
+    LDFLAGS += -X github.com/gramLabs/redsky/pkg/version.BuildMetadata=${BUILD_METADATA}
 endif
-LDFLAGS += -X github.com/gramLabs/cordelia/pkg/version.GitCommit=$(shell git rev-parse HEAD)
-LDFLAGS += -X github.com/gramLabs/cordelia/pkg/controller/trial.DefaultImage=${SETUPTOOLS_IMG}
+LDFLAGS += -X github.com/gramLabs/redsky/pkg/version.GitCommit=$(shell git rev-parse HEAD)
+LDFLAGS += -X github.com/gramLabs/redsky/pkg/controller/trial.DefaultImage=${SETUPTOOLS_IMG}
 
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
@@ -23,16 +23,16 @@ test: generate fmt vet manifests
 
 # Build tool binary for the current platform
 tool: fmt vet
-	go build -ldflags '$(LDFLAGS)' -o bin/cordeliactl github.com/gramLabs/cordelia/cmd/cordeliactl
+	go build -ldflags '$(LDFLAGS)' -o bin/redskyctl github.com/gramLabs/redsky/cmd/redskyctl
 
 # Build tool binary for all supported platforms
 tool_all: fmt vet
-	GOOS=darwin GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o bin/cordeliactl-darwin-amd64 github.com/gramLabs/cordelia/cmd/cordeliactl
-	GOOS=linux GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o bin/cordeliactl-linux-amd64 github.com/gramLabs/cordelia/cmd/cordeliactl
+	GOOS=darwin GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o bin/redskyctl-darwin-amd64 github.com/gramLabs/redsky/cmd/redskyctl
+	GOOS=linux GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o bin/redskyctl-linux-amd64 github.com/gramLabs/redsky/cmd/redskyctl
 
 # Build manager binary
 manager: generate fmt vet
-	go build -ldflags '$(LDFLAGS)' -o bin/manager github.com/gramLabs/cordelia/cmd/manager
+	go build -ldflags '$(LDFLAGS)' -o bin/manager github.com/gramLabs/redsky/cmd/manager
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate fmt vet

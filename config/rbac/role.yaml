@@ -45,7 +45,7 @@ rules:
   verbs:
   - list
 - apiGroups:
-  - cordelia.carbonrelay.com
+  - redsky.carbonrelay.com
   resources:
   - trials
   verbs:
@@ -57,7 +57,7 @@ rules:
   - patch
   - delete
 - apiGroups:
-  - cordelia.carbonrelay.com
+  - redsky.carbonrelay.com
   resources:
   - trials/status
   verbs:
@@ -65,7 +65,7 @@ rules:
   - update
   - patch
 - apiGroups:
-  - cordelia.carbonrelay.com
+  - redsky.carbonrelay.com
   resources:
   - experiments
   verbs:
@@ -77,7 +77,7 @@ rules:
   - patch
   - delete
 - apiGroups:
-  - cordelia.carbonrelay.com
+  - redsky.carbonrelay.com
   resources:
   - experiments/status
   verbs:

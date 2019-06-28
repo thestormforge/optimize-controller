@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	cordeliav1alpha1 "github.com/gramLabs/cordelia/pkg/apis/cordelia/v1alpha1"
+	redskyv1alpha1 "github.com/gramLabs/redsky/pkg/apis/redsky/v1alpha1"
 	prom "github.com/prometheus/client_golang/api"
 	promv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
@@ -19,7 +19,7 @@ import (
 // TODO Combine it with the Prometheus clients?
 var httpClient = &http.Client{Timeout: 10 * time.Second}
 
-func captureMetric(m *cordeliav1alpha1.Metric, u string, trial *cordeliav1alpha1.Trial) (float64, float64, *time.Duration, error) {
+func captureMetric(m *redskyv1alpha1.Metric, u string, trial *redskyv1alpha1.Trial) (float64, float64, *time.Duration, error) {
 	// Execute the query as a template against the current state of the trial
 	q, err := executeMetricQueryTemplate(m, trial)
 	if err != nil {
@@ -28,11 +28,11 @@ func captureMetric(m *cordeliav1alpha1.Metric, u string, trial *cordeliav1alpha1
 
 	// Capture the value based on the metric type
 	switch m.Type {
-	case cordeliav1alpha1.MetricLocal, "":
+	case redskyv1alpha1.MetricLocal, "":
 		return captureLocalMetric(q)
-	case cordeliav1alpha1.MetricPrometheus:
+	case redskyv1alpha1.MetricPrometheus:
 		return capturePrometheusMetric(u, q, trial.Status.CompletionTime.Time)
-	case cordeliav1alpha1.MetricJSONPath:
+	case redskyv1alpha1.MetricJSONPath:
 		return captureJSONPathMetric(u, m.Name, q)
 	default:
 		return 0, 0, nil, fmt.Errorf("unknown metric type: %s", m.Type)

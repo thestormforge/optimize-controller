@@ -1,4 +1,4 @@
-apiVersion: cordelia.carbonrelay.com/v1alpha1
+apiVersion: redsky.carbonrelay.com/v1alpha1
 kind: Trial
 metadata:
   labels:

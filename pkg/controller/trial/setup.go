@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	cordeliav1alpha1 "github.com/gramLabs/cordelia/pkg/apis/cordelia/v1alpha1"
+	redskyv1alpha1 "github.com/gramLabs/redsky/pkg/apis/redsky/v1alpha1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -21,12 +21,12 @@ var (
 )
 
 const (
-	setupFinalizer = "setupFinalizer.cordelia.carbonrelay.com"
+	setupFinalizer = "setupFinalizer.redsky.carbonrelay.com"
 	create         = "create"
 	delete         = "delete"
 )
 
-func manageSetup(c client.Client, s *runtime.Scheme, trial *cordeliav1alpha1.Trial) (reconcile.Result, bool, error) {
+func manageSetup(c client.Client, s *runtime.Scheme, trial *redskyv1alpha1.Trial) (reconcile.Result, bool, error) {
 	// Determine which jobs are initially required
 	var needsCreate, needsDelete, finishedCreate, finishedDelete bool
 	for _, t := range trial.Spec.SetupTasks {
@@ -103,7 +103,7 @@ func manageSetup(c client.Client, s *runtime.Scheme, trial *cordeliav1alpha1.Tri
 	return reconcile.Result{}, false, nil
 }
 
-func addSetupFinalizer(trial *cordeliav1alpha1.Trial) bool {
+func addSetupFinalizer(trial *redskyv1alpha1.Trial) bool {
 	for _, f := range trial.Finalizers {
 		if f == setupFinalizer {
 			return false
@@ -125,7 +125,7 @@ func isJobFinished(job *batchv1.Job) bool {
 	return false
 }
 
-func newSetupJob(trial *cordeliav1alpha1.Trial, scheme *runtime.Scheme, mode string) (*batchv1.Job, error) {
+func newSetupJob(trial *redskyv1alpha1.Trial, scheme *runtime.Scheme, mode string) (*batchv1.Job, error) {
 	job := &batchv1.Job{}
 	job.Namespace = trial.Namespace
 	job.Name = fmt.Sprintf("%s-%s", trial.Name, mode)
@@ -229,7 +229,7 @@ func newSetupJob(trial *cordeliav1alpha1.Trial, scheme *runtime.Scheme, mode str
 	return job, nil
 }
 
-func generateHelmOptions(trial *cordeliav1alpha1.Trial, task *cordeliav1alpha1.SetupTask) ([]string, error) {
+func generateHelmOptions(trial *redskyv1alpha1.Trial, task *redskyv1alpha1.SetupTask) ([]string, error) {
 	var opts []string
 
 	// NOTE: Since the content of the ConfigMaps is dynamic, we only look for --values files from the running container

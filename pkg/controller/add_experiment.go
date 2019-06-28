@@ -1,7 +1,7 @@
 package controller
 
 import (
-	"github.com/gramLabs/cordelia/pkg/controller/experiment"
+	"github.com/gramLabs/redsky/pkg/controller/experiment"
 )
 
 func init() {
