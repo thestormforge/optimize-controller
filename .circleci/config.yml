@@ -27,10 +27,16 @@ jobs:
           name: Docker Build
           command: |
             make docker-build
-            make tool_all
       - run:
           name: Docker Push
           command: make docker-push
+      - run:
+          # This MUST run AFTER `make docker-build` or the manager image name will be wrong
+          # This MUST run AFTER `make docker-push` or we may build a CLI that references non-existent images
+          name: Build Tool
+          command: |
+            sed -i'' -e 's@image: .*@image: '"${IMG}"'@' ./config/default/manager_image_patch.yaml
+            make tool_all
       - run:
           name: Docker Tag Latest
           command: |
