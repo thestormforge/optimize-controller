@@ -43,9 +43,9 @@ jobs:
             docker tag "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:latest"
             docker push "${SETUPTOOLS_IMG%%:*}:latest"
       - store_artifacts:
-          path: bin/cordelia-darwin-amd64
+          path: bin/cordeliactl-darwin-amd64
       - store_artifacts:
-          path: bin/cordelia-linux-amd64
+          path: bin/cordeliactl-linux-amd64
 workflows:
   version: 2
   dev-build:
