@@ -40,6 +40,7 @@ func NewServerCheckCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobr
 		Long:  "Ensures that the server and current client are compatible.",
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(f, cmd))
+			cmdutil.CheckErr(o.Validate())
 			cmdutil.CheckErr(o.Run())
 		},
 	}
