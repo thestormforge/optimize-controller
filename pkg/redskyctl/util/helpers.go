@@ -15,3 +15,7 @@ func CheckErr(err error) {
 	fmt.Fprintf(os.Stderr, "Failed: %s\n", err.Error())
 	os.Exit(1)
 }
+
+func stringptr(val string) *string {
+	return &val
+}

@@ -10,18 +10,23 @@ import (
 
 // TODO Consider the real Kube cli-runtime?
 
+const (
+	flagKubeconfig = "kubeconfig"
+)
+
 type ConfigFlags struct {
 	KubeConfig *string
 }
 
 func NewConfigFlags() *ConfigFlags {
-	kubeConfig := ""
-	return &ConfigFlags{KubeConfig: &kubeConfig}
+	return &ConfigFlags{
+		KubeConfig: stringptr(""),
+	}
 }
 
 func (f *ConfigFlags) AddFlags(flags *pflag.FlagSet) {
 	if f.KubeConfig != nil {
-		flags.StringVar(f.KubeConfig, "kubeconfig", *f.KubeConfig, "Path to the kubeconfig file to use for CLI requests.")
+		flags.StringVar(f.KubeConfig, flagKubeconfig, *f.KubeConfig, "Path to the kubeconfig file to use for CLI requests.")
 	}
 }
 
