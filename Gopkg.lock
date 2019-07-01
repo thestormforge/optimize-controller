@@ -911,6 +911,7 @@
     "github.com/prometheus/client_golang/api/prometheus/v1",
     "github.com/prometheus/common/model",
     "github.com/spf13/cobra",
+    "github.com/spf13/pflag",
     "golang.org/x/net/context",
     "golang.org/x/oauth2",
     "golang.org/x/oauth2/clientcredentials",
