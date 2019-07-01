@@ -22,6 +22,8 @@ type OAuth2 struct {
 	ClientID     string `json:"client_id"`
 	ClientSecret string `json:"client_secret"`
 	TokenURL     string `json:"token_url,omitempty"`
+
+	Token string `json:"token,omitempty"`
 }
 
 type Config struct {
@@ -71,7 +73,7 @@ func DefaultConfig() (*Config, error) {
 		}
 	}
 
-	if config.OAuth2 != nil && config.OAuth2.TokenURL == "" {
+	if config.OAuth2 != nil && config.OAuth2.TokenURL == "" && config.OAuth2.ClientID != "" && config.OAuth2.ClientSecret != "" {
 		config.OAuth2.TokenURL = os.Getenv("REDSKY_OAUTH2_TOKEN_URL")
 		if config.OAuth2.TokenURL == "" {
 			config.OAuth2.TokenURL = "../auth/token/"
@@ -88,30 +90,40 @@ func NewClient(cfg Config) (Client, error) {
 	}
 	u.Path = strings.TrimRight(u.Path, "/")
 
-	var hc http.Client
-	if cfg.OAuth2 != nil && cfg.OAuth2.TokenURL != "" {
-		t, err := url.Parse(cfg.OAuth2.TokenURL)
-		if err != nil {
-			return nil, err
-		}
+	var hc *http.Client
+	if cfg.OAuth2 != nil {
+		ctx := context.TODO()
+		if cfg.OAuth2.TokenURL != "" && cfg.OAuth2.ClientID != "" && cfg.OAuth2.ClientSecret != "" {
+			// Client credential ("two-legged") token flow
+			t, err := url.Parse(cfg.OAuth2.TokenURL)
+			if err != nil {
+				return nil, err
+			}
 
-		c := clientcredentials.Config{
-			ClientID:     cfg.OAuth2.ClientID,
-			ClientSecret: cfg.OAuth2.ClientSecret,
-			TokenURL:     u.ResolveReference(t).String(),
-			AuthStyle:    oauth2.AuthStyleInParams,
+			c := clientcredentials.Config{
+				ClientID:     cfg.OAuth2.ClientID,
+				ClientSecret: cfg.OAuth2.ClientSecret,
+				TokenURL:     u.ResolveReference(t).String(),
+				AuthStyle:    oauth2.AuthStyleInParams,
+			}
+
+			hc = c.Client(ctx)
+		} else if cfg.OAuth2.Token != "" {
+			// Static token flow
+			ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: cfg.OAuth2.Token})
+			hc = oauth2.NewClient(ctx, ts)
 		}
-		hc = *c.Client(context.TODO())
-	} else {
-		hc = http.Client{Timeout: 10 * time.Second}
 	}
 
-	ua := "RedSky/" + strings.TrimLeft(version.Version, "v")
+	// Default client
+	if hc == nil {
+		hc = &http.Client{Timeout: 10 * time.Second}
+	}
 
 	return &httpClient{
 		endpoint:  u,
-		client:    hc,
-		userAgent: ua,
+		client:    *hc,
+		userAgent: "RedSky/" + strings.TrimLeft(version.Version, "v"),
 	}, nil
 }
 
