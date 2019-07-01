@@ -4,6 +4,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/gramLabs/redsky/pkg/redskyctl/cmd/check"
 	"github.com/gramLabs/redsky/pkg/redskyctl/cmd/init"
 	"github.com/gramLabs/redsky/pkg/redskyctl/cmd/reset"
 	"github.com/gramLabs/redsky/pkg/redskyctl/util"
@@ -36,6 +37,7 @@ func NewKubectlCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 
 	rootCmd.AddCommand(init.NewInitCommand(f, ioStreams))
 	rootCmd.AddCommand(reset.NewResetCommand(f, ioStreams))
+	rootCmd.AddCommand(check.NewCheckCommand(f, ioStreams))
 
 	// TODO Add a 'suggest' command to generate suggestions (either remotely or in cluster)
 	// TODO Add 'backup' and 'restore' maintenance commands ('maint' subcommands?)
