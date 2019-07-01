@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/gramLabs/redsky/pkg/redskyctl/cmd/check"
-	"github.com/gramLabs/redsky/pkg/redskyctl/cmd/init"
+	initcmd "github.com/gramLabs/redsky/pkg/redskyctl/cmd/init"
 	"github.com/gramLabs/redsky/pkg/redskyctl/cmd/reset"
 	"github.com/gramLabs/redsky/pkg/redskyctl/util"
 	"github.com/gramLabs/redsky/pkg/version"
@@ -35,7 +35,7 @@ func NewKubectlCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 
 	ioStreams := util.IOStreams{In: in, Out: out, ErrOut: err}
 
-	rootCmd.AddCommand(init.NewInitCommand(f, ioStreams))
+	rootCmd.AddCommand(initcmd.NewInitCommand(f, ioStreams))
 	rootCmd.AddCommand(reset.NewResetCommand(f, ioStreams))
 	rootCmd.AddCommand(check.NewCheckCommand(f, ioStreams))
 

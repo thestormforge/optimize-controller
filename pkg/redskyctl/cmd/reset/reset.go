@@ -1,19 +1,19 @@
 package reset
 
 import (
-	"github.com/gramLabs/redsky/pkg/redskyctl/cmd/init"
+	initcmd "github.com/gramLabs/redsky/pkg/redskyctl/cmd/init"
 	cmdutil "github.com/gramLabs/redsky/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 )
 
 type ResetOptions struct {
 	// Really we just hide an init call in here
-	initOptions *init.InitOptions
+	initOptions *initcmd.InitOptions
 }
 
 func NewResetOptions(ioStreams cmdutil.IOStreams) *ResetOptions {
 	return &ResetOptions{
-		initOptions: init.NewInitOptions(ioStreams),
+		initOptions: initcmd.NewInitOptions(ioStreams),
 	}
 }
 
