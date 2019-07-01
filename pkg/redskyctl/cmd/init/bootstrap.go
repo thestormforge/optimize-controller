@@ -1,4 +1,4 @@
-package redskyctl
+package init
 
 import (
 	"io"
@@ -16,7 +16,7 @@ import (
 )
 
 // The bootstrap configuration
-type bootstrapConfig struct {
+type BootstrapConfig struct {
 	Namespace          corev1.Namespace
 	ClusterRole        rbacv1.ClusterRole
 	ClusterRoleBinding rbacv1.ClusterRoleBinding
@@ -26,12 +26,15 @@ type bootstrapConfig struct {
 	Job                batchv1.Job
 }
 
-func (b *bootstrapConfig) Marshal(w io.Writer) error {
+// Marshal a bootstrap configuration as a YAML stream
+func (b *BootstrapConfig) Marshal(w io.Writer) error {
+	// Create a scheme with groups we use so type information is generated properly
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)
 	_ = batchv1.AddToScheme(scheme)
 	_ = rbacv1.AddToScheme(scheme)
 
+	// Collect all of the objects into an array of runtime objects
 	var objs []runtime.Object
 	objs = append(objs,
 		&b.Namespace,
@@ -43,18 +46,21 @@ func (b *bootstrapConfig) Marshal(w io.Writer) error {
 		&b.Job)
 
 	for i := range objs {
+		// YAML stream delimiter
 		if i > 0 {
 			if _, err := w.Write([]byte("---\n")); err != nil {
 				return err
 			}
 		}
 
+		// Use the scheme to convert into a map that contains type information
 		u := &unstructured.Unstructured{}
 		err := scheme.Convert(objs[i], u, runtime.InternalGroupVersioner)
 		if err != nil {
 			return err
 		}
 
+		// Marshal individual objects as YAML and write the result
 		if b, err := yaml.Marshal(u); err != nil {
 			return err
 		} else if _, err := w.Write(b); err != nil {
@@ -65,15 +71,17 @@ func (b *bootstrapConfig) Marshal(w io.Writer) error {
 	return nil
 }
 
-func newBootstrapConfig(namespace, name string, cfg *api.Config) (*bootstrapConfig, error) {
+// NewBootstrapConfig creates a complete bootstrap configuration from the supplied values
+func NewBootstrapConfig(namespace, name, command string, cfg *api.Config) (*BootstrapConfig, error) {
+	// We need a []byte representation of the client configuration for the secret
 	clientConfig, err := yaml.Marshal(cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	// Note that we cannot scope "create" to a particular resource name
+	// Note that we cannot scope "create" roles to a particular resource name
 
-	b := &bootstrapConfig{
+	b := &BootstrapConfig{
 		// This is the namespace ultimately used by the product
 		Namespace: corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{Name: namespace},
@@ -156,7 +164,7 @@ func newBootstrapConfig(namespace, name string, cfg *api.Config) (*bootstrapConf
 								Name:            "setuptools-install",
 								Image:           trial.DefaultImage,
 								ImagePullPolicy: corev1.PullAlways,
-								Args:            []string{"install"},
+								Args:            []string{command},
 								Env: []corev1.EnvVar{
 									{
 										Name: "NAMESPACE",

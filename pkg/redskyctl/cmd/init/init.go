@@ -1,4 +1,4 @@
-package redskyctl
+package init
 
 import (
 	"fmt"
@@ -13,98 +13,101 @@ import (
 	watchutil "k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	clientcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
-type initOptions struct {
-	kubeconfig       string
+type InitOptions struct {
+	Bootstrap bool
+	DryRun    bool
+
 	installNamespace string
 	installName      string
-	bootstrap        bool
-	dryRun           bool
-	uninstall        bool
+	command          string
+
+	ClientSet *kubernetes.Clientset
+
+	cmdutil.IOStreams
 }
 
-func newInitOptions() *initOptions {
-	return &initOptions{
+func NewInitOptions(ioStreams cmdutil.IOStreams) *InitOptions {
+	return &InitOptions{
 		installNamespace: "redsky-system",
 		installName:      "redsky-bootstrap",
+		command:          "install",
+		IOStreams:        ioStreams,
 	}
 }
 
-func newInitCommand() *cobra.Command {
-	o := newInitOptions()
+func NewInitCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
+	o := NewInitOptions(ioStreams)
 
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Initialize Red Sky in a cluster",
 		Long:  "The initialize command will install (or optionally generate) the required Red Sky manifests.",
 		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(o.run())
+			cmdutil.CheckErr(o.Complete(f, cmd))
+			cmdutil.CheckErr(o.Run())
 		},
 	}
 
-	// TODO Should this be a persistent flag on the root command?
-	cmdutil.KubeConfig(cmd, &o.kubeconfig)
-
-	cmd.Flags().BoolVar(&o.bootstrap, "bootstrap", false, "stop after creating the bootstrap configuration")
-	cmd.Flags().BoolVar(&o.dryRun, "dry-run", false, "generate the manifests instead of applying them")
-
-	// TODO How do we get the server address?
-	// TODO How do we collect client_id/secret? Only from a file?
+	cmd.Flags().BoolVar(&o.Bootstrap, "bootstrap", false, "stop after creating the bootstrap configuration")
+	cmd.Flags().BoolVar(&o.DryRun, "dry-run", false, "generate the manifests instead of applying them")
 
 	return cmd
 }
 
-func (o *initOptions) run() error {
-	// TODO How do we generate the client configuration? Registration?
+func (o *InitOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) error {
+
+	// If this is really a reset then change the setup command to uninstall
+	if cmd.Name() == "reset" {
+		o.command = "uninstall"
+	}
+
+	var err error
+	o.ClientSet, err = f.KubernetesClientSet()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (o *InitOptions) Run() error {
+	// TODO Should the util.Factory expose the configuration for bootstraping? Or should be build this some other way?
 	clientConfig, err := api.DefaultConfig()
 	if err != nil {
 		return err
 	}
 
-	bootstrapConfig, err := newBootstrapConfig(o.installNamespace, o.installName, clientConfig)
+	bootstrapConfig, err := NewBootstrapConfig(o.installNamespace, o.installName, o.command, clientConfig)
 	if err != nil {
 		return err
 	}
 
-	// If this is a request to uninstall, change the arguments
-	if o.uninstall {
-		bootstrapConfig.Job.Spec.Template.Spec.Containers[0].Args = []string{"uninstall"}
-	}
-
 	// A bootstrap dry run just means serialize the bootstrap config
-	if o.bootstrap && o.dryRun {
-		return bootstrapConfig.Marshal(os.Stdout)
+	if o.Bootstrap && o.DryRun {
+		return bootstrapConfig.Marshal(o.Out)
 	}
 
 	// Create, but do not execute the job
-	if o.bootstrap {
+	if o.Bootstrap {
 		bootstrapConfig.Job.Spec.Parallelism = new(int32)
 	}
 
 	// Request generation of manifests only
-	if o.dryRun {
+	if o.DryRun {
 		bootstrapConfig.Job.Spec.Template.Spec.Containers[0].Args = append(bootstrapConfig.Job.Spec.Template.Spec.Containers[0].Args, "--dry-run")
 	}
 
 	// Get all the Kubernetes clients we need
-	config, err := clientcmd.BuildConfigFromFlags("", o.kubeconfig)
-	if err != nil {
-		return err
-	}
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return err
-	}
-	namespacesClient := clientset.CoreV1().Namespaces()
-	clusterRolesClient := clientset.RbacV1().ClusterRoles()
-	clusterRoleBindingsClient := clientset.RbacV1().ClusterRoleBindings()
-	rolesClient := clientset.RbacV1().Roles(o.installNamespace)
-	roleBindingsClient := clientset.RbacV1().RoleBindings(o.installNamespace)
-	secretsClient := clientset.CoreV1().Secrets(o.installNamespace)
-	jobsClient := clientset.BatchV1().Jobs(o.installNamespace)
-	podsClient := clientset.CoreV1().Pods(o.installNamespace)
+	namespacesClient := o.ClientSet.CoreV1().Namespaces()
+	clusterRolesClient := o.ClientSet.RbacV1().ClusterRoles()
+	clusterRoleBindingsClient := o.ClientSet.RbacV1().ClusterRoleBindings()
+	rolesClient := o.ClientSet.RbacV1().Roles(o.installNamespace)
+	roleBindingsClient := o.ClientSet.RbacV1().RoleBindings(o.installNamespace)
+	secretsClient := o.ClientSet.CoreV1().Secrets(o.installNamespace)
+	jobsClient := o.ClientSet.BatchV1().Jobs(o.installNamespace)
+	podsClient := o.ClientSet.CoreV1().Pods(o.installNamespace)
 
 	// TODO It would be nice if we could set ownership to the job to cascade the clean up for us
 
@@ -162,7 +165,7 @@ func (o *initOptions) run() error {
 	}()
 
 	// Wait for the job to finish (unless we are just bootstraping the install)
-	if !o.bootstrap {
+	if !o.Bootstrap {
 		watch, err := podsClient.Watch(metav1.ListOptions{LabelSelector: "job-name = " + o.installName})
 		if err != nil {
 			return err
@@ -172,7 +175,7 @@ func (o *initOptions) run() error {
 			if p, ok := event.Object.(*corev1.Pod); ok {
 				if p.Status.Phase == corev1.PodSucceeded {
 					// TODO Go routine to pump pod logs to stdout? Should we do that no matter what?
-					if err := dumpLog(podsClient, p.Name, os.Stdout); err != nil {
+					if err := dumpLog(podsClient, p.Name, o.Out); err != nil {
 						return err
 					}
 					watch.Stop()
@@ -182,7 +185,7 @@ func (o *initOptions) run() error {
 							return fmt.Errorf("unable to pull image '%s' needed for installation", c.Image)
 						} else if c.State.Terminated != nil && c.State.Terminated.Reason == "Error" {
 							// TODO For now just copy logs over?
-							if err := dumpLog(podsClient, p.Name, os.Stderr); err != nil {
+							if err := dumpLog(podsClient, p.Name, o.ErrOut); err != nil {
 								return err
 							}
 							return fmt.Errorf("installation encountered an error")

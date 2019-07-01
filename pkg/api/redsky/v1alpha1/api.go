@@ -207,6 +207,15 @@ func NewApi(c api.Client) API {
 	return &httpAPI{client: c}
 }
 
+// NewForConfig returns a new version specific API for the specified client configuration
+func NewForConfig(c *api.Config) (API, error) {
+	client, err := api.NewClient(*c)
+	if err != nil {
+		return nil, err
+	}
+	return NewApi(client), nil
+}
+
 type httpAPI struct {
 	client api.Client
 }
