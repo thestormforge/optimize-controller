@@ -45,5 +45,5 @@ func NewKubectlCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 	// TODO We need helpers for doing a "dry run" on patches to make configuration easier
 	// TODO Should the "create experiment" wizard be a Kustomize plugin?
 
-	return nil
+	return rootCmd
 }
