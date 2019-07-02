@@ -2,11 +2,13 @@ package util
 
 import (
 	redsky "github.com/gramLabs/redsky/pkg/api/redsky/v1alpha1"
+	redskykube "github.com/gramLabs/redsky/pkg/client"
 	"k8s.io/client-go/kubernetes"
 )
 
 type Factory interface {
 	KubernetesClientSet() (*kubernetes.Clientset, error)
+	RedSkyClientSet() (*redskykube.Clientset, error)
 	RedSkyAPI() (redsky.API, error)
 }
 
@@ -33,6 +35,14 @@ func (f *factoryImpl) KubernetesClientSet() (*kubernetes.Clientset, error) {
 		return nil, err
 	}
 	return kubernetes.NewForConfig(c)
+}
+
+func (f *factoryImpl) RedSkyClientSet() (*redskykube.Clientset, error) {
+	c, err := f.configFlags.ToRESTConfig()
+	if err != nil {
+		return nil, err
+	}
+	return redskykube.NewForConfig(c)
 }
 
 func (f *factoryImpl) RedSkyAPI() (redsky.API, error) {
