@@ -172,6 +172,22 @@ func (m *ExperimentListMeta) SetLink(rel, link string) {
 	}
 }
 
+type ExperimentListQuery struct {
+	Offset int
+	Limit  int
+}
+
+func (p *ExperimentListQuery) Encode() string {
+	q := url.Values{}
+	if p != nil && p.Offset != 0 {
+		q.Set("offset", strconv.Itoa(p.Offset))
+	}
+	if p != nil && p.Limit != 0 {
+		q.Set("limit", strconv.Itoa(p.Limit))
+	}
+	return q.Encode()
+}
+
 type ExperimentList struct {
 	ExperimentListMeta
 
@@ -243,7 +259,8 @@ type TrialList struct {
 
 // API provides bindings for the supported endpoints
 type API interface {
-	GetAllExperiments(context.Context) (ExperimentList, error)
+	GetAllExperiments(context.Context, *ExperimentListQuery) (ExperimentList, error)
+	GetAllExperimentsByPage(context.Context, string) (ExperimentList, error)
 	GetExperimentByName(context.Context, ExperimentName) (Experiment, error)
 	GetExperiment(context.Context, string) (Experiment, error)
 	CreateExperiment(context.Context, ExperimentName, Experiment) (Experiment, error)
@@ -272,11 +289,16 @@ type httpAPI struct {
 	client api.Client
 }
 
-func (h *httpAPI) GetAllExperiments(ctx context.Context) (ExperimentList, error) {
+func (h *httpAPI) GetAllExperiments(ctx context.Context, q *ExperimentListQuery) (ExperimentList, error) {
 	u := h.client.URL(endpointExperiment)
+	u.RawQuery = q.Encode()
+	return h.GetAllExperimentsByPage(ctx, u.String())
+}
+
+func (h *httpAPI) GetAllExperimentsByPage(ctx context.Context, u string) (ExperimentList, error) {
 	lst := ExperimentList{}
 
-	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+	req, err := http.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
 		return lst, err
 	}
