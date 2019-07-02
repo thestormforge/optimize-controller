@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"strconv"
+	"time"
 
 	redskyclient "github.com/gramLabs/redsky/pkg/api"
 	redskyapi "github.com/gramLabs/redsky/pkg/api/redsky/v1alpha1"
@@ -146,7 +147,7 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 			return reconcile.Result{}, err
 		} else if namespace != "" {
 			trial := &redskyv1alpha1.Trial{}
-			populateTrialFromTemplate(experiment, trial, namespace)
+			PopulateTrialFromTemplate(experiment, trial, namespace)
 			if err := controllerutil.SetControllerReference(experiment, trial, r.scheme); err != nil {
 				return reconcile.Result{}, err
 			}
@@ -351,10 +352,14 @@ func copyExperimentToRemote(experiment *redskyv1alpha1.Experiment, e *redskyapi.
 }
 
 // Creates a new trial for an experiment
-func populateTrialFromTemplate(experiment *redskyv1alpha1.Experiment, trial *redskyv1alpha1.Trial, namespace string) {
+func PopulateTrialFromTemplate(experiment *redskyv1alpha1.Experiment, trial *redskyv1alpha1.Trial, namespace string) {
 	// Start with the trial template
 	experiment.Spec.Template.ObjectMeta.DeepCopyInto(&trial.ObjectMeta)
 	experiment.Spec.Template.Spec.DeepCopyInto(&trial.Spec)
+
+	// The creation timestamp is NOT a pointer so it needs an explicit zero value
+	trial.Spec.Template.ObjectMeta.CreationTimestamp = metav1.NewTime(time.Time{})
+	trial.Spec.Template.Spec.Template.ObjectMeta.CreationTimestamp = metav1.NewTime(time.Time{})
 
 	// Overwrite the target namespace unless we are only running a single trial on the cluster
 	if experiment.GetReplicas() > 1 || experiment.Spec.NamespaceSelector != nil || experiment.Spec.Template.Namespace != "" {
