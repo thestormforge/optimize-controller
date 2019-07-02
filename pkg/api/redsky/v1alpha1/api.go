@@ -447,6 +447,9 @@ func (h *httpAPI) ReportTrial(ctx context.Context, u string, vls TrialValues) er
 }
 
 func unexpected(resp *http.Response) error {
+	if resp.StatusCode == http.StatusUnauthorized {
+		return fmt.Errorf("unauthorized")
+	}
 	return fmt.Errorf("unexpected server response: %d", resp.StatusCode)
 }
 
