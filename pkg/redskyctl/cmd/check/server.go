@@ -114,9 +114,8 @@ func (o *ServerCheckOptions) Run() error {
 
 	// Get the next trial assignments
 	var t redsky.TrialAssignments
-	var rt string
 	for i := 0; i < 5; i++ {
-		t, rt, err = o.RedSkyAPI.NextTrial(context.TODO(), exp.NextTrial)
+		t, err = o.RedSkyAPI.NextTrial(context.TODO(), exp.NextTrial)
 		if aerr, ok := err.(*redsky.Error); ok && aerr.Type == redsky.ErrTrialUnavailable {
 			time.Sleep(aerr.RetryAfter)
 			continue
@@ -128,13 +127,13 @@ func (o *ServerCheckOptions) Run() error {
 	}
 
 	// Validate the trial assignments
-	if err = checkTrialAssignments(&exp, &t, rt); err != nil {
+	if err = checkTrialAssignments(&exp, &t); err != nil {
 		return err
 	}
 
 	// Report a trial observation back
 	v := generateObservation(o, &exp)
-	err = o.RedSkyAPI.ReportTrial(context.TODO(), rt, *v)
+	err = o.RedSkyAPI.ReportTrial(context.TODO(), t.ReportTrial, *v)
 	if err != nil {
 		return err
 	}
@@ -260,8 +259,8 @@ func checkExperiment(name string, original, created *redsky.Experiment) error {
 	return nil
 }
 
-func checkTrialAssignments(exp *redsky.Experiment, t *redsky.TrialAssignments, rt string) error {
-	if rt == "" {
+func checkTrialAssignments(exp *redsky.Experiment, t *redsky.TrialAssignments) error {
+	if t.ReportTrial == "" {
 		return fmt.Errorf("server did not return a report trial link")
 	}
 

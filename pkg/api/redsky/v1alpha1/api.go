@@ -138,6 +138,10 @@ type ExperimentList struct {
 	Experiments []ExperimentItem `json:"experiments,omitempty"`
 }
 
+type TrialMeta struct {
+	ReportTrial string `json:"-"`
+}
+
 type Assignment struct {
 	// The name of the parameter in the experiment the assignment corresponds to.
 	ParameterName string `json:"parameterName"`
@@ -146,6 +150,8 @@ type Assignment struct {
 }
 
 type TrialAssignments struct {
+	TrialMeta
+
 	// The list of parameter names and their assigned values.
 	Assignments []Assignment `json:"assignments"`
 }
@@ -193,12 +199,13 @@ type TrialList struct {
 // API provides bindings for the Flax endpoints
 type API interface {
 	GetAllExperiments(context.Context) (ExperimentList, error)
+	GetExperimentByName(context.Context, ExperimentName) (Experiment, error)
 	GetExperiment(context.Context, string) (Experiment, error)
 	CreateExperiment(context.Context, ExperimentName, Experiment) (Experiment, error)
 	DeleteExperiment(context.Context, string) error
 	GetAllTrials(context.Context, string) (TrialList, error)
 	CreateTrial(context.Context, string, TrialAssignments) (string, error)
-	NextTrial(context.Context, string) (TrialAssignments, string, error)
+	NextTrial(context.Context, string) (TrialAssignments, error)
 	ReportTrial(context.Context, string, TrialValues) error
 }
 
@@ -241,6 +248,11 @@ func (h *httpAPI) GetAllExperiments(ctx context.Context) (ExperimentList, error)
 	default:
 		return lst, unexpected(resp)
 	}
+}
+
+func (h *httpAPI) GetExperimentByName(ctx context.Context, n ExperimentName) (Experiment, error) {
+	u := h.client.URL(endpointExperiment + "/" + url.PathEscape(n.Name()))
+	return h.GetExperiment(ctx, u.String())
 }
 
 func (h *httpAPI) GetExperiment(ctx context.Context, u string) (Experiment, error) {
@@ -381,35 +393,34 @@ func (h *httpAPI) CreateTrial(ctx context.Context, u string, asm TrialAssignment
 	}
 }
 
-func (h *httpAPI) NextTrial(ctx context.Context, u string) (TrialAssignments, string, error) {
+func (h *httpAPI) NextTrial(ctx context.Context, u string) (TrialAssignments, error) {
 	asm := TrialAssignments{}
-	l := ""
 
 	req, err := http.NewRequest(http.MethodPost, u, nil)
 	if err != nil {
-		return asm, l, err
+		return asm, err
 	}
 
 	resp, body, err := h.client.Do(ctx, req)
 	if err != nil {
-		return asm, l, err
+		return asm, err
 	}
 
 	switch resp.StatusCode {
 	case http.StatusOK:
-		l = resp.Header.Get("Location")
 		err = json.Unmarshal(body, &asm)
-		return asm, l, err
+		asm.ReportTrial = resp.Header.Get("Location")
+		return asm, err
 	case http.StatusGone:
-		return asm, l, &Error{Type: ErrExperimentStopped}
+		return asm, &Error{Type: ErrExperimentStopped}
 	case http.StatusServiceUnavailable:
 		ra, err := strconv.Atoi(resp.Header.Get("Retry-After"))
 		if err != nil {
 			ra = 5
 		}
-		return asm, l, &Error{Type: ErrTrialUnavailable, RetryAfter: time.Duration(ra) * time.Second}
+		return asm, &Error{Type: ErrTrialUnavailable, RetryAfter: time.Duration(ra) * time.Second}
 	default:
-		return asm, l, unexpected(resp)
+		return asm, unexpected(resp)
 	}
 }
 

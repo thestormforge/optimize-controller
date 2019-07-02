@@ -152,7 +152,7 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 			}
 
 			// Obtain a suggestion from the server
-			suggestion, reportTrialURL, err := r.api.NextTrial(context.TODO(), nextTrialURL)
+			suggestion, err := r.api.NextTrial(context.TODO(), nextTrialURL)
 			if err != nil {
 				if aerr, ok := err.(*redskyapi.Error); ok {
 					switch aerr.Type {
@@ -171,7 +171,7 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 			}
 
 			// Add the information from the server
-			trial.GetAnnotations()[annotationReportTrialURL] = reportTrialURL
+			trial.GetAnnotations()[annotationReportTrialURL] = suggestion.ReportTrial
 			for _, a := range suggestion.Assignments {
 				if v, err := a.Value.Int64(); err == nil {
 					trial.Spec.Assignments = append(trial.Spec.Assignments, redskyv1alpha1.Assignment{
@@ -183,7 +183,7 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 
 			// Create the trial
 			// TODO If there is an error, notify server that we failed to adopt the suggestion?
-			log.Info("Creating new trial", "namespace", trial.Namespace, "reportTrialURL", reportTrialURL, "assignments", trial.Spec.Assignments)
+			log.Info("Creating new trial", "namespace", trial.Namespace, "reportTrialURL", suggestion.ReportTrial, "assignments", trial.Spec.Assignments)
 			err = r.Create(context.TODO(), trial)
 			return reconcile.Result{}, err
 		}
