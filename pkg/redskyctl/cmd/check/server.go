@@ -103,6 +103,9 @@ func (o *ServerCheckOptions) Run() error {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		_ = o.RedSkyAPI.DeleteExperiment(context.TODO(), exp.Self)
+	}()
 
 	// Validate the experiment
 	if err = checkExperiment(n, e, &exp); err != nil {
@@ -216,10 +219,6 @@ func checkExperiment(name string, original, created *redsky.Experiment) error {
 	}
 	if created.Trials == "" {
 		return fmt.Errorf("server did not return a trials link")
-	}
-
-	if original.DisplayName == "" && created.DisplayName != name {
-		return fmt.Errorf("server returned unexpected display name: '%s' (expected '%s')", created.DisplayName, name)
 	}
 
 	// TODO Optimization
