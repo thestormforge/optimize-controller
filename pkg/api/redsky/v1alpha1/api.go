@@ -17,9 +17,20 @@ import (
 const (
 	endpointExperiment = "/experiments"
 
+	relationSelf      = "self"
+	relationNext      = "next"
+	relationPrev      = "prev"
+	relationPrevious  = "previous"
 	relationTrials    = "https://carbonrelay.com/rel/trials"
 	relationNextTrial = "https://carbonrelay.com/rel/nextTrial"
 )
+
+// Meta is used to collect resource metadata from the response
+type Meta interface {
+	SetLocation(string)
+	SetLastModified(time.Time)
+	SetLink(rel, link string)
+}
 
 type ErrorType string
 
@@ -110,7 +121,19 @@ type ExperimentMeta struct {
 	Self      string `json:"-"`
 	Trials    string `json:"-"`
 	NextTrial string `json:"-"`
-	// TODO LastModified
+}
+
+func (m *ExperimentMeta) SetLocation(string)        {}
+func (m *ExperimentMeta) SetLastModified(time.Time) {}
+func (m *ExperimentMeta) SetLink(rel, link string) {
+	switch rel {
+	case relationSelf:
+		m.Self = link
+	case relationTrials:
+		m.Trials = link
+	case relationNextTrial:
+		m.NextTrial = link
+	}
 }
 
 // Experiment combines the search space, outcomes and optimization configuration
@@ -133,7 +156,25 @@ type ExperimentItem struct {
 	ItemRef string `json:"itemRef,omitempty"`
 }
 
+type ExperimentListMeta struct {
+	Next string `json:"-"`
+	Prev string `json:"-"`
+}
+
+func (m *ExperimentListMeta) SetLocation(string)        {}
+func (m *ExperimentListMeta) SetLastModified(time.Time) {}
+func (m *ExperimentListMeta) SetLink(rel, link string) {
+	switch rel {
+	case relationNext:
+		m.Next = link
+	case relationPrev, relationPrevious:
+		m.Prev = link
+	}
+}
+
 type ExperimentList struct {
+	ExperimentListMeta
+
 	// The list of experiments.
 	Experiments []ExperimentItem `json:"experiments,omitempty"`
 }
@@ -141,6 +182,10 @@ type ExperimentList struct {
 type TrialMeta struct {
 	ReportTrial string `json:"-"`
 }
+
+func (m *TrialMeta) SetLocation(location string) { m.ReportTrial = location }
+func (m *TrialMeta) SetLastModified(time.Time)   {}
+func (m *TrialMeta) SetLink(string, string)      {}
 
 type Assignment struct {
 	// The name of the parameter in the experiment the assignment corresponds to.
@@ -196,7 +241,7 @@ type TrialList struct {
 	Trials []TrialItem `json:"trials"`
 }
 
-// API provides bindings for the Flax endpoints
+// API provides bindings for the supported endpoints
 type API interface {
 	GetAllExperiments(context.Context) (ExperimentList, error)
 	GetExperimentByName(context.Context, ExperimentName) (Experiment, error)
@@ -204,7 +249,7 @@ type API interface {
 	CreateExperiment(context.Context, ExperimentName, Experiment) (Experiment, error)
 	DeleteExperiment(context.Context, string) error
 	GetAllTrials(context.Context, string) (TrialList, error)
-	CreateTrial(context.Context, string, TrialAssignments) (string, error)
+	CreateTrial(context.Context, string, TrialAssignments) (string, error) // TODO Should this return TrialAssignments?
 	NextTrial(context.Context, string) (TrialAssignments, error)
 	ReportTrial(context.Context, string, TrialValues) error
 }
@@ -243,6 +288,7 @@ func (h *httpAPI) GetAllExperiments(ctx context.Context) (ExperimentList, error)
 
 	switch resp.StatusCode {
 	case http.StatusOK:
+		metaUnmarshal(resp.Header, &lst.ExperimentListMeta)
 		err = json.Unmarshal(body, &lst)
 		return lst, nil
 	default:
@@ -270,7 +316,7 @@ func (h *httpAPI) GetExperiment(ctx context.Context, u string) (Experiment, erro
 
 	switch resp.StatusCode {
 	case http.StatusOK:
-		unmarshalExperimentMetadata(resp, &e.ExperimentMeta)
+		metaUnmarshal(resp.Header, &e.ExperimentMeta)
 		err = json.Unmarshal(body, &e)
 		return e, err
 	case http.StatusNotFound:
@@ -302,11 +348,11 @@ func (h *httpAPI) CreateExperiment(ctx context.Context, n ExperimentName, exp Ex
 
 	switch resp.StatusCode {
 	case http.StatusOK:
-		unmarshalExperimentMetadata(resp, &e.ExperimentMeta)
+		metaUnmarshal(resp.Header, &e.ExperimentMeta)
 		err = json.Unmarshal(body, &e)
 		return e, nil
 	case http.StatusCreated:
-		unmarshalExperimentMetadata(resp, &e.ExperimentMeta)
+		metaUnmarshal(resp.Header, &e.ExperimentMeta)
 		err = json.Unmarshal(body, &e)
 		return e, nil
 	case http.StatusBadRequest:
@@ -408,12 +454,13 @@ func (h *httpAPI) NextTrial(ctx context.Context, u string) (TrialAssignments, er
 
 	switch resp.StatusCode {
 	case http.StatusOK:
+		metaUnmarshal(resp.Header, &asm.TrialMeta)
 		err = json.Unmarshal(body, &asm)
-		asm.ReportTrial = resp.Header.Get("Location")
 		return asm, err
 	case http.StatusGone:
 		return asm, &Error{Type: ErrExperimentStopped}
 	case http.StatusServiceUnavailable:
+		// TODO We should include the retry logic here or at the HTTP client
 		ra, err := strconv.Atoi(resp.Header.Get("Retry-After"))
 		if err != nil {
 			ra = 5
@@ -464,8 +511,19 @@ func unexpected(resp *http.Response) error {
 	return fmt.Errorf("unexpected server response: %d", resp.StatusCode)
 }
 
-func unmarshalExperimentMetadata(resp *http.Response, meta *ExperimentMeta) {
-	for _, rh := range resp.Header[http.CanonicalHeaderKey("Link")] {
+// Extract metadata from the response headers, failures are silently ignored, always call before extracting entity body
+func metaUnmarshal(header http.Header, meta Meta) {
+	if location := header.Get("Location"); location != "" {
+		meta.SetLocation(location)
+	}
+
+	if text := header.Get("Last-Modified"); text != "" {
+		if lastModified, err := http.ParseTime(text); err == nil {
+			meta.SetLastModified(lastModified)
+		}
+	}
+
+	for _, rh := range header[http.CanonicalHeaderKey("Link")] {
 		for _, h := range strings.Split(rh, ",") {
 			var link, rel string
 			for _, l := range strings.Split(h, ";") {
@@ -485,14 +543,7 @@ func unmarshalExperimentMetadata(resp *http.Response, meta *ExperimentMeta) {
 					continue
 				}
 			}
-			switch rel {
-			case "self":
-				meta.Self = link
-			case relationTrials:
-				meta.Trials = link
-			case relationNextTrial:
-				meta.NextTrial = link
-			}
+			meta.SetLink(rel, link)
 		}
 	}
 }
