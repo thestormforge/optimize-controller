@@ -35,5 +35,6 @@ func (f *ConfigFlags) ToRESTConfig() (*rest.Config, error) {
 	if f.KubeConfig != nil {
 		loadingRules.ExplicitPath = *f.KubeConfig
 	}
-	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, nil).ClientConfig()
+	overrides := &clientcmd.ConfigOverrides{}
+	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, overrides).ClientConfig()
 }
