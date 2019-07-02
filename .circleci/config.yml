@@ -24,17 +24,20 @@ jobs:
           name: Build manager binary
           command: make manager
       - run:
-          name: Docker Build
+          name: Docker build
           command: |
             make docker-build
       - run:
-          name: Docker Push
+          name: Docker push
           command: make docker-push
       - run:
-          name: Build Tool
+          name: Build tool
           command: make tool_all
       - run:
-          name: Docker Tag Latest
+          name: Compute checksums
+          command: sha256sum bin/* | tee bin/checksums.txt
+      - run:
+          name: Docker tag latest
           command: |
             docker tag "${IMG}" "${IMG%%:*}:latest"
             docker push "${IMG%%:*}:latest"
@@ -46,6 +49,9 @@ jobs:
       - store_artifacts:
           path: bin/redskyctl-linux-amd64
           destination: redskyctl-linux-amd64
+      - store_artifacts:
+          path: bin/checksums.txt
+          destination: checksums.txt
 workflows:
   version: 2
   dev-build:
