@@ -165,7 +165,7 @@ func (o *InitOptions) Run() error {
 	}()
 
 	// Wait for the job to finish (unless we are bootstraping the install or uninstalling)
-	if !o.Bootstrap && o.command != "uninstall" {
+	if !o.Bootstrap {
 		watch, err := podsClient.Watch(metav1.ListOptions{LabelSelector: "job-name = " + o.installName})
 		if err != nil {
 			return err
@@ -175,20 +175,24 @@ func (o *InitOptions) Run() error {
 			if p, ok := event.Object.(*corev1.Pod); ok {
 				if p.Status.Phase == corev1.PodSucceeded {
 					// TODO Go routine to pump pod logs to stdout? Should we do that no matter what?
-					if err := dumpLog(podsClient, p.Name, o.Out); err != nil {
-						return err
+					if o.command != "uninstall" {
+						if err := dumpLog(podsClient, p.Name, o.Out); err != nil {
+							return err
+						}
 					}
 					watch.Stop()
 				} else if p.Status.Phase == corev1.PodPending || p.Status.Phase == corev1.PodFailed {
 					for _, c := range p.Status.ContainerStatuses {
 						if c.State.Waiting != nil && c.State.Waiting.Reason == "ImagePullBackOff" {
-							return fmt.Errorf("unable to pull image '%s' needed for installation", c.Image)
+							return fmt.Errorf("unable to pull image '%s'", c.Image)
 						} else if c.State.Terminated != nil && c.State.Terminated.Reason == "Error" {
 							// TODO For now just copy logs over?
-							if err := dumpLog(podsClient, p.Name, o.ErrOut); err != nil {
-								return err
+							if o.command != "uninstall" {
+								if err := dumpLog(podsClient, p.Name, o.ErrOut); err != nil {
+									return err
+								}
 							}
-							return fmt.Errorf("installation encountered an error")
+							return fmt.Errorf("encountered an error")
 						}
 					}
 				} else if event.Type == watchutil.Deleted {
