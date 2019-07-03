@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"strconv"
-	"time"
 
 	redskyclient "github.com/gramLabs/redsky/pkg/api"
 	redskyapi "github.com/gramLabs/redsky/pkg/api/redsky/v1alpha1"
@@ -357,9 +356,10 @@ func PopulateTrialFromTemplate(experiment *redskyv1alpha1.Experiment, trial *red
 	experiment.Spec.Template.ObjectMeta.DeepCopyInto(&trial.ObjectMeta)
 	experiment.Spec.Template.Spec.DeepCopyInto(&trial.Spec)
 
-	// The creation timestamp is NOT a pointer so it needs an explicit zero value
-	trial.Spec.Template.ObjectMeta.CreationTimestamp = metav1.NewTime(time.Time{})
-	trial.Spec.Template.Spec.Template.ObjectMeta.CreationTimestamp = metav1.NewTime(time.Time{})
+	// The creation timestamp is NOT a pointer so it needs an explicit value that serializes to something
+	// TODO This should not be necessary
+	trial.Spec.Template.ObjectMeta.CreationTimestamp = metav1.Now()
+	trial.Spec.Template.Spec.Template.ObjectMeta.CreationTimestamp = metav1.Now()
 
 	// Overwrite the target namespace unless we are only running a single trial on the cluster
 	if experiment.GetReplicas() > 1 || experiment.Spec.NamespaceSelector != nil || experiment.Spec.Template.Namespace != "" {
