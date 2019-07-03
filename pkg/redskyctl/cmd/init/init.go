@@ -164,8 +164,8 @@ func (o *InitOptions) Run() error {
 		}
 	}()
 
-	// Wait for the job to finish (unless we are just bootstraping the install)
-	if !o.Bootstrap {
+	// Wait for the job to finish (unless we are bootstraping the install or uninstalling)
+	if !o.Bootstrap && o.command != "uninstall" {
 		watch, err := podsClient.Watch(metav1.ListOptions{LabelSelector: "job-name = " + o.installName})
 		if err != nil {
 			return err
@@ -175,10 +175,8 @@ func (o *InitOptions) Run() error {
 			if p, ok := event.Object.(*corev1.Pod); ok {
 				if p.Status.Phase == corev1.PodSucceeded {
 					// TODO Go routine to pump pod logs to stdout? Should we do that no matter what?
-					if o.command != "uninstall" {
-						if err := dumpLog(podsClient, p.Name, o.Out); err != nil {
-							return err
-						}
+					if err := dumpLog(podsClient, p.Name, o.Out); err != nil {
+						return err
 					}
 					watch.Stop()
 				} else if p.Status.Phase == corev1.PodPending || p.Status.Phase == corev1.PodFailed {
