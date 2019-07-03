@@ -2,7 +2,7 @@ package util
 
 import (
 	redsky "github.com/gramLabs/redsky/pkg/api/redsky/v1alpha1"
-	redskykube "github.com/gramLabs/redsky/pkg/client"
+	redskykube "github.com/gramLabs/redsky/pkg/kubernetes"
 	"k8s.io/client-go/kubernetes"
 )
 

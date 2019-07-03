@@ -14,7 +14,7 @@ LDFLAGS += -X github.com/gramLabs/redsky/pkg/controller/trial.DefaultImage=${SET
 
 # Generate client code
 generate-client:
-	client-gen --clientset-name client --input-base "" --input github.com/gramLabs/redsky/pkg/apis/redsky/v1alpha1 --output-package github.com/gramLabs/redsky/pkg --go-header-file hack/boilerplate.go.txt
+	client-gen --clientset-name kubernetes --input-base "" --input github.com/gramLabs/redsky/pkg/apis/redsky/v1alpha1 --output-package github.com/gramLabs/redsky/pkg --go-header-file hack/boilerplate.go.txt
 
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"

@@ -3,9 +3,9 @@
 package fake
 
 import (
-	clientset "github.com/gramLabs/redsky/pkg/client"
-	redskyv1alpha1 "github.com/gramLabs/redsky/pkg/client/typed/redsky/v1alpha1"
-	fakeredskyv1alpha1 "github.com/gramLabs/redsky/pkg/client/typed/redsky/v1alpha1/fake"
+	clientset "github.com/gramLabs/redsky/pkg/kubernetes"
+	redskyv1alpha1 "github.com/gramLabs/redsky/pkg/kubernetes/typed/redsky/v1alpha1"
+	fakeredskyv1alpha1 "github.com/gramLabs/redsky/pkg/kubernetes/typed/redsky/v1alpha1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	v1alpha1 "github.com/gramLabs/redsky/pkg/apis/redsky/v1alpha1"
-	scheme "github.com/gramLabs/redsky/pkg/client/scheme"
+	scheme "github.com/gramLabs/redsky/pkg/kubernetes/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
