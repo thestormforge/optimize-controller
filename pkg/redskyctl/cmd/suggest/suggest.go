@@ -54,7 +54,7 @@ func NewSuggestCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Co
 	cmd.Flags().StringVar(&o.Name, "name", "", "Experiment name to suggest assignments for")
 	_ = cmd.MarkFlagRequired("name")
 
-	sourceFlags := NewSuggestionSourceFlags()
+	sourceFlags := NewSuggestionSourceFlags(ioStreams)
 	sourceFlags.AddFlags(cmd)
 	o.Suggestions = sourceFlags
 
