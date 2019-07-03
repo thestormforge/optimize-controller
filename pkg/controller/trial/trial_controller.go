@@ -100,13 +100,8 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 		return resp, err
 	}
 
-	// If the trial deleted there is nothing for us to do
-	if trial.DeletionTimestamp != nil {
-		return reconcile.Result{}, nil
-	}
-
-	// If we are in a finished state there is nothing for us to do (minus one special case for a final update to Status.Values)
-	if IsTrialFinished(trial) && trial.Status.Values != "" {
+	// If we are in a finished or deleted state there is nothing for us to do
+	if IsTrialFinished(trial) || trial.DeletionTimestamp != nil {
 		return reconcile.Result{}, nil
 	}
 
@@ -290,18 +285,6 @@ func syncStatus(trial *redskyv1alpha1.Trial) bool {
 	dirty = dirty || trial.Status.Values != s
 	trial.Status.Values = s
 
-	// Special case: must make values non-empty
-	if IsTrialFinished(trial) && trial.Status.Values == "" {
-		for _, c := range trial.Status.Conditions {
-			if c.Type == redskyv1alpha1.TrialFailed && c.Status == corev1.ConditionTrue {
-				trial.Status.Values = "<failed>"
-				return true
-			}
-		}
-		trial.Status.Values = "<missing values>"
-		return true
-	}
-
 	return dirty
 }
 
@@ -426,7 +409,7 @@ func checkAssignments(trial *redskyv1alpha1.Trial, experiment *redskyv1alpha1.Ex
 
 func (r *ReconcileTrial) findMetricTargets(trial *redskyv1alpha1.Trial, m *redskyv1alpha1.Metric) ([]string, error) {
 	// Local metrics don't need to resolve service URLs
-	if m.Type == redskyv1alpha1.MetricLocal {
+	if m.Type == redskyv1alpha1.MetricLocal || m.Type == "" {
 		return []string{""}, nil
 	}
 
