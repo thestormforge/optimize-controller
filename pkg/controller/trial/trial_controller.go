@@ -76,6 +76,7 @@ type ReconcileTrial struct {
 // +kubebuilder:rbac:groups=batch;extensions,resources=jobs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=batch;extensions,resources=jobs/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=apps;extensions,resources=deployments;statefulsets,verbs=get;list;patch
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;patch
 // +kubebuilder:rbac:groups="",resources=pods,verbs=list
 // +kubebuilder:rbac:groups=redsky.carbonrelay.com,resources=trials,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=redsky.carbonrelay.com,resources=trials/status,verbs=get;update;patch

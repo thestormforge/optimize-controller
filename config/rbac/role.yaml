@@ -41,6 +41,14 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - patch
+- apiGroups:
+  - ""
+  resources:
   - pods
   verbs:
   - list
