@@ -99,8 +99,13 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 		return resp, err
 	}
 
-	// If we are in a finished or deleted state there is nothing more for us to do with this trial
-	if IsTrialFinished(trial) || trial.DeletionTimestamp != nil {
+	// If the trial deleted there is nothing for us to do
+	if trial.DeletionTimestamp != nil {
+		return reconcile.Result{}, nil
+	}
+
+	// If we are in a finished state there is nothing for us to do (minus one special case for a final update to Status.Values)
+	if IsTrialFinished(trial) && trial.Status.Values != "" {
 		return reconcile.Result{}, nil
 	}
 
@@ -283,6 +288,18 @@ func syncStatus(trial *redskyv1alpha1.Trial) bool {
 	s = strings.Join(values, ", ")
 	dirty = dirty || trial.Status.Values != s
 	trial.Status.Values = s
+
+	// Special case: must make values non-empty
+	if IsTrialFinished(trial) && trial.Status.Values == "" {
+		for _, c := range trial.Status.Conditions {
+			if c.Type == redskyv1alpha1.TrialFailed && c.Status == corev1.ConditionTrue {
+				trial.Status.Values = "<failed>"
+				return true
+			}
+		}
+		trial.Status.Values = "<missing values>"
+		return true
+	}
 
 	return dirty
 }
