@@ -23,6 +23,9 @@ while [ "$#" != "0" ] ; do
         ;;
     uninstall)
         cd /redsky/client
+        kustomize edit set namespace "$NAMESPACE"
+        # TODO This is temporary until the CRD is part of the default Kustomization
+        kustomize edit add base ../crd
         handle () { kubectl delete -f - ; }
         shift
         ;;

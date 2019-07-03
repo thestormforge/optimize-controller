@@ -175,8 +175,10 @@ func (o *InitOptions) Run() error {
 			if p, ok := event.Object.(*corev1.Pod); ok {
 				if p.Status.Phase == corev1.PodSucceeded {
 					// TODO Go routine to pump pod logs to stdout? Should we do that no matter what?
-					if err := dumpLog(podsClient, p.Name, o.Out); err != nil {
-						return err
+					if o.command != "uninstall" {
+						if err := dumpLog(podsClient, p.Name, o.Out); err != nil {
+							return err
+						}
 					}
 					watch.Stop()
 				} else if p.Status.Phase == corev1.PodPending || p.Status.Phase == corev1.PodFailed {
