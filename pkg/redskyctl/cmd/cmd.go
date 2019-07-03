@@ -7,6 +7,7 @@ import (
 	"github.com/gramLabs/redsky/pkg/redskyctl/cmd/check"
 	initcmd "github.com/gramLabs/redsky/pkg/redskyctl/cmd/init"
 	"github.com/gramLabs/redsky/pkg/redskyctl/cmd/reset"
+	"github.com/gramLabs/redsky/pkg/redskyctl/cmd/suggest"
 	"github.com/gramLabs/redsky/pkg/redskyctl/util"
 	"github.com/gramLabs/redsky/pkg/version"
 	"github.com/spf13/cobra"
@@ -38,8 +39,8 @@ func NewKubectlCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 	rootCmd.AddCommand(initcmd.NewInitCommand(f, ioStreams))
 	rootCmd.AddCommand(reset.NewResetCommand(f, ioStreams))
 	rootCmd.AddCommand(check.NewCheckCommand(f, ioStreams))
+	rootCmd.AddCommand(suggest.NewSuggestCommand(f, ioStreams))
 
-	// TODO Add a 'suggest' command to generate suggestions (either remotely or in cluster)
 	// TODO Add 'backup' and 'restore' maintenance commands ('maint' subcommands?)
 	// TODO Add API client commands for interacting with a remote server
 	// TODO We need helpers for doing a "dry run" on patches to make configuration easier
