@@ -19,10 +19,6 @@ func TestStorageTrial(t *testing.T) {
 			Name:      "foo",
 			Namespace: "default",
 		},
-		Spec: TrialSpec{
-			Assignments: []Assignment{},
-			Values:      []Value{},
-		},
 	}
 	g := gomega.NewGomegaWithT(t)
 

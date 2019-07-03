@@ -7064,9 +7064,6 @@ spec:
                 - value
                 type: object
               type: array
-          required:
-          - assignments
-          - values
           type: object
         status:
           properties:

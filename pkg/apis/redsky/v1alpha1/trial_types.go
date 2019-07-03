@@ -109,9 +109,9 @@ type TrialSpec struct {
 	// TargetNamespace defines the default namespace of the objects to apply patches to, defaults to the namespace of the trial
 	TargetNamespace string `json:"targetNamespace,omitempty"`
 	// Assignments are used to patch the cluster state prior to the trial run
-	Assignments []Assignment `json:"assignments"`
+	Assignments []Assignment `json:"assignments,omitempty"`
 	// Values are the collected metrics at the end of the trial run
-	Values []Value `json:"values"`
+	Values []Value `json:"values,omitempty"`
 	// Selector matches the job representing the trial run
 	Selector *metav1.LabelSelector `json:"selector,omitempty"`
 	// Template is the job template used to create trial run jobs
