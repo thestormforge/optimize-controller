@@ -116,6 +116,9 @@ func (o *InitOptions) Run() error {
 		return err
 	}
 
+	// TODO If this is a dry run, should we skip roles? It only works because we use `cat`
+
+	_ = clusterRolesClient.Delete(o.installName, nil)
 	if _, err = clusterRolesClient.Create(&bootstrapConfig.ClusterRole); err != nil {
 		return err
 	}
@@ -123,6 +126,7 @@ func (o *InitOptions) Run() error {
 		_ = clusterRolesClient.Delete(o.installName, nil)
 	}()
 
+	_ = clusterRoleBindingsClient.Delete(o.installName, nil)
 	if _, err = clusterRoleBindingsClient.Create(&bootstrapConfig.ClusterRoleBinding); err != nil {
 		return err
 	}
@@ -130,6 +134,7 @@ func (o *InitOptions) Run() error {
 		_ = clusterRoleBindingsClient.Delete(o.installName, nil)
 	}()
 
+	_ = rolesClient.Delete(o.installName, nil)
 	if _, err = rolesClient.Create(&bootstrapConfig.Role); err != nil {
 		return err
 	}
@@ -137,6 +142,7 @@ func (o *InitOptions) Run() error {
 		_ = rolesClient.Delete(o.installName, nil)
 	}()
 
+	_ = roleBindingsClient.Delete(o.installName, nil)
 	if _, err = roleBindingsClient.Create(&bootstrapConfig.RoleBinding); err != nil {
 		return err
 	}
@@ -144,6 +150,7 @@ func (o *InitOptions) Run() error {
 		_ = roleBindingsClient.Delete(o.installName, nil)
 	}()
 
+	_ = secretsClient.Delete(o.installName, nil)
 	if _, err = secretsClient.Create(&bootstrapConfig.Secret); err != nil {
 		return err
 	}
