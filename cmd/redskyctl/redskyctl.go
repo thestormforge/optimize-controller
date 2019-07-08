@@ -5,8 +5,12 @@ import (
 	"encoding/binary"
 	"math/rand"
 	"os"
+	"path/filepath"
 
 	"github.com/gramLabs/redsky/pkg/redskyctl/cmd"
+	"github.com/gramLabs/redsky/pkg/redskyctl/cmd/generate"
+	"github.com/gramLabs/redsky/pkg/redskyctl/cmd/setup"
+	"github.com/spf13/cobra"
 )
 
 func main() {
@@ -19,8 +23,16 @@ func main() {
 	}
 	rand.Seed(int64(binary.LittleEndian.Uint64(b[:])))
 
+	// Determine which command to run
+	var command *cobra.Command
+	switch filepath.Base(os.Args[0]) {
+	case setup.KustomizePluginKind:
+		command = cmd.NewDefaultCommand(generate.NewGenerateCommand)
+	default:
+		command = cmd.NewDefaultRedskyctlCommand()
+	}
+
 	// Run the command
-	command := cmd.NewDefaultRedskyctlCommand()
 	if err := command.Execute(); err != nil {
 		os.Exit(1)
 	}

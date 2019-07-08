@@ -1,4 +1,4 @@
-package init
+package setup
 
 import (
 	"io"
@@ -12,6 +12,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	clientbatchv1 "k8s.io/client-go/kubernetes/typed/batch/v1"
+	clientcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	clientrbacv1 "k8s.io/client-go/kubernetes/typed/rbac/v1"
 	"sigs.k8s.io/yaml"
 )
 
@@ -24,6 +27,51 @@ type BootstrapConfig struct {
 	RoleBinding        rbacv1.RoleBinding
 	Secret             corev1.Secret
 	Job                batchv1.Job
+
+	// Keep an instance of all of the clients we will need for manipulating these objects
+
+	namespacesClient          clientcorev1.NamespaceInterface
+	clusterRolesClient        clientrbacv1.ClusterRoleInterface
+	clusterRoleBindingsClient clientrbacv1.ClusterRoleBindingInterface
+	rolesClient               clientrbacv1.RoleInterface
+	roleBindingsClient        clientrbacv1.RoleBindingInterface
+	secretsClient             clientcorev1.SecretInterface
+	jobsClient                clientbatchv1.JobInterface
+}
+
+// Deletes the bootstrap configuration from the cluster, ignoring all errors
+func deleteFromCluster(b *BootstrapConfig) {
+	pp := metav1.DeletePropagationForeground
+	_ = b.clusterRolesClient.Delete(b.ClusterRole.Name, nil)
+	_ = b.clusterRoleBindingsClient.Delete(b.ClusterRoleBinding.Name, nil)
+	_ = b.rolesClient.Delete(b.Role.Name, nil)
+	_ = b.roleBindingsClient.Delete(b.RoleBinding.Name, nil)
+	_ = b.secretsClient.Delete(b.Secret.Name, nil)
+	_ = b.jobsClient.Delete(b.Job.Name, &metav1.DeleteOptions{PropagationPolicy: &pp})
+}
+
+// Create the bootstrap configuration in the cluster, stopping on the first error
+func createInCluster(b *BootstrapConfig) error {
+	var err error
+	if _, err = b.clusterRolesClient.Create(&b.ClusterRole); err != nil {
+		return err
+	}
+	if _, err = b.clusterRoleBindingsClient.Create(&b.ClusterRoleBinding); err != nil {
+		return err
+	}
+	if _, err = b.rolesClient.Create(&b.Role); err != nil {
+		return err
+	}
+	if _, err = b.roleBindingsClient.Create(&b.RoleBinding); err != nil {
+		return err
+	}
+	if _, err = b.secretsClient.Create(&b.Secret); err != nil {
+		return err
+	}
+	if _, err := b.jobsClient.Create(&b.Job); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Marshal a bootstrap configuration as a YAML stream
@@ -71,10 +119,12 @@ func (b *BootstrapConfig) Marshal(w io.Writer) error {
 	return nil
 }
 
-// NewBootstrapConfig creates a complete bootstrap configuration from the supplied values
-func NewBootstrapConfig(namespace, name, command string, cfg *api.Config) (*BootstrapConfig, error) {
+// NewBootstrapInitConfig creates a complete bootstrap configuration from the supplied values
+func NewBootstrapInitConfig(o *SetupOptions, clientConfig *api.Config) (*BootstrapConfig, error) {
+	namespace, name := o.namespace, o.name
+
 	// We need a []byte representation of the client configuration for the secret
-	clientConfig, err := yaml.Marshal(cfg)
+	secretData, err := yaml.Marshal(clientConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +194,7 @@ func NewBootstrapConfig(namespace, name, command string, cfg *api.Config) (*Boot
 		// This bootstrap secret is used as input to a kustomization during installation
 		Secret: corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{Name: name},
-			Data:       map[string][]byte{"client.yaml": clientConfig},
+			Data:       map[string][]byte{"client.yaml": secretData},
 		},
 
 		// The job does a `kubectl apply` to the manifests of the product
@@ -164,7 +214,7 @@ func NewBootstrapConfig(namespace, name, command string, cfg *api.Config) (*Boot
 								Name:            "setuptools-install",
 								Image:           trial.DefaultImage,
 								ImagePullPolicy: corev1.PullAlways,
-								Args:            []string{command},
+								Args:            []string{"install"},
 								Env: []corev1.EnvVar{
 									{
 										Name: "NAMESPACE",
@@ -206,5 +256,39 @@ func NewBootstrapConfig(namespace, name, command string, cfg *api.Config) (*Boot
 		*b.Job.Spec.TTLSecondsAfterFinished = 120
 	}
 
+	if !o.Bootstrap && !o.DryRun {
+		// Create, but do not execute the job
+		if o.Bootstrap {
+			b.Job.Spec.Parallelism = new(int32)
+		}
+
+		// Request generation of manifests only
+		if o.DryRun {
+			b.Job.Spec.Template.Spec.Containers[0].Args = append(b.Job.Spec.Template.Spec.Containers[0].Args, "--dry-run")
+		}
+	}
+
+	applyClientSet(b, o)
 	return b, nil
+}
+
+// NewBootstrapResetConfig creates a configuration for performing a reset
+func NewBootstrapResetConfig(o *SetupOptions) (*BootstrapConfig, error) {
+	// TODO Really there is a bunch of stuff that doesn't need to be in here for reset
+	b, err := NewBootstrapInitConfig(o, nil)
+	if err != nil {
+		return nil, err
+	}
+	b.Job.Spec.Template.Spec.Containers[0].Args[0] = "uninstall"
+	return b, nil
+}
+
+func applyClientSet(b *BootstrapConfig, o *SetupOptions) {
+	b.namespacesClient = o.ClientSet.CoreV1().Namespaces()
+	b.clusterRolesClient = o.ClientSet.RbacV1().ClusterRoles()
+	b.clusterRoleBindingsClient = o.ClientSet.RbacV1().ClusterRoleBindings()
+	b.rolesClient = o.ClientSet.RbacV1().Roles(o.namespace)
+	b.roleBindingsClient = o.ClientSet.RbacV1().RoleBindings(o.namespace)
+	b.secretsClient = o.ClientSet.CoreV1().Secrets(o.namespace)
+	b.jobsClient = o.ClientSet.BatchV1().Jobs(o.namespace)
 }
