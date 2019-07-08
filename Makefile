@@ -6,7 +6,7 @@ SETUPTOOLS_IMG ?= setuptools:latest
 ifdef VERSION
     LDFLAGS += -X github.com/gramLabs/redsky/pkg/version.Version=${VERSION}
 endif
-ifdef BUILD_METADATA
+ifneq ($(origin BUILD_METADATA), undefined)
     LDFLAGS += -X github.com/gramLabs/redsky/pkg/version.BuildMetadata=${BUILD_METADATA}
 endif
 LDFLAGS += -X github.com/gramLabs/redsky/pkg/version.GitCommit=$(shell git rev-parse HEAD)
