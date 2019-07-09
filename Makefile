@@ -21,6 +21,10 @@ all: test manager tool_all
 test: generate fmt vet manifests
 	go test ./pkg/... ./cmd/... -coverprofile cover.out
 
+# Build manager binary
+manager: generate fmt vet
+	go build -ldflags '$(LDFLAGS)' -o bin/manager github.com/gramLabs/redsky/cmd/manager
+
 # Build tool binary for the current platform
 tool: fmt vet
 	go build -ldflags '$(LDFLAGS)' -o bin/redskyctl github.com/gramLabs/redsky/cmd/redskyctl
@@ -29,10 +33,6 @@ tool: fmt vet
 tool_all: fmt vet
 	GOOS=darwin GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o bin/redskyctl-darwin-amd64 github.com/gramLabs/redsky/cmd/redskyctl
 	GOOS=linux GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o bin/redskyctl-linux-amd64 github.com/gramLabs/redsky/cmd/redskyctl
-
-# Build manager binary
-manager: generate fmt vet
-	go build -ldflags '$(LDFLAGS)' -o bin/manager github.com/gramLabs/redsky/cmd/manager
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate fmt vet
