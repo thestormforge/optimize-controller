@@ -26,8 +26,8 @@ func NewInitCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Comma
 		Long:    initLong,
 		Example: initExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(o.Complete(f, cmd))
-			cmdutil.CheckErr(o.Run())
+			CheckErr(o.Complete(f, cmd))
+			CheckErr(o.Run())
 		},
 	}
 

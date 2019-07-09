@@ -1,6 +1,10 @@
 package setup
 
 import (
+	"fmt"
+	"os"
+	"strings"
+
 	cmdutil "github.com/gramLabs/redsky/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
@@ -9,6 +13,21 @@ import (
 const (
 	KustomizePluginKind = "ExperimentGenerator"
 )
+
+type SetupError struct {
+	ImagePullBackOff string
+	PodDeleted       bool
+}
+
+func (e *SetupError) Error() string {
+	switch {
+	case e.ImagePullBackOff != "":
+		return fmt.Sprintf("unable to pull image '%s'", e.ImagePullBackOff)
+	case e.PodDeleted:
+		return "setup pod was deleted before it could finish"
+	}
+	return "encountered an error"
+}
 
 type SetupOptions struct {
 	Bootstrap bool
@@ -64,4 +83,21 @@ func (o *SetupOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) error {
 	}
 
 	return nil
+}
+
+func CheckErr(err error) {
+	// Add some special handling for setup errors
+	if e, ok := err.(*SetupError); ok {
+		_, _ = fmt.Fprintf(os.Stderr, "Failed: %s\n", err.Error())
+		if e.ImagePullBackOff != "" {
+			if strings.HasPrefix(e.ImagePullBackOff, "gcr.io/carbon-relay-dev/") {
+				_, _ = fmt.Fprintf(os.Stderr, "  The image '%s' appears to be a development image, did you remember to configure image pull secrets?", e.ImagePullBackOff)
+			} else if !strings.Contains(e.ImagePullBackOff, "/") {
+				_, _ = fmt.Fprintf(os.Stderr, "  The image '%s' appears to be a local development image, did you remember to build the image?", e.ImagePullBackOff)
+			}
+		}
+		os.Exit(1)
+	}
+
+	cmdutil.CheckErr(err)
 }

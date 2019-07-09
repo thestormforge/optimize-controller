@@ -1,7 +1,6 @@
 package setup
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -25,17 +24,17 @@ func waitForJob(podsClient clientcorev1.PodInterface, podWatch watch.Interface, 
 			} else if p.Status.Phase == corev1.PodPending || p.Status.Phase == corev1.PodFailed {
 				for _, c := range p.Status.ContainerStatuses {
 					if c.State.Waiting != nil && c.State.Waiting.Reason == "ImagePullBackOff" {
-						return fmt.Errorf("unable to pull image '%s'", c.Image)
+						return &SetupError{ImagePullBackOff: c.Image}
 					} else if c.State.Terminated != nil && c.State.Terminated.Reason == "Error" {
 						// TODO For now just copy logs over?
 						if err := dumpLog(podsClient, p.Name, errOut); err != nil {
 							return err
 						}
-						return fmt.Errorf("encountered an error")
+						return &SetupError{}
 					}
 				}
 			} else if event.Type == watch.Deleted {
-				return fmt.Errorf("initialization pod was deleted before it could finish")
+				return &SetupError{PodDeleted: true}
 			}
 		}
 	}
