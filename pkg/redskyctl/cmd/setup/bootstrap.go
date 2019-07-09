@@ -1,6 +1,7 @@
 package setup
 
 import (
+	"fmt"
 	"io"
 	"strings"
 
@@ -134,7 +135,13 @@ func NewBootstrapInitConfig(o *SetupOptions, clientConfig *api.Config) (*Bootstr
 	b := &BootstrapConfig{
 		// This is the namespace ultimately used by the product
 		Namespace: corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{Name: namespace},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: namespace,
+				Annotations: map[string]string{
+					// This is just an attempt to prevent a warning about only using create/apply
+					"kubectl.kubernetes.io/last-applied-configuration": fmt.Sprintf(`{"apiVersion":"v1","kind":"Namespace","metadata":{"annotations":{},"labels":{},"name":"%s"}}`, namespace),
+				},
+			},
 		},
 
 		// Bootstrap cluster role bound to the default service account of the namespace
@@ -279,6 +286,7 @@ func NewBootstrapResetConfig(o *SetupOptions) (*BootstrapConfig, error) {
 	if err != nil {
 		return nil, err
 	}
+	b.Job.Spec.Template.Spec.Containers[0].Name = "setuptools-uninstall"
 	b.Job.Spec.Template.Spec.Containers[0].Args[0] = "uninstall"
 	return b, nil
 }

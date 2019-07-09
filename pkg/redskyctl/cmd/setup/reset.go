@@ -55,10 +55,8 @@ func (o *SetupOptions) resetCluster() error {
 		return err
 	}
 
-	// Wait for the job to finish
-	if err = waitForJob(o.ClientSet.CoreV1().Pods(o.namespace), bootstrapConfig.Job.Name, o.Out, o.ErrOut); err != nil {
-		return err
-	}
+	// Wait for the job to finish; ignore errors we are having the namespace pulled out from under us
+	_ = waitForJob(o.ClientSet.CoreV1().Pods(o.namespace), bootstrapConfig.Job.Name, o.Out, o.ErrOut)
 
 	return nil
 
