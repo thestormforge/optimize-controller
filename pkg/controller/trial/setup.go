@@ -243,7 +243,7 @@ func generateHelmOptions(trial *redskyv1alpha1.Trial, task *redskyv1alpha1.Setup
 			if err != nil {
 				return nil, err
 			}
-			opts = append(opts, "--set", fmt.Sprintf("%s=%s", hv.Name, v))
+			opts = append(opts, "--set", fmt.Sprintf("\"%s=%s\"", hv.Name, v))
 		} else if hv.ValueFrom != nil {
 			switch {
 			// TODO We should support the other environment variable sources for this as well
