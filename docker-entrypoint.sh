@@ -72,7 +72,7 @@ if [ -n "$CHART" ] ; then
     helm fetch "$CHART"
     for c in *.tgz ; do
         # TODO HELM_OPTS can't be trusted, how do we sanitize that?
-        helm template $values $HELM_OPTS $c > ${c%%.tgz}.yaml
+        eval helm template $values $HELM_OPTS $c > ${c%%.tgz}.yaml
         kustomize edit add resource ${c%%.tgz}.yaml
     done
 fi
