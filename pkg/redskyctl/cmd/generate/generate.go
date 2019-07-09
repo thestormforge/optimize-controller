@@ -24,10 +24,9 @@ const (
 	generateExample = ``
 )
 
-// TODO ObjectMeta is only named to force exclusion from controller-tools
 type ExperimentGenerator struct {
-	metav1.TypeMeta `json:",inline"`
-	Metadata        metav1.ObjectMeta `json:"metadata,omitempty"`
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
 }
 
 type GenerateOptions struct {
