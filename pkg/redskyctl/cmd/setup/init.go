@@ -7,6 +7,7 @@ import (
 	"github.com/gramLabs/redsky/pkg/api"
 	cmdutil "github.com/gramLabs/redsky/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/watch"
 )
 
 // TODO Add documentation about what this creates and how it works, including Kustomize support
@@ -60,19 +61,27 @@ func (o *SetupOptions) initCluster() error {
 		return err
 	}
 
+	// If we are bootstrapping the install, leave the objects, otherwise ensure even a partial creation is cleaned up
+	if !o.Bootstrap {
+		defer deleteFromCluster(bootstrapConfig)
+	}
+
 	// Create the bootstrap config to initiate the install job
-	defer deleteFromCluster(bootstrapConfig)
-	if err = createInCluster(bootstrapConfig); err != nil {
+	podWatch, err := createInCluster(bootstrapConfig)
+	if podWatch != nil {
+		defer podWatch.Stop()
+	}
+	if err != nil {
 		return err
 	}
 
-	// If we are bootstraping the job will never start so we are done
+	// When bootstrapping the job won't start so don't wait for it
 	if o.Bootstrap {
 		return nil
 	}
 
 	// Wait for the job to finish
-	if err = waitForJob(o.ClientSet.CoreV1().Pods(o.namespace), bootstrapConfig.Job.Name, o.Out, o.ErrOut); err != nil {
+	if err = waitForJob(o.ClientSet.CoreV1().Pods(o.namespace), podWatch, o.Out, o.ErrOut); err != nil {
 		return err
 	}
 

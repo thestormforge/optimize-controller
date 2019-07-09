@@ -9,25 +9,19 @@ import (
 
 	redskyv1alpha1 "github.com/gramLabs/redsky/pkg/apis/redsky/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	watchutil "k8s.io/apimachinery/pkg/watch"
+	"k8s.io/apimachinery/pkg/watch"
 	clientcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
-func waitForJob(podsClient clientcorev1.PodInterface, name string, out, errOut io.Writer) error {
-	watch, err := podsClient.Watch(metav1.ListOptions{LabelSelector: "job-name = " + name})
-	if err != nil {
-		return err
-	}
-	defer watch.Stop()
-	for event := range watch.ResultChan() {
+func waitForJob(podsClient clientcorev1.PodInterface, podWatch watch.Interface, out, errOut io.Writer) error {
+	for event := range podWatch.ResultChan() {
 		if p, ok := event.Object.(*corev1.Pod); ok {
 			if p.Status.Phase == corev1.PodSucceeded {
 				// TODO Go routine to pump pod logs to stdout? Should we do that no matter what?
 				if err := dumpLog(podsClient, p.Name, out); err != nil {
 					return err
 				}
-				watch.Stop()
+				podWatch.Stop()
 			} else if p.Status.Phase == corev1.PodPending || p.Status.Phase == corev1.PodFailed {
 				for _, c := range p.Status.ContainerStatuses {
 					if c.State.Waiting != nil && c.State.Waiting.Reason == "ImagePullBackOff" {
@@ -40,7 +34,7 @@ func waitForJob(podsClient clientcorev1.PodInterface, name string, out, errOut i
 						return fmt.Errorf("encountered an error")
 					}
 				}
-			} else if event.Type == watchutil.Deleted {
+			} else if event.Type == watch.Deleted {
 				return fmt.Errorf("initialization pod was deleted before it could finish")
 			}
 		}
@@ -49,6 +43,9 @@ func waitForJob(podsClient clientcorev1.PodInterface, name string, out, errOut i
 }
 
 func dumpLog(podsClient clientcorev1.PodInterface, name string, w io.Writer) error {
+	if w == nil {
+		return nil
+	}
 	r, err := podsClient.GetLogs(name, &corev1.PodLogOptions{}).Stream()
 	if err != nil {
 		return err

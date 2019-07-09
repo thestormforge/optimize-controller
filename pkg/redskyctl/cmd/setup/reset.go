@@ -49,14 +49,20 @@ func (o *SetupOptions) resetCluster() error {
 		return nil
 	}
 
-	// Create the bootstrap config to initiate the uninstall job
+	// Ensure a partial bootstrap is cleaned up properly
 	defer deleteFromCluster(bootstrapConfig)
-	if err = createInCluster(bootstrapConfig); err != nil {
+
+	// Create the bootstrap config to initiate the uninstall job
+	podWatch, err := createInCluster(bootstrapConfig)
+	if podWatch != nil {
+		defer podWatch.Stop()
+	}
+	if err != nil {
 		return err
 	}
 
-	// Wait for the job to finish; ignore errors we are having the namespace pulled out from under us
-	_ = waitForJob(o.ClientSet.CoreV1().Pods(o.namespace), bootstrapConfig.Job.Name, o.Out, o.ErrOut)
+	// Wait for the job to finish; ignore errors as we are having the namespace pulled out from under us
+	_ = waitForJob(o.ClientSet.CoreV1().Pods(o.namespace), podWatch, nil, nil)
 
 	return nil
 

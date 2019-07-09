@@ -13,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/watch"
 	clientbatchv1 "k8s.io/client-go/kubernetes/typed/batch/v1"
 	clientcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	clientrbacv1 "k8s.io/client-go/kubernetes/typed/rbac/v1"
@@ -31,6 +32,7 @@ type BootstrapConfig struct {
 
 	// Keep an instance of all of the clients we will need for manipulating these objects
 
+	podsClient                clientcorev1.PodInterface
 	namespacesClient          clientcorev1.NamespaceInterface
 	clusterRolesClient        clientrbacv1.ClusterRoleInterface
 	clusterRoleBindingsClient clientrbacv1.ClusterRoleBindingInterface
@@ -52,27 +54,30 @@ func deleteFromCluster(b *BootstrapConfig) {
 }
 
 // Create the bootstrap configuration in the cluster, stopping on the first error
-func createInCluster(b *BootstrapConfig) error {
-	var err error
+func createInCluster(b *BootstrapConfig) (watch.Interface, error) {
+	w, err := b.podsClient.Watch(metav1.ListOptions{LabelSelector: "job-name = " + b.Job.Name})
+	if err != nil {
+		return nil, err
+	}
 	if _, err = b.clusterRolesClient.Create(&b.ClusterRole); err != nil {
-		return err
+		return w, err
 	}
 	if _, err = b.clusterRoleBindingsClient.Create(&b.ClusterRoleBinding); err != nil {
-		return err
+		return w, err
 	}
 	if _, err = b.rolesClient.Create(&b.Role); err != nil {
-		return err
+		return w, err
 	}
 	if _, err = b.roleBindingsClient.Create(&b.RoleBinding); err != nil {
-		return err
+		return w, err
 	}
 	if _, err = b.secretsClient.Create(&b.Secret); err != nil {
-		return err
+		return w, err
 	}
 	if _, err := b.jobsClient.Create(&b.Job); err != nil {
-		return err
+		return w, err
 	}
-	return nil
+	return w, nil
 }
 
 // Marshal a bootstrap configuration as a YAML stream
@@ -263,16 +268,14 @@ func NewBootstrapInitConfig(o *SetupOptions, clientConfig *api.Config) (*Bootstr
 		*b.Job.Spec.TTLSecondsAfterFinished = 120
 	}
 
-	if !o.Bootstrap && !o.DryRun {
-		// Create, but do not execute the job
-		if o.Bootstrap {
-			b.Job.Spec.Parallelism = new(int32)
-		}
+	// Create, but do not execute the job
+	if o.Bootstrap && !o.DryRun {
+		b.Job.Spec.Parallelism = new(int32)
+	}
 
-		// Request generation of manifests only
-		if o.DryRun {
-			b.Job.Spec.Template.Spec.Containers[0].Args = append(b.Job.Spec.Template.Spec.Containers[0].Args, "--dry-run")
-		}
+	// Request generation of manifests only
+	if o.DryRun && !o.Bootstrap {
+		b.Job.Spec.Template.Spec.Containers[0].Args = append(b.Job.Spec.Template.Spec.Containers[0].Args, "--dry-run")
 	}
 
 	applyClientSet(b, o)
@@ -292,6 +295,7 @@ func NewBootstrapResetConfig(o *SetupOptions) (*BootstrapConfig, error) {
 }
 
 func applyClientSet(b *BootstrapConfig, o *SetupOptions) {
+	b.podsClient = o.ClientSet.CoreV1().Pods(o.namespace)
 	b.namespacesClient = o.ClientSet.CoreV1().Namespaces()
 	b.clusterRolesClient = o.ClientSet.RbacV1().ClusterRoles()
 	b.clusterRoleBindingsClient = o.ClientSet.RbacV1().ClusterRoleBindings()
