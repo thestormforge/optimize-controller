@@ -10,6 +10,7 @@ import (
 	redskyv1alpha1 "github.com/gramLabs/redsky/pkg/apis/redsky/v1alpha1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -24,6 +25,8 @@ const (
 	setupFinalizer = "setupFinalizer.redsky.carbonrelay.com"
 	create         = "create"
 	delete         = "delete"
+
+	startTimeout time.Duration = 2 * time.Minute
 )
 
 func manageSetup(c client.Client, s *runtime.Scheme, trial *redskyv1alpha1.Trial) (reconcile.Result, bool, error) {
@@ -53,17 +56,17 @@ func manageSetup(c client.Client, s *runtime.Scheme, trial *redskyv1alpha1.Trial
 	if err := c.List(context.TODO(), list, client.MatchingLabels(setupJobLabels)); err != nil {
 		return reconcile.Result{}, false, err
 	}
-	var failureReason, failureMessage string
 	for _, j := range list.Items {
-		// If any setup job failed there is nothing more to do
-		if failed, msg := isJobFailed(&j); failed {
-			failureReason = "SetupJobFailed"
-			failureMessage = msg
-			needsCreate = false
-			needsDelete = false
-			finishedCreate = true
-			finishedDelete = true
-			break
+		// If any setup job failed there is nothing more to do but mark the trial failed
+		if failed, failureMessage := isJobFailed(&j); failed {
+			if removeSetupFinalizer(trial) && !IsTrialFinished(trial) {
+				failureReason := "SetupJobFailed"
+				trial.Status.Conditions = append(trial.Status.Conditions, newCondition(redskyv1alpha1.TrialFailed, failureReason, failureMessage))
+				err := c.Update(context.TODO(), trial)
+				return reconcile.Result{}, true, err
+			} else {
+				return reconcile.Result{}, false, nil
+			}
 		}
 
 		// Determine which jobs have completed successfully
@@ -99,13 +102,6 @@ func manageSetup(c client.Client, s *runtime.Scheme, trial *redskyv1alpha1.Trial
 
 	// If the delete job is finished remove our finalizer
 	if finishedDelete && removeSetupFinalizer(trial) {
-		err := c.Update(context.TODO(), trial)
-		return reconcile.Result{}, true, err
-	}
-
-	// If a setup job failed, mark the trial as failed also (after the finalizer is removed!)
-	if failureReason != "" && !IsTrialFinished(trial) {
-		trial.Status.Conditions = append(trial.Status.Conditions, newCondition(redskyv1alpha1.TrialFailed, failureReason, failureMessage))
 		err := c.Update(context.TODO(), trial)
 		return reconcile.Result{}, true, err
 	}
@@ -167,6 +163,15 @@ func isJobFailed(job *batchv1.Job) (bool, string) {
 		return true, fmt.Sprintf("Setup job has %d failed pod(s)", job.Status.Failed)
 	}
 
+	// It's possible the job isn't being run. Pretend it finished if it hasn't started in time
+	if job.Status.Succeeded == 0 && job.Status.Failed == 0 && job.Status.Active == 0 {
+		if v1.Now().Sub(job.CreationTimestamp.Time) > startTimeout {
+			return true, "Setup job failed to start"
+		}
+	}
+
+	// TODO We may need to check pod status if active > 0
+
 	return false, ""
 }
 
@@ -217,6 +222,11 @@ func newSetupJob(trial *redskyv1alpha1.Trial, scheme *runtime.Scheme, mode strin
 		// Make sure we have an image
 		if c.Image == "" {
 			c.Image = DefaultImage
+		}
+
+		// If this appears to be a development image, change the image pull policy
+		if !strings.Contains(c.Image, "/") {
+			c.ImagePullPolicy = corev1.PullIfNotPresent
 		}
 
 		// Add the trial assignments to the environment
