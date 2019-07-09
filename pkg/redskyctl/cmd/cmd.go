@@ -6,7 +6,6 @@ import (
 
 	"github.com/gramLabs/redsky/pkg/redskyctl/cmd/check"
 	"github.com/gramLabs/redsky/pkg/redskyctl/cmd/generate"
-	"github.com/gramLabs/redsky/pkg/redskyctl/cmd/get"
 	"github.com/gramLabs/redsky/pkg/redskyctl/cmd/setup"
 	"github.com/gramLabs/redsky/pkg/redskyctl/cmd/suggest"
 	"github.com/gramLabs/redsky/pkg/redskyctl/util"
@@ -43,12 +42,10 @@ func NewRedskyctlCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 	rootCmd.AddCommand(check.NewCheckCommand(f, ioStreams))
 	rootCmd.AddCommand(suggest.NewSuggestCommand(f, ioStreams))
 	rootCmd.AddCommand(generate.NewGenerateCommand(f, ioStreams))
-	rootCmd.AddCommand(get.NewGetCommand(f, ioStreams))
 
 	// TODO Add 'backup' and 'restore' maintenance commands ('maint' subcommands?)
 	// TODO Add API client commands for interacting with a remote server
 	// TODO We need helpers for doing a "dry run" on patches to make configuration easier
-	// TODO Should the "create experiment" wizard be a Kustomize plugin?
 
 	return rootCmd
 }

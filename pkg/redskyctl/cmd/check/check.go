@@ -5,11 +5,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	checkLong    = `The check command provides the ability to run self check diagnostics.`
+	checkExample = ``
+)
+
 func NewCheckCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "check",
-		Short: "Run a consistency check",
-		Long:  "The check command provides the ability to run self check diagnostics.",
+		Use:     "check",
+		Short:   "Run a consistency check",
+		Long:    checkLong,
+		Example: checkExample,
 	}
 	cmd.Run = cmd.HelpFunc()
 

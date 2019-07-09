@@ -11,6 +11,11 @@ import (
 // TODO Add support for getting Red Sky server version
 // TODO Add support for getting manager version in cluster
 
+const (
+	versionLong    = `Show the version information for Red Sky Control.`
+	versionExample = ``
+)
+
 type VersionOptions struct {
 	root *cobra.Command
 
@@ -27,9 +32,10 @@ func NewVersionCommand(ioStreams cmdutil.IOStreams) *cobra.Command {
 	o := NewVersionOptions(ioStreams)
 
 	cmd := &cobra.Command{
-		Use:   "version",
-		Short: "Print version information",
-		Long:  "Show the version information for Red Sky Control.",
+		Use:     "version",
+		Short:   "Print version information",
+		Long:    versionLong,
+		Example: versionExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(cmd))
 			cmdutil.CheckErr(o.Run())

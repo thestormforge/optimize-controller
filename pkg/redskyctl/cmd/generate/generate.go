@@ -1,6 +1,7 @@
 package generate
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 
@@ -13,7 +14,17 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+// TODO `redskyctl kustomize edit add experiment`...?
+// TODO Have the option to read a partial experiment from a file
+// TODO Use patch conventions like Kubebuilder
+
+const (
+	generateLong    = `Generate an experiment manifest from a configuration file.`
+	generateExample = ``
+)
+
 type ExperimentGenerator struct {
+	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 }
 
@@ -32,10 +43,11 @@ func NewGenerateCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.C
 	o := NewGenerateOptions(ioStreams)
 
 	cmd := &cobra.Command{
-		Use:   "generate",
-		Short: "Generate experiments",
-		Long:  "Generate an experiment manifest from a configuration file.",
-		Args:  cobra.ExactArgs(1),
+		Use:     "generate",
+		Short:   "Generate experiments",
+		Long:    generateLong,
+		Example: generateExample,
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(f, cmd, args))
 			cmdutil.CheckErr(o.Run())
@@ -46,21 +58,20 @@ func NewGenerateCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.C
 }
 
 func (o *GenerateOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []string) error {
+	// TODO There are probably APIs for doing this if we register the experiment generator properly
 	if b, err := ioutil.ReadFile(args[0]); err != nil {
 		return err
 	} else if err := yaml.Unmarshal(b, &o.Config); err != nil {
 		return err
 	}
+	if o.Config.Kind != "ExperimentGenerator" {
+		return fmt.Errorf("expected experiment generator, got: %s", o.Config.Kind)
+	}
 	return nil
 }
 
 func (o *GenerateOptions) Run() error {
-	e := redskyv1alpha1.Experiment{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: o.Config.Namespace,
-			Name:      o.Config.Name,
-		},
-	}
+	e := redskyv1alpha1.Experiment{}
 
 	// TODO Populate this thing
 

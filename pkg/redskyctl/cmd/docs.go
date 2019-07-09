@@ -12,6 +12,11 @@ import (
 // TODO Add support for fetching Red Sky OpenAPI specification
 // TODO Add support for generating OpenAPI specification based on Kube API (including validation schema)
 
+const (
+	docsLong    = ``
+	docsExample = ``
+)
+
 type DocsOptions struct {
 	Directory string
 	DocType   string
@@ -31,10 +36,11 @@ func NewDocsCommand(ioStreams cmdutil.IOStreams) *cobra.Command {
 	o := NewDocsOptions(ioStreams)
 
 	cmd := &cobra.Command{
-		Use:    "docs",
-		Short:  "Generate documentation",
-		Long:   "",
-		Hidden: true,
+		Use:     "docs",
+		Short:   "Generate documentation",
+		Long:    docsLong,
+		Example: docsExample,
+		Hidden:  true,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(cmd))
 			cmdutil.CheckErr(o.Run())

@@ -14,6 +14,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	suggestLong    = `Manually suggest assignments for a trial.`
+	suggestExample = ``
+)
+
 // SuggestionSource provides suggested parameter assignments
 type SuggestionSource interface {
 	AssignInt(name string, min, max int64) (int64, error)
@@ -41,9 +46,10 @@ func NewSuggestCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Co
 	o := NewSuggestOptions(ioStreams)
 
 	cmd := &cobra.Command{
-		Use:   "suggest",
-		Short: "Suggest assignments",
-		Long:  "Manually suggest assignments for a trial.",
+		Use:     "suggest",
+		Short:   "Suggest assignments",
+		Long:    suggestLong,
+		Example: suggestExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(f, cmd))
 			cmdutil.CheckErr(o.Run())

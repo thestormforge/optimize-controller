@@ -13,6 +13,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	checkServerLong    = `Ensures that the server and current client are compatible.`
+	checkServerExample = ``
+)
+
 type ServerCheckOptions struct {
 	Name           string
 	ParameterCount int
@@ -35,9 +40,10 @@ func NewServerCheckCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobr
 	o := NewServerCheckOptions(ioStreams)
 
 	cmd := &cobra.Command{
-		Use:   "server",
-		Short: "Run a consistency check on the server",
-		Long:  "Ensures that the server and current client are compatible.",
+		Use:     "server",
+		Short:   "Run a consistency check on the server",
+		Long:    checkServerLong,
+		Example: checkServerExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(f, cmd))
 			cmdutil.CheckErr(o.Validate())

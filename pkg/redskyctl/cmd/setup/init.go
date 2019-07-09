@@ -9,13 +9,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	initLong    = `The initialize command will install (or optionally generate) the required Red Sky manifests.`
+	initExample = ``
+)
+
 func NewInitCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
 	o := NewSetupOptions(ioStreams)
 
 	cmd := &cobra.Command{
-		Use:   "init",
-		Short: "Initialize Red Sky in a cluster",
-		Long:  "The initialize command will install (or optionally generate) the required Red Sky manifests.",
+		Use:     "init",
+		Short:   "Initialize Red Sky in a cluster",
+		Long:    initLong,
+		Example: initExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(f, cmd))
 			cmdutil.CheckErr(o.Run())
