@@ -26,6 +26,7 @@ type SuggestionSource interface {
 }
 
 type SuggestOptions struct {
+	Remote    bool
 	Namespace string
 	Name      string
 
@@ -56,6 +57,7 @@ func NewSuggestCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Co
 		},
 	}
 
+	cmd.Flags().BoolVar(&o.Remote, "remote", false, "Create the suggestion on the Red Sky server")
 	cmd.Flags().StringVar(&o.Namespace, "namespace", "", "Experiment namespace in the Kubernetes cluster")
 	cmd.Flags().StringVar(&o.Name, "name", "", "Experiment name to suggest assignments for")
 	_ = cmd.MarkFlagRequired("name")
@@ -68,18 +70,19 @@ func NewSuggestCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Co
 }
 
 func (o *SuggestOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) error {
-	// Choose which client to initialize base on where we are going to store the suggestion
-	if o.Namespace != "" {
-		if cs, err := f.RedSkyClientSet(); err != nil {
-			return err
-		} else {
-			o.RedSkyClientSet = cs
-		}
-	} else {
+	if o.Remote {
+		// Send it to the remote Red Sky API
 		if api, err := f.RedSkyAPI(); err != nil {
 			return err
 		} else {
 			o.RedSkyAPI = &api
+		}
+	} else {
+		// Send it to the Kube cluster
+		if cs, err := f.RedSkyClientSet(); err != nil {
+			return err
+		} else {
+			o.RedSkyClientSet = cs
 		}
 	}
 	return nil
@@ -99,6 +102,7 @@ func (o *SuggestOptions) Run() error {
 			return err
 		}
 	}
+
 	return nil
 }
 
