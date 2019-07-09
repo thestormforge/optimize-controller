@@ -84,6 +84,11 @@ func (o *SuggestOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) error {
 		} else {
 			o.RedSkyClientSet = cs
 		}
+
+		// Provide a default value for the namespace
+		if o.Namespace == "" {
+			o.Namespace = "default"
+		}
 	}
 	return nil
 }
