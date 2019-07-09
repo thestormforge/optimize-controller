@@ -7,7 +7,6 @@ import (
 	"github.com/gramLabs/redsky/pkg/api"
 	cmdutil "github.com/gramLabs/redsky/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
-	"k8s.io/apimachinery/pkg/watch"
 )
 
 // TODO Add documentation about what this creates and how it works, including Kustomize support
