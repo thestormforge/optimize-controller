@@ -358,8 +358,10 @@ func PopulateTrialFromTemplate(experiment *redskyv1alpha1.Experiment, trial *red
 
 	// The creation timestamp is NOT a pointer so it needs an explicit value that serializes to something
 	// TODO This should not be necessary
-	trial.Spec.Template.ObjectMeta.CreationTimestamp = metav1.Now()
-	trial.Spec.Template.Spec.Template.ObjectMeta.CreationTimestamp = metav1.Now()
+	if trial.Spec.Template != nil {
+		trial.Spec.Template.ObjectMeta.CreationTimestamp = metav1.Now()
+		trial.Spec.Template.Spec.Template.ObjectMeta.CreationTimestamp = metav1.Now()
+	}
 
 	// Overwrite the target namespace unless we are only running a single trial on the cluster
 	if experiment.GetReplicas() > 1 || experiment.Spec.NamespaceSelector != nil || experiment.Spec.Template.Namespace != "" {
