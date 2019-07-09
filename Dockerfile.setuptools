@@ -8,9 +8,9 @@ ENV KUBECTL_VERSION="v1.14.3" \
     KUBECTL_URL="https://storage.googleapis.com/kubernetes-release/release/v1.14.3/bin/linux/amd64/kubectl" \
     KUBECTL_SHA256="ebc8c2fadede148c2db1b974f0f7f93f39f19c8278619893fd530e20e9bec98f"
 
-ENV KUSTOMIZE_VERSION="v2.1.0" \
-    KUSTOMIZE_URL="https://github.com/kubernetes-sigs/kustomize/releases/download/v2.1.0/kustomize_2.1.0_linux_amd64" \
-    KUSTOMIZE_SHA256="f12b81585fc70970c16cf8c9f9032c17fdbada288b500740bc001806fdce2f80"
+ENV KUSTOMIZE_VERSION="v3.0.0" \
+    KUSTOMIZE_URL="https://github.com/kubernetes-sigs/kustomize/releases/download/v3.0.0/kustomize_3.0.0_linux_amd64" \
+    KUSTOMIZE_SHA256="ef0dbeca85c419891ad0e12f1f9df649b02ceb01517fa9aea0297ef14e400c7a"
 
 RUN apk --no-cache add curl && \
     curl -L "$HELM_URL" | tar xz --exclude '*/*[^helm]' --strip-components=1 -C /usr/local/bin/ && \
