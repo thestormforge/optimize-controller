@@ -57,8 +57,7 @@ done
 # Helm support
 if [ -n "$CHART" ] ; then
     if [ ! -d "$(helm home)" ]; then
-        echo "Helm home ($(helm home)) is not a directory, initializing"
-        helm init --client-only
+        helm init --client-only > /dev/null
     fi
 
     mkdir -p /workspace/helm
@@ -72,7 +71,7 @@ if [ -n "$CHART" ] ; then
     helm fetch "$CHART"
     for c in *.tgz ; do
         # TODO HELM_OPTS can't be trusted, how do we sanitize that?
-        eval helm template $values $HELM_OPTS $c > ${c%%.tgz}.yaml
+        eval helm template $values $HELM_OPTS $c > ${c%%.tgz}.yaml 2> /dev/null
         kustomize edit add resource ${c%%.tgz}.yaml
     done
 fi
