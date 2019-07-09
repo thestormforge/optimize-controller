@@ -49,6 +49,7 @@ func NewGenerateCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.C
 		Long:    generateLong,
 		Example: generateExample,
 		Args:    cobra.ExactArgs(1),
+		Hidden:  true,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(f, cmd, args))
 			cmdutil.CheckErr(o.Run())
