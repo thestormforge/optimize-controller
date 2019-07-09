@@ -96,7 +96,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 
 	// Ahead of everything is the setup/teardown
 	// TODO This was meant to be in a webhook, but for various reasons we aren't doing that, yet...
-	if resp, ret, err := manageSetup(r.Client, r.scheme, trial); resp.Requeue || ret || err != nil {
+	if resp, ret, err := manageSetup(r.Client, r.scheme, trial); err != nil || resp.Requeue || ret {
 		return resp, err
 	}
 

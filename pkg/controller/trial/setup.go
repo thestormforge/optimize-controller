@@ -37,8 +37,9 @@ func manageSetup(c client.Client, s *runtime.Scheme, trial *redskyv1alpha1.Trial
 		return reconcile.Result{}, false, nil
 	}
 
-	// We do not need a delete job if the trial is still in progress and has not been deleted
-	if !IsTrialFinished(trial) && trial.DeletionTimestamp == nil {
+	// We do not need a delete job if the trial is still in progress
+	if isTrialInProgress(trial) {
+		// Ensure we have a finalizer in place before changing "needs delete" from true to false
 		if needsDelete && addSetupFinalizer(trial) {
 			err := c.Update(context.TODO(), trial)
 			return reconcile.Result{}, true, err
@@ -52,19 +53,27 @@ func manageSetup(c client.Client, s *runtime.Scheme, trial *redskyv1alpha1.Trial
 	if err := c.List(context.TODO(), list, client.MatchingLabels(setupJobLabels)); err != nil {
 		return reconcile.Result{}, false, err
 	}
+	var failureReason, failureMessage string
 	for _, j := range list.Items {
-		for _, c := range j.Spec.Template.Spec.Containers {
-			if len(c.Args) > 0 {
-				switch c.Args[0] {
-				case create:
-					needsCreate = false
-					finishedCreate = isJobFinished(&j)
-				case delete:
-					needsDelete = false
-					finishedDelete = isJobFinished(&j)
-				}
-				break
-			}
+		// If any setup job failed there is nothing more to do
+		if failed, msg := isJobFailed(&j); failed {
+			failureReason = "SetupJobFailed"
+			failureMessage = msg
+			needsCreate = false
+			needsDelete = false
+			finishedCreate = true
+			finishedDelete = true
+			break
+		}
+
+		// Determine which jobs have completed successfully
+		switch findJobMode(&j) {
+		case create:
+			needsCreate = false
+			finishedCreate = isJobComplete(&j)
+		case delete:
+			needsDelete = false
+			finishedDelete = isJobComplete(&j)
 		}
 	}
 
@@ -89,18 +98,23 @@ func manageSetup(c client.Client, s *runtime.Scheme, trial *redskyv1alpha1.Trial
 	}
 
 	// If the delete job is finished remove our finalizer
-	if finishedDelete {
-		for i := range trial.Finalizers {
-			if trial.Finalizers[i] == setupFinalizer {
-				trial.Finalizers[i] = trial.Finalizers[len(trial.Finalizers)-1]
-				trial.Finalizers = trial.Finalizers[:len(trial.Finalizers)-1]
-				err := c.Update(context.TODO(), trial)
-				return reconcile.Result{}, true, err
-			}
-		}
+	if finishedDelete && removeSetupFinalizer(trial) {
+		err := c.Update(context.TODO(), trial)
+		return reconcile.Result{}, true, err
+	}
+
+	// If a setup job failed, mark the trial as failed also (after the finalizer is removed!)
+	if failureReason != "" && !IsTrialFinished(trial) {
+		trial.Status.Conditions = append(trial.Status.Conditions, newCondition(redskyv1alpha1.TrialFailed, failureReason, failureMessage))
+		err := c.Update(context.TODO(), trial)
+		return reconcile.Result{}, true, err
 	}
 
 	return reconcile.Result{}, false, nil
+}
+
+func isTrialInProgress(trial *redskyv1alpha1.Trial) bool {
+	return !IsTrialFinished(trial) && trial.DeletionTimestamp == nil
 }
 
 func addSetupFinalizer(trial *redskyv1alpha1.Trial) bool {
@@ -113,16 +127,56 @@ func addSetupFinalizer(trial *redskyv1alpha1.Trial) bool {
 	return true
 }
 
-func isJobFinished(job *batchv1.Job) bool {
-	for _, c := range job.Status.Conditions {
-		if (c.Type == batchv1.JobComplete || c.Type == batchv1.JobFailed) && c.Status == corev1.ConditionTrue {
+func removeSetupFinalizer(trial *redskyv1alpha1.Trial) bool {
+	for i := range trial.Finalizers {
+		if trial.Finalizers[i] == setupFinalizer {
+			trial.Finalizers[i] = trial.Finalizers[len(trial.Finalizers)-1]
+			trial.Finalizers = trial.Finalizers[:len(trial.Finalizers)-1]
 			return true
 		}
 	}
-	if job.Status.Failed > 0 {
-		return true
-	}
 	return false
+}
+
+func isJobComplete(job *batchv1.Job) bool {
+	for _, c := range job.Status.Conditions {
+		if c.Type == batchv1.JobComplete && c.Status == corev1.ConditionTrue {
+			return true
+		}
+	}
+
+	return false
+}
+
+func isJobFailed(job *batchv1.Job) (bool, string) {
+	for _, c := range job.Status.Conditions {
+		if c.Type == batchv1.JobFailed && c.Status == corev1.ConditionTrue {
+			m := c.Message
+			if m == "" && c.Reason != "" {
+				m = fmt.Sprintf("Setup job failed with reason '%s'", c.Reason)
+			}
+			if m == "" {
+				m = "Setup job failed without reporting a reason"
+			}
+			return true, m
+		}
+	}
+
+	// For versions of Kube that do not report failures as conditions, just look for failed pods
+	if job.Status.Failed > 0 {
+		return true, fmt.Sprintf("Setup job has %d failed pod(s)", job.Status.Failed)
+	}
+
+	return false, ""
+}
+
+func findJobMode(job *batchv1.Job) string {
+	for _, c := range job.Spec.Template.Spec.Containers {
+		if len(c.Args) > 0 {
+			return c.Args[0]
+		}
+	}
+	return ""
 }
 
 func newSetupJob(trial *redskyv1alpha1.Trial, scheme *runtime.Scheme, mode string) (*batchv1.Job, error) {
