@@ -17,6 +17,7 @@ import (
 // TODO `redskyctl kustomize edit add experiment`...?
 // TODO Have the option to read a partial experiment from a file
 // TODO Use patch conventions like Kubebuilder
+// TODO Add documentation about Kustomize v3, `--enable_alpha_plugins`, and what config files should look like
 
 const (
 	generateLong    = `Generate an experiment manifest from a configuration file.`

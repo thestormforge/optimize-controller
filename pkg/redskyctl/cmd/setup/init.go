@@ -9,6 +9,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// TODO Add documentation about what this creates and how it works, including Kustomize support
+// TODO How do we collect Red Sky API information? Does it need to be exposed by the cmdutil.Factory?
+
 const (
 	initLong    = `The initialize command will install (or optionally generate) the required Red Sky manifests.`
 	initExample = ``
@@ -34,7 +37,6 @@ func NewInitCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Comma
 }
 
 func (o *SetupOptions) initCluster() error {
-	// TODO Should the util.Factory expose the configuration for bootstraping? Or should be build this some other way?
 	clientConfig, err := api.DefaultConfig()
 	if err != nil {
 		return err
