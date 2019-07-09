@@ -10,7 +10,6 @@ import (
 	"github.com/gramLabs/redsky/pkg/redskyctl/cmd/setup"
 	"github.com/gramLabs/redsky/pkg/redskyctl/cmd/suggest"
 	"github.com/gramLabs/redsky/pkg/redskyctl/util"
-	"github.com/gramLabs/redsky/pkg/version"
 	"github.com/spf13/cobra"
 )
 
@@ -20,8 +19,7 @@ func NewDefaultRedskyctlCommand() *cobra.Command {
 
 func NewRedskyctlCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use:     "redskyctl",
-		Version: version.GetVersion(),
+		Use: "redskyctl",
 	}
 	rootCmd.Run = rootCmd.HelpFunc()
 
@@ -36,6 +34,9 @@ func NewRedskyctlCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 	f := util.NewFactory(kubeConfigFlags, redskyConfigFlags)
 
 	ioStreams := util.IOStreams{In: in, Out: out, ErrOut: err}
+
+	rootCmd.AddCommand(NewDocsCommand(ioStreams))
+	rootCmd.AddCommand(NewVersionCommand(ioStreams))
 
 	rootCmd.AddCommand(setup.NewInitCommand(f, ioStreams))
 	rootCmd.AddCommand(setup.NewResetCommand(f, ioStreams))
