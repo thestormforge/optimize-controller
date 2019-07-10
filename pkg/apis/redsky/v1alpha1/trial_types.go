@@ -12,6 +12,8 @@ import (
 type HelmValue struct {
 	// The name of Helm value as passed to one of the set options
 	Name string `json:"name"`
+	// Force the value to be treated as a string
+	ForceString bool `json:"forceString,omitempty"`
 	// Set a Helm value using the evaluated template. Templates are evaluated using the same rules as patches
 	Value intstr.IntOrString `json:"value,omitempty"`
 	// Source for a Helm value
@@ -30,7 +32,7 @@ type HelmValueSource struct {
 type ParameterSelector struct {
 	// The name of the trial parameter to use
 	Name string `json:"name"`
-	// TODO String bool to force usage of --set-string?
+	// TODO Offer simple manipulations via "percent", "delta", "scale"? Allow string references to other parameters
 }
 
 // HelmValueFromSource represents a source of a values mapping

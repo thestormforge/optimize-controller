@@ -1216,6 +1216,10 @@ spec:
                               is also set
                             items:
                               properties:
+                                forceString:
+                                  description: Force the value to be treated as a
+                                    string
+                                  type: boolean
                                 name:
                                   description: The name of Helm value as passed to
                                     one of the set options

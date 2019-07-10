@@ -22,3 +22,13 @@ func (in *Trial) ExperimentNamespacedName() types.NamespacedName {
 func (in *Trial) GetDefaultLabels() map[string]string {
 	return map[string]string{"trial": in.Name}
 }
+
+// Returns an assignment value by name
+func (in *Trial) GetAssignment(name string) (int64, bool) {
+	for i := range in.Spec.Assignments {
+		if in.Spec.Assignments[i].Name == name {
+			return in.Spec.Assignments[i].Value, true
+		}
+	}
+	return 0, false
+}

@@ -298,26 +298,32 @@ func generateHelmOptions(trial *redskyv1alpha1.Trial, task *redskyv1alpha1.Setup
 
 	// NOTE: Since the content of the ConfigMaps is dynamic, we only look for --values files from the running container
 
-	// Add individual --set* options
-	// TODO Do we need to support --set-string?
+	// Add individual --set options
 	for _, hv := range task.HelmValues {
-		v := hv.Value.String()
-		if v != "" {
-			v, err := executeAssignmentTemplate(v, trial)
-			if err != nil {
-				return nil, err
-			}
-			opts = append(opts, "--set", fmt.Sprintf("\"%s=%s\"", hv.Name, v))
-		} else if hv.ValueFrom != nil {
+		if hv.ForceString {
+			opts = append(opts, "--set-string")
+		} else {
+			opts = append(opts, "--set")
+		}
+
+		if hv.ValueFrom != nil {
+			// Evaluate the external value source
 			switch {
-			// TODO We should support the other environment variable sources for this as well
 			case hv.ValueFrom.ParameterRef != nil:
-				for _, a := range trial.Spec.Assignments {
-					if a.Name == hv.ValueFrom.ParameterRef.Name {
-						opts = append(opts, "--set", fmt.Sprintf("%s=%d", hv.Name, a.Value))
-						break
-					}
+				if v, ok := trial.GetAssignment(hv.ValueFrom.ParameterRef.Name); ok {
+					opts = append(opts, fmt.Sprintf(`"%s=%d"`, hv.Name, v))
+				} else {
+					return nil, fmt.Errorf("invalid parameter reference '%s' for Helm value '%s'", hv.ValueFrom.ParameterRef.Name, hv.Name)
 				}
+			default:
+				return nil, fmt.Errorf("unknown source for Helm value '%s'", hv.Name)
+			}
+		} else {
+			// If there is no external source, evaluate the value field as a template
+			if v, err := executeAssignmentTemplate(hv.Value.String(), trial); err == nil {
+				opts = append(opts, "--set", fmt.Sprintf(`"%s=%s"`, hv.Name, v))
+			} else {
+				return nil, err
 			}
 		}
 	}
