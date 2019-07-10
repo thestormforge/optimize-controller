@@ -29,9 +29,9 @@ func TestReconcile(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"},
 	}
 
-	// We need this status to bypass the experiment lookup
+	// We need this to bypass the experiment lookup
 	instance.Spec.Selector = metav1.SetAsLabelSelector(instance.GetDefaultLabels())
-	instance.Status.PatchOperations = []redskyv1alpha1.PatchOperation{{}}
+	instance.Spec.PatchOperations = []redskyv1alpha1.PatchOperation{{}}
 
 	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
 	// channel when it is finished.
