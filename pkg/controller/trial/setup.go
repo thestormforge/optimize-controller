@@ -23,8 +23,8 @@ var (
 
 const (
 	setupFinalizer = "setupFinalizer.redsky.carbonrelay.com"
-	create         = "create"
-	delete         = "delete"
+	modeCreate     = "create"
+	modeDelete     = "delete"
 
 	startTimeout time.Duration = 2 * time.Minute
 )
@@ -71,10 +71,10 @@ func manageSetup(c client.Client, s *runtime.Scheme, trial *redskyv1alpha1.Trial
 
 		// Determine which jobs have completed successfully
 		switch findJobMode(&j) {
-		case create:
+		case modeCreate:
 			needsCreate = false
 			finishedCreate = isJobComplete(&j)
-		case delete:
+		case modeDelete:
 			needsDelete = false
 			finishedDelete = isJobComplete(&j)
 		}
@@ -82,9 +82,9 @@ func manageSetup(c client.Client, s *runtime.Scheme, trial *redskyv1alpha1.Trial
 
 	// Create any jobs that are required
 	if needsCreate || needsDelete {
-		mode := delete
+		mode := modeDelete
 		if needsCreate {
-			mode = create
+			mode = modeCreate
 		}
 
 		job, err := newSetupJob(trial, s, mode)
@@ -206,7 +206,7 @@ func newSetupJob(trial *redskyv1alpha1.Trial, scheme *runtime.Scheme, mode strin
 
 	// Create containers for each of the setup tasks
 	for _, task := range trial.Spec.SetupTasks {
-		if (mode == create && task.SkipCreate) || (mode == delete && task.SkipDelete) {
+		if (mode == modeCreate && task.SkipCreate) || (mode == modeDelete && task.SkipDelete) {
 			continue
 		}
 		c := corev1.Container{
