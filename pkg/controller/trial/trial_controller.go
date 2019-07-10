@@ -112,7 +112,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 	}
 
 	// Evaluate the patch operations
-	if len(trial.Status.PatchOperations) == 0 {
+	if len(trial.Spec.PatchOperations) == 0 {
 		e := &redskyv1alpha1.Experiment{}
 		if err = r.Get(context.TODO(), trial.ExperimentNamespacedName(), e); err != nil {
 			return reconcile.Result{}, err
@@ -126,8 +126,8 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 	}
 
 	// Apply the patches
-	for i := range trial.Status.PatchOperations {
-		p := &trial.Status.PatchOperations[i]
+	for i := range trial.Spec.PatchOperations {
+		p := &trial.Spec.PatchOperations[i]
 		if p.AttemptsRemaining > 0 {
 			u := unstructured.Unstructured{}
 			u.SetName(p.TargetRef.Name)
@@ -175,7 +175,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 	// Create a new job if needed
 	if len(list.Items) == 0 {
 		// Wait for a stable (ish) state
-		if err = waitForStableState(r, context.TODO(), trial.Status.PatchOperations); err != nil {
+		if err = waitForStableState(r, context.TODO(), trial.Spec.PatchOperations); err != nil {
 			if serr, ok := err.(*StabilityError); ok {
 				if serr.RetryAfter > 0 {
 					log.Info("Waiting for stabilization", "trialName", trial.Name)
@@ -326,7 +326,7 @@ func evaluatePatches(r client.Reader, trial *redskyv1alpha1.Trial, e *redskyv1al
 
 		// For each target resource, record a copy of the patch
 		for _, ref := range targets {
-			trial.Status.PatchOperations = append(trial.Status.PatchOperations, redskyv1alpha1.PatchOperation{
+			trial.Spec.PatchOperations = append(trial.Spec.PatchOperations, redskyv1alpha1.PatchOperation{
 				TargetRef:         ref,
 				PatchType:         pt,
 				Data:              data,

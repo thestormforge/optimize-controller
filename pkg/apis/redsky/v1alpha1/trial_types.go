@@ -110,8 +110,6 @@ type TrialSpec struct {
 	TargetNamespace string `json:"targetNamespace,omitempty"`
 	// Assignments are used to patch the cluster state prior to the trial run
 	Assignments []Assignment `json:"assignments,omitempty"`
-	// Values are the collected metrics at the end of the trial run
-	Values []Value `json:"values,omitempty"`
 	// Selector matches the job representing the trial run
 	Selector *metav1.LabelSelector `json:"selector,omitempty"`
 	// Template is the job template used to create trial run jobs
@@ -120,6 +118,11 @@ type TrialSpec struct {
 	StartTimeOffset *metav1.Duration `json:"startTimeOffset,omitempty"`
 	// The approximate amount of time the trial run should execute (not inclusive of the start time offset)
 	ApproximateRuntime *metav1.Duration `json:"approximateRuntime,omitempty"`
+
+	// Values are the collected metrics at the end of the trial run
+	Values []Value `json:"values,omitempty"`
+	// PatchOperations are the patches from the experiment evaluated in the context of this trial
+	PatchOperations []PatchOperation `json:"patchOperations,omitempty"`
 
 	// Setup tasks that must run before the trial starts (and possibly after it ends)
 	SetupTasks []SetupTask `json:"setupTasks,omitempty"`
@@ -131,7 +134,6 @@ type TrialSpec struct {
 
 // TrialStatus defines the observed state of Trial
 type TrialStatus struct {
-	PatchOperations []PatchOperation `json:"patchOperations,omitempty"`
 	// Assignments is a string representation of the trial assignments for reporting purposes
 	Assignments string `json:"assignments"`
 	// Values is a string representation of the trial values for reporting purposes
@@ -143,8 +145,6 @@ type TrialStatus struct {
 	// Condition is the current state of the trial
 	Conditions []TrialCondition `json:"conditions,omitempty"`
 }
-
-// TODO How do we get rid of PatchOperations? Or does it just go on the Spec instead?
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
