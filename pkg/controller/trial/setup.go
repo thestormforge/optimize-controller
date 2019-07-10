@@ -321,7 +321,7 @@ func generateHelmOptions(trial *redskyv1alpha1.Trial, task *redskyv1alpha1.Setup
 		} else {
 			// If there is no external source, evaluate the value field as a template
 			if v, err := executeAssignmentTemplate(hv.Value.String(), trial); err == nil {
-				opts = append(opts, "--set", fmt.Sprintf(`"%s=%s"`, hv.Name, v))
+				opts = append(opts, fmt.Sprintf(`"%s=%s"`, hv.Name, v))
 			} else {
 				return nil, err
 			}
