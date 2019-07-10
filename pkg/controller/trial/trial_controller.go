@@ -215,17 +215,17 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 
 			urls, verr := r.findMetricTargets(trial, &m)
 			for _, u := range urls {
-				if value, error, retryAfter, err := captureMetric(&m, u, trial); err != nil {
+				if value, stddev, retryAfter, err := captureMetric(&m, u, trial); err != nil {
 					verr = err
 				} else if retryAfter != nil {
 					return reconcile.Result{Requeue: true, RequeueAfter: *retryAfter}, nil
-				} else if math.IsNaN(value) || math.IsNaN(error) {
+				} else if math.IsNaN(value) || math.IsNaN(stddev) {
 					verr = fmt.Errorf("capturing metric %s got NaN", m.Name)
 				} else {
 					v.AttemptsRemaining = 0
 					v.Value = strconv.FormatFloat(value, 'f', -1, 64)
-					if error != 0 {
-						v.Error = strconv.FormatFloat(error, 'f', -1, 64)
+					if stddev != 0 {
+						v.Error = strconv.FormatFloat(stddev, 'f', -1, 64)
 					}
 					syncStatus(trial)
 					break
