@@ -458,13 +458,21 @@ spec:
               items:
                 properties:
                   attemptsRemaining:
+                    description: The number of remaining attempts to apply the patch,
+                      will be automatically set to zero if the patch is successfully
+                      applied
                     type: integer
                   data:
+                    description: The raw data representing the patch to be applied
                     format: byte
                     type: string
                   patchType:
+                    description: The patch content type, must be a type supported
+                      by the Kubernetes API server
                     type: string
                   targetRef:
+                    description: The reference to the object that the patched should
+                      be applied to
                     properties:
                       apiVersion:
                         description: API version of the referent.
@@ -7108,12 +7116,19 @@ spec:
               items:
                 properties:
                   attemptsRemaining:
+                    description: The number of remaining attempts to observer the
+                      value, will be automatically set to zero if the metric is successfully
+                      collected
                     type: integer
                   error:
+                    description: The observed float64 error (standard deviation),
+                      formatted as a string
                     type: string
                   name:
+                    description: The metric name the value corresponds to
                     type: string
                   value:
+                    description: The observed float64 value, formatted as a string
                     type: string
                 required:
                 - name
@@ -7137,18 +7152,25 @@ spec:
               items:
                 properties:
                   lastProbeTime:
+                    description: The last known time the condition was checked
                     format: date-time
                     type: string
                   lastTransitionTime:
+                    description: The time at which the condition last changed status
                     format: date-time
                     type: string
                   message:
+                    description: A human readable message describing the transition
                     type: string
                   reason:
+                    description: A reason code describing the why the condition occurred
                     type: string
                   status:
+                    description: The status of the condition, one of "True", "False",
+                      or "Unknown
                     type: string
                   type:
+                    description: The condition type, e.g. "Complete"
                     type: string
                 required:
                 - type

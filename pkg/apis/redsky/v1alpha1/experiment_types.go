@@ -6,40 +6,64 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-// Parameter
+// Parameter represents the domain of a single component of the experiment search space
 type Parameter struct {
+	// The name of the parameter
 	Name string `json:"name"`
-	Min  int64  `json:"min,omitempty"`
-	Max  int64  `json:"max,omitempty"`
+	// The inclusive minimum value of the parameter
+	Min int64 `json:"min,omitempty"`
+	// The inclusive maximum value of the parameter
+	Max int64 `json:"max,omitempty"`
 }
 
+// MetricType represents the allowable types of metrics
 type MetricType string
 
 const (
-	MetricLocal      MetricType = "local"
-	MetricPrometheus            = "prometheus"
-	MetricJSONPath              = "jsonpath"
+	// Local metrics are Go Templates evaluated against the trial itself. No external service is consulted, primarily
+	// useful for extracting start and completion times.
+	MetricLocal MetricType = "local"
+	// Prometheus metrics issue PromQL queries to a matched service. Queries MUST evaluate to a scalar value.
+	MetricPrometheus = "prometheus"
+	// JSON path metrics fetch a JSON resource from the matched service. Queries are JSON path expression evaluated against the resource.
+	MetricJSONPath = "jsonpath"
 	// TODO "regex"?
 )
 
-// Metric
+// Metric represents an observable outcome from a trial run
 type Metric struct {
-	Name     string                `json:"name"`
-	Minimize bool                  `json:"minimize,omitempty"`
-	Type     MetricType            `json:"type,omitempty"`
-	Query    string                `json:"query"`          // Type specific query, e.g. PromQL or a JSON pointer expression
-	Path     string                `json:"path,omitempty"` // Path appended to the endpoint (used as a prefix for prometheus)
+	// The name of the metric
+	Name string `json:"name"`
+	// Indicator that the goal of the experiment is to minimize the value of this metric
+	Minimize bool `json:"minimize,omitempty"`
+
+	// The metric collection type, e.g. "prometheus"
+	Type MetricType `json:"type,omitempty"`
+	// Collection type specific query, e.g. PromQL or a JSON pointer expression
+	Query string `json:"query"`
+
+	// Selector matching services to collect this metric from, only the first matched service to provide a value is used
 	Selector *metav1.LabelSelector `json:"selector,omitempty"`
-	Port     intstr.IntOrString    `json:"port,omitempty"`
+	// The port number or name on the matched service to collect the metric value from
+	Port intstr.IntOrString `json:"port,omitempty"`
+	// URL path component used to collect the metric value from an endpoint (used as a prefix for the Prometheus API)
+	Path string `json:"path,omitempty"`
+
 	// TODO ErrorQuery?
 }
 
 // PatchTemplate defines a target resource and a patch template to apply
 type PatchTemplate struct {
-	Type      string                 `json:"type,omitempty"`
-	Patch     string                 `json:"patch"`
+	// The patch type, one of: json|merge|strategic, default: strategic
+	Type string `json:"type,omitempty"`
+	// A Go Template that evaluates to valid patch.
+	Patch string `json:"patch"`
+	// Direct reference to the object the patch should be applied to. The name can be omitted to match by label selector.
 	TargetRef corev1.ObjectReference `json:"targetRef"`
-	Selector  *metav1.LabelSelector  `json:"selector,omitempty"`
+	// A selector matching multiple labeled objects the patch should be applied to.
+	// Used only if the target reference name is empty, the target reference API version and kind are used
+	// to determine what type of object should be matched.
+	Selector *metav1.LabelSelector `json:"selector,omitempty"`
 }
 
 // TrialTemplateSpec is used as a template for creating new trials
@@ -75,7 +99,7 @@ type ExperimentSpec struct {
 
 // ExperimentStatus defines the observed state of Experiment
 type ExperimentStatus struct {
-	// TODO Number of trials? Active? Failed?
+	// TODO Number of trials: Active, Succeeded, Failed int32 (this is difficult, if not impossible, because we delete trials)
 }
 
 // +genclient

@@ -390,18 +390,29 @@ spec:
               items:
                 properties:
                   minimize:
+                    description: Indicator that the goal of the experiment is to minimize
+                      the value of this metric
                     type: boolean
                   name:
+                    description: The name of the metric
                     type: string
                   path:
+                    description: URL path component used to collect the metric value
+                      from an endpoint (used as a prefix for the Prometheus API)
                     type: string
                   port:
                     anyOf:
                     - type: string
                     - type: integer
+                    description: The port number or name on the matched service to
+                      collect the metric value from
                   query:
+                    description: Collection type specific query, e.g. PromQL or a
+                      JSON pointer expression
                     type: string
                   selector:
+                    description: Selector matching services to collect this metric
+                      from, only the first matched service to provide a value is used
                     properties:
                       matchExpressions:
                         description: matchExpressions is a list of label selector
@@ -442,6 +453,7 @@ spec:
                         type: object
                     type: object
                   type:
+                    description: The metric collection type, e.g. "prometheus"
                     type: string
                 required:
                 - name
@@ -502,12 +514,15 @@ spec:
               items:
                 properties:
                   max:
+                    description: The inclusive maximum value of the parameter
                     format: int64
                     type: integer
                   min:
+                    description: The inclusive minimum value of the parameter
                     format: int64
                     type: integer
                   name:
+                    description: The name of the parameter
                     type: string
                 required:
                 - name
@@ -520,8 +535,13 @@ spec:
               items:
                 properties:
                   patch:
+                    description: A Go Template that evaluates to valid patch.
                     type: string
                   selector:
+                    description: A selector matching multiple labeled objects the
+                      patch should be applied to. Used only if the target reference
+                      name is empty, the target reference API version and kind are
+                      used to determine what type of object should be matched.
                     properties:
                       matchExpressions:
                         description: matchExpressions is a list of label selector
@@ -562,6 +582,8 @@ spec:
                         type: object
                     type: object
                   targetRef:
+                    description: Direct reference to the object the patch should be
+                      applied to. The name can be omitted to match by label selector.
                     properties:
                       apiVersion:
                         description: API version of the referent.
@@ -597,6 +619,8 @@ spec:
                         type: string
                     type: object
                   type:
+                    description: 'The patch type, one of: json|merge|strategic, default:
+                      strategic'
                     type: string
                 required:
                 - patch
@@ -1106,13 +1130,22 @@ spec:
                       items:
                         properties:
                           attemptsRemaining:
+                            description: The number of remaining attempts to apply
+                              the patch, will be automatically set to zero if the
+                              patch is successfully applied
                             type: integer
                           data:
+                            description: The raw data representing the patch to be
+                              applied
                             format: byte
                             type: string
                           patchType:
+                            description: The patch content type, must be a type supported
+                              by the Kubernetes API server
                             type: string
                           targetRef:
+                            description: The reference to the object that the patched
+                              should be applied to
                             properties:
                               apiVersion:
                                 description: API version of the referent.
@@ -8510,12 +8543,20 @@ spec:
                       items:
                         properties:
                           attemptsRemaining:
+                            description: The number of remaining attempts to observer
+                              the value, will be automatically set to zero if the
+                              metric is successfully collected
                             type: integer
                           error:
+                            description: The observed float64 error (standard deviation),
+                              formatted as a string
                             type: string
                           name:
+                            description: The metric name the value corresponds to
                             type: string
                           value:
+                            description: The observed float64 value, formatted as
+                              a string
                             type: string
                         required:
                         - name
