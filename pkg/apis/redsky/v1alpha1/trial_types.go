@@ -108,11 +108,15 @@ type Value struct {
 type TrialConditionType string
 
 const (
-	// Condition that indicates a successful trial run when the status is "True". This condition SHOULD be omitted for other status values.
+	// Condition that indicates a successful trial run
 	TrialComplete TrialConditionType = "Complete"
-	// Condition that indicates a failed trial run when the status is "True". This condition SHOULD be omitted for other status values.
+	// Condition that indicates a failed trial run
 	TrialFailed = "Failed"
-	// TODO TrialSetupCreate/Delete? TrialPatched? TrialStable?
+	// Condition that indicates all "create" setup tasks have executed successfully
+	TrialSetupCreated = "SetupCreated"
+	// Condition that indicates all "delete" setup tasks have executed successfully
+	TrialSetupDeleted = "SetupDeleted"
+	// TODO TrialPatched? TrialStable?
 )
 
 // TrialCondition represents an observed condition of a trial
