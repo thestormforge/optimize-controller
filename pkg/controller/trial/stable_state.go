@@ -17,14 +17,13 @@ import (
 type StabilityError struct {
 	// The minimum amount of time until the object is expected to stabilize, if left unspecified there is no expectation of stability
 	RetryAfter time.Duration
+	// TODO ObjectReference source of problem?
 }
 
 func (e *StabilityError) Error() string {
 	// TODO Make something nice
 	return "not stable"
 }
-
-// TODO We are not properly detecting unrecoverable scenarios like "pod cannot be scheduled because of insufficient resources"
 
 // Check a stateful set to see if it has reached a stable state
 func checkStatefulSet(sts *appsv1.StatefulSet) error {
@@ -79,35 +78,35 @@ func checkDeployment(d *appsv1.Deployment) error {
 
 // Iterates over all of the supplied patches and ensures that the targets are in a "stable" state (where "stable"
 // is determined by the object kind).
-func waitForStableState(r client.Reader, ctx context.Context, patches []redskyv1alpha1.PatchOperation) error {
-	for _, p := range patches {
-		switch p.TargetRef.Kind {
-		case "StatefulSet":
-			ss := &appsv1.StatefulSet{}
-			if err, ok := get(r, ctx, p.TargetRef, ss); err != nil {
-				if ok {
-					continue
-				}
-				return err
+func waitForStableState(r client.Reader, ctx context.Context, p *redskyv1alpha1.PatchOperation) error {
+	switch p.TargetRef.Kind {
+	case "StatefulSet":
+		ss := &appsv1.StatefulSet{}
+		if err, ok := get(r, ctx, p.TargetRef, ss); err != nil {
+			if ok {
+				// TODO This should be IgnoreNotFound or something like that
+				return nil
 			}
-			if err := checkStatefulSet(ss); err != nil {
-				return checkPods(err, r, ss.Spec.Selector)
-			}
-
-		case "Deployment":
-			d := &appsv1.Deployment{}
-			if err, ok := get(r, ctx, p.TargetRef, d); err != nil {
-				if ok {
-					continue
-				}
-				return err
-			}
-			if err := checkDeployment(d); err != nil {
-				return checkPods(err, r, d.Spec.Selector)
-			}
-
-			// TODO Should we also get DaemonSet like rollout?
+			return err
 		}
+		if err := checkStatefulSet(ss); err != nil {
+			return checkPods(err, r, ss.Spec.Selector)
+		}
+
+	case "Deployment":
+		d := &appsv1.Deployment{}
+		if err, ok := get(r, ctx, p.TargetRef, d); err != nil {
+			if ok {
+				// TODO This should be IgnoreNotFound or something like that
+				return nil
+			}
+			return err
+		}
+		if err := checkDeployment(d); err != nil {
+			return checkPods(err, r, d.Spec.Selector)
+		}
+
+		// TODO Should we also get DaemonSet like rollout?
 	}
 	return nil
 }
@@ -144,6 +143,7 @@ func checkPods(e error, r client.Reader, selector *metav1.LabelSelector) error {
 	for _, p := range list.Items {
 		for _, c := range p.Status.Conditions {
 			if c.Type == corev1.PodScheduled && c.Status == corev1.ConditionFalse && c.Reason == corev1.PodReasonUnschedulable {
+				// TODO Is it possible this is a transient condition or something else precludes it from being fatal?
 				return &StabilityError{}
 			}
 		}

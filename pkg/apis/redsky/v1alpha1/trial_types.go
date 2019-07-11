@@ -80,6 +80,8 @@ type PatchOperation struct {
 	// The number of remaining attempts to apply the patch, will be automatically set
 	// to zero if the patch is successfully applied
 	AttemptsRemaining int `json:"attemptsRemaining,omitempty"`
+	// Wait for the patched object to stabilize
+	Wait bool `json:"wait,omitempty"`
 }
 
 // Assignment represents an individual name/value pair. Assignment names must correspond to parameter
@@ -111,12 +113,15 @@ const (
 	// Condition that indicates a successful trial run
 	TrialComplete TrialConditionType = "Complete"
 	// Condition that indicates a failed trial run
-	TrialFailed = "Failed"
+	TrialFailed TrialConditionType = "Failed"
 	// Condition that indicates all "create" setup tasks have executed successfully
-	TrialSetupCreated = "SetupCreated"
+	TrialSetupCreated TrialConditionType = "SetupCreated"
 	// Condition that indicates all "delete" setup tasks have executed successfully
-	TrialSetupDeleted = "SetupDeleted"
-	// TODO TrialPatched? TrialStable?
+	TrialSetupDeleted TrialConditionType = "SetupDeleted"
+	// Condition that indicates patches have been applied for a trial
+	TrialPatched TrialConditionType = "Patched"
+	// Condition that indicates a trail has stabilized after patches
+	TrialStable TrialConditionType = "Stable"
 )
 
 // TrialCondition represents an observed condition of a trial

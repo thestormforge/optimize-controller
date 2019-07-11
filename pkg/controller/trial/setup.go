@@ -72,7 +72,7 @@ func manageSetup(c client.Client, s *runtime.Scheme, trial *redskyv1alpha1.Trial
 		}
 
 		// Update the condition associated with this job
-		setSetupTrialCondition(trial, conditionType, isSetupJobComplete(job), "", "")
+		setSetupTrialCondition(trial, conditionType, isSetupJobComplete(job))
 	}
 
 	// Check to see if we need to update the trial to record a condition change
@@ -85,12 +85,12 @@ func manageSetup(c client.Client, s *runtime.Scheme, trial *redskyv1alpha1.Trial
 	mode := ""
 
 	// If the created condition is unknown, we will need a create job
-	if cc, ok := checkSetupTrialCondition(trial, redskyv1alpha1.TrialSetupCreated, corev1.ConditionUnknown); cc && ok {
+	if cc, ok := checkCondition(&trial.Status, redskyv1alpha1.TrialSetupCreated, corev1.ConditionUnknown); cc && ok {
 		mode = modeCreate
 	}
 
 	// If the deleted condition is unknown, we may need a delete job
-	if cc, ok := checkSetupTrialCondition(trial, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionUnknown); cc && ok {
+	if cc, ok := checkCondition(&trial.Status, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionUnknown); cc && ok {
 		if addSetupFinalizer(trial) {
 			err := c.Update(context.TODO(), trial)
 			return reconcile.Result{}, true, err
@@ -112,12 +112,12 @@ func manageSetup(c client.Client, s *runtime.Scheme, trial *redskyv1alpha1.Trial
 	}
 
 	// If the create job isn't finished, wait for it
-	if cc, ok := checkSetupTrialCondition(trial, redskyv1alpha1.TrialSetupCreated, corev1.ConditionFalse); cc && ok {
+	if cc, ok := checkCondition(&trial.Status, redskyv1alpha1.TrialSetupCreated, corev1.ConditionFalse); cc && ok {
 		return reconcile.Result{Requeue: true, RequeueAfter: 1 * time.Second}, false, nil
 	}
 
 	// If the delete job is finished, remove our finalizer
-	if cc, ok := checkSetupTrialCondition(trial, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionTrue); cc && ok {
+	if cc, ok := checkCondition(&trial.Status, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionTrue); cc && ok {
 		if removeSetupFinalizer(trial) {
 			err := c.Update(context.TODO(), trial)
 			return reconcile.Result{}, true, err
@@ -253,27 +253,17 @@ func probeSetupTrialConditions(trial *redskyv1alpha1.Trial, probeTime *metav1.Ti
 	return false
 }
 
-func setSetupTrialCondition(trial *redskyv1alpha1.Trial, conditionType redskyv1alpha1.TrialConditionType, status corev1.ConditionStatus, reason, message string) {
+func setSetupTrialCondition(trial *redskyv1alpha1.Trial, conditionType redskyv1alpha1.TrialConditionType, status corev1.ConditionStatus) {
 	for i := range trial.Status.Conditions {
 		if trial.Status.Conditions[i].Type == conditionType {
 			if trial.Status.Conditions[i].Status != status {
 				trial.Status.Conditions[i].Status = status
-				trial.Status.Conditions[i].Reason = reason
-				trial.Status.Conditions[i].Message = message
+				// This only works because we always update the last probe time before doing anything else
 				trial.Status.Conditions[i].LastTransitionTime = trial.Status.Conditions[i].LastProbeTime
 			}
-			break
+			return
 		}
 	}
-}
-
-func checkSetupTrialCondition(trial *redskyv1alpha1.Trial, conditionType redskyv1alpha1.TrialConditionType, status corev1.ConditionStatus) (bool, bool) {
-	for i := range trial.Status.Conditions {
-		if trial.Status.Conditions[i].Type == conditionType {
-			return trial.Status.Conditions[i].Status == status, true
-		}
-	}
-	return false, false
 }
 
 func needsUpdate(trial *redskyv1alpha1.Trial, probeTime *metav1.Time) bool {
