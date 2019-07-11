@@ -9,9 +9,11 @@ import (
 	"github.com/gramLabs/redsky/pkg/apis/redsky/v1alpha1"
 	"github.com/gramLabs/redsky/pkg/controller/experiment"
 	redskykube "github.com/gramLabs/redsky/pkg/kubernetes"
+	"github.com/gramLabs/redsky/pkg/kubernetes/scheme"
 	cmdutil "github.com/gramLabs/redsky/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 const (
@@ -119,8 +121,10 @@ func createInClusterSuggestion(namespace, name string, suggestions SuggestionSou
 
 	trial := &v1alpha1.Trial{}
 	experiment.PopulateTrialFromTemplate(exp, trial, namespace)
-	trial.SetOwnerReferences([]metav1.OwnerReference{*metav1.NewControllerRef(exp, exp.GetSelfReference().GroupVersionKind())})
 	trial.Finalizers = nil
+	if err := controllerutil.SetControllerReference(exp, trial, scheme.Scheme); err != nil {
+		return err
+	}
 
 	for _, p := range exp.Spec.Parameters {
 		v, err := suggestions.AssignInt(p.Name, p.Min, p.Max)
