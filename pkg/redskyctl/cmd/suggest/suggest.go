@@ -119,6 +119,7 @@ func createInClusterSuggestion(namespace, name string, suggestions SuggestionSou
 
 	trial := &v1alpha1.Trial{}
 	experiment.PopulateTrialFromTemplate(exp, trial, namespace)
+	trial.SetOwnerReferences([]metav1.OwnerReference{*metav1.NewControllerRef(exp, exp.GetSelfReference().GroupVersionKind())})
 	trial.Finalizers = nil
 
 	for _, p := range exp.Spec.Parameters {
