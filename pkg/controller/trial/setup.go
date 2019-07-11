@@ -291,6 +291,7 @@ func newSetupJob(trial *redskyv1alpha1.Trial, scheme *runtime.Scheme, mode strin
 	job.Namespace = trial.Namespace
 	job.Name = fmt.Sprintf("%s-%s", trial.Name, mode)
 	job.Labels = map[string]string{"role": "trialSetup", "setupFor": trial.Name}
+	job.Spec.BackoffLimit = new(int32)
 	job.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyNever
 	job.Spec.Template.Spec.ServiceAccountName = trial.Spec.SetupServiceAccountName
 
