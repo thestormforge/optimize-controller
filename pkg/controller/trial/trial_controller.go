@@ -94,8 +94,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 		return reconcile.Result{}, err
 	}
 
-	// Ahead of everything is the setup/teardown
-	// TODO This was meant to be in a webhook, but for various reasons we aren't doing that, yet...
+	// Ahead of everything is the setup/teardown (contains finalization logic)
 	if resp, ret, err := manageSetup(r.Client, r.scheme, trial); err != nil || resp.Requeue || ret {
 		return resp, err
 	}
@@ -106,7 +105,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 	}
 
 	// Update the display status
-	if dirty := syncStatus(trial); dirty {
+	if syncStatus(trial) {
 		err = r.Update(context.TODO(), trial)
 		return reconcile.Result{}, err
 	}
@@ -167,7 +166,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 	}
 
 	// Update the trial run status using the job status
-	if dirty := updateStatusFromJobs(list.Items, trial); dirty {
+	if updateStatusFromJobs(list.Items, trial) {
 		err = r.Update(context.TODO(), trial)
 		return reconcile.Result{}, err
 	}
@@ -279,7 +278,9 @@ func syncStatus(trial *redskyv1alpha1.Trial) bool {
 
 	values := make([]string, len(trial.Spec.Values))
 	for i := range trial.Spec.Values {
-		values[i] = fmt.Sprintf("%s=%s", trial.Spec.Values[i].Name, trial.Spec.Values[i].Value)
+		if trial.Spec.Values[i].AttemptsRemaining == 0 {
+			values[i] = fmt.Sprintf("%s=%s", trial.Spec.Values[i].Name, trial.Spec.Values[i].Value)
+		}
 	}
 	s = strings.Join(values, ", ")
 	dirty = dirty || trial.Status.Values != s
