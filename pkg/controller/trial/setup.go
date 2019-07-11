@@ -309,6 +309,7 @@ func newSetupJob(trial *redskyv1alpha1.Trial, scheme *runtime.Scheme, mode strin
 			Env: []corev1.EnvVar{
 				{Name: "NAMESPACE", Value: namespace},
 				{Name: "NAME", Value: task.Name},
+				{Name: "TRIAL", Value: trial.Name},
 			},
 		}
 

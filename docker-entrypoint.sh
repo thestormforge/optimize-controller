@@ -5,8 +5,8 @@ set -eo pipefail
 # Update the Kustomization to account for mounted files
 # This only applies to the "base" (default from Dockerfile) root, so do it before processing arguments
 if [ -e kustomization.yaml ]; then
-    find . -name "*_resource.yaml" -o -path "./resources/*.yaml" -exec kustomize edit add resource {} +
-    find . -name "*_patch.yaml" -o -path "./patches/*.yaml" -exec kustomize edit add patch {} +
+    find . -type f \( -name "*_resource.yaml" -o -path "./resources/*.yaml" \) -exec kustomize edit add resource {} +
+    find . -type f \( -name "*_patch.yaml" -o -path "./patches/*.yaml" \) -exec kustomize edit add patch {} +
 fi
 
 
@@ -65,8 +65,8 @@ if [ -n "$CHART" ] ; then
     touch kustomization.yaml
     kustomize edit add base ../base
 
-    find . -name "*patch.yaml" -exec kustomize edit add patch {} +
-    values=$(find . -name "*values.yaml" -exec echo -n "--values {} " \;)
+    find . -type f -name "*patch.yaml" -exec kustomize edit add patch {} +
+    values=$(find . -type f -name "*values.yaml" -exec echo -n "--values {} " \;)
 
     helm fetch "$CHART"
     for c in *.tgz ; do
@@ -76,6 +76,7 @@ if [ -n "$CHART" ] ; then
     done
 fi
 # TODO If this is not Helm, should we do a `kustomize edit set namespace "$NAMESPACE"`?
+# TODO Should we apply a label to all created objects so we can tie it back to the trial?
 
 
 # Run Kustomize and pipe it into the handler
