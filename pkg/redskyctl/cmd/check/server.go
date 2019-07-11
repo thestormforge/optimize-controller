@@ -24,6 +24,7 @@ type ServerCheckOptions struct {
 	MetricCount    int
 	AllowInvalid   bool
 	ReportFailure  bool
+	DryRun         bool
 
 	RedSkyAPI redsky.API
 
@@ -51,6 +52,8 @@ func NewServerCheckCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobr
 		},
 	}
 
+	cmd.Flags().BoolVar(&o.DryRun, "dry-run", false, "generate experiment JSON to stdout")
+
 	return cmd
 }
 
@@ -63,10 +66,12 @@ func (o *ServerCheckOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) err
 		o.MetricCount = rand.Intn(2) + 1
 	}
 
-	var err error
-	o.RedSkyAPI, err = f.RedSkyAPI()
-	if err != nil {
-		return err
+	if !o.DryRun {
+		var err error
+		o.RedSkyAPI, err = f.RedSkyAPI()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -87,9 +92,23 @@ func (o *ServerCheckOptions) Validate() error {
 func (o *ServerCheckOptions) Run() error {
 	var err error
 
-	// Create the experiment
+	// Generate an experiment
 	n := o.Name
 	e := generateExperiment(o)
+	if o.DryRun {
+		if n == "" {
+			n = GetRandomName(0)
+		}
+		e.DisplayName = n
+		b, err := json.MarshalIndent(e, "", "    ")
+		if err != nil {
+			return err
+		}
+		_, err = o.Out.Write(b)
+		return err
+	}
+
+	// Create the experiment
 	var exp redsky.Experiment
 	if n != "" {
 		exp, err = o.RedSkyAPI.CreateExperiment(context.TODO(), redsky.NewExperimentName(n), *e)
