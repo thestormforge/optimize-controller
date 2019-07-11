@@ -33,6 +33,7 @@ func applyCondition(status *redskyv1alpha1.TrialStatus, conditionType redskyv1al
 			} else {
 				status.Conditions[i].LastProbeTime = *time
 			}
+			return
 		}
 	}
 
