@@ -44,7 +44,7 @@ func manageSetup(c client.Client, s *runtime.Scheme, trial *redskyv1alpha1.Trial
 
 	// Update the conditions based on existing jobs
 	list := &batchv1.JobList{}
-	setupJobLabels := map[string]string{"role": "trialSetup", "setupFor": trial.Name}
+	setupJobLabels := map[string]string{"role": "trialSetup", "trial": trial.Name}
 	if err := c.List(context.TODO(), list, client.MatchingLabels(setupJobLabels)); err != nil {
 		return reconcile.Result{}, false, err
 	}
@@ -280,7 +280,7 @@ func newSetupJob(trial *redskyv1alpha1.Trial, scheme *runtime.Scheme, mode strin
 	job := &batchv1.Job{}
 	job.Namespace = trial.Namespace
 	job.Name = fmt.Sprintf("%s-%s", trial.Name, mode)
-	job.Labels = map[string]string{"role": "trialSetup", "setupFor": trial.Name}
+	job.Labels = map[string]string{"role": "trialSetup", "trial": trial.Name}
 	job.Spec.BackoffLimit = new(int32)
 	job.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyNever
 	job.Spec.Template.Spec.ServiceAccountName = trial.Spec.SetupServiceAccountName

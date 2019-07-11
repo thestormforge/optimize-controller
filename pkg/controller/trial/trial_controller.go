@@ -211,6 +211,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 	if err := r.List(context.TODO(), list, client.UseListOptions(opts)); err != nil {
 		return reconcile.Result{}, err
 	}
+	// TODO We may need to hard filter out setup jobs to ensure there is not a labelling misconfiguration
 
 	// Update the trial run status using the job status
 	if updateStatusFromJobs(list.Items, trial) {
