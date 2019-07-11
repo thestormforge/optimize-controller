@@ -168,13 +168,15 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 				if serr, ok := err.(*StabilityError); ok && serr.RetryAfter > 0 {
 					// Mark the trial as not stable and wait
 					applyCondition(&trial.Status, redskyv1alpha1.TrialStable, corev1.ConditionFalse, "Wait", serr.Error(), nil)
-					result.Requeue = true
 					result.RequeueAfter = serr.RetryAfter
+					err = nil
 				} else {
 					// No retry delay specified, fail the whole trial
 					applyCondition(&trial.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "WaitFailed", serr.Error(), nil)
 				}
 			} else {
+				// We have successfully waited for one patch so we are no longer "unknown"
+				applyCondition(&trial.Status, redskyv1alpha1.TrialStable, corev1.ConditionFalse, "", "", nil)
 				p.Wait = false
 			}
 
