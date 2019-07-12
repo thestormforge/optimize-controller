@@ -55,20 +55,16 @@ func manageSetup(c client.Client, s *runtime.Scheme, trial *redskyv1alpha1.Trial
 			return reconcile.Result{}, false, err
 		}
 
-		// If any setup job failed there is nothing more to do but mark the whole trial failed (if we haven't already)
-		if failed, message := isSetupJobFailed(job); failed {
-			if removeSetupFinalizer(trial) && !IsTrialFinished(trial) {
-				trial.Status.Conditions = append(trial.Status.Conditions, redskyv1alpha1.TrialCondition{
-					Type:               redskyv1alpha1.TrialFailed,
-					Status:             corev1.ConditionTrue,
-					LastProbeTime:      probeTime,
-					LastTransitionTime: probeTime,
-					Reason:             "SetupJobFailed",
-					Message:            message,
-				})
-				break // Stop the loop, will require an update
-			}
-			return reconcile.Result{}, false, nil
+		// If any setup job failed, mark any un-finished trial as failed
+		if failed, message := isSetupJobFailed(job); failed && !IsTrialFinished(trial) {
+			trial.Status.Conditions = append(trial.Status.Conditions, redskyv1alpha1.TrialCondition{
+				Type:               redskyv1alpha1.TrialFailed,
+				Status:             corev1.ConditionTrue,
+				LastProbeTime:      probeTime,
+				LastTransitionTime: probeTime,
+				Reason:             "SetupJobFailed",
+				Message:            message,
+			})
 		}
 
 		// Update the condition associated with this job
@@ -111,13 +107,15 @@ func manageSetup(c client.Client, s *runtime.Scheme, trial *redskyv1alpha1.Trial
 		return reconcile.Result{}, true, err
 	}
 
-	// If the create job isn't finished, wait for it
-	if cc, ok := checkCondition(&trial.Status, redskyv1alpha1.TrialSetupCreated, corev1.ConditionFalse); cc && ok {
-		return reconcile.Result{Requeue: true, RequeueAfter: 1 * time.Second}, false, nil
+	// If the create job isn't finished, wait for it (unless the trial is already finished, i.e. failed)
+	if cc, ok := checkCondition(&trial.Status, redskyv1alpha1.TrialSetupCreated, corev1.ConditionFalse); ok && cc {
+		if !IsTrialFinished(trial) {
+			return reconcile.Result{Requeue: true, RequeueAfter: 1 * time.Second}, false, nil
+		}
 	}
 
-	// If the delete job is finished, remove our finalizer
-	if cc, ok := checkCondition(&trial.Status, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionTrue); cc && ok {
+	// If the delete job exists, it is safe to remove our finalizer
+	if cc, ok := checkCondition(&trial.Status, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionUnknown); ok && !cc {
 		if removeSetupFinalizer(trial) {
 			err := c.Update(context.TODO(), trial)
 			return reconcile.Result{}, true, err
