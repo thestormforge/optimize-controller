@@ -127,30 +127,32 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 	// Apply the patches
 	for i := range trial.Spec.PatchOperations {
 		p := &trial.Spec.PatchOperations[i]
-		if p.AttemptsRemaining > 0 {
-			u := unstructured.Unstructured{}
-			u.SetName(p.TargetRef.Name)
-			u.SetNamespace(p.TargetRef.Namespace)
-			u.SetGroupVersionKind(p.TargetRef.GroupVersionKind())
-			if err := r.Patch(context.TODO(), &u, client.ConstantPatch(p.PatchType, p.Data)); err != nil {
-				p.AttemptsRemaining = p.AttemptsRemaining - 1
-				if p.AttemptsRemaining == 0 {
-					// There are no remaining patch attempts remaining, fail the trial
-					applyCondition(&trial.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "PatchFailed", err.Error(), &now)
-				}
-			} else {
-				p.AttemptsRemaining = 0
-				if p.Wait {
-					// We successfully applied a patch that requires a wait, use an unknown status until we start waiting
-					applyCondition(&trial.Status, redskyv1alpha1.TrialStable, corev1.ConditionUnknown, "", "", &now)
-				}
-			}
-
-			// We have started applying patches (success or fail), transition into a false status
-			applyCondition(&trial.Status, redskyv1alpha1.TrialPatched, corev1.ConditionFalse, "", "", &now)
-			err = r.Update(context.TODO(), trial)
-			return reconcile.Result{}, err
+		if p.AttemptsRemaining == 0 {
+			continue
 		}
+
+		u := unstructured.Unstructured{}
+		u.SetName(p.TargetRef.Name)
+		u.SetNamespace(p.TargetRef.Namespace)
+		u.SetGroupVersionKind(p.TargetRef.GroupVersionKind())
+		if err := r.Patch(context.TODO(), &u, client.ConstantPatch(p.PatchType, p.Data)); err != nil {
+			p.AttemptsRemaining = p.AttemptsRemaining - 1
+			if p.AttemptsRemaining == 0 {
+				// There are no remaining patch attempts remaining, fail the trial
+				applyCondition(&trial.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "PatchFailed", err.Error(), &now)
+			}
+		} else {
+			p.AttemptsRemaining = 0
+			if p.Wait {
+				// We successfully applied a patch that requires a wait, use an unknown status until we start waiting
+				applyCondition(&trial.Status, redskyv1alpha1.TrialStable, corev1.ConditionUnknown, "", "", &now)
+			}
+		}
+
+		// We have started applying patches (success or fail), transition into a false status
+		applyCondition(&trial.Status, redskyv1alpha1.TrialPatched, corev1.ConditionFalse, "", "", &now)
+		err = r.Update(context.TODO(), trial)
+		return reconcile.Result{}, err
 	}
 
 	// If there is a patched condition that is not yet true, update the status
