@@ -106,6 +106,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 
 	// Update the display status
 	syncStatus(trial)
+	now := metav1.Now()
 
 	// One time evaluation of the patch operations
 	if len(trial.Spec.PatchOperations) == 0 {
@@ -117,7 +118,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 			return reconcile.Result{}, err
 		} else if dirty {
 			// We know we have at least one patch to apply, use an unknown status until we start applying them
-			applyCondition(&trial.Status, redskyv1alpha1.TrialPatched, corev1.ConditionUnknown, "", "", nil)
+			applyCondition(&trial.Status, redskyv1alpha1.TrialPatched, corev1.ConditionUnknown, "", "", &now)
 			err = r.Update(context.TODO(), trial)
 			return reconcile.Result{}, err
 		}
@@ -135,18 +136,18 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 				p.AttemptsRemaining = p.AttemptsRemaining - 1
 				if p.AttemptsRemaining == 0 {
 					// There are no remaining patch attempts remaining, fail the trial
-					applyCondition(&trial.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "PatchFailed", err.Error(), nil)
+					applyCondition(&trial.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "PatchFailed", err.Error(), &now)
 				}
 			} else {
 				p.AttemptsRemaining = 0
 				if p.Wait {
 					// We successfully applied a patch that requires a wait, use an unknown status until we start waiting
-					applyCondition(&trial.Status, redskyv1alpha1.TrialStable, corev1.ConditionUnknown, "", "", nil)
+					applyCondition(&trial.Status, redskyv1alpha1.TrialStable, corev1.ConditionUnknown, "", "", &now)
 				}
 			}
 
 			// We have started applying patches (success or fail), transition into a false status
-			applyCondition(&trial.Status, redskyv1alpha1.TrialPatched, corev1.ConditionFalse, "", "", nil)
+			applyCondition(&trial.Status, redskyv1alpha1.TrialPatched, corev1.ConditionFalse, "", "", &now)
 			err = r.Update(context.TODO(), trial)
 			return reconcile.Result{}, err
 		}
@@ -154,7 +155,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 
 	// If there is a patched condition that is not yet true, update the status
 	if cc, ok := checkCondition(&trial.Status, redskyv1alpha1.TrialPatched, corev1.ConditionTrue); ok && !cc {
-		applyCondition(&trial.Status, redskyv1alpha1.TrialPatched, corev1.ConditionTrue, "", "", nil)
+		applyCondition(&trial.Status, redskyv1alpha1.TrialPatched, corev1.ConditionTrue, "", "", &now)
 		err = r.Update(context.TODO(), trial)
 		return reconcile.Result{}, err
 	}
@@ -167,16 +168,16 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 			if err = waitForStableState(r, context.TODO(), p); err != nil {
 				if serr, ok := err.(*StabilityError); ok && serr.RetryAfter > 0 {
 					// Mark the trial as not stable and wait
-					applyCondition(&trial.Status, redskyv1alpha1.TrialStable, corev1.ConditionFalse, "Wait", serr.Error(), nil)
+					applyCondition(&trial.Status, redskyv1alpha1.TrialStable, corev1.ConditionFalse, "Wait", serr.Error(), &now)
 					result.RequeueAfter = serr.RetryAfter
 					err = nil
 				} else {
 					// No retry delay specified, fail the whole trial
-					applyCondition(&trial.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "WaitFailed", serr.Error(), nil)
+					applyCondition(&trial.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "WaitFailed", serr.Error(), &now)
 				}
 			} else {
 				// We have successfully waited for one patch so we are no longer "unknown"
-				applyCondition(&trial.Status, redskyv1alpha1.TrialStable, corev1.ConditionFalse, "", "", nil)
+				applyCondition(&trial.Status, redskyv1alpha1.TrialStable, corev1.ConditionFalse, "", "", &now)
 				p.Wait = false
 			}
 
@@ -190,7 +191,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 
 	// If there is a stable condition that is not yet true, update the status
 	if cc, ok := checkCondition(&trial.Status, redskyv1alpha1.TrialStable, corev1.ConditionTrue); ok && !cc {
-		applyCondition(&trial.Status, redskyv1alpha1.TrialStable, corev1.ConditionTrue, "", "", nil)
+		applyCondition(&trial.Status, redskyv1alpha1.TrialStable, corev1.ConditionTrue, "", "", &now)
 		err = r.Update(context.TODO(), trial)
 		return reconcile.Result{}, err
 	}
@@ -214,7 +215,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 	// TODO We may need to hard filter out setup jobs to ensure there is not a labelling misconfiguration
 
 	// Update the trial run status using the job status
-	if updateStatusFromJobs(list.Items, trial) {
+	if updateStatusFromJobs(list.Items, trial, &now) {
 		err = r.Update(context.TODO(), trial)
 		return reconcile.Result{}, err
 	}
@@ -263,7 +264,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 			if verr != nil && v.AttemptsRemaining > 0 {
 				v.AttemptsRemaining = v.AttemptsRemaining - 1
 				if v.AttemptsRemaining == 0 {
-					applyCondition(&trial.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "MetricFailed", verr.Error(), nil)
+					applyCondition(&trial.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "MetricFailed", verr.Error(), &now)
 				}
 			}
 
@@ -272,7 +273,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 		}
 
 		// If all of the metrics are collected, mark the trial as completed
-		applyCondition(&trial.Status, redskyv1alpha1.TrialComplete, corev1.ConditionTrue, "", "", nil)
+		applyCondition(&trial.Status, redskyv1alpha1.TrialComplete, corev1.ConditionTrue, "", "", &now)
 		err = r.Update(context.TODO(), trial)
 		return reconcile.Result{}, err
 	}
@@ -464,7 +465,7 @@ func findOrCreateValue(trial *redskyv1alpha1.Trial, name string) *redskyv1alpha1
 }
 
 // Updates a trial status based on the status of the individual job(s), returns true if any changes were necessary
-func updateStatusFromJobs(jobs []batchv1.Job, trial *redskyv1alpha1.Trial) bool {
+func updateStatusFromJobs(jobs []batchv1.Job, trial *redskyv1alpha1.Trial, time *metav1.Time) bool {
 	var dirty bool
 
 	for _, j := range jobs {
@@ -496,7 +497,7 @@ func updateStatusFromJobs(jobs []batchv1.Job, trial *redskyv1alpha1.Trial) bool 
 		for _, c := range j.Status.Conditions {
 			// If activeDeadlineSeconds was used a workaround for having a sidecar, ignore the failure
 			if c.Type == batchv1.JobFailed && c.Status == corev1.ConditionTrue && c.Reason != "DeadlineExceeded" {
-				applyCondition(&trial.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, c.Reason, c.Message, nil)
+				applyCondition(&trial.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, c.Reason, c.Message, time)
 				dirty = true
 			}
 		}
