@@ -122,6 +122,8 @@ const (
 	TrialPatched TrialConditionType = "Patched"
 	// Condition that indicates a trail has stabilized after patches
 	TrialStable TrialConditionType = "Stable"
+	// Condition that indicates a trial has had metrics collected
+	TrialObserved TrialConditionType = "Observed"
 )
 
 // TrialCondition represents an observed condition of a trial

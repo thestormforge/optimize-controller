@@ -231,17 +231,26 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 	}
 
 	if trial.Status.CompletionTime != nil {
-		// Look for metrics that have not been collected yet
 		e := &redskyv1alpha1.Experiment{}
 		if err = r.Get(context.TODO(), trial.ExperimentNamespacedName(), e); err != nil {
 			return reconcile.Result{}, err
 		}
+
+		// If we have metrics to collect, use an unknown status to fill the gap (e.g. TCP timeout) until the transition to false
+		if _, ok := checkCondition(&trial.Status, redskyv1alpha1.TrialObserved, corev1.ConditionUnknown); !ok && len(e.Spec.Metrics) > 0 {
+			applyCondition(&trial.Status, redskyv1alpha1.TrialObserved, corev1.ConditionUnknown, "", "", &now)
+			err = r.Update(context.TODO(), trial)
+			return reconcile.Result{}, err
+		}
+
+		// Look for metrics that have not been collected yet
 		for _, m := range e.Spec.Metrics {
 			v := findOrCreateValue(trial, m.Name)
 			if v.AttemptsRemaining == 0 {
 				continue
 			}
 
+			applyCondition(&trial.Status, redskyv1alpha1.TrialObserved, corev1.ConditionFalse, "", "", &now)
 			urls, verr := r.findMetricTargets(trial, &m)
 			for _, u := range urls {
 				if value, stddev, retryAfter, err := captureMetric(&m, u, trial); err != nil {
@@ -272,7 +281,12 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 			return reconcile.Result{}, err
 		}
 
-		// If all of the metrics are collected, mark the trial as completed
+		// If all of the metrics are collected, finish the observation
+		if cc, ok := checkCondition(&trial.Status, redskyv1alpha1.TrialObserved, corev1.ConditionTrue); ok && !cc {
+			applyCondition(&trial.Status, redskyv1alpha1.TrialObserved, corev1.ConditionTrue, "", "", &now)
+		}
+
+		// Mark the trial as completed
 		applyCondition(&trial.Status, redskyv1alpha1.TrialComplete, corev1.ConditionTrue, "", "", &now)
 		err = r.Update(context.TODO(), trial)
 		return reconcile.Result{}, err
