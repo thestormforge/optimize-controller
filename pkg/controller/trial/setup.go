@@ -162,14 +162,21 @@ func isSetupJobComplete(job *batchv1.Job) corev1.ConditionStatus {
 func isSetupJobFailed(job *batchv1.Job) (bool, string) {
 	for _, c := range job.Status.Conditions {
 		if c.Type == batchv1.JobFailed && c.Status == corev1.ConditionTrue {
-			m := c.Message
-			if m == "" && c.Reason != "" {
-				m = fmt.Sprintf("Setup job failed with reason '%s'", c.Reason)
+			switch c.Reason {
+			case "BackoffLimitExceeded":
+				// If we hit the backoff limit it means that at least one container is exiting with 1
+				return true, "Setup job did not complete successfully"
+			default:
+				// Use the condition to construct a message
+				m := c.Message
+				if m == "" && c.Reason != "" {
+					m = fmt.Sprintf("Setup job failed with reason '%s'", c.Reason)
+				}
+				if m == "" {
+					m = "Setup job failed without reporting a reason"
+				}
+				return true, m
 			}
-			if m == "" {
-				m = "Setup job failed without reporting a reason"
-			}
-			return true, m
 		}
 	}
 
