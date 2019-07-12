@@ -1,16 +1,16 @@
 FROM alpine:latest
 
-ENV HELM_VERSION="v2.14.1" \
-    HELM_URL="https://get.helm.sh/helm-v2.14.1-linux-amd64.tar.gz" \
-    HELM_SHA256="804f745e6884435ef1343f4de8940f9db64f935cd9a55ad3d9153d064b7f5896"
+ENV HELM_VERSION="v2.14.2" \
+    HELM_URL="https://get.helm.sh/helm-v2.14.2-linux-amd64.tar.gz" \
+    HELM_SHA256="9f50e69cf5cfa7268b28686728ad0227507a169e52bf59c99ada872ddd9679f0"
 
-ENV KUBECTL_VERSION="v1.14.3" \
-    KUBECTL_URL="https://storage.googleapis.com/kubernetes-release/release/v1.14.3/bin/linux/amd64/kubectl" \
-    KUBECTL_SHA256="ebc8c2fadede148c2db1b974f0f7f93f39f19c8278619893fd530e20e9bec98f"
+ENV KUBECTL_VERSION="v1.14.4" \
+    KUBECTL_URL="https://storage.googleapis.com/kubernetes-release/release/v1.14.4/bin/linux/amd64/kubectl" \
+    KUBECTL_SHA256="409bdecd3b8025c8d35b6c188d2015a6328a1a8e86f244bcd6703a65fe7dfb5e"
 
-ENV KUSTOMIZE_VERSION="v3.0.0" \
-    KUSTOMIZE_URL="https://github.com/kubernetes-sigs/kustomize/releases/download/v3.0.0/kustomize_3.0.0_linux_amd64" \
-    KUSTOMIZE_SHA256="ef0dbeca85c419891ad0e12f1f9df649b02ceb01517fa9aea0297ef14e400c7a"
+ENV KUSTOMIZE_VERSION="v3.0.1" \
+    KUSTOMIZE_URL="https://github.com/kubernetes-sigs/kustomize/releases/download/v3.0.1/kustomize_3.0.1_linux_amd64" \
+    KUSTOMIZE_SHA256="602072670884c0b9abe05211d4ecd639543985a8ca781fea7de5525debe081cb"
 
 RUN apk --no-cache add curl && \
     curl -L "$HELM_URL" | tar xz --exclude '*/*[^helm]' --strip-components=1 -C /usr/local/bin/ && \
