@@ -38,10 +38,13 @@ var log = logf.Log.WithName("controller")
 // Add creates a new Experiment Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
-	// We need a remote address to do anything in this controller
 	config, err := redskyclient.DefaultConfig()
-	if err != nil || config.Address == "" {
+	if err != nil {
 		return err
+	}
+	if config.Address == "" {
+		log.Info("Skipping controller, no available client configuration", "controller", "experiment-controller")
+		return nil
 	}
 	oc, err := redskyclient.NewClient(*config)
 	if err != nil {
