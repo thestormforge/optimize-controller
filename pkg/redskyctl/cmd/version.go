@@ -18,8 +18,8 @@ package cmd
 import (
 	"fmt"
 
-	cmdutil "github.com/gramLabs/k8s-experiment/pkg/redskyctl/util"
-	"github.com/gramLabs/k8s-experiment/pkg/version"
+	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
+	"github.com/redskyops/k8s-experiment/pkg/version"
 	"github.com/spf13/cobra"
 )
 

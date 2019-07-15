@@ -4,13 +4,13 @@ SETUPTOOLS_IMG ?= setuptools:latest
 
 # Collect version information
 ifdef VERSION
-    LDFLAGS += -X github.com/gramLabs/k8s-experiment/pkg/version.Version=${VERSION}
+    LDFLAGS += -X github.com/redskyops/k8s-experiment/pkg/version.Version=${VERSION}
 endif
 ifneq ($(origin BUILD_METADATA), undefined)
-    LDFLAGS += -X github.com/gramLabs/k8s-experiment/pkg/version.BuildMetadata=${BUILD_METADATA}
+    LDFLAGS += -X github.com/redskyops/k8s-experiment/pkg/version.BuildMetadata=${BUILD_METADATA}
 endif
-LDFLAGS += -X github.com/gramLabs/k8s-experiment/pkg/version.GitCommit=$(shell git rev-parse HEAD)
-LDFLAGS += -X github.com/gramLabs/k8s-experiment/pkg/controller/trial.DefaultImage=${SETUPTOOLS_IMG}
+LDFLAGS += -X github.com/redskyops/k8s-experiment/pkg/version.GitCommit=$(shell git rev-parse HEAD)
+LDFLAGS += -X github.com/redskyops/k8s-experiment/pkg/controller/trial.DefaultImage=${SETUPTOOLS_IMG}
 
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
@@ -23,16 +23,16 @@ test: generate fmt vet manifests
 
 # Build manager binary
 manager: generate fmt vet
-	go build -ldflags '$(LDFLAGS)' -o bin/manager github.com/gramLabs/k8s-experiment/cmd/manager
+	go build -ldflags '$(LDFLAGS)' -o bin/manager github.com/redskyops/k8s-experiment/cmd/manager
 
 # Build tool binary for the current platform
 tool: fmt vet
-	go build -ldflags '$(LDFLAGS)' -o bin/redskyctl github.com/gramLabs/k8s-experiment/cmd/redskyctl
+	go build -ldflags '$(LDFLAGS)' -o bin/redskyctl github.com/redskyops/k8s-experiment/cmd/redskyctl
 
 # Build tool binary for all supported platforms
 tool_all: fmt vet
-	GOOS=darwin GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o bin/redskyctl-darwin-amd64 github.com/gramLabs/k8s-experiment/cmd/redskyctl
-	GOOS=linux GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o bin/redskyctl-linux-amd64 github.com/gramLabs/k8s-experiment/cmd/redskyctl
+	GOOS=darwin GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o bin/redskyctl-darwin-amd64 github.com/redskyops/k8s-experiment/cmd/redskyctl
+	GOOS=linux GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o bin/redskyctl-linux-amd64 github.com/redskyops/k8s-experiment/cmd/redskyctl
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate fmt vet
@@ -91,4 +91,4 @@ endif
 
 # Generate client code
 generate-client:
-	client-gen --clientset-name kubernetes --input-base "" --input github.com/gramLabs/k8s-experiment/pkg/apis/redsky/v1alpha1 --output-package github.com/gramLabs/k8s-experiment/pkg --go-header-file hack/boilerplate.go.txt
+	client-gen --clientset-name kubernetes --input-base "" --input github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1 --output-package github.com/redskyops/k8s-experiment/pkg --go-header-file hack/boilerplate.go.txt

@@ -23,8 +23,8 @@ import (
 	"strconv"
 	"time"
 
-	redsky "github.com/gramLabs/k8s-experiment/pkg/api/redsky/v1alpha1"
-	cmdutil "github.com/gramLabs/k8s-experiment/pkg/redskyctl/util"
+	redsky "github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1"
+	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 )
 

@@ -19,9 +19,9 @@ import (
 	"testing"
 	"time"
 
-	redskyclient "github.com/gramLabs/k8s-experiment/pkg/api"
-	redskyv1alpha1 "github.com/gramLabs/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	"github.com/onsi/gomega"
+	redskyclient "github.com/redskyops/k8s-experiment/pkg/api"
+	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	"golang.org/x/net/context"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

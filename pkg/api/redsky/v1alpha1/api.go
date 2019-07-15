@@ -26,7 +26,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gramLabs/k8s-experiment/pkg/api"
+	"github.com/redskyops/k8s-experiment/pkg/api"
 )
 
 const (

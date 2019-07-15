@@ -22,9 +22,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/gramLabs/k8s-experiment/pkg/redskyctl/cmd"
-	"github.com/gramLabs/k8s-experiment/pkg/redskyctl/cmd/generate"
-	"github.com/gramLabs/k8s-experiment/pkg/redskyctl/cmd/setup"
+	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd"
+	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/generate"
+	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/setup"
 	"github.com/spf13/cobra"
 )
 
