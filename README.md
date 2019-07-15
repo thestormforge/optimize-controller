@@ -1,34 +1,43 @@
-# Red Sky
-The Kubernetes Experimentation Platform
+# Red Sky Ops - Kubernetes Experiments
 
-## Introduction
+The Kubernetes Experiments project (k8s-experiment) supports the creation and execution of experiments used for the validation of configuration state through a series of trials.
 
-Red Sky is a platform for running parameterized experiments on Kubernetes clusters.
+## Installation
 
-## How It Works
+Downloads of the Red Sky CLI can be found on the [release page](./releases). Download the appropriate binary for your platform and add it to your PATH.
 
-Red Sky is an experiment controller running inside a Kubernetes cluster. To start an experiment, you must first define the tunable state of the cluster along with the metrics that will be used for outcome evaluation. Upon creation of a `Trial` resource, the controller starts a new run by using parameter suggestions obtained by the server specified in an `Experiment` resource. Over the course of the trial, additional suggestions may be introduced and are run on the cluster. Each run concludes by capturing metrics prescribed by the experiment. A trial will continue to perform runs indefinitely as long suggestions continue to be provided by the server.
+To install the custom Kubernetes resources to you currently configured cluster, execute the `redskyctl init` command. To uninstall and remove all of the Red Sky Opts data, execute `redskyctl reset`.
 
-### Defining An Experiment
+## Getting Started
 
-The search space of an experiment is defined using a set of target resource selectors and corresponding patch templates. The templates are executed against a parameter context consisting of JSON primitive values.
+See the [tutorials](./tree/master/docs/tutorial).
 
-The outcome of an experiment trial run is defined using a set of metrics. Metrics are represented in the form of PromQL queries to be evaluated against a Prometheus instance at the conclusion of a run.
+An experiment modifies the state of the cluster using patches (e.g. strategic merge patches) represented as Go templates with parameter assignments for input. Metrics are typically collected using PromQL queries against an in-cluster Prometheus service. Optionally, setup tasks can be run before and after each trial: these tasks create or delete Kustomizations.
 
-A parameter suggestion service must be configured to supply trial instances with context values.
+### Parameters
 
-### Definition A Trial
+Parameters are named integers assigned from an inclusive range.
 
-A trial may reference an experiment to obtain patches, metric queries and the suggestion service configuration.
+Note: when working with Kubernetes "quantity" values, you must use the integer notation (e.g. a CPU limit of "4.0" must be expressed as "4000m").
 
-A job template is used to create a Kubernetes job representing the trial run. Each trial run will create a new job from the template and the completion of the job will trigger collection of the metrics. If the application being tested is already under load, the trial run job can simply be a timed sleep.
+### Metrics
 
-## Running An Experiment
+Metrics are named floating point values collected at the conclusion of a trial run.
 
-An experiment is run on a Kubernetes cluster which has the Red Sky controller installed. To start the experiment, create a new `Trial` resource; the controller will use the `Trial` creation to start polling for available suggestions. When a suggestion is available, it will apply the desired state changes to the cluster before creating the trial run job. At the conclusion of the trial run, the metric values are captured.
+Note: when using Prometheus metrics, PromQL queries must evaluate to a scalar value.
 
-An experiment can also be run in parallel, either using namespaces within a cluster or by leveraging the resources of multiple clusters. In both cases, the name of the `Trial` resource is used to coordinate controllers polling suggestions from the same trial. The suggestion source must be capable of providing multiple simultaneous suggestions or controllers will be starved of work.
+### Patches
 
-### Mutating State
+Patches are Go Templates evaluated against parameter assignments that produce a patch supported by the Kubernetes API Server (e.g. strategic merge patches). Parameters are exposed via a `Values` map (e.g. `{{ .Values.x }}` would evaluate to the assignment of parameter "x").
 
-The state of the cluster is modified through patches applied to resources matched through configured selectors. In addition to patching existing objects, Red Sky will monitor the creation of matching resources and will patch them on admission to the Kubernetes API. Resources patched during admission need not be patched later in the run (such an operation would effectively do nothing).
+### Setup Tasks
+
+Setup tasks can be executed before or after a trial run. Each setup task builds a Kustomization and creates (prior to the trial run) or deletes (after the trial run) the resulting manifests.
+
+Setup tasks can reference a Helm chart which will be fetched and evaluated locally as a resource in the Kustomization. Helm values can be assigned using the same Go Templates as patches.
+
+## Development
+
+To run the Red Sky Experiment Manager locally: first run `make install` to add the necessary Custom Resource Definitions (CRD) to you currently configured cluster; then run `make run` to start a local process (inheriting Red Sky Client API configuration from your current environment).
+
+This project was bootstrapped by [Kubebuilder](https://github.com/kubernetes-sigs/kubebuilder) and inherits many of the stock conventions. Some notable exceptions are the inclusion of the `make tool` target for building the Red Sky Control tool and overloading `make docker-build` to produce both the Red Sky Experiment Manager image and the Setup Tools image.
