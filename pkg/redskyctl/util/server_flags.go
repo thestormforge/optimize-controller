@@ -18,7 +18,7 @@ package util
 import (
 	"fmt"
 
-	client "github.com/gramLabs/redsky/pkg/api"
+	client "github.com/gramLabs/k8s-experiment/pkg/api"
 	"github.com/spf13/pflag"
 )
 

@@ -1,7 +1,7 @@
 package webhook
 
 import (
-	"github.com/gramLabs/redsky/pkg/webhook/patch"
+	"github.com/gramLabs/k8s-experiment/pkg/webhook/patch"
 )
 
 func init() {

@@ -23,7 +23,7 @@ import (
 	"strconv"
 	"time"
 
-	redskyv1alpha1 "github.com/gramLabs/redsky/pkg/apis/redsky/v1alpha1"
+	redskyv1alpha1 "github.com/gramLabs/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	prom "github.com/prometheus/client_golang/api"
 	promv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"

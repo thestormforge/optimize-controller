@@ -3,8 +3,8 @@
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/gramLabs/redsky/pkg/apis/redsky/v1alpha1"
-	"github.com/gramLabs/redsky/pkg/kubernetes/scheme"
+	v1alpha1 "github.com/gramLabs/k8s-experiment/pkg/apis/redsky/v1alpha1"
+	"github.com/gramLabs/k8s-experiment/pkg/kubernetes/scheme"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	rest "k8s.io/client-go/rest"
 )

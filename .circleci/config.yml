@@ -1,7 +1,7 @@
 version: 2
 jobs:
   build:
-    working_directory: /go/src/github.com/gramLabs/redsky
+    working_directory: /go/src/github.com/gramLabs/k8s-experiment
     docker:
       - image: "circleci/golang:1.12.5"
     steps:

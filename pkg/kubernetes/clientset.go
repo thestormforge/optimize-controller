@@ -3,7 +3,7 @@
 package kubernetes
 
 import (
-	redskyv1alpha1 "github.com/gramLabs/redsky/pkg/kubernetes/typed/redsky/v1alpha1"
+	redskyv1alpha1 "github.com/gramLabs/k8s-experiment/pkg/kubernetes/typed/redsky/v1alpha1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"

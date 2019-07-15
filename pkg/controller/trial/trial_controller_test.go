@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	redskyv1alpha1 "github.com/gramLabs/redsky/pkg/apis/redsky/v1alpha1"
+	redskyv1alpha1 "github.com/gramLabs/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	"github.com/onsi/gomega"
 	"golang.org/x/net/context"
 	batchv1 "k8s.io/api/batch/v1"

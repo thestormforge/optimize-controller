@@ -20,8 +20,8 @@ import (
 	"io"
 	"io/ioutil"
 
-	redskyv1alpha1 "github.com/gramLabs/redsky/pkg/apis/redsky/v1alpha1"
-	cmdutil "github.com/gramLabs/redsky/pkg/redskyctl/util"
+	redskyv1alpha1 "github.com/gramLabs/k8s-experiment/pkg/apis/redsky/v1alpha1"
+	cmdutil "github.com/gramLabs/k8s-experiment/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"

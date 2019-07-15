@@ -3,7 +3,7 @@
 package fake
 
 import (
-	redskyv1alpha1 "github.com/gramLabs/redsky/pkg/apis/redsky/v1alpha1"
+	redskyv1alpha1 "github.com/gramLabs/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
