@@ -1,7 +1,7 @@
 package controller
 
 import (
-	"github.com/gramLabs/k8s-experiment/pkg/controller/trial"
+	"github.com/redskyops/k8s-experiment/pkg/controller/trial"
 )
 
 func init() {

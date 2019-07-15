@@ -22,8 +22,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/gramLabs/k8s-experiment/pkg/apis"
 	"github.com/onsi/gomega"
+	"github.com/redskyops/k8s-experiment/pkg/apis"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"

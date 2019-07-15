@@ -1,3 +1,3 @@
 version: "1"
 domain: carbonrelay.com
-repo: github.com/gramLabs/k8s-experiment
+repo: github.com/redskyops/k8s-experiment

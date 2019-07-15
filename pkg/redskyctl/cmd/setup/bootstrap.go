@@ -20,8 +20,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/gramLabs/k8s-experiment/pkg/api"
-	"github.com/gramLabs/k8s-experiment/pkg/controller/trial"
+	"github.com/redskyops/k8s-experiment/pkg/api"
+	"github.com/redskyops/k8s-experiment/pkg/controller/trial"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"

@@ -19,11 +19,11 @@ import (
 	"io"
 	"os"
 
-	"github.com/gramLabs/k8s-experiment/pkg/redskyctl/cmd/check"
-	"github.com/gramLabs/k8s-experiment/pkg/redskyctl/cmd/generate"
-	"github.com/gramLabs/k8s-experiment/pkg/redskyctl/cmd/setup"
-	"github.com/gramLabs/k8s-experiment/pkg/redskyctl/cmd/suggest"
-	"github.com/gramLabs/k8s-experiment/pkg/redskyctl/util"
+	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/check"
+	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/generate"
+	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/setup"
+	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/suggest"
+	"github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 )
 

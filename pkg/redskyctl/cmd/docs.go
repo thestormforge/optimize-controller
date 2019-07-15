@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"os"
 
-	cmdutil "github.com/gramLabs/k8s-experiment/pkg/redskyctl/util"
+	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
 )

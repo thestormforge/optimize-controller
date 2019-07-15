@@ -16,8 +16,8 @@ limitations under the License.
 package util
 
 import (
-	redsky "github.com/gramLabs/k8s-experiment/pkg/api/redsky/v1alpha1"
-	redskykube "github.com/gramLabs/k8s-experiment/pkg/kubernetes"
+	redsky "github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1"
+	redskykube "github.com/redskyops/k8s-experiment/pkg/kubernetes"
 	"k8s.io/client-go/kubernetes"
 )
 
