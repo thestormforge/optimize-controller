@@ -75,11 +75,14 @@ func capturePrometheusMetric(address, query string, completionTime time.Time) (f
 		return 0, 0, nil, err
 	}
 	for _, t := range ts.Active {
-		if t.LastScrape.Before(completionTime) {
-			// TODO Can we make a more informed delay?
-			delay := 5 * time.Second
-			return 0, 0, &delay, nil
+		if t.Health == promv1.HealthGood {
+			if t.LastScrape.Before(completionTime) {
+				// TODO Can we make a more informed delay?
+				delay := 5 * time.Second
+				return 0, 0, &delay, nil
+			}
 		}
+		// TODO Log something if the health is not "good"?
 	}
 
 	// Execute query
