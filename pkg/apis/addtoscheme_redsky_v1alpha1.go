@@ -1,7 +1,7 @@
 package apis
 
 import (
-	"github.com/gramLabs/redsky/pkg/apis/redsky/v1alpha1"
+	"github.com/gramLabs/k8s-experiment/pkg/apis/redsky/v1alpha1"
 )
 
 func init() {

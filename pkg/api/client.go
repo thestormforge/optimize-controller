@@ -27,7 +27,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gramLabs/redsky/pkg/version"
+	"github.com/gramLabs/k8s-experiment/pkg/version"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 	"k8s.io/apimachinery/pkg/util/yaml"

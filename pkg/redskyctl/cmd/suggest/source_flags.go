@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/gramLabs/redsky/pkg/redskyctl/util"
+	"github.com/gramLabs/k8s-experiment/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 )
 
