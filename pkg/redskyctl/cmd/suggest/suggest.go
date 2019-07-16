@@ -38,8 +38,8 @@ const (
 
 // SuggestionSource provides suggested parameter assignments
 type SuggestionSource interface {
-	AssignInt(name string, min, max int64) (int64, error)
-	AssignDouble(name string, min, max float64) (float64, error)
+	AssignInt(name string, min, max int64, def *int64) (int64, error)
+	AssignDouble(name string, min, max float64, def *float64) (float64, error)
 }
 
 type SuggestOptions struct {
@@ -142,7 +142,7 @@ func createInClusterSuggestion(namespace, name string, suggestions SuggestionSou
 	}
 
 	for _, p := range exp.Spec.Parameters {
-		v, err := suggestions.AssignInt(p.Name, p.Min, p.Max)
+		v, err := suggestions.AssignInt(p.Name, p.Min, p.Max, nil)
 		if err != nil {
 			return nil
 		}
@@ -174,7 +174,8 @@ func createRemoteSuggestion(name string, suggestions SuggestionSource, api redsk
 			if err != nil {
 				return err
 			}
-			a, err := suggestions.AssignInt(p.Name, min, max)
+			var def *int64
+			a, err := suggestions.AssignInt(p.Name, min, max, def)
 			if err != nil {
 				return err
 			}
@@ -191,7 +192,8 @@ func createRemoteSuggestion(name string, suggestions SuggestionSource, api redsk
 			if err != nil {
 				return err
 			}
-			a, err := suggestions.AssignDouble(p.Name, min, max)
+			var def *float64
+			a, err := suggestions.AssignDouble(p.Name, min, max, def)
 			if err != nil {
 				return err
 			}

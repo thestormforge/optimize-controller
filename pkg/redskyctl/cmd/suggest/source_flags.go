@@ -41,10 +41,9 @@ func NewSuggestionSourceFlags(ioStreams util.IOStreams) *SuggestionSourceFlags {
 func (f *SuggestionSourceFlags) AddFlags(cmd *cobra.Command) {
 	cmd.Flags().StringToStringVarP(&f.Assignments, "assign", "A", nil, "Assign an explicit value to a parameter")
 	cmd.Flags().BoolVar(&f.AllowInteractive, "interactive", false, "Allow interactive prompts for unspecified parameter assignments")
-	// TODO Do we want to define a default behavior for when an assignment is not found? e.g. "use random"
 }
 
-func (f *SuggestionSourceFlags) AssignInt(name string, min, max int64) (int64, error) {
+func (f *SuggestionSourceFlags) AssignInt(name string, min, max int64, def *int64) (int64, error) {
 	if a, ok := f.Assignments[name]; ok {
 		i, err := strconv.ParseInt(a, 10, 64)
 		if err == nil && (i < min || i > max) {
@@ -53,28 +52,41 @@ func (f *SuggestionSourceFlags) AssignInt(name string, min, max int64) (int64, e
 		return i, err
 	}
 
+	def = f.defaultInt(min, max, def)
 	if f.AllowInteractive {
-		scanner := bufio.NewScanner(f.In)
-		if _, err := fmt.Fprintf(f.Out, "Assignment for integer parameter '%s' [%d,%d]: ", name, min, max); err != nil {
-			return 0, err
+		if def != nil {
+			if _, err := fmt.Fprintf(f.Out, "Assignment for integer parameter '%s' [%d,%d] (%d): ", name, min, max, *def); err != nil {
+				return 0, err
+			}
+		} else {
+			if _, err := fmt.Fprintf(f.Out, "Assignment for integer parameter '%s' [%d,%d]: ", name, min, max); err != nil {
+				return 0, err
+			}
 		}
-		for attempts := 1; attempts < 3 && scanner.Scan(); attempts++ {
-			i, err := strconv.ParseInt(scanner.Text(), 10, 64)
+		s := bufio.NewScanner(f.In)
+		for attempts := 1; attempts < 3 && s.Scan(); attempts++ {
+			text := s.Text()
+			if text == "" && def != nil {
+				return *def, nil
+			}
+			i, err := strconv.ParseInt(text, 10, 64)
 			if err != nil || (i < min || i > max) {
 				_, _ = fmt.Fprintf(f.Out, "Invalid assignment, try again: ")
 				continue
 			}
 			return i, err
 		}
-		if err := scanner.Err(); err != nil {
+		if err := s.Err(); err != nil {
 			return 0, err
 		}
+	} else if def != nil {
+		return *def, nil
 	}
 
 	return 0, fmt.Errorf("no assignment for parameter: %s", name)
 }
 
-func (f *SuggestionSourceFlags) AssignDouble(name string, min, max float64) (float64, error) {
+func (f *SuggestionSourceFlags) AssignDouble(name string, min, max float64, def *float64) (float64, error) {
 	if a, ok := f.Assignments[name]; ok {
 		d, err := strconv.ParseFloat(a, 64)
 		if err == nil && (d < min || d > max) {
@@ -83,23 +95,44 @@ func (f *SuggestionSourceFlags) AssignDouble(name string, min, max float64) (flo
 		return d, err
 	}
 
+	def = f.defaultDouble(min, max, def)
 	if f.AllowInteractive {
-		scanner := bufio.NewScanner(f.In)
-		if _, err := fmt.Fprintf(f.Out, "Assignment for double parameter '%s' [%f,%f]: ", name, min, max); err != nil {
-			return 0, err
+		if def != nil {
+			if _, err := fmt.Fprintf(f.Out, "Assignment for double parameter '%s' [%f,%f] (%f): ", name, min, max, *def); err != nil {
+				return 0, err
+			}
+		} else {
+			if _, err := fmt.Fprintf(f.Out, "Assignment for double parameter '%s' [%f,%f]: ", name, min, max); err != nil {
+				return 0, err
+			}
 		}
-		for attempts := 1; attempts < 3 && scanner.Scan(); attempts++ {
-			d, err := strconv.ParseFloat(scanner.Text(), 64)
+		s := bufio.NewScanner(f.In)
+		for attempts := 1; attempts < 3 && s.Scan(); attempts++ {
+			text := s.Text()
+			if text == "" && def != nil {
+				return *def, nil
+			}
+			d, err := strconv.ParseFloat(text, 64)
 			if err != nil || (d < min || d > max) {
 				_, _ = fmt.Fprintf(f.Out, "Invalid assignment, try again: ")
 				continue
 			}
 			return d, err
 		}
-		if err := scanner.Err(); err != nil {
+		if err := s.Err(); err != nil {
 			return 0, err
 		}
+	} else if def != nil {
+		return *def, nil
 	}
 
 	return 0, fmt.Errorf("no assignment for parameter: %s", name)
+}
+
+func (f *SuggestionSourceFlags) defaultInt(min, max int64, def *int64) *int64 {
+	return def
+}
+
+func (f *SuggestionSourceFlags) defaultDouble(min, max float64, def *float64) *float64 {
+	return def
 }
