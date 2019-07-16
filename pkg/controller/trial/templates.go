@@ -63,9 +63,6 @@ func executePatchTemplate(p *redskyv1alpha1.PatchTemplate, trial *redskyv1alpha1
 	if err != nil {
 		return "", nil, err
 	}
-	if data == nil {
-		return patchType, data, nil
-	}
 	json, err := yaml.ToJSON(data)
 	return patchType, json, err
 }

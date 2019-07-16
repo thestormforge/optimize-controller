@@ -360,7 +360,7 @@ func evaluatePatches(r client.Reader, trial *redskyv1alpha1.Trial, e *redskyv1al
 
 		// TODO This is a hack to allow stability checks on arbitrary objects by omitting the patch data
 		attempts := 3
-		if len(data) == 0 {
+		if len(data) == 0 || string(data) == "null" {
 			attempts = 0
 		}
 
