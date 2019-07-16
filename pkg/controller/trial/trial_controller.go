@@ -134,8 +134,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 		} else if dirty {
 			// We know we have at least one patch to apply, use an unknown status until we start applying them
 			applyCondition(&trial.Status, redskyv1alpha1.TrialPatched, corev1.ConditionUnknown, "", "", &now)
-			err = r.Update(context.TODO(), trial)
-			return reconcile.Result{}, err
+			return r.forTrialUpdate(trial)
 		}
 	}
 
@@ -166,51 +165,46 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 
 		// We have started applying patches (success or fail), transition into a false status
 		applyCondition(&trial.Status, redskyv1alpha1.TrialPatched, corev1.ConditionFalse, "", "", &now)
-		err = r.Update(context.TODO(), trial)
-		return reconcile.Result{}, err
+		return r.forTrialUpdate(trial)
 	}
 
 	// If there is a patched condition that is not yet true, update the status
 	if cc, ok := checkCondition(&trial.Status, redskyv1alpha1.TrialPatched, corev1.ConditionTrue); ok && !cc {
 		applyCondition(&trial.Status, redskyv1alpha1.TrialPatched, corev1.ConditionTrue, "", "", &now)
-		err = r.Update(context.TODO(), trial)
-		return reconcile.Result{}, err
+		return r.forTrialUpdate(trial)
 	}
 
 	// Wait for a stable (ish) state
 	for i := range trial.Spec.PatchOperations {
 		p := &trial.Spec.PatchOperations[i]
-		if p.Wait {
-			result := reconcile.Result{}
-			if err = waitForStableState(r, context.TODO(), p); err != nil {
-				if serr, ok := err.(*StabilityError); ok && serr.RetryAfter > 0 {
-					// Mark the trial as not stable and wait
-					applyCondition(&trial.Status, redskyv1alpha1.TrialStable, corev1.ConditionFalse, "Wait", serr.Error(), &now)
-					result.RequeueAfter = serr.RetryAfter
-					err = nil
-				} else {
-					// No retry delay specified, fail the whole trial
-					applyCondition(&trial.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "WaitFailed", serr.Error(), &now)
-				}
-			} else {
-				// We have successfully waited for one patch so we are no longer "unknown"
-				applyCondition(&trial.Status, redskyv1alpha1.TrialStable, corev1.ConditionFalse, "", "", &now)
-				p.Wait = false
-			}
-
-			// TODO We have potentially two errors to report here
-			if err := r.Update(context.TODO(), trial); err != nil {
-				return reconcile.Result{}, err
-			}
-			return result, err
+		if !p.Wait {
+			continue
 		}
+
+		var requeueAfter time.Duration
+		if err = waitForStableState(r, context.TODO(), p); err != nil {
+			if serr, ok := err.(*StabilityError); ok && serr.RetryAfter > 0 {
+				// Mark the trial as not stable and wait
+				applyCondition(&trial.Status, redskyv1alpha1.TrialStable, corev1.ConditionFalse, "Wait", serr.Error(), &now)
+				requeueAfter = serr.RetryAfter
+				err = nil
+			} else {
+				// No retry delay specified, fail the whole trial
+				applyCondition(&trial.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "WaitFailed", serr.Error(), &now)
+			}
+		} else {
+			// We have successfully waited for one patch so we are no longer "unknown"
+			applyCondition(&trial.Status, redskyv1alpha1.TrialStable, corev1.ConditionFalse, "", "", &now)
+			p.Wait = false
+		}
+
+		return r.forTrialUpdateWithResult(trial, requeueAfter, err)
 	}
 
 	// If there is a stable condition that is not yet true, update the status
 	if cc, ok := checkCondition(&trial.Status, redskyv1alpha1.TrialStable, corev1.ConditionTrue); ok && !cc {
 		applyCondition(&trial.Status, redskyv1alpha1.TrialStable, corev1.ConditionTrue, "", "", &now)
-		err = r.Update(context.TODO(), trial)
-		return reconcile.Result{}, err
+		return r.forTrialUpdate(trial)
 	}
 
 	// Find jobs labeled for this trial
@@ -233,8 +227,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 
 	// Update the trial run status using the job status
 	if updateStatusFromJobs(list.Items, trial, &now) {
-		err = r.Update(context.TODO(), trial)
-		return reconcile.Result{}, err
+		return r.forTrialUpdate(trial)
 	}
 
 	// Create a new job if needed
@@ -254,10 +247,11 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 		}
 
 		// If we have metrics to collect, use an unknown status to fill the gap (e.g. TCP timeout) until the transition to false
-		if _, ok := checkCondition(&trial.Status, redskyv1alpha1.TrialObserved, corev1.ConditionUnknown); !ok && len(e.Spec.Metrics) > 0 {
-			applyCondition(&trial.Status, redskyv1alpha1.TrialObserved, corev1.ConditionUnknown, "", "", &now)
-			err = r.Update(context.TODO(), trial)
-			return reconcile.Result{}, err
+		if len(e.Spec.Metrics) > 0 {
+			if _, ok := checkCondition(&trial.Status, redskyv1alpha1.TrialObserved, corev1.ConditionUnknown); !ok {
+				applyCondition(&trial.Status, redskyv1alpha1.TrialObserved, corev1.ConditionUnknown, "", "", &now)
+				return r.forTrialUpdate(trial)
+			}
 		}
 
 		// Look for metrics that have not been collected yet
@@ -267,13 +261,13 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 				continue
 			}
 
-			applyCondition(&trial.Status, redskyv1alpha1.TrialObserved, corev1.ConditionFalse, "", "", &now)
 			urls, verr := r.findMetricTargets(trial, &m)
 			for _, u := range urls {
 				if value, stddev, retryAfter, err := captureMetric(&m, u, trial); err != nil {
 					verr = err
-				} else if retryAfter != nil {
-					return reconcile.Result{Requeue: true, RequeueAfter: *retryAfter}, nil
+				} else if retryAfter > 0 {
+					// Do not count retries against the remaining attempts
+					return reconcile.Result{RequeueAfter: retryAfter}, nil
 				} else if math.IsNaN(value) || math.IsNaN(stddev) {
 					verr = fmt.Errorf("capturing metric %s got NaN", m.Name)
 				} else {
@@ -294,8 +288,8 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 				}
 			}
 
-			err = r.Update(context.TODO(), trial)
-			return reconcile.Result{}, err
+			applyCondition(&trial.Status, redskyv1alpha1.TrialObserved, corev1.ConditionFalse, "", "", &now)
+			return r.forTrialUpdate(trial)
 		}
 
 		// If all of the metrics are collected, finish the observation
@@ -305,12 +299,27 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 
 		// Mark the trial as completed
 		applyCondition(&trial.Status, redskyv1alpha1.TrialComplete, corev1.ConditionTrue, "", "", &now)
-		err = r.Update(context.TODO(), trial)
-		return reconcile.Result{}, err
+		return r.forTrialUpdate(trial)
 	}
 
 	// This fall through case may occur while getting the job started
 	return reconcile.Result{}, nil
+}
+
+// Returns from the reconcile loop after updating the supplied trial instance
+func (r *ReconcileTrial) forTrialUpdate(trial *redskyv1alpha1.Trial) (reconcile.Result, error) {
+	if err := r.Update(context.TODO(), trial); err != nil {
+		log.Error(err, "unable to update trial")
+		return reconcile.Result{}, err
+	}
+	return reconcile.Result{}, nil
+}
+
+func (r *ReconcileTrial) forTrialUpdateWithResult(trial *redskyv1alpha1.Trial, requeueAfter time.Duration, err error) (reconcile.Result, error) {
+	if err := r.Update(context.TODO(), trial); err != nil {
+		log.Error(err, "unable to update trial")
+	}
+	return reconcile.Result{RequeueAfter: requeueAfter}, err
 }
 
 func syncStatus(trial *redskyv1alpha1.Trial) {
