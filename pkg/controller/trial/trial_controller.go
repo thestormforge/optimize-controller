@@ -184,16 +184,14 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 		}
 
 		var requeueAfter time.Duration
-		err = waitForStableState(r, context.TODO(), p)
-		if err != nil {
+		if err := waitForStableState(r, context.TODO(), p); err != nil {
 			if serr, ok := err.(*StabilityError); ok && serr.RetryAfter > 0 {
 				// Mark the trial as not stable and wait
-				applyCondition(&trial.Status, redskyv1alpha1.TrialStable, corev1.ConditionFalse, "Wait", serr.Error(), &now)
+				applyCondition(&trial.Status, redskyv1alpha1.TrialStable, corev1.ConditionFalse, "Waiting", err.Error(), &now)
 				requeueAfter = serr.RetryAfter
-				err = nil
 			} else {
 				// No retry delay specified, fail the whole trial
-				applyCondition(&trial.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "WaitFailed", serr.Error(), &now)
+				applyCondition(&trial.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "WaitFailed", err.Error(), &now)
 			}
 		} else {
 			// We have successfully waited for one patch so we are no longer "unknown"
@@ -201,7 +199,12 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 			p.Wait = false
 		}
 
-		return r.forTrialUpdateWithResult(trial, requeueAfter, err)
+		// Inject the retry delay if necessary
+		rr, re := r.forTrialUpdate(trial)
+		if re == nil && requeueAfter > 0 {
+			rr.RequeueAfter = requeueAfter
+		}
+		return rr, re
 	}
 
 	// If there is a stable condition that is not yet true, update the status
@@ -327,13 +330,6 @@ func (r *ReconcileTrial) forTrialUpdate(trial *redskyv1alpha1.Trial) (reconcile.
 		return reconcile.Result{}, err
 	}
 	return reconcile.Result{}, nil
-}
-
-func (r *ReconcileTrial) forTrialUpdateWithResult(trial *redskyv1alpha1.Trial, requeueAfter time.Duration, err error) (reconcile.Result, error) {
-	if err := r.Update(context.TODO(), trial); err != nil {
-		log.Error(err, "unable to update trial")
-	}
-	return reconcile.Result{RequeueAfter: requeueAfter}, err
 }
 
 func syncStatus(trial *redskyv1alpha1.Trial) {

@@ -47,6 +47,10 @@ func applyCondition(status *redskyv1alpha1.TrialStatus, conditionType redskyv1al
 				status.Conditions[i].LastTransitionTime = *time
 			} else {
 				status.Conditions[i].LastProbeTime = *time
+				if status.Conditions[i].Reason != reason {
+					status.Conditions[i].Reason = reason
+					status.Conditions[i].Message = message
+				}
 			}
 			return
 		}
