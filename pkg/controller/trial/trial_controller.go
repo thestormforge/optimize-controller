@@ -112,7 +112,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 	}
 
 	// Ahead of everything is the setup/teardown (contains finalization logic)
-	if resp, ret, err := manageSetup(r.Client, r.scheme, trial); err != nil || resp.Requeue || ret {
+	if resp, ret, err := manageSetup(r.Client, r.scheme, trial, &now); err != nil || resp.Requeue || ret {
 		return resp, err
 	}
 
@@ -316,6 +316,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 
 	// If nothing changed, check again
 	// TODO Should this use the start time and approximate runtime/offset to guess a time?
+	log.Info("reconcile did not require changes", "trial", trial.Name)
 	return reconcile.Result{Requeue: true}, nil
 }
 

@@ -50,10 +50,9 @@ const (
 	startTimeout = 2 * time.Minute
 )
 
-func manageSetup(c client.Client, s *runtime.Scheme, trial *redskyv1alpha1.Trial) (reconcile.Result, bool, error) {
+func manageSetup(c client.Client, s *runtime.Scheme, trial *redskyv1alpha1.Trial, probeTime *metav1.Time) (reconcile.Result, bool, error) {
 	// Determine if there is anything to do
-	probeTime := metav1.Now()
-	if probeSetupTrialConditions(trial, &probeTime) {
+	if probeSetupTrialConditions(trial, probeTime) {
 		return reconcile.Result{}, false, nil
 	}
 
@@ -75,8 +74,8 @@ func manageSetup(c client.Client, s *runtime.Scheme, trial *redskyv1alpha1.Trial
 			trial.Status.Conditions = append(trial.Status.Conditions, redskyv1alpha1.TrialCondition{
 				Type:               redskyv1alpha1.TrialFailed,
 				Status:             corev1.ConditionTrue,
-				LastProbeTime:      probeTime,
-				LastTransitionTime: probeTime,
+				LastProbeTime:      *probeTime,
+				LastTransitionTime: *probeTime,
 				Reason:             "SetupJobFailed",
 				Message:            message,
 			})
@@ -87,9 +86,9 @@ func manageSetup(c client.Client, s *runtime.Scheme, trial *redskyv1alpha1.Trial
 	}
 
 	// Check to see if we need to update the trial to record a condition change
-	if needsUpdate(trial, &probeTime) {
+	if needsUpdate(trial, probeTime) {
 		err := c.Update(context.TODO(), trial)
-		return reconcile.Result{}, true, err
+		return reconcile.Result{}, true, checkSetupUpdateErr(err)
 	}
 
 	// Figure out if we need to start a job
@@ -104,7 +103,7 @@ func manageSetup(c client.Client, s *runtime.Scheme, trial *redskyv1alpha1.Trial
 	if cc, ok := checkCondition(&trial.Status, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionUnknown); cc && ok {
 		if addSetupFinalizer(trial) {
 			err := c.Update(context.TODO(), trial)
-			return reconcile.Result{}, true, err
+			return reconcile.Result{}, true, checkSetupUpdateErr(err)
 		}
 
 		if IsTrialFinished(trial) || trial.DeletionTimestamp != nil {
@@ -133,12 +132,19 @@ func manageSetup(c client.Client, s *runtime.Scheme, trial *redskyv1alpha1.Trial
 	if cc, ok := checkCondition(&trial.Status, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionUnknown); ok && !cc {
 		if removeSetupFinalizer(trial) {
 			err := c.Update(context.TODO(), trial)
-			return reconcile.Result{}, true, err
+			return reconcile.Result{}, true, checkSetupUpdateErr(err)
 		}
 	}
 
 	// There are no setup task actions to perform
 	return reconcile.Result{}, false, nil
+}
+
+func checkSetupUpdateErr(err error) error {
+	if err != nil {
+		log.Error(err, "unable to update trial for setup tasks")
+	}
+	return err
 }
 
 func addSetupFinalizer(trial *redskyv1alpha1.Trial) bool {
