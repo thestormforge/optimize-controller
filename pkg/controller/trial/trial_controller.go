@@ -99,6 +99,8 @@ type ReconcileTrial struct {
 // Reconcile reads that state of the cluster for a Trial object and makes changes based on the state read
 // and what is in the Trial.Spec
 func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	now := metav1.Now()
+
 	// Fetch the Trial instance
 	trial := &redskyv1alpha1.Trial{}
 	err := r.Get(context.TODO(), request.NamespacedName, trial)
@@ -119,19 +121,19 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 		return reconcile.Result{}, nil
 	}
 
-	// Update the display status
-	syncStatus(trial)
-	now := metav1.Now()
-
-	// One time evaluation of the patch operations
+	// Copy the patches over from the experiment
 	if len(trial.Spec.PatchOperations) == 0 {
 		e := &redskyv1alpha1.Experiment{}
-		if err = r.Get(context.TODO(), trial.ExperimentNamespacedName(), e); err != nil {
+		if err := r.Get(context.TODO(), trial.ExperimentNamespacedName(), e); err != nil {
 			return reconcile.Result{}, err
 		}
-		if dirty, err := evaluatePatches(r, trial, e); err != nil {
+		if err := checkAssignments(trial, e); err != nil {
 			return reconcile.Result{}, err
-		} else if dirty {
+		}
+		if err := evaluatePatches(r, trial, e); err != nil {
+			return reconcile.Result{}, err
+		}
+		if len(trial.Spec.PatchOperations) > 0 {
 			// We know we have at least one patch to apply, use an unknown status until we start applying them
 			applyCondition(&trial.Status, redskyv1alpha1.TrialPatched, corev1.ConditionUnknown, "", "", &now)
 			return r.forTrialUpdate(trial)
@@ -182,7 +184,8 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 		}
 
 		var requeueAfter time.Duration
-		if err = waitForStableState(r, context.TODO(), p); err != nil {
+		err = waitForStableState(r, context.TODO(), p)
+		if err != nil {
 			if serr, ok := err.(*StabilityError); ok && serr.RetryAfter > 0 {
 				// Mark the trial as not stable and wait
 				applyCondition(&trial.Status, redskyv1alpha1.TrialStable, corev1.ConditionFalse, "Wait", serr.Error(), &now)
@@ -223,15 +226,21 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 	if err := r.List(context.TODO(), list, client.UseListOptions(opts)); err != nil {
 		return reconcile.Result{}, err
 	}
-	// TODO We may need to hard filter out setup jobs to ensure there is not a labelling misconfiguration
 
 	// Update the trial run status using the job status
-	if updateStatusFromJobs(list.Items, trial, &now) {
-		return r.forTrialUpdate(trial)
+	needsJob := true
+	for i := range list.Items {
+		// Setup jobs always have "role=trialSetup" so ignore jobs with that label
+		if list.Items[i].Labels["role"] != "trialSetup" {
+			if applyJobStatus(trial, &list.Items[i], &now) {
+				return r.forTrialUpdate(trial)
+			}
+			needsJob = false
+		}
 	}
 
-	// Create a new job if needed
-	if len(list.Items) == 0 {
+	// Create a trial run job if needed
+	if needsJob {
 		job := &batchv1.Job{}
 		if err = r.createJob(trial, job); err != nil {
 			return reconcile.Result{}, err
@@ -240,6 +249,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 		return reconcile.Result{}, err
 	}
 
+	// The completion time will be non-nil as soon as the (a?) trial run job finishes
 	if trial.Status.CompletionTime != nil {
 		e := &redskyv1alpha1.Experiment{}
 		if err = r.Get(context.TODO(), trial.ExperimentNamespacedName(), e); err != nil {
@@ -302,12 +312,16 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 		return r.forTrialUpdate(trial)
 	}
 
-	// This fall through case may occur while getting the job started
-	return reconcile.Result{}, nil
+	// If nothing changed, check again
+	// TODO Should this use the start time and approximate runtime/offset to guess a time?
+	return reconcile.Result{Requeue: true}, nil
 }
 
 // Returns from the reconcile loop after updating the supplied trial instance
 func (r *ReconcileTrial) forTrialUpdate(trial *redskyv1alpha1.Trial) (reconcile.Result, error) {
+	// If we are going to be updating the trial, make sure the status is synchronized
+	syncStatus(trial)
+
 	if err := r.Update(context.TODO(), trial); err != nil {
 		log.Error(err, "unable to update trial")
 		return reconcile.Result{}, err
@@ -338,23 +352,18 @@ func syncStatus(trial *redskyv1alpha1.Trial) {
 	trial.Status.Values = strings.Join(values, ", ")
 }
 
-func evaluatePatches(r client.Reader, trial *redskyv1alpha1.Trial, e *redskyv1alpha1.Experiment) (bool, error) {
-	if dirty, err := checkAssignments(trial, e); dirty || err != nil {
-		return dirty, err
-	}
-
-	var dirty bool
+func evaluatePatches(r client.Reader, trial *redskyv1alpha1.Trial, e *redskyv1alpha1.Experiment) error {
 	for _, p := range e.Spec.Patches {
 		// Evaluate the patch template
 		pt, data, err := executePatchTemplate(&p, trial)
 		if err != nil {
-			return false, err
+			return err
 		}
 
 		// Find the targets to apply the patch to
 		targets, err := findPatchTargets(r, &p, trial)
 		if err != nil {
-			return false, err
+			return err
 		}
 
 		// TODO This is a hack to allow stability checks on arbitrary objects by omitting the patch data
@@ -372,11 +381,10 @@ func evaluatePatches(r client.Reader, trial *redskyv1alpha1.Trial, e *redskyv1al
 				AttemptsRemaining: attempts,
 				Wait:              true,
 			})
-			dirty = true
 		}
 	}
 
-	return dirty, nil
+	return nil
 }
 
 // Finds the patch targets
@@ -422,7 +430,7 @@ func findPatchTargets(r client.Reader, p *redskyv1alpha1.PatchTemplate, trial *r
 	return targets, nil
 }
 
-func checkAssignments(trial *redskyv1alpha1.Trial, experiment *redskyv1alpha1.Experiment) (bool, error) {
+func checkAssignments(trial *redskyv1alpha1.Trial, experiment *redskyv1alpha1.Experiment) error {
 	// Index the assignments
 	assignments := make(map[string]int64, len(trial.Spec.Assignments))
 	for _, a := range trial.Spec.Assignments {
@@ -441,10 +449,11 @@ func checkAssignments(trial *redskyv1alpha1.Trial, experiment *redskyv1alpha1.Ex
 		}
 	}
 
+	// Fail if there are missing assignments
 	if len(missing) > 0 {
-		return false, fmt.Errorf("trial %s is missing assignments for %s", trial.Name, missing)
+		return fmt.Errorf("trial %s is missing assignments for %s", trial.Name, strings.Join(missing, ", "))
 	}
-	return false, nil
+	return nil
 }
 
 func (r *ReconcileTrial) findMetricTargets(trial *redskyv1alpha1.Trial, m *redskyv1alpha1.Metric) ([]string, error) {
@@ -488,7 +497,7 @@ func (r *ReconcileTrial) findMetricTargets(trial *redskyv1alpha1.Trial, m *redsk
 	}
 
 	if len(urls) == 0 {
-		return nil, fmt.Errorf("unable to find metric targets for %s", m.Name)
+		return nil, fmt.Errorf("unable to find metric targets for '%s'", m.Name)
 	}
 	return urls, nil
 }
@@ -504,42 +513,38 @@ func findOrCreateValue(trial *redskyv1alpha1.Trial, name string) *redskyv1alpha1
 	return &trial.Spec.Values[len(trial.Spec.Values)-1]
 }
 
-// Updates a trial status based on the status of the individual job(s), returns true if any changes were necessary
-func updateStatusFromJobs(jobs []batchv1.Job, trial *redskyv1alpha1.Trial, time *metav1.Time) bool {
+func applyJobStatus(trial *redskyv1alpha1.Trial, job *batchv1.Job, time *metav1.Time) bool {
 	var dirty bool
 
-	for _, j := range jobs {
-
-		if trial.Status.StartTime == nil {
-			// Establish a start time if available
-			trial.Status.StartTime = j.Status.StartTime.DeepCopy()
-			dirty = dirty || j.Status.StartTime != nil
-			if dirty && trial.Spec.StartTimeOffset != nil {
-				*trial.Status.StartTime = metav1.NewTime(trial.Status.StartTime.Add(trial.Spec.StartTimeOffset.Duration))
-			}
-		} else if j.Status.StartTime != nil && trial.Status.StartTime.Before(j.Status.StartTime) {
-			// Move the start time back
-			trial.Status.StartTime = j.Status.StartTime.DeepCopy()
-			dirty = true
+	if trial.Status.StartTime == nil {
+		// Establish a start time if available
+		trial.Status.StartTime = job.Status.StartTime.DeepCopy()
+		dirty = dirty || job.Status.StartTime != nil
+		if dirty && trial.Spec.StartTimeOffset != nil {
+			*trial.Status.StartTime = metav1.NewTime(trial.Status.StartTime.Add(trial.Spec.StartTimeOffset.Duration))
 		}
+	} else if job.Status.StartTime != nil && trial.Status.StartTime.Before(job.Status.StartTime) {
+		// Move the start time back
+		trial.Status.StartTime = job.Status.StartTime.DeepCopy()
+		dirty = true
+	}
 
-		if trial.Status.CompletionTime == nil {
-			// Establish an end time if available
-			trial.Status.CompletionTime = j.Status.CompletionTime.DeepCopy()
-			dirty = dirty || j.Status.CompletionTime != nil
-		} else if j.Status.CompletionTime != nil && trial.Status.CompletionTime.Before(j.Status.CompletionTime) {
-			// Move the completion time back
-			trial.Status.CompletionTime = j.Status.CompletionTime.DeepCopy()
+	if trial.Status.CompletionTime == nil {
+		// Establish an end time if available
+		trial.Status.CompletionTime = job.Status.CompletionTime.DeepCopy()
+		dirty = dirty || job.Status.CompletionTime != nil
+	} else if job.Status.CompletionTime != nil && trial.Status.CompletionTime.Before(job.Status.CompletionTime) {
+		// Move the completion time back
+		trial.Status.CompletionTime = job.Status.CompletionTime.DeepCopy()
+		dirty = true
+	}
+
+	// Mark the trial as failed if the job itself failed
+	for _, c := range job.Status.Conditions {
+		// If activeDeadlineSeconds was used a workaround for having a sidecar, ignore the failure
+		if c.Type == batchv1.JobFailed && c.Status == corev1.ConditionTrue && c.Reason != "DeadlineExceeded" {
+			applyCondition(&trial.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, c.Reason, c.Message, time)
 			dirty = true
-		}
-
-		// Mark the trial as failed if the job itself failed
-		for _, c := range j.Status.Conditions {
-			// If activeDeadlineSeconds was used a workaround for having a sidecar, ignore the failure
-			if c.Type == batchv1.JobFailed && c.Status == corev1.ConditionTrue && c.Reason != "DeadlineExceeded" {
-				applyCondition(&trial.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, c.Reason, c.Message, time)
-				dirty = true
-			}
 		}
 	}
 
