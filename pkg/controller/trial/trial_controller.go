@@ -279,7 +279,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 				if value, stddev, retryAfter, err := captureMetric(&m, u, trial); err != nil {
 					verr = err
 				} else if retryAfter > 0 {
-					// Do not count retries against the remaining attempts
+					// Do not count retries against the remaining attempts, do not look for additional URLs
 					return reconcile.Result{RequeueAfter: retryAfter}, nil
 				} else if math.IsNaN(value) || math.IsNaN(stddev) {
 					verr = fmt.Errorf("capturing metric %s got NaN", m.Name)
@@ -289,7 +289,6 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 					if stddev != 0 {
 						v.Error = strconv.FormatFloat(stddev, 'f', -1, 64)
 					}
-					syncStatus(trial)
 					break
 				}
 			}
@@ -323,16 +322,6 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 // Returns from the reconcile loop after updating the supplied trial instance
 func (r *ReconcileTrial) forTrialUpdate(trial *redskyv1alpha1.Trial) (reconcile.Result, error) {
 	// If we are going to be updating the trial, make sure the status is synchronized
-	syncStatus(trial)
-
-	if err := r.Update(context.TODO(), trial); err != nil {
-		log.Error(err, "unable to update trial")
-		return reconcile.Result{}, err
-	}
-	return reconcile.Result{}, nil
-}
-
-func syncStatus(trial *redskyv1alpha1.Trial) {
 	assignments := make([]string, len(trial.Spec.Assignments))
 	for i := range trial.Spec.Assignments {
 		assignments[i] = fmt.Sprintf("%s=%d", trial.Spec.Assignments[i].Name, trial.Spec.Assignments[i].Value)
@@ -346,6 +335,12 @@ func syncStatus(trial *redskyv1alpha1.Trial) {
 		}
 	}
 	trial.Status.Values = strings.Join(values, ", ")
+
+	if err := r.Update(context.TODO(), trial); err != nil {
+		log.Error(err, "unable to update trial")
+		return reconcile.Result{}, err
+	}
+	return reconcile.Result{}, nil
 }
 
 func evaluatePatches(r client.Reader, trial *redskyv1alpha1.Trial, e *redskyv1alpha1.Experiment) error {
