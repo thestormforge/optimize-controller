@@ -18,6 +18,7 @@ package suggest
 import (
 	"bufio"
 	"fmt"
+	"math/rand"
 	"strconv"
 
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
@@ -30,6 +31,7 @@ var _ SuggestionSource = &SuggestionSourceFlags{}
 type SuggestionSourceFlags struct {
 	Assignments      map[string]string
 	AllowInteractive bool
+	DefaultBehavior  string
 
 	util.IOStreams
 }
@@ -41,6 +43,7 @@ func NewSuggestionSourceFlags(ioStreams util.IOStreams) *SuggestionSourceFlags {
 func (f *SuggestionSourceFlags) AddFlags(cmd *cobra.Command) {
 	cmd.Flags().StringToStringVarP(&f.Assignments, "assign", "A", nil, "Assign an explicit value to a parameter")
 	cmd.Flags().BoolVar(&f.AllowInteractive, "interactive", false, "Allow interactive prompts for unspecified parameter assignments")
+	cmd.Flags().StringVar(&f.DefaultBehavior, "default", "", "Select the behavior for default values; one of: none|min|max|rand")
 }
 
 func (f *SuggestionSourceFlags) AssignInt(name string, min, max int64, def *int64) (int64, error) {
@@ -64,14 +67,19 @@ func (f *SuggestionSourceFlags) AssignInt(name string, min, max int64, def *int6
 			}
 		}
 		s := bufio.NewScanner(f.In)
-		for attempts := 1; attempts < 3 && s.Scan(); attempts++ {
+		for attempts := 0; attempts < 3; attempts++ {
+			if attempts > 0 {
+				_, _ = fmt.Fprintf(f.Out, "Invalid assignment, try again: ")
+			}
+			if !s.Scan() {
+				break
+			}
 			text := s.Text()
 			if text == "" && def != nil {
 				return *def, nil
 			}
 			i, err := strconv.ParseInt(text, 10, 64)
 			if err != nil || (i < min || i > max) {
-				_, _ = fmt.Fprintf(f.Out, "Invalid assignment, try again: ")
 				continue
 			}
 			return i, err
@@ -107,14 +115,19 @@ func (f *SuggestionSourceFlags) AssignDouble(name string, min, max float64, def 
 			}
 		}
 		s := bufio.NewScanner(f.In)
-		for attempts := 1; attempts < 3 && s.Scan(); attempts++ {
+		for attempts := 0; attempts < 3; attempts++ {
+			if attempts > 0 {
+				_, _ = fmt.Fprintf(f.Out, "Invalid assignment, try again: ")
+			}
+			if !s.Scan() {
+				break
+			}
 			text := s.Text()
 			if text == "" && def != nil {
 				return *def, nil
 			}
 			d, err := strconv.ParseFloat(text, 64)
 			if err != nil || (d < min || d > max) {
-				_, _ = fmt.Fprintf(f.Out, "Invalid assignment, try again: ")
 				continue
 			}
 			return d, err
@@ -130,9 +143,33 @@ func (f *SuggestionSourceFlags) AssignDouble(name string, min, max float64, def 
 }
 
 func (f *SuggestionSourceFlags) defaultInt(min, max int64, def *int64) *int64 {
-	return def
+	switch f.DefaultBehavior {
+	case "none":
+		return nil
+	case "min":
+		return &min
+	case "max":
+		return &max
+	case "rand":
+		d := rand.Int63n(max-min) + min
+		return &d
+	default:
+		return def
+	}
 }
 
 func (f *SuggestionSourceFlags) defaultDouble(min, max float64, def *float64) *float64 {
-	return def
+	switch f.DefaultBehavior {
+	case "none":
+		return nil
+	case "min":
+		return &min
+	case "max":
+		return &max
+	case "rand":
+		d := rand.Float64()*max + min
+		return &d
+	default:
+		return def
+	}
 }
