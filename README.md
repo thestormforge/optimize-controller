@@ -4,13 +4,13 @@ The Kubernetes Experiments project (k8s-experiment) supports the creation and ex
 
 ## Installation
 
-Downloads of the Red Sky CLI can be found on the [release page](./releases). Download the appropriate binary for your platform and add it to your PATH.
+Downloads of the Red Sky CLI can be found on the [release page](https://github.com/redskyops/k8s-experiment/releases). Download the appropriate binary for your platform and add it to your PATH.
 
 To install the custom Kubernetes resources to you currently configured cluster, execute the `redskyctl init` command. To uninstall and remove all of the Red Sky Opts data, execute `redskyctl reset`.
 
 ## Getting Started
 
-See the [tutorials](./tree/master/docs/tutorial).
+See the [tutorials](https://github.com/redskyops/k8s-experiment/blob/master/docs/tutorial/README.md).
 
 An experiment modifies the state of the cluster using patches (e.g. strategic merge patches) represented as Go templates with parameter assignments for input. Metrics are typically collected using PromQL queries against an in-cluster Prometheus service. Optionally, setup tasks can be run before and after each trial: these tasks create or delete Kustomizations.
 
