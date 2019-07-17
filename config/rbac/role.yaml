@@ -53,6 +53,12 @@ rules:
   verbs:
   - list
 - apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - list
+- apiGroups:
   - redsky.carbonrelay.com
   resources:
   - trials
