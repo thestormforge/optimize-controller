@@ -315,8 +315,6 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 	}
 
 	// If nothing changed, check again
-	// TODO Should this use the start time and approximate runtime/offset to guess a time?
-	log.Info("reconcile did not require changes", "trial", trial.Name)
 	return reconcile.Result{Requeue: true}, nil
 }
 
@@ -469,6 +467,8 @@ func (r *ReconcileTrial) findMetricTargets(trial *redskyv1alpha1.Trial, m *redsk
 	// Construct a URL for each service (use IP literals instead of host names to avoid DNS lookups)
 	var urls []string
 	for _, s := range list.Items {
+		host := s.Spec.ClusterIP
+
 		port := m.Port.IntValue()
 		if port < 1 {
 			for _, sp := range s.Spec.Ports {
@@ -481,7 +481,7 @@ func (r *ReconcileTrial) findMetricTargets(trial *redskyv1alpha1.Trial, m *redsk
 		// TODO TLS support
 		// TODO Port < 1
 		// TODO Build this URL properly
-		thisIsBad, err := url.Parse(fmt.Sprintf("http://%s:%d%s", s.Spec.ClusterIP, port, m.Path))
+		thisIsBad, err := url.Parse(fmt.Sprintf("http://%s:%d%s", host, port, m.Path))
 		if err != nil {
 			return nil, err
 		}
