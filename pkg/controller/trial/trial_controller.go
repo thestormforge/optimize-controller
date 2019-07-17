@@ -480,17 +480,23 @@ func (r *ReconcileTrial) findMetricTargets(trial *redskyv1alpha1.Trial, m *redsk
 		return []string{""}, nil
 	}
 
+	log.Info("1.1: Finding metric targets")
+
 	// Find services matching the selector
 	list := &corev1.ServiceList{}
 	opts := &client.ListOptions{}
 	if ls, err := metav1.LabelSelectorAsSelector(m.Selector); err == nil {
 		opts.LabelSelector = ls
+		log.Info("1.2: Selector parsed", "selector", opts.LabelSelector.String())
 	} else {
 		return nil, err
 	}
 	if err := r.List(context.TODO(), list, client.UseListOptions(opts)); err != nil {
+		log.Error(err, "1.3: List failed")
 		return nil, err
 	}
+
+	log.Info("1.4: Listed")
 
 	// Construct a URL for each service (use IP literals instead of host names to avoid DNS lookups)
 	var urls []string
