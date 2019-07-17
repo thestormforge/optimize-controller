@@ -7,13 +7,18 @@ resources:
 configMapGenerator:
 - name: logstash
   files:
-  - ./config/logstash_values.yaml
+  - ./config/logstash-values.yaml
 - name: monitoring
   files:
   - ./config/kube-state-metrics.yaml
   - ./config/prometheus.yaml
   - ./config/cost-model.yaml
   - ./config/node-exporter.yaml
+  - ./config/filebeat.yaml
+- name: filebeat
+  files:
+  - ./config/filebeat-config.yaml
+  - ./config/filebeat-seed-data.txt.bz2
 
 generatorOptions:
   disableNameSuffixHash: true

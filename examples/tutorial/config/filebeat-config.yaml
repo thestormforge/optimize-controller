@@ -1,0 +1,7 @@
+filebeat.inputs:
+- type: log
+  paths:
+  - /var/log/loadgen/logfile.txt
+output.logstash:
+  hosts:
+  - "logstash:5044"

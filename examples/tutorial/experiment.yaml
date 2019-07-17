@@ -113,8 +113,6 @@ spec:
                   memory: "{{ .Values.ls_memory }}Mi"
   template:
     spec:
-      assignments: []
-      values: []
       approximateRuntime: 2m
       setupVolumes:
       - name: monitoring
