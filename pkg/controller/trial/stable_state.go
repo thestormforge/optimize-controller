@@ -114,7 +114,7 @@ func waitForStableState(r client.Reader, ctx context.Context, p *redskyv1alpha1.
 			return err
 		}
 		if err := checkStatefulSet(ss); err != nil {
-			return checkPods(applyTarget(err, &p.TargetRef), r, ss.Spec.Selector)
+			return applyTarget(checkPods(err, r, ss.Spec.Selector), &p.TargetRef)
 		}
 
 	case "Deployment":
@@ -127,7 +127,7 @@ func waitForStableState(r client.Reader, ctx context.Context, p *redskyv1alpha1.
 			return err
 		}
 		if err := checkDeployment(d); err != nil {
-			return checkPods(applyTarget(err, &p.TargetRef), r, d.Spec.Selector)
+			return applyTarget(checkPods(err, r, d.Spec.Selector), &p.TargetRef)
 		}
 
 		// TODO Should we also get DaemonSet like rollout?
