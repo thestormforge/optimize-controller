@@ -254,36 +254,58 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 
 	// The completion time will be non-nil as soon as the (a?) trial run job finishes
 	if trial.Status.CompletionTime != nil {
+		log.Info("1: detected completion", "probeTime", now)
+
 		e := &redskyv1alpha1.Experiment{}
 		if err = r.Get(context.TODO(), trial.ExperimentNamespacedName(), e); err != nil {
 			return reconcile.Result{}, err
 		}
 
+		log.Info("2: fetched experiment", "probeTime", now, "metricCount", len(e.Spec.Metrics))
+
 		// If we have metrics to collect, use an unknown status to fill the gap (e.g. TCP timeout) until the transition to false
 		if len(e.Spec.Metrics) > 0 {
 			if _, ok := checkCondition(&trial.Status, redskyv1alpha1.TrialObserved, corev1.ConditionUnknown); !ok {
+
+				log.Info("3: setting observed to unknown", "probeTime", now)
+
 				applyCondition(&trial.Status, redskyv1alpha1.TrialObserved, corev1.ConditionUnknown, "", "", &now)
 				return r.forTrialUpdate(trial)
 			}
 		}
 
+		log.Info("4: iterating metrics", "probeTime", now)
+
 		// Look for metrics that have not been collected yet
 		for _, m := range e.Spec.Metrics {
+			log.Info("5: processing metric", "probeTime", now, "metricName", m.Name)
+
 			v := findOrCreateValue(trial, m.Name)
+
+			log.Info("6: metric value", "probeTime", now, "metricName", m.Name, "attemptsRemaining", v.AttemptsRemaining)
+
 			if v.AttemptsRemaining == 0 {
 				continue
 			}
 
 			urls, verr := r.findMetricTargets(trial, &m)
+
+			log.Info("7: found metric URLs", "probeTime", now, "metricName", m.Name, "urlLen", len(urls))
+
 			for _, u := range urls {
+				log.Info("8: processing metric URL", "probeTime", now, "metricName", m.Name, "url", u)
+
 				if value, stddev, retryAfter, err := captureMetric(&m, u, trial); err != nil {
+					log.Info("9: processing metric URL encountered error", "probeTime", now, "metricName", m.Name, "url", u)
 					verr = err
 				} else if retryAfter > 0 {
+					log.Info("10: processing metric URL waits", "probeTime", now, "metricName", m.Name, "url", u)
 					// Do not count retries against the remaining attempts, do not look for additional URLs
 					return reconcile.Result{RequeueAfter: retryAfter}, nil
 				} else if math.IsNaN(value) || math.IsNaN(stddev) {
 					verr = fmt.Errorf("capturing metric %s got NaN", m.Name)
 				} else {
+					log.Info("11: processing metric URL success", "probeTime", now, "metricName", m.Name, "url", u)
 					v.AttemptsRemaining = 0
 					v.Value = strconv.FormatFloat(value, 'f', -1, 64)
 					if stddev != 0 {
@@ -293,6 +315,8 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 				}
 			}
 
+			log.Info("12: metric URLs processed", "probeTime", now, "metricName", m.Name, "attemptsRemaining", v.AttemptsRemaining)
+
 			if verr != nil && v.AttemptsRemaining > 0 {
 				v.AttemptsRemaining = v.AttemptsRemaining - 1
 				if v.AttemptsRemaining == 0 {
@@ -300,9 +324,13 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 				}
 			}
 
+			log.Info("13: applying trial observed and updating", "probeTime", now, "metricName", m.Name)
+
 			applyCondition(&trial.Status, redskyv1alpha1.TrialObserved, corev1.ConditionFalse, "", "", &now)
 			return r.forTrialUpdate(trial)
 		}
+
+		log.Info("14: iterating metrics complete", "probeTime", now)
 
 		// If all of the metrics are collected, finish the observation
 		if cc, ok := checkCondition(&trial.Status, redskyv1alpha1.TrialObserved, corev1.ConditionTrue); ok && !cc {
