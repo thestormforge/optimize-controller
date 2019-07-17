@@ -1,0 +1,187 @@
+apiVersion: redsky.carbonrelay.com/v1alpha1
+kind: Experiment
+metadata:
+  name: elk
+spec:
+  parameters:
+  - name: es_memory
+    min: 2000
+    max: 8000
+  - name: es_cpu
+    min: 500
+    max: 4000
+  - name: es_replicas
+    min: 2
+    max: 4
+  - name: ls_memory
+    min: 2000
+    max: 8000
+  - name: ls_cpu
+    min: 500
+    max: 4000
+  - name: ls_replicas
+    min: 2
+    max: 4
+  - name: ls_workers
+    min: 1
+    max: 8
+  - name: ls_batch_size
+    min: 5
+    max: 500
+  - name: ls_batch_delay
+    min: 5
+    max: 500
+  - name: es_heap_percent
+    min: 20
+    max: 80
+  - name: ls_heap_percent
+    min: 20
+    max: 80
+  metrics:
+  - name: cost
+    minimize: true
+    type: prometheus
+    query: "scalar(sum by (job)(node_total_hourly_cost))"
+    selector:
+      matchLabels:
+        app: prometheus
+  - name: speed
+    minimize: false
+    type: prometheus
+    query: "scalar(sum by (cluster)(rate(elasticsearch_indices_indexing_index_total[{{ .Range }}])))"
+    selector:
+      matchLabels:
+        app: prometheus
+  patches:
+  - targetRef:
+      kind: StatefulSet
+      apiVersion: apps/v1
+      name: elasticsearch-master
+    patch: ""
+  - targetRef:
+      kind: Deployment
+      apiVersion: apps/v1
+      name: elasticsearch-client
+    patch: ""
+  - targetRef:
+      kind: StatefulSet
+      apiVersion: apps/v1
+      name: elasticsearch-data
+    patch: |
+      spec:
+        replicas: {{ .Values.es_replicas }}
+        template:
+          spec:
+            containers:
+            - name: elasticsearch
+              env:
+              - name: ES_JAVA_OPTS
+                value: "-Djava.net.preferIPv4Stack=true -Xms{{ percent .Values.es_memory .Values.es_heap_percent }}m -Xmx{{ percent .Values.es_memory .Values.es_heap_percent }}m"
+              resources:
+                limits:
+                  cpu: "{{ .Values.es_cpu }}m"
+                  memory: "{{ .Values.es_memory }}Mi"
+                requests:
+                  cpu: "{{ .Values.es_cpu }}m"
+                  memory: "{{ .Values.es_memory }}Mi"
+  - targetRef:
+      kind: StatefulSet
+      apiVersion: apps/v1
+      name: logstash
+    patch: |
+      spec:
+        replicas: {{ .Values.ls_replicas }}
+        template:
+          spec:
+            containers:
+            - name: logstash
+              env:
+              - name: LS_JAVA_OPTS
+                value: "-Xmx{{ percent .Values.ls_memory .Values.ls_heap_percent }}m -Xms{{ percent .Values.ls_memory .Values.ls_heap_percent }}m"
+              - name: PIPELINE_BATCH_SIZE
+                value: "{{ .Values.ls_batch_size }}"
+              - name: PIPELINE_BATCH_DELAY
+                value: "{{ .Values.ls_batch_delay }}"
+              - name: PIPELINE_WORKERS
+                value: "{{ .Values.ls_workers }}"
+              resources:
+                limits:
+                  cpu: "{{ .Values.ls_cpu }}m"
+                  memory: "{{ .Values.ls_memory }}Mi"
+                requests:
+                  cpu: "{{ .Values.ls_cpu }}m"
+                  memory: "{{ .Values.ls_memory }}Mi"
+  template:
+    spec:
+      assignments: []
+      values: []
+      approximateRuntime: 2m
+      setupVolumes:
+      - name: monitoring
+        configMap:
+          name: monitoring
+      setupTasks:
+      - name: monitoring
+        volumeMounts:
+        - name: monitoring
+          mountPath: /workspace/base/resources
+      - name: elasticsearch
+        helmChart: stable/elasticsearch
+        helmValues:
+        - name: cluster.name
+          value: elk-demo
+        - name: data.terminationGracePeriodSeconds
+          value: "5"
+        - name: data.podManagementPolicy
+          value: Parallel
+        - name: data.replicas
+          value: "{{ .Values.es_replicas }}"
+        - name: data.heapSize
+          value: "{{ percent .Values.es_memory .Values.es_heap_percent }}m"
+        - name: data.resources.limits.cpu
+          value: "{{ .Values.es_cpu }}m"
+        - name: data.resources.limits.memory
+          value: "{{ .Values.es_memory }}Mi"
+        - name: data.resources.requests.cpu
+          value: "{{ .Values.es_cpu }}m"
+        - name: data.resources.requests.memory
+          value: "{{ .Values.es_memory }}Mi"
+      - name: elasticsearch-exporter
+        helmChart: stable/elasticsearch-exporter
+        helmValues:
+        - name: es.uri
+          value: "http://elasticsearch-client:9200"
+      - name: logstash
+        helmChart: stable/logstash
+        helmValues:
+        - name: replicaCount
+          value: "{{ .Values.ls_replicas }}"
+        - name: logstashJavaOpts
+          value: "-Xmx{{ percent .Values.ls_memory .Values.ls_heap_percent }}m -Xms{{ percent .Values.ls_memory .Values.ls_heap_percent }}m"
+        - name: resources.limits.cpu
+          value: "{{ .Values.ls_cpu }}m"
+        - name: resources.limits.memory
+          value: "{{ .Values.ls_memory }}Mi"
+        - name: resources.requests.cpu
+          value: "{{ .Values.ls_cpu }}m"
+        - name: resources.requests.memory
+          value: "{{ .Values.ls_memory }}Mi"
+        - name: extraEnv[0].name
+          value: "PIPELINE_BATCH_SIZE"
+        - name: extraEnv[0].value
+          value: "{{ .Values.ls_batch_size }}"
+          forceString: true
+        - name: extraEnv[1].name
+          value: "PIPELINE_BATCH_DELAY"
+        - name: extraEnv[1].value
+          value: "{{ .Values.ls_batch_delay }}"
+          forceString: true
+        - name: extraEnv[2].name
+          value: "PIPELINE_WORKERS"
+        - name: extraEnv[2].value
+          value: "{{ .Values.ls_workers }}"
+          forceString: true
+        helmValuesFrom:
+        - configMap:
+            name: logstash
+      setupServiceAccountName: redsky
