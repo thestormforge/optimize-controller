@@ -1,0 +1,49 @@
+# TODO Illustrate generating this config map from a setupTask
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logstash-benchmark
+data:
+  BATCH_SIZE: "128"
+  WORKERS: "2"
+  REPEAT_DATA: "1"
+  TESTCASE: "baseline"
+---
+apiVersion: redsky.carbonrelay.com/v1alpha1
+kind: Experiment
+metadata:
+  name: simple
+spec:
+  parameters:
+  - name: batchSize
+    min: 128
+    max: 1024
+  - name: workers
+    min: 1
+    max: 10
+  metrics:
+  - name: time
+    minimize: true
+    query: "{{duration .StartTime .CompletionTime}}"
+  template: # trial
+    spec:
+      template: # job
+        spec:
+          template: # pod
+            spec:
+              containers:
+              - name: benchmark-cli
+                image: benchmark-cli:6.7.0
+                envFrom:
+                - configMapRef:
+                    name: logstash-benchmark
+  patches:
+  - type: json
+    targetRef:
+      kind: ConfigMap
+      name: logstash-benchmark
+    patch: |
+      [
+        { "op": "replace", "path": "/data/BATCH_SIZE", "value": "{{.Values.batchSize}}" },
+        { "op": "replace", "path": "/data/WORKERS", "value": "{{.Values.workers}}" }
+      ]

@@ -1,4 +1,4 @@
-# Red Sky Ops - ELK tutorial
+# Advanced Tutorial
 
 ## Prerequisites
 
