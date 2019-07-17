@@ -46,7 +46,7 @@ and `redskyctl` will launch your trial.
 
 ## Monitoring the Experiment
 
-Both `trials` and `experiments` are created as customer Kubernetes object kinds. You can see the assignments and results of your trials using:
+Both `trials` and `experiments` are created as custom Kubernetes objects. You can see the assignments and results of your trials using:
 
 ```
 $ kubectl get trials
