@@ -12,7 +12,7 @@ If you are planing to create the simple experiment from this guide, a [minikube]
 
 [Download](https://github.com/redskyops/k8s-experiment/releases) and install the `redskyctl` binary for your platform.
 
-For more details, see [the installation guide](./install).
+For more details, see [the installation guide](install.md).
 
 ## Initialize the Red Sky Ops Manager
 
@@ -60,4 +60,4 @@ $ kubectl delete experiment simple
 
 ## Next Steps
 
-Congratulations! You just ran your first experiment. You can move on to a more [advanced tutorial](./tutorial) or browse the rest of the documentation to learn more about the Red Sky Ops Kubernetes experimentation product.
+Congratulations! You just ran your first experiment. You can move on to a more [advanced tutorial](tutorial.md) or browse the rest of the documentation to learn more about the Red Sky Ops Kubernetes experimentation product.
