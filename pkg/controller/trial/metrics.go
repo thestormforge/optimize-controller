@@ -69,43 +69,29 @@ func capturePrometheusMetric(address, query string, completionTime time.Time) (f
 	}
 	promAPI := promv1.NewAPI(c)
 
-	log.Info("1: Prometheus API created", "address", address)
-
 	// Make sure Prometheus is ready
 	ts, err := promAPI.Targets(context.TODO())
-
 	if err != nil {
-		log.Error(err, "2: Prometheus targets failed")
-
 		return 0, 0, 0, err
 	}
-	log.Info("3: Prometheus targets acquired", "activeLen", len(ts.Active))
-
 	for _, t := range ts.Active {
 		if t.Health == promv1.HealthGood {
 			if t.LastScrape.Before(completionTime) {
 				// TODO This is for debugging, it should probably be removed
-				log.Info("4: Prometheus target is not ready", "scrapeUrl", t.ScrapeURL, "lastScrape", t.LastScrape, "completionTime", completionTime)
+				log.Info("Prometheus target is not ready", "scrapeUrl", t.ScrapeURL, "lastScrape", t.LastScrape, "completionTime", completionTime)
 				// TODO Can we make a more informed delay?
 				return 0, 0, 5 * time.Second, nil
-			} else {
-				log.Info("5: Prometheus target is ready", "scrapeUrl", t.ScrapeURL)
 			}
 		} else {
-			log.Info("6: Skipping last scrape check for unhealthy Prometheus target", "lastError", t.LastError)
+			log.Info("Skipping last scrape check for unhealthy Prometheus target", "lastError", t.LastError)
 		}
 	}
-
-	log.Info("7: Prometheus targets ready")
 
 	// Execute query
 	v, err := promAPI.Query(context.TODO(), query, completionTime)
 	if err != nil {
-		log.Error(err, "9: Prometheus query error")
 		return 0, 0, 0, err
 	}
-
-	log.Info("9: Prometheus query executed")
 
 	// Only accept scalar results
 	if v.Type() != model.ValScalar {
