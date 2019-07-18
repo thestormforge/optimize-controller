@@ -8,11 +8,11 @@ There are two parts to Red Sky Ops: the `redskyctl` tool and Red Sky Ops Manager
 
 You can download binaries directly from the [releases page](https://github.com/redskyops/k8s-experiment/releases).
 
-### Using cURL
+### Using cURL and jq
 
 To download the latest release, select your platform (`linux` or `darwin`) and run:
 
-```
+```sh
 os=linux # Or 'darwin'
 curl -s https://api.github.com/repos/redskyops/k8s-experiment/releases/latest |\
   jq -r ".assets[] | select(.name | contains(\"${os:-linux}\")) | .browser_download_url" |\
