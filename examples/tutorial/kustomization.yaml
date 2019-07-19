@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
 - ./service-account.yaml
+- ./experiment.yaml
 
 configMapGenerator:
 - name: logstash
