@@ -480,7 +480,7 @@ func findMetricTargets(r client.Reader, m *redskyv1alpha1.Metric) ([]string, err
 		}
 
 		if port < 1 {
-			return nil, fmt.Errorf("metric '%s' has unresolvable port: %s", m.Name, m.Port)
+			return nil, fmt.Errorf("metric '%s' has unresolvable port: %s", m.Name, m.Port.String())
 		}
 
 		urls = append(urls, fmt.Sprintf("%s://%s:%d%s", scheme, host, port, m.Path))
@@ -560,6 +560,8 @@ func (r *ReconcileTrial) createJob(trial *redskyv1alpha1.Trial, job *batchv1.Job
 	if len(job.Labels) == 0 {
 		job.Labels = trial.GetDefaultLabels()
 	}
+
+	// TODO Also add the "trial" label to the pod template?
 
 	// The default restart policy for a pod is not acceptable in the context of a job
 	if job.Spec.Template.Spec.RestartPolicy == "" {
