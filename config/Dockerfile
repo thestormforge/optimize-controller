@@ -20,8 +20,7 @@ RUN apk --no-cache add curl && \
     curl -L "$KUSTOMIZE_URL" -o /usr/local/bin/kustomize && \
     chmod +x /usr/local/bin/kubectl /usr/local/bin/kustomize
 
-COPY config /redskyops/
-COPY docker-entrypoint.sh /
+COPY . /redskyops/
 
 RUN cd /redskyops/manager && \
     kustomize edit set image controller=${IMG} && \
@@ -30,5 +29,5 @@ RUN cd /redskyops/manager && \
     touch /workspace/base/kustomization.yaml
 
 WORKDIR "/workspace/base"
-ENTRYPOINT ["/docker-entrypoint.sh"]
-CMD ["install", "--manifests"]
+ENTRYPOINT ["/redskyops/docker-entrypoint.sh"]
+CMD ["install", "--dry-run"]

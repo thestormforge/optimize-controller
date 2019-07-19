@@ -67,7 +67,7 @@ generate: controller-gen
 # Build the docker images
 docker-build:
 	docker build . -t ${IMG} --build-arg LDFLAGS='$(LDFLAGS)'
-	docker build . -t ${SETUPTOOLS_IMG} --build-arg IMG='$(IMG)' -f Dockerfile.setuptools
+	docker build config -t ${SETUPTOOLS_IMG} --build-arg IMG='$(IMG)'
 
 # Push the docker images
 docker-push:
