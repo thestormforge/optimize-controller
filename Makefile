@@ -66,8 +66,7 @@ generate: controller-gen
 # Build the docker images
 docker-build:
 	docker build . -t ${IMG} --build-arg LDFLAGS='$(LDFLAGS)'
-	@echo "updating kustomize image patch file for manager resource"
-	sed -i'' -e 's@image: .*@image: '"${IMG}"'@' ./config/default/manager_image_patch.yaml
+	cd config/manager && kustomize edit set image controller=${IMG}
 ifeq ($(findstring /,$(IMG)),)
 	cd config/default && kustomize edit add patch manager_image_pull_policy.yaml
 endif
