@@ -35,6 +35,7 @@ import (
 var (
 	// This is overwritten during builds to point to the actual image
 	DefaultImage = "setuptools:latest"
+	// TODO We should have the ImagePullPolicy specified here instead of detecting by "/"
 )
 
 const (

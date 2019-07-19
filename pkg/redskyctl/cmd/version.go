@@ -18,6 +18,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/redskyops/k8s-experiment/pkg/controller/trial"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/redskyops/k8s-experiment/pkg/version"
 	"github.com/spf13/cobra"
@@ -25,6 +26,7 @@ import (
 
 // TODO Add support for getting Red Sky server version
 // TODO Add support for getting manager version in cluster
+// TODO Add a "--notes" option to print the release notes?
 
 const (
 	versionLong    = `Show the version information for Red Sky Control.`
@@ -32,6 +34,8 @@ const (
 )
 
 type VersionOptions struct {
+	SetupToolsImage bool
+
 	root *cobra.Command
 
 	cmdutil.IOStreams
@@ -57,6 +61,8 @@ func NewVersionCommand(ioStreams cmdutil.IOStreams) *cobra.Command {
 		},
 	}
 
+	cmd.Flags().BoolVar(&o.SetupToolsImage, "setuptools", false, "print only the name of the setuptools image")
+
 	return cmd
 }
 
@@ -67,6 +73,12 @@ func (o *VersionOptions) Complete(cmd *cobra.Command) error {
 }
 
 func (o *VersionOptions) Run() error {
+	if o.SetupToolsImage {
+		// TODO We should have an option to print this as JSON with the pull policy, e.g. `{"image":"...", "imagePullPolicy":"..."}`...
+		_, err := fmt.Fprintf(o.Out, "%s\n", trial.DefaultImage)
+		return err
+	}
+
 	_, err := fmt.Fprintf(o.Out, "%s version: %s\n", o.root.Name(), version.GetVersion())
 	return err
 }
