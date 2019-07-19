@@ -1,29 +1,30 @@
 #!/bin/sh
 set -eo pipefail
 
+# Require a kustomization.yaml file to exist for edits
+if [ ! -e kustomization.yaml ] ; then
+    echo "Error: unable to find 'kustomization.yaml' in directory '$(pwd)'"
+fi
+
 
 # Update the Kustomization to account for mounted files
 # This only applies to the "base" (default from Dockerfile) root, so do it before processing arguments
-if [ -e kustomization.yaml ]; then
-    find . -type f \( -name "*_resource.yaml" -o -path "./resources/*.yaml" \) -exec kustomize edit add resource {} +
-    find . -type f \( -name "*_patch.yaml" -o -path "./patches/*.yaml" \) -exec kustomize edit add patch {} +
-fi
+find . -type f \( -name "*_resource.yaml" -o -path "./resources/*.yaml" \) -exec kustomize edit add resource {} +
+find . -type f \( -name "*_patch.yaml" -o -path "./patches/*.yaml" \) -exec kustomize edit add patch {} +
 
 
 # Process arguments
 while [ "$#" != "0" ] ; do
     case "$1" in
     install)
-        cd /redsky/client
-        kustomize edit set namespace "$NAMESPACE"
+        cd /redskyops/client
         # TODO This is temporary until the CRD is part of the default Kustomization
         kustomize edit add base ../crd
         handle () { kubectl apply -f - ; }
         shift
         ;;
     uninstall)
-        cd /redsky/client
-        kustomize edit set namespace "$NAMESPACE"
+        cd /redskyops/client
         # TODO This is temporary until the CRD is part of the default Kustomization
         kustomize edit add base ../crd
         handle () { kubectl delete -f - ; }
@@ -54,6 +55,12 @@ while [ "$#" != "0" ] ; do
 done
 
 
+# Namespace support
+if [ -n "$NAMESPACE" ] ; then
+    kustomize edit set namespace "$NAMESPACE"
+fi
+
+
 # Helm support
 if [ -n "$CHART" ] ; then
     if [ ! -d "$(helm home)" ]; then
@@ -75,8 +82,9 @@ if [ -n "$CHART" ] ; then
         kustomize edit add resource ${c%%.tgz}.yaml
     done
 fi
-# TODO If this is not Helm, should we do a `kustomize edit set namespace "$NAMESPACE"`?
-# TODO Should we apply a label to all created objects so we can tie it back to the trial?
+
+
+# TODO Should we apply a label to all created objects so we can tie it back to the trial? Only if this isn't "install"?
 
 
 # Run Kustomize and pipe it into the handler

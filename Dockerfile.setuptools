@@ -1,5 +1,7 @@
 FROM alpine:latest
 
+ARG IMG
+
 ENV HELM_VERSION="v2.14.2" \
     HELM_URL="https://get.helm.sh/helm-v2.14.2-linux-amd64.tar.gz" \
     HELM_SHA256="9f50e69cf5cfa7268b28686728ad0227507a169e52bf59c99ada872ddd9679f0"
@@ -18,11 +20,15 @@ RUN apk --no-cache add curl && \
     curl -L "$KUSTOMIZE_URL" -o /usr/local/bin/kustomize && \
     chmod +x /usr/local/bin/kubectl /usr/local/bin/kustomize
 
-COPY config /redsky/
+COPY config /redskyops/
 COPY docker-entrypoint.sh /
 
-RUN mkdir -p /workspace/base && touch /workspace/base/kustomization.yaml
-WORKDIR "/workspace/base"
+RUN cd /redskyops/manager && \
+    kustomize edit set image controller=${IMG} && \
+    if [ -n "${IMG##*/*}" ] ; then cd /redskyops/default; kustomize edit add patch manager_image_pull_policy.yaml; fi && \
+    mkdir -p /workspace/base && \
+    touch /workspace/base/kustomization.yaml
 
+WORKDIR "/workspace/base"
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["install", "--manifests"]

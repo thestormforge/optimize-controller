@@ -45,6 +45,7 @@ install: manifests
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 deploy: manifests
 	kubectl apply -f config/crd/bases
+	cd config/manager && kustomize edit set image controller=${IMG}
 	kustomize build config/default | kubectl apply -f -
 
 # Generate manifests e.g. CRD, RBAC etc.
@@ -66,11 +67,7 @@ generate: controller-gen
 # Build the docker images
 docker-build:
 	docker build . -t ${IMG} --build-arg LDFLAGS='$(LDFLAGS)'
-	cd config/manager && kustomize edit set image controller=${IMG}
-ifeq ($(findstring /,$(IMG)),)
-	cd config/default && kustomize edit add patch manager_image_pull_policy.yaml
-endif
-	docker build . -t ${SETUPTOOLS_IMG} -f Dockerfile.setuptools
+	docker build . -t ${SETUPTOOLS_IMG} --build-arg IMG='$(IMG)' -f Dockerfile.setuptools
 
 # Push the docker images
 docker-push:
