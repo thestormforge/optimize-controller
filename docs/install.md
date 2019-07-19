@@ -41,7 +41,7 @@ If you have specific security requirements or the default RBAC configuration for
 
 1. Using `redskyctl init --bootstrap` will create a paused Kubernetes job, you can adjust the bootstrap configuration in cluster and proceed with the installation by scaling the job to 1.
 2. Using `redskyctl init --dry-run` will print the raw manifests used during installation, however this still requires creating a Kubernetes job. This option can be combined with the `--bootstrap` option to get the raw manifests of the bootstrap job.
-3. Using Docker to run the `setuptools` image directly. For example, `docker container run -t --rm -e NAMESPACE=redsky-system gcr.io/redskyops/setuptools install --dry-run` will produce the same output as `redskyctl init --dry-run` without requiring a configured Kubernetes context.
+3. Using Docker to run the `setuptools` image directly. For example, `docker container run --rm $(redskyctl version --setuptools)` will produce the same output as `redskyctl init --dry-run` without requiring a configured Kubernetes context.
 
 ## Upgrading the Red Sky Ops Manager
 
