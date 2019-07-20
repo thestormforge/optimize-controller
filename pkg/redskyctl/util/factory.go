@@ -19,9 +19,11 @@ import (
 	redsky "github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1"
 	redskykube "github.com/redskyops/k8s-experiment/pkg/kubernetes"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
 type Factory interface {
+	ToRESTConfig() (*rest.Config, error)
 	KubernetesClientSet() (*kubernetes.Clientset, error)
 	RedSkyClientSet() (*redskykube.Clientset, error)
 	RedSkyAPI() (redsky.API, error)
@@ -44,8 +46,12 @@ type factoryImpl struct {
 	serverFlags *ServerFlags
 }
 
+func (f *factoryImpl) ToRESTConfig() (*rest.Config, error) {
+	return f.configFlags.ToRESTConfig()
+}
+
 func (f *factoryImpl) KubernetesClientSet() (*kubernetes.Clientset, error) {
-	c, err := f.configFlags.ToRESTConfig()
+	c, err := f.ToRESTConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +59,7 @@ func (f *factoryImpl) KubernetesClientSet() (*kubernetes.Clientset, error) {
 }
 
 func (f *factoryImpl) RedSkyClientSet() (*redskykube.Clientset, error) {
-	c, err := f.configFlags.ToRESTConfig()
+	c, err := f.ToRESTConfig()
 	if err != nil {
 		return nil, err
 	}
