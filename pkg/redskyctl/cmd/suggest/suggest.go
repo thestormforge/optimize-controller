@@ -75,7 +75,9 @@ func NewSuggestCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Co
 	}
 
 	cmd.Flags().BoolVar(&o.Remote, "remote", false, "Create the suggestion on the Red Sky server")
-	cmd.Flags().StringVar(&o.Namespace, "namespace", "", "Experiment namespace in the Kubernetes cluster")
+	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", "", "Experiment namespace in the Kubernetes cluster")
+
+	// TODO Should this be an argument instead of an option?
 	cmd.Flags().StringVar(&o.Name, "name", "", "Experiment name to suggest assignments for")
 	_ = cmd.MarkFlagRequired("name")
 
