@@ -17,7 +17,9 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/redskyops/k8s-experiment/pkg/apis"
 	"github.com/redskyops/k8s-experiment/pkg/controller"
@@ -31,6 +33,12 @@ import (
 )
 
 func main() {
+	// Make it possible to just print the version number and exit
+	if os.Args[1] == "version" {
+		fmt.Printf("%s version: %s\n", filepath.Base(os.Args[0]), version.GetVersion())
+		os.Exit(0)
+	}
+
 	var metricsAddr string
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.Parse()

@@ -16,12 +16,20 @@ limitations under the License.
 package cmd
 
 import (
+	"bytes"
 	"fmt"
+	"time"
 
 	"github.com/redskyops/k8s-experiment/pkg/controller/trial"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/redskyops/k8s-experiment/pkg/version"
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/remotecommand"
 )
 
 // TODO Add support for getting Red Sky server version
@@ -34,20 +42,24 @@ const (
 )
 
 type VersionOptions struct {
+	Namespace       string
 	SetupToolsImage bool
 
-	root *cobra.Command
+	root       *cobra.Command
+	restConfig *rest.Config
+	clientSet  *kubernetes.Clientset
 
 	cmdutil.IOStreams
 }
 
 func NewVersionOptions(ioStreams cmdutil.IOStreams) *VersionOptions {
 	return &VersionOptions{
+		Namespace: "redsky-system",
 		IOStreams: ioStreams,
 	}
 }
 
-func NewVersionCommand(ioStreams cmdutil.IOStreams) *cobra.Command {
+func NewVersionCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
 	o := NewVersionOptions(ioStreams)
 
 	cmd := &cobra.Command{
@@ -56,7 +68,7 @@ func NewVersionCommand(ioStreams cmdutil.IOStreams) *cobra.Command {
 		Long:    versionLong,
 		Example: versionExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(o.Complete(cmd))
+			cmdutil.CheckErr(o.Complete(f, cmd))
 			cmdutil.CheckErr(o.Run())
 		},
 	}
@@ -66,7 +78,15 @@ func NewVersionCommand(ioStreams cmdutil.IOStreams) *cobra.Command {
 	return cmd
 }
 
-func (o *VersionOptions) Complete(cmd *cobra.Command) error {
+func (o *VersionOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) error {
+	if c, err := f.ToRESTConfig(); err == nil {
+		c.Timeout = 1 * time.Second // Don't try too hard
+		if cs, err := kubernetes.NewForConfig(c); err == nil {
+			o.restConfig = c
+			o.clientSet = cs
+		}
+	}
+
 	o.root = cmd.Root()
 
 	return nil
@@ -79,6 +99,63 @@ func (o *VersionOptions) Run() error {
 		return err
 	}
 
+	if err := o.redskyctlVersion(); err != nil {
+		return err
+	}
+
+	if err := o.managerVersion(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (o *VersionOptions) redskyctlVersion() error {
 	_, err := fmt.Fprintf(o.Out, "%s version: %s\n", o.root.Name(), version.GetVersion())
+	return err
+}
+
+func (o *VersionOptions) managerVersion() error {
+	if o.restConfig == nil && o.clientSet == nil {
+		return nil
+	}
+
+	var pod *corev1.Pod
+	podList, err := o.clientSet.CoreV1().Pods(o.Namespace).List(metav1.ListOptions{LabelSelector: "control-plane=controller-manager"})
+	if err != nil {
+		// Silently ignore
+		return nil
+	}
+	for i := range podList.Items {
+		pod = &podList.Items[i]
+	}
+	if pod == nil {
+		// TODO Should we print out a warning about not being able to find it?
+		return nil
+	}
+
+	req := o.clientSet.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(pod.Name).
+		Namespace(pod.Namespace).
+		SubResource("exec")
+	req.VersionedParams(&corev1.PodExecOptions{
+		Container: "manager",
+		Command:   []string{"/manager", "version"},
+		Stdout:    true,
+	}, scheme.ParameterCodec)
+
+	exec, err := remotecommand.NewSPDYExecutor(o.restConfig, "POST", req.URL())
+	if err != nil {
+		return err
+	}
+
+	var execOut bytes.Buffer
+	err = exec.Stream(remotecommand.StreamOptions{Stdout: &execOut, Tty: false})
+	if err != nil {
+		return err
+	}
+
+	_, err = o.Out.Write(execOut.Bytes())
 	return err
 }
