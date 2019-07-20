@@ -10,7 +10,7 @@ To install the custom Kubernetes resources to you currently configured cluster, 
 
 ## Getting Started
 
-See the [tutorials](https://github.com/redskyops/k8s-experiment/blob/master/docs/README.md).
+See the [tutorials](https://github.com/redskyops/k8s-experiment/blob/master/docs/tutorial.md).
 
 An experiment modifies the state of the cluster using patches (e.g. strategic merge patches) represented as Go templates with parameter assignments for input. Metrics are typically collected using PromQL queries against an in-cluster Prometheus service. Optionally, setup tasks can be run before and after each trial: these tasks create or delete Kustomizations.
 
