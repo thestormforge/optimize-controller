@@ -50,7 +50,7 @@ func NewRedskyctlCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 	ioStreams := util.IOStreams{In: in, Out: out, ErrOut: err}
 
 	rootCmd.AddCommand(NewDocsCommand(ioStreams))
-	rootCmd.AddCommand(NewVersionCommand(ioStreams))
+	rootCmd.AddCommand(NewVersionCommand(f, ioStreams))
 
 	rootCmd.AddCommand(setup.NewInitCommand(f, ioStreams))
 	rootCmd.AddCommand(setup.NewResetCommand(f, ioStreams))
