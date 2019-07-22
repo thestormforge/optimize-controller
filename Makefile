@@ -1,6 +1,16 @@
+
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
 SETUPTOOLS_IMG ?= setuptools:latest
+# Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
+CRD_OPTIONS ?= "crd:trivialVersions=true"
+
+# Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
+ifeq (,$(shell go env GOBIN))
+GOBIN=$(shell go env GOPATH)/bin
+else
+GOBIN=$(shell go env GOBIN)
+endif
 
 # Collect version information
 ifdef VERSION
@@ -12,10 +22,7 @@ endif
 LDFLAGS += -X github.com/redskyops/k8s-experiment/pkg/version.GitCommit=$(shell git rev-parse HEAD)
 LDFLAGS += -X github.com/redskyops/k8s-experiment/pkg/controller/trial.DefaultImage=${SETUPTOOLS_IMG}
 
-# Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
-CRD_OPTIONS ?= "crd:trivialVersions=true"
-
-all: test manager tool_all
+all: manager tool
 
 # Run tests
 test: generate fmt vet manifests
@@ -23,16 +30,12 @@ test: generate fmt vet manifests
 
 # Build manager binary
 manager: generate fmt vet
-	go build -ldflags '$(LDFLAGS)' -o bin/manager github.com/redskyops/k8s-experiment/cmd/manager
-
-# Build tool binary for the current platform
-tool: fmt vet
-	go build -ldflags '$(LDFLAGS)' -o bin/redskyctl github.com/redskyops/k8s-experiment/cmd/redskyctl
+	go build -ldflags '$(LDFLAGS)' -o bin/manager cmd/manager/main.go
 
 # Build tool binary for all supported platforms
-tool_all: fmt vet
-	GOOS=darwin GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o bin/redskyctl-darwin-amd64 github.com/redskyops/k8s-experiment/cmd/redskyctl
-	GOOS=linux GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o bin/redskyctl-linux-amd64 github.com/redskyops/k8s-experiment/cmd/redskyctl
+tool: generate fmt vet
+	GOOS=darwin GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o bin/redskyctl-darwin-amd64 cmd/redskyctl/redskyctl.go
+	GOOS=linux GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o bin/redskyctl-linux-amd64 cmd/redskyctl/redskyctl.go
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate fmt vet
@@ -78,9 +81,8 @@ docker-push:
 # download controller-gen if necessary
 controller-gen:
 ifeq (, $(shell which controller-gen))
-	#go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.0-beta.2
-	go build -o $(shell go env GOPATH)/bin/controller-gen ./vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go
-CONTROLLER_GEN=$(shell go env GOPATH)/bin/controller-gen
+	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.0-beta.2
+CONTROLLER_GEN=$(GOBIN)/controller-gen
 else
 CONTROLLER_GEN=$(shell which controller-gen)
 endif

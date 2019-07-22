@@ -1,7 +1,7 @@
 version: 2
 jobs:
   build:
-    working_directory: /go/src/github.com/redskyops/k8s-experiment
+    working_directory: /workspace
     docker:
       - image: "circleci/golang:1.12.5"
     steps:
@@ -21,18 +21,14 @@ jobs:
           name: Run tests
           command: make test
       - run:
-          name: Build manager binary
-          command: make manager
-      - run:
           name: Docker build
-          command: |
-            make docker-build
+          command: make docker-build
       - run:
           name: Docker push
           command: make docker-push
       - run:
           name: Build tool
-          command: make tool_all
+          command: make tool
       - run:
           name: Compute checksums
           command: sha256sum bin/* | tee bin/checksums.txt
