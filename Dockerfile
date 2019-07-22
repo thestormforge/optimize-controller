@@ -13,8 +13,8 @@ COPY go.sum go.sum
 RUN go mod download
 
 # Copy the go source
-COPY pkg/    pkg/
-COPY cmd/    cmd/
+COPY pkg/ pkg/
+COPY cmd/ cmd/
 
 # Build
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "${LDFLAGS}" -a -o manager cmd/manager/main.go

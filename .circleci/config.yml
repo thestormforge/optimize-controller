@@ -1,7 +1,6 @@
 version: 2
 jobs:
   build:
-    working_directory: /workspace
     docker:
       - image: "circleci/golang:1.12.5"
     steps:
