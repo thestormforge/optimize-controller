@@ -7,38 +7,6 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - batch
-  - extensions
-  resources:
-  - jobs
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - batch
-  - extensions
-  resources:
-  - jobs/status
-  verbs:
-  - get
-  - update
-  - patch
-- apiGroups:
-  - apps
-  - extensions
-  resources:
-  - deployments
-  - statefulsets
-  verbs:
-  - get
-  - list
-  - patch
-- apiGroups:
   - ""
   resources:
   - configmaps
@@ -59,42 +27,74 @@ rules:
   verbs:
   - list
 - apiGroups:
-  - redsky.carbonrelay.com
+  - apps
+  - extensions
   resources:
-  - trials
+  - deployments
+  - statefulsets
   verbs:
   - get
   - list
-  - watch
-  - create
-  - update
   - patch
-  - delete
 - apiGroups:
-  - redsky.carbonrelay.com
+  - batch
+  - extensions
   resources:
-  - trials/status
+  - jobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - batch
+  - extensions
+  resources:
+  - jobs/status
   verbs:
   - get
-  - update
   - patch
+  - update
 - apiGroups:
   - redsky.carbonrelay.com
   resources:
   - experiments
   verbs:
+  - create
+  - delete
   - get
   - list
-  - watch
-  - create
-  - update
   - patch
-  - delete
+  - update
+  - watch
 - apiGroups:
   - redsky.carbonrelay.com
   resources:
   - experiments/status
   verbs:
   - get
-  - update
   - patch
+  - update
+- apiGroups:
+  - redsky.carbonrelay.com
+  resources:
+  - trials
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - redsky.carbonrelay.com
+  resources:
+  - trials/status
+  verbs:
+  - get
+  - patch
+  - update
