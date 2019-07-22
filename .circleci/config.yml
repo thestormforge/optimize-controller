@@ -6,6 +6,9 @@ jobs:
     steps:
       - setup_remote_docker
       - checkout
+      - restore_cache:
+          keys:
+            - go-mod-v1-{{ checksum "go.sum" }}
       - run:
           name: Bootstrap
           command: .circleci/bootstrap.sh
@@ -51,6 +54,10 @@ jobs:
       - store_artifacts:
           path: bin/checksums.txt
           destination: checksums.txt
+      - save_cache:
+          key: go-mod-v1-{{ checksum "go.sum" }}
+          paths:
+            - "/go/pkg/mod"
 workflows:
   version: 2
   dev-build:
