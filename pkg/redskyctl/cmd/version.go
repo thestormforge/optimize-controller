@@ -33,8 +33,9 @@ import (
 )
 
 // TODO Add support for getting Red Sky server version
-// TODO Add support for getting manager version in cluster
+// TODO Add "--client" and "--server" and "????" for only printing some version
 // TODO Add a "--notes" option to print the release notes?
+// TODO Add an "--output" to control format (json, yaml, short?)
 
 const (
 	versionLong    = `Show the version information for Red Sky Control.`
@@ -54,7 +55,6 @@ type VersionOptions struct {
 
 func NewVersionOptions(ioStreams cmdutil.IOStreams) *VersionOptions {
 	return &VersionOptions{
-		Namespace: "redsky-system",
 		IOStreams: ioStreams,
 	}
 }
@@ -73,6 +73,7 @@ func NewVersionCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Co
 		},
 	}
 
+	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", "redsky-system", "System namespace in the Kubernetes cluster")
 	cmd.Flags().BoolVar(&o.SetupToolsImage, "setuptools", false, "print only the name of the setuptools image")
 
 	return cmd
@@ -93,6 +94,8 @@ func (o *VersionOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) error {
 }
 
 func (o *VersionOptions) Run() error {
+	// TODO We should just have a struct that holds all of the versions to make it easier to format
+
 	if o.SetupToolsImage {
 		// TODO We should have an option to print this as JSON with the pull policy, e.g. `{"image":"...", "imagePullPolicy":"..."}`...
 		_, err := fmt.Fprintf(o.Out, "%s\n", trial.DefaultImage)
