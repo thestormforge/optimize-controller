@@ -146,7 +146,7 @@ func createInClusterSuggestion(namespace, name string, suggestions SuggestionSou
 	for _, p := range exp.Spec.Parameters {
 		v, err := suggestions.AssignInt(p.Name, p.Min, p.Max, nil)
 		if err != nil {
-			return nil
+			return err
 		}
 		trial.Spec.Assignments = append(trial.Spec.Assignments, v1alpha1.Assignment{
 			Name:  p.Name,
