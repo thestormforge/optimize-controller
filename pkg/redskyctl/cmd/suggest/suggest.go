@@ -18,6 +18,7 @@ package suggest
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strconv"
 
 	redsky "github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1"
@@ -27,7 +28,10 @@ import (
 	"github.com/redskyops/k8s-experiment/pkg/kubernetes/scheme"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -47,9 +51,10 @@ type SuggestOptions struct {
 	Namespace string
 	Name      string
 
-	Suggestions     SuggestionSource
-	RedSkyAPI       *redsky.API
-	RedSkyClientSet *redskykube.Clientset
+	Suggestions      SuggestionSource
+	RedSkyAPI        *redsky.API
+	RedSkyClientSet  *redskykube.Clientset
+	ControllerReader client.Reader
 
 	cmdutil.IOStreams
 }
@@ -104,6 +109,25 @@ func (o *SuggestOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) error {
 			o.RedSkyClientSet = cs
 		}
 
+		// This is a brutal hack to allow us to re-use the controller code
+		// TODO Can we make a lightweight version of this that leverages the clientset we already have? It needs to work with namespaces also...
+		if rc, err := f.ToRESTConfig(); err != nil {
+			return err
+		} else {
+			s := runtime.NewScheme()
+			if err := scheme.AddToScheme(s); err != nil {
+				return err
+			}
+			if err := corev1.AddToScheme(s); err != nil {
+				return err
+			}
+			if cc, err := client.New(rc, client.Options{Scheme: s}); err != nil {
+				return err
+			} else {
+				o.ControllerReader = cc
+			}
+		}
+
 		// Provide a default value for the namespace
 		if o.Namespace == "" {
 			o.Namespace = "default"
@@ -115,7 +139,7 @@ func (o *SuggestOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) error {
 func (o *SuggestOptions) Run() error {
 	// If we have a clientset then create the suggestion in the cluster
 	if o.RedSkyClientSet != nil {
-		if err := createInClusterSuggestion(o.Namespace, o.Name, o.Suggestions, o.RedSkyClientSet); err != nil {
+		if err := createInClusterSuggestion(o.Namespace, o.Name, o.Suggestions, o.RedSkyClientSet, o.ControllerReader); err != nil {
 			return err
 		}
 	}
@@ -130,14 +154,26 @@ func (o *SuggestOptions) Run() error {
 	return nil
 }
 
-func createInClusterSuggestion(namespace, name string, suggestions SuggestionSource, clientset *redskykube.Clientset) error {
+func createInClusterSuggestion(namespace, name string, suggestions SuggestionSource, clientset *redskykube.Clientset, controllerClient client.Reader) error {
 	exp, err := clientset.RedskyV1alpha1().Experiments(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 
+	trialList, err := experiment.FindTrials(controllerClient, exp)
+	if err != nil {
+		return err
+	}
+	trialNamespace, err := experiment.FindAvailableNamespace(controllerClient, exp, trialList.Items)
+	if err != nil {
+		return err
+	}
+	if trialNamespace == "" {
+		return fmt.Errorf("no available namespace to create trial")
+	}
+
 	trial := &v1alpha1.Trial{}
-	experiment.PopulateTrialFromTemplate(exp, trial, namespace)
+	experiment.PopulateTrialFromTemplate(exp, trial, trialNamespace)
 	trial.Finalizers = nil
 	if err := controllerutil.SetControllerReference(exp, trial, scheme.Scheme); err != nil {
 		return err
