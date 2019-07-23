@@ -142,24 +142,16 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Find trials labeled for this experiment
-	list := &redskyv1alpha1.TrialList{}
-	opts := &client.ListOptions{}
-	if experiment.Spec.Selector == nil {
-		opts.MatchingLabels(experiment.Spec.Template.Labels)
-		if opts.LabelSelector.Empty() {
-			opts.MatchingLabels(experiment.GetDefaultLabels())
-		}
-	} else if opts.LabelSelector, err = metav1.LabelSelectorAsSelector(experiment.Spec.Selector); err != nil {
-		return reconcile.Result{}, err
-	}
-	if err := r.List(context.TODO(), list, client.UseListOptions(opts)); err != nil {
+	list, err := FindTrials(r, experiment)
+	if err != nil {
 		return reconcile.Result{}, err
 	}
 
 	// Add an additional trial if needed
 	nextTrialURL := experiment.GetAnnotations()[annotationNextTrialURL]
-	if nextTrialURL != "" && experiment.GetReplicas() > len(list.Items) {
+	if nextTrialURL != "" {
 		// Find an available namespace
+		// TODO If namespace comes back empty should we requeue with a delay instead of falling through?
 		if namespace, err := FindAvailableNamespace(r, experiment, list.Items); err != nil {
 			return reconcile.Result{}, err
 		} else if namespace != "" {
@@ -413,20 +405,46 @@ func PopulateTrialFromTemplate(experiment *redskyv1alpha1.Experiment, trial *red
 	}
 }
 
+func FindTrials(r client.Reader, experiment *redskyv1alpha1.Experiment) (*redskyv1alpha1.TrialList, error) {
+	list := &redskyv1alpha1.TrialList{}
+	opts := &client.ListOptions{}
+	var err error
+	if experiment.Spec.Selector == nil {
+		opts.MatchingLabels(experiment.Spec.Template.Labels)
+		if opts.LabelSelector.Empty() {
+			opts.MatchingLabels(experiment.GetDefaultLabels())
+		}
+	} else if opts.LabelSelector, err = metav1.LabelSelectorAsSelector(experiment.Spec.Selector); err != nil {
+		return nil, err
+	}
+	if err := r.List(context.TODO(), list, client.UseListOptions(opts)); err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
 // Searches for a namespace to run a new trial in, returning an empty string if no such namespace can be found
 func FindAvailableNamespace(r client.Reader, experiment *redskyv1alpha1.Experiment, trials []redskyv1alpha1.Trial) (string, error) {
 	// Determine which namespaces are already in use
+	var activeTrials int
 	inuse := make(map[string]bool, len(trials))
 	for i := range trials {
 		if redskytrial.IsTrialFinished(&trials[i]) {
 			for _, c := range trials[i].Status.Conditions {
 				if c.Type == redskyv1alpha1.TrialSetupDeleted && c.Status != corev1.ConditionTrue {
+					// Do not count this against the active trials, i.e. allow setup tasks to overlap
 					inuse[trials[i].Namespace] = true
 				}
 			}
 		} else {
+			activeTrials++
 			inuse[trials[i].Namespace] = true
 		}
+	}
+
+	// Do not return a namespace if the number of desired replicas has been reached
+	if activeTrials >= experiment.GetReplicas() {
+		return "", nil
 	}
 
 	// Find eligible namespaces
