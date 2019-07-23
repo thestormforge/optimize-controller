@@ -42,6 +42,10 @@ type metricContext struct {
 	CompletionTime time.Time
 	// The duration of the trial run expressed as a Prometheus range value
 	Range string
+	// The name of the trial
+	Name string
+	// The namespace the trial ran in
+	Namespace string
 }
 
 func executePatchTemplate(p *redskyv1alpha1.PatchTemplate, trial *redskyv1alpha1.Trial) (types.PatchType, []byte, error) {
@@ -108,6 +112,11 @@ func executeMetricQueryTemplate(m *redskyv1alpha1.Metric, trial *redskyv1alpha1.
 		data.CompletionTime = trial.Status.CompletionTime.Time
 	}
 	data.Range = fmt.Sprintf("%.0fs", templateDuration(data.StartTime, data.CompletionTime))
+	data.Name = trial.Name
+	data.Namespace = trial.Spec.TargetNamespace
+	if data.Namespace == "" {
+		data.Namespace = trial.Namespace
+	}
 
 	// Evaluate the template into a query
 	tmpl, err := template.New("query").Funcs(funcMap).Parse(m.Query)
