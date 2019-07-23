@@ -160,7 +160,7 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 	nextTrialURL := experiment.GetAnnotations()[annotationNextTrialURL]
 	if nextTrialURL != "" && experiment.GetReplicas() > len(list.Items) {
 		// Find an available namespace
-		if namespace, err := r.findAvailableNamespace(experiment, list.Items); err != nil {
+		if namespace, err := FindAvailableNamespace(r, experiment, list.Items); err != nil {
 			return reconcile.Result{}, err
 		} else if namespace != "" {
 			trial := &redskyv1alpha1.Trial{}
@@ -414,11 +414,19 @@ func PopulateTrialFromTemplate(experiment *redskyv1alpha1.Experiment, trial *red
 }
 
 // Searches for a namespace to run a new trial in, returning an empty string if no such namespace can be found
-func (r *ReconcileExperiment) findAvailableNamespace(experiment *redskyv1alpha1.Experiment, trials []redskyv1alpha1.Trial) (string, error) {
+func FindAvailableNamespace(r client.Reader, experiment *redskyv1alpha1.Experiment, trials []redskyv1alpha1.Trial) (string, error) {
 	// Determine which namespaces are already in use
 	inuse := make(map[string]bool, len(trials))
-	for _, t := range trials {
-		inuse[t.Namespace] = true
+	for i := range trials {
+		if redskytrial.IsTrialFinished(&trials[i]) {
+			for _, c := range trials[i].Status.Conditions {
+				if c.Type == redskyv1alpha1.TrialSetupDeleted && c.Status != corev1.ConditionTrue {
+					inuse[trials[i].Namespace] = true
+				}
+			}
+		} else {
+			inuse[trials[i].Namespace] = true
+		}
 	}
 
 	// Find eligible namespaces
@@ -441,9 +449,9 @@ func (r *ReconcileExperiment) findAvailableNamespace(experiment *redskyv1alpha1.
 		return "", nil
 	}
 
-	// Check if the experiment namespace is available
-	if inuse[experiment.Namespace] {
-		return "", nil
+	// No selector was specified, pretend like we only matched the experiment namespace
+	if !inuse[experiment.Namespace] {
+		return experiment.Namespace, nil
 	}
-	return experiment.Namespace, nil
+	return "", nil
 }
