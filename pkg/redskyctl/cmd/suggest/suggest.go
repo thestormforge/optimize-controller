@@ -160,10 +160,15 @@ func createInClusterSuggestion(namespace, name string, suggestions SuggestionSou
 		return err
 	}
 
-	trialList, err := experiment.FindTrials(controllerClient, exp)
+	sel, err := exp.GetTrialSelector()
 	if err != nil {
 		return err
 	}
+	trialList, err := clientset.RedskyV1alpha1().Trials("").List(metav1.ListOptions{LabelSelector: sel.String()})
+	if err != nil {
+		return err
+	}
+
 	trialNamespace, err := experiment.FindAvailableNamespace(controllerClient, exp, trialList.Items)
 	if err != nil {
 		return err

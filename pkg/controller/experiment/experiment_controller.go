@@ -142,8 +142,12 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Find trials labeled for this experiment
-	list, err := FindTrials(r, experiment)
-	if err != nil {
+	list := &redskyv1alpha1.TrialList{}
+	opts := &client.ListOptions{}
+	if opts.LabelSelector, err = experiment.GetTrialSelector(); err != nil {
+		return reconcile.Result{}, err
+	}
+	if err := r.List(context.TODO(), list, client.UseListOptions(opts)); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -403,24 +407,6 @@ func PopulateTrialFromTemplate(experiment *redskyv1alpha1.Experiment, trial *red
 	if trial.Spec.ExperimentRef == nil {
 		trial.Spec.ExperimentRef = experiment.GetSelfReference()
 	}
-}
-
-func FindTrials(r client.Reader, experiment *redskyv1alpha1.Experiment) (*redskyv1alpha1.TrialList, error) {
-	list := &redskyv1alpha1.TrialList{}
-	opts := &client.ListOptions{}
-	var err error
-	if experiment.Spec.Selector == nil {
-		opts.MatchingLabels(experiment.Spec.Template.Labels)
-		if opts.LabelSelector.Empty() {
-			opts.MatchingLabels(experiment.GetDefaultLabels())
-		}
-	} else if opts.LabelSelector, err = metav1.LabelSelectorAsSelector(experiment.Spec.Selector); err != nil {
-		return nil, err
-	}
-	if err := r.List(context.TODO(), list, client.UseListOptions(opts)); err != nil {
-		return nil, err
-	}
-	return list, nil
 }
 
 // Searches for a namespace to run a new trial in, returning an empty string if no such namespace can be found
