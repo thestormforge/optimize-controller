@@ -69,22 +69,19 @@ func NewSuggestCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Co
 	o := NewSuggestOptions(ioStreams)
 
 	cmd := &cobra.Command{
-		Use:     "suggest",
+		Use:     "suggest NAME",
 		Short:   "Suggest assignments",
 		Long:    suggestLong,
 		Example: suggestExample,
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(o.Complete(f, cmd))
+			cmdutil.CheckErr(o.Complete(f, cmd, args))
 			cmdutil.CheckErr(o.Run())
 		},
 	}
 
 	cmd.Flags().BoolVar(&o.Remote, "remote", false, "Create the suggestion on the Red Sky server")
 	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", "", "Experiment namespace in the Kubernetes cluster")
-
-	// TODO Should this be an argument instead of an option?
-	cmd.Flags().StringVar(&o.Name, "name", "", "Experiment name to suggest assignments for")
-	_ = cmd.MarkFlagRequired("name")
 
 	sourceFlags := NewSuggestionSourceFlags(ioStreams)
 	sourceFlags.AddFlags(cmd)
@@ -93,7 +90,9 @@ func NewSuggestCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Co
 	return cmd
 }
 
-func (o *SuggestOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) error {
+func (o *SuggestOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []string) error {
+	o.Name = args[0]
+
 	if o.Remote {
 		// Send it to the remote Red Sky API
 		if api, err := f.RedSkyAPI(); err != nil {
