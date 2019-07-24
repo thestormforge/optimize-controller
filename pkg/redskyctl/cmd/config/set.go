@@ -24,17 +24,27 @@ func NewSetCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Comman
 	o.Run = o.runSet
 
 	cmd := &cobra.Command{
-		Use:     "set",
+		Use:     "set NAME [VALUE]",
 		Short:   "TODO",
 		Long:    setLong,
 		Example: setExample,
+		Args:    cobra.RangeArgs(1, 2),
 		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(o.Complete(f, cmd))
+			cmdutil.CheckErr(o.Complete(f, cmd, captureArgs(args, o)))
 			cmdutil.CheckErr(o.Run())
 		},
 	}
 
 	return cmd
+}
+
+func captureArgs(args []string, o *ConfigOptions) []string {
+	if len(args) > 1 {
+		o.Source[args[0]] = args[1]
+	} else if len(args) > 0 {
+		o.Source[args[0]] = ""
+	}
+	return args
 }
 
 func (o *ConfigOptions) runSet() error {

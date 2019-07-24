@@ -51,7 +51,7 @@ func NewConfigCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Com
 		Long:    configLong,
 		Example: configExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(o.Complete(f, cmd))
+			cmdutil.CheckErr(o.Complete(f, cmd, args))
 			cmdutil.CheckErr(o.Run())
 		},
 	}
@@ -64,7 +64,7 @@ func NewConfigCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Com
 	return cmd
 }
 
-func (o *ConfigOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) error {
+func (o *ConfigOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []string) error {
 	if cfg, err := f.ToClientConfig(false); err != nil {
 		return err
 	} else {

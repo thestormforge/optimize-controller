@@ -23,7 +23,7 @@ func NewViewCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Comma
 		Long:    viewLong,
 		Example: viewExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(o.Complete(f, cmd))
+			cmdutil.CheckErr(o.Complete(f, cmd, args))
 			cmdutil.CheckErr(o.Run())
 		},
 	}
