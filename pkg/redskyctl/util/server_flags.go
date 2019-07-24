@@ -16,8 +16,6 @@ limitations under the License.
 package util
 
 import (
-	"fmt"
-
 	client "github.com/redskyops/k8s-experiment/pkg/api"
 	"github.com/spf13/pflag"
 )
@@ -52,11 +50,6 @@ func (f *ServerFlags) ToClientConfig() (*client.Config, error) {
 
 	if f.Address != nil && *f.Address != "" {
 		clientConfig.Address = *f.Address
-	}
-
-	if clientConfig.Address == "" {
-		// TODO What behavior do we want here? Error or default?
-		return nil, fmt.Errorf("the server address is unspecified")
 	}
 
 	return clientConfig, nil

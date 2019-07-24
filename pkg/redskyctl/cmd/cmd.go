@@ -20,6 +20,7 @@ import (
 	"os"
 
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/check"
+	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/config"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/generate"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/setup"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/status"
@@ -55,6 +56,7 @@ func NewRedskyctlCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 
 	rootCmd.AddCommand(setup.NewInitCommand(f, ioStreams))
 	rootCmd.AddCommand(setup.NewResetCommand(f, ioStreams))
+	rootCmd.AddCommand(config.NewConfigCommand(f, ioStreams))
 	rootCmd.AddCommand(check.NewCheckCommand(f, ioStreams))
 	rootCmd.AddCommand(suggest.NewSuggestCommand(f, ioStreams))
 	rootCmd.AddCommand(generate.NewGenerateCommand(f, ioStreams))
@@ -65,7 +67,6 @@ func NewRedskyctlCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 	// TODO We need helpers for doing a "dry run" on patches to make configuration easier
 	// TODO Add a "trial cleanup" command to run setup tasks (perhaps remove labels from standard setupJob)
 	// TODO Some kind of debug tool to evaluate metric queries
-	// TODO A "config" command for specifying and reading the current config...
 
 	return rootCmd
 }

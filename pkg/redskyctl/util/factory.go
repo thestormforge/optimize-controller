@@ -16,6 +16,9 @@ limitations under the License.
 package util
 
 import (
+	"fmt"
+
+	client "github.com/redskyops/k8s-experiment/pkg/api"
 	redsky "github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1"
 	redskykube "github.com/redskyops/k8s-experiment/pkg/kubernetes"
 	"k8s.io/client-go/kubernetes"
@@ -24,6 +27,8 @@ import (
 
 type Factory interface {
 	ToRESTConfig() (*rest.Config, error)
+	ToClientConfig(bool) (*client.Config, error)
+
 	KubernetesClientSet() (*kubernetes.Clientset, error)
 	RedSkyClientSet() (*redskykube.Clientset, error)
 	RedSkyAPI() (redsky.API, error)
@@ -50,6 +55,14 @@ func (f *factoryImpl) ToRESTConfig() (*rest.Config, error) {
 	return f.configFlags.ToRESTConfig()
 }
 
+func (f *factoryImpl) ToClientConfig(requireAddress bool) (*client.Config, error) {
+	clientConfig, err := f.serverFlags.ToClientConfig()
+	if requireAddress && err == nil && clientConfig.Address == "" {
+		return nil, fmt.Errorf("the server address is unspecified")
+	}
+	return clientConfig, err
+}
+
 func (f *factoryImpl) KubernetesClientSet() (*kubernetes.Clientset, error) {
 	c, err := f.ToRESTConfig()
 	if err != nil {
@@ -67,7 +80,7 @@ func (f *factoryImpl) RedSkyClientSet() (*redskykube.Clientset, error) {
 }
 
 func (f *factoryImpl) RedSkyAPI() (redsky.API, error) {
-	c, err := f.serverFlags.ToClientConfig()
+	c, err := f.ToClientConfig(true)
 	if err != nil {
 		return nil, err
 	}

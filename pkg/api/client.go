@@ -34,8 +34,8 @@ import (
 )
 
 type OAuth2 struct {
-	ClientID     string `json:"client_id"`
-	ClientSecret string `json:"client_secret"`
+	ClientID     string `json:"client_id,omitempty"`
+	ClientSecret string `json:"client_secret,omitempty"`
 	TokenURL     string `json:"token_url,omitempty"`
 
 	Token string `json:"token,omitempty"`
