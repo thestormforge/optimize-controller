@@ -33,6 +33,8 @@ import (
 // TODO Have the option to read a partial experiment from a file
 // TODO Use patch conventions like Kubebuilder
 // TODO Add documentation about Kustomize v3, `--enable_alpha_plugins`, and what config files should look like
+// TODO Name pattern/name randomizer?
+// TODO No-op "wait" patches, patches from files
 
 const (
 	generateLong    = `Generate an experiment manifest from a configuration file.`

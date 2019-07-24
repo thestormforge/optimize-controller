@@ -39,18 +39,15 @@ var (
 	}
 
 	right = [...]string{
-		"fenwick",
+		"aimua",
 		"gustie",
 		"hochadel",
 		"idan",
-		"joyce",
 		"pacheco",
 		"perol",
 		"platt",
 		"provo",
-		"sich",
 		"sutherland",
-		"zhang",
 	}
 )
 

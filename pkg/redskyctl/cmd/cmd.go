@@ -63,6 +63,8 @@ func NewRedskyctlCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 	// TODO Add 'backup' and 'restore' maintenance commands ('maint' subcommands?)
 	// TODO Add API client commands for interacting with a remote server
 	// TODO We need helpers for doing a "dry run" on patches to make configuration easier
+	// TODO Some kind of debug tool to evaluate metric queries
+	// TODO A "config" command for specifying and reading the current config...
 
 	return rootCmd
 }

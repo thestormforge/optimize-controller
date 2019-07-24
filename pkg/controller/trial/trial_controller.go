@@ -245,7 +245,8 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 	// Create a trial run job if needed
 	if needsJob {
 		job := &batchv1.Job{}
-		if err = r.createJob(trial, job); err != nil {
+		createJob(trial, job)
+		if err := controllerutil.SetControllerReference(trial, job, r.scheme); err != nil {
 			return reconcile.Result{}, err
 		}
 		err = r.Create(context.TODO(), job)
@@ -541,7 +542,7 @@ func applyJobStatus(trial *redskyv1alpha1.Trial, job *batchv1.Job, time *metav1.
 	return dirty
 }
 
-func (r *ReconcileTrial) createJob(trial *redskyv1alpha1.Trial, job *batchv1.Job) error {
+func createJob(trial *redskyv1alpha1.Trial, job *batchv1.Job) {
 	// Start with the job template
 	if trial.Spec.Template != nil {
 		trial.Spec.Template.ObjectMeta.DeepCopyInto(&job.ObjectMeta)
@@ -585,8 +586,4 @@ func (r *ReconcileTrial) createJob(trial *redskyv1alpha1.Trial, job *batchv1.Job
 			},
 		}
 	}
-
-	// Set the owner reference back to the trial
-	err := controllerutil.SetControllerReference(trial, job, r.scheme)
-	return err
 }

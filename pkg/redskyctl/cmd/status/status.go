@@ -3,7 +3,6 @@ package status
 import (
 	"fmt"
 	"io"
-	"time"
 
 	"github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	redskykube "github.com/redskyops/k8s-experiment/pkg/kubernetes"
