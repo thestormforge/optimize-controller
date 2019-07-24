@@ -41,14 +41,14 @@ spec:
   - name: cost
     minimize: true
     type: prometheus
-    query: "scalar(sum by (job)(node_total_hourly_cost))"
+    query: "scalar((sum(container_cpu_allocation{namespace=\"{{ .Namespace }}\"}))*22 + (sum(container_memory_allocation_bytes{namespace=\"{{ .Namespace }}\"})/1000000000)*3)" #"scalar(sum by (job)(node_total_hourly_cost))"
     selector:
       matchLabels:
         app: prometheus
   - name: speed
     minimize: false
     type: prometheus
-    query: "scalar(sum by (cluster)(rate(elasticsearch_indices_indexing_index_total[{{ .Range }}])))"
+    query: "scalar(sum by (cluster)(rate(elasticsearch_indices_docs_primary[{{ .Range }}])))"
     selector:
       matchLabels:
         app: prometheus
@@ -113,7 +113,7 @@ spec:
                   memory: "{{ .Values.ls_memory }}Mi"
   template:
     spec:
-      approximateRuntime: 2m
+      approximateRuntime: 5m
       setupVolumes:
       - name: monitoring
         configMap:
