@@ -33,12 +33,12 @@ import (
 )
 
 // TODO Add support for getting Red Sky server version
-// TODO Add "--client" and "--server" and "????" for only printing some version
+// TODO Add "--client" and "--server" and "--manager" for only printing some versions
 // TODO Add a "--notes" option to print the release notes?
-// TODO Add an "--output" to control format (json, yaml, short?)
+// TODO Add an "--output" to control format (json, yaml)
 
 const (
-	versionLong    = `Show the version information for Red Sky Control.`
+	versionLong    = `Print the version information for Red Sky Ops components`
 	versionExample = ``
 )
 
@@ -64,7 +64,7 @@ func NewVersionCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Co
 
 	cmd := &cobra.Command{
 		Use:     "version",
-		Short:   "Print version information",
+		Short:   "Print the version information",
 		Long:    versionLong,
 		Example: versionExample,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -73,8 +73,8 @@ func NewVersionCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Co
 		},
 	}
 
-	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", "redsky-system", "System namespace in the Kubernetes cluster")
-	cmd.Flags().BoolVar(&o.SetupToolsImage, "setuptools", false, "print only the name of the setuptools image")
+	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", "redsky-system", "System namespace in the Kubernetes cluster.")
+	cmd.Flags().BoolVar(&o.SetupToolsImage, "setuptools", false, "Print only the name of the setuptools image.")
 
 	return cmd
 }

@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	checkLong    = `The check command provides the ability to run self check diagnostics.`
+	checkLong    = `Run a consistency check on Red Sky Ops components`
 	checkExample = ``
 )
 
@@ -37,6 +37,7 @@ func NewCheckCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Comm
 	cmd.AddCommand(NewServerCheckCommand(f, ioStreams))
 
 	// TODO Add local file based checks for validating experiment manifests?
+	// TODO Add a manager check?
 
 	return cmd
 }

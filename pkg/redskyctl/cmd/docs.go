@@ -28,7 +28,7 @@ import (
 // TODO Add support for generating OpenAPI specification based on Kube API (including validation schema)
 
 const (
-	docsLong    = ``
+	docsLong    = `Generate documentation for Red Sky Ops`
 	docsExample = ``
 )
 
@@ -62,7 +62,7 @@ func NewDocsCommand(ioStreams cmdutil.IOStreams) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&o.Directory, "directory", "d", "./", "Directory where documentation is written")
+	cmd.Flags().StringVarP(&o.Directory, "directory", "d", "./", "Directory where documentation is written.")
 
 	return cmd
 }

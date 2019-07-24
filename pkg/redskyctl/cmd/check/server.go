@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	checkServerLong    = `Ensures that the server and current client are compatible.`
+	checkServerLong    = `Check the Red Sky Ops server`
 	checkServerExample = ``
 )
 
@@ -57,7 +57,7 @@ func NewServerCheckCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobr
 
 	cmd := &cobra.Command{
 		Use:     "server",
-		Short:   "Run a consistency check on the server",
+		Short:   "Check the server",
 		Long:    checkServerLong,
 		Example: checkServerExample,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -67,7 +67,7 @@ func NewServerCheckCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobr
 		},
 	}
 
-	cmd.Flags().BoolVar(&o.DryRun, "dry-run", false, "generate experiment JSON to stdout")
+	cmd.Flags().BoolVar(&o.DryRun, "dry-run", false, "Generate experiment JSON to stdout.")
 
 	return cmd
 }

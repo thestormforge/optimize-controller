@@ -35,7 +35,8 @@ func NewDefaultRedskyctlCommand() *cobra.Command {
 
 func NewRedskyctlCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use: "redskyctl",
+		Use:   "redskyctl",
+		Short: "Kubernetes Exploration",
 	}
 	rootCmd.Run = rootCmd.HelpFunc()
 

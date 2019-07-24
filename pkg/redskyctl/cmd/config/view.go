@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	viewLong    = `TODO`
-	viewExample = `TODO`
+	viewLong    = `View the Red Sky Ops configuration file`
+	viewExample = ``
 )
 
 func NewViewCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
@@ -19,7 +19,7 @@ func NewViewCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Comma
 
 	cmd := &cobra.Command{
 		Use:     "view",
-		Short:   "TODO",
+		Short:   "View the configuration file",
 		Long:    viewLong,
 		Example: viewExample,
 		Run: func(cmd *cobra.Command, args []string) {

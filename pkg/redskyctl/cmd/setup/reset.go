@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	resetLong    = `The reset command will uninstall the Red Sky manifests.`
+	resetLong    = `Uninstall Red Sky Ops from a cluster`
 	resetExample = ``
 )
 
@@ -33,7 +33,7 @@ func NewResetCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Comm
 
 	cmd := &cobra.Command{
 		Use:     "reset",
-		Short:   "Uninstall Red Sky from a cluster",
+		Short:   "Uninstall from a cluster",
 		Long:    resetLong,
 		Example: resetExample,
 		Run: func(cmd *cobra.Command, args []string) {

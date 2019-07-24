@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	setLong    = `TODO`
-	setExample = `TODO`
+	setLong    = `Modify the Red Sky Ops configuration file`
+	setExample = ``
 )
 
 func NewSetCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
@@ -25,7 +25,7 @@ func NewSetCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Comman
 
 	cmd := &cobra.Command{
 		Use:     "set NAME [VALUE]",
-		Short:   "TODO",
+		Short:   "Modify the configuration file",
 		Long:    setLong,
 		Example: setExample,
 		Args:    cobra.RangeArgs(1, 2),

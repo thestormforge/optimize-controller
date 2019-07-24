@@ -28,7 +28,7 @@ import (
 // TODO How do we collect Red Sky API information? Does it need to be exposed by the cmdutil.Factory?
 
 const (
-	initLong    = `The initialize command will install (or optionally generate) the required Red Sky manifests.`
+	initLong    = `Install Red Sky Ops to a cluster`
 	initExample = ``
 )
 
@@ -37,7 +37,7 @@ func NewInitCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Comma
 
 	cmd := &cobra.Command{
 		Use:     "init",
-		Short:   "Initialize Red Sky in a cluster",
+		Short:   "Install to a cluster",
 		Long:    initLong,
 		Example: initExample,
 		Run: func(cmd *cobra.Command, args []string) {

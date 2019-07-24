@@ -37,7 +37,7 @@ import (
 // TODO No-op "wait" patches, patches from files
 
 const (
-	generateLong    = `Generate an experiment manifest from a configuration file.`
+	generateLong    = `Generate an experiment manifest from a configuration file`
 	generateExample = ``
 )
 

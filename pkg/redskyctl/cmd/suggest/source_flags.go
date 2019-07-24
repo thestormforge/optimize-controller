@@ -41,9 +41,9 @@ func NewSuggestionSourceFlags(ioStreams util.IOStreams) *SuggestionSourceFlags {
 }
 
 func (f *SuggestionSourceFlags) AddFlags(cmd *cobra.Command) {
-	cmd.Flags().StringToStringVarP(&f.Assignments, "assign", "A", nil, "Assign an explicit value to a parameter")
-	cmd.Flags().BoolVar(&f.AllowInteractive, "interactive", false, "Allow interactive prompts for unspecified parameter assignments")
-	cmd.Flags().StringVar(&f.DefaultBehavior, "default", "", "Select the behavior for default values; one of: none|min|max|rand")
+	cmd.Flags().StringToStringVarP(&f.Assignments, "assign", "A", nil, "Assign an explicit value to a parameter.")
+	cmd.Flags().BoolVar(&f.AllowInteractive, "interactive", false, "Allow interactive prompts for unspecified parameter assignments.")
+	cmd.Flags().StringVar(&f.DefaultBehavior, "default", "", "Select the behavior for default values; one of: none|min|max|rand.")
 }
 
 func (f *SuggestionSourceFlags) AssignInt(name string, min, max int64, def *int64) (int64, error) {

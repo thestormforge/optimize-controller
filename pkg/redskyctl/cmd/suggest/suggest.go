@@ -36,7 +36,7 @@ import (
 )
 
 const (
-	suggestLong    = `Manually suggest assignments for a trial.`
+	suggestLong    = `Suggest assignments for a new trial run`
 	suggestExample = ``
 )
 
@@ -80,8 +80,8 @@ func NewSuggestCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Co
 		},
 	}
 
-	cmd.Flags().BoolVar(&o.Remote, "remote", false, "Create the suggestion on the Red Sky server")
-	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", "", "Experiment namespace in the Kubernetes cluster")
+	cmd.Flags().BoolVar(&o.Remote, "remote", false, "Create the suggestion on the Red Sky server.")
+	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", "", "Experiment namespace in the Kubernetes cluster.")
 
 	sourceFlags := NewSuggestionSourceFlags(ioStreams)
 	sourceFlags.AddFlags(cmd)

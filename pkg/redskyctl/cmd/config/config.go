@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	configLong    = `TODO`
-	configExample = `TODO`
+	configLong    = `Modify or view the Red Sky Ops configuration file`
+	configExample = ``
 )
 
 type ConfigOptions struct {
@@ -47,7 +47,7 @@ func NewConfigCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Com
 
 	cmd := &cobra.Command{
 		Use:     "config",
-		Short:   "Work with configuration files",
+		Short:   "Work with the configuration file",
 		Long:    configLong,
 		Example: configExample,
 		Run: func(cmd *cobra.Command, args []string) {

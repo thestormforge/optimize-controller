@@ -16,8 +16,8 @@ import (
 // TODO Filters?
 
 const (
-	statusLong    = `Obtain experiment status`
-	statusExample = `TODO`
+	statusLong    = `Check status for each trial in an experiment`
+	statusExample = ``
 )
 
 type TrialStatusPrinter interface {
@@ -46,7 +46,7 @@ func NewStatusCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Com
 
 	cmd := &cobra.Command{
 		Use:     "status NAME",
-		Short:   "Check the status of an experiment",
+		Short:   "Check experiment status",
 		Long:    statusLong,
 		Example: statusExample,
 		Args:    cobra.ExactArgs(1),
@@ -56,8 +56,8 @@ func NewStatusCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Com
 		},
 	}
 
-	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", "", "Experiment namespace in the Kubernetes cluster")
-	cmd.Flags().StringVarP(&o.OutputFormat, "output", "o", "", "Output format. One of: json|yaml|name")
+	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", "", "Experiment namespace in the Kubernetes cluster.")
+	cmd.Flags().StringVarP(&o.OutputFormat, "output", "o", "", "Output format. One of: json|yaml|name.")
 
 	return cmd
 }

@@ -68,9 +68,9 @@ func NewSetupOptions(ioStreams cmdutil.IOStreams) *SetupOptions {
 
 func (o *SetupOptions) AddFlags(cmd *cobra.Command) {
 	// TODO Adjust usage strings based on `cmd.Name()`
-	cmd.Flags().BoolVar(&o.Bootstrap, "bootstrap", false, "stop after creating the bootstrap configuration")
-	cmd.Flags().BoolVar(&o.DryRun, "dry-run", false, "generate the manifests instead of applying them")
-	cmd.Flags().BoolVar(&o.Kustomize, "kustomize", false, "install/update the Kustomize plugin and exit")
+	cmd.Flags().BoolVar(&o.Bootstrap, "bootstrap", false, "Stop after creating the bootstrap configuration.")
+	cmd.Flags().BoolVar(&o.DryRun, "dry-run", false, "Generate the manifests instead of applying them.")
+	cmd.Flags().BoolVar(&o.Kustomize, "kustomize", false, "Install/update the Kustomize plugin and exit.")
 }
 
 func (o *SetupOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) error {
