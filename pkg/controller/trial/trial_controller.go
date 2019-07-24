@@ -244,8 +244,7 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 
 	// Create a trial run job if needed
 	if needsJob {
-		job := &batchv1.Job{}
-		createJob(trial, job)
+		job := createJob(trial)
 		if err := controllerutil.SetControllerReference(trial, job, r.scheme); err != nil {
 			return reconcile.Result{}, err
 		}
@@ -357,7 +356,7 @@ func evaluatePatches(r client.Reader, trial *redskyv1alpha1.Trial, e *redskyv1al
 			return err
 		}
 
-		// TODO This is a hack to allow stability checks on arbitrary objects by omitting the patch data
+		// If the patch is effectively null, we do not need to evaluate it
 		attempts := 3
 		if len(data) == 0 || string(data) == "null" {
 			attempts = 0
@@ -542,7 +541,9 @@ func applyJobStatus(trial *redskyv1alpha1.Trial, job *batchv1.Job, time *metav1.
 	return dirty
 }
 
-func createJob(trial *redskyv1alpha1.Trial, job *batchv1.Job) {
+func createJob(trial *redskyv1alpha1.Trial) *batchv1.Job {
+	job := &batchv1.Job{}
+
 	// Start with the job template
 	if trial.Spec.Template != nil {
 		trial.Spec.Template.ObjectMeta.DeepCopyInto(&job.ObjectMeta)
@@ -586,4 +587,6 @@ func createJob(trial *redskyv1alpha1.Trial, job *batchv1.Job) {
 			},
 		}
 	}
+
+	return job
 }

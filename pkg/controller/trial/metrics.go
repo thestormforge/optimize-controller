@@ -77,13 +77,9 @@ func capturePrometheusMetric(address, query string, completionTime time.Time) (f
 	for _, t := range ts.Active {
 		if t.Health == promv1.HealthGood {
 			if t.LastScrape.Before(completionTime) {
-				// TODO This is for debugging, it should probably be removed
-				log.Info("Prometheus target is not ready", "scrapeUrl", t.ScrapeURL, "lastScrape", t.LastScrape, "completionTime", completionTime)
 				// TODO Can we make a more informed delay?
 				return 0, 0, 5 * time.Second, nil
 			}
-		} else {
-			log.Info("Skipping last scrape check for unhealthy Prometheus target", "lastError", t.LastError)
 		}
 	}
 
@@ -114,9 +110,7 @@ func captureJSONPathMetric(url, name, query string) (float64, float64, time.Dura
 		return 0, 0, 0, err
 	}
 	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			// TODO ???
-		}
+		_ = resp.Body.Close()
 	}()
 
 	// Check the response status
