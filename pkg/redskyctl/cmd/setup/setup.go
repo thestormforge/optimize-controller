@@ -106,9 +106,9 @@ func CheckErr(err error) {
 		_, _ = fmt.Fprintf(os.Stderr, "Failed: %s\n", err.Error())
 		if e.ImagePullBackOff != "" {
 			if strings.HasPrefix(e.ImagePullBackOff, "gcr.io/carbon-relay-dev/") {
-				_, _ = fmt.Fprintf(os.Stderr, "  The image '%s' appears to be a development image, did you remember to configure image pull secrets?", e.ImagePullBackOff)
+				_, _ = fmt.Fprintf(os.Stderr, "  The image '%s' appears to be a development image, did you remember to configure image pull secrets?\n", e.ImagePullBackOff)
 			} else if !strings.Contains(e.ImagePullBackOff, "/") {
-				_, _ = fmt.Fprintf(os.Stderr, "  The image '%s' appears to be a local development image, did you remember to build the image?", e.ImagePullBackOff)
+				_, _ = fmt.Fprintf(os.Stderr, "  The image '%s' appears to be a local development image, did you remember to build the image?\n", e.ImagePullBackOff)
 			}
 		}
 		os.Exit(1)
