@@ -48,7 +48,7 @@ $ kustomize build | kubectl apply -f -
 When configured to use the Enterprise solution, trials will be created automatically. You may interactively suggest trial assignments to start a trial run as well:
 
 ```sh
-$ redskyctl suggest --name elk --interactive
+$ redskyctl suggest --interactive elk
 ```
 
 ## Monitoring the Experiment
