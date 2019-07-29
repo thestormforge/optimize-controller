@@ -18,6 +18,7 @@ namePrefix: redsky-
 # YAML string, with resources separated by document
 # markers ("---").
 resources:
+- ../crd
 - ../rbac
 - ../manager
 
