@@ -17,14 +17,14 @@ find . -type f \( -name "*_patch.yaml" -o -path "./patches/*.yaml" \) -exec kust
 while [ "$#" != "0" ] ; do
     case "$1" in
     install)
-        cd /redskyops/client
+        cd /redskyops/install
         # TODO This is temporary until the CRD is part of the default Kustomization
         kustomize edit add base ../crd
         handle () { kubectl apply -f - ; }
         shift
         ;;
     uninstall)
-        cd /redskyops/client
+        cd /redskyops/install
         # TODO This is temporary until the CRD is part of the default Kustomization
         kustomize edit add base ../crd
         handle () { kubectl delete -f - ; }
