@@ -21,7 +21,6 @@ function defineEnvvar {
 }
 
 KUBEBUILDER_VERSION=2.0.0-beta.0
-KUSTOMIZE_VERSION=3.0.3
 
 echo "Using environment variables from bootstrap script"
 if [[ -n "${CIRCLE_TAG:-}" ]]; then
@@ -43,13 +42,6 @@ curl -LOs https://github.com/kubernetes-sigs/kubebuilder/releases/download/v${KU
 tar -zxvf kubebuilder_${KUBEBUILDER_VERSION}_linux_amd64.tar.gz
 sudo mv kubebuilder_${KUBEBUILDER_VERSION}_linux_amd64 /usr/local/kubebuilder
 PATH=$PATH:/usr/local/kubebuilder/bin
-echo
-
-
-echo "Installing Kustomize"
-curl -LOs https://github.com/kubernetes-sigs/kustomize/releases/download/v${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64
-chmod +x kustomize_${KUSTOMIZE_VERSION}_linux_amd64
-sudo mv kustomize_${KUSTOMIZE_VERSION}_linux_amd64 /usr/local/bin/kustomize
 echo
 
 
