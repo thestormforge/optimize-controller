@@ -158,7 +158,11 @@ func summarize(status *v1alpha1.TrialStatus) string {
 		case v1alpha1.TrialStable:
 			switch c.Status {
 			case corev1.ConditionTrue:
-				s = "Stable"
+				if status.StartTime != nil {
+					s = "Running"
+				} else {
+					s = "Stabilized"
+				}
 			case corev1.ConditionFalse:
 				return "Waiting"
 			case corev1.ConditionUnknown:
