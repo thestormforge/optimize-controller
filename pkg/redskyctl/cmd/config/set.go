@@ -22,6 +22,7 @@ const (
 func NewSetCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
 	o := NewConfigOptions(ioStreams)
 	o.Run = o.runSet
+	o.Source = make(map[string]string)
 
 	cmd := &cobra.Command{
 		Use:     "set NAME [VALUE]",
