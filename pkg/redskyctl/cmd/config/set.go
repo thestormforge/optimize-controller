@@ -16,7 +16,10 @@ import (
 
 const (
 	setLong    = `Modify the Red Sky Ops configuration file`
-	setExample = ``
+	setExample = `Names are: address, oauth2.token, oauth2.token_url, oauth2.client_id, oauth2.client_secret
+
+# Set the remote server address
+redskyctl config set address http://example.com/api`
 )
 
 func NewSetCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
