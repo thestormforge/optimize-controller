@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/redskyops/k8s-experiment/pkg/api"
 	"github.com/redskyops/k8s-experiment/pkg/apis"
 	"github.com/redskyops/k8s-experiment/pkg/controller"
 	"github.com/redskyops/k8s-experiment/pkg/version"
@@ -30,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/signals"
+	"sigs.k8s.io/yaml"
 )
 
 func main() {
@@ -37,6 +39,15 @@ func main() {
 	if os.Args[1] == "version" {
 		fmt.Printf("%s version: %s\n", filepath.Base(os.Args[0]), version.GetVersion())
 		os.Exit(0)
+	} else if os.Args[1] == "config" {
+		if cfg, err := api.DefaultConfig(); err != nil {
+			os.Exit(1)
+		} else if output, err := yaml.Marshal(cfg); err != nil {
+			os.Exit(1)
+		} else {
+			fmt.Printf(string(output))
+			os.Exit(0)
+		}
 	}
 
 	var metricsAddr string
