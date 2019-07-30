@@ -255,7 +255,7 @@ func NewBootstrapInitConfig(o *SetupOptions, clientConfig *api.Config) (*Bootstr
 								VolumeMounts: []corev1.VolumeMount{
 									{
 										Name:      "client-config",
-										MountPath: "/redsky/client/client.yaml",
+										MountPath: "/redskyops/install/client.yaml",
 										SubPath:   "client.yaml",
 									},
 								},
