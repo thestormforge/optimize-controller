@@ -27,5 +27,5 @@ RUN cd /workspace/manager && kustomize edit set image controller=${IMG} && \
     mkdir -p /workspace/base && touch /workspace/base/kustomization.yaml
 
 WORKDIR "/workspace/base"
-ENTRYPOINT ["/redskyops/docker-entrypoint.sh"]
+ENTRYPOINT ["/workspace/docker-entrypoint.sh"]
 CMD ["install", "--dry-run"]
