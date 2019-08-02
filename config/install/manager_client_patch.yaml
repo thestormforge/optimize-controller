@@ -10,7 +10,7 @@ spec:
       - name: manager
         volumeMounts:
         - name: client-config
-          mountPath: "/root"
+          mountPath: "/home/nonroot"
           readOnly: true
       volumes:
       - name: client-config

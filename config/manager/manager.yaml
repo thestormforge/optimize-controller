@@ -27,6 +27,9 @@ spec:
             - /manager
           image: controller:latest
           name: manager
+          securityContext:
+            runAsUser: 65532
+            runAsGroup: 65532
           resources:
             limits:
               cpu: 100m
