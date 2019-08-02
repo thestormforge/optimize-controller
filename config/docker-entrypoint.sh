@@ -17,12 +17,12 @@ find . -type f \( -name "*_patch.yaml" -o -path "./patches/*.yaml" \) -exec kust
 while [ "$#" != "0" ] ; do
     case "$1" in
     install)
-        cd /redskyops/install
+        cd /workspace/install
         handle () { kubectl apply -f - ; }
         shift
         ;;
     uninstall)
-        cd /redskyops/install
+        cd /workspace/install
         handle () { kubectl delete -f - ; }
         shift
         ;;
@@ -66,8 +66,8 @@ if [ -n "$CHART" ] ; then
     mkdir -p /workspace/helm
     cd /workspace/helm
     touch kustomization.yaml
-    kustomize edit add base ../base
 
+    kustomize edit add base ../base
     find . -type f -name "*patch.yaml" -exec kustomize edit add patch {} +
     values=$(find . -type f -name "*values.yaml" -exec echo -n "--values {} " \;)
 
@@ -80,7 +80,7 @@ if [ -n "$CHART" ] ; then
 fi
 
 
-# TODO Should we apply a label to all created objects so we can tie it back to the trial? Only if this isn't "install"?
+# TODO Should we apply a label to all created objects so we can tie it back to the trial? Only if this isn't "install"? Only if $TRIAL is defined?
 
 
 # Run Kustomize and pipe it into the handler
