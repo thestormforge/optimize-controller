@@ -35,8 +35,4 @@ patchesStrategicMerge:
 #- manager_prometheus_metrics_patch.yaml
 
 vars:
-- name: WEBHOOK_SECRET_NAME
-  objref:
-    kind: Secret
-    name: webhook-server-secret
-    apiVersion: v1
+
