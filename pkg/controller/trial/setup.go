@@ -324,6 +324,14 @@ func newSetupJob(trial *redskyv1alpha1.Trial, scheme *runtime.Scheme, mode strin
 		namespace = trial.Namespace
 	}
 
+	// We need to run as a non-root user that has the same UID and GID
+	id := int64(1000)
+	allowPrivilegeEscalation := false
+	runAsNonRoot := true
+	job.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{
+		RunAsNonRoot: &runAsNonRoot,
+	}
+
 	// Create containers for each of the setup tasks
 	for _, task := range trial.Spec.SetupTasks {
 		if (mode == modeCreate && task.SkipCreate) || (mode == modeDelete && task.SkipDelete) {
@@ -337,6 +345,11 @@ func newSetupJob(trial *redskyv1alpha1.Trial, scheme *runtime.Scheme, mode strin
 				{Name: "NAMESPACE", Value: namespace},
 				{Name: "NAME", Value: task.Name},
 				{Name: "TRIAL", Value: trial.Name},
+			},
+			SecurityContext: &corev1.SecurityContext{
+				RunAsUser:                &id,
+				RunAsGroup:               &id,
+				AllowPrivilegeEscalation: &allowPrivilegeEscalation,
 			},
 		}
 

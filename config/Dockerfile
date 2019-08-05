@@ -18,13 +18,16 @@ RUN apk --no-cache add curl && \
     curl -L "$HELM_URL" | tar xz --exclude '*/*[^helm]' --strip-components=1 -C /usr/local/bin/ && \
     curl -L "$KUBECTL_URL" -o /usr/local/bin/kubectl && \
     curl -L "$KUSTOMIZE_URL" -o /usr/local/bin/kustomize && \
-    chmod +x /usr/local/bin/kubectl /usr/local/bin/kustomize
+    chmod +x /usr/local/bin/kubectl /usr/local/bin/kustomize && \
+    addgroup -g 1000 -S setup && \
+    adduser -u 1000 -S setup -G setup
 
 COPY . /workspace/
 
 RUN cd /workspace/manager && kustomize edit set image controller=${IMG} && \
     if [ -n "${IMG##*/*}" ] ; then cd /workspace/default; kustomize edit add patch manager_image_pull_policy.yaml; fi && \
-    mkdir -p /workspace/base && touch /workspace/base/kustomization.yaml
+    mkdir -p /workspace/base && touch /workspace/base/kustomization.yaml && \
+    chown -R setup /workspace
 
 WORKDIR "/workspace/base"
 ENTRYPOINT ["/workspace/docker-entrypoint.sh"]
