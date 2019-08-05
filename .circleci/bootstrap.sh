@@ -21,6 +21,7 @@ function defineEnvvar {
 }
 
 KUBEBUILDER_VERSION=2.0.0-beta.0
+GHR_VERSION=0.12.2
 
 echo "Using environment variables from bootstrap script"
 if [[ -n "${CIRCLE_TAG:-}" ]]; then
@@ -42,6 +43,13 @@ curl -LOs https://github.com/kubernetes-sigs/kubebuilder/releases/download/v${KU
 tar -zxvf kubebuilder_${KUBEBUILDER_VERSION}_linux_amd64.tar.gz
 sudo mv kubebuilder_${KUBEBUILDER_VERSION}_linux_amd64 /usr/local/kubebuilder
 PATH=$PATH:/usr/local/kubebuilder/bin
+echo
+
+
+echo "Installing ghr"
+curl -LOs https://github.com/tcnksm/ghr/releases/download/v${GHR_VERSION}/ghr_v${GHR_VERSION}_linux_amd64.tar.gz
+tar -zxf ghr_v${GHR_VERSION}_linux_amd64.tar.gz --exclude '*/*[^ghr]' --strip-components=1
+sudo mv ghr /usr/local/bin/
 echo
 
 

@@ -34,17 +34,6 @@ jobs:
       - run:
           name: Compute checksums
           command: sha256sum bin/* | tee bin/checksums.txt
-      - run:
-          name: Docker tag latest release
-          command: |
-            if [[ -n "${CIRCLE_TAG:-}" ]]; then
-              docker tag "${IMG}" "${IMG%%:*}:latest"
-              docker push "${IMG%%:*}:latest"
-              docker tag "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:latest"
-              docker push "${SETUPTOOLS_IMG%%:*}:latest"
-            else
-              echo "Skipped, not a release build"
-            fi
       - store_artifacts:
           path: bin/redskyctl-darwin-amd64
           destination: redskyctl-darwin-amd64
@@ -54,6 +43,18 @@ jobs:
       - store_artifacts:
           path: bin/checksums.txt
           destination: checksums.txt
+      - run:
+          name: Release tagged build
+          command: |
+            if [[ -n "${CIRCLE_TAG:-}" ]]; then
+              docker tag "${IMG}" "${IMG%%:*}:latest"
+              docker push "${IMG%%:*}:latest"
+              docker tag "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:latest"
+              docker push "${SETUPTOOLS_IMG%%:*}:latest"
+              ghr -draft -body "$(cat ./circleci/RELEASE_TEMPLATE.md)" "${CIRCLE_TAG}" bin
+            else
+              echo "Skipped, not a tagged build"
+            fi
       - save_cache:
           key: go-mod-v1-{{ checksum "go.sum" }}
           paths:
