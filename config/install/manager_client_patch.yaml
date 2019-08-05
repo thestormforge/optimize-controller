@@ -8,6 +8,12 @@ spec:
     spec:
       containers:
       - name: manager
+        securityContext:
+          runAsUser: 65532
+          runAsGroup: 65532
+          runAsNonRoot: true
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
         volumeMounts:
         - name: client-config
           mountPath: "/home/nonroot"
