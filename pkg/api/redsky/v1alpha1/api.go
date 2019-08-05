@@ -542,8 +542,13 @@ func (h *httpAPI) ReportTrial(ctx context.Context, u string, vls TrialValues) er
 }
 
 func unexpected(resp *http.Response) error {
-	if resp.StatusCode == http.StatusUnauthorized {
+	switch resp.StatusCode {
+	case http.StatusUnauthorized:
 		return fmt.Errorf("unauthorized")
+	case http.StatusNotFound:
+		if resp.Request != nil && resp.Request.URL != nil {
+			return fmt.Errorf("not found: %s", resp.Request.URL.String())
+		}
 	}
 	return fmt.Errorf("unexpected server response: %d", resp.StatusCode)
 }
