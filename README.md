@@ -1,5 +1,7 @@
 # Red Sky Ops - Kubernetes Experiments
 
+[![CircleCI](https://circleci.com/gh/redskyops/k8s-experiment.svg?style=svg)](https://circleci.com/gh/redskyops/k8s-experiment)
+
 The Kubernetes Experiments project (k8s-experiment) supports the creation and execution of experiments used for the validation of configuration state through a series of trials.
 
 ## Installation
