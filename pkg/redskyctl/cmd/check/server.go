@@ -67,7 +67,11 @@ func NewServerCheckCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobr
 		},
 	}
 
-	cmd.Flags().BoolVar(&o.DryRun, "dry-run", false, "Generate experiment JSON to stdout.")
+	cmd.Flags().IntVar(&o.ParameterCount, "parameters", o.ParameterCount, "Specify the number of experiment parameters to generate (1 - 20).")
+	cmd.Flags().IntVar(&o.MetricCount, "metrics", o.MetricCount, "Specify the number of experiment metrics to generate (1 or 2).")
+	cmd.Flags().BoolVar(&o.AllowInvalid, "invalid", o.AllowInvalid, "Skip client side validity checks (server enforcement).")
+	cmd.Flags().BoolVar(&o.ReportFailure, "fail", o.ReportFailure, "Report an experiment failure instead of generated values.")
+	cmd.Flags().BoolVar(&o.DryRun, "dry-run", o.DryRun, "Generate experiment JSON to stdout.")
 
 	return cmd
 }
