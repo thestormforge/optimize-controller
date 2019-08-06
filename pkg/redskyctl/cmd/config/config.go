@@ -58,8 +58,7 @@ func NewConfigCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Com
 
 	cmd.AddCommand(NewViewCommand(f, ioStreams))
 	cmd.AddCommand(NewSetCommand(f, ioStreams))
-
-	// TODO Have a "fix" command to make old configs into current configs
+	cmd.AddCommand(NewFixCommand(f, ioStreams))
 
 	return cmd
 }
