@@ -91,7 +91,7 @@ func DefaultConfig() (*Config, error) {
 	if config.OAuth2 != nil && config.OAuth2.TokenURL == "" && config.OAuth2.ClientID != "" && config.OAuth2.ClientSecret != "" {
 		config.OAuth2.TokenURL = os.Getenv("REDSKY_OAUTH2_TOKEN_URL")
 		if config.OAuth2.TokenURL == "" {
-			config.OAuth2.TokenURL = "../auth/token/"
+			config.OAuth2.TokenURL = "./auth/token/"
 		}
 	}
 
@@ -103,7 +103,9 @@ func NewClient(cfg Config) (Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	u.Path = strings.TrimRight(u.Path, "/")
+
+	// Force a trailing slash before calling URL.ResolveReference to better meet user expectations
+	u.Path = strings.TrimRight(u.Path, "/") + "/"
 
 	var hc *http.Client
 	if cfg.OAuth2 != nil {
@@ -134,6 +136,9 @@ func NewClient(cfg Config) (Client, error) {
 	if hc == nil {
 		hc = &http.Client{Timeout: 10 * time.Second}
 	}
+
+	// Strip the trailing slash back out so it isn't displayed
+	u.Path = strings.TrimRight(u.Path, "/")
 
 	return &httpClient{
 		endpoint:  u,

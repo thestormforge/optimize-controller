@@ -55,20 +55,22 @@ func FixConfig(config *client.Config) error {
 		return nil
 	}
 
-	// Make sure the address parses
+	// Handle the address the same way the configuration generator would
 	address, err := url.Parse(config.Address)
 	if err != nil {
 		return err
 	}
-
-	// Remove old "/api" path component
-	if removeAPI(address) {
-		config.Address = address.String()
-	}
+	address.Path = strings.TrimRight(address.Path, "/") + "/"
 
 	// Zero out default values
 	if config.OAuth2 != nil && isDefaultTokenURL(address, config.OAuth2.TokenURL) {
 		config.OAuth2.TokenURL = ""
+	}
+
+	// Remove old "/api" path component and trailing slashes
+	if removeAPI(address) || strings.HasSuffix(address.Path, "/") {
+		address.Path = strings.TrimRight(address.Path, "/")
+		config.Address = address.String()
 	}
 
 	return nil
@@ -77,7 +79,7 @@ func FixConfig(config *client.Config) error {
 // Removes 1.0.x "/api" suffix from the address
 func removeAPI(address *url.URL) bool {
 	if dir, file := path.Split(address.Path); file == "api" || strings.HasSuffix(dir, "/api/") {
-		address.Path = strings.TrimRight(strings.TrimSuffix(dir, "/api/"), "/")
+		address.Path = strings.TrimSuffix(dir, "/api/")
 		return true
 	}
 
@@ -86,11 +88,18 @@ func removeAPI(address *url.URL) bool {
 
 // Checks to see if the token URL is a default value (implicit or explicit)
 func isDefaultTokenURL(address *url.URL, tokenURL string) bool {
-	if tokenURL == "../auth/token/" {
+	p := "./auth/token/"
+
+	// The old "/api" URLs had a default token URL that started with "../" instead of "./"
+	if path.Base(address.Path) == "api" {
+		p = "." + p
+	}
+
+	if tokenURL == p {
 		return true
 	}
 
-	rel, _ := url.Parse("../auth/token/")
+	rel, _ := url.Parse(p)
 	if tokenURL == address.ResolveReference(rel).String() {
 		return true
 	}

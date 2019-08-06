@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	endpointExperiment = "/experiments"
+	endpointExperiment = "/api/experiments"
 
 	relationSelf      = "self"
 	relationNext      = "next"
@@ -550,7 +550,7 @@ func unexpected(resp *http.Response) error {
 			return fmt.Errorf("not found: %s", resp.Request.URL.String())
 		}
 	}
-	return fmt.Errorf("unexpected server response: %d", resp.StatusCode)
+	return fmt.Errorf("unexpected server response: %s", resp.Status)
 }
 
 // Extract metadata from the response headers, failures are silently ignored, always call before extracting entity body
