@@ -134,8 +134,6 @@ func summarize(status *v1alpha1.TrialStatus) string {
 				s = "Setup Deleted"
 			case corev1.ConditionFalse:
 				s = "Tearing Down"
-			case corev1.ConditionUnknown:
-				s = s
 			}
 		case v1alpha1.TrialPatched:
 			switch c.Status {
