@@ -45,7 +45,7 @@ If you have specific security requirements or the default RBAC configuration for
 
 ## Upgrading the Red Sky Ops Manager
 
-The preferred way to upgrade the Red Sky Ops Manager is to install the latest version of `redskyctl` locally and re-run `redskyctl init`. Use `redskyctl version` to check the current version numbers.
+The preferred way to upgrade the Red Sky Ops Manager is to install the latest version of `redskyctl` locally and run `redskyctl config fix` before re-running `redskyctl init`. Use `redskyctl version` to check the current version numbers.
 
 In some cases there may be incompatibilities between versions requiring an uninstall prior to the installation of the new version: please consult the release notes for the version you are installing.
 
