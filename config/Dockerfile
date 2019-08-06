@@ -1,6 +1,7 @@
 FROM alpine:latest
 
 ARG IMG
+ARG VERSION
 
 ENV HELM_VERSION="v2.14.2" \
     HELM_URL="https://get.helm.sh/helm-v2.14.2-linux-amd64.tar.gz" \
@@ -25,6 +26,7 @@ RUN apk --no-cache add curl && \
 COPY . /workspace/
 
 RUN cd /workspace/manager && kustomize edit set image controller=${IMG} && \
+    cd /workspace/install && kustomize edit add label "app.kubernetes.io/version:${VERSION},app.kubernetes.io/managed-by:redskyctl" && \
     if [ -n "${IMG##*/*}" ] ; then cd /workspace/default; kustomize edit add patch manager_image_pull_policy.yaml; fi && \
     mkdir -p /workspace/base && touch /workspace/base/kustomization.yaml && \
     chown -R setup /workspace
