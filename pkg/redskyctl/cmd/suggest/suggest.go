@@ -40,6 +40,8 @@ const (
 	suggestExample = ``
 )
 
+// TODO Accept suggestion inputs from standard input, what formats?
+
 // SuggestionSource provides suggested parameter assignments
 type SuggestionSource interface {
 	AssignInt(name string, min, max int64, def *int64) (int64, error)
@@ -47,9 +49,10 @@ type SuggestionSource interface {
 }
 
 type SuggestOptions struct {
-	Remote    bool
-	Namespace string
-	Name      string
+	Namespace       string
+	Name            string
+	ForceRedSkyAPI  bool
+	ForceKubernetes bool
 
 	Suggestions      SuggestionSource
 	RedSkyAPI        *redsky.API
@@ -80,7 +83,6 @@ func NewSuggestCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Co
 		},
 	}
 
-	cmd.Flags().BoolVar(&o.Remote, "remote", false, "Create the suggestion on the Red Sky server.")
 	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", "", "Experiment namespace in the Kubernetes cluster.")
 
 	sourceFlags := NewSuggestionSourceFlags(ioStreams)
@@ -93,19 +95,19 @@ func NewSuggestCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Co
 func (o *SuggestOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []string) error {
 	o.Name = args[0]
 
-	if o.Remote {
+	if api, err := f.RedSkyAPI(); err == nil {
 		// Send it to the remote Red Sky API
-		if api, err := f.RedSkyAPI(); err != nil {
-			return err
-		} else {
-			o.RedSkyAPI = &api
-		}
-	} else {
+		o.RedSkyAPI = &api
+	} else if o.ForceRedSkyAPI {
+		// Failure to explicitly use the Red Sky API
+		return err
+	} else if cs, err := f.RedSkyClientSet(); err == nil {
 		// Send it to the Kube cluster
-		if cs, err := f.RedSkyClientSet(); err != nil {
-			return err
-		} else {
-			o.RedSkyClientSet = cs
+		o.RedSkyClientSet = cs
+
+		// Provide a default value for the namespace
+		if o.Namespace == "" {
+			o.Namespace = "default"
 		}
 
 		// This is a brutal hack to allow us to re-use the controller code
@@ -126,79 +128,31 @@ func (o *SuggestOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []
 				o.ControllerReader = cc
 			}
 		}
-
-		// Provide a default value for the namespace
-		if o.Namespace == "" {
-			o.Namespace = "default"
-		}
+	} else if o.ForceKubernetes {
+		// Failure to explicitly use the Kubernetes cluster
+		return err
 	}
+
 	return nil
 }
 
 func (o *SuggestOptions) Run() error {
-	// If we have a clientset then create the suggestion in the cluster
-	if o.RedSkyClientSet != nil {
-		if err := createInClusterSuggestion(o.Namespace, o.Name, o.Suggestions, o.RedSkyClientSet, o.ControllerReader); err != nil {
-			return err
-		}
-	}
-
-	// If we have an API then create the suggestion on the remote server
+	// If we have an API then create the suggestion using the Red Sky API
 	if o.RedSkyAPI != nil {
-		if err := createRemoteSuggestion(o.Name, o.Suggestions, *o.RedSkyAPI); err != nil {
-			return err
-		}
+		return createRedSkyAPISuggestion(o.Name, o.Suggestions, *o.RedSkyAPI)
 	}
+
+	// If we have a clientset then create the suggestion in the Kubernetes cluster
+	if o.RedSkyClientSet != nil {
+		return createKubernetesSuggestion(o.Namespace, o.Name, o.Suggestions, o.RedSkyClientSet, o.ControllerReader)
+	}
+
+	// TODO Fail because we have no place to send the suggestion?
 
 	return nil
 }
 
-func createInClusterSuggestion(namespace, name string, suggestions SuggestionSource, clientset *redskykube.Clientset, controllerClient client.Reader) error {
-	exp, err := clientset.RedskyopsV1alpha1().Experiments(namespace).Get(name, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-
-	sel, err := exp.GetTrialSelector()
-	if err != nil {
-		return err
-	}
-	trialList, err := clientset.RedskyopsV1alpha1().Trials("").List(metav1.ListOptions{LabelSelector: sel.String()})
-	if err != nil {
-		return err
-	}
-
-	trialNamespace, err := experiment.FindAvailableNamespace(controllerClient, exp, trialList.Items)
-	if err != nil {
-		return err
-	}
-	if trialNamespace == "" {
-		return fmt.Errorf("no available namespace to create trial")
-	}
-
-	trial := &v1alpha1.Trial{}
-	experiment.PopulateTrialFromTemplate(exp, trial, trialNamespace)
-	trial.Finalizers = nil
-	if err := controllerutil.SetControllerReference(exp, trial, scheme.Scheme); err != nil {
-		return err
-	}
-
-	for _, p := range exp.Spec.Parameters {
-		v, err := suggestions.AssignInt(p.Name, p.Min, p.Max, nil)
-		if err != nil {
-			return err
-		}
-		trial.Spec.Assignments = append(trial.Spec.Assignments, v1alpha1.Assignment{
-			Name:  p.Name,
-			Value: v,
-		})
-	}
-
-	_, err = clientset.RedskyopsV1alpha1().Trials(namespace).Create(trial)
-	return err
-}
-
-func createRemoteSuggestion(name string, suggestions SuggestionSource, api redsky.API) error {
+func createRedSkyAPISuggestion(name string, suggestions SuggestionSource, api redsky.API) error {
 	exp, err := api.GetExperimentByName(context.TODO(), redsky.NewExperimentName(name))
 	if err != nil {
 		return err
@@ -247,5 +201,50 @@ func createRemoteSuggestion(name string, suggestions SuggestionSource, api redsk
 	}
 
 	_, err = api.CreateTrial(context.TODO(), exp.Trials, ta)
+	return err
+}
+
+func createKubernetesSuggestion(namespace, name string, suggestions SuggestionSource, clientset *redskykube.Clientset, controllerClient client.Reader) error {
+	exp, err := clientset.RedskyopsV1alpha1().Experiments(namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	sel, err := exp.GetTrialSelector()
+	if err != nil {
+		return err
+	}
+	trialList, err := clientset.RedskyopsV1alpha1().Trials("").List(metav1.ListOptions{LabelSelector: sel.String()})
+	if err != nil {
+		return err
+	}
+
+	trialNamespace, err := experiment.FindAvailableNamespace(controllerClient, exp, trialList.Items)
+	if err != nil {
+		return err
+	}
+	if trialNamespace == "" {
+		return fmt.Errorf("no available namespace to create trial")
+	}
+
+	trial := &v1alpha1.Trial{}
+	experiment.PopulateTrialFromTemplate(exp, trial, trialNamespace)
+	trial.Finalizers = nil
+	if err := controllerutil.SetControllerReference(exp, trial, scheme.Scheme); err != nil {
+		return err
+	}
+
+	for _, p := range exp.Spec.Parameters {
+		v, err := suggestions.AssignInt(p.Name, p.Min, p.Max, nil)
+		if err != nil {
+			return err
+		}
+		trial.Spec.Assignments = append(trial.Spec.Assignments, v1alpha1.Assignment{
+			Name:  p.Name,
+			Value: v,
+		})
+	}
+
+	_, err = clientset.RedskyopsV1alpha1().Trials(namespace).Create(trial)
 	return err
 }
