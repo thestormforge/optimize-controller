@@ -10,6 +10,3 @@ secretGenerator:
 - name: client-config
   files:
   - client.yaml
-
-generatorOptions:
-  disableNameSuffixHash: true
