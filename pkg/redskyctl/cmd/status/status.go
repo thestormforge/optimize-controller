@@ -119,41 +119,32 @@ func summarize(status *v1alpha1.TrialStatus) string {
 	for i := range status.Conditions {
 		c := status.Conditions[i]
 		switch c.Type {
-		case v1alpha1.TrialComplete:
-			switch c.Status {
-			case corev1.ConditionTrue:
-				return "Completed"
-			}
-		case v1alpha1.TrialFailed:
-			switch c.Status {
-			case corev1.ConditionTrue:
-				return "Failed"
-			}
 		case v1alpha1.TrialSetupCreated:
 			switch c.Status {
 			case corev1.ConditionTrue:
 				s = "Setup Created"
 			case corev1.ConditionFalse:
-				return "Setting up"
+				s = "Setting up"
 			case corev1.ConditionUnknown:
-				return "Setting up"
+				s = "Setting up"
 			}
 		case v1alpha1.TrialSetupDeleted:
 			switch c.Status {
 			case corev1.ConditionTrue:
-				s = ""
+				s = "Setup Deleted"
 			case corev1.ConditionFalse:
-				return "Tearing Down"
+				s = "Tearing Down"
 			case corev1.ConditionUnknown:
+				s = s
 			}
 		case v1alpha1.TrialPatched:
 			switch c.Status {
 			case corev1.ConditionTrue:
 				s = "Patched"
 			case corev1.ConditionFalse:
-				return "Patching"
+				s = "Patching"
 			case corev1.ConditionUnknown:
-				return "Patching"
+				s = "Patching"
 			}
 		case v1alpha1.TrialStable:
 			switch c.Status {
@@ -164,18 +155,28 @@ func summarize(status *v1alpha1.TrialStatus) string {
 					s = "Stabilized"
 				}
 			case corev1.ConditionFalse:
-				return "Waiting"
+				s = "Waiting"
 			case corev1.ConditionUnknown:
-				return "Waiting"
+				s = "Waiting"
 			}
 		case v1alpha1.TrialObserved:
 			switch c.Status {
 			case corev1.ConditionTrue:
 				s = "Captured"
 			case corev1.ConditionFalse:
-				return "Capturing"
+				s = "Capturing"
 			case corev1.ConditionUnknown:
-				return "Capturing"
+				s = "Capturing"
+			}
+		case v1alpha1.TrialComplete:
+			switch c.Status {
+			case corev1.ConditionTrue:
+				return "Completed"
+			}
+		case v1alpha1.TrialFailed:
+			switch c.Status {
+			case corev1.ConditionTrue:
+				return "Failed"
 			}
 		}
 	}
