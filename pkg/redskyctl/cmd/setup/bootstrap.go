@@ -150,6 +150,11 @@ func NewBootstrapInitConfig(o *SetupOptions, clientConfig *api.Config) (*Bootstr
 		return nil, err
 	}
 
+	// We need to run as a non-root user that has the same UID and GID
+	id := int64(1000)
+	allowPrivilegeEscalation := false
+	runAsNonRoot := true
+
 	// Note that we cannot scope "create" roles to a particular resource name
 
 	b := &BootstrapConfig{
@@ -252,6 +257,11 @@ func NewBootstrapInitConfig(o *SetupOptions, clientConfig *api.Config) (*Bootstr
 										},
 									},
 								},
+								SecurityContext: &corev1.SecurityContext{
+									RunAsUser:                &id,
+									RunAsGroup:               &id,
+									AllowPrivilegeEscalation: &allowPrivilegeEscalation,
+								},
 								VolumeMounts: []corev1.VolumeMount{
 									{
 										Name:      "client-config",
@@ -270,6 +280,9 @@ func NewBootstrapInitConfig(o *SetupOptions, clientConfig *api.Config) (*Bootstr
 									},
 								},
 							},
+						},
+						SecurityContext: &corev1.PodSecurityContext{
+							RunAsNonRoot: &runAsNonRoot,
 						},
 					},
 				},

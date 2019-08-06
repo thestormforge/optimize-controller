@@ -18,7 +18,9 @@ RUN apk --no-cache add curl && \
     curl -L "$HELM_URL" | tar xz --exclude '*/*[^helm]' --strip-components=1 -C /usr/local/bin/ && \
     curl -L "$KUBECTL_URL" -o /usr/local/bin/kubectl && \
     curl -L "$KUSTOMIZE_URL" -o /usr/local/bin/kustomize && \
-    chmod +x /usr/local/bin/kubectl /usr/local/bin/kustomize
+    chmod +x /usr/local/bin/kubectl /usr/local/bin/kustomize && \
+    addgroup -g 1000 -S setup && \
+    adduser -u 1000 -S setup -G setup
 
 COPY . /redskyops/
 
@@ -26,7 +28,9 @@ RUN cd /redskyops/manager && \
     kustomize edit set image controller=${IMG} && \
     if [ -n "${IMG##*/*}" ] ; then cd /redskyops/default; kustomize edit add patch manager_image_pull_policy.yaml; fi && \
     mkdir -p /workspace/base && \
-    touch /workspace/base/kustomization.yaml
+    touch /workspace/base/kustomization.yaml && \
+    chown -R setup /redskyops && \
+    chown -R setup /workspace
 
 WORKDIR "/workspace/base"
 ENTRYPOINT ["/redskyops/docker-entrypoint.sh"]
