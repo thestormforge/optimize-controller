@@ -6,7 +6,9 @@ This is brief guide to get you up and running with Red Sky Ops as quickly as pos
 
 You must have a Kubernetes cluster. Additionally, you will need a local configured copy of `kubectl`. The Red Sky Ops Tool will use the same configuration as `kubectl` (usually `$HOME/.kube/config`) to connect to your cluster.
 
-If you are planing to create the simple experiment from this guide, a [minikube](https://kubernetes.io/docs/setup/learning-environment/minikube/) cluster is preferred. Additionally, the simple experiment data is stored using [Git](https://git-scm.com/) and needs to be built using [Docker](https://www.docker.com/get-started).
+A local install of [Kustomize](https://github.com/kubernetes-sigs/kustomize/releases) (v3.1.0+) is required to manage the objects in you cluster.
+
+If you are planing to create the simple experiment from this guide, a [minikube](https://kubernetes.io/docs/setup/learning-environment/minikube/) cluster is preferred. Additionally, the simple experiment data is stored using [Git](https://git-scm.com/) and includes an image that needs to be built using [Docker](https://www.docker.com/get-started).
 
 ## Install the Red Sky Ops Tool
 
@@ -28,8 +30,8 @@ Generally you will want to write your own experiments to run trials on your own 
 
 ```sh
 $ eval $(minikube docker-env)
-$ docker build -t benchmark-cli:6.7.0 .
-$ kubectl apply -f simple.yaml
+$ docker build -t benchmark-cli:6.7.0 benchmark-cli
+$ kustomize build | kubectl apply -f -
 ```
 
 ## Run a Trial

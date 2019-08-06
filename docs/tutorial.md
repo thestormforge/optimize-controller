@@ -4,7 +4,7 @@
 
 You must have a Kubernetes cluster. Additionally, you will need a local configured copy of `kubectl`. This example requires more resources then the [quick start](quickstart.md) tutorial, therefore you will need something larger then a typical minikube cluster. A three node cluster with 12 total vCPUs (4 on each node) and 24GB total memory (8GB on each node) is generally sufficient.
 
-A local install of [Kustomize](https://github.com/kubernetes-sigs/kustomize/releases) (v3.0.0+) is required to manage the objects in you cluster.
+A local install of [Kustomize](https://github.com/kubernetes-sigs/kustomize/releases) (v3.1.0+) is required to manage the objects in you cluster.
 
 Additionally, you will to initialize Red Sky Ops in your cluster. You can download a binary for your platform from the [releases page](https://github.com/redskyops/k8s-experiment/releases) and run `redskyctl init`. For more details, see [the installation guide](install.md).
 

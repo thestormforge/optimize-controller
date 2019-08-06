@@ -1,0 +1,14 @@
+resources:
+  - rbac.yaml
+  - ../simple/
+
+patchesStrategicMerge:
+  - setuptask_patch.yaml
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+configMapGenerator:
+  - name: experiment-resources
+    files:
+      - ../simple/configmap.yaml

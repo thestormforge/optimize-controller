@@ -1,0 +1,25 @@
+# Add a setup task using resources
+apiVersion: redskyops.dev/v1alpha1
+kind: Experiment
+metadata:
+  # TODO Can we rename the experiment using this patch?
+  name: simple
+spec:
+  template:
+    spec:
+      setupTasks:
+        - name: resources
+          volumeMounts:
+            - name: resources
+              mountPath: /workspace/base/resources
+      setupVolumes:
+        - name: resources
+          configMap:
+            name: experiment-resources
+---
+# We don't need the configuration map from the previous example
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logstash-benchmark
+$patch: delete

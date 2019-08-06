@@ -1,0 +1,3 @@
+resources:
+  - configmap.yaml
+  - experiment.yaml
