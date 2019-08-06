@@ -3,5 +3,5 @@
 // +k8s:deepcopy-gen=package,register
 // +k8s:conversion-gen=github.com/redskyops/k8s-experiment/pkg/apis/redsky
 // +k8s:defaulter-gen=TypeMeta
-// +groupName=redsky.carbonrelay.com
+// +groupName=redskyops.dev
 package v1alpha1

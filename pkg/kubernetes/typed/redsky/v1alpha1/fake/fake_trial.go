@@ -29,13 +29,13 @@ import (
 
 // FakeTrials implements TrialInterface
 type FakeTrials struct {
-	Fake *FakeRedskyV1alpha1
+	Fake *FakeRedskyopsV1alpha1
 	ns   string
 }
 
-var trialsResource = schema.GroupVersionResource{Group: "redsky.carbonrelay.com", Version: "v1alpha1", Resource: "trials"}
+var trialsResource = schema.GroupVersionResource{Group: "redskyops.dev", Version: "v1alpha1", Resource: "trials"}
 
-var trialsKind = schema.GroupVersionKind{Group: "redsky.carbonrelay.com", Version: "v1alpha1", Kind: "Trial"}
+var trialsKind = schema.GroupVersionKind{Group: "redskyops.dev", Version: "v1alpha1", Kind: "Trial"}
 
 // Get takes name of the trial, and returns the corresponding trial object, and an error if there is any.
 func (c *FakeTrials) Get(name string, options v1.GetOptions) (result *v1alpha1.Trial, err error) {

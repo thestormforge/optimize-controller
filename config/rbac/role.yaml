@@ -59,7 +59,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - redsky.carbonrelay.com
+  - redskyops.dev
   resources:
   - experiments
   verbs:
@@ -71,7 +71,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - redsky.carbonrelay.com
+  - redskyops.dev
   resources:
   - experiments/status
   verbs:
@@ -79,7 +79,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - redsky.carbonrelay.com
+  - redskyops.dev
   resources:
   - trials
   verbs:
@@ -91,7 +91,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - redsky.carbonrelay.com
+  - redskyops.dev
   resources:
   - trials/status
   verbs:

@@ -55,7 +55,7 @@ type experiments struct {
 }
 
 // newExperiments returns a Experiments
-func newExperiments(c *RedskyV1alpha1Client, namespace string) *experiments {
+func newExperiments(c *RedskyopsV1alpha1Client, namespace string) *experiments {
 	return &experiments{
 		client: c.RESTClient(),
 		ns:     namespace,

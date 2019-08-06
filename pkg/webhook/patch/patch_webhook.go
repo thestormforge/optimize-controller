@@ -50,7 +50,7 @@ type TrialHandler struct {
 	client.Client
 }
 
-// kubebuilder:webhook:failurePolicy=fail,groups=apps,resources=deployments;statefulsets,verbs=create,versions=v1,name=trial-patches.carbonrelay.com,path=/trial-patches,mutating=true
+// kubebuilder:webhook:failurePolicy=fail,groups=apps,resources=deployments;statefulsets,verbs=create,versions=v1,name=trial-patches.redskyops.dev,path=/trial-patches,mutating=true
 
 func (h *TrialHandler) Handle(ctx context.Context, request admission.Request) admission.Response {
 	// We are only interested in patching create operations

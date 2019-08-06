@@ -91,7 +91,7 @@ func (o *StatusOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []s
 }
 
 func (o *StatusOptions) Run() error {
-	exp, err := o.RedSkyClientSet.RedskyV1alpha1().Experiments(o.Namespace).Get(o.Name, metav1.GetOptions{})
+	exp, err := o.RedSkyClientSet.RedskyopsV1alpha1().Experiments(o.Namespace).Get(o.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -101,7 +101,7 @@ func (o *StatusOptions) Run() error {
 		return err
 	}
 
-	list, err := o.RedSkyClientSet.RedskyV1alpha1().Trials("").List(metav1.ListOptions{LabelSelector: sel.String()})
+	list, err := o.RedSkyClientSet.RedskyopsV1alpha1().Trials("").List(metav1.ListOptions{LabelSelector: sel.String()})
 	if err != nil {
 		return err
 	}

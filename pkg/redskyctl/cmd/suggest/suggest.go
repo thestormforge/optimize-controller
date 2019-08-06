@@ -154,7 +154,7 @@ func (o *SuggestOptions) Run() error {
 }
 
 func createInClusterSuggestion(namespace, name string, suggestions SuggestionSource, clientset *redskykube.Clientset, controllerClient client.Reader) error {
-	exp, err := clientset.RedskyV1alpha1().Experiments(namespace).Get(name, metav1.GetOptions{})
+	exp, err := clientset.RedskyopsV1alpha1().Experiments(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -163,7 +163,7 @@ func createInClusterSuggestion(namespace, name string, suggestions SuggestionSou
 	if err != nil {
 		return err
 	}
-	trialList, err := clientset.RedskyV1alpha1().Trials("").List(metav1.ListOptions{LabelSelector: sel.String()})
+	trialList, err := clientset.RedskyopsV1alpha1().Trials("").List(metav1.ListOptions{LabelSelector: sel.String()})
 	if err != nil {
 		return err
 	}
@@ -194,7 +194,7 @@ func createInClusterSuggestion(namespace, name string, suggestions SuggestionSou
 		})
 	}
 
-	_, err = clientset.RedskyV1alpha1().Trials(namespace).Create(trial)
+	_, err = clientset.RedskyopsV1alpha1().Trials(namespace).Create(trial)
 	return err
 }
 

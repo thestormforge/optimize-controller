@@ -1,7 +1,7 @@
 # This is a sample client configuration file. Example values are wrapped in [], otherwise default values are shown.
 
 # The address the remote API
-#address: [https://example.carbonrelay.io/api]
+#address: [https://example.carbonrelay.dev/api]
 
 # OAuth2 client credential configuration
 #oauth2:

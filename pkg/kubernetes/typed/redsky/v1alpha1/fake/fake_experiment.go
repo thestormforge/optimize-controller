@@ -29,13 +29,13 @@ import (
 
 // FakeExperiments implements ExperimentInterface
 type FakeExperiments struct {
-	Fake *FakeRedskyV1alpha1
+	Fake *FakeRedskyopsV1alpha1
 	ns   string
 }
 
-var experimentsResource = schema.GroupVersionResource{Group: "redsky.carbonrelay.com", Version: "v1alpha1", Resource: "experiments"}
+var experimentsResource = schema.GroupVersionResource{Group: "redskyops.dev", Version: "v1alpha1", Resource: "experiments"}
 
-var experimentsKind = schema.GroupVersionKind{Group: "redsky.carbonrelay.com", Version: "v1alpha1", Kind: "Experiment"}
+var experimentsKind = schema.GroupVersionKind{Group: "redskyops.dev", Version: "v1alpha1", Kind: "Experiment"}
 
 // Get takes name of the experiment, and returns the corresponding experiment object, and an error if there is any.
 func (c *FakeExperiments) Get(name string, options v1.GetOptions) (result *v1alpha1.Experiment, err error) {

@@ -5,7 +5,7 @@
 // +k8s:deepcopy-gen=package,register
 // +k8s:conversion-gen=github.com/redskyops/k8s-experiment/pkg/apis/redsky
 // +k8s:defaulter-gen=TypeMeta
-// +groupName=redsky.carbonrelay.com
+// +groupName=redskyops.dev
 package v1alpha1
 
 import (
@@ -15,7 +15,7 @@ import (
 
 var (
 	// SchemeGroupVersion is group version used to register these objects
-	SchemeGroupVersion = schema.GroupVersion{Group: "redsky.carbonrelay.com", Version: "v1alpha1"}
+	SchemeGroupVersion = schema.GroupVersion{Group: "redskyops.dev", Version: "v1alpha1"}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}

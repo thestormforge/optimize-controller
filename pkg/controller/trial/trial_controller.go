@@ -93,8 +93,8 @@ type ReconcileTrial struct {
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;patch
 // +kubebuilder:rbac:groups="",resources=pods,verbs=list
 // +kubebuilder:rbac:groups="",resources=services,verbs=list
-// +kubebuilder:rbac:groups=redsky.carbonrelay.com,resources=trials,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=redsky.carbonrelay.com,resources=trials/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=redskyops.dev,resources=trials,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=redskyops.dev,resources=trials/status,verbs=get;update;patch
 
 // Reconcile reads that state of the cluster for a Trial object and makes changes based on the state read
 // and what is in the Trial.Spec

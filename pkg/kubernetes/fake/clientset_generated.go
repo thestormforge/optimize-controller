@@ -19,8 +19,8 @@ package fake
 
 import (
 	clientset "github.com/redskyops/k8s-experiment/pkg/kubernetes"
-	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/kubernetes/typed/redsky/v1alpha1"
-	fakeredskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/kubernetes/typed/redsky/v1alpha1/fake"
+	redskyopsv1alpha1 "github.com/redskyops/k8s-experiment/pkg/kubernetes/typed/redsky/v1alpha1"
+	fakeredskyopsv1alpha1 "github.com/redskyops/k8s-experiment/pkg/kubernetes/typed/redsky/v1alpha1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -75,7 +75,7 @@ func (c *Clientset) Tracker() testing.ObjectTracker {
 
 var _ clientset.Interface = &Clientset{}
 
-// RedskyV1alpha1 retrieves the RedskyV1alpha1Client
-func (c *Clientset) RedskyV1alpha1() redskyv1alpha1.RedskyV1alpha1Interface {
-	return &fakeredskyv1alpha1.FakeRedskyV1alpha1{Fake: &c.Fake}
+// RedskyopsV1alpha1 retrieves the RedskyopsV1alpha1Client
+func (c *Clientset) RedskyopsV1alpha1() redskyopsv1alpha1.RedskyopsV1alpha1Interface {
+	return &fakeredskyopsv1alpha1.FakeRedskyopsV1alpha1{Fake: &c.Fake}
 }

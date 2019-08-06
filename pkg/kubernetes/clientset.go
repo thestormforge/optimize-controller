@@ -18,7 +18,7 @@ limitations under the License.
 package kubernetes
 
 import (
-	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/kubernetes/typed/redsky/v1alpha1"
+	redskyopsv1alpha1 "github.com/redskyops/k8s-experiment/pkg/kubernetes/typed/redsky/v1alpha1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
@@ -26,19 +26,19 @@ import (
 
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
-	RedskyV1alpha1() redskyv1alpha1.RedskyV1alpha1Interface
+	RedskyopsV1alpha1() redskyopsv1alpha1.RedskyopsV1alpha1Interface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
 // version included in a Clientset.
 type Clientset struct {
 	*discovery.DiscoveryClient
-	redskyV1alpha1 *redskyv1alpha1.RedskyV1alpha1Client
+	redskyopsV1alpha1 *redskyopsv1alpha1.RedskyopsV1alpha1Client
 }
 
-// RedskyV1alpha1 retrieves the RedskyV1alpha1Client
-func (c *Clientset) RedskyV1alpha1() redskyv1alpha1.RedskyV1alpha1Interface {
-	return c.redskyV1alpha1
+// RedskyopsV1alpha1 retrieves the RedskyopsV1alpha1Client
+func (c *Clientset) RedskyopsV1alpha1() redskyopsv1alpha1.RedskyopsV1alpha1Interface {
+	return c.redskyopsV1alpha1
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -57,7 +57,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	}
 	var cs Clientset
 	var err error
-	cs.redskyV1alpha1, err = redskyv1alpha1.NewForConfig(&configShallowCopy)
+	cs.redskyopsV1alpha1, err = redskyopsv1alpha1.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 // panics if there is an error in the config.
 func NewForConfigOrDie(c *rest.Config) *Clientset {
 	var cs Clientset
-	cs.redskyV1alpha1 = redskyv1alpha1.NewForConfigOrDie(c)
+	cs.redskyopsV1alpha1 = redskyopsv1alpha1.NewForConfigOrDie(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
 	return &cs
@@ -82,7 +82,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 // New creates a new Clientset for the given RESTClient.
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
-	cs.redskyV1alpha1 = redskyv1alpha1.New(c)
+	cs.redskyopsV1alpha1 = redskyopsv1alpha1.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
 	return &cs

@@ -39,13 +39,13 @@ import (
 )
 
 const (
-	annotationPrefix = "redsky.carbonrelay.com/"
+	annotationPrefix = "redskyops.dev/"
 
 	annotationExperimentURL  = annotationPrefix + "experiment-url"
 	annotationNextTrialURL   = annotationPrefix + "next-trial-url"
 	annotationReportTrialURL = annotationPrefix + "report-trial-url"
 
-	finalizer = "finalizer.redsky.carbonrelay.com"
+	finalizer = "finalizer.redskyops.dev"
 )
 
 var log = logf.Log.WithName("controller")
@@ -108,8 +108,8 @@ type ReconcileExperiment struct {
 	api    redskyapi.API
 }
 
-// +kubebuilder:rbac:groups=redsky.carbonrelay.com,resources=experiments,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=redsky.carbonrelay.com,resources=experiments/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=redskyops.dev,resources=experiments,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=redskyops.dev,resources=experiments/status,verbs=get;update;patch
 
 // Reconcile reads that state of the cluster for a Experiment object and makes changes based on the state read
 // and what is in the Experiment.Spec

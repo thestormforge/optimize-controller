@@ -55,7 +55,7 @@ type trials struct {
 }
 
 // newTrials returns a Trials
-func newTrials(c *RedskyV1alpha1Client, namespace string) *trials {
+func newTrials(c *RedskyopsV1alpha1Client, namespace string) *trials {
 	return &trials{
 		client: c.RESTClient(),
 		ns:     namespace,

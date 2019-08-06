@@ -9,7 +9,7 @@ data:
   REPEAT_DATA: "1"
   TESTCASE: "baseline"
 ---
-apiVersion: redsky.carbonrelay.com/v1alpha1
+apiVersion: redskyops.dev/v1alpha1
 kind: Experiment
 metadata:
   name: simple

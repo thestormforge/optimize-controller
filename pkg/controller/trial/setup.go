@@ -39,7 +39,7 @@ var (
 )
 
 const (
-	setupFinalizer = "setupFinalizer.redsky.carbonrelay.com"
+	setupFinalizer = "setupFinalizer.redskyops.dev"
 
 	// These are the arguments accepted by the setuptools container
 	modeCreate = "create"
