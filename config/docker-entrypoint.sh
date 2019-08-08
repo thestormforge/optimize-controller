@@ -59,13 +59,11 @@ fi
 
 # Helm support
 if [ -n "$CHART" ] ; then
+    cd /workspace/helm
+
     if [ ! -d "$(helm home)" ]; then
         helm init --client-only > /dev/null
     fi
-
-    mkdir -p /workspace/helm
-    cd /workspace/helm
-    touch kustomization.yaml
 
     kustomize edit add base ../base
     find . -type f -name "*patch.yaml" -exec kustomize edit add patch {} +

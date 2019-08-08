@@ -29,6 +29,7 @@ RUN cd /workspace/manager && kustomize edit set image controller=${IMG} && \
     cd /workspace/install && kustomize edit add label "app.kubernetes.io/version:${VERSION},app.kubernetes.io/managed-by:redskyctl" && \
     if [ -n "${IMG##*/*}" ] ; then cd /workspace/default; kustomize edit add patch manager_image_pull_policy.yaml; fi && \
     mkdir -p /workspace/base && touch /workspace/base/kustomization.yaml && \
+    mkdir -p /workspace/helm && touch /workspace/helm/kustomization.yaml && \
     chown -R setup /workspace
 
 WORKDIR "/workspace/base"
