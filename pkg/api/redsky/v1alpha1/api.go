@@ -58,16 +58,21 @@ const (
 	ErrTrialInvalid                     = "trial-invalid"
 	ErrTrialUnavailable                 = "trial-unavailable"
 	ErrTrialNotFound                    = "trial-not-found"
+	ErrUnexpected                       = "unexpected"
 )
 
 // Error represents the API specific error messages and may be used in response to HTTP status codes
 type Error struct {
-	Type       ErrorType
-	RetryAfter time.Duration
+	Type       ErrorType     `json:"-"`
+	Message    string        `json:"error"`
+	RetryAfter time.Duration `json:"-"`
 }
 
 func (e *Error) Error() string {
-	return fmt.Sprintf("%s", e.Type)
+	if e.Message != "" {
+		return e.Message
+	}
+	return string(e.Type)
 }
 
 // ExperimentName exists to clearly separate cases where an actual name can be used
@@ -327,9 +332,9 @@ func (h *httpAPI) GetAllExperimentsByPage(ctx context.Context, u string) (Experi
 	case http.StatusOK:
 		metaUnmarshal(resp.Header, &lst.ExperimentListMeta)
 		err = json.Unmarshal(body, &lst)
-		return lst, nil
+		return lst, err
 	default:
-		return lst, unexpected(resp)
+		return lst, unexpected(resp, body)
 	}
 }
 
@@ -359,26 +364,25 @@ func (h *httpAPI) GetExperiment(ctx context.Context, u string) (Experiment, erro
 	case http.StatusNotFound:
 		return e, &Error{Type: ErrExperimentNotFound}
 	default:
-		return e, unexpected(resp)
+		return e, unexpected(resp, body)
 	}
 }
 
 func (h *httpAPI) CreateExperiment(ctx context.Context, n ExperimentName, exp Experiment) (Experiment, error) {
 	e := Experiment{}
 	u := h.client.URL(endpointExperiment + "/" + url.PathEscape(n.Name()))
-
-	body, err := json.Marshal(exp)
+	b, err := json.Marshal(exp)
 	if err != nil {
 		return e, err
 	}
 
-	req, err := http.NewRequest(http.MethodPut, u.String(), bytes.NewBuffer(body))
+	req, err := http.NewRequest(http.MethodPut, u.String(), bytes.NewBuffer(b))
 	if err != nil {
 		return e, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, _, err := h.client.Do(ctx, req)
+	resp, body, err := h.client.Do(ctx, req)
 	if err != nil {
 		return e, err
 	}
@@ -387,11 +391,11 @@ func (h *httpAPI) CreateExperiment(ctx context.Context, n ExperimentName, exp Ex
 	case http.StatusOK:
 		metaUnmarshal(resp.Header, &e.ExperimentMeta)
 		err = json.Unmarshal(body, &e)
-		return e, nil
+		return e, err
 	case http.StatusCreated:
 		metaUnmarshal(resp.Header, &e.ExperimentMeta)
 		err = json.Unmarshal(body, &e)
-		return e, nil
+		return e, err
 	case http.StatusBadRequest:
 		return e, &Error{Type: ErrExperimentNameInvalid}
 	case http.StatusConflict:
@@ -399,7 +403,7 @@ func (h *httpAPI) CreateExperiment(ctx context.Context, n ExperimentName, exp Ex
 	case http.StatusUnprocessableEntity:
 		return e, &Error{Type: ErrExperimentInvalid}
 	default:
-		return e, unexpected(resp)
+		return e, unexpected(resp, body)
 	}
 }
 
@@ -409,7 +413,7 @@ func (h *httpAPI) DeleteExperiment(ctx context.Context, u string) error {
 		return err
 	}
 
-	resp, _, err := h.client.Do(ctx, req)
+	resp, body, err := h.client.Do(ctx, req)
 	if err != nil {
 		return err
 	}
@@ -420,7 +424,7 @@ func (h *httpAPI) DeleteExperiment(ctx context.Context, u string) error {
 	case http.StatusNotFound:
 		return &Error{Type: ErrExperimentNotFound}
 	default:
-		return unexpected(resp)
+		return unexpected(resp, body)
 	}
 }
 
@@ -440,27 +444,26 @@ func (h *httpAPI) GetAllTrials(ctx context.Context, u string) (TrialList, error)
 	switch resp.StatusCode {
 	case http.StatusOK:
 		err = json.Unmarshal(body, &lst)
-		return lst, nil
+		return lst, err
 	default:
-		return lst, unexpected(resp)
+		return lst, unexpected(resp, body)
 	}
 }
 
 func (h *httpAPI) CreateTrial(ctx context.Context, u string, asm TrialAssignments) (string, error) {
 	l := ""
-
-	body, err := json.Marshal(asm)
+	b, err := json.Marshal(asm)
 	if err != nil {
 		return l, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, u, bytes.NewBuffer(body))
+	req, err := http.NewRequest(http.MethodPost, u, bytes.NewBuffer(b))
 	if err != nil {
 		return l, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, _, err := h.client.Do(ctx, req)
+	resp, body, err := h.client.Do(ctx, req)
 	if err != nil {
 		return l, err
 	}
@@ -470,9 +473,9 @@ func (h *httpAPI) CreateTrial(ctx context.Context, u string, asm TrialAssignment
 		l = resp.Header.Get("Location")
 		return l, nil
 	case http.StatusUnprocessableEntity:
-		return "", &Error{Type: ErrTrialInvalid}
+		return l, &Error{Type: ErrTrialInvalid}
 	default:
-		return l, unexpected(resp)
+		return l, unexpected(resp, body)
 	}
 }
 
@@ -504,7 +507,7 @@ func (h *httpAPI) NextTrial(ctx context.Context, u string) (TrialAssignments, er
 		}
 		return asm, &Error{Type: ErrTrialUnavailable, RetryAfter: time.Duration(ra) * time.Second}
 	default:
-		return asm, unexpected(resp)
+		return asm, unexpected(resp, body)
 	}
 }
 
@@ -512,19 +515,18 @@ func (h *httpAPI) ReportTrial(ctx context.Context, u string, vls TrialValues) er
 	if vls.Failed {
 		vls.Values = nil
 	}
-
-	body, err := json.Marshal(vls)
+	b, err := json.Marshal(vls)
 	if err != nil {
 		return err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, u, bytes.NewBuffer(body))
+	req, err := http.NewRequest(http.MethodPost, u, bytes.NewBuffer(b))
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, _, err := h.client.Do(ctx, req)
+	resp, body, err := h.client.Do(ctx, req)
 	if err != nil {
 		return err
 	}
@@ -537,20 +539,28 @@ func (h *httpAPI) ReportTrial(ctx context.Context, u string, vls TrialValues) er
 	case http.StatusUnprocessableEntity:
 		return &Error{Type: ErrTrialInvalid}
 	default:
-		return unexpected(resp)
+		return unexpected(resp, body)
 	}
 }
 
-func unexpected(resp *http.Response) error {
+func unexpected(resp *http.Response, body []byte) error {
+	err := &Error{Type: ErrUnexpected, Message: fmt.Sprintf("unexpected server response: %s", resp.Status)}
+
+	if resp.Header.Get("Content-Type") == "application/json" {
+		// Unmarshal body into the error to get the error message
+		_ = json.Unmarshal(body, err)
+	}
+
 	switch resp.StatusCode {
 	case http.StatusUnauthorized:
-		return fmt.Errorf("unauthorized")
+		err.Message = "unauthorized"
 	case http.StatusNotFound:
 		if resp.Request != nil && resp.Request.URL != nil {
-			return fmt.Errorf("not found: %s", resp.Request.URL.String())
+			err.Message = fmt.Sprintf("not found: %s", resp.Request.URL.String())
 		}
 	}
-	return fmt.Errorf("unexpected server response: %s", resp.Status)
+
+	return err
 }
 
 // Extract metadata from the response headers, failures are silently ignored, always call before extracting entity body
