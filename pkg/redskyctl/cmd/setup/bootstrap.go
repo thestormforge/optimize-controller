@@ -306,7 +306,9 @@ func NewBootstrapInitConfig(o *SetupOptions, clientConfig *api.Config) (*Bootstr
 		b.Job.Spec.Template.Spec.Containers[0].Args = append(b.Job.Spec.Template.Spec.Containers[0].Args, "--dry-run")
 	}
 
-	applyClientSet(b, o)
+	if o.ClientSet != nil {
+		applyClientSet(b, o)
+	}
 	return b, nil
 }
 

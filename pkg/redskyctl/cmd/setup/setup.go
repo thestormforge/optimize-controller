@@ -74,10 +74,13 @@ func (o *SetupOptions) AddFlags(cmd *cobra.Command) {
 }
 
 func (o *SetupOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) error {
-	var err error
-	o.ClientSet, err = f.KubernetesClientSet()
-	if err != nil {
-		return err
+	if !o.Bootstrap || !o.DryRun {
+		// If this is a bootstrap dry-run we do not need to talk to the cluster
+		var err error
+		o.ClientSet, err = f.KubernetesClientSet()
+		if err != nil {
+			return err
+		}
 	}
 
 	switch cmd.Name() {
