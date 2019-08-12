@@ -134,8 +134,11 @@ func NewClient(cfg Config) (Client, error) {
 
 	// Default client
 	if hc == nil {
-		hc = &http.Client{Timeout: 10 * time.Second}
+		hc = &http.Client{}
 	}
+
+	// Use an explicit timeout
+	hc.Timeout = 10 * time.Second
 
 	// Strip the trailing slash back out so it isn't displayed
 	u.Path = strings.TrimRight(u.Path, "/")
