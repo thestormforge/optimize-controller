@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: redsky-system
+$patch: delete
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: client-config
+$patch: delete
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller-manager
+  namespace: system
+  annotations:
+    "checksum/config": SECRET_SHA256

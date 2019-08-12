@@ -25,8 +25,11 @@ RUN apk --no-cache add curl && \
 
 COPY . /workspace/
 
-RUN cd /workspace/manager && kustomize edit set image controller=${IMG} && \
+RUN sed -i "s/IMG/${IMG%:*}/g" /workspace/chart/redskyops/values.yaml && \
+    sed -i "s/TAG/${IMG##*:}/g" /workspace/chart/redskyops/values.yaml && \
+    echo "appVersion: ${VERSION}" >> /workspace/chart/redskyops/Chart.yaml && \
     cd /workspace/install && kustomize edit add label "app.kubernetes.io/version:${VERSION},app.kubernetes.io/managed-by:redskyctl" && \
+    cd /workspace/manager && kustomize edit set image controller=${IMG} && \
     if [ -n "${IMG##*/*}" ] ; then cd /workspace/default; kustomize edit add patch manager_image_pull_policy.yaml; fi && \
     mkdir -p /workspace/base && touch /workspace/base/kustomization.yaml && \
     mkdir -p /workspace/helm && touch /workspace/helm/kustomization.yaml && \

@@ -1,6 +1,14 @@
 #!/bin/sh
 set -eo pipefail
 
+
+# Package the Helm chart and do nothing else
+if [ "$1" == "chart" ] ; then
+    shift && /workspace/chart/build.sh $@
+    exit $?
+fi
+
+
 # Require a kustomization.yaml file to exist for edits
 if [ ! -e kustomization.yaml ] ; then
     echo "Error: unable to find 'kustomization.yaml' in directory '$(pwd)'"
