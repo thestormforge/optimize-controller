@@ -25,8 +25,8 @@ RUN apk --no-cache add curl && \
 
 COPY . /workspace/
 
-RUN sed -i "s/IMG/${IMG%:*}/g" /workspace/chart/redskyops/values.yaml && \
-    sed -i "s/TAG/${IMG##*:}/g" /workspace/chart/redskyops/values.yaml && \
+RUN sed -i "s|IMG|${IMG%:*}|g" /workspace/chart/redskyops/values.yaml && \
+    sed -i "s|TAG|${IMG##*:}|g" /workspace/chart/redskyops/values.yaml && \
     echo "appVersion: ${VERSION}" >> /workspace/chart/redskyops/Chart.yaml && \
     cd /workspace/install && kustomize edit add label "app.kubernetes.io/version:${VERSION},app.kubernetes.io/managed-by:redskyctl" && \
     cd /workspace/manager && kustomize edit set image controller=${IMG} && \

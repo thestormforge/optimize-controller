@@ -54,5 +54,5 @@ kustomize build rbac | templatizeRBAC > "$WORKSPACE/chart/redskyops/templates/rb
 kustomize build chart | templatizeDeployment > "$WORKSPACE/chart/redskyops/templates/deployment.yaml"
 
 # Package everything together using Helm
-helm package --save=false --version "$1" "$WORKSPACE/chart/redskyops" > /dev/null
-cat "/workspace/redskyops-$1.tgz" | base64
+helm package --save=false "$WORKSPACE/chart/redskyops" > /dev/null
+cat "/workspace/redskyops-*.tgz" | base64
