@@ -1,4 +1,4 @@
-# Remote Server Configuration
+# Server Configuration
 
 To configure a remote server (e.g. when using the [Enterprise solution](https://www.carbonrelay.com/red-sky-ops/)), you must provide connection parameters through the Red Sky Ops configuration.
 

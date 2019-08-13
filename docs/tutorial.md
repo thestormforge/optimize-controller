@@ -1,4 +1,4 @@
-# Advanced Tutorial
+# Tutorial
 
 ## Prerequisites
 
