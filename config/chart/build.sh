@@ -1,12 +1,14 @@
 #!/bin/sh
 set -eo pipefail
 
+# Parse arguments and set variables
 if [ -z "$1" ]; then
-    echo "usage: chart [VERSION]"
+    echo "usage: $(basename $0) [CHART_VERSION]"
     exit 1
 fi
-
+CHART_VERSION=$1
 WORKSPACE=${WORKSPACE:-/workspace}
+
 
 # Post process the deployment manifest
 function templatizeDeployment {
@@ -24,9 +26,11 @@ function templatizeRBAC {
 }
 
 
-# TODO It seems like the proxy service is in the wrong spot
+# Move non-role resource out of RBAC
 mv "$WORKSPACE/rbac/auth_proxy_service.yaml" "$WORKSPACE/default/."
 
+
+# Edit the kustomizations for templatization
 cd "$WORKSPACE/install"
 kustomize edit remove label "app.kubernetes.io/managed-by"
 
@@ -53,6 +57,7 @@ kustomize build crd > "$WORKSPACE/chart/redskyops/templates/crds.yaml"
 kustomize build rbac | templatizeRBAC > "$WORKSPACE/chart/redskyops/templates/rbac.yaml"
 kustomize build chart | templatizeDeployment > "$WORKSPACE/chart/redskyops/templates/deployment.yaml"
 
+
 # Package everything together using Helm
-helm package --save=false "$WORKSPACE/chart/redskyops" > /dev/null
-cat "/workspace/redskyops-*.tgz" | base64
+helm package --save=false --version "$CHART_VERSION" "$WORKSPACE/chart/redskyops" > /dev/null
+cat "/workspace/redskyops-$CHART_VERSION.tgz" | base64
