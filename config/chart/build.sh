@@ -25,16 +25,26 @@ function templatizeRBAC {
         cat "$WORKSPACE/chart/rbac_header.txt" - "$WORKSPACE/chart/rbac_footer.txt"
 }
 
+# Post processing to add recommended labels
+function label {
+    sed '/^  labels:$/,/^    app\.kubernetes\.io\/name: redskyops$/c\
+  labels:\
+    app.kubernetes.io/name: redskyops\
+    helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"\
+    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}\
+    app.kubernetes.io/instance: {{ .Release.Name | quote }}\
+    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}'
+}
+
 
 # Move non-role resource out of RBAC
 mv "$WORKSPACE/rbac/auth_proxy_service.yaml" "$WORKSPACE/default/."
 
 
 # Edit the kustomizations for templatization
-cd "$WORKSPACE/install"
-kustomize edit remove label "app.kubernetes.io/managed-by"
 
 cd "$WORKSPACE/crd"
+kustomize edit add label "app.kubernetes.io/name:redskyops"
 kustomize edit add annotation "helm.sh/hook:crd-install"
 
 cd "$WORKSPACE/manager"
@@ -46,6 +56,7 @@ kustomize edit remove resource "../rbac"
 kustomize edit add resource "auth_proxy_service.yaml"
 
 cd "$WORKSPACE/rbac"
+kustomize edit add label "app.kubernetes.io/name:redskyops"
 kustomize edit set namespace "redsky-system"
 kustomize edit set nameprefix "redsky-"
 kustomize edit remove resource "auth_proxy_service.yaml"
@@ -53,9 +64,9 @@ kustomize edit remove resource "auth_proxy_service.yaml"
 
 # Build the templates for the chart
 cd "$WORKSPACE"
-kustomize build crd > "$WORKSPACE/chart/redskyops/templates/crds.yaml"
-kustomize build rbac | templatizeRBAC > "$WORKSPACE/chart/redskyops/templates/rbac.yaml"
-kustomize build chart | templatizeDeployment > "$WORKSPACE/chart/redskyops/templates/deployment.yaml"
+kustomize build crd | label > "$WORKSPACE/chart/redskyops/templates/crds.yaml"
+kustomize build rbac | templatizeRBAC | label > "$WORKSPACE/chart/redskyops/templates/rbac.yaml"
+kustomize build chart | templatizeDeployment | label > "$WORKSPACE/chart/redskyops/templates/deployment.yaml"
 
 
 # Package everything together using Helm
