@@ -16,4 +16,9 @@ metadata:
   name: controller-manager
   namespace: system
   annotations:
-    "checksum/config": SECRET_SHA256
+    checksum/config: SECRET_SHA256
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/version: VERSION

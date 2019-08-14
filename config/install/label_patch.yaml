@@ -80,3 +80,8 @@ metadata:
   labels:
     app.kubernetes.io/version: VERSION
     app.kubernetes.io/managed-by: redskyctl
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/version: VERSION
