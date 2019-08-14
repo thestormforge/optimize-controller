@@ -45,7 +45,8 @@ mv "$WORKSPACE/rbac/auth_proxy_service.yaml" "$WORKSPACE/default/."
 
 cd "$WORKSPACE/crd"
 kustomize edit add label "app.kubernetes.io/name:redskyops"
-kustomize edit add annotation "helm.sh/hook:crd-install"
+# NOTE: Not using the crd-install hook is more consistent with `redskyctl reset`
+# kustomize edit add annotation "helm.sh/hook:crd-install"
 
 cd "$WORKSPACE/manager"
 kustomize edit set image controller="IMG:TAG"
