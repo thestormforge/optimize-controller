@@ -214,24 +214,30 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 			} else {
 				// Create an observation for the remote server
 				trialValues := redskyapi.TrialValues{}
+
+				// Check to see if the trial failed
 				for _, c := range t.Status.Conditions {
 					if c.Type == redskyv1alpha1.TrialFailed && c.Status == corev1.ConditionTrue {
 						trialValues.Failed = true
 					}
 				}
-				for _, v := range t.Spec.Values {
-					if fv, err := strconv.ParseFloat(v.Value, 64); err == nil {
-						trialValues.Values = append(trialValues.Values, redskyapi.Value{
-							MetricName: v.Name,
-							Value:      fv,
-							// TODO Error is the standard deviation for the metric
-						})
+
+				// Record the values only if we didn't fail
+				if !trialValues.Failed {
+					for _, v := range t.Spec.Values {
+						if fv, err := strconv.ParseFloat(v.Value, 64); err == nil {
+							trialValues.Values = append(trialValues.Values, redskyapi.Value{
+								MetricName: v.Name,
+								Value:      fv,
+								// TODO Error is the standard deviation for the metric
+							})
+						}
 					}
 				}
 
 				// Send the observation to the server
 				reportTrialURL := t.GetAnnotations()[annotationReportTrialURL]
-				log.Info("Reporting trial", "namespace", t.Namespace, "reportTrialURL", reportTrialURL, "assignments", t.Spec.Assignments, "values", trialValues.Values)
+				log.Info("Reporting trial", "namespace", t.Namespace, "reportTrialURL", reportTrialURL, "assignments", t.Spec.Assignments, "values", trialValues)
 				if err := r.api.ReportTrial(context.TODO(), reportTrialURL, trialValues); err != nil {
 					// This error only matters if the experiment itself is not deleted, otherwise ignore it so we can remove the finalizer
 					if experiment.DeletionTimestamp == nil {
