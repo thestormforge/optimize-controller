@@ -27,7 +27,7 @@ func CheckErr(err error) {
 	}
 
 	// This error handling leaves a lot to be desired...
-	fmt.Fprintf(os.Stderr, "Failed: %s\n", err.Error())
+	_, _ = fmt.Fprintf(os.Stderr, "Failed: %s\n", err.Error())
 	os.Exit(1)
 }
 
