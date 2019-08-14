@@ -16,7 +16,7 @@ import (
 // TODO Filters?
 
 const (
-	statusLong    = `Check status for each trial in an experiment`
+	statusLong    = `Check in cluster status for each trial in an experiment`
 	statusExample = ``
 )
 
@@ -46,7 +46,7 @@ func NewStatusCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Com
 
 	cmd := &cobra.Command{
 		Use:     "status NAME",
-		Short:   "Check experiment status",
+		Short:   "Check in cluster experiment status",
 		Long:    statusLong,
 		Example: statusExample,
 		Args:    cobra.ExactArgs(1),
