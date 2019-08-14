@@ -3,9 +3,9 @@ FROM alpine:latest
 ARG IMG
 ARG VERSION
 
-ENV HELM_VERSION="v2.14.2" \
-    HELM_URL="https://get.helm.sh/helm-v2.14.2-linux-amd64.tar.gz" \
-    HELM_SHA256="9f50e69cf5cfa7268b28686728ad0227507a169e52bf59c99ada872ddd9679f0"
+ENV HELM_VERSION="v2.14.3" \
+    HELM_URL="https://get.helm.sh/helm-v2.14.3-linux-amd64.tar.gz" \
+    HELM_SHA256="3f907cac93c6b18c36910b15af02ddc3d454b59a870899afdfa75548f9a7658d"
 
 ENV KUBECTL_VERSION="v1.14.4" \
     KUBECTL_URL="https://storage.googleapis.com/kubernetes-release/release/v1.14.4/bin/linux/amd64/kubectl" \
