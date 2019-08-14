@@ -22,6 +22,7 @@ import (
 
 	"github.com/redskyops/k8s-experiment/pkg/api"
 	"github.com/redskyops/k8s-experiment/pkg/controller/trial"
+	"github.com/redskyops/k8s-experiment/pkg/version"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -162,6 +163,11 @@ func NewBootstrapInitConfig(o *SetupOptions, clientConfig *api.Config) (*Bootstr
 		Namespace: corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: namespace,
+				Labels: map[string]string{
+					"app.kubernetes.io/name":       "redskyops",
+					"app.kubernetes.io/version":    version.Version,
+					"app.kubernetes.io/managed-by": "redskyctl",
+				},
 				Annotations: map[string]string{
 					// This is just an attempt to prevent a warning about only using create/apply
 					"kubectl.kubernetes.io/last-applied-configuration": fmt.Sprintf(`{"apiVersion":"v1","kind":"Namespace","metadata":{"annotations":{},"labels":{},"name":"%s"}}`, namespace),
@@ -171,7 +177,15 @@ func NewBootstrapInitConfig(o *SetupOptions, clientConfig *api.Config) (*Bootstr
 
 		// Bootstrap cluster role bound to the default service account of the namespace
 		ClusterRole: rbacv1.ClusterRole{
-			ObjectMeta: metav1.ObjectMeta{Name: name},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+				Labels: map[string]string{
+					"app.kubernetes.io/name":       "redskyops",
+					"app.kubernetes.io/version":    version.Version,
+					"app.kubernetes.io/component":  "install",
+					"app.kubernetes.io/managed-by": "redskyctl",
+				},
+			},
 			Rules: []rbacv1.PolicyRule{
 				{
 					Verbs:     []string{rbacv1.VerbAll},
@@ -181,7 +195,15 @@ func NewBootstrapInitConfig(o *SetupOptions, clientConfig *api.Config) (*Bootstr
 			},
 		},
 		ClusterRoleBinding: rbacv1.ClusterRoleBinding{
-			ObjectMeta: metav1.ObjectMeta{Name: name},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+				Labels: map[string]string{
+					"app.kubernetes.io/name":       "redskyops",
+					"app.kubernetes.io/version":    version.Version,
+					"app.kubernetes.io/component":  "install",
+					"app.kubernetes.io/managed-by": "redskyctl",
+				},
+			},
 			Subjects: []rbacv1.Subject{
 				{
 					Kind:      rbacv1.ServiceAccountKind,
@@ -198,7 +220,15 @@ func NewBootstrapInitConfig(o *SetupOptions, clientConfig *api.Config) (*Bootstr
 
 		// Bootstrap role bound to the default service account of the namespace
 		Role: rbacv1.Role{
-			ObjectMeta: metav1.ObjectMeta{Name: name},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+				Labels: map[string]string{
+					"app.kubernetes.io/name":       "redskyops",
+					"app.kubernetes.io/version":    version.Version,
+					"app.kubernetes.io/component":  "install",
+					"app.kubernetes.io/managed-by": "redskyctl",
+				},
+			},
 			Rules: []rbacv1.PolicyRule{
 				{
 					Verbs:     []string{rbacv1.VerbAll},
@@ -208,7 +238,15 @@ func NewBootstrapInitConfig(o *SetupOptions, clientConfig *api.Config) (*Bootstr
 			},
 		},
 		RoleBinding: rbacv1.RoleBinding{
-			ObjectMeta: metav1.ObjectMeta{Name: name},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+				Labels: map[string]string{
+					"app.kubernetes.io/name":       "redskyops",
+					"app.kubernetes.io/version":    version.Version,
+					"app.kubernetes.io/component":  "install",
+					"app.kubernetes.io/managed-by": "redskyctl",
+				},
+			},
 			Subjects: []rbacv1.Subject{
 				{
 					Kind:      rbacv1.ServiceAccountKind,
@@ -225,15 +263,28 @@ func NewBootstrapInitConfig(o *SetupOptions, clientConfig *api.Config) (*Bootstr
 
 		// This bootstrap secret is used as input to a kustomization during installation
 		Secret: corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{Name: name},
-			Data:       map[string][]byte{"client.yaml": secretData},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+				Labels: map[string]string{
+					"app.kubernetes.io/name":       "redskyops",
+					"app.kubernetes.io/version":    version.Version,
+					"app.kubernetes.io/component":  "install",
+					"app.kubernetes.io/managed-by": "redskyctl",
+				},
+			},
+			Data: map[string][]byte{"client.yaml": secretData},
 		},
 
 		// The job does a `kubectl apply` to the manifests of the product
 		Job: batchv1.Job{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:   name,
-				Labels: map[string]string{"app": "redsky", "role": "install"},
+				Name: name,
+				Labels: map[string]string{
+					"app.kubernetes.io/name":       "redskyops",
+					"app.kubernetes.io/version":    version.Version,
+					"app.kubernetes.io/component":  "install",
+					"app.kubernetes.io/managed-by": "redskyctl",
+				},
 			},
 			Spec: batchv1.JobSpec{
 				BackoffLimit:            new(int32),
