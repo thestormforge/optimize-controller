@@ -7,6 +7,7 @@ resources:
 - ../default
 
 patchesStrategicMerge:
+- label_patch.yaml
 - manager_client_patch.yaml
 
 secretGenerator:

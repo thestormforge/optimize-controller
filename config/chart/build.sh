@@ -43,6 +43,9 @@ mv "$WORKSPACE/rbac/auth_proxy_service.yaml" "$WORKSPACE/default/."
 
 # Edit the kustomizations for templatization
 
+cd "$WORKSPACE/install"
+kustomize edit remove patch label_patch.yaml
+
 cd "$WORKSPACE/crd"
 kustomize edit add label "app.kubernetes.io/name:redskyops"
 # NOTE: Not using the crd-install hook is more consistent with `redskyctl reset`
