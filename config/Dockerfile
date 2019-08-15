@@ -1,8 +1,5 @@
 FROM alpine:latest
 
-ARG IMG
-ARG VERSION
-
 ENV HELM_VERSION="v2.14.3" \
     HELM_URL="https://get.helm.sh/helm-v2.14.3-linux-amd64.tar.gz" \
     HELM_SHA256="3f907cac93c6b18c36910b15af02ddc3d454b59a870899afdfa75548f9a7658d"
@@ -25,6 +22,8 @@ RUN apk --no-cache add curl && \
 
 COPY . /workspace/
 
+ARG IMG
+ARG VERSION
 RUN sed -i "s|IMG|${IMG%:*}|g" /workspace/chart/redskyops/values.yaml && \
     sed -i "s|TAG|${IMG##*:}|g" /workspace/chart/redskyops/values.yaml && \
     echo "appVersion: ${VERSION}" >> /workspace/chart/redskyops/Chart.yaml && \
