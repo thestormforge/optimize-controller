@@ -4,10 +4,10 @@ To configure a remote server (e.g. when using the [Enterprise solution](https://
 
 ## Connection Details
 
-To connect to a remote server, you must provide an API endpoint to connect to the remote server (note that trailing the `/api` is required):
+To connect to a remote server, you must provide an API endpoint to connect to the remote server:
 
 ```sh
-$ redskyctl config set address https://example.carbonrelay.dev/api
+$ redskyctl config set address https://example.carbonrelay.dev
 ```
 
 Additionally, you may need to specify OAuth2 credentials:
