@@ -28,21 +28,27 @@ import (
 
 const (
 	flagKubeconfig = "kubeconfig"
+	flagContext    = "context"
 )
 
 type ConfigFlags struct {
 	KubeConfig *string
+	Context    *string
 }
 
 func NewConfigFlags() *ConfigFlags {
 	return &ConfigFlags{
 		KubeConfig: stringptr(""),
+		Context:    stringptr(""),
 	}
 }
 
 func (f *ConfigFlags) AddFlags(flags *pflag.FlagSet) {
 	if f.KubeConfig != nil {
 		flags.StringVar(f.KubeConfig, flagKubeconfig, *f.KubeConfig, "Path to the kubeconfig file to use for CLI requests.")
+	}
+	if f.Context != nil {
+		flags.StringVar(f.Context, flagContext, *f.Context, "The name of the kubeconfig context to use.")
 	}
 }
 
@@ -52,5 +58,8 @@ func (f *ConfigFlags) ToRESTConfig() (*rest.Config, error) {
 		loadingRules.ExplicitPath = *f.KubeConfig
 	}
 	overrides := &clientcmd.ConfigOverrides{}
+	if f.Context != nil {
+		overrides.CurrentContext = *f.Context
+	}
 	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, overrides).ClientConfig()
 }
