@@ -4,9 +4,9 @@ ENV HELM_VERSION="v2.14.3" \
     HELM_URL="https://get.helm.sh/helm-v2.14.3-linux-amd64.tar.gz" \
     HELM_SHA256="3f907cac93c6b18c36910b15af02ddc3d454b59a870899afdfa75548f9a7658d"
 
-ENV KUBECTL_VERSION="v1.14.4" \
-    KUBECTL_URL="https://storage.googleapis.com/kubernetes-release/release/v1.14.4/bin/linux/amd64/kubectl" \
-    KUBECTL_SHA256="409bdecd3b8025c8d35b6c188d2015a6328a1a8e86f244bcd6703a65fe7dfb5e"
+ENV KUBECTL_VERSION="v1.14.5" \
+    KUBECTL_URL="https://storage.googleapis.com/kubernetes-release/release/v1.14.5/bin/linux/amd64/kubectl" \
+    KUBECTL_SHA256="26681319de56820a8467c9407e9203d5b15fb010ffc75ac5b99c9945ad0bd28c"
 
 ENV KUSTOMIZE_VERSION="v3.1.0" \
     KUSTOMIZE_URL="https://github.com/kubernetes-sigs/kustomize/releases/download/v3.1.0/kustomize_3.1.0_linux_amd64" \
