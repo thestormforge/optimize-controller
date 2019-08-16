@@ -47,6 +47,30 @@ type Meta interface {
 	SetLink(rel, link string)
 }
 
+// Metadata is used to hold single or multi-value metadata from list responses
+type Metadata map[string][]string
+
+func (m *Metadata) UnmarshalJSON(b []byte) error {
+	var raw map[string]interface{}
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return err
+	}
+	if *m == nil {
+		*m = make(map[string][]string, len(raw))
+	}
+	for k, v := range raw {
+		switch t := v.(type) {
+		case string:
+			(*m)[k] = append((*m)[k], t)
+		case []interface{}:
+			for i := range t {
+				(*m)[k] = append((*m)[k], fmt.Sprintf("%s", t[i]))
+			}
+		}
+	}
+	return nil
+}
+
 type ErrorType string
 
 const (
@@ -172,8 +196,9 @@ type Experiment struct {
 
 type ExperimentItem struct {
 	Experiment
-	// The absolute URL used to reference the individual experiment.
-	ItemRef string `json:"itemRef,omitempty"`
+
+	// The metadata for an individual experiment.
+	Metadata Metadata `json:"_metadata,omitempty"`
 }
 
 type ExperimentListMeta struct {
@@ -332,6 +357,9 @@ func (h *httpAPI) GetAllExperimentsByPage(ctx context.Context, u string) (Experi
 	case http.StatusOK:
 		metaUnmarshal(resp.Header, &lst.ExperimentListMeta)
 		err = json.Unmarshal(body, &lst)
+		for i := range lst.Experiments {
+			metaUnmarshal(http.Header(lst.Experiments[i].Metadata), &lst.Experiments[i].Experiment.ExperimentMeta)
+		}
 		return lst, err
 	default:
 		return lst, unexpected(resp, body)
