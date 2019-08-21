@@ -7,6 +7,7 @@ import (
 	"github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	redskykube "github.com/redskyops/k8s-experiment/pkg/kubernetes"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
+	"github.com/redskyops/k8s-experiment/pkg/util"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -96,12 +97,14 @@ func (o *StatusOptions) Run() error {
 		return err
 	}
 
-	sel, err := exp.GetTrialSelector()
-	if err != nil {
+	opts := metav1.ListOptions{}
+	if sel, err := util.MatchingSelector(exp.GetTrialSelector()); err != nil {
 		return err
+	} else {
+		sel.ApplyToListOptions(&opts)
 	}
 
-	list, err := o.RedSkyClientSet.RedskyopsV1alpha1().Trials("").List(metav1.ListOptions{LabelSelector: sel.String()})
+	list, err := o.RedSkyClientSet.RedskyopsV1alpha1().Trials("").List(opts)
 	if err != nil {
 		return err
 	}

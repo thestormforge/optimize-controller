@@ -27,6 +27,7 @@ import (
 	redskykube "github.com/redskyops/k8s-experiment/pkg/kubernetes"
 	"github.com/redskyops/k8s-experiment/pkg/kubernetes/scheme"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
+	"github.com/redskyops/k8s-experiment/pkg/util"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -210,11 +211,14 @@ func createKubernetesSuggestion(namespace, name string, suggestions SuggestionSo
 		return err
 	}
 
-	sel, err := exp.GetTrialSelector()
-	if err != nil {
+	opts := metav1.ListOptions{}
+	if sel, err := util.MatchingSelector(exp.GetTrialSelector()); err != nil {
 		return err
+	} else {
+		sel.ApplyToListOptions(&opts)
 	}
-	trialList, err := clientset.RedskyopsV1alpha1().Trials("").List(metav1.ListOptions{LabelSelector: sel.String()})
+
+	trialList, err := clientset.RedskyopsV1alpha1().Trials("").List(opts)
 	if err != nil {
 		return err
 	}

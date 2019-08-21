@@ -18,7 +18,6 @@ package v1alpha1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 )
 
 // GetSelfReference returns an object reference to this experiment
@@ -63,13 +62,12 @@ func (in *Experiment) GetDefaultLabels() map[string]string {
 }
 
 // Returns a label selector for matching trials associated with the experiment
-func (in *Experiment) GetTrialSelector() (labels.Selector, error) {
-	if in.Spec.Selector == nil {
-		sel := labels.SelectorFromSet(in.Spec.Template.Labels)
-		if sel.Empty() {
-			sel = labels.SelectorFromSet(in.GetDefaultLabels())
-		}
-		return sel, nil
+func (in *Experiment) GetTrialSelector() *metav1.LabelSelector {
+	if in.Spec.Selector != nil {
+		return in.Spec.Selector
+	} else if len(in.Spec.Template.Labels) > 0 {
+		return &metav1.LabelSelector{MatchLabels: in.Spec.Template.Labels}
+	} else {
+		return &metav1.LabelSelector{MatchLabels: in.GetDefaultLabels()}
 	}
-	return metav1.LabelSelectorAsSelector(in.Spec.Selector)
 }

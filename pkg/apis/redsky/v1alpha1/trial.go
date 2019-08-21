@@ -16,6 +16,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -46,4 +47,15 @@ func (in *Trial) GetAssignment(name string) (int64, bool) {
 		}
 	}
 	return 0, false
+}
+
+// Returns the job selector
+func (in *Trial) GetJobSelector() *metav1.LabelSelector {
+	if in.Spec.Selector != nil {
+		return in.Spec.Selector
+	} else if in.Spec.Template != nil && len(in.Spec.Template.Labels) > 0 {
+		return &metav1.LabelSelector{MatchLabels: in.Spec.Template.Labels}
+	} else {
+		return &metav1.LabelSelector{MatchLabels: in.GetDefaultLabels()}
+	}
 }

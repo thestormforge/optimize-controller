@@ -24,6 +24,7 @@ import (
 	redskyapi "github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	redskytrial "github.com/redskyops/k8s-experiment/pkg/controller/trial"
+	"github.com/redskyops/k8s-experiment/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -143,11 +144,11 @@ func (r *ReconcileExperiment) Reconcile(request reconcile.Request) (reconcile.Re
 
 	// Find trials labeled for this experiment
 	list := &redskyv1alpha1.TrialList{}
-	opts := &client.ListOptions{}
-	if opts.LabelSelector, err = experiment.GetTrialSelector(); err != nil {
+	matchingSelector, err := util.MatchingSelector(experiment.GetTrialSelector())
+	if err != nil {
 		return reconcile.Result{}, err
 	}
-	if err := r.List(context.TODO(), list, client.UseListOptions(opts)); err != nil {
+	if err := r.List(context.TODO(), list, matchingSelector); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -441,12 +442,12 @@ func FindAvailableNamespace(r client.Reader, experiment *redskyv1alpha1.Experime
 
 	// Find eligible namespaces
 	if experiment.Spec.NamespaceSelector != nil {
-		ls, err := metav1.LabelSelectorAsSelector(experiment.Spec.NamespaceSelector)
+		list := &corev1.NamespaceList{}
+		matchingSelector, err := util.MatchingSelector(experiment.Spec.NamespaceSelector)
 		if err != nil {
 			return "", err
 		}
-		list := &corev1.NamespaceList{}
-		if err := r.List(context.TODO(), list, client.UseListOptions(&client.ListOptions{LabelSelector: ls})); err != nil {
+		if err := r.List(context.TODO(), list, matchingSelector); err != nil {
 			return "", err
 		}
 

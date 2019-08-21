@@ -38,7 +38,7 @@ tool: generate fmt vet
 	GOOS=linux GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o bin/redskyctl-linux-amd64 cmd/redskyctl/main.go
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
-run: generate fmt vet
+run: generate fmt vet manifests
 	go run ./cmd/manager/main.go
 
 # Install CRDs into a cluster
@@ -67,7 +67,7 @@ generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths="./pkg/apis/...;./pkg/controller/...;./pkg/webhook/...;./cmd/..."
 
 # Build the docker images
-docker-build:
+docker-build: test
 	docker build . -t ${IMG} --build-arg LDFLAGS='$(LDFLAGS)'
 	docker build config -t ${SETUPTOOLS_IMG} --build-arg IMG='$(IMG)' --build-arg VERSION='$(VERSION)'
 
@@ -80,7 +80,7 @@ docker-push:
 # download controller-gen if necessary
 controller-gen:
 ifeq (, $(shell which controller-gen))
-	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.0-beta.4
+	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.0-rc.0
 CONTROLLER_GEN=$(GOBIN)/controller-gen
 else
 CONTROLLER_GEN=$(shell which controller-gen)

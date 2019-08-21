@@ -24,6 +24,7 @@ import (
 	"time"
 
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
+	"github.com/redskyops/k8s-experiment/pkg/util"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -215,18 +216,11 @@ func (r *ReconcileTrial) Reconcile(request reconcile.Request) (reconcile.Result,
 
 	// Find jobs labeled for this trial
 	list := &batchv1.JobList{}
-	opts := &client.ListOptions{}
-	if trial.Spec.Selector == nil {
-		if trial.Spec.Template != nil {
-			opts.MatchingLabels(trial.Spec.Template.Labels)
-		}
-		if opts.LabelSelector == nil || opts.LabelSelector.Empty() {
-			opts.MatchingLabels(trial.GetDefaultLabels())
-		}
-	} else if opts.LabelSelector, err = metav1.LabelSelectorAsSelector(trial.Spec.Selector); err != nil {
+	matchingSelector, err := util.MatchingSelector(trial.GetJobSelector())
+	if err != nil {
 		return reconcile.Result{}, err
 	}
-	if err := r.List(context.TODO(), list, client.UseListOptions(opts)); err != nil {
+	if err := r.List(context.TODO(), list, matchingSelector); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -385,21 +379,20 @@ func findPatchTargets(r client.Reader, p *redskyv1alpha1.PatchTemplate, trial *r
 
 	var targets []corev1.ObjectReference
 	if p.TargetRef.Name == "" {
-		ls, err := metav1.LabelSelectorAsSelector(p.Selector)
+		list := &unstructured.UnstructuredList{}
+		list.SetGroupVersionKind(p.TargetRef.GroupVersionKind())
+		inNamespace := client.InNamespace(p.TargetRef.Namespace)
+		if inNamespace == "" {
+			inNamespace = client.InNamespace(trial.Spec.TargetNamespace)
+		}
+		matchingSelector, err := util.MatchingSelector(p.Selector)
 		if err != nil {
 			return nil, err
 		}
-		opts := &client.ListOptions{LabelSelector: ls}
-		if p.TargetRef.Namespace != "" {
-			opts.Namespace = p.TargetRef.Namespace
-		} else {
-			opts.Namespace = trial.Spec.TargetNamespace
-		}
-		list := &unstructured.UnstructuredList{}
-		list.SetGroupVersionKind(p.TargetRef.GroupVersionKind())
-		if err := r.List(context.TODO(), list, client.UseListOptions(opts)); err != nil {
+		if err := r.List(context.TODO(), list, inNamespace, matchingSelector); err != nil {
 			return nil, err
 		}
+
 		for _, item := range list.Items {
 			// TODO There isn't a function that does this?
 			targets = append(targets, corev1.ObjectReference{
@@ -454,13 +447,11 @@ func findMetricTargets(r client.Reader, m *redskyv1alpha1.Metric) ([]string, err
 
 	// Find services matching the selector
 	list := &corev1.ServiceList{}
-	opts := &client.ListOptions{}
-	if ls, err := metav1.LabelSelectorAsSelector(m.Selector); err == nil {
-		opts.LabelSelector = ls
-	} else {
+	matchingSelector, err := util.MatchingSelector(m.Selector)
+	if err != nil {
 		return nil, err
 	}
-	if err := r.List(context.TODO(), list, client.UseListOptions(opts)); err != nil {
+	if err := r.List(context.TODO(), list, matchingSelector); err != nil {
 		return nil, err
 	}
 

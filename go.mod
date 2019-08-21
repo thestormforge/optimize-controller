@@ -9,12 +9,16 @@ require (
 	github.com/elazarl/goproxy v0.0.0-20190711103511-473e67f1d7d2 // indirect
 	github.com/elazarl/goproxy/ext v0.0.0-20190711103511-473e67f1d7d2 // indirect
 	github.com/go-logr/zapr v0.1.1 // indirect
+	github.com/gogo/protobuf v1.2.1 // indirect
 	github.com/golang/groupcache v0.0.0-20190129154638-5b532d6fd5ef // indirect
 	github.com/google/gofuzz v1.0.0 // indirect
 	github.com/google/uuid v1.1.1 // indirect
 	github.com/gophercloud/gophercloud v0.2.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.9.4 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
+	github.com/json-iterator/go v1.1.6 // indirect
+	github.com/modern-go/reflect2 v1.0.1 // indirect
+	github.com/onsi/ginkgo v1.8.0 // indirect
 	github.com/onsi/gomega v1.5.0
 	github.com/pborman/uuid v0.0.0-20180906182336-adf5a7427709 // indirect
 	github.com/prometheus/client_golang v0.9.3
@@ -39,7 +43,6 @@ require (
 	k8s.io/klog v0.3.2 // indirect
 	k8s.io/kube-openapi v0.0.0-20190603182131-db7b694dc208 // indirect
 	k8s.io/utils v0.0.0-20190529001817-6999998975a7 // indirect
-	sigs.k8s.io/controller-runtime v0.2.0-beta.4
-	sigs.k8s.io/controller-tools v0.2.0-beta.4 // indirect
+	sigs.k8s.io/controller-runtime v0.2.0-rc.0
 	sigs.k8s.io/yaml v1.1.0
 )

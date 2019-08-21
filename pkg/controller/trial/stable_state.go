@@ -21,6 +21,7 @@ import (
 	"time"
 
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
+	"github.com/redskyops/k8s-experiment/pkg/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -163,13 +164,12 @@ func checkPods(e error, r client.Reader, selector *metav1.LabelSelector) error {
 	}
 
 	// We were already going to initiate a delay, so the overhead of checking pods shouldn't hurt
-	var err error
 	list := &corev1.PodList{}
-	opts := &client.ListOptions{}
-	if opts.LabelSelector, err = metav1.LabelSelectorAsSelector(selector); err != nil {
+	matchingSelector, err := util.MatchingSelector(selector)
+	if err != nil {
 		return e
 	}
-	if err = r.List(context.TODO(), list, client.UseListOptions(opts)); err != nil {
+	if err := r.List(context.TODO(), list, matchingSelector); err != nil {
 		return e
 	}
 	for _, p := range list.Items {
