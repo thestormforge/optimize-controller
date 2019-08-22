@@ -32,7 +32,7 @@ func IsTrialFinished(trial *redskyv1alpha1.Trial) bool {
 }
 
 // Updates a the status of an existing condition or adds it if it does not exist
-func applyCondition(status *redskyv1alpha1.TrialStatus, conditionType redskyv1alpha1.TrialConditionType, conditionStatus corev1.ConditionStatus, reason, message string, time *metav1.Time) {
+func ApplyCondition(status *redskyv1alpha1.TrialStatus, conditionType redskyv1alpha1.TrialConditionType, conditionStatus corev1.ConditionStatus, reason, message string, time *metav1.Time) {
 	if time == nil {
 		now := metav1.Now()
 		time = &now
@@ -67,7 +67,7 @@ func applyCondition(status *redskyv1alpha1.TrialStatus, conditionType redskyv1al
 }
 
 // Checks to see if a condition has a specific status and if it exists
-func checkCondition(status *redskyv1alpha1.TrialStatus, conditionType redskyv1alpha1.TrialConditionType, conditionStatus corev1.ConditionStatus) (bool, bool) {
+func CheckCondition(status *redskyv1alpha1.TrialStatus, conditionType redskyv1alpha1.TrialConditionType, conditionStatus corev1.ConditionStatus) (bool, bool) {
 	for i := range status.Conditions {
 		if status.Conditions[i].Type == conditionType {
 			return status.Conditions[i].Status == conditionStatus, true

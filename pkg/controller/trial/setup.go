@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-logr/logr"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -51,7 +52,7 @@ const (
 	startTimeout = 2 * time.Minute
 )
 
-func manageSetup(c client.Client, s *runtime.Scheme, trial *redskyv1alpha1.Trial, probeTime *metav1.Time) (reconcile.Result, bool, error) {
+func ManageSetup(c client.Client, s *runtime.Scheme, ctx context.Context, log logr.Logger, probeTime *metav1.Time, trial *redskyv1alpha1.Trial) (reconcile.Result, bool, error) {
 	// Determine if there is anything to do
 	if probeSetupTrialConditions(trial, probeTime) {
 		return reconcile.Result{}, false, nil
@@ -60,7 +61,7 @@ func manageSetup(c client.Client, s *runtime.Scheme, trial *redskyv1alpha1.Trial
 	// Update the conditions based on existing jobs
 	list := &batchv1.JobList{}
 	setupJobLabels := map[string]string{"role": "trialSetup", "trial": trial.Name}
-	if err := c.List(context.TODO(), list, client.MatchingLabels(setupJobLabels)); err != nil {
+	if err := c.List(ctx, list, client.MatchingLabels(setupJobLabels)); err != nil {
 		return reconcile.Result{}, false, err
 	}
 	for i := range list.Items {
@@ -88,23 +89,23 @@ func manageSetup(c client.Client, s *runtime.Scheme, trial *redskyv1alpha1.Trial
 
 	// Check to see if we need to update the trial to record a condition change
 	if needsUpdate(trial, probeTime) {
-		err := c.Update(context.TODO(), trial)
-		return reconcile.Result{}, true, checkSetupUpdateErr(err)
+		err := c.Update(ctx, trial)
+		return reconcile.Result{}, true, checkSetupUpdateErr(log, err)
 	}
 
 	// Figure out if we need to start a job
 	mode := ""
 
 	// If the created condition is unknown, we will need a create job
-	if cc, ok := checkCondition(&trial.Status, redskyv1alpha1.TrialSetupCreated, corev1.ConditionUnknown); cc && ok {
+	if cc, ok := CheckCondition(&trial.Status, redskyv1alpha1.TrialSetupCreated, corev1.ConditionUnknown); cc && ok {
 		mode = modeCreate
 	}
 
 	// If the deleted condition is unknown, we may need a delete job
-	if cc, ok := checkCondition(&trial.Status, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionUnknown); cc && ok {
+	if cc, ok := CheckCondition(&trial.Status, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionUnknown); cc && ok {
 		if addSetupFinalizer(trial) {
-			err := c.Update(context.TODO(), trial)
-			return reconcile.Result{}, true, checkSetupUpdateErr(err)
+			err := c.Update(ctx, trial)
+			return reconcile.Result{}, true, checkSetupUpdateErr(log, err)
 		}
 
 		if IsTrialFinished(trial) || trial.DeletionTimestamp != nil {
@@ -118,22 +119,22 @@ func manageSetup(c client.Client, s *runtime.Scheme, trial *redskyv1alpha1.Trial
 		if err != nil {
 			return reconcile.Result{}, false, err
 		}
-		err = c.Create(context.TODO(), job)
+		err = c.Create(ctx, job)
 		return reconcile.Result{}, true, err
 	}
 
 	// If the create job isn't finished, wait for it (unless the trial is already finished, i.e. failed)
-	if cc, ok := checkCondition(&trial.Status, redskyv1alpha1.TrialSetupCreated, corev1.ConditionFalse); ok && cc {
+	if cc, ok := CheckCondition(&trial.Status, redskyv1alpha1.TrialSetupCreated, corev1.ConditionFalse); ok && cc {
 		if !IsTrialFinished(trial) {
 			return reconcile.Result{Requeue: true, RequeueAfter: 1 * time.Second}, false, nil
 		}
 	}
 
 	// If the delete job exists, it is safe to remove our finalizer
-	if cc, ok := checkCondition(&trial.Status, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionUnknown); ok && !cc {
+	if cc, ok := CheckCondition(&trial.Status, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionUnknown); ok && !cc {
 		if removeSetupFinalizer(trial) {
-			err := c.Update(context.TODO(), trial)
-			return reconcile.Result{}, true, checkSetupUpdateErr(err)
+			err := c.Update(ctx, trial)
+			return reconcile.Result{}, true, checkSetupUpdateErr(log, err)
 		}
 	}
 
@@ -141,7 +142,7 @@ func manageSetup(c client.Client, s *runtime.Scheme, trial *redskyv1alpha1.Trial
 	return reconcile.Result{}, false, nil
 }
 
-func checkSetupUpdateErr(err error) error {
+func checkSetupUpdateErr(log logr.Logger, err error) error {
 	if err != nil {
 		log.Error(err, "unable to update trial for setup tasks")
 	}

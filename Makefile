@@ -26,7 +26,7 @@ all: manager tool
 
 # Run tests
 test: generate fmt vet manifests
-	go test ./pkg/... ./cmd/... -coverprofile cover.out
+	go test ./controllers/... ./pkg/... ./cmd/... -coverprofile cover.out
 
 # Build manager binary
 manager: generate fmt vet
@@ -56,11 +56,11 @@ manifests: controller-gen
 
 # Run go fmt against code
 fmt:
-	go fmt ./pkg/... ./cmd/...
+	go fmt ./controllers/... ./pkg/... ./cmd/...
 
 # Run go vet against code
 vet:
-	go vet ./pkg/... ./cmd/...
+	go vet ./controllers/... ./pkg/... ./cmd/...
 
 # Generate code
 generate: controller-gen

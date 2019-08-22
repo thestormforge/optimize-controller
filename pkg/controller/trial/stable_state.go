@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-logr/logr"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	"github.com/redskyops/k8s-experiment/pkg/util"
 	appsv1 "k8s.io/api/apps/v1"
@@ -51,7 +52,7 @@ func (e *StabilityError) Error() string {
 }
 
 // Check a stateful set to see if it has reached a stable state
-func checkStatefulSet(sts *appsv1.StatefulSet) error {
+func checkStatefulSet(sts *appsv1.StatefulSet, log logr.Logger) error {
 	// Same tests used by `kubectl rollout status`
 	// https://github.com/kubernetes/kubernetes/blob/master/pkg/kubectl/rollout_status.go
 	if sts.Spec.UpdateStrategy.Type != appsv1.RollingUpdateStatefulSetStrategyType {
@@ -103,7 +104,7 @@ func checkDeployment(d *appsv1.Deployment) error {
 
 // Iterates over all of the supplied patches and ensures that the targets are in a "stable" state (where "stable"
 // is determined by the object kind).
-func waitForStableState(r client.Reader, ctx context.Context, p *redskyv1alpha1.PatchOperation) error {
+func WaitForStableState(r client.Reader, ctx context.Context, log logr.Logger, p *redskyv1alpha1.PatchOperation) error {
 	switch p.TargetRef.Kind {
 	case "StatefulSet":
 		ss := &appsv1.StatefulSet{}
@@ -114,7 +115,7 @@ func waitForStableState(r client.Reader, ctx context.Context, p *redskyv1alpha1.
 			}
 			return err
 		}
-		if err := checkStatefulSet(ss); err != nil {
+		if err := checkStatefulSet(ss, log); err != nil {
 			return applyTarget(checkPods(err, r, ss.Spec.Selector), &p.TargetRef)
 		}
 

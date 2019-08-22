@@ -48,7 +48,7 @@ type metricContext struct {
 	Namespace string
 }
 
-func executePatchTemplate(p *redskyv1alpha1.PatchTemplate, trial *redskyv1alpha1.Trial) (types.PatchType, []byte, error) {
+func ExecutePatchTemplate(p *redskyv1alpha1.PatchTemplate, trial *redskyv1alpha1.Trial) (types.PatchType, []byte, error) {
 	// Determine the patch type
 	var patchType types.PatchType
 	switch p.Type {

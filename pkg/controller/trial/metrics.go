@@ -34,7 +34,7 @@ import (
 // TODO Combine it with the Prometheus clients?
 var httpClient = &http.Client{Timeout: 10 * time.Second}
 
-func captureMetric(m *redskyv1alpha1.Metric, u string, trial *redskyv1alpha1.Trial) (float64, float64, time.Duration, error) {
+func CaptureMetric(m *redskyv1alpha1.Metric, u string, trial *redskyv1alpha1.Trial) (float64, float64, time.Duration, error) {
 	// Execute the query as a template against the current state of the trial
 	q, err := executeMetricQueryTemplate(m, trial)
 	if err != nil {

@@ -1,0 +1,124 @@
+/*
+Copyright 2019 GramLabs, Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+package experiment
+
+import (
+	"encoding/json"
+	"strconv"
+
+	redskyapi "github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1"
+	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
+)
+
+func ConvertExperiment(in *redskyv1alpha1.Experiment, out *redskyapi.Experiment) error {
+	out.ExperimentMeta.Self = in.Annotations[redskyv1alpha1.AnnotationExperimentURL]
+	out.ExperimentMeta.NextTrial = in.Annotations[redskyv1alpha1.AnnotationNextTrialURL]
+
+	out.Optimization = redskyapi.Optimization{}
+	if in.Spec.Parallelism != nil {
+		out.Optimization.ParallelTrials = *in.Spec.Parallelism
+	} else {
+		out.Optimization.ParallelTrials = int32(in.GetReplicas())
+	}
+
+	out.Parameters = nil
+	for _, p := range in.Spec.Parameters {
+		out.Parameters = append(out.Parameters, redskyapi.Parameter{
+			Type: redskyapi.ParameterTypeInteger,
+			Name: p.Name,
+			Bounds: redskyapi.Bounds{
+				Min: json.Number(strconv.FormatInt(p.Min, 10)),
+				Max: json.Number(strconv.FormatInt(p.Max, 10)),
+			},
+		})
+	}
+
+	out.Metrics = nil
+	for _, m := range in.Spec.Metrics {
+		out.Metrics = append(out.Metrics, redskyapi.Metric{
+			Name:     m.Name,
+			Minimize: m.Minimize,
+		})
+	}
+
+	return nil
+}
+
+func ConvertExperimentList(in *redskyv1alpha1.ExperimentList, out *redskyapi.ExperimentList) error {
+	out.Experiments = nil
+	for i := range in.Items {
+		e := redskyapi.ExperimentItem{}
+		if err := ConvertExperiment(&in.Items[i], &e.Experiment); err != nil {
+			return err
+		}
+		out.Experiments = append(out.Experiments, e)
+	}
+
+	return nil
+}
+
+func ConvertTrialAssignements(in *redskyv1alpha1.Trial, out *redskyapi.TrialAssignments) error {
+	out.Assignments = nil
+	for i := range in.Spec.Assignments {
+		out.Assignments = append(out.Assignments, redskyapi.Assignment{
+			ParameterName: in.Spec.Assignments[i].Name,
+			Value:         json.Number(strconv.FormatInt(in.Spec.Assignments[i].Value, 10)),
+		})
+	}
+
+	return nil
+}
+
+func ConvertTrialValues(in *redskyv1alpha1.Trial, out *redskyapi.TrialValues) error {
+	// Check to see if the trial failed
+	for _, c := range in.Status.Conditions {
+		if c.Type == redskyv1alpha1.TrialFailed && c.Status == corev1.ConditionTrue {
+			out.Failed = true
+		}
+	}
+
+	// Record the values only if we didn't fail
+	out.Values = nil
+	if !out.Failed {
+		for _, v := range in.Spec.Values {
+			if fv, err := strconv.ParseFloat(v.Value, 64); err == nil {
+				out.Values = append(out.Values, redskyapi.Value{
+					MetricName: v.Name,
+					Value:      fv,
+					// TODO Error is the standard deviation for the metric
+				})
+			}
+		}
+	}
+
+	return nil
+}
+
+func ConvertTrialList(in *redskyv1alpha1.TrialList, out *redskyapi.TrialList) error {
+	out.Trials = nil
+	for i := range in.Items {
+		t := redskyapi.TrialItem{}
+		if err := ConvertTrialAssignements(&in.Items[i], &t.TrialAssignments); err != nil {
+			return err
+		}
+		if err := ConvertTrialValues(&in.Items[i], &t.TrialValues); err != nil {
+			return err
+		}
+		out.Trials = append(out.Trials, t)
+	}
+	return nil
+}

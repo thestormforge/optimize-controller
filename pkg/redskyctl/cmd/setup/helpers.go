@@ -84,5 +84,5 @@ func kustomizePluginDir() []string {
 		// NOTE: This can produce just ".config" if the environment variables aren't set
 		configDir = filepath.Join(homeDir, ".config")
 	}
-	return []string{configDir, "kustomize", "plugin", redskyv1alpha1.SchemeGroupVersion.Group, redskyv1alpha1.SchemeGroupVersion.Version, strings.ToLower(KustomizePluginKind)}
+	return []string{configDir, "kustomize", "plugin", redskyv1alpha1.GroupVersion.Group, redskyv1alpha1.GroupVersion.Version, strings.ToLower(KustomizePluginKind)}
 }

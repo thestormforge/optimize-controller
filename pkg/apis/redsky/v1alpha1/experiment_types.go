@@ -21,6 +21,14 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+const (
+	annotationPrefix = "redskyops.dev/"
+
+	AnnotationExperimentURL  = annotationPrefix + "experiment-url"
+	AnnotationNextTrialURL   = annotationPrefix + "next-trial-url"
+	AnnotationReportTrialURL = annotationPrefix + "report-trial-url"
+)
+
 // Parameter represents the domain of a single component of the experiment search space
 type Parameter struct {
 	// The name of the parameter
