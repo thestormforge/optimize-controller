@@ -13,11 +13,12 @@ COPY go.sum go.sum
 RUN go mod download
 
 # Copy the go source
+COPY cmd/manager/main.go main.go
 COPY pkg/ pkg/
-COPY cmd/ cmd/
+COPY controllers/ controllers/
 
 # Build
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "${LDFLAGS}" -a -o manager cmd/manager/main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -ldflags "${LDFLAGS}" -a -o manager main.go
 
 # Copy the controller-manager into a thin image
 FROM gcr.io/distroless/static:latest
