@@ -162,13 +162,16 @@ type Parameter struct {
 }
 
 type ExperimentMeta struct {
-	Self      string `json:"-"`
-	Trials    string `json:"-"`
-	NextTrial string `json:"-"`
+	LastModified time.Time `json:"-"`
+	Self         string    `json:"-"`
+	Trials       string    `json:"-"`
+	NextTrial    string    `json:"-"`
 }
 
-func (m *ExperimentMeta) SetLocation(string)        {}
-func (m *ExperimentMeta) SetLastModified(time.Time) {}
+func (m *ExperimentMeta) SetLocation(string) {}
+func (m *ExperimentMeta) SetLastModified(lastModified time.Time) {
+	m.LastModified = lastModified
+}
 func (m *ExperimentMeta) SetLink(rel, link string) {
 	switch rel {
 	case relationSelf:
