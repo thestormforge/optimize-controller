@@ -24,6 +24,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+// NOTE: The convert list methods DO NOT nil the target slice to allow for converting paged result sets
+
 func ConvertExperiment(in *redskyv1alpha1.Experiment, out *redskyapi.Experiment) error {
 	out.ExperimentMeta.Self = in.Annotations[redskyv1alpha1.AnnotationExperimentURL]
 	out.ExperimentMeta.NextTrial = in.Annotations[redskyv1alpha1.AnnotationNextTrialURL]
@@ -59,7 +61,6 @@ func ConvertExperiment(in *redskyv1alpha1.Experiment, out *redskyapi.Experiment)
 }
 
 func ConvertExperimentList(in *redskyv1alpha1.ExperimentList, out *redskyapi.ExperimentList) error {
-	out.Experiments = nil
 	for i := range in.Items {
 		e := redskyapi.ExperimentItem{}
 		if err := ConvertExperiment(&in.Items[i], &e.Experiment); err != nil {
@@ -109,7 +110,6 @@ func ConvertTrialValues(in *redskyv1alpha1.Trial, out *redskyapi.TrialValues) er
 }
 
 func ConvertTrialList(in *redskyv1alpha1.TrialList, out *redskyapi.TrialList) error {
-	out.Trials = nil
 	for i := range in.Items {
 		t := redskyapi.TrialItem{}
 		if err := ConvertTrialAssignements(&in.Items[i], &t.TrialAssignments); err != nil {
@@ -120,5 +120,6 @@ func ConvertTrialList(in *redskyv1alpha1.TrialList, out *redskyapi.TrialList) er
 		}
 		out.Trials = append(out.Trials, t)
 	}
+
 	return nil
 }

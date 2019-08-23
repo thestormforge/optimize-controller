@@ -22,6 +22,7 @@ import (
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/check"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/config"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/generate"
+	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/get"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/setup"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/status"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/suggest"
@@ -62,12 +63,13 @@ func NewRedskyctlCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 	rootCmd.AddCommand(suggest.NewSuggestCommand(f, ioStreams))
 	rootCmd.AddCommand(generate.NewGenerateCommand(f, ioStreams))
 	rootCmd.AddCommand(status.NewStatusCommand(f, ioStreams))
+	rootCmd.AddCommand(get.NewGetCommand(f, ioStreams))
 
 	// TODO Add 'backup' and 'restore' maintenance commands ('maint' subcommands?)
-	// TODO Add API client commands for interacting with a remote server
 	// TODO We need helpers for doing a "dry run" on patches to make configuration easier
 	// TODO Add a "trial cleanup" command to run setup tasks (perhaps remove labels from standard setupJob)
 	// TODO Some kind of debug tool to evaluate metric queries
+	// TODO The "get" functionality needs to support templating so you can extract assignments for downstream use
 
 	return rootCmd
 }
