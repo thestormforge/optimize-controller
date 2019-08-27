@@ -24,8 +24,8 @@ COPY . /workspace/
 
 ARG IMG
 ARG VERSION
-RUN sed -i "s|IMG|${IMG%:*}|g" /workspace/chart/redskyops/values.yaml && \
-    sed -i "s|TAG|${IMG##*:}|g" /workspace/chart/redskyops/values.yaml && \
+RUN sed -i "s|IMG|${IMG%:*}|g" /workspace/chart/redskyops/values.yaml /workspace/chart/redskyops/questions.yml && \
+    sed -i "s|TAG|${IMG##*:}|g" /workspace/chart/redskyops/values.yaml /workspace/chart/redskyops/questions.yml && \
     echo "appVersion: ${VERSION}" >> /workspace/chart/redskyops/Chart.yaml && \
     sed -i "s/VERSION/${VERSION}/g" /workspace/install/label_patch.yaml && \
     cd /workspace/manager && kustomize edit set image controller=${IMG} && \
