@@ -48,7 +48,7 @@ jobs:
               docker push "${IMG%%:*}:latest"
               docker tag "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:latest"
               docker push "${SETUPTOOLS_IMG%%:*}:latest"
-              ghr -draft -body "$(cat ./circleci/RELEASE_TEMPLATE.md)" "${CIRCLE_TAG}" bin
+              ghr -draft -body "$(cat .circleci/RELEASE_TEMPLATE.md)" "${CIRCLE_TAG}" bin
             else
               echo "Skipped, not a tagged build"
             fi
