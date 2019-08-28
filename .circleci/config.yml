@@ -41,7 +41,7 @@ jobs:
           path: bin/checksums.txt
           destination: checksums.txt
       - run:
-          name: Release tagged build
+          name: Apply tags
           command: |
             if [[ -n "${CIRCLE_TAG:-}" ]]; then
               docker tag "${IMG}" "${IMG%%:*}:latest"
@@ -50,7 +50,10 @@ jobs:
               docker push "${SETUPTOOLS_IMG%%:*}:latest"
               ghr -draft -body "$(cat .circleci/RELEASE_TEMPLATE.md)" "${CIRCLE_TAG}" bin
             else
-              echo "Skipped, not a tagged build"
+              docker tag "${IMG}" "${IMG%%:*}:canary"
+              docker push "${IMG%%:*}:canary"
+              docker tag "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:canary"
+              docker push "${SETUPTOOLS_IMG%%:*}:canary"
             fi
       - save_cache:
           key: go-mod-v1-{{ checksum "go.sum" }}
