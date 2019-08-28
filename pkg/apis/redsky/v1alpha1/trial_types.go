@@ -23,6 +23,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+const (
+	AnnotationInitializer = annotationPrefix + "initializer"
+)
+
 // HelmValue represents a value in a Helm template
 type HelmValue struct {
 	// The name of Helm value as passed to one of the set options
