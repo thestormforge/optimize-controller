@@ -295,7 +295,7 @@ func NewBootstrapInitConfig(o *SetupOptions, clientConfig *api.Config) (*Bootstr
 							{
 								Name:            "setuptools-install",
 								Image:           trial.Image,
-								ImagePullPolicy: trial.PullPolicy,
+								ImagePullPolicy: corev1.PullPolicy(trial.ImagePullPolicy),
 								Args:            []string{"install"},
 								Env: []corev1.EnvVar{
 									{

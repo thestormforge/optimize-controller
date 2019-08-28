@@ -22,7 +22,7 @@ ifneq ($(origin BUILD_METADATA), undefined)
 endif
 LDFLAGS += -X github.com/redskyops/k8s-experiment/pkg/version.GitCommit=$(shell git rev-parse HEAD)
 LDFLAGS += -X github.com/redskyops/k8s-experiment/pkg/controller/trial.Image=${SETUPTOOLS_IMG}
-LDFLAGS += -X github.com/redskyops/k8s-experiment/pkg/controller/trial.PullPolicy=${PULL_POLICY}
+LDFLAGS += -X github.com/redskyops/k8s-experiment/pkg/controller/trial.ImagePullPolicy=${PULL_POLICY}
 
 all: manager tool
 

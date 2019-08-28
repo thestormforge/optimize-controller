@@ -35,8 +35,8 @@ import (
 
 var (
 	// This is overwritten during builds to point to the actual image
-	Image      = "setuptools:latest"
-	PullPolicy = corev1.PullIfNotPresent
+	Image                  = "setuptools:latest"
+	ImagePullPolicy string = string(corev1.PullIfNotPresent)
 )
 
 // NOTE: The default image names use a ":latest" tag which causes the default pull policy to switch
@@ -45,6 +45,7 @@ var (
 // problem occurs with the production image names: we want those to have a policy of "Always" to address
 // the potential of a floating tag but they will default to "IfNotPresent" because they do not use
 // ":latest". To address this we always explicitly specify the pull policy corresponding to the image.
+// Finally, when using digests, the default of "IfNotPresent" is acceptable as it is unambiguous.
 
 const (
 	setupFinalizer = "setupFinalizer.redskyops.dev"
@@ -364,7 +365,7 @@ func newSetupJob(trial *redskyv1alpha1.Trial, scheme *runtime.Scheme, mode strin
 		// Make sure we have an image
 		if c.Image == "" {
 			c.Image = Image
-			c.ImagePullPolicy = PullPolicy
+			c.ImagePullPolicy = corev1.PullPolicy(ImagePullPolicy)
 		}
 
 		// Add the trial assignments to the environment
