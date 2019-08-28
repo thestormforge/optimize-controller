@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	getLong    = `Fetch a Red Sky object`
+	getLong    = `Display one or many Red Sky resources`
 	getExample = ``
 )
 
@@ -51,7 +51,7 @@ func NewGetOptions(ioStreams cmdutil.IOStreams) *GetOptions {
 func NewGetCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "get",
-		Short:   "",
+		Short:   "Display a Red Sky resource",
 		Long:    getLong,
 		Example: getExample,
 	}

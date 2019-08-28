@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	getTrialListLong    = ``
+	getTrialListLong    = `Prints a list of trials for an experiment using a tabular format by default`
 	getTrialListExample = ``
 )
 
@@ -43,8 +43,8 @@ func NewGetTrialListCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cob
 	printFlags := cmdutil.NewPrintFlags(meta)
 
 	cmd := &cobra.Command{
-		Use:     "trials",
-		Short:   "",
+		Use:     "trials NAME",
+		Short:   "Display a list of trial for an experiment",
 		Long:    getTrialListLong,
 		Example: getTrialListExample,
 		Args:    cobra.ExactArgs(1),

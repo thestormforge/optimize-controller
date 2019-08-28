@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	getExperimentListLong    = ``
+	getExperimentListLong    = `Prints a list of experiments using a tabular format by default`
 	getExperimentListExample = ``
 )
 
@@ -40,7 +40,7 @@ func NewGetExperimentListCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams)
 
 	cmd := &cobra.Command{
 		Use:     "experiments",
-		Short:   "",
+		Short:   "Display a list of experiments",
 		Long:    getExperimentListLong,
 		Example: getExperimentListExample,
 		Run: func(cmd *cobra.Command, args []string) {

@@ -19,7 +19,7 @@ const (
 	setExample = `Names are: address, oauth2.token, oauth2.token_url, oauth2.client_id, oauth2.client_secret
 
 # Set the remote server address
-redskyctl config set address http://example.com/api`
+redskyctl config set address http://example.carbonrelay.io`
 )
 
 func NewSetCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {

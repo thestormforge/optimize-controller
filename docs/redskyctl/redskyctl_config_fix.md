@@ -1,28 +1,19 @@
-## redskyctl config set
+## redskyctl config fix
 
-Modify the configuration file
+Fix configurations
 
 ### Synopsis
 
-Modify the Red Sky Ops configuration file
+Fix configurations to make them canonical, for example, upgrading from older versions
 
 ```
-redskyctl config set NAME [VALUE] [flags]
-```
-
-### Examples
-
-```
-Names are: address, oauth2.token, oauth2.token_url, oauth2.client_id, oauth2.client_secret
-
-# Set the remote server address
-redskyctl config set address http://example.carbonrelay.io
+redskyctl config fix [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for set
+  -h, --help   help for fix
 ```
 
 ### Options inherited from parent commands
