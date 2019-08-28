@@ -8,6 +8,7 @@ spec:
     spec:
       containers:
       - name: manager
+        imagePullPolicy: PULL_POLICY
         securityContext:
           runAsUser: 65532
           runAsGroup: 65532

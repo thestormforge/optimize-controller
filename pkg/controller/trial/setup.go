@@ -35,9 +35,16 @@ import (
 
 var (
 	// This is overwritten during builds to point to the actual image
-	DefaultImage = "setuptools:latest"
-	// TODO We should have the ImagePullPolicy specified here instead of detecting by "/"
+	Image      = "setuptools:latest"
+	PullPolicy = corev1.PullIfNotPresent
 )
+
+// NOTE: The default image names use a ":latest" tag which causes the default pull policy to switch
+// from "IfNotPresent" to "Always". However, the default image names are not associated with a public
+// repository and cannot actually be pulled (they only work if they are present). The exact opposite
+// problem occurs with the production image names: we want those to have a policy of "Always" to address
+// the potential of a floating tag but they will default to "IfNotPresent" because they do not use
+// ":latest". To address this we always explicitly specify the pull policy corresponding to the image.
 
 const (
 	setupFinalizer = "setupFinalizer.redskyops.dev"
@@ -356,12 +363,8 @@ func newSetupJob(trial *redskyv1alpha1.Trial, scheme *runtime.Scheme, mode strin
 
 		// Make sure we have an image
 		if c.Image == "" {
-			c.Image = DefaultImage
-		}
-
-		// If this appears to be a development image, change the image pull policy
-		if !strings.Contains(c.Image, "/") {
-			c.ImagePullPolicy = corev1.PullIfNotPresent
+			c.Image = Image
+			c.ImagePullPolicy = PullPolicy
 		}
 
 		// Add the trial assignments to the environment

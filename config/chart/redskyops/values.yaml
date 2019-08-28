@@ -1,6 +1,7 @@
 # Override the Red Sky manager image name and tag
 redskyImage: "IMG"
 redskyTag: "TAG"
+redskyImagePullPolicy: "PULL_POLICY"
 
 # Configure the Red Sky server address
 address: ""

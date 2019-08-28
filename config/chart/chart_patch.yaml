@@ -22,3 +22,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/version: VERSION
+    spec:
+      containers:
+        - name: manager
+          imagePullPolicy: PULL_POLICY

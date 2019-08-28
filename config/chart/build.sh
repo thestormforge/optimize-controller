@@ -16,6 +16,7 @@ function templatizeDeployment {
         sed 's/SECRET_SHA256/{{ include (print $.Template.BasePath "\/secret.yaml") . | sha256sum }}/g' | \
         sed 's/VERSION/{{ .Chart.AppVersion | quote }}/g' | \
         sed 's/IMG:TAG/{{ .Values.redskyImage }}:{{ .Values.redskyTag }}/g' | \
+        sed 's/PULL_POLICY/{{ .Values.redskyImagePullPolicy }}/g' | \
         sed 's/name: redsky-\(.*\)$/name: "{{ .Release.Name }}-\1"/g'
 }
 

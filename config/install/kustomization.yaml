@@ -8,7 +8,7 @@ resources:
 
 patchesStrategicMerge:
 - label_patch.yaml
-- manager_client_patch.yaml
+- manager_patch.yaml
 
 secretGenerator:
 - name: client-config

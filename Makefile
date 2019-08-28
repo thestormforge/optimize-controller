@@ -2,6 +2,7 @@
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
 SETUPTOOLS_IMG ?= setuptools:latest
+PULL_POLICY ?= IfNotPresent
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
@@ -20,7 +21,8 @@ ifneq ($(origin BUILD_METADATA), undefined)
     LDFLAGS += -X github.com/redskyops/k8s-experiment/pkg/version.BuildMetadata=${BUILD_METADATA}
 endif
 LDFLAGS += -X github.com/redskyops/k8s-experiment/pkg/version.GitCommit=$(shell git rev-parse HEAD)
-LDFLAGS += -X github.com/redskyops/k8s-experiment/pkg/controller/trial.DefaultImage=${SETUPTOOLS_IMG}
+LDFLAGS += -X github.com/redskyops/k8s-experiment/pkg/controller/trial.Image=${SETUPTOOLS_IMG}
+LDFLAGS += -X github.com/redskyops/k8s-experiment/pkg/controller/trial.PullPolicy=${PULL_POLICY}
 
 all: manager tool
 
@@ -69,7 +71,7 @@ generate: controller-gen
 # Build the docker images
 docker-build: test
 	docker build . -t ${IMG} --build-arg LDFLAGS='$(LDFLAGS)'
-	docker build config -t ${SETUPTOOLS_IMG} --build-arg IMG='$(IMG)' --build-arg VERSION='$(VERSION)'
+	docker build config -t ${SETUPTOOLS_IMG} --build-arg IMG='$(IMG)' --build-arg PULL_POLICY='$(PULL_POLICY)' --build-arg VERSION='$(VERSION)'
 
 # Push the docker images
 docker-push:

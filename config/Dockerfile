@@ -23,13 +23,14 @@ RUN apk --no-cache add curl && \
 COPY . /workspace/
 
 ARG IMG
+ARG PULL_POLICY
 ARG VERSION
-RUN sed -i "s|IMG|${IMG%:*}|g" /workspace/chart/redskyops/values.yaml /workspace/chart/redskyops/questions.yml && \
+RUN cd /workspace/manager && kustomize edit set image controller=${IMG} && \
+    sed -i "s|VERSION|${VERSION}|g" /workspace/install/label_patch.yaml && \
+    sed -i "s|PULL_POLICY|${PULL_POLICY}|g" /workspace/install/manager_client_patch.yaml /workspace/chart/redskyops/values.yaml && \
+    sed -i "s|IMG|${IMG%:*}|g" /workspace/chart/redskyops/values.yaml /workspace/chart/redskyops/questions.yml && \
     sed -i "s|TAG|${IMG##*:}|g" /workspace/chart/redskyops/values.yaml /workspace/chart/redskyops/questions.yml && \
     echo "appVersion: ${VERSION}" >> /workspace/chart/redskyops/Chart.yaml && \
-    sed -i "s/VERSION/${VERSION}/g" /workspace/install/label_patch.yaml && \
-    cd /workspace/manager && kustomize edit set image controller=${IMG} && \
-    if [ -n "${IMG##*/*}" ] ; then cd /workspace/default; kustomize edit add patch manager_image_pull_policy.yaml; fi && \
     mkdir -p /workspace/base && touch /workspace/base/kustomization.yaml && \
     mkdir -p /workspace/helm && touch /workspace/helm/kustomization.yaml && \
     chown -R setup /workspace

@@ -18,7 +18,6 @@ package setup
 import (
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/redskyops/k8s-experiment/pkg/api"
 	"github.com/redskyops/k8s-experiment/pkg/controller/trial"
@@ -295,8 +294,8 @@ func NewBootstrapInitConfig(o *SetupOptions, clientConfig *api.Config) (*Bootstr
 						Containers: []corev1.Container{
 							{
 								Name:            "setuptools-install",
-								Image:           trial.DefaultImage,
-								ImagePullPolicy: corev1.PullAlways,
+								Image:           trial.Image,
+								ImagePullPolicy: trial.PullPolicy,
 								Args:            []string{"install"},
 								Env: []corev1.EnvVar{
 									{
@@ -339,12 +338,6 @@ func NewBootstrapInitConfig(o *SetupOptions, clientConfig *api.Config) (*Bootstr
 				},
 			},
 		},
-	}
-
-	// Development settings enabled when the default image name did not come from the public repository
-	if !strings.Contains(trial.DefaultImage, "/") {
-		b.Job.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullIfNotPresent
-		*b.Job.Spec.TTLSecondsAfterFinished = 120
 	}
 
 	// Create, but do not execute the job

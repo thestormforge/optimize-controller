@@ -98,7 +98,7 @@ func (o *VersionOptions) Run() error {
 
 	if o.SetupToolsImage {
 		// TODO We should have an option to print this as JSON with the pull policy, e.g. `{"image":"...", "imagePullPolicy":"..."}`...
-		_, err := fmt.Fprintf(o.Out, "%s\n", trial.DefaultImage)
+		_, err := fmt.Fprintf(o.Out, "%s\n", trial.Image)
 		return err
 	}
 
