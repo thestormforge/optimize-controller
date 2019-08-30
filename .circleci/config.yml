@@ -20,6 +20,9 @@ jobs:
             gcloud --quiet config set compute/zone ${GOOGLE_COMPUTE_ZONE}
             gcloud --quiet auth configure-docker
       - run:
+          name: Run tests
+          command: make test
+      - run:
           name: Docker build
           command: make docker-build
       - run:

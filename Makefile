@@ -69,7 +69,7 @@ generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths="./pkg/apis/...;./pkg/controller/...;./pkg/webhook/...;./cmd/..."
 
 # Build the docker images
-docker-build: test
+docker-build:
 	docker build . -t ${IMG} --build-arg LDFLAGS='$(LDFLAGS)'
 	docker build config -t ${SETUPTOOLS_IMG} --build-arg IMG='$(IMG)' --build-arg PULL_POLICY='$(PULL_POLICY)' --build-arg VERSION='$(VERSION)'
 
