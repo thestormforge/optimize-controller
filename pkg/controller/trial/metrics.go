@@ -154,5 +154,5 @@ func captureJSONPathMetric(url, name, query string) (float64, float64, time.Dura
 	}
 
 	// If we made it this far we weren't able to extract the value
-	return 0, 0, 0, fmt.Errorf("query '%s' did not match")
+	return 0, 0, 0, fmt.Errorf("query '%s' did not match", query)
 }
