@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -135,16 +136,23 @@ func captureJSONPathMetric(url, name, query string) (float64, float64, time.Dura
 		return 0, 0, 0, err
 	}
 
-	// TODO No idea what we are looking for here...
-	var r string
-	for _, v := range values {
-		for _, vv := range v {
-			r = vv.String()
+	// Convert the result to a float
+	if len(values) == 1 && len(values[0]) == 1 {
+		v := reflect.ValueOf(values[0][0].Interface())
+		switch v.Kind() {
+		case reflect.Float64:
+			return v.Float(), 0, 0, nil
+		case reflect.String:
+			if v, err := strconv.ParseFloat(v.String(), 64); err != nil {
+				return 0, 0, 0, err
+			} else {
+				return v, 0, 0, nil
+			}
+		default:
+			return 0, 0, 0, fmt.Errorf("could not convert match to a floating point number")
 		}
 	}
-	value, err := strconv.ParseFloat(r, 64)
-	if err != nil {
-		return 0, 0, 0, err
-	}
-	return value, 0, 0, nil
+
+	// If we made it this far we weren't able to extract the value
+	return 0, 0, 0, fmt.Errorf("query '%s' did not match")
 }
