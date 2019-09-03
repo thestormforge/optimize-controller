@@ -40,6 +40,8 @@ Setup tasks can reference a Helm chart which will be fetched and evaluated local
 
 ## Development
 
+This project was bootstrapped by [Kubebuilder](https://github.com/kubernetes-sigs/kubebuilder) and inherits many of the stock conventions. Some notable exceptions are the inclusion of the `make tool` target for building the Red Sky Control tool and overloading `make docker-build` to produce both the Red Sky Experiment Manager image and the Setup Tools image.
+
 To run the Red Sky Experiment Manager locally: first run `make install` to add the necessary Custom Resource Definitions (CRD) to you currently configured cluster; then run `make run` to start a local process (inheriting Red Sky Client API configuration from your current environment).
 
-This project was bootstrapped by [Kubebuilder](https://github.com/kubernetes-sigs/kubebuilder) and inherits many of the stock conventions. Some notable exceptions are the inclusion of the `make tool` target for building the Red Sky Control tool and overloading `make docker-build` to produce both the Red Sky Experiment Manager image and the Setup Tools image.
+To run in cluster, you should build the Docker images using `make docker-build` and push them to your cluster (if you are using minikube, run `eval $(minikube docker-env)` prior to building the images). Use `make deploy` to apply the manifests, or use `make tool` and `bin/redskyctl-$GOOS-$GOARCH init`. 
