@@ -227,7 +227,10 @@ func generateObservation(o *ServerCheckOptions, exp *redsky.Experiment) *redsky.
 }
 
 func generateBounds() *redsky.Bounds {
-	min, max := rand.Intn(100), rand.Intn(4000)
+	var min, max int
+	for min == max {
+		min, max = rand.Intn(100), rand.Intn(4000)
+	}
 	if min > max {
 		s := min
 		min = max
