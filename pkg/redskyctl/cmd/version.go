@@ -43,9 +43,9 @@ const (
 )
 
 type VersionOptions struct {
-	Namespace       string
 	SetupToolsImage bool
 
+	namespace  string
 	root       *cobra.Command
 	restConfig *rest.Config
 	clientSet  *kubernetes.Clientset
@@ -55,6 +55,7 @@ type VersionOptions struct {
 
 func NewVersionOptions(ioStreams cmdutil.IOStreams) *VersionOptions {
 	return &VersionOptions{
+		namespace: "redsky-system",
 		IOStreams: ioStreams,
 	}
 }
@@ -73,7 +74,6 @@ func NewVersionCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Co
 		},
 	}
 
-	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", "redsky-system", "System namespace in the Kubernetes cluster.")
 	cmd.Flags().BoolVar(&o.SetupToolsImage, "setuptools", false, "Print only the name of the setuptools image.")
 
 	return cmd
@@ -124,7 +124,7 @@ func (o *VersionOptions) managerVersion() error {
 	}
 
 	var pod *corev1.Pod
-	podList, err := o.clientSet.CoreV1().Pods(o.Namespace).List(metav1.ListOptions{LabelSelector: "control-plane=controller-manager"})
+	podList, err := o.clientSet.CoreV1().Pods(o.namespace).List(metav1.ListOptions{LabelSelector: "control-plane=controller-manager"})
 	if err != nil {
 		// Silently ignore
 		return nil
