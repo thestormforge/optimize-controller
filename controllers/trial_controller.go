@@ -544,7 +544,8 @@ func createJob(trial *redskyv1alpha1.Trial) *batchv1.Job {
 			{
 				Name:    "default-trial-run",
 				Image:   "busybox",
-				Command: []string{"sleep", fmt.Sprintf("%.0f", s.Seconds())},
+				Command: []string{"/bin/sh"},
+				Args:    []string{"-c", fmt.Sprintf("echo 'Sleeping for %s...' && sleep %.0f && echo 'Done.'", s, s.Seconds())},
 			},
 		}
 	}
