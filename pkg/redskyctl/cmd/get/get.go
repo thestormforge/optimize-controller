@@ -64,7 +64,6 @@ func NewGetCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Comman
 }
 
 func (o *GetOptions) AddFlags(cmd *cobra.Command) {
-	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", "", "Experiment namespace in the Kubernetes cluster.")
 	cmd.Flags().IntVar(&o.ChunkSize, "chunk-size", 500, "Fetch large lists in chunks rather then all at once.")
 }
 
@@ -78,6 +77,12 @@ func (o *GetOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []stri
 	} else if cs, err := f.RedSkyClientSet(); err == nil {
 		// Get from the Kube cluster
 		o.RedSkyClientSet = cs
+
+		// Get the namespace to use
+		o.Namespace, _, err = f.ToRawKubeConfigLoader().Namespace()
+		if err != nil {
+			return err
+		}
 	} else if o.ForceKubernetes {
 		// Failure to explicitly use the Kubernetes cluster
 		return err

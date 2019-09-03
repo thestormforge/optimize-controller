@@ -29,17 +29,20 @@ import (
 const (
 	flagKubeconfig = "kubeconfig"
 	flagContext    = "context"
+	flagNamespace  = "namespace"
 )
 
 type ConfigFlags struct {
 	KubeConfig *string
 	Context    *string
+	Namespace  *string
 }
 
 func NewConfigFlags() *ConfigFlags {
 	return &ConfigFlags{
 		KubeConfig: stringptr(""),
 		Context:    stringptr(""),
+		Namespace:  stringptr(""),
 	}
 }
 
@@ -50,9 +53,16 @@ func (f *ConfigFlags) AddFlags(flags *pflag.FlagSet) {
 	if f.Context != nil {
 		flags.StringVar(f.Context, flagContext, *f.Context, "The name of the kubeconfig context to use.")
 	}
+	if f.Namespace != nil {
+		flags.StringVarP(f.Namespace, flagNamespace, "n", *f.Namespace, "If present, the namespace scope for this CLI request")
+	}
 }
 
 func (f *ConfigFlags) ToRESTConfig() (*rest.Config, error) {
+	return f.ToRawKubeConfigLoader().ClientConfig()
+}
+
+func (f *ConfigFlags) ToRawKubeConfigLoader() clientcmd.ClientConfig {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	if f.KubeConfig != nil {
 		loadingRules.ExplicitPath = *f.KubeConfig
@@ -61,5 +71,8 @@ func (f *ConfigFlags) ToRESTConfig() (*rest.Config, error) {
 	if f.Context != nil {
 		overrides.CurrentContext = *f.Context
 	}
-	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, overrides).ClientConfig()
+	if f.Namespace != nil {
+		overrides.Context.Namespace = *f.Namespace
+	}
+	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, overrides)
 }

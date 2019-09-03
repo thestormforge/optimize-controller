@@ -84,8 +84,6 @@ func NewSuggestCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Co
 		},
 	}
 
-	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", "", "Experiment namespace in the Kubernetes cluster.")
-
 	sourceFlags := NewSuggestionSourceFlags(ioStreams)
 	sourceFlags.AddFlags(cmd)
 	o.Suggestions = sourceFlags
@@ -106,9 +104,10 @@ func (o *SuggestOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []
 		// Send it to the Kube cluster
 		o.RedSkyClientSet = cs
 
-		// Provide a default value for the namespace
-		if o.Namespace == "" {
-			o.Namespace = "default"
+		// Get the namespace to use
+		o.Namespace, _, err = f.ToRawKubeConfigLoader().Namespace()
+		if err != nil {
+			return err
 		}
 
 		// This is a brutal hack to allow us to re-use the controller code

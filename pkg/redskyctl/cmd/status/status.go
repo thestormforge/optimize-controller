@@ -26,8 +26,8 @@ type TrialStatusPrinter interface {
 }
 
 type StatusOptions struct {
-	Name         string
 	Namespace    string
+	Name         string
 	OutputFormat string
 
 	Printer         TrialStatusPrinter
@@ -57,7 +57,6 @@ func NewStatusCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Com
 		},
 	}
 
-	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", "", "Experiment namespace in the Kubernetes cluster.")
 	cmd.Flags().StringVarP(&o.OutputFormat, "output", "o", "", "Output format. One of: json|yaml|name.")
 
 	return cmd
@@ -71,8 +70,12 @@ func (o *StatusOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []s
 	}
 
 	o.Name = args[0]
-	if o.Namespace == "" {
-		o.Namespace = "default"
+
+	// Get the namespace to use
+	var err error
+	o.Namespace, _, err = f.ToRawKubeConfigLoader().Namespace()
+	if err != nil {
+		return err
 	}
 
 	switch o.OutputFormat {

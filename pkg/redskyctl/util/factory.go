@@ -23,9 +23,11 @@ import (
 	redskykube "github.com/redskyops/k8s-experiment/pkg/kubernetes"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 type Factory interface {
+	ToRawKubeConfigLoader() clientcmd.ClientConfig
 	ToRESTConfig() (*rest.Config, error)
 	ToClientConfig(bool) (*client.Config, error)
 
@@ -49,6 +51,10 @@ func NewFactory(cf *ConfigFlags, sf *ServerFlags) Factory {
 type factoryImpl struct {
 	configFlags *ConfigFlags
 	serverFlags *ServerFlags
+}
+
+func (f *factoryImpl) ToRawKubeConfigLoader() clientcmd.ClientConfig {
+	return f.configFlags.ToRawKubeConfigLoader()
 }
 
 func (f *factoryImpl) ToRESTConfig() (*rest.Config, error) {
