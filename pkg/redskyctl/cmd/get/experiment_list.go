@@ -99,6 +99,10 @@ func getKubernetesExperimentList(clientset *redskykube.Clientset, namespace stri
 			return nil, err
 		}
 
+		if len(el.Items) == 0 {
+			break
+		}
+
 		err = experiment.ConvertExperimentList(el, l)
 		if err != nil {
 			return nil, err
