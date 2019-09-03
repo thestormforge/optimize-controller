@@ -156,13 +156,12 @@ func (p *CSVPrinter) PrintObj(obj interface{}, w io.Writer) error {
 	// Print data
 	for y := range rows {
 		for x := range columns {
-			buf[x], err = p.meta.ExtractValue(rows[y], columns[x])
-			if err != nil {
+			if buf[x], err = p.meta.ExtractValue(rows[y], columns[x]); err != nil {
 				return err
 			}
-			if err = cw.Write(buf); err != nil {
-				return err
-			}
+		}
+		if err = cw.Write(buf); err != nil {
+			return err
 		}
 	}
 
