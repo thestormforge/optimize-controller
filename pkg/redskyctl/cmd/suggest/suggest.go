@@ -94,43 +94,53 @@ func NewSuggestCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Co
 func (o *SuggestOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []string) error {
 	o.Name = args[0]
 
-	if api, err := f.RedSkyAPI(); err == nil {
-		// Send it to the remote Red Sky API
-		o.RedSkyAPI = &api
-	} else if o.ForceRedSkyAPI {
-		// Failure to explicitly use the Red Sky API
-		return err
-	} else if cs, err := f.RedSkyClientSet(); err == nil {
-		// Send it to the Kube cluster
-		o.RedSkyClientSet = cs
-
-		// Get the namespace to use
-		o.Namespace, _, err = f.ToRawKubeConfigLoader().Namespace()
-		if err != nil {
+	if !o.ForceKubernetes {
+		if api, err := f.RedSkyAPI(); err == nil {
+			// Send it to the remote Red Sky API
+			o.RedSkyAPI = &api
+		} else if o.ForceRedSkyAPI {
+			// Failure to explicitly use the Red Sky API
 			return err
 		}
+	}
 
-		// This is a brutal hack to allow us to re-use the controller code
-		// TODO Can we make a lightweight version of this that leverages the clientset we already have? It needs to work with namespaces also...
-		if rc, err := f.ToRESTConfig(); err != nil {
-			return err
-		} else {
-			s := runtime.NewScheme()
-			if err := scheme.AddToScheme(s); err != nil {
+	if !o.ForceRedSkyAPI {
+		if cs, err := f.RedSkyClientSet(); err == nil {
+			// Send it to the Kube cluster
+			o.RedSkyClientSet = cs
+
+			// Get the namespace to use
+			o.Namespace, _, err = f.ToRawKubeConfigLoader().Namespace()
+			if err != nil {
 				return err
 			}
-			if err := corev1.AddToScheme(s); err != nil {
-				return err
-			}
-			if cc, err := client.New(rc, client.Options{Scheme: s}); err != nil {
+
+			// This is a brutal hack to allow us to re-use the controller code
+			// TODO Can we make a lightweight version of this that leverages the clientset we already have? It needs to work with namespaces also...
+			if rc, err := f.ToRESTConfig(); err != nil {
 				return err
 			} else {
-				o.ControllerReader = cc
+				s := runtime.NewScheme()
+				if err := scheme.AddToScheme(s); err != nil {
+					return err
+				}
+				if err := corev1.AddToScheme(s); err != nil {
+					return err
+				}
+				if cc, err := client.New(rc, client.Options{Scheme: s}); err != nil {
+					return err
+				} else {
+					o.ControllerReader = cc
+				}
 			}
+		} else if o.ForceKubernetes {
+			// Failure to explicitly use the Kubernetes cluster
+			return err
 		}
-	} else if o.ForceKubernetes {
-		// Failure to explicitly use the Kubernetes cluster
-		return err
+	}
+
+	if o.RedSkyAPI == nil && o.RedSkyClientSet == nil {
+		return fmt.Errorf("unable to connect")
 	}
 
 	return nil
@@ -139,15 +149,17 @@ func (o *SuggestOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []
 func (o *SuggestOptions) Run() error {
 	// If we have an API then create the suggestion using the Red Sky API
 	if o.RedSkyAPI != nil {
-		return createRedSkyAPISuggestion(o.Name, o.Suggestions, *o.RedSkyAPI)
+		if err := createRedSkyAPISuggestion(o.Name, o.Suggestions, *o.RedSkyAPI); err != nil {
+			return err
+		}
 	}
 
 	// If we have a clientset then create the suggestion in the Kubernetes cluster
 	if o.RedSkyClientSet != nil {
-		return createKubernetesSuggestion(o.Namespace, o.Name, o.Suggestions, o.RedSkyClientSet, o.ControllerReader)
+		if err := createKubernetesSuggestion(o.Namespace, o.Name, o.Suggestions, o.RedSkyClientSet, o.ControllerReader); err != nil {
+			return err
+		}
 	}
-
-	// TODO Fail because we have no place to send the suggestion?
 
 	return nil
 }

@@ -56,20 +56,19 @@ func NewGetExperimentListCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams)
 }
 
 func RunGetExperimentList(o *GetOptions) error {
-	var list *redsky.ExperimentList
-	var err error
 	if o.RedSkyAPI != nil {
-		list, err = getRedSkyAPIExperimentList(*o.RedSkyAPI, o.ChunkSize)
-	} else if o.RedSkyClientSet != nil {
-		list, err = getKubernetesExperimentList(o.RedSkyClientSet, o.Namespace, o.ChunkSize)
-	} else {
-		return nil
-	}
-	if err != nil {
-		return err
+		if err := o.printIf(getRedSkyAPIExperimentList(*o.RedSkyAPI, o.ChunkSize)); err != nil {
+			return err
+		}
 	}
 
-	return o.Printer.PrintObj(list, o.Out)
+	if o.RedSkyClientSet != nil {
+		if err := o.printIf(getKubernetesExperimentList(o.RedSkyClientSet, o.Namespace, o.ChunkSize)); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func getRedSkyAPIExperimentList(api redsky.API, chunkSize int) (*redsky.ExperimentList, error) {

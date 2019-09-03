@@ -16,6 +16,8 @@ limitations under the License.
 package get
 
 import (
+	"fmt"
+
 	redsky "github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1"
 	redskykube "github.com/redskyops/k8s-experiment/pkg/kubernetes"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
@@ -68,24 +70,34 @@ func (o *GetOptions) AddFlags(cmd *cobra.Command) {
 }
 
 func (o *GetOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []string, printFlags *cmdutil.PrintFlags) error {
-	if api, err := f.RedSkyAPI(); err == nil {
-		// Get from the remote Red Sky API
-		o.RedSkyAPI = &api
-	} else if o.ForceRedSkyAPI {
-		// Failure to explicitly use the Red Sky API
-		return err
-	} else if cs, err := f.RedSkyClientSet(); err == nil {
-		// Get from the Kube cluster
-		o.RedSkyClientSet = cs
-
-		// Get the namespace to use
-		o.Namespace, _, err = f.ToRawKubeConfigLoader().Namespace()
-		if err != nil {
+	if !o.ForceKubernetes {
+		if api, err := f.RedSkyAPI(); err == nil {
+			// Get from the remote Red Sky API
+			o.RedSkyAPI = &api
+		} else if o.ForceRedSkyAPI {
+			// Failure to explicitly use the Red Sky API
 			return err
 		}
-	} else if o.ForceKubernetes {
-		// Failure to explicitly use the Kubernetes cluster
-		return err
+	}
+
+	if !o.ForceRedSkyAPI {
+		if cs, err := f.RedSkyClientSet(); err == nil {
+			// Get from the Kube cluster
+			o.RedSkyClientSet = cs
+
+			// Get the namespace to use
+			o.Namespace, _, err = f.ToRawKubeConfigLoader().Namespace()
+			if err != nil {
+				return err
+			}
+		} else if o.ForceKubernetes {
+			// Failure to explicitly use the Kubernetes cluster
+			return err
+		}
+	}
+
+	if o.RedSkyAPI == nil && o.RedSkyClientSet == nil {
+		return fmt.Errorf("unable to connect")
 	}
 
 	if len(args) > 0 {
@@ -103,4 +115,13 @@ func (o *GetOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []stri
 	}
 
 	return nil
+}
+
+// Helper to invoke PrintObj or propagate the result of a multi-return call
+func (o *GetOptions) printIf(obj interface{}, err error) error {
+	if err != nil {
+		return err
+	}
+
+	return o.Printer.PrintObj(obj, o.Out)
 }

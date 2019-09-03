@@ -61,20 +61,19 @@ func NewGetTrialListCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cob
 }
 
 func RunGetTrialList(o *GetOptions, meta *trialTableMeta) error {
-	var list *redsky.TrialList
-	var err error
 	if o.RedSkyAPI != nil {
-		list, err = getRedSkyAPITrialList(*o.RedSkyAPI, o.Name, meta)
-	} else if o.RedSkyClientSet != nil {
-		list, err = getKubernetesTrialList(o.RedSkyClientSet, o.Namespace, o.Name, meta)
-	} else {
-		return nil
-	}
-	if err != nil {
-		return err
+		if err := o.printIf(getRedSkyAPITrialList(*o.RedSkyAPI, o.Name, meta)); err != nil {
+			return err
+		}
 	}
 
-	return o.Printer.PrintObj(list, o.Out)
+	if o.RedSkyClientSet != nil {
+		if err := o.printIf(getKubernetesTrialList(o.RedSkyClientSet, o.Namespace, o.Name, meta)); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func getRedSkyAPITrialList(api redsky.API, experimentName string, meta *trialTableMeta) (*redsky.TrialList, error) {
