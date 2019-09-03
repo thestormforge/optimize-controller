@@ -74,24 +74,32 @@ func DefaultConfig() (*Config, error) {
 		return nil, err
 	}
 
-	if config.Address == "" {
-		config.Address = os.Getenv("REDSKY_ADDRESS")
+	// Do not add an OAuth2 section until we know we need it
+	configOAuth2 := config.OAuth2
+	if configOAuth2 == nil {
+		configOAuth2 = &OAuth2{}
 	}
 
-	if config.OAuth2 == nil {
-		oauth2 := OAuth2{
-			ClientID:     os.Getenv("REDSKY_OAUTH2_CLIENT_ID"),
-			ClientSecret: os.Getenv("REDSKY_OAUTH2_CLIENT_SECRET"),
-		}
-		if oauth2.ClientID != "" && oauth2.ClientSecret != "" {
-			config.OAuth2 = &oauth2
-		}
+	if v := os.Getenv("REDSKY_ADDRESS"); v != "" {
+		config.Address = v
+	}
+	if v := os.Getenv("REDSKY_OAUTH2_CLIENT_ID"); v != "" {
+		configOAuth2.ClientID = v
+	}
+	if v := os.Getenv("REDSKY_OAUTH2_CLIENT_SECRET"); v != "" {
+		configOAuth2.ClientSecret = v
+	}
+	if v := os.Getenv("REDSKY_OAUTH2_TOKEN_URL"); v != "" {
+		configOAuth2.TokenURL = v
 	}
 
-	if config.OAuth2 != nil && config.OAuth2.TokenURL == "" && config.OAuth2.ClientID != "" && config.OAuth2.ClientSecret != "" {
-		config.OAuth2.TokenURL = os.Getenv("REDSKY_OAUTH2_TOKEN_URL")
-		if config.OAuth2.TokenURL == "" {
-			config.OAuth2.TokenURL = "./auth/token/"
+	if configOAuth2.ClientID != "" && configOAuth2.ClientSecret != "" {
+		if configOAuth2.TokenURL == "" {
+			configOAuth2.TokenURL = "./auth/token/"
+		}
+
+		if config.OAuth2 == nil {
+			config.OAuth2 = configOAuth2
 		}
 	}
 
