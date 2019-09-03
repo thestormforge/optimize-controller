@@ -296,8 +296,10 @@ type TrialItem struct {
 
 	// The current trial status.
 	Status TrialStatus `json:"status"`
+	// Ordinal number indicating when during an experiment the trail was generated.
+	Number int64 `json:"number"`
 	// Labels for this trial.
-	Labels map[string]string `json:"labels"`
+	Labels map[string]string `json:"labels,omitempty"`
 }
 
 type TrialList struct {
