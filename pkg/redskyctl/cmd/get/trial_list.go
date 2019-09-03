@@ -17,7 +17,7 @@ package get
 
 import (
 	"context"
-	"path"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -84,6 +84,7 @@ func getRedSkyAPITrialList(api redsky.API, experimentName string, meta *trialTab
 	}
 
 	// Collect the parameter and metric names from the experiment
+	meta.name = experimentName
 	for i := range exp.Parameters {
 		meta.parameters = append(meta.parameters, exp.Parameters[i].Name)
 	}
@@ -109,6 +110,7 @@ func getKubernetesTrialList(clientset *redskykube.Clientset, experimentNamespace
 	}
 
 	// Collect the parameter and metric names from the experiment
+	meta.name = experimentName
 	for i := range exp.Spec.Parameters {
 		meta.parameters = append(meta.parameters, exp.Spec.Parameters[i].Name)
 	}
@@ -133,6 +135,7 @@ func getKubernetesTrialList(clientset *redskykube.Clientset, experimentNamespace
 }
 
 type trialTableMeta struct {
+	name       string
 	parameters []string
 	metrics    []string
 }
@@ -157,7 +160,7 @@ func (*trialTableMeta) ExtractList(obj interface{}) ([]interface{}, error) {
 	}
 }
 
-func (*trialTableMeta) ExtractValue(obj interface{}, column string) (string, error) {
+func (t *trialTableMeta) ExtractValue(obj interface{}, column string) (string, error) {
 	switch o := obj.(type) {
 	case *redsky.TrialItem:
 		if strings.HasPrefix(column, "parameter_") {
@@ -177,7 +180,7 @@ func (*trialTableMeta) ExtractValue(obj interface{}, column string) (string, err
 		} else {
 			switch column {
 			case "name":
-				return path.Base(o.TrialMeta.ReportTrial), nil
+				return fmt.Sprintf("%s-%d", t.name, o.Number), nil
 			}
 		}
 	}
