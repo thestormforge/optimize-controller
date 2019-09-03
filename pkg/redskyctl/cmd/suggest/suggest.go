@@ -248,6 +248,6 @@ func createKubernetesSuggestion(namespace, name string, suggestions SuggestionSo
 		})
 	}
 
-	_, err = clientset.RedskyopsV1alpha1().Trials(namespace).Create(trial)
+	_, err = clientset.RedskyopsV1alpha1().Trials(trialNamespace).Create(trial)
 	return err
 }
