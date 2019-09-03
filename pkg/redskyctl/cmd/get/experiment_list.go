@@ -92,19 +92,19 @@ func getKubernetesExperimentList(clientset *redskykube.Clientset, namespace stri
 	experiments := clientset.RedskyopsV1alpha1().Experiments(namespace)
 	opts := metav1.ListOptions{Limit: int64(chunkSize)}
 	l := &redsky.ExperimentList{}
-	for opts.Continue == "" {
+	for {
 		el, err := experiments.List(opts)
 		if err != nil {
 			return nil, err
 		}
 
-		if len(el.Items) == 0 {
-			break
-		}
-
 		err = experiment.ConvertExperimentList(el, l)
 		if err != nil {
 			return nil, err
+		}
+
+		if opts.Continue == "" {
+			break
 		}
 	}
 	return l, nil

@@ -17,6 +17,7 @@ package experiment
 
 import (
 	"encoding/json"
+	"path"
 	"strconv"
 
 	redskyapi "github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1"
@@ -27,6 +28,7 @@ import (
 // NOTE: The convert list methods DO NOT nil the target slice to allow for converting paged result sets
 
 func ConvertExperiment(in *redskyv1alpha1.Experiment, out *redskyapi.Experiment) error {
+	out.ExperimentMeta.LastModified = in.CreationTimestamp.Time
 	out.ExperimentMeta.Self = in.Annotations[redskyv1alpha1.AnnotationExperimentURL]
 	out.ExperimentMeta.NextTrial = in.Annotations[redskyv1alpha1.AnnotationNextTrialURL]
 
@@ -66,6 +68,13 @@ func ConvertExperimentList(in *redskyv1alpha1.ExperimentList, out *redskyapi.Exp
 		if err := ConvertExperiment(&in.Items[i], &e.Experiment); err != nil {
 			return err
 		}
+
+		// TODO This is here as a hack for `redskyctl get experiments`
+		if e.Self == "" {
+			e.DisplayName = in.Items[i].Name
+			e.Self = path.Join(".", e.DisplayName)
+		}
+
 		out.Experiments = append(out.Experiments, e)
 	}
 
