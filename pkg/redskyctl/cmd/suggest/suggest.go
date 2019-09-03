@@ -104,7 +104,7 @@ func (o *SuggestOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []
 		}
 	}
 
-	if !o.ForceRedSkyAPI {
+	if o.RedSkyAPI == nil {
 		if cs, err := f.RedSkyClientSet(); err == nil {
 			// Send it to the Kube cluster
 			o.RedSkyClientSet = cs
