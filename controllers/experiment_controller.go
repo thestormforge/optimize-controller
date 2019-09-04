@@ -171,18 +171,13 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 		if redskytrial.IsTrialFinished(trial) {
 
 			// TODO There is a race condition with SetupDelete going from unknown to false
-			var needsToWait bool
 			for i := range trial.Status.Conditions {
 				c := &trial.Status.Conditions[i]
 				if c.Type == redskyv1alpha1.TrialSetupDeleted && c.Status == corev1.ConditionUnknown {
-					needsToWait = true
+					r.Log.Info("Trial is finished, waiting for setup delete", "trial", trial.Name)
+					return reconcile.Result{Requeue: true}, nil
 				}
 			}
-			if needsToWait {
-				r.Log.Info("Trial is finished, waiting for setup delete", "trial", trial.Name)
-				continue
-			}
-			// End of race condition nonsense
 
 			if reportTrialURL := trial.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL]; reportTrialURL != "" {
 				// Create an observation for the remote server
