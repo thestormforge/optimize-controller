@@ -24,8 +24,10 @@ import (
 	redskyexperiment "github.com/redskyops/k8s-experiment/pkg/controller/experiment"
 	redskytrial "github.com/redskyops/k8s-experiment/pkg/controller/trial"
 	"github.com/redskyops/k8s-experiment/pkg/util"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -168,6 +170,21 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 	for i := range list.Items {
 		trial := &list.Items[i]
 		if redskytrial.IsTrialFinished(trial) {
+
+			// TODO There is a race condition with SetupDelete going from unknown to false
+			var needsToWait bool
+			for i := range trial.Status.Conditions {
+				c := &trial.Status.Conditions[i]
+				if c.Type == redskyv1alpha1.TrialSetupDeleted && c.Status == corev1.ConditionUnknown {
+					needsToWait = true
+				}
+			}
+			if needsToWait {
+				r.Log.Info("Trial is finished, waiting for setup delete", "trial", trial.Name)
+				continue
+			}
+			// End of race condition nonsense
+
 			if reportTrialURL := trial.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL]; reportTrialURL != "" {
 				// Create an observation for the remote server
 				trialValues := redskyapi.TrialValues{}
