@@ -54,7 +54,7 @@ func (f *ConfigFlags) AddFlags(flags *pflag.FlagSet) {
 		flags.StringVar(f.Context, flagContext, *f.Context, "The name of the kubeconfig context to use.")
 	}
 	if f.Namespace != nil {
-		flags.StringVarP(f.Namespace, flagNamespace, "n", *f.Namespace, "If present, the namespace scope for this CLI request")
+		flags.StringVarP(f.Namespace, flagNamespace, "n", *f.Namespace, "If present, the namespace scope for this CLI request.")
 	}
 }
 
