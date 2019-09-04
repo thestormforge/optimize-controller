@@ -69,7 +69,7 @@ func main() {
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	flag.Parse()
 
-	ctrl.SetLogger(zap.Logger(true))
+	ctrl.SetLogger(zap.Logger(false))
 
 	setupLog.Info("Red Sky", "version", version.GetVersion(), "gitCommit", version.GitCommit)
 	var redSkyAPI redsky.API
