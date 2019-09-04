@@ -244,7 +244,6 @@ func createKubernetesSuggestion(namespace, name string, suggestions SuggestionSo
 
 	trial := &v1alpha1.Trial{}
 	experiment.PopulateTrialFromTemplate(exp, trial, trialNamespace)
-	trial.Finalizers = nil
 	if err := controllerutil.SetControllerReference(exp, trial, scheme.Scheme); err != nil {
 		return err
 	}

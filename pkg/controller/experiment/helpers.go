@@ -30,6 +30,46 @@ const (
 	Finalizer = "finalizer.redskyops.dev"
 )
 
+// HasFinalizer checks an object (should be an experiment or trial) for the experiment finalizer
+func HasFinalizer(obj metav1.Object) bool {
+	for _, f := range obj.GetFinalizers() {
+		if f == Finalizer {
+			return true
+		}
+	}
+	return false
+}
+
+// AddFinalizer adds the experiment finalizer to an object (should be an experiment or trial); returns true only if the finalizer is changed
+func AddFinalizer(obj metav1.Object) bool {
+	// Do not add the finalizer if the object is already deleted
+	if obj.GetDeletionTimestamp() != nil {
+		return false
+	}
+
+	// Do not add the finalizer more then once
+	if HasFinalizer(obj) {
+		return false
+	}
+
+	// Actually add the finalizer
+	obj.SetFinalizers(append(obj.GetFinalizers(), Finalizer))
+	return true
+}
+
+// RemoveFinalizer deletes the experiment finalizer from an object (should be an experiment or trial); return true only if the finalizer is changed
+func RemoveFinalizer(obj metav1.Object) bool {
+	finalizers := obj.GetFinalizers()
+	for i := range finalizers {
+		if finalizers[i] == Finalizer {
+			finalizers[i] = finalizers[len(finalizers)-1]
+			obj.SetFinalizers(finalizers[:len(finalizers)-1])
+			return true
+		}
+	}
+	return false
+}
+
 // Creates a new trial for an experiment
 func PopulateTrialFromTemplate(experiment *redskyv1alpha1.Experiment, trial *redskyv1alpha1.Trial, namespace string) {
 	// Start with the trial template
@@ -47,8 +87,6 @@ func PopulateTrialFromTemplate(experiment *redskyv1alpha1.Experiment, trial *red
 	if experiment.GetReplicas() > 1 || experiment.Spec.NamespaceSelector != nil || experiment.Spec.Template.Namespace != "" {
 		trial.Spec.TargetNamespace = namespace
 	}
-
-	trial.Finalizers = append(trial.Finalizers, Finalizer)
 
 	if trial.Namespace == "" {
 		trial.Namespace = namespace
