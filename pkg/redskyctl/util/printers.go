@@ -23,6 +23,8 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
 )
 
@@ -167,4 +169,82 @@ func (p *CSVPrinter) PrintObj(obj interface{}, w io.Writer) error {
 
 	cw.Flush()
 	return cw.Error()
+}
+
+// This isn't a printer so much as it is an adaptor
+
+// RuntimeObjectTableMeta is a subset of functionality needed for runtime.Object
+type RuntimeObjectTableMeta interface {
+	ExtractValue(obj runtime.Object, column string) (string, error)
+	Allow(outputFormat string) bool
+	Columns(outputFormat string) []string
+	Header(outputFormat string, column string) string
+}
+
+func NewTableMeta(rt RuntimeObjectTableMeta) TableMeta {
+	return &rtoTableMeta{tableMeta: rt}
+}
+
+type rtoTableMeta struct {
+	tableMeta RuntimeObjectTableMeta
+}
+
+func (rtoTableMeta) IsListType(obj interface{}) bool {
+	if o, ok := obj.(runtime.Object); ok {
+		return meta.IsListType(o)
+	}
+	return false
+}
+
+func (rtoTableMeta) ExtractList(obj interface{}) ([]interface{}, error) {
+	if o, ok := obj.(runtime.Object); ok {
+		if meta.IsListType(o) {
+			if l, err := meta.ExtractList(o); err != nil {
+				return nil, err
+			} else {
+				ol := make([]interface{}, len(l))
+				for i := range l {
+					ol[i] = l[i]
+				}
+				return ol, nil
+			}
+		} else {
+			return []interface{}{o}, nil
+		}
+	}
+	return nil, fmt.Errorf("expected runtime.Object")
+}
+
+func (m *rtoTableMeta) ExtractValue(obj interface{}, column string) (string, error) {
+	if o, ok := obj.(runtime.Object); ok {
+		switch column {
+		case "name":
+			if acc, err := meta.Accessor(o); err != nil {
+				return "", err
+			} else {
+				return acc.GetName(), nil
+			}
+		case "namespace":
+			if acc, err := meta.Accessor(o); err != nil {
+				return "", err
+			} else {
+				return acc.GetNamespace(), nil
+			}
+		default:
+			return m.tableMeta.ExtractValue(o, column)
+		}
+	}
+	return "", fmt.Errorf("expected runtime.Object")
+}
+
+func (m *rtoTableMeta) Allow(outputFormat string) bool {
+	return m.tableMeta.Allow(outputFormat)
+}
+
+func (m *rtoTableMeta) Columns(outputFormat string) []string {
+	return m.tableMeta.Columns(outputFormat)
+}
+
+func (m *rtoTableMeta) Header(outputFormat string, column string) string {
+	return m.tableMeta.Header(outputFormat, column)
 }
