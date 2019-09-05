@@ -145,7 +145,7 @@ func (*experimentTableMeta) ExtractValue(obj interface{}, column string) (string
 }
 
 func (*experimentTableMeta) Allow(outputFormat string) bool {
-	return strings.ToLower(outputFormat) != "csv"
+	return strings.ToLower(outputFormat) == "name"
 }
 
 func (*experimentTableMeta) Columns(outputFormat string) []string {
