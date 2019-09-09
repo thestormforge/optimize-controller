@@ -72,6 +72,7 @@ func main() {
 	ctrl.SetLogger(zap.Logger(false))
 
 	setupLog.Info("Red Sky", "version", version.GetVersion(), "gitCommit", version.GitCommit)
+	api.DefaultUserAgent = version.GetUserAgentString("RedSkyManager")
 	var redSkyAPI redsky.API
 	if cfg, err := api.DefaultConfig(); err != nil {
 		setupLog.Error(err, "unable to load Red Sky configuration")

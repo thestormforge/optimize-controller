@@ -22,9 +22,11 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/redskyops/k8s-experiment/pkg/api"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/generate"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/setup"
+	"github.com/redskyops/k8s-experiment/pkg/version"
 	"github.com/spf13/cobra"
 )
 
@@ -37,6 +39,9 @@ func main() {
 		panic(err)
 	}
 	rand.Seed(int64(binary.LittleEndian.Uint64(b[:])))
+
+	// Set the UA string for the API client
+	api.DefaultUserAgent = version.GetUserAgentString("redskyctl")
 
 	// Determine which command to run
 	var command *cobra.Command

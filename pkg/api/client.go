@@ -51,6 +51,8 @@ type Client interface {
 	Do(context.Context, *http.Request) (*http.Response, []byte, error)
 }
 
+var DefaultUserAgent string
+
 func DefaultConfig() (*Config, error) {
 	config := &Config{}
 
@@ -151,10 +153,17 @@ func NewClient(cfg Config) (Client, error) {
 	// Strip the trailing slash back out so it isn't displayed
 	u.Path = strings.TrimRight(u.Path, "/")
 
+	// Make sure we have a User-Agent string
+	// TODO This should be done separately via a configurable round-tripper
+	ua := DefaultUserAgent
+	if ua == "" {
+		ua = version.GetUserAgentString("RedSky")
+	}
+
 	return &httpClient{
 		endpoint:  u,
 		client:    *hc,
-		userAgent: "RedSky/" + strings.TrimLeft(version.Version, "v"),
+		userAgent: ua,
 	}, nil
 }
 
