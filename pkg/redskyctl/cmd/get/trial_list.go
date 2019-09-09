@@ -189,7 +189,7 @@ func (t *trialTableMeta) ExtractValue(obj interface{}, column string) (string, e
 }
 
 func (*trialTableMeta) Allow(outputFormat string) bool {
-	return strings.ToLower(outputFormat) == "name" || strings.ToLower(outputFormat) == "csv"
+	return outputFormat == "" || strings.ToLower(outputFormat) == "name" || strings.ToLower(outputFormat) == "csv"
 }
 
 func (t *trialTableMeta) Columns(outputFormat string) []string {

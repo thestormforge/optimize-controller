@@ -192,7 +192,7 @@ func (o *StatusOptions) Columns(outputFormat string) []string {
 }
 
 func (o *StatusOptions) Allow(outputFormat string) bool {
-	return false
+	return outputFormat == ""
 }
 
 func (*StatusOptions) Header(outputFormat string, column string) string {
