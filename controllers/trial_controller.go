@@ -72,8 +72,11 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	// Ahead of everything is the setup/teardown (contains finalization logic)
-	if resp, ret, err := redskytrial.ManageSetup(r.Client, r.Scheme, ctx, log, &now, trial); resp.Requeue || resp.RequeueAfter > 0 || ret || err != nil {
-		return resp, err
+	if result, err := redskytrial.ManageSetup(r.Client, r.Scheme, ctx, &now, trial); result != nil {
+		if err != nil {
+			log.Error(err, "Setup task failed")
+		}
+		return *result, err
 	}
 
 	// If we are in a finished or deleted state there is nothing for us to do

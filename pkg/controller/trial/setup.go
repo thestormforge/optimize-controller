@@ -22,8 +22,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-logr/logr"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
+	"github.com/redskyops/k8s-experiment/pkg/util"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -60,23 +60,23 @@ const (
 	startTimeout = 2 * time.Minute
 )
 
-func ManageSetup(c client.Client, s *runtime.Scheme, ctx context.Context, log logr.Logger, probeTime *metav1.Time, trial *redskyv1alpha1.Trial) (ctrl.Result, bool, error) {
+func ManageSetup(c client.Client, s *runtime.Scheme, ctx context.Context, probeTime *metav1.Time, trial *redskyv1alpha1.Trial) (*ctrl.Result, error) {
 	// Determine if there is anything to do
 	if probeSetupTrialConditions(trial, probeTime) {
-		return ctrl.Result{}, false, nil
+		return nil, nil
 	}
 
 	// Update the conditions based on existing jobs
 	list := &batchv1.JobList{}
 	setupJobLabels := map[string]string{"role": "trialSetup", "trial": trial.Name}
 	if err := c.List(ctx, list, client.MatchingLabels(setupJobLabels)); err != nil {
-		return ctrl.Result{}, false, err
+		return &ctrl.Result{}, err
 	}
 	for i := range list.Items {
 		job := &list.Items[i]
 		conditionType, err := findSetupJobConditionType(job)
 		if err != nil {
-			return ctrl.Result{}, false, err
+			return &ctrl.Result{}, err
 		}
 
 		// If any setup job failed, mark any un-finished trial as failed
@@ -98,7 +98,7 @@ func ManageSetup(c client.Client, s *runtime.Scheme, ctx context.Context, log lo
 	// Check to see if we need to update the trial to record a condition change
 	if needsUpdate(trial, probeTime) {
 		err := c.Update(ctx, trial)
-		return ctrl.Result{}, true, checkSetupUpdateErr(log, err)
+		return &ctrl.Result{}, err
 	}
 
 	// Figure out if we need to start a job
@@ -113,7 +113,7 @@ func ManageSetup(c client.Client, s *runtime.Scheme, ctx context.Context, log lo
 	if cc, ok := CheckCondition(&trial.Status, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionUnknown); cc && ok {
 		if addSetupFinalizer(trial) {
 			err := c.Update(ctx, trial)
-			return ctrl.Result{}, true, checkSetupUpdateErr(log, err)
+			return &ctrl.Result{}, err
 		}
 
 		if IsTrialFinished(trial) || !trial.DeletionTimestamp.IsZero() {
@@ -125,39 +125,33 @@ func ManageSetup(c client.Client, s *runtime.Scheme, ctx context.Context, log lo
 	if mode != "" {
 		job, err := newSetupJob(trial, s, mode)
 		if err != nil {
-			return ctrl.Result{}, false, err
+			return &ctrl.Result{}, err
 		}
 		err = c.Create(ctx, job)
-		return ctrl.Result{}, true, err
+		return &ctrl.Result{}, err
 	}
 
 	// If the create job isn't finished, wait for it (unless the trial is already finished, i.e. failed)
 	if cc, ok := CheckCondition(&trial.Status, redskyv1alpha1.TrialSetupCreated, corev1.ConditionFalse); ok && cc {
 		if !IsTrialFinished(trial) {
-			return ctrl.Result{RequeueAfter: 1 * time.Second}, false, nil
+			return &ctrl.Result{RequeueAfter: 1 * time.Second}, nil
 		}
 	}
 
 	// If the delete job exists, it is safe to remove our finalizer
 	if cc, ok := CheckCondition(&trial.Status, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionUnknown); ok && !cc {
-		if removeSetupFinalizer(trial) {
+		if util.RemoveFinalizer(trial, setupFinalizer) {
 			err := c.Update(ctx, trial)
-			return ctrl.Result{}, true, checkSetupUpdateErr(log, err)
+			return &ctrl.Result{}, err
 		}
 	}
 
 	// There are no setup task actions to perform
-	return ctrl.Result{}, false, nil
-}
-
-func checkSetupUpdateErr(log logr.Logger, err error) error {
-	if err != nil {
-		log.Error(err, "unable to update trial for setup tasks")
-	}
-	return err
+	return nil, nil
 }
 
 func addSetupFinalizer(trial *redskyv1alpha1.Trial) bool {
+	// TODO Will this add a finalizer to a deleted trial? If not, use the util.AddFinalizer instead
 	for _, f := range trial.Finalizers {
 		if f == setupFinalizer {
 			return false
@@ -165,17 +159,6 @@ func addSetupFinalizer(trial *redskyv1alpha1.Trial) bool {
 	}
 	trial.Finalizers = append(trial.Finalizers, setupFinalizer)
 	return true
-}
-
-func removeSetupFinalizer(trial *redskyv1alpha1.Trial) bool {
-	for i := range trial.Finalizers {
-		if trial.Finalizers[i] == setupFinalizer {
-			trial.Finalizers[i] = trial.Finalizers[len(trial.Finalizers)-1]
-			trial.Finalizers = trial.Finalizers[:len(trial.Finalizers)-1]
-			return true
-		}
-	}
-	return false
 }
 
 func isSetupJobComplete(job *batchv1.Job) corev1.ConditionStatus {

@@ -30,39 +30,6 @@ const (
 	Finalizer = "finalizer.redskyops.dev"
 )
 
-// AddFinalizer adds the experiment finalizer to an object (should be an experiment or trial); returns true only if the finalizer is changed
-func AddFinalizer(obj metav1.Object) bool {
-	// Do not add the finalizer if the object is already deleted
-	if !obj.GetDeletionTimestamp().IsZero() {
-		return false
-	}
-
-	// Do not add the finalizer more then once
-	finalizers := obj.GetFinalizers()
-	for _, f := range finalizers {
-		if f == Finalizer {
-			return false
-		}
-	}
-
-	// Actually add the finalizer
-	obj.SetFinalizers(append(finalizers, Finalizer))
-	return true
-}
-
-// RemoveFinalizer deletes the experiment finalizer from an object (should be an experiment or trial); return true only if the finalizer is changed
-func RemoveFinalizer(obj metav1.Object) bool {
-	finalizers := obj.GetFinalizers()
-	for i := range finalizers {
-		if finalizers[i] == Finalizer {
-			finalizers[i] = finalizers[len(finalizers)-1]
-			obj.SetFinalizers(finalizers[:len(finalizers)-1])
-			return true
-		}
-	}
-	return false
-}
-
 // Creates a new trial for an experiment
 func PopulateTrialFromTemplate(experiment *redskyv1alpha1.Experiment, trial *redskyv1alpha1.Trial, namespace string) {
 	// Start with the trial template
