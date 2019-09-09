@@ -116,7 +116,7 @@ func ManageSetup(c client.Client, s *runtime.Scheme, ctx context.Context, log lo
 			return reconcile.Result{}, true, checkSetupUpdateErr(log, err)
 		}
 
-		if IsTrialFinished(trial) || trial.DeletionTimestamp != nil {
+		if IsTrialFinished(trial) || !trial.DeletionTimestamp.IsZero() {
 			mode = modeDelete
 		}
 	}

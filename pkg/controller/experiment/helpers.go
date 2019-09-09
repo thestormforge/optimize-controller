@@ -30,30 +30,23 @@ const (
 	Finalizer = "finalizer.redskyops.dev"
 )
 
-// HasFinalizer checks an object (should be an experiment or trial) for the experiment finalizer
-func HasFinalizer(obj metav1.Object) bool {
-	for _, f := range obj.GetFinalizers() {
-		if f == Finalizer {
-			return true
-		}
-	}
-	return false
-}
-
 // AddFinalizer adds the experiment finalizer to an object (should be an experiment or trial); returns true only if the finalizer is changed
 func AddFinalizer(obj metav1.Object) bool {
 	// Do not add the finalizer if the object is already deleted
-	if obj.GetDeletionTimestamp() != nil {
+	if !obj.GetDeletionTimestamp().IsZero() {
 		return false
 	}
 
 	// Do not add the finalizer more then once
-	if HasFinalizer(obj) {
-		return false
+	finalizers := obj.GetFinalizers()
+	for _, f := range finalizers {
+		if f == Finalizer {
+			return false
+		}
 	}
 
 	// Actually add the finalizer
-	obj.SetFinalizers(append(obj.GetFinalizers(), Finalizer))
+	obj.SetFinalizers(append(finalizers, Finalizer))
 	return true
 }
 

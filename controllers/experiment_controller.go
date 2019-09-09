@@ -190,7 +190,7 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 				r.Log.Info("Reporting trial", "namespace", trial.Namespace, "reportTrialURL", reportTrialURL, "assignments", trial.Spec.Assignments, "values", trialValues)
 				if err := r.RedSkyAPI.ReportTrial(ctx, reportTrialURL, trialValues); err != nil {
 					// This error only matters if the experiment itself is not deleted, otherwise ignore it so we can remove the finalizer
-					if experiment.DeletionTimestamp == nil {
+					if experiment.DeletionTimestamp.IsZero() {
 						return reconcile.Result{}, err
 					}
 				}
@@ -208,11 +208,11 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 			}
 
 			// Delete the trial
-			if trial.DeletionTimestamp == nil {
+			if trial.DeletionTimestamp.IsZero() {
 				err = r.Delete(ctx, trial)
 				return reconcile.Result{}, err
 			}
-		} else if trial.DeletionTimestamp != nil || experiment.DeletionTimestamp != nil {
+		} else if !trial.DeletionTimestamp.IsZero() || !experiment.DeletionTimestamp.IsZero() {
 			// The trial was explicitly deleted before it finished or the experiment was deleted, remove the finalizer from the trial so it can be garbage collected
 			if redskyexperiment.RemoveFinalizer(trial) {
 				// TODO Notify the server that the trial was abandoned (ignore errors in case the whole experiment was abandoned)
@@ -223,7 +223,7 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 	}
 
 	// Remove our finalizer if we have been deleted and all trials were reconciled
-	if experiment.DeletionTimestamp != nil && redskyexperiment.RemoveFinalizer(experiment) {
+	if !experiment.DeletionTimestamp.IsZero() && redskyexperiment.RemoveFinalizer(experiment) {
 		// Also delete the experiment on the server if necessary
 		// TODO Does this require `experiment.GetReplicas() > 0`?
 		if experimentURL := experiment.GetAnnotations()[redskyv1alpha1.AnnotationExperimentURL]; experimentURL != "" {

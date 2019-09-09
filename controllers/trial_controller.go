@@ -83,7 +83,7 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	// If we are in a finished or deleted state there is nothing for us to do
-	if redskytrial.IsTrialFinished(trial) || trial.DeletionTimestamp != nil {
+	if redskytrial.IsTrialFinished(trial) || !trial.DeletionTimestamp.IsZero() {
 		return reconcile.Result{}, nil
 	}
 
