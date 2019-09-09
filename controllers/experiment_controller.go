@@ -159,7 +159,7 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 
 			// Create the trial
 			// TODO If there is an error, notify server that we failed to adopt the suggestion?
-			r.Log.Info("Creating new trial", "namespace", trial.Namespace, "reportTrialURL", suggestion.ReportTrial, "assignments", trial.Spec.Assignments)
+			log.Info("Creating new trial", "namespace", trial.Namespace, "reportTrialURL", suggestion.ReportTrial, "assignments", trial.Spec.Assignments)
 			err = r.Create(ctx, trial)
 			return reconcile.Result{}, err
 		}
@@ -187,7 +187,7 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 				}
 
 				// Send the observation to the server
-				r.Log.Info("Reporting trial", "namespace", trial.Namespace, "reportTrialURL", reportTrialURL, "assignments", trial.Spec.Assignments, "values", trialValues)
+				log.Info("Reporting trial", "namespace", trial.Namespace, "reportTrialURL", reportTrialURL, "assignments", trial.Spec.Assignments, "values", trialValues)
 				if err := r.RedSkyAPI.ReportTrial(ctx, reportTrialURL, trialValues); err != nil {
 					// This error only matters if the experiment itself is not deleted, otherwise ignore it so we can remove the finalizer
 					if experiment.DeletionTimestamp.IsZero() {
