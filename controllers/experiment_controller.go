@@ -105,7 +105,6 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 	// Add an additional trial if needed
 	if nextTrialURL := experiment.GetAnnotations()[redskyv1alpha1.AnnotationNextTrialURL]; nextTrialURL != "" {
 		// Find an available namespace
-		// TODO If namespace comes back empty should we requeue with a delay instead of falling through?
 		if namespace, err := redskyexperiment.FindAvailableNamespace(r, experiment, list.Items); err != nil {
 			return ctrl.Result{}, err
 		} else if namespace != "" {
