@@ -577,7 +577,7 @@ func (h *httpAPI) ReportTrial(ctx context.Context, u string, vls TrialValues) er
 }
 
 func unexpected(resp *http.Response, body []byte) error {
-	err := &Error{Type: ErrUnexpected, Message: fmt.Sprintf("unexpected server response: %s", resp.Status)}
+	err := &Error{Type: ErrUnexpected}
 
 	if resp.Header.Get("Content-Type") == "application/json" {
 		// Unmarshal body into the error to get the error message
@@ -586,11 +586,17 @@ func unexpected(resp *http.Response, body []byte) error {
 
 	switch resp.StatusCode {
 	case http.StatusUnauthorized:
-		err.Message = "unauthorized"
+		if err.Message == "" {
+			err.Message = "unauthorized"
+		}
 	case http.StatusNotFound:
 		if resp.Request != nil && resp.Request.URL != nil {
 			err.Message = fmt.Sprintf("not found: %s", resp.Request.URL.String())
 		}
+	}
+
+	if err.Message == "" {
+		err.Message = fmt.Sprintf("unexpected server response: %s", resp.Status)
 	}
 
 	return err
