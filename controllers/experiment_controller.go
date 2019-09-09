@@ -24,7 +24,6 @@ import (
 	redskyexperiment "github.com/redskyops/k8s-experiment/pkg/controller/experiment"
 	redskytrial "github.com/redskyops/k8s-experiment/pkg/controller/trial"
 	"github.com/redskyops/k8s-experiment/pkg/util"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -169,16 +168,6 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 	for i := range list.Items {
 		trial := &list.Items[i]
 		if redskytrial.IsTrialFinished(trial) {
-
-			// TODO There is a race condition with SetupDelete going from unknown to false
-			for i := range trial.Status.Conditions {
-				c := &trial.Status.Conditions[i]
-				if c.Type == redskyv1alpha1.TrialSetupDeleted && c.Status == corev1.ConditionUnknown {
-					r.Log.Info("Trial is finished, waiting for setup delete", "trial", trial.Name)
-					return reconcile.Result{Requeue: true}, nil
-				}
-			}
-
 			if reportTrialURL := trial.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL]; reportTrialURL != "" {
 				// Create an observation for the remote server
 				trialValues := redskyapi.TrialValues{}
@@ -186,25 +175,28 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 					return reconcile.Result{}, err
 				}
 
-				// Send the observation to the server
-				log.Info("Reporting trial", "namespace", trial.Namespace, "reportTrialURL", reportTrialURL, "assignments", trial.Spec.Assignments, "values", trialValues)
-				if err := r.RedSkyAPI.ReportTrial(ctx, reportTrialURL, trialValues); err != nil {
-					// This error only matters if the experiment itself is not deleted, otherwise ignore it so we can remove the finalizer
-					if experiment.DeletionTimestamp.IsZero() {
-						return reconcile.Result{}, err
-					}
+				// Remove the report trial URL from the trial before updating the server
+				// TODO If the server operation were idempotent (i.e. a PUT instead of a POST), this would go after the server update
+				delete(trial.GetAnnotations(), redskyv1alpha1.AnnotationReportTrialURL)
+				if err := r.Update(ctx, trial); err != nil {
+					return ignoreConflict(err)
 				}
 
-				// Remove the report trial URL from the trial
-				delete(trial.GetAnnotations(), redskyv1alpha1.AnnotationReportTrialURL)
-				err := r.Update(ctx, trial)
+				// Send the observation to the server
+				log.Info("Reporting trial", "namespace", trial.Namespace, "reportTrialURL", reportTrialURL, "assignments", trial.Spec.Assignments, "values", trialValues)
+				if err := r.RedSkyAPI.ReportTrial(ctx, reportTrialURL, trialValues); err != nil && experiment.DeletionTimestamp.IsZero() {
+					// This error only matters if the experiment itself is not deleted, otherwise ignore it so we can remove the finalizer
+					// TODO Restore `reportTrialURL` annotation to retry?
+					return reconcile.Result{}, err
+				}
+
 				return reconcile.Result{}, err
 			}
 
 			// Remove the trial finalizer once we have sent information to the server
 			if redskyexperiment.RemoveFinalizer(trial) {
 				err := r.Update(ctx, trial)
-				return reconcile.Result{}, err
+				return ignoreConflict(err)
 			}
 
 			// Delete the trial
@@ -217,7 +209,7 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 			if redskyexperiment.RemoveFinalizer(trial) {
 				// TODO Notify the server that the trial was abandoned (ignore errors in case the whole experiment was abandoned)
 				err := r.Update(ctx, trial)
-				return reconcile.Result{}, err
+				return ignoreConflict(err)
 			}
 		}
 	}
@@ -240,4 +232,14 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 
 	// No action, e.g. a trial is still in progress
 	return reconcile.Result{}, nil
+}
+
+// Experiment and trial reconciliation happens concurrently so it is possible that we end up with a conflict.
+// In most cases, we can simply ignore the error and retry; however if changes were made to external resources
+// (e.g. via the Red Sky API), and those changes are not idempotent, it is not safe to use this method.
+func ignoreConflict(err error) (reconcile.Result, error) {
+	if errors.IsConflict(err) {
+		return reconcile.Result{Requeue: true}, nil
+	}
+	return reconcile.Result{}, err
 }
