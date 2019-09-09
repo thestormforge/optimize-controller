@@ -37,6 +37,6 @@ questions:
     label: Client ID
   - variable: oauth2ClientSecret
     default: ""
-    descriotion: "OAuth2 client secret"
+    description: "OAuth2 client secret"
     type: string
     label: Client Secret
