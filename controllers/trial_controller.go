@@ -29,14 +29,12 @@ import (
 	"github.com/redskyops/k8s-experiment/pkg/util"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // TrialReconciler reconciles a Trial object
@@ -69,12 +67,8 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	// Fetch the Trial instance
 	trial := &redskyv1alpha1.Trial{}
-	err := r.Get(ctx, req.NamespacedName, trial)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			return reconcile.Result{}, nil
-		}
-		return reconcile.Result{}, err
+	if err := r.Get(ctx, req.NamespacedName, trial); err != nil {
+		return util.IgnoreNotFound(err)
 	}
 
 	// Ahead of everything is the setup/teardown (contains finalization logic)
@@ -84,20 +78,20 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	// If we are in a finished or deleted state there is nothing for us to do
 	if redskytrial.IsTrialFinished(trial) || !trial.DeletionTimestamp.IsZero() {
-		return reconcile.Result{}, nil
+		return ctrl.Result{}, nil
 	}
 
 	// Copy the patches over from the experiment
 	if len(trial.Spec.PatchOperations) == 0 {
 		e := &redskyv1alpha1.Experiment{}
 		if err := r.Get(ctx, trial.ExperimentNamespacedName(), e); err != nil {
-			return reconcile.Result{}, err
+			return ctrl.Result{}, err
 		}
 		if err := checkAssignments(trial, e, log); err != nil {
-			return reconcile.Result{}, err
+			return ctrl.Result{}, err
 		}
 		if err := evaluatePatches(r, trial, e); err != nil {
-			return reconcile.Result{}, err
+			return ctrl.Result{}, err
 		}
 		if len(trial.Spec.PatchOperations) > 0 {
 			// We know we have at least one patch to apply, use an unknown status until we start applying them
@@ -108,7 +102,7 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	// Check the "initializer" annotation, do not progress unless it is empty (don't requeue, wait for a change)
 	if trial.GetAnnotations()[redskyv1alpha1.AnnotationInitializer] != "" {
-		return reconcile.Result{}, nil
+		return ctrl.Result{}, nil
 	}
 
 	// Apply the patches
@@ -188,10 +182,10 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	list := &batchv1.JobList{}
 	matchingSelector, err := util.MatchingSelector(trial.GetJobSelector())
 	if err != nil {
-		return reconcile.Result{}, err
+		return ctrl.Result{}, err
 	}
 	if err := r.List(ctx, list, matchingSelector); err != nil {
-		return reconcile.Result{}, err
+		return ctrl.Result{}, err
 	}
 
 	// Update the trial run status using the job status
@@ -210,17 +204,17 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	if needsJob {
 		job := createJob(trial)
 		if err := controllerutil.SetControllerReference(trial, job, r.Scheme); err != nil {
-			return reconcile.Result{}, err
+			return ctrl.Result{}, err
 		}
 		err = r.Create(ctx, job)
-		return reconcile.Result{}, err
+		return ctrl.Result{}, err
 	}
 
 	// The completion time will be non-nil as soon as the (a?) trial run job finishes
 	if trial.Status.CompletionTime != nil {
 		e := &redskyv1alpha1.Experiment{}
 		if err = r.Get(ctx, trial.ExperimentNamespacedName(), e); err != nil {
-			return reconcile.Result{}, err
+			return ctrl.Result{}, err
 		}
 
 		// If we have metrics to collect, use an unknown status to fill the gap (e.g. TCP timeout) until the transition to false
@@ -244,7 +238,7 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 					verr = err
 				} else if retryAfter > 0 {
 					// Do not count retries against the remaining attempts, do not look for additional URLs
-					return reconcile.Result{RequeueAfter: retryAfter}, nil
+					return ctrl.Result{RequeueAfter: retryAfter}, nil
 				} else if math.IsNaN(value) || math.IsNaN(stddev) {
 					verr = fmt.Errorf("capturing metric %s got NaN", m.Name)
 				} else {
@@ -279,11 +273,11 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	// If nothing changed, check again
-	return reconcile.Result{Requeue: true}, nil
+	return ctrl.Result{Requeue: true}, nil
 }
 
 // Returns from the reconcile loop after updating the supplied trial instance
-func (r *TrialReconciler) forTrialUpdate(trial *redskyv1alpha1.Trial, ctx context.Context, log logr.Logger) (reconcile.Result, error) {
+func (r *TrialReconciler) forTrialUpdate(trial *redskyv1alpha1.Trial, ctx context.Context, log logr.Logger) (ctrl.Result, error) {
 	// If we are going to be updating the trial, make sure the status is synchronized
 	assignments := make([]string, len(trial.Spec.Assignments))
 	for i := range trial.Spec.Assignments {
@@ -300,10 +294,11 @@ func (r *TrialReconciler) forTrialUpdate(trial *redskyv1alpha1.Trial, ctx contex
 	trial.Status.Values = strings.Join(values, ", ")
 
 	if err := r.Update(ctx, trial); err != nil {
+		// TODO Should we check for, and potentially ignore, conflict errors likely created by the experiment controller?
 		log.Error(err, "unable to update trial")
-		return reconcile.Result{}, err
+		return ctrl.Result{}, err
 	}
-	return reconcile.Result{}, nil
+	return ctrl.Result{}, nil
 }
 
 func evaluatePatches(r client.Reader, trial *redskyv1alpha1.Trial, e *redskyv1alpha1.Experiment) error {

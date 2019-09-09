@@ -24,12 +24,10 @@ import (
 	redskyexperiment "github.com/redskyops/k8s-experiment/pkg/controller/experiment"
 	redskytrial "github.com/redskyops/k8s-experiment/pkg/controller/trial"
 	"github.com/redskyops/k8s-experiment/pkg/util"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // ExperimentReconciler reconciles a Experiment object
@@ -56,21 +54,14 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 
 	// Fetch the Experiment instance
 	experiment := &redskyv1alpha1.Experiment{}
-	err := r.Get(ctx, req.NamespacedName, experiment)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			// Object not found, return.  Created objects are automatically garbage collected.
-			// For additional cleanup logic use finalizers.
-			return reconcile.Result{}, nil
-		}
-		// Error reading the object - requeue the request.
-		return reconcile.Result{}, err
+	if err := r.Get(ctx, req.NamespacedName, experiment); err != nil {
+		return util.IgnoreNotFound(err)
 	}
 
 	// Make sure we aren't deleted without a chance to clean up
 	if redskyexperiment.AddFinalizer(experiment) {
 		err := r.Update(ctx, experiment)
-		return reconcile.Result{}, err
+		return ctrl.Result{}, err
 	}
 
 	// Define the experiment on the server
@@ -79,12 +70,12 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 			n := redskyapi.NewExperimentName(experiment.Name)
 			e := redskyapi.Experiment{}
 			if err := redskyexperiment.ConvertExperiment(experiment, &e); err != nil {
-				return reconcile.Result{}, err
+				return ctrl.Result{}, err
 			}
 
 			log.Info("Creating remote experiment", "name", n)
 			if ee, err := r.RedSkyAPI.CreateExperiment(ctx, n, e); err != nil {
-				return reconcile.Result{}, err
+				return ctrl.Result{}, err
 			} else {
 				// Update the experiment with information from the server
 				if experiment.GetAnnotations() == nil {
@@ -96,7 +87,7 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 					*experiment.Spec.Replicas = ee.Optimization.ParallelTrials
 				}
 				err = r.Update(ctx, experiment)
-				return reconcile.Result{}, err
+				return ctrl.Result{}, err
 			}
 		}
 	}
@@ -105,10 +96,10 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 	list := &redskyv1alpha1.TrialList{}
 	matchingSelector, err := util.MatchingSelector(experiment.GetTrialSelector())
 	if err != nil {
-		return reconcile.Result{}, err
+		return ctrl.Result{}, err
 	}
 	if err := r.List(ctx, list, matchingSelector); err != nil {
-		return reconcile.Result{}, err
+		return ctrl.Result{}, err
 	}
 
 	// Add an additional trial if needed
@@ -116,33 +107,27 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 		// Find an available namespace
 		// TODO If namespace comes back empty should we requeue with a delay instead of falling through?
 		if namespace, err := redskyexperiment.FindAvailableNamespace(r, experiment, list.Items); err != nil {
-			return reconcile.Result{}, err
+			return ctrl.Result{}, err
 		} else if namespace != "" {
 			// Create a new trial from the template on the experiment
 			trial := &redskyv1alpha1.Trial{}
 			redskyexperiment.PopulateTrialFromTemplate(experiment, trial, namespace)
 			redskyexperiment.AddFinalizer(trial)
 			if err := controllerutil.SetControllerReference(experiment, trial, r.Scheme); err != nil {
-				return reconcile.Result{}, err
+				return ctrl.Result{}, err
 			}
 
 			// Obtain a suggestion from the server
 			suggestion, err := r.RedSkyAPI.NextTrial(ctx, nextTrialURL)
 			if err != nil {
-				if aerr, ok := err.(*redskyapi.Error); ok {
-					switch aerr.Type {
-					case redskyapi.ErrExperimentStopped:
-						// The experiment is stopped, set replicas to 0 to prevent further interaction with the server
-						experiment.SetReplicas(0)
-						delete(experiment.GetAnnotations(), redskyv1alpha1.AnnotationNextTrialURL) // HTTP "Gone" semantics require us to purge this
-						err = r.Update(ctx, experiment)
-						return reconcile.Result{}, err
-					case redskyapi.ErrTrialUnavailable:
-						// No suggestions available, wait to requeue until after the retry delay
-						return reconcile.Result{Requeue: true, RequeueAfter: aerr.RetryAfter}, nil
-					}
+				if rse, ok := err.(*redskyapi.Error); ok && rse.Type == redskyapi.ErrExperimentStopped {
+					// The experiment is stopped, set replicas to 0 to prevent further interaction with the server
+					experiment.SetReplicas(0)
+					delete(experiment.GetAnnotations(), redskyv1alpha1.AnnotationNextTrialURL) // HTTP "Gone" semantics require us to purge this
+					err := r.Update(ctx, experiment)
+					return ctrl.Result{}, err
 				}
-				return reconcile.Result{}, err
+				return util.IgnoreTrialUnavailable(err)
 			}
 
 			// Add the information from the server
@@ -160,7 +145,7 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 			// TODO If there is an error, notify server that we failed to adopt the suggestion?
 			log.Info("Creating new trial", "namespace", trial.Namespace, "reportTrialURL", suggestion.ReportTrial, "assignments", trial.Spec.Assignments)
 			err = r.Create(ctx, trial)
-			return reconcile.Result{}, err
+			return ctrl.Result{}, err
 		}
 	}
 
@@ -172,14 +157,14 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 				// Create an observation for the remote server
 				trialValues := redskyapi.TrialValues{}
 				if err := redskyexperiment.ConvertTrialValues(trial, &trialValues); err != nil {
-					return reconcile.Result{}, err
+					return ctrl.Result{}, err
 				}
 
 				// Remove the report trial URL from the trial before updating the server
 				// TODO If the server operation were idempotent (i.e. a PUT instead of a POST), this would go after the server update
 				delete(trial.GetAnnotations(), redskyv1alpha1.AnnotationReportTrialURL)
 				if err := r.Update(ctx, trial); err != nil {
-					return ignoreConflict(err)
+					return util.IgnoreConflict(err)
 				}
 
 				// Send the observation to the server
@@ -187,29 +172,29 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 				if err := r.RedSkyAPI.ReportTrial(ctx, reportTrialURL, trialValues); err != nil && experiment.DeletionTimestamp.IsZero() {
 					// This error only matters if the experiment itself is not deleted, otherwise ignore it so we can remove the finalizer
 					// TODO Restore `reportTrialURL` annotation to retry?
-					return reconcile.Result{}, err
+					return ctrl.Result{}, err
 				}
 
-				return reconcile.Result{}, err
+				return ctrl.Result{}, err
 			}
 
 			// Remove the trial finalizer once we have sent information to the server
 			if redskyexperiment.RemoveFinalizer(trial) {
 				err := r.Update(ctx, trial)
-				return ignoreConflict(err)
+				return util.IgnoreConflict(err)
 			}
 
 			// Delete the trial
 			if trial.DeletionTimestamp.IsZero() {
 				err = r.Delete(ctx, trial)
-				return reconcile.Result{}, err
+				return ctrl.Result{}, err
 			}
 		} else if !trial.DeletionTimestamp.IsZero() || !experiment.DeletionTimestamp.IsZero() {
 			// The trial was explicitly deleted before it finished or the experiment was deleted, remove the finalizer from the trial so it can be garbage collected
 			if redskyexperiment.RemoveFinalizer(trial) {
 				// TODO Notify the server that the trial was abandoned (ignore errors in case the whole experiment was abandoned)
 				err := r.Update(ctx, trial)
-				return ignoreConflict(err)
+				return util.IgnoreConflict(err)
 			}
 		}
 	}
@@ -227,19 +212,9 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 			experiment.SetReplicas(0)
 		}
 		err := r.Update(ctx, experiment)
-		return reconcile.Result{}, err
+		return ctrl.Result{}, err
 	}
 
 	// No action, e.g. a trial is still in progress
-	return reconcile.Result{}, nil
-}
-
-// Experiment and trial reconciliation happens concurrently so it is possible that we end up with a conflict.
-// In most cases, we can simply ignore the error and retry; however if changes were made to external resources
-// (e.g. via the Red Sky API), and those changes are not idempotent, it is not safe to use this method.
-func ignoreConflict(err error) (reconcile.Result, error) {
-	if errors.IsConflict(err) {
-		return reconcile.Result{Requeue: true}, nil
-	}
-	return reconcile.Result{}, err
+	return ctrl.Result{}, nil
 }
