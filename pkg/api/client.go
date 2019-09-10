@@ -82,16 +82,16 @@ func DefaultConfig() (*Config, error) {
 		configOAuth2 = &OAuth2{}
 	}
 
-	if v := os.Getenv("REDSKY_ADDRESS"); v != "" {
+	if v, ok := os.LookupEnv("REDSKY_ADDRESS"); ok {
 		config.Address = v
 	}
-	if v := os.Getenv("REDSKY_OAUTH2_CLIENT_ID"); v != "" {
+	if v, ok := os.LookupEnv("REDSKY_OAUTH2_CLIENT_ID"); ok {
 		configOAuth2.ClientID = v
 	}
-	if v := os.Getenv("REDSKY_OAUTH2_CLIENT_SECRET"); v != "" {
+	if v, ok := os.LookupEnv("REDSKY_OAUTH2_CLIENT_SECRET"); ok {
 		configOAuth2.ClientSecret = v
 	}
-	if v := os.Getenv("REDSKY_OAUTH2_TOKEN_URL"); v != "" {
+	if v, ok := os.LookupEnv("REDSKY_OAUTH2_TOKEN_URL"); ok {
 		configOAuth2.TokenURL = v
 	}
 
