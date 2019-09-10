@@ -207,10 +207,9 @@ type TrialStatus struct {
 }
 
 // +genclient
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
 
 // Trial is the Schema for the trials API
-// +k8s:openapi-gen=true
 // +kubebuilder:printcolumn:name="Assignments",type="string",JSONPath=".status.assignments",description="Current assignments"
 // +kubebuilder:printcolumn:name="Values",type="string",JSONPath=".status.values",description="Current values"
 type Trial struct {
@@ -221,7 +220,7 @@ type Trial struct {
 	Status TrialStatus `json:"status,omitempty"`
 }
 
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
 
 // TrialList contains a list of Trial
 type TrialList struct {
