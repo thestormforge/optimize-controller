@@ -65,6 +65,8 @@ type Metric struct {
 	// Collection type specific query, e.g. Go template for "local", PromQL for "prometheus" or a JSON pointer expression (with curly braces) for "jsonpath"
 	Query string `json:"query"`
 
+	// The scheme to use when collecting metrics
+	Scheme string `json:"scheme,omitempty"`
 	// Selector matching services to collect this metric from, only the first matched service to provide a value is used
 	Selector *metav1.LabelSelector `json:"selector,omitempty"`
 	// The port number or name on the matched service to collect the metric value from

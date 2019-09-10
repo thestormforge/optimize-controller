@@ -58,6 +58,9 @@ spec:
                       for "local", PromQL for "prometheus" or a JSON pointer expression
                       (with curly braces) for "jsonpath"
                     type: string
+                  scheme:
+                    description: The scheme to use when collecting metrics
+                    type: string
                   selector:
                     description: Selector matching services to collect this metric
                       from, only the first matched service to provide a value is used

@@ -413,6 +413,16 @@ func findMetricTargets(r client.Reader, m *redskyv1alpha1.Metric) ([]string, err
 		return []string{""}, nil
 	}
 
+	// Get the URL components that are independent of the service
+	// TODO If m.Scheme == "file" we actually want to get pods so we can access the file system
+	scheme := strings.ToLower(m.Scheme)
+	if scheme == "" {
+		scheme = "http"
+	} else if scheme != "http" && scheme != "https" {
+		return nil, fmt.Errorf("scheme must be 'http' or 'https': %s", scheme)
+	}
+	path := "/" + strings.TrimLeft(m.Path, "/")
+
 	// Find services matching the selector
 	list := &corev1.ServiceList{}
 	matchingSelector, err := util.MatchingSelector(m.Selector)
@@ -426,13 +436,14 @@ func findMetricTargets(r client.Reader, m *redskyv1alpha1.Metric) ([]string, err
 	// Construct a URL for each service (use IP literals instead of host names to avoid DNS lookups)
 	var urls []string
 	for _, s := range list.Items {
-		scheme := "http"
 		host := s.Spec.ClusterIP
 		port := m.Port.IntValue()
 
 		if port < 1 {
+			portName := m.Port.StrVal
+			// TODO Default an empty portName to scheme?
 			for _, sp := range s.Spec.Ports {
-				if m.Port.StrVal == sp.Name || len(s.Spec.Ports) == 1 {
+				if sp.Name == portName || len(s.Spec.Ports) == 1 {
 					port = int(sp.Port)
 				}
 			}
@@ -442,7 +453,7 @@ func findMetricTargets(r client.Reader, m *redskyv1alpha1.Metric) ([]string, err
 			return nil, fmt.Errorf("metric '%s' has unresolvable port: %s", m.Name, m.Port.String())
 		}
 
-		urls = append(urls, fmt.Sprintf("%s://%s:%d%s", scheme, host, port, m.Path))
+		urls = append(urls, fmt.Sprintf("%s://%s:%d%s", scheme, host, port, path))
 	}
 
 	if len(urls) == 0 {
