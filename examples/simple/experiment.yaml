@@ -22,7 +22,8 @@ spec:
             spec:
               containers:
                 - name: benchmark-cli
-                  image: benchmark-cli:6.7.0
+                  # This image is built from /examples/simple/benchmark-cli
+                  image: gcr.io/redskyops/benchmark-cli:6.7.0
                   envFrom:
                     - configMapRef:
                         name: logstash-benchmark
