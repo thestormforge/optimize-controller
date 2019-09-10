@@ -529,8 +529,8 @@ func createJob(trial *redskyv1alpha1.Trial) *batchv1.Job {
 		job.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyNever
 	}
 
-	// Containers cannot be null, inject a sleep by default
-	if job.Spec.Template.Spec.Containers == nil {
+	// Containers cannot be empty, inject a sleep by default
+	if len(job.Spec.Template.Spec.Containers) == 0 {
 		s := trial.Spec.ApproximateRuntime
 		if s == nil || s.Duration == 0 {
 			s = &metav1.Duration{Duration: 2 * time.Minute}
