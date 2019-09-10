@@ -60,9 +60,9 @@ type Metric struct {
 	// Indicator that the goal of the experiment is to minimize the value of this metric
 	Minimize bool `json:"minimize,omitempty"`
 
-	// The metric collection type, e.g. "prometheus"
+	// The metric collection type, one of: local|prometheus|jsonpath, default: local
 	Type MetricType `json:"type,omitempty"`
-	// Collection type specific query, e.g. PromQL or a JSON pointer expression
+	// Collection type specific query, e.g. Go template for "local", PromQL for "prometheus" or a JSON pointer expression (with curly braces) for "jsonpath"
 	Query string `json:"query"`
 
 	// Selector matching services to collect this metric from, only the first matched service to provide a value is used

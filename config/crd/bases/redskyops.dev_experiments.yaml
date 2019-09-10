@@ -54,8 +54,9 @@ spec:
                     description: The port number or name on the matched service to
                       collect the metric value from
                   query:
-                    description: Collection type specific query, e.g. PromQL or a
-                      JSON pointer expression
+                    description: Collection type specific query, e.g. Go template
+                      for "local", PromQL for "prometheus" or a JSON pointer expression
+                      (with curly braces) for "jsonpath"
                     type: string
                   selector:
                     description: Selector matching services to collect this metric
@@ -103,7 +104,8 @@ spec:
                         type: object
                     type: object
                   type:
-                    description: The metric collection type, e.g. "prometheus"
+                    description: 'The metric collection type, one of: local|prometheus|jsonpath,
+                      default: local'
                     type: string
                 required:
                 - name
