@@ -166,6 +166,16 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 					return util.IgnoreConflict(err)
 				}
 
+				// Include the reason for failure in the log message (note we return from the block so `log` goes out of scope)
+				if trialValues.Failed {
+					for i := range trial.Status.Conditions {
+						c := trial.Status.Conditions[i]
+						if c.Type == redskyv1alpha1.TrialFailed {
+							log = log.WithValues("failureReason", c.Reason, "failureMessage", c.Message)
+						}
+					}
+				}
+
 				// Send the observation to the server
 				log.Info("Reporting trial", "namespace", trial.Namespace, "reportTrialURL", reportTrialURL, "assignments", trial.Spec.Assignments, "values", trialValues)
 				if err := r.RedSkyAPI.ReportTrial(ctx, reportTrialURL, trialValues); err != nil && experiment.DeletionTimestamp.IsZero() {
