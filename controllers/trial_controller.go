@@ -25,6 +25,7 @@ import (
 
 	"github.com/go-logr/logr"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
+	"github.com/redskyops/k8s-experiment/pkg/controller/template"
 	redskytrial "github.com/redskyops/k8s-experiment/pkg/controller/trial"
 	"github.com/redskyops/k8s-experiment/pkg/util"
 	batchv1 "k8s.io/api/batch/v1"
@@ -32,6 +33,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -305,9 +307,23 @@ func (r *TrialReconciler) forTrialUpdate(trial *redskyv1alpha1.Trial, ctx contex
 }
 
 func evaluatePatches(r client.Reader, trial *redskyv1alpha1.Trial, e *redskyv1alpha1.Experiment) error {
+	te := template.NewTemplateEngine()
 	for _, p := range e.Spec.Patches {
+		// Determine the patch type
+		var pt types.PatchType
+		switch p.Type {
+		case redskyv1alpha1.PatchStrategic, "":
+			pt = types.StrategicMergePatchType
+		case redskyv1alpha1.PatchMerge:
+			pt = types.MergePatchType
+		case redskyv1alpha1.PatchJSON:
+			pt = types.JSONPatchType
+		default:
+			return fmt.Errorf("unknown patch type: %s", p.Type)
+		}
+
 		// Evaluate the patch template
-		pt, data, err := redskytrial.ExecutePatchTemplate(&p, trial)
+		data, err := te.RenderPatch(&p, trial)
 		if err != nil {
 			return err
 		}

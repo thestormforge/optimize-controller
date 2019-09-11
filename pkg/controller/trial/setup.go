@@ -23,6 +23,7 @@ import (
 	"time"
 
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
+	"github.com/redskyops/k8s-experiment/pkg/controller/template"
 	"github.com/redskyops/k8s-experiment/pkg/util"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -421,6 +422,7 @@ func generateHelmOptions(trial *redskyv1alpha1.Trial, task *redskyv1alpha1.Setup
 	// NOTE: Since the content of the ConfigMaps is dynamic, we only look for --values files from the running container
 
 	// Add individual --set options
+	te := template.NewTemplateEngine()
 	for _, hv := range task.HelmValues {
 		if hv.ForceString {
 			opts = append(opts, "--set-string")
@@ -442,10 +444,10 @@ func generateHelmOptions(trial *redskyv1alpha1.Trial, task *redskyv1alpha1.Setup
 			}
 		} else {
 			// If there is no external source, evaluate the value field as a template
-			if v, err := executeAssignmentTemplate(hv.Value.String(), trial); err == nil {
-				opts = append(opts, fmt.Sprintf(`"%s=%s"`, hv.Name, v))
-			} else {
+			if v, err := te.RenderHelmValue(&hv, trial); err != nil {
 				return nil, err
+			} else {
+				opts = append(opts, v)
 			}
 		}
 	}

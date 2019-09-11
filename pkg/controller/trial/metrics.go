@@ -28,6 +28,7 @@ import (
 	promv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
+	"github.com/redskyops/k8s-experiment/pkg/controller/template"
 	"k8s.io/client-go/util/jsonpath"
 )
 
@@ -38,7 +39,8 @@ var httpClient = &http.Client{Timeout: 10 * time.Second}
 // TODO The duration (retry delay) should be incorporated into the error
 func CaptureMetric(m *redskyv1alpha1.Metric, u string, trial *redskyv1alpha1.Trial) (float64, float64, time.Duration, error) {
 	// Execute the query as a template against the current state of the trial
-	q, eq, err := executeMetricQueryTemplate(m, trial)
+	te := template.NewTemplateEngine()
+	q, eq, err := te.RenderMetricQueries(m, trial)
 	if err != nil {
 		return 0, 0, 0, err
 	}
