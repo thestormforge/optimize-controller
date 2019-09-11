@@ -195,7 +195,7 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	needsJob := true
 	for i := range list.Items {
 		// Setup jobs always have "role=trialSetup" so ignore jobs with that label
-		if list.Items[i].Labels["role"] != "trialSetup" {
+		if list.Items[i].Labels[redskyv1alpha1.LabelTrialRole] != "trialSetup" {
 			if applyJobStatus(trial, &list.Items[i], &now) {
 				return r.forTrialUpdate(trial, ctx, log)
 			}

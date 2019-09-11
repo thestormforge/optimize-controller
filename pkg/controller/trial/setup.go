@@ -68,7 +68,7 @@ func ManageSetup(c client.Client, s *runtime.Scheme, ctx context.Context, probeT
 
 	// Update the conditions based on existing jobs
 	list := &batchv1.JobList{}
-	setupJobLabels := map[string]string{redskyv1alpha1.LabelTrial: trial.Name, "role": "trialSetup"}
+	setupJobLabels := map[string]string{redskyv1alpha1.LabelTrial: trial.Name, redskyv1alpha1.LabelTrialRole: "trialSetup"}
 	if err := c.List(ctx, list, client.MatchingLabels(setupJobLabels)); err != nil {
 		return &ctrl.Result{}, err
 	}

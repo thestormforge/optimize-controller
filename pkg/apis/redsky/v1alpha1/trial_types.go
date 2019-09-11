@@ -30,6 +30,8 @@ const (
 
 	// Label that contains the name of the trial associated with an object
 	LabelTrial = "redskyops.dev/trial"
+	// Label that contains the role in trial execution
+	LabelTrialRole = "redskyops.dev/trial-role"
 )
 
 // HelmValue represents a value in a Helm template
