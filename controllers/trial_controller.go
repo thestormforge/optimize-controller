@@ -104,7 +104,7 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	// Check the "initializer" annotation, do not progress unless it is empty (don't requeue, wait for a change)
-	if trial.GetAnnotations()[redskyv1alpha1.AnnotationInitializer] != "" {
+	if trial.HasInitializer() {
 		return ctrl.Result{}, nil
 	}
 

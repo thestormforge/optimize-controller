@@ -106,6 +106,12 @@ func (s *TrialStatusSummary) String() string {
 func NewTrialStatusSummary(trial *v1alpha1.Trial) (*TrialStatusSummary, error) {
 	s := &TrialStatusSummary{Status: TrialCreated}
 
+	// If there is an initializer we are in the "setting up" phase
+	if trial.HasInitializer() {
+		s.Status = TrialSettingUp
+		return s, nil
+	}
+
 	for i := range trial.Status.Conditions {
 		c := trial.Status.Conditions[i]
 		switch c.Type {

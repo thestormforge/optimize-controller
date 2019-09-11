@@ -24,6 +24,8 @@ import (
 )
 
 const (
+	// Annotation that contains a comma-delimited list of initializing processes. Similar to a "finalizer", the trial
+	// will not start executing until the initializer is empty.
 	AnnotationInitializer = annotationPrefix + "initializer"
 )
 

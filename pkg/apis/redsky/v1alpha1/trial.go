@@ -16,6 +16,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"strings"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -37,6 +39,11 @@ func (in *Trial) ExperimentNamespacedName() types.NamespacedName {
 // Returns a fall back label for when the user has not specified anything
 func (in *Trial) GetDefaultLabels() map[string]string {
 	return map[string]string{"trial": in.Name, "role": "trialRun"}
+}
+
+// Checks to see if the trial has an initializer
+func (in *Trial) HasInitializer() bool {
+	return strings.TrimSpace(in.GetAnnotations()[AnnotationInitializer]) != ""
 }
 
 // Returns an assignment value by name
