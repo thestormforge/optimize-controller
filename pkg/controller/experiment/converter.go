@@ -106,11 +106,14 @@ func ConvertTrialValues(in *redskyv1alpha1.Trial, out *redskyapi.TrialValues) er
 	if !out.Failed {
 		for _, v := range in.Spec.Values {
 			if fv, err := strconv.ParseFloat(v.Value, 64); err == nil {
-				out.Values = append(out.Values, redskyapi.Value{
+				value := redskyapi.Value{
 					MetricName: v.Name,
 					Value:      fv,
-					// TODO Error is the standard deviation for the metric
-				})
+				}
+				if ev, err := strconv.ParseFloat(v.Error, 64); err == nil {
+					value.Error = ev
+				}
+				out.Values = append(out.Values, value)
 			}
 		}
 	}

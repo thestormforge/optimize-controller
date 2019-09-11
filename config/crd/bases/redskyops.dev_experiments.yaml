@@ -36,6 +36,10 @@ spec:
                 description: Metric represents an observable outcome from a trial
                   run
                 properties:
+                  errorQuery:
+                    description: Collection type specific query for the error associated
+                      with collected metric value
+                    type: string
                   minimize:
                     description: Indicator that the goal of the experiment is to minimize
                       the value of this metric

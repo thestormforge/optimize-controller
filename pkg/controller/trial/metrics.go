@@ -35,9 +35,10 @@ import (
 // TODO Combine it with the Prometheus clients?
 var httpClient = &http.Client{Timeout: 10 * time.Second}
 
+// TODO The duration (retry delay) should be incorporated into the error
 func CaptureMetric(m *redskyv1alpha1.Metric, u string, trial *redskyv1alpha1.Trial) (float64, float64, time.Duration, error) {
 	// Execute the query as a template against the current state of the trial
-	q, err := executeMetricQueryTemplate(m, trial)
+	q, eq, err := executeMetricQueryTemplate(m, trial)
 	if err != nil {
 		return 0, 0, 0, err
 	}
@@ -47,7 +48,7 @@ func CaptureMetric(m *redskyv1alpha1.Metric, u string, trial *redskyv1alpha1.Tri
 	case redskyv1alpha1.MetricLocal, "":
 		return captureLocalMetric(q)
 	case redskyv1alpha1.MetricPrometheus:
-		return capturePrometheusMetric(u, q, trial.Status.CompletionTime.Time)
+		return capturePrometheusMetric(u, q, eq, trial.Status.CompletionTime.Time)
 	case redskyv1alpha1.MetricJSONPath:
 		return captureJSONPathMetric(u, m.Name, q)
 	default:
@@ -61,7 +62,7 @@ func captureLocalMetric(query string) (float64, float64, time.Duration, error) {
 	return value, 0, 0, err
 }
 
-func capturePrometheusMetric(address, query string, completionTime time.Time) (float64, float64, time.Duration, error) {
+func capturePrometheusMetric(address, query, errorQuery string, completionTime time.Time) (float64, float64, time.Duration, error) {
 	// Get the Prometheus client based on the metric URL
 	// TODO Cache these by URL
 	c, err := prom.NewClient(prom.Config{Address: address})
@@ -96,7 +97,22 @@ func capturePrometheusMetric(address, query string, completionTime time.Time) (f
 	}
 
 	// Scalar result
-	return float64(v.(*model.Scalar).Value), 0, 0, nil
+	result := float64(v.(*model.Scalar).Value)
+
+	// Execute the error query (if configured)
+	var errorResult float64
+	if errorQuery != "" {
+		ev, err := promAPI.Query(context.TODO(), errorQuery, completionTime)
+		if err != nil {
+			return 0, 0, 0, err
+		}
+		if ev.Type() != model.ValScalar {
+			return 0, 0, 0, fmt.Errorf("expected scalar error query result, got %s", v.Type())
+		}
+		errorResult = float64(v.(*model.Scalar).Value)
+	}
+
+	return result, errorResult, 0, nil
 }
 
 func captureJSONPathMetric(url, name, query string) (float64, float64, time.Duration, error) {

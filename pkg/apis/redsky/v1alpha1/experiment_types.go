@@ -74,6 +74,8 @@ type Metric struct {
 	Type MetricType `json:"type,omitempty"`
 	// Collection type specific query, e.g. Go template for "local", PromQL for "prometheus" or a JSON pointer expression (with curly braces) for "jsonpath"
 	Query string `json:"query"`
+	// Collection type specific query for the error associated with collected metric value
+	ErrorQuery string `json:"errorQuery,omitempty"`
 
 	// The scheme to use when collecting metrics
 	Scheme string `json:"scheme,omitempty"`
@@ -83,8 +85,6 @@ type Metric struct {
 	Port intstr.IntOrString `json:"port,omitempty"`
 	// URL path component used to collect the metric value from an endpoint (used as a prefix for the Prometheus API)
 	Path string `json:"path,omitempty"`
-
-	// TODO ErrorQuery?
 }
 
 // PatchTemplate defines a target resource and a patch template to apply

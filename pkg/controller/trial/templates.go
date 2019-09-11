@@ -97,7 +97,7 @@ func executeAssignmentTemplate(t string, trial *redskyv1alpha1.Trial) ([]byte, e
 	return buf.Bytes(), nil
 }
 
-func executeMetricQueryTemplate(m *redskyv1alpha1.Metric, trial *redskyv1alpha1.Trial) (string, error) {
+func executeMetricQueryTemplate(m *redskyv1alpha1.Metric, trial *redskyv1alpha1.Trial) (string, string, error) {
 	// Create the functions map
 	funcMap := template.FuncMap{
 		"duration": templateDuration,
@@ -121,13 +121,24 @@ func executeMetricQueryTemplate(m *redskyv1alpha1.Metric, trial *redskyv1alpha1.
 	// Evaluate the template into a query
 	tmpl, err := template.New("query").Funcs(funcMap).Parse(m.Query)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	buf := new(bytes.Buffer)
 	if err = tmpl.Execute(buf, data); err != nil {
-		return "", err
+		return "", "", err
 	}
-	return buf.String(), nil
+
+	// Evaluate the error template into a query
+	stddevTmpl, err := template.New("errorQuery").Funcs(funcMap).Parse(m.ErrorQuery)
+	if err != nil {
+		return "", "", err
+	}
+	stddevBuf := new(bytes.Buffer)
+	if err = stddevTmpl.Execute(stddevBuf, data); err != nil {
+		return "", "", err
+	}
+
+	return buf.String(), stddevBuf.String(), nil
 }
 
 // TODO Should we use http://masterminds.github.io/sprig/
