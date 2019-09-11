@@ -39,10 +39,20 @@ type Parameter struct {
 	Max int64 `json:"max,omitempty"`
 }
 
+// PatchType represents the allowable types of patches
+type PatchType string
+
 // MetricType represents the allowable types of metrics
 type MetricType string
 
 const (
+	// Strategic merge patch
+	PatchStrategic PatchType = "strategic"
+	// Merge patch
+	PatchMerge = "merge"
+	// JSON patch (RFC 6902)
+	PatchJSON = "json"
+
 	// Local metrics are Go Templates evaluated against the trial itself. No external service is consulted, primarily
 	// useful for extracting start and completion times.
 	MetricLocal MetricType = "local"
@@ -80,7 +90,7 @@ type Metric struct {
 // PatchTemplate defines a target resource and a patch template to apply
 type PatchTemplate struct {
 	// The patch type, one of: json|merge|strategic, default: strategic
-	Type string `json:"type,omitempty"`
+	Type PatchType `json:"type,omitempty"`
 	// A Go Template that evaluates to valid patch.
 	Patch string `json:"patch"`
 	// Direct reference to the object the patch should be applied to. The name can be omitted to match by label selector.

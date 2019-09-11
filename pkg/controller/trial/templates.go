@@ -52,12 +52,12 @@ func ExecutePatchTemplate(p *redskyv1alpha1.PatchTemplate, trial *redskyv1alpha1
 	// Determine the patch type
 	var patchType types.PatchType
 	switch p.Type {
-	case "json":
-		patchType = types.JSONPatchType
-	case "merge":
-		patchType = types.MergePatchType
-	case "strategic", "":
+	case redskyv1alpha1.PatchStrategic, "":
 		patchType = types.StrategicMergePatchType
+	case redskyv1alpha1.PatchMerge:
+		patchType = types.MergePatchType
+	case redskyv1alpha1.PatchJSON:
+		patchType = types.JSONPatchType
 	default:
 		return "", nil, fmt.Errorf("unknown patch type: %s", p.Type)
 	}
