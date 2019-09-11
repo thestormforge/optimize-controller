@@ -34,9 +34,9 @@ func NewCheckCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Comm
 	}
 	cmd.Run = cmd.HelpFunc()
 
+	cmd.AddCommand(NewCheckExperimentCommand(f, ioStreams))
 	cmd.AddCommand(NewServerCheckCommand(f, ioStreams))
 
-	// TODO Add local file based checks for validating experiment manifests?
 	// TODO Add a manager check?
 
 	return cmd
