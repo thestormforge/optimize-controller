@@ -58,7 +58,7 @@ func (in *Experiment) SetReplicas(r int) {
 
 // Returns a fall back label for when the user has not specified anything
 func (in *Experiment) GetDefaultLabels() map[string]string {
-	return map[string]string{"experiment": in.Name}
+	return map[string]string{LabelExperiment: in.Name}
 }
 
 // Returns a label selector for matching trials associated with the experiment

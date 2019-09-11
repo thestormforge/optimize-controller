@@ -26,7 +26,10 @@ import (
 const (
 	// Annotation that contains a comma-delimited list of initializing processes. Similar to a "finalizer", the trial
 	// will not start executing until the initializer is empty.
-	AnnotationInitializer = annotationPrefix + "initializer"
+	AnnotationInitializer = "redskyops.dev/initializer"
+
+	// Label that contains the name of the trial associated with an object
+	LabelTrial = "redskyops.dev/trial"
 )
 
 // HelmValue represents a value in a Helm template

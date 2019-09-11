@@ -28,7 +28,8 @@ import (
 )
 
 const (
-	Finalizer = "finalizer.redskyops.dev"
+	// Finalizer used by the experiment controller to ensure synchronization with the remote server
+	ExperimentFinalizer = "experimentFinalizer.redskyops.dev"
 )
 
 // Creates a new trial for an experiment

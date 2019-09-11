@@ -59,7 +59,7 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 	}
 
 	// Make sure we aren't deleted without a chance to clean up
-	if util.AddFinalizer(experiment, redskyexperiment.Finalizer) {
+	if util.AddFinalizer(experiment, redskyexperiment.ExperimentFinalizer) {
 		err := r.Update(ctx, experiment)
 		return ctrl.Result{}, err
 	}
@@ -111,7 +111,7 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 			// Create a new trial from the template on the experiment
 			trial := &redskyv1alpha1.Trial{}
 			redskyexperiment.PopulateTrialFromTemplate(experiment, trial, namespace)
-			util.AddFinalizer(trial, redskyexperiment.Finalizer)
+			util.AddFinalizer(trial, redskyexperiment.ExperimentFinalizer)
 			if err := controllerutil.SetControllerReference(experiment, trial, r.Scheme); err != nil {
 				return ctrl.Result{}, err
 			}
@@ -188,7 +188,7 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 			}
 
 			// Remove the trial finalizer once we have sent information to the server
-			if util.RemoveFinalizer(trial, redskyexperiment.Finalizer) {
+			if util.RemoveFinalizer(trial, redskyexperiment.ExperimentFinalizer) {
 				err := r.Update(ctx, trial)
 				return util.IgnoreConflict(err)
 			}
@@ -200,7 +200,7 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 			}
 		} else if !trial.DeletionTimestamp.IsZero() || !experiment.DeletionTimestamp.IsZero() {
 			// The trial was explicitly deleted before it finished or the experiment was deleted, remove the finalizer from the trial so it can be garbage collected
-			if util.RemoveFinalizer(trial, redskyexperiment.Finalizer) {
+			if util.RemoveFinalizer(trial, redskyexperiment.ExperimentFinalizer) {
 				// TODO Notify the server that the trial was abandoned (ignore errors in case the whole experiment was abandoned)
 				err := r.Update(ctx, trial)
 				return util.IgnoreConflict(err)
@@ -209,7 +209,7 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 	}
 
 	// Remove our finalizer if we have been deleted and all trials were reconciled
-	if !experiment.DeletionTimestamp.IsZero() && util.RemoveFinalizer(experiment, redskyexperiment.Finalizer) {
+	if !experiment.DeletionTimestamp.IsZero() && util.RemoveFinalizer(experiment, redskyexperiment.ExperimentFinalizer) {
 		// Also delete the experiment on the server if necessary
 		// TODO Does this require `experiment.GetReplicas() > 0`?
 		if experimentURL := experiment.GetAnnotations()[redskyv1alpha1.AnnotationExperimentURL]; experimentURL != "" {
