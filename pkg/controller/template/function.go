@@ -19,14 +19,12 @@ import (
 	"fmt"
 	"text/template"
 	"time"
+
+	"github.com/Masterminds/sprig"
 )
 
 func FuncMap() template.FuncMap {
-	// TODO Should we just use http://masterminds.github.io/sprig/; e.g.:
-	//f := sprig.TxtFuncMap()
-	//delete(f, "env")
-	//delete(f, "expandenv")
-	f := make(template.FuncMap)
+	f := sprig.TxtFuncMap()
 
 	extra := template.FuncMap{
 		"duration": duration,
@@ -42,7 +40,6 @@ func FuncMap() template.FuncMap {
 
 // duration returns a floating point number representing the number of seconds between two times
 func duration(start, completion time.Time) float64 {
-	// TODO Should this be absolute or is zero right here?
 	if start.Before(completion) {
 		return completion.Sub(start).Seconds()
 	}

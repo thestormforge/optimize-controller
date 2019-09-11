@@ -5,6 +5,9 @@ go 1.12
 require (
 	cloud.google.com/go v0.39.0 // indirect
 	github.com/Azure/go-autorest/autorest v0.5.0 // indirect
+	github.com/Masterminds/goutils v1.1.0 // indirect
+	github.com/Masterminds/semver v1.4.2 // indirect
+	github.com/Masterminds/sprig v2.20.0+incompatible
 	github.com/docker/spdystream v0.0.0-20181023171402-6480d4af844c // indirect
 	github.com/elazarl/goproxy v0.0.0-20190711103511-473e67f1d7d2 // indirect
 	github.com/elazarl/goproxy/ext v0.0.0-20190711103511-473e67f1d7d2 // indirect
@@ -16,6 +19,7 @@ require (
 	github.com/google/uuid v1.1.1 // indirect
 	github.com/gophercloud/gophercloud v0.2.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.9.4 // indirect
+	github.com/huandu/xstrings v1.2.0 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/json-iterator/go v1.1.6 // indirect
 	github.com/modern-go/reflect2 v1.0.1 // indirect
