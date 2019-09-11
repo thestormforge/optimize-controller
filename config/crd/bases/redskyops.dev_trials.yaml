@@ -6151,6 +6151,11 @@ spec:
                   - template
                   type: object
               type: object
+            ttlSecondsAfterFinished:
+              description: The minimum number of seconds before an attempt should
+                be made to clean up the trial
+              format: int32
+              type: integer
             values:
               description: Values are the collected metrics at the end of the trial
                 run

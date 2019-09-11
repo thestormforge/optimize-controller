@@ -486,6 +486,11 @@ func (in *TrialSpec) DeepCopyInto(out *TrialSpec) {
 		*out = new(v1.Duration)
 		**out = **in
 	}
+	if in.TTLSecondsAfterFinished != nil {
+		in, out := &in.TTLSecondsAfterFinished, &out.TTLSecondsAfterFinished
+		*out = new(int32)
+		**out = **in
+	}
 	if in.Values != nil {
 		in, out := &in.Values, &out.Values
 		*out = make([]Value, len(*in))

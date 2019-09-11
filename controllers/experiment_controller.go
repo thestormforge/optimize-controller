@@ -193,8 +193,8 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 				return util.IgnoreConflict(err)
 			}
 
-			// Delete the trial
-			if trial.DeletionTimestamp.IsZero() {
+			// Delete the trial if necessary
+			if redskyexperiment.NeedsCleanup(trial) {
 				err = r.Delete(ctx, trial)
 				return ctrl.Result{}, err
 			}

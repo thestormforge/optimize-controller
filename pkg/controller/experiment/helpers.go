@@ -17,6 +17,7 @@ package experiment
 
 import (
 	"context"
+	"time"
 
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	redskytrial "github.com/redskyops/k8s-experiment/pkg/controller/trial"
@@ -122,4 +123,32 @@ func FindAvailableNamespace(r client.Reader, experiment *redskyv1alpha1.Experime
 		return experiment.Namespace, nil
 	}
 	return "", nil
+}
+
+// NeedsCleanup check whether a trial's TTL has expired
+func NeedsCleanup(t *redskyv1alpha1.Trial) bool {
+	// Trials that are deleted or do not have a TTL are never ready for clean up
+	if !t.DeletionTimestamp.IsZero() || t.Spec.TTLSecondsAfterFinished == nil {
+		return false
+	}
+
+	// Determine the finish time
+	finishTime := trialFinishTime(t)
+	if finishTime.IsZero() {
+		return false
+	}
+
+	// Check to see if we are still in the TTL window
+	ttl := time.Duration(*t.Spec.TTLSecondsAfterFinished) * time.Second
+	return finishTime.UTC().Add(ttl).Before(time.Now().UTC())
+}
+
+// trialFinishTime returns the time that a trial finished; this time can skip ahead of the normal definition of "finished" if there are setup delete tasks.
+func trialFinishTime(t *redskyv1alpha1.Trial) metav1.Time {
+	for _, c := range t.Status.Conditions {
+		if c.Status == corev1.ConditionTrue && !c.LastTransitionTime.IsZero() && (c.Type == redskyv1alpha1.TrialSetupDeleted || c.Type == redskyv1alpha1.TrialComplete || c.Type == redskyv1alpha1.TrialFailed) {
+			return c.LastTransitionTime
+		}
+	}
+	return metav1.Time{}
 }
