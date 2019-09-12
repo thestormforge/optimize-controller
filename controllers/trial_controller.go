@@ -18,7 +18,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -239,13 +238,12 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 			urls, verr := findMetricTargets(r, &m)
 			for _, u := range urls {
-				if value, stddev, retryAfter, err := redskytrial.CaptureMetric(&m, u, trial); err != nil {
+				if value, stddev, err := redskytrial.CaptureMetric(&m, u, trial); err != nil {
+					if merr, ok := err.(*redskytrial.MetricError); ok && merr.RetryAfter > 0 {
+						// Do not count retries against the remaining attempts, do not look for additional URLs
+						return ctrl.Result{RequeueAfter: merr.RetryAfter}, nil
+					}
 					verr = err
-				} else if retryAfter > 0 {
-					// Do not count retries against the remaining attempts, do not look for additional URLs
-					return ctrl.Result{RequeueAfter: retryAfter}, nil
-				} else if math.IsNaN(value) || math.IsNaN(stddev) {
-					verr = fmt.Errorf("capturing metric %s got NaN", m.Name)
 				} else {
 					v.AttemptsRemaining = 0
 					v.Value = strconv.FormatFloat(value, 'f', -1, 64)
@@ -260,6 +258,10 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				v.AttemptsRemaining = v.AttemptsRemaining - 1
 				if v.AttemptsRemaining == 0 {
 					redskytrial.ApplyCondition(&trial.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "MetricFailed", verr.Error(), &now)
+					if merr, ok := verr.(*redskytrial.MetricError); ok {
+						// Metric errors contain additional information which should be logged for debugging
+						log.Error(err, "Metric collection failed", "address", merr.Address, "query", merr.Query, "completionTime", merr.CompletionTime)
+					}
 				}
 			}
 
