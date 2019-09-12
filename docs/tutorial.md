@@ -39,10 +39,10 @@ Once assignments have been suggested, a trial run will start generating workload
 
 ## Running the Experiment
 
-From the `/examples/tutorial` directory, apply the required configuration to the cluster (note that the example kustomization leverages Kustomize features that may not be available from `kubectl apply -k`):
+Build the experiment resources and apply the configuration to the cluster (note that the example kustomization leverages Kustomize features that may not be available from `kubectl apply -k`):
 
 ```sh
-$ kustomize build | kubectl apply -f -
+$ kustomize build github.com/redskyops/k8s-experiment//examples/tutorial | kubectl apply -f -
 ```
 
 When configured to use the Enterprise solution, trials will be created automatically. You may interactively suggest trial assignments to start a trial run as well:
