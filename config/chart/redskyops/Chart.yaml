@@ -4,3 +4,6 @@ description: |
   An AIOps platform for deploying, scaling and managing containerized applications in Kubernetes environments.
 home: https://redskyops.dev/
 icon: https://redskyops.dev/icon.png
+maintainers:
+- name: redskyops
+  email: info@redskyops.dev
