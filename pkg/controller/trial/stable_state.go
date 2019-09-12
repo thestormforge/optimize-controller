@@ -27,7 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -51,11 +51,136 @@ func (e *StabilityError) Error() string {
 	}
 }
 
+// WaitForStableState checks to see if the object referenced by the supplied patch operation has stabilized.
+// If stabilization has not occurred, an error is returned: errors with a delay indicate that the resource is
+// not ready, errors without a delay indicate the resource is never expected to become ready.
+func WaitForStableState(r client.Reader, ctx context.Context, log logr.Logger, p *redskyv1alpha1.PatchOperation) error {
+	var selector *metav1.LabelSelector
+	var err error
+
+	// Same tests used by `kubectl rollout status`
+	// https://github.com/kubernetes/kubernetes/blob/master/staging/src/k8s.io/kubectl/pkg/polymorphichelpers/rollout_status.go
+	switch p.TargetRef.Kind {
+
+	case "Deployment":
+		d := &appsv1.Deployment{}
+		if err := r.Get(ctx, name(p.TargetRef), d); err != nil {
+			return ignoreNotFound(err)
+		}
+		selector = d.Spec.Selector
+		err = checkDeployment(d)
+
+	case "DaemonSet":
+		ds := &appsv1.DaemonSet{}
+		if err := r.Get(ctx, name(p.TargetRef), ds); err != nil {
+			return ignoreNotFound(err)
+		}
+		selector = ds.Spec.Selector
+		err = checkDaemonSet(ds, log)
+
+	case "StatefulSet":
+		ss := &appsv1.StatefulSet{}
+		if err := r.Get(ctx, name(p.TargetRef), ss); err != nil {
+			return ignoreNotFound(err)
+		}
+		selector = ss.Spec.Selector
+		err = checkStatefulSet(ss, log)
+
+	}
+
+	if serr, ok := err.(*StabilityError); ok {
+		if serr.RetryAfter != 0 {
+			// We were already going to initiate a delay, so the overhead of checking pods shouldn't hurt
+			list := &corev1.PodList{}
+			if matchingSelector, err := util.MatchingSelector(selector); err == nil {
+				_ = r.List(ctx, list, matchingSelector)
+			}
+
+			// Continue to ignore anything that isn't a StabilityError so we retain the original error
+			if err, ok := (checkPods(list)).(*StabilityError); ok {
+				serr = err
+			}
+		}
+
+		// Add some additional context to the error
+		p.TargetRef.DeepCopyInto(&serr.TargetRef)
+		return serr
+	}
+
+	return err
+}
+
+func name(ref corev1.ObjectReference) types.NamespacedName {
+	return types.NamespacedName{
+		Name:      ref.Name,
+		Namespace: ref.Namespace,
+	}
+}
+
+func ignoreNotFound(err error) error {
+	if errors.IsNotFound(err) {
+		return nil
+	}
+	return err
+}
+
+func checkPods(list *corev1.PodList) error {
+	for i := range list.Items {
+		p := &list.Items[i]
+		for _, c := range p.Status.Conditions {
+			if c.Type == corev1.PodScheduled && c.Status == corev1.ConditionFalse && c.Reason == corev1.PodReasonUnschedulable {
+				// TODO Is it possible this is a transient condition or something else precludes it from being fatal?
+				return &StabilityError{Reason: "Unschedulable"}
+			}
+		}
+	}
+
+	return nil
+}
+
+func checkDeployment(deployment *appsv1.Deployment) error {
+	if deployment.Generation > deployment.Status.ObservedGeneration {
+		return &StabilityError{Reason: "ObservedGeneration", RetryAfter: 5 * time.Second}
+	}
+	for _, c := range deployment.Status.Conditions {
+		if c.Type == appsv1.DeploymentProgressing && c.Reason == "ProgressDeadlineExceeded" {
+			return &StabilityError{Reason: "ProgressDeadlineExceeded"}
+		}
+	}
+	if deployment.Spec.Replicas != nil && deployment.Status.UpdatedReplicas < *deployment.Spec.Replicas {
+		return &StabilityError{Reason: "UpdatedReplicas", RetryAfter: 5 * time.Second}
+	}
+	if deployment.Status.Replicas > deployment.Status.UpdatedReplicas {
+		return &StabilityError{Reason: "Replicas", RetryAfter: 5 * time.Second}
+	}
+	if deployment.Status.AvailableReplicas < deployment.Status.UpdatedReplicas {
+		return &StabilityError{Reason: "AvailableReplicas", RetryAfter: 5 * time.Second}
+	}
+	return nil
+}
+
+func checkDaemonSet(daemon *appsv1.DaemonSet, log logr.Logger) error {
+	if daemon.Spec.UpdateStrategy.Type != appsv1.RollingUpdateDaemonSetStrategyType {
+		// TODO Can we still do something to test this?
+		log.Info("DaemonSet stability check skipped due to legacy update strategy", "name", daemon.Name, "updateStrategyType", daemon.Spec.UpdateStrategy.Type)
+		return nil
+	}
+	if daemon.Generation > daemon.Status.ObservedGeneration {
+		return &StabilityError{Reason: "ObservedGeneration", RetryAfter: 5 * time.Second}
+	}
+	if daemon.Status.UpdatedNumberScheduled < daemon.Status.DesiredNumberScheduled {
+		return &StabilityError{Reason: "NumberScheduled", RetryAfter: 5 * time.Second}
+	}
+	if daemon.Status.NumberAvailable < daemon.Status.DesiredNumberScheduled {
+		return &StabilityError{Reason: "NumberAvailable", RetryAfter: 5 * time.Second}
+	}
+	return nil
+}
+
 // Check a stateful set to see if it has reached a stable state
 func checkStatefulSet(sts *appsv1.StatefulSet, log logr.Logger) error {
-	// Same tests used by `kubectl rollout status`
-	// https://github.com/kubernetes/kubernetes/blob/master/pkg/kubectl/rollout_status.go
 	if sts.Spec.UpdateStrategy.Type != appsv1.RollingUpdateStatefulSetStrategyType {
+		// TODO Can we still do something to test this?
 		log.Info("StatefulSet stability check skipped due to legacy update strategy", "name", sts.Name, "updateStrategyType", sts.Spec.UpdateStrategy.Type)
 		return nil
 	}
@@ -77,109 +202,4 @@ func checkStatefulSet(sts *appsv1.StatefulSet, log logr.Logger) error {
 		return &StabilityError{Reason: "CurrentRevision", RetryAfter: 5 * time.Second}
 	}
 	return nil
-}
-
-func checkDeployment(d *appsv1.Deployment) error {
-	// Same tests used by `kubectl rollout status`
-	// https://github.com/kubernetes/kubernetes/blob/master/pkg/kubectl/rollout_status.go
-	if d.Generation > d.Status.ObservedGeneration {
-		return &StabilityError{Reason: "ObservedGeneration", RetryAfter: 5 * time.Second}
-	}
-	for _, c := range d.Status.Conditions {
-		if c.Type == appsv1.DeploymentProgressing && c.Reason == "ProgressDeadlineExceeded" {
-			return &StabilityError{Reason: "ProgressDeadlineExceeded"}
-		}
-	}
-	if d.Spec.Replicas != nil && d.Status.UpdatedReplicas < *d.Spec.Replicas {
-		return &StabilityError{Reason: "UpdatedReplicas", RetryAfter: 5 * time.Second}
-	}
-	if d.Status.Replicas > d.Status.UpdatedReplicas {
-		return &StabilityError{Reason: "Replicas", RetryAfter: 5 * time.Second}
-	}
-	if d.Status.AvailableReplicas < d.Status.UpdatedReplicas {
-		return &StabilityError{Reason: "AvailableReplicas", RetryAfter: 5 * time.Second}
-	}
-	return nil
-}
-
-// Iterates over all of the supplied patches and ensures that the targets are in a "stable" state (where "stable"
-// is determined by the object kind).
-func WaitForStableState(r client.Reader, ctx context.Context, log logr.Logger, p *redskyv1alpha1.PatchOperation) error {
-	switch p.TargetRef.Kind {
-	case "StatefulSet":
-		ss := &appsv1.StatefulSet{}
-		if err, ok := get(r, ctx, p.TargetRef, ss); err != nil {
-			if ok {
-				// TODO This should be IgnoreNotFound or something like that
-				return nil
-			}
-			return err
-		}
-		if err := checkStatefulSet(ss, log); err != nil {
-			return applyTarget(checkPods(err, r, ss.Spec.Selector), &p.TargetRef)
-		}
-
-	case "Deployment":
-		d := &appsv1.Deployment{}
-		if err, ok := get(r, ctx, p.TargetRef, d); err != nil {
-			if ok {
-				// TODO This should be IgnoreNotFound or something like that
-				return nil
-			}
-			return err
-		}
-		if err := checkDeployment(d); err != nil {
-			return applyTarget(checkPods(err, r, d.Spec.Selector), &p.TargetRef)
-		}
-
-		// TODO Should we also get DaemonSet like rollout?
-	}
-	return nil
-}
-
-// Helper that executes a Get and checks for ignorable errors
-func get(r client.Reader, ctx context.Context, ref corev1.ObjectReference, obj runtime.Object) (error, bool) {
-	if err := r.Get(ctx, client.ObjectKey{Namespace: ref.Namespace, Name: ref.Name}, obj); err != nil {
-		if errors.IsNotFound(err) {
-			return err, true
-		}
-		return err, false
-	}
-	return nil, true
-}
-
-func applyTarget(e error, r *corev1.ObjectReference) error {
-	if serr, ok := e.(*StabilityError); ok {
-		r.DeepCopyInto(&serr.TargetRef)
-		return serr
-	}
-	return e
-}
-
-func checkPods(e error, r client.Reader, selector *metav1.LabelSelector) error {
-	// BE SURE TO RETURN THE ORIGINAL ERROR IN PREFERENCE TO A NEWLY CREATED ERROR
-
-	// We are checking if we should "upgrade" from delay to a hard fail
-	if serr, ok := e.(*StabilityError); !ok || serr.RetryAfter == 0 {
-		return e
-	}
-
-	// We were already going to initiate a delay, so the overhead of checking pods shouldn't hurt
-	list := &corev1.PodList{}
-	matchingSelector, err := util.MatchingSelector(selector)
-	if err != nil {
-		return e
-	}
-	if err := r.List(context.TODO(), list, matchingSelector); err != nil {
-		return e
-	}
-	for _, p := range list.Items {
-		for _, c := range p.Status.Conditions {
-			if c.Type == corev1.PodScheduled && c.Status == corev1.ConditionFalse && c.Reason == corev1.PodReasonUnschedulable {
-				// TODO Is it possible this is a transient condition or something else precludes it from being fatal?
-				return &StabilityError{Reason: "Unschedulable"}
-			}
-		}
-	}
-	return e
 }
