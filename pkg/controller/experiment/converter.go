@@ -38,6 +38,12 @@ func ConvertExperiment(in *redskyv1alpha1.Experiment, out *redskyapi.Experiment)
 	} else {
 		out.Optimization.ParallelTrials = int32(in.GetReplicas())
 	}
+	if in.Spec.BurnIn != nil {
+		out.Optimization.BurnIn = *in.Spec.BurnIn
+	}
+	if in.Spec.Budget != nil {
+		out.Optimization.ExperimentBudget = *in.Spec.Budget
+	}
 
 	out.Parameters = nil
 	for _, p := range in.Spec.Parameters {
