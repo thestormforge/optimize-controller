@@ -130,6 +130,16 @@ func (in *ExperimentSpec) DeepCopyInto(out *ExperimentSpec) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.BurnIn != nil {
+		in, out := &in.BurnIn, &out.BurnIn
+		*out = new(int32)
+		**out = **in
+	}
+	if in.Budget != nil {
+		in, out := &in.Budget, &out.Budget
+		*out = new(int32)
+		**out = **in
+	}
 	if in.Parameters != nil {
 		in, out := &in.Parameters, &out.Parameters
 		*out = make([]Parameter, len(*in))

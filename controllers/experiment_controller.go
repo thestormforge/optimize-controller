@@ -86,6 +86,12 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 				if experiment.GetReplicas() > int(ee.Optimization.ParallelTrials) && ee.Optimization.ParallelTrials > 0 {
 					*experiment.Spec.Replicas = ee.Optimization.ParallelTrials
 				}
+				if experiment.Spec.Budget == nil && ee.Optimization.ExperimentBudget > 0 {
+					*experiment.Spec.Budget = ee.Optimization.ExperimentBudget
+				}
+				if experiment.Spec.BurnIn == nil && ee.Optimization.BurnIn > 0 {
+					*experiment.Spec.BurnIn = ee.Optimization.BurnIn
+				}
 				err = r.Update(ctx, experiment)
 				return ctrl.Result{}, err
 			}

@@ -30,6 +30,16 @@ spec:
         spec:
           description: ExperimentSpec defines the desired state of Experiment
           properties:
+            budget:
+              description: Budget is the maximum number of trials to run for an experiment
+                across all clusters
+              format: int32
+              type: integer
+            burnIn:
+              description: Burn-in is the number of trials using random suggestions
+                at the start of an experiment
+              format: int32
+              type: integer
             metrics:
               description: Metrics defines the outcomes for the experiment
               items:

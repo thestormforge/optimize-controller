@@ -117,6 +117,10 @@ type ExperimentSpec struct {
 	Replicas *int32 `json:"replicas,omitempty"`
 	// Parallelism is the total number of expected replicas across all clusters, defaults to the replica count
 	Parallelism *int32 `json:"parallelism,omitempty"`
+	// Burn-in is the number of trials using random suggestions at the start of an experiment
+	BurnIn *int32 `json:"burnIn,omitempty"`
+	// Budget is the maximum number of trials to run for an experiment across all clusters
+	Budget *int32 `json:"budget,omitempty"`
 	// Parameters defines the search space for the experiment
 	Parameters []Parameter `json:"parameters,omitempty"`
 	// Metrics defines the outcomes for the experiment
