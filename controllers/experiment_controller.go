@@ -217,13 +217,14 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 	// Remove our finalizer if we have been deleted and all trials were reconciled
 	if !experiment.DeletionTimestamp.IsZero() && util.RemoveFinalizer(experiment, redskyexperiment.ExperimentFinalizer) {
 		// Also delete the experiment on the server if necessary
-		// TODO Does this require `experiment.GetReplicas() > 0`?
 		if experimentURL := experiment.GetAnnotations()[redskyv1alpha1.AnnotationExperimentURL]; experimentURL != "" {
 			if err := r.RedSkyAPI.DeleteExperiment(ctx, experimentURL); err != nil {
 				log.Error(err, "Failed to delete experiment", "experimentURL", experimentURL)
 			}
 			delete(experiment.GetAnnotations(), redskyv1alpha1.AnnotationExperimentURL)
 			delete(experiment.GetAnnotations(), redskyv1alpha1.AnnotationNextTrialURL)
+
+			// Set the replicas to 0 to prevent us from recreating the remote experiment on the subsequent reconciliation
 			experiment.SetReplicas(0)
 		}
 		err := r.Update(ctx, experiment)
