@@ -41,7 +41,7 @@ spec:
   - name: cost
     minimize: true
     type: prometheus
-    query: "scalar((sum(container_cpu_allocation{namespace=\"{{ .Namespace }}\"}))*22 + (sum(container_memory_allocation_bytes{namespace=\"{{ .Namespace }}\"})/1000000000)*3)"
+    query: "scalar((sum(container_cpu_allocation{namespace=\"{{ .Trial.Namespace }}\"}))*22 + (sum(container_memory_allocation_bytes{namespace=\"{{ .Trial.Namespace }}\"})/1000000000)*3)"
     selector:
       matchLabels:
         app: prometheus
