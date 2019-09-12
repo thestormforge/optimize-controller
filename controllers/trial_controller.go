@@ -298,12 +298,8 @@ func (r *TrialReconciler) forTrialUpdate(trial *redskyv1alpha1.Trial, ctx contex
 	}
 	trial.Status.Values = strings.Join(values, ", ")
 
-	if err := r.Update(ctx, trial); err != nil {
-		// TODO Should we check for, and potentially ignore, conflict errors likely created by the experiment controller?
-		log.Error(err, "unable to update trial")
-		return ctrl.Result{}, err
-	}
-	return ctrl.Result{}, nil
+	err := r.Update(ctx, trial)
+	return util.IgnoreConflict(err)
 }
 
 func evaluatePatches(r client.Reader, trial *redskyv1alpha1.Trial, e *redskyv1alpha1.Experiment) error {
