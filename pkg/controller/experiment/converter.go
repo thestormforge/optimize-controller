@@ -47,6 +47,11 @@ func ConvertExperiment(in *redskyv1alpha1.Experiment, out *redskyapi.Experiment)
 
 	out.Parameters = nil
 	for _, p := range in.Spec.Parameters {
+		// This is a special case for testing
+		if p.Min == p.Max {
+			continue
+		}
+
 		out.Parameters = append(out.Parameters, redskyapi.Parameter{
 			Type: redskyapi.ParameterTypeInteger,
 			Name: p.Name,
