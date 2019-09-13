@@ -90,7 +90,7 @@ endif
 
 # Generate client code
 generate-client:
-	client-gen --clientset-name kubernetes --input-base "" --input github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1 --output-package github.com/redskyops/k8s-experiment/pkg --go-header-file hack/boilerplate.go.txt
+	client-gen --clientset-name kubernetes --input-base "" --input github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1 --output-base "../../.." --output-package github.com/redskyops/k8s-experiment/pkg --go-header-file hack/boilerplate.go.txt
 
 # Generate CLI documentation
 generate-docs:
