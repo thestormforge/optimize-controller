@@ -25,5 +25,3 @@ While powerful, these tools are missing some aspects of resources untuned:
 - Kubernetes cannot adjust application-specific settings that may have significant impact on performance from workload to workload. For instance: JVM heap size, shard size in Elasticsearch, or working memory on a self-hosted database would not be exposed through a consistent interface in Kubernetes, even if they may be set by environment variables or through a ConfigMap.
 
 Red Sky Ops was developed to address these shortcomings. **k8s-experiment**  the tools needed to find the ideal configuration for a Kubernetes application. It support flexibly parameterizing application yaml; running trials with specific values filled into those yaml documents; taking measurements to determine the efficacy of trials; and grouping those trials into overarching Experiments.
-
-For an in-depth explanation of the tool, proceed to the Overview section.
