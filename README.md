@@ -6,7 +6,7 @@ The Kubernetes Experiments project (k8s-experiment) supports the creation and ex
 
 ## Installation
 
-Downloads of the Red Sky CLI can be found on the [release page](https://github.com/redskyops/k8s-experiment/releases). Download the appropriate binary for your platform and add it to your PATH.
+Downloads of the Red Sky Ops Tool can be found on the [release page](https://github.com/redskyops/k8s-experiment/releases). Download the appropriate binary for your platform and add it to your PATH.
 
 To install the custom Kubernetes resources to you currently configured cluster, execute the `redskyctl init` command. To uninstall and remove all of the Red Sky Opts data, execute `redskyctl reset`.
 
