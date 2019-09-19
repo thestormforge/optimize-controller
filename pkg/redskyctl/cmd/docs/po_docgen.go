@@ -12,7 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+// This file originally comes from the Prometheus Operator project:
+// https://github.com/coreos/prometheus-operator/blob/master/cmd/po-docgen/api.go
+// Modifications have been made to account for using this code in this project,
+// the original file is available in Git history.
+
+package docs
 
 import (
 	"bytes"
@@ -21,33 +26,29 @@ import (
 	"go/doc"
 	"go/parser"
 	"go/token"
+	"io"
 	"reflect"
 	"strings"
 )
 
 const (
-	firstParagraph = `<br>
-<div class="alert alert-info" role="alert">
-    <i class="fa fa-exclamation-triangle"></i><b> Note:</b> Starting with v0.12.0, Prometheus Operator requires use of Kubernetes v1.7.x and up.
-</div>
-
+	firstParagraph = `
 # API Docs
 
-This Document documents the types introduced by the Prometheus Operator to be consumed by users.
-
-> Note this document is generated from code comments. When contributing a change to this document please do so by changing the code comments.`
+`
 )
 
 var (
 	links = map[string]string{
-		"metav1.ObjectMeta":        "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#objectmeta-v1-meta",
-		"metav1.ListMeta":          "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#listmeta-v1-meta",
-		"metav1.LabelSelector":     "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#labelselector-v1-meta",
-		"v1.ResourceRequirements":  "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#resourcerequirements-v1-core",
-		"v1.LocalObjectReference":  "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#localobjectreference-v1-core",
-		"v1.SecretKeySelector":     "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#secretkeyselector-v1-core",
-		"v1.PersistentVolumeClaim": "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#persistentvolumeclaim-v1-core",
-		"v1.EmptyDirVolumeSource":  "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#emptydirvolumesource-v1-core",
+		"batchv1beta1.JobTemplateSpec": "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#jobtemplatespec-v1beta1-batch",
+		"corev1.ObjectReference":       "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#objectreference-v1-core",
+		"corev1.Volume":                "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#volume-v1-core",
+		"corev1.VolumeMount":           "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#volumemount-v1-core",
+		"metav1.ObjectMeta":            "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#objectmeta-v1-meta",
+		"metav1.ListMeta":              "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#listmeta-v1-meta",
+		"metav1.LabelSelector":         "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#labelselector-v1-meta",
+		"metav1.Time":                  "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#time-v1-meta",
+		//"metav1.Duration":      "#unknown",
 	}
 
 	selfLinks = map[string]string{}
@@ -59,16 +60,16 @@ func toSectionLink(name string) string {
 	return name
 }
 
-func printTOC(types []KubeTypes) {
-	fmt.Printf("\n## Table of Contents\n")
+func printTOC(out io.Writer, types []KubeTypes) {
+	_, _ = fmt.Fprintf(out, "\n## Table of Contents\n")
 	for _, t := range types {
 		strukt := t[0]
-		fmt.Printf("* [%s](#%s)\n", strukt.Name, toSectionLink(strukt.Name))
+		_, _ = fmt.Fprintf(out, "* [%s](#%s)\n", strukt.Name, toSectionLink(strukt.Name))
 	}
 }
 
-func printAPIDocs(path string) {
-	fmt.Println(firstParagraph)
+func printAPIDocs(out io.Writer, path string) {
+	_, _ = fmt.Fprintln(out, firstParagraph)
 
 	types := ParseDocumentationFrom(path)
 	for _, t := range types {
@@ -79,20 +80,23 @@ func printAPIDocs(path string) {
 	// we need to parse once more to now add the self links
 	types = ParseDocumentationFrom(path)
 
-	printTOC(types)
+	printTOC(out, types)
 
 	for _, t := range types {
 		strukt := t[0]
-		fmt.Printf("\n## %s\n\n%s\n\n", strukt.Name, strukt.Doc)
+		_, _ = fmt.Fprintf(out, "\n## %s\n\n%s\n\n", strukt.Name, strukt.Doc)
 
-		fmt.Println("| Field | Description | Scheme | Required |")
-		fmt.Println("| ----- | ----------- | ------ | -------- |")
+		_, _ = fmt.Fprintln(out, "| Field | Description | Scheme | Required |")
+		_, _ = fmt.Fprintln(out, "| ----- | ----------- | ------ | -------- |")
 		fields := t[1:(len(t))]
 		for _, f := range fields {
-			fmt.Println("|", f.Name, "|", f.Doc, "|", f.Type, "|", f.Mandatory, "|")
+			_, _ = fmt.Fprintln(out, "|", fmt.Sprintf("`%s`", f.Name), "|", f.Doc, "|", fmt.Sprintf("_%s_", f.Type), "|", f.Mandatory, "|")
 		}
-		fmt.Println("")
-		fmt.Println("[Back to TOC](#table-of-contents)")
+		if len(fields) == 0 {
+			_, _ = fmt.Fprintln(out, "| _N/A_ |")
+		}
+		_, _ = fmt.Fprintln(out, "")
+		_, _ = fmt.Fprintln(out, "[Back to TOC](#table-of-contents)")
 	}
 }
 
@@ -182,8 +186,8 @@ func fmtRawDoc(rawDoc string) string {
 	}
 
 	postDoc := strings.TrimRight(buffer.String(), "\n")
-	postDoc = strings.Replace(postDoc, "\\\"", "\"", -1) // replace user's \" to "
-	postDoc = strings.Replace(postDoc, "\"", "\\\"", -1) // Escape "
+	//postDoc = strings.Replace(postDoc, "\\\"", "\"", -1) // replace user's \" to "
+	//postDoc = strings.Replace(postDoc, "\"", "\\\"", -1) // Escape "
 	postDoc = strings.Replace(postDoc, "\n", "\\n", -1)
 	postDoc = strings.Replace(postDoc, "\t", "\\t", -1)
 	postDoc = strings.Replace(postDoc, "|", "\\|", -1)
@@ -206,6 +210,10 @@ func toLink(typeName string) string {
 }
 
 func wrapInLink(text, link string) string {
+	parts := strings.Split(text, ".")
+	if len(parts) > 0 {
+		text = parts[len(parts)-1]
+	}
 	return fmt.Sprintf("[%s](%s)", text, link)
 }
 

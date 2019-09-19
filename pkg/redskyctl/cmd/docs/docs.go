@@ -18,6 +18,7 @@ package docs
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
@@ -32,8 +33,9 @@ const (
 )
 
 type DocsOptions struct {
-	Directory string
-	DocType   string
+	Directory  string
+	DocType    string
+	SourcePath string
 
 	root *cobra.Command
 
@@ -62,6 +64,8 @@ func NewDocsCommand(ioStreams cmdutil.IOStreams) *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&o.Directory, "directory", "d", "./", "Directory where documentation is written.")
+	cmd.Flags().StringVar(&o.DocType, "doc-type", "markdown", "Documentation type to write, one of: markdown|man|api.")
+	cmd.Flags().StringVar(&o.SourcePath, "source", "pkg/apis/redsky/v1alpha1", "Source path used to find API types.")
 
 	return cmd
 }
@@ -82,7 +86,31 @@ func (o *DocsOptions) Run() error {
 		return doc.GenMarkdownTree(o.root, o.Directory)
 	case "man":
 		return doc.GenManTree(o.root, &doc.GenManHeader{Title: "RED SKY", Section: "1"}, o.Directory)
+	case "api":
+		return GenAPIDocs(o.SourcePath, o.Directory)
 	default:
 		return fmt.Errorf("unknown documentation type: %s", o.DocType)
 	}
+}
+
+func GenAPIDocs(sourcePath, dir string) error {
+	if err := genAPIDoc(dir, "trial.md", filepath.Join(sourcePath, "trial_types.go")); err != nil {
+		return err
+	}
+	if err := genAPIDoc(dir, "experiment.md", filepath.Join(sourcePath, "experiment_types.go")); err != nil {
+		return err
+	}
+	return nil
+}
+
+func genAPIDoc(dir, basename, path string) error {
+	filename := filepath.Join(dir, basename)
+	f, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = f.Close() }()
+
+	printAPIDocs(f, path)
+	return nil
 }
