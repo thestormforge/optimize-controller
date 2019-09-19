@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package cmd
+package docs
 
 import (
 	"fmt"
@@ -25,7 +25,6 @@ import (
 )
 
 // TODO Add support for fetching Red Sky OpenAPI specification
-// TODO Add support for generating OpenAPI specification based on Kube API (including validation schema)
 
 const (
 	docsLong    = `Generate documentation for Red Sky Ops`
