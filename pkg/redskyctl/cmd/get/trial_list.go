@@ -18,16 +18,17 @@ package get
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
 	redsky "github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1"
 	"github.com/redskyops/k8s-experiment/pkg/controller/experiment"
-	redskykube "github.com/redskyops/k8s-experiment/pkg/kubernetes"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/redskyops/k8s-experiment/pkg/util"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 const (
@@ -62,13 +63,13 @@ func NewGetTrialListCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cob
 
 func RunGetTrialList(o *GetOptions, meta *trialTableMeta) error {
 	if o.RedSkyAPI != nil {
-		if err := o.printIf(getRedSkyAPITrialList(*o.RedSkyAPI, o.Name, meta)); err != nil {
+		if err := o.printIf(getRedSkyAPITrialList(o, meta)); err != nil {
 			return err
 		}
 	}
 
 	if o.RedSkyClientSet != nil {
-		if err := o.printIf(getKubernetesTrialList(o.RedSkyClientSet, o.Namespace, o.Name, meta)); err != nil {
+		if err := o.printIf(getKubernetesTrialList(o, meta)); err != nil {
 			return err
 		}
 	}
@@ -76,15 +77,17 @@ func RunGetTrialList(o *GetOptions, meta *trialTableMeta) error {
 	return nil
 }
 
-func getRedSkyAPITrialList(api redsky.API, experimentName string, meta *trialTableMeta) (*redsky.TrialList, error) {
+func getRedSkyAPITrialList(o *GetOptions, meta *trialTableMeta) (*redsky.TrialList, error) {
+	api := *o.RedSkyAPI
+
 	// Get the experiment
-	exp, err := api.GetExperimentByName(context.TODO(), redsky.NewExperimentName(experimentName))
+	exp, err := api.GetExperimentByName(context.TODO(), redsky.NewExperimentName(o.Name))
 	if err != nil {
 		return nil, err
 	}
 
 	// Collect the parameter and metric names from the experiment
-	meta.name = experimentName
+	meta.name = o.Name
 	for i := range exp.Parameters {
 		meta.parameters = append(meta.parameters, exp.Parameters[i].Name)
 	}
@@ -98,19 +101,21 @@ func getRedSkyAPITrialList(api redsky.API, experimentName string, meta *trialTab
 	} else if tl, err := api.GetAllTrials(context.TODO(), exp.Trials); err != nil {
 		return nil, err
 	} else {
-		return &tl, nil
+		return filterAndSortTrials(&tl, o.Selector, o.SortBy)
 	}
 }
 
-func getKubernetesTrialList(clientset *redskykube.Clientset, experimentNamespace, experimentName string, meta *trialTableMeta) (*redsky.TrialList, error) {
+func getKubernetesTrialList(o *GetOptions, meta *trialTableMeta) (*redsky.TrialList, error) {
+	clientset := o.RedSkyClientSet
+
 	// Get the experiment
-	exp, err := clientset.RedskyopsV1alpha1().Experiments(experimentNamespace).Get(experimentName, metav1.GetOptions{})
+	exp, err := clientset.RedskyopsV1alpha1().Experiments(o.Namespace).Get(o.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 
 	// Collect the parameter and metric names from the experiment
-	meta.name = experimentName
+	meta.name = o.Name
 	for i := range exp.Spec.Parameters {
 		meta.parameters = append(meta.parameters, exp.Spec.Parameters[i].Name)
 	}
@@ -131,7 +136,57 @@ func getKubernetesTrialList(clientset *redskykube.Clientset, experimentNamespace
 	} else if err := experiment.ConvertTrialList(tl, list); err != nil {
 		return nil, err
 	}
-	return list, nil
+	return filterAndSortTrials(list, o.Selector, o.SortBy)
+}
+
+func filterAndSortTrials(tl *redsky.TrialList, selector, sortBy string) (*redsky.TrialList, error) {
+	sel, err := labels.Parse(selector)
+	if err != nil {
+		return nil, err
+	}
+
+	if !sel.Empty() {
+		var filtered []redsky.TrialItem
+		for i := range tl.Trials {
+			// TODO Add status into the label map?
+			if sel.Matches(labels.Set(tl.Trials[i].Labels)) {
+				filtered = append(filtered, tl.Trials[i])
+			}
+		}
+		tl.Trials = filtered
+	}
+
+	if sortBy != "" {
+		sort.Slice(tl.Trials, sortByField(sortBy, func(i int) interface{} { return sortableTrialData(&tl.Trials[i]) }))
+	}
+
+	return tl, nil
+}
+
+// Slightly modifies the schema of the trial item to make it easier to specify sort orders
+func sortableTrialData(item *redsky.TrialItem) map[string]interface{} {
+	assignments := make(map[string]int64, len(item.Assignments))
+	for i := range item.Assignments {
+		if a, err := item.Assignments[i].Value.Int64(); err == nil {
+			assignments[item.Assignments[i].ParameterName] = a
+		}
+	}
+
+	values := make(map[string]interface{}, len(item.Values))
+	for i := range item.Values {
+		v := make(map[string]float64, 2)
+		v["value"] = item.Values[i].Value
+		v["error"] = item.Values[i].Error
+		values[item.Values[i].MetricName] = v
+	}
+
+	d := make(map[string]interface{}, 5)
+	d["assignments"] = assignments
+	d["labels"] = item.Labels
+	d["number"] = item.Number
+	d["status"] = item.Status
+	d["values"] = values
+	return d
 }
 
 type trialTableMeta struct {

@@ -17,11 +17,13 @@ package get
 
 import (
 	"fmt"
+	"reflect"
 
 	redsky "github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1"
 	redskykube "github.com/redskyops/k8s-experiment/pkg/kubernetes"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/util/jsonpath"
 )
 
 const (
@@ -36,6 +38,8 @@ type GetOptions struct {
 	Namespace string
 	Name      string
 	ChunkSize int
+	Selector  string
+	SortBy    string
 
 	Printer         cmdutil.ResourcePrinter
 	RedSkyAPI       *redsky.API
@@ -67,6 +71,8 @@ func NewGetCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Comman
 
 func (o *GetOptions) AddFlags(cmd *cobra.Command) {
 	cmd.Flags().IntVar(&o.ChunkSize, "chunk-size", 500, "Fetch large lists in chunks rather then all at once.")
+	cmd.Flags().StringVarP(&o.Selector, "selector", "l", "", "Selector to filter on.")
+	cmd.Flags().StringVar(&o.SortBy, "sort-by", "", "Sort list types using this JSONPath expression.")
 }
 
 func (o *GetOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []string, printFlags *cmdutil.PrintFlags) error {
@@ -124,4 +130,44 @@ func (o *GetOptions) printIf(obj interface{}, err error) error {
 	}
 
 	return o.Printer.PrintObj(obj, o.Out)
+}
+
+// Helper to sort using a JSONPath expression
+func sortByField(sortBy string, item func(int) interface{}) func(int, int) bool {
+	field := sortBy // TODO Make "{}" and leading "." optional
+
+	parser := jsonpath.New("sorting").AllowMissingKeys(true)
+	if err := parser.Parse(field); err != nil {
+		return nil
+	}
+
+	return func(i, j int) bool {
+		var iField, jField reflect.Value
+		if r, err := parser.FindResults(item(i)); err != nil || len(r) == 0 || len(r[0]) == 0 {
+			return true
+		} else {
+			iField = r[0][0]
+		}
+		if r, err := parser.FindResults(item(j)); err != nil || len(r) == 0 || len(r[0]) == 0 {
+			return false
+		} else {
+			jField = r[0][0]
+		}
+		less, _ := isLess(iField, jField)
+		return less
+	}
+}
+
+// Compares to values, only int64, float64, and string are allowed
+func isLess(i, j reflect.Value) (bool, error) {
+	switch i.Kind() {
+	case reflect.Int64:
+		return i.Int() < j.Int(), nil
+	case reflect.Float64:
+		return i.Float() < j.Float(), nil
+	case reflect.String:
+		return i.String() < j.String(), nil // TODO Improve the sort order
+	default:
+		return false, fmt.Errorf("unsortable type: %v", i.Kind())
+	}
 }

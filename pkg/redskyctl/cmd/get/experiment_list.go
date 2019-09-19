@@ -18,14 +18,15 @@ package get
 import (
 	"context"
 	"path"
+	"sort"
 	"strings"
 
 	redsky "github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1"
 	"github.com/redskyops/k8s-experiment/pkg/controller/experiment"
-	redskykube "github.com/redskyops/k8s-experiment/pkg/kubernetes"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 const (
@@ -63,7 +64,7 @@ func RunGetExperimentList(o *GetOptions) error {
 	}
 
 	if o.RedSkyClientSet != nil {
-		if err := o.printIf(getKubernetesExperimentList(o.RedSkyClientSet, o.Namespace, o.ChunkSize)); err != nil {
+		if err := o.printIf(getKubernetesExperimentList(o)); err != nil {
 			return err
 		}
 	}
@@ -85,12 +86,13 @@ func getRedSkyAPIExperimentList(api redsky.API, chunkSize int) (*redsky.Experime
 		l.Experiments = append(l.Experiments, n.Experiments...)
 	}
 
-	return &l, nil
+	return filterAndSortExperiments(&l, "", "")
 }
 
-func getKubernetesExperimentList(clientset *redskykube.Clientset, namespace string, chunkSize int) (*redsky.ExperimentList, error) {
-	experiments := clientset.RedskyopsV1alpha1().Experiments(namespace)
-	opts := metav1.ListOptions{Limit: int64(chunkSize)}
+func getKubernetesExperimentList(o *GetOptions) (*redsky.ExperimentList, error) {
+	clientset := o.RedSkyClientSet
+	experiments := clientset.RedskyopsV1alpha1().Experiments(o.Namespace)
+	opts := metav1.ListOptions{Limit: int64(o.ChunkSize)}
 	l := &redsky.ExperimentList{}
 	for {
 		el, err := experiments.List(opts)
@@ -107,7 +109,20 @@ func getKubernetesExperimentList(clientset *redskykube.Clientset, namespace stri
 			break
 		}
 	}
-	return l, nil
+	return filterAndSortExperiments(l, "", "")
+}
+
+func filterAndSortExperiments(el *redsky.ExperimentList, selector, sortBy string) (*redsky.ExperimentList, error) {
+	// Experiments do not have labels so anything but the empty selector will just nil out the list
+	if sel, err := labels.Parse(selector); err != nil {
+		return nil, err
+	} else if !sel.Empty() {
+		el.Experiments = nil
+	} else if sortBy != "" {
+		// TODO Do we really want to expose the whole experiment?
+		sort.Slice(el.Experiments, sortByField(sortBy, func(i int) interface{} { return &el.Experiments[i] }))
+	}
+	return el, nil
 }
 
 type experimentTableMeta struct{}

@@ -141,6 +141,7 @@ func ConvertTrialList(in *redskyv1alpha1.TrialList, out *redskyapi.TrialList) er
 		if err := ConvertTrialValues(&in.Items[i], &t.TrialValues); err != nil {
 			return err
 		}
+		// TODO Copy labels over? Status?
 		out.Trials = append(out.Trials, t)
 	}
 
