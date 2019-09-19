@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	prom "github.com/prometheus/client_golang/api"
@@ -119,7 +120,11 @@ func capturePrometheusMetric(address, query, errorQuery string, completionTime t
 	// Scalar result
 	result := float64(v.(*model.Scalar).Value)
 	if math.IsNaN(result) {
-		return 0, 0, &MetricError{Message: "metric data not available", Address: address, Query: query, CompletionTime: completionTime}
+		err := &MetricError{Message: "metric data not available", Address: address, Query: query, CompletionTime: completionTime}
+		if strings.HasPrefix(query, "scalar(") {
+			err.Message += " (the scalar function may have received an input vector whose size is not 1)"
+		}
+		return 0, 0, err
 	}
 
 	// Execute the error query (if configured)
