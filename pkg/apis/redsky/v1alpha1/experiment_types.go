@@ -107,8 +107,10 @@ type PatchTemplate struct {
 
 // TrialTemplateSpec is used as a template for creating new trials
 type TrialTemplateSpec struct {
+	// Standard object metadata
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              TrialSpec `json:"spec"`
+	// Specification of the desired behavior for the trial
+	Spec TrialSpec `json:"spec"`
 }
 
 // ExperimentSpec defines the desired state of Experiment
@@ -150,10 +152,12 @@ type ExperimentStatus struct {
 
 // Experiment is the Schema for the experiments API
 type Experiment struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+	// Standard object metadata
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-
-	Spec   ExperimentSpec   `json:"spec,omitempty"`
+	// Specification of the desired behavior for an experiment
+	Spec ExperimentSpec `json:"spec,omitempty"`
+	// Current status of an experiment
 	Status ExperimentStatus `json:"status,omitempty"`
 }
 
@@ -162,8 +166,10 @@ type Experiment struct {
 // ExperimentList contains a list of Experiment
 type ExperimentList struct {
 	metav1.TypeMeta `json:",inline"`
+	// Standard list metadata
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Experiment `json:"items"`
+	// The list of experiments
+	Items []Experiment `json:"items"`
 }
 
 func init() {

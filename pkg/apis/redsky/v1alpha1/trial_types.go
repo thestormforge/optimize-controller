@@ -63,7 +63,8 @@ type ParameterSelector struct {
 
 // HelmValueFromSource represents a source of a values mapping
 type HelmValuesFromSource struct {
-	ConfigMap *ConfigMapHelmValuesFromSource `json:"configMap"`
+	// The ConfigMap to select from
+	ConfigMap *ConfigMapHelmValuesFromSource `json:"configMap,omitempty"`
 	// TODO Secret support?
 }
 
@@ -113,8 +114,10 @@ type PatchOperation struct {
 // Assignment represents an individual name/value pair. Assignment names must correspond to parameter
 // names on the associated experiment.
 type Assignment struct {
-	Name  string `json:"name"`
-	Value int64  `json:"value"`
+	// Parameter name being assigned
+	Name string `json:"name"`
+	// The value of the assignment
+	Value int64 `json:"value"`
 }
 
 // Value represents an observed metric value after a trial run has completed successfully. Value names
@@ -222,10 +225,12 @@ type TrialStatus struct {
 // +kubebuilder:printcolumn:name="Assignments",type="string",JSONPath=".status.assignments",description="Current assignments"
 // +kubebuilder:printcolumn:name="Values",type="string",JSONPath=".status.values",description="Current values"
 type Trial struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+	// Standard object metadata
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-
-	Spec   TrialSpec   `json:"spec,omitempty"`
+	// Specification of the desired behavior for a trial
+	Spec TrialSpec `json:"spec,omitempty"`
+	// Current status of a trial
 	Status TrialStatus `json:"status,omitempty"`
 }
 
@@ -234,8 +239,10 @@ type Trial struct {
 // TrialList contains a list of Trial
 type TrialList struct {
 	metav1.TypeMeta `json:",inline"`
+	// Standard list metadata
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Trial `json:"items"`
+	// The list of trials
+	Items []Trial `json:"items"`
 }
 
 func init() {
