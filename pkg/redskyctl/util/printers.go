@@ -53,6 +53,7 @@ type TablePrinter struct {
 	meta         TableMeta
 	columns      []string
 	headers      bool
+	labels       bool
 	outputFormat string
 }
 
@@ -77,6 +78,11 @@ func (p *TablePrinter) PrintObj(obj interface{}, w io.Writer) error {
 	columns := p.columns
 	if len(columns) == 0 {
 		columns = p.meta.Columns(p.outputFormat)
+	}
+
+	// Add labels if requested
+	if p.labels {
+		columns = append(columns, "labels")
 	}
 
 	// Allocate a tab writer and a row buffer
@@ -229,6 +235,16 @@ func (m *rtoTableMeta) ExtractValue(obj interface{}, column string) (string, err
 				return "", err
 			} else {
 				return acc.GetNamespace(), nil
+			}
+		case "labels":
+			if acc, err := meta.Accessor(o); err != nil {
+				return "", err
+			} else {
+				var l []string
+				for k, v := range acc.GetLabels() {
+					l = append(l, fmt.Sprintf("%s=%s", k, v))
+				}
+				return strings.Join(l, ","), nil
 			}
 		default:
 			return m.tableMeta.ExtractValue(o, column)

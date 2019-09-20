@@ -236,10 +236,15 @@ func (t *trialTableMeta) ExtractValue(obj interface{}, column string) (string, e
 			switch column {
 			case "name":
 				return fmt.Sprintf("%s-%d", t.name, o.Number), nil
+			case "labels":
+				var l []string
+				for k, v := range o.Labels {
+					l = append(l, fmt.Sprintf("%s=%s", k, v))
+				}
+				return strings.Join(l, ","), nil
 			}
 		}
 	}
-	// TODO Is this an error?
 	return "", nil
 }
 

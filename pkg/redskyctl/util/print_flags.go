@@ -86,15 +86,19 @@ func NewJSONYAMLPrintFlags() *JSONYAMLPrintFlags {
 }
 
 type TablePrintFlags struct {
-	Meta     TableMeta
-	Columns  []string
-	NoHeader *bool
+	Meta       TableMeta
+	Columns    []string
+	NoHeader   *bool
+	ShowLabels *bool
 }
 
 func (f *TablePrintFlags) AllowedFormats() []string {
 	allowed := make([]string, 0)
 	if f != nil && f.Meta != nil && f.Meta.Allow("name") {
 		allowed = append(allowed, "name")
+	}
+	if f != nil && f.Meta != nil && f.Meta.Allow("wide") {
+		allowed = append(allowed, "wide")
 	}
 	if f != nil && f.Meta != nil && f.Meta.Allow("csv") {
 		allowed = append(allowed, "csv")
@@ -112,11 +116,16 @@ func (f *TablePrintFlags) ToPrinter(outputFormat string) (ResourcePrinter, error
 		headers = !(*f.NoHeader)
 	}
 
+	labels := false
+	if f.ShowLabels != nil {
+		labels = *f.ShowLabels
+	}
+
 	switch strings.ToLower(outputFormat) {
-	case "":
-		return &TablePrinter{meta: f.Meta, columns: f.Columns, headers: headers}, nil
+	case "", "wide":
+		return &TablePrinter{meta: f.Meta, columns: f.Columns, headers: headers, labels: labels}, nil
 	case "name":
-		return &TablePrinter{meta: f.Meta, columns: []string{"name"}, outputFormat: "name"}, nil
+		return &TablePrinter{meta: f.Meta, columns: []string{"name"}, outputFormat: "name", labels: labels}, nil
 	case "csv":
 		return &CSVPrinter{meta: f.Meta, headers: headers}, nil
 	default:
@@ -128,13 +137,17 @@ func (f *TablePrintFlags) AddFlags(cmd *cobra.Command) {
 	if f.NoHeader != nil {
 		cmd.Flags().BoolVar(f.NoHeader, "no-headers", *f.NoHeader, "Don't print headers.")
 	}
+	if f.ShowLabels != nil {
+		cmd.Flags().BoolVar(f.ShowLabels, "show-labels", *f.ShowLabels, "When printing, show all labels as the last column.")
+	}
 }
 
 func NewTablePrintFlags(meta TableMeta) *TablePrintFlags {
-	var nh bool
+	var nh, sl bool
 	return &TablePrintFlags{
-		Meta:     meta,
-		NoHeader: &nh,
+		Meta:       meta,
+		NoHeader:   &nh,
+		ShowLabels: &sl,
 	}
 }
 

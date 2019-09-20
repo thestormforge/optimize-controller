@@ -155,7 +155,6 @@ func (*experimentTableMeta) ExtractValue(obj interface{}, column string) (string
 			return path.Base(o.Self), nil
 		}
 	}
-	// TODO Is this an error?
 	return "", nil
 }
 

@@ -44,6 +44,7 @@ func NewStatusCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Com
 	o := NewStatusOptions(ioStreams)
 
 	printFlags := cmdutil.NewPrintFlags(cmdutil.NewTableMeta(o))
+	printFlags.TablePrintFlags.ShowLabels = nil
 
 	cmd := &cobra.Command{
 		Use:     "status [NAME]",
