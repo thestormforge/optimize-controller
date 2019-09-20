@@ -26,6 +26,8 @@ import (
 // FuncMap returns the functions used for template evaluation
 func FuncMap() template.FuncMap {
 	f := sprig.TxtFuncMap()
+	delete(f, "env")
+	delete(f, "expandenv")
 
 	extra := template.FuncMap{
 		"duration": duration,
