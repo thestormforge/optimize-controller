@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math/rand"
 	"strconv"
 	"time"
@@ -114,17 +115,10 @@ func (o *ServerCheckOptions) Run() error {
 	// Generate an experiment
 	n := o.Name
 	e := generateExperiment(o)
+
+	// If this is a dry run, just write it out
 	if o.DryRun {
-		if n == "" {
-			n = GetRandomName(0)
-		}
-		e.DisplayName = n
-		b, err := json.MarshalIndent(e, "", "    ")
-		if err != nil {
-			return err
-		}
-		_, err = o.Out.Write(b)
-		return err
+		return doDryRun(o.Out, n, e)
 	}
 
 	// Create the experiment
@@ -184,6 +178,21 @@ func (o *ServerCheckOptions) Run() error {
 
 	// Much success!
 	return nil
+}
+
+// Serialize the experiment as JSON
+// TODO We use JSON instead of YAML here only so we can pipe it to jq, make that configurable?
+func doDryRun(out io.Writer, name string, experiment *redsky.Experiment) error {
+	if name == "" {
+		name = GetRandomName(0)
+	}
+	experiment.DisplayName = name
+	b, err := json.MarshalIndent(experiment, "", "    ")
+	if err != nil {
+		return err
+	}
+	_, err = out.Write(b)
+	return err
 }
 
 // Generates an experiment

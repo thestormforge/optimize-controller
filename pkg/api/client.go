@@ -82,18 +82,7 @@ func DefaultConfig() (*Config, error) {
 		configOAuth2 = &OAuth2{}
 	}
 
-	if v, ok := os.LookupEnv("REDSKY_ADDRESS"); ok {
-		config.Address = v
-	}
-	if v, ok := os.LookupEnv("REDSKY_OAUTH2_CLIENT_ID"); ok {
-		configOAuth2.ClientID = v
-	}
-	if v, ok := os.LookupEnv("REDSKY_OAUTH2_CLIENT_SECRET"); ok {
-		configOAuth2.ClientSecret = v
-	}
-	if v, ok := os.LookupEnv("REDSKY_OAUTH2_TOKEN_URL"); ok {
-		configOAuth2.TokenURL = v
-	}
+	loadEnvironment(config, configOAuth2)
 
 	if configOAuth2.ClientID != "" && configOAuth2.ClientSecret != "" {
 		if configOAuth2.TokenURL == "" {
@@ -106,6 +95,23 @@ func DefaultConfig() (*Config, error) {
 	}
 
 	return config, nil
+}
+
+// Loads the relevant environment variables into the supplied configuration objects.
+// Note that the OAuth2 configuration is passed separately to account for the the case were we may not need it.
+func loadEnvironment(config *Config, configOAuth2 *OAuth2) {
+	if v, ok := os.LookupEnv("REDSKY_ADDRESS"); ok {
+		config.Address = v
+	}
+	if v, ok := os.LookupEnv("REDSKY_OAUTH2_CLIENT_ID"); ok {
+		configOAuth2.ClientID = v
+	}
+	if v, ok := os.LookupEnv("REDSKY_OAUTH2_CLIENT_SECRET"); ok {
+		configOAuth2.ClientSecret = v
+	}
+	if v, ok := os.LookupEnv("REDSKY_OAUTH2_TOKEN_URL"); ok {
+		configOAuth2.TokenURL = v
+	}
 }
 
 func NewClient(cfg Config) (Client, error) {

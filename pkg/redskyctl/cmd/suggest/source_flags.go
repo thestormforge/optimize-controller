@@ -56,38 +56,12 @@ func (f *SuggestionSourceFlags) AssignInt(name string, min, max int64, def *int6
 	}
 
 	def = f.defaultInt(min, max, def)
+
 	if f.AllowInteractive {
-		if def != nil {
-			if _, err := fmt.Fprintf(f.Out, "Assignment for integer parameter '%s' [%d,%d] (%d): ", name, min, max, *def); err != nil {
-				return 0, err
-			}
-		} else {
-			if _, err := fmt.Fprintf(f.Out, "Assignment for integer parameter '%s' [%d,%d]: ", name, min, max); err != nil {
-				return 0, err
-			}
-		}
-		s := bufio.NewScanner(f.In)
-		for attempts := 0; attempts < 3; attempts++ {
-			if attempts > 0 {
-				_, _ = fmt.Fprintf(f.Out, "Invalid assignment, try again: ")
-			}
-			if !s.Scan() {
-				break
-			}
-			text := s.Text()
-			if text == "" && def != nil {
-				return *def, nil
-			}
-			i, err := strconv.ParseInt(text, 10, 64)
-			if err != nil || (i < min || i > max) {
-				continue
-			}
-			return i, err
-		}
-		if err := s.Err(); err != nil {
-			return 0, err
-		}
-	} else if def != nil {
+		return f.assignIntInteractive(name, min, max, def)
+	}
+
+	if def != nil {
 		return *def, nil
 	}
 
@@ -104,41 +78,79 @@ func (f *SuggestionSourceFlags) AssignDouble(name string, min, max float64, def 
 	}
 
 	def = f.defaultDouble(min, max, def)
+
 	if f.AllowInteractive {
-		if def != nil {
-			if _, err := fmt.Fprintf(f.Out, "Assignment for double parameter '%s' [%f,%f] (%f): ", name, min, max, *def); err != nil {
-				return 0, err
-			}
-		} else {
-			if _, err := fmt.Fprintf(f.Out, "Assignment for double parameter '%s' [%f,%f]: ", name, min, max); err != nil {
-				return 0, err
-			}
-		}
-		s := bufio.NewScanner(f.In)
-		for attempts := 0; attempts < 3; attempts++ {
-			if attempts > 0 {
-				_, _ = fmt.Fprintf(f.Out, "Invalid assignment, try again: ")
-			}
-			if !s.Scan() {
-				break
-			}
-			text := s.Text()
-			if text == "" && def != nil {
-				return *def, nil
-			}
-			d, err := strconv.ParseFloat(text, 64)
-			if err != nil || (d < min || d > max) {
-				continue
-			}
-			return d, err
-		}
-		if err := s.Err(); err != nil {
-			return 0, err
-		}
-	} else if def != nil {
+		return f.assignDoubleInteractive(name, min, max, def)
+	}
+
+	if def != nil {
 		return *def, nil
 	}
 
+	return 0, fmt.Errorf("no assignment for parameter: %s", name)
+}
+
+func (f *SuggestionSourceFlags) assignIntInteractive(name string, min, max int64, def *int64) (int64, error) {
+	if def != nil {
+		_, _ = fmt.Fprintf(f.Out, "Assignment for integer parameter '%s' [%d,%d] (%d): ", name, min, max, *def)
+	} else {
+		_, _ = fmt.Fprintf(f.Out, "Assignment for integer parameter '%s' [%d,%d]: ", name, min, max)
+	}
+
+	s := bufio.NewScanner(f.In)
+	for attempts := 0; attempts < 3; attempts++ {
+		if attempts > 0 {
+			_, _ = fmt.Fprintf(f.Out, "Invalid assignment, try again: ")
+		}
+		if !s.Scan() {
+			break
+		}
+		text := s.Text()
+		if text == "" && def != nil {
+			return *def, nil
+		}
+		i, err := strconv.ParseInt(text, 10, 64)
+		if err != nil || (i < min || i > max) {
+			continue
+		}
+		return i, err
+	}
+
+	if err := s.Err(); err != nil {
+		return 0, err
+	}
+	return 0, fmt.Errorf("no assignment for parameter: %s", name)
+}
+
+func (f *SuggestionSourceFlags) assignDoubleInteractive(name string, min, max float64, def *float64) (float64, error) {
+	if def != nil {
+		_, _ = fmt.Fprintf(f.Out, "Assignment for double parameter '%s' [%f,%f] (%f): ", name, min, max, *def)
+	} else {
+		_, _ = fmt.Fprintf(f.Out, "Assignment for double parameter '%s' [%f,%f]: ", name, min, max)
+	}
+
+	s := bufio.NewScanner(f.In)
+	for attempts := 0; attempts < 3; attempts++ {
+		if attempts > 0 {
+			_, _ = fmt.Fprintf(f.Out, "Invalid assignment, try again: ")
+		}
+		if !s.Scan() {
+			break
+		}
+		text := s.Text()
+		if text == "" && def != nil {
+			return *def, nil
+		}
+		d, err := strconv.ParseFloat(text, 64)
+		if err != nil || (d < min || d > max) {
+			continue
+		}
+		return d, err
+	}
+
+	if err := s.Err(); err != nil {
+		return 0, err
+	}
 	return 0, fmt.Errorf("no assignment for parameter: %s", name)
 }
 
