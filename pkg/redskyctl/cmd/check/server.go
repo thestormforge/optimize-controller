@@ -232,9 +232,7 @@ func generateBounds() *redsky.Bounds {
 		min, max = rand.Intn(100), rand.Intn(4000)
 	}
 	if min > max {
-		s := min
-		min = max
-		min = s
+		min, max = max, min
 	}
 	return &redsky.Bounds{
 		Min: json.Number(strconv.Itoa(min)),
