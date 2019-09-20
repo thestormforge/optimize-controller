@@ -36,6 +36,7 @@ const (
 	getTrialListExample = ``
 )
 
+// NewGetTrialListCommand returns a new get trial list command
 func NewGetTrialListCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
 	o := NewGetOptions(ioStreams)
 
@@ -61,6 +62,7 @@ func NewGetTrialListCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cob
 	return cmd
 }
 
+// RunGetTrialList gets a trial list for the given get options
 func RunGetTrialList(o *GetOptions, meta *trialTableMeta) error {
 	if o.RedSkyAPI != nil {
 		if err := o.printIf(getRedSkyAPITrialList(o, meta)); err != nil {

@@ -56,12 +56,12 @@ func (in *Experiment) SetReplicas(r int) {
 	}
 }
 
-// Returns a fall back label for when the user has not specified anything
+// GetDefaultLabels returns a fall back label for when the user has not specified anything
 func (in *Experiment) GetDefaultLabels() map[string]string {
 	return map[string]string{LabelExperiment: in.Name}
 }
 
-// Returns a label selector for matching trials associated with the experiment
+// GetTrialSelector returns a label selector for matching trials associated with the experiment
 func (in *Experiment) GetTrialSelector() *metav1.LabelSelector {
 	if in.Spec.Selector != nil {
 		return in.Spec.Selector

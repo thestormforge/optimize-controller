@@ -28,11 +28,11 @@ import (
 )
 
 const (
-	// Finalizer used by the experiment controller to ensure synchronization with the remote server
+	// ExperimentFinalizer is used by the experiment controller to ensure synchronization with the remote server
 	ExperimentFinalizer = "experimentFinalizer.redskyops.dev"
 )
 
-// Creates a new trial for an experiment
+// PopulateTrialFromTemplate creates a new trial for an experiment
 func PopulateTrialFromTemplate(experiment *redskyv1alpha1.Experiment, trial *redskyv1alpha1.Trial, namespace string) {
 	// Start with the trial template
 	experiment.Spec.Template.ObjectMeta.DeepCopyInto(&trial.ObjectMeta)
@@ -75,7 +75,7 @@ func PopulateTrialFromTemplate(experiment *redskyv1alpha1.Experiment, trial *red
 	}
 }
 
-// Searches for a namespace to run a new trial in, returning an empty string if no such namespace can be found
+// FindAvailableNamespace searches for a namespace to run a new trial in, returning an empty string if no such namespace can be found
 func FindAvailableNamespace(r client.Reader, experiment *redskyv1alpha1.Experiment, trials []redskyv1alpha1.Trial) (string, error) {
 	// Determine which namespaces are already in use
 	var activeTrials int
@@ -126,7 +126,7 @@ func FindAvailableNamespace(r client.Reader, experiment *redskyv1alpha1.Experime
 	return "", nil
 }
 
-// NeedsCleanup check whether a trial's TTL has expired
+// NeedsCleanup checks whether a trial's TTL has expired
 func NeedsCleanup(t *redskyv1alpha1.Trial) bool {
 	// Trials that are deleted or do not have a TTL are never ready for clean up
 	if !t.DeletionTimestamp.IsZero() || t.Spec.TTLSecondsAfterFinished == nil {

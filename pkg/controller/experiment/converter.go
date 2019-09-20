@@ -27,6 +27,7 @@ import (
 
 // NOTE: The convert list methods DO NOT nil the target slice to allow for converting paged result sets
 
+// ConvertExperiment copies a Kubernetes experiment into a Red Sky API experiment
 func ConvertExperiment(in *redskyv1alpha1.Experiment, out *redskyapi.Experiment) error {
 	out.ExperimentMeta.LastModified = in.CreationTimestamp.Time
 	out.ExperimentMeta.Self = in.Annotations[redskyv1alpha1.AnnotationExperimentURL]
@@ -73,6 +74,8 @@ func ConvertExperiment(in *redskyv1alpha1.Experiment, out *redskyapi.Experiment)
 	return nil
 }
 
+// ConvertExperimentList copies a Kubernetes experiment list into a Red Sky API experiment list.
+// Note that the output slice is not cleared, allowing this method to be used with paged results.
 func ConvertExperimentList(in *redskyv1alpha1.ExperimentList, out *redskyapi.ExperimentList) error {
 	for i := range in.Items {
 		e := redskyapi.ExperimentItem{}
@@ -92,6 +95,7 @@ func ConvertExperimentList(in *redskyv1alpha1.ExperimentList, out *redskyapi.Exp
 	return nil
 }
 
+// ConvertTrialAssignments copies the assignments of a Kubernetes trial into a Red Sky API trial assignments
 func ConvertTrialAssignements(in *redskyv1alpha1.Trial, out *redskyapi.TrialAssignments) error {
 	out.Assignments = nil
 	for i := range in.Spec.Assignments {
@@ -104,6 +108,7 @@ func ConvertTrialAssignements(in *redskyv1alpha1.Trial, out *redskyapi.TrialAssi
 	return nil
 }
 
+// ConvertTiralValues copies the values of a Kubernetes trial into a Red Sky API trial values
 func ConvertTrialValues(in *redskyv1alpha1.Trial, out *redskyapi.TrialValues) error {
 	// Check to see if the trial failed
 	for _, c := range in.Status.Conditions {
@@ -132,6 +137,8 @@ func ConvertTrialValues(in *redskyv1alpha1.Trial, out *redskyapi.TrialValues) er
 	return nil
 }
 
+// ConvertTrialList copies a Kubernetes trial into a Red Sky API trial list.
+// Note that the output slice is not cleared, allowing this method to be used with paged results.
 func ConvertTrialList(in *redskyv1alpha1.TrialList, out *redskyapi.TrialList) error {
 	for i := range in.Items {
 		t := redskyapi.TrialItem{}

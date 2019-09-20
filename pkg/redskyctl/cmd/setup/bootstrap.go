@@ -35,7 +35,7 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-// The bootstrap configuration
+// BootstrapConfig holds the objects necessary for bootstrapping a Red Sky Ops Manager
 type BootstrapConfig struct {
 	Namespace          corev1.Namespace
 	ClusterRole        rbacv1.ClusterRole

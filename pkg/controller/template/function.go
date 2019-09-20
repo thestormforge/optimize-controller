@@ -23,6 +23,7 @@ import (
 	"github.com/Masterminds/sprig"
 )
 
+// FuncMap returns the functions used for template evaluation
 func FuncMap() template.FuncMap {
 	f := sprig.TxtFuncMap()
 

@@ -32,6 +32,7 @@ const (
 	docsExample = ``
 )
 
+// DocsOptions is the configuration for generating documentation
 type DocsOptions struct {
 	Directory  string
 	DocType    string
@@ -42,12 +43,14 @@ type DocsOptions struct {
 	cmdutil.IOStreams
 }
 
+// NewDocsOptions returns a new documentation options struct
 func NewDocsOptions(ioStreams cmdutil.IOStreams) *DocsOptions {
 	return &DocsOptions{
 		IOStreams: ioStreams,
 	}
 }
 
+// NewDocsCommand returns a new documentation command
 func NewDocsCommand(ioStreams cmdutil.IOStreams) *cobra.Command {
 	o := NewDocsOptions(ioStreams)
 
@@ -70,6 +73,7 @@ func NewDocsCommand(ioStreams cmdutil.IOStreams) *cobra.Command {
 	return cmd
 }
 
+// Complete the documentation options
 func (o *DocsOptions) Complete(cmd *cobra.Command) error {
 	if err := os.MkdirAll(o.Directory, 0777); err != nil {
 		return err
@@ -80,6 +84,7 @@ func (o *DocsOptions) Complete(cmd *cobra.Command) error {
 	return nil
 }
 
+// Run the documentation options
 func (o *DocsOptions) Run() error {
 	switch o.DocType {
 	case "markdown", "md", "":
@@ -93,6 +98,7 @@ func (o *DocsOptions) Run() error {
 	}
 }
 
+// GenAPIDocs reads the trial and experiment source code from source path and outputs Markdown to the output directory
 func GenAPIDocs(sourcePath, dir string) error {
 	if err := genAPIDoc(dir, "trial.md", filepath.Join(sourcePath, "trial_types.go")); err != nil {
 		return err

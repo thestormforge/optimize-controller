@@ -34,6 +34,7 @@ const (
 	getExperimentListExample = ``
 )
 
+// NewGetExperimentListCommand returns a new get experiment list command
 func NewGetExperimentListCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
 	o := NewGetOptions(ioStreams)
 
@@ -56,6 +57,7 @@ func NewGetExperimentListCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams)
 	return cmd
 }
 
+// RunGetExperimentList gets an experiment list for the given get options
 func RunGetExperimentList(o *GetOptions) error {
 	if o.RedSkyAPI != nil {
 		if err := o.printIf(getRedSkyAPIExperimentList(*o.RedSkyAPI, o.ChunkSize)); err != nil {

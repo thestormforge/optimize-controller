@@ -49,6 +49,7 @@ type SuggestionSource interface {
 	AssignDouble(name string, min, max float64, def *float64) (float64, error)
 }
 
+// SuggestOptions is the configuration for suggesting assignments
 type SuggestOptions struct {
 	Namespace       string
 	Name            string
@@ -63,12 +64,14 @@ type SuggestOptions struct {
 	cmdutil.IOStreams
 }
 
+// NewSuggestOptions returns a new suggestion options struct
 func NewSuggestOptions(ioStreams cmdutil.IOStreams) *SuggestOptions {
 	return &SuggestOptions{
 		IOStreams: ioStreams,
 	}
 }
 
+// NewDocsCommand returns a new suggestion command
 func NewSuggestCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
 	o := NewSuggestOptions(ioStreams)
 
@@ -91,6 +94,7 @@ func NewSuggestCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Co
 	return cmd
 }
 
+// Complete the suggestion options
 func (o *SuggestOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []string) error {
 	o.Name = args[0]
 
@@ -146,6 +150,7 @@ func (o *SuggestOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []
 	return nil
 }
 
+// Run the suggestion options
 func (o *SuggestOptions) Run() error {
 	// If we have an API then create the suggestion using the Red Sky API
 	if o.RedSkyAPI != nil {
