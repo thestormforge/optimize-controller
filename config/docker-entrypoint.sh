@@ -86,7 +86,10 @@ if [ -n "$CHART" ] ; then
 fi
 
 
-# TODO Should we apply a label to all created objects so we can tie it back to the trial? Only if this isn't "install"? Only if $TRIAL is defined?
+# Add trial labels to the resulting manifests so they can be more easily located for removal
+if [ -n "$TRIAL" ]; then
+    kustomize edit add label {redskyops.dev/trial,$TRIAL},{redskyops.dev/trial-role,trialResource}
+fi
 
 
 # Run Kustomize and pipe it into the handler

@@ -300,8 +300,9 @@ func newSetupJob(trial *redskyv1alpha1.Trial, scheme *runtime.Scheme, mode strin
 	job := &batchv1.Job{}
 	job.Namespace = trial.Namespace
 	job.Name = fmt.Sprintf("%s-%s", trial.Name, mode)
-	job.Labels = map[string]string{"role": "trialSetup", "trial": trial.Name}
+	job.Labels = map[string]string{redskyv1alpha1.LabelTrial: trial.Name, redskyv1alpha1.LabelTrialRole: "trialSetup"}
 	job.Spec.BackoffLimit = new(int32)
+	job.Spec.Template.Labels = map[string]string{redskyv1alpha1.LabelTrial: trial.Name, redskyv1alpha1.LabelTrialRole: "trialSetup"}
 	job.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyNever
 	job.Spec.Template.Spec.ServiceAccountName = trial.Spec.SetupServiceAccountName
 
