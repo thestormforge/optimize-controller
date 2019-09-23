@@ -129,12 +129,15 @@ func checkPods(list *corev1.PodList) error {
 		p := &list.Items[i]
 		for _, c := range p.Status.Conditions {
 			if c.Type == corev1.PodScheduled && c.Status == corev1.ConditionFalse && c.Reason == corev1.PodReasonUnschedulable {
-				// TODO Is it possible this is a transient condition or something else precludes it from being fatal?
-				return &StabilityError{Reason: "Unschedulable"}
+				return &StabilityError{Reason: c.Reason}
+			}
+		}
+		for _, c := range p.Status.ContainerStatuses {
+			if !c.Ready && c.RestartCount > 0 && c.State.Waiting != nil && c.State.Waiting.Reason == "CrashLoopBackOff" {
+				return &StabilityError{Reason: c.State.Waiting.Reason}
 			}
 		}
 	}
-
 	return nil
 }
 
