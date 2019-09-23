@@ -97,12 +97,8 @@ type PatchTemplate struct {
 	Type PatchType `json:"type,omitempty"`
 	// A Go Template that evaluates to valid patch.
 	Patch string `json:"patch"`
-	// Direct reference to the object the patch should be applied to. The name can be omitted to match by label selector.
-	TargetRef corev1.ObjectReference `json:"targetRef"`
-	// A selector matching multiple labeled objects the patch should be applied to.
-	// Used only if the target reference name is empty, the target reference API version and kind are used
-	// to determine what type of object should be matched.
-	Selector *metav1.LabelSelector `json:"selector,omitempty"`
+	// Direct reference to the object the patch should be applied to.
+	TargetRef *corev1.ObjectReference `json:"targetRef,omitempty"`
 }
 
 // TrialTemplateSpec is used as a template for creating new trials

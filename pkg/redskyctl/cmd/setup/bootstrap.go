@@ -431,13 +431,15 @@ func NewBootstrapInitConfig(o *SetupOptions, clientConfig *api.Config) (*Bootstr
 				},
 			},
 			Rules: []rbacv1.PolicyRule{
+				// "patch" is used to actually apply the patch
+				// "get" is used to check for stability
 				{
-					Verbs:     []string{"get", "list", "patch"},
+					Verbs:     []string{"patch", "get"},
 					APIGroups: []string{""},
 					Resources: []string{"configmaps"},
 				},
 				{
-					Verbs:     []string{"get", "list", "patch"},
+					Verbs:     []string{"patch", "get"},
 					APIGroups: []string{"apps", "extensions"},
 					Resources: []string{"deployments", "statefulsets"},
 				},

@@ -303,94 +303,53 @@ func (r *TrialReconciler) forTrialUpdate(trial *redskyv1alpha1.Trial, ctx contex
 }
 
 func evaluatePatches(r client.Reader, trial *redskyv1alpha1.Trial, e *redskyv1alpha1.Experiment) error {
+	var err error
 	te := template.NewTemplateEngine()
 	for _, p := range e.Spec.Patches {
+		po := redskyv1alpha1.PatchOperation{
+			AttemptsRemaining: 3,
+			Wait:              true,
+		}
+
 		// Determine the patch type
-		var pt types.PatchType
 		switch p.Type {
 		case redskyv1alpha1.PatchStrategic, "":
-			pt = types.StrategicMergePatchType
+			po.PatchType = types.StrategicMergePatchType
 		case redskyv1alpha1.PatchMerge:
-			pt = types.MergePatchType
+			po.PatchType = types.MergePatchType
 		case redskyv1alpha1.PatchJSON:
-			pt = types.JSONPatchType
+			po.PatchType = types.JSONPatchType
 		default:
 			return fmt.Errorf("unknown patch type: %s", p.Type)
 		}
 
-		// Evaluate the patch template
-		data, err := te.RenderPatch(&p, trial)
-		if err != nil {
-			return err
+		// Attempt to populate the target reference
+		// TODO Allow strategic merge patches to specify the target reference
+		if p.TargetRef != nil {
+			p.TargetRef.DeepCopyInto(&po.TargetRef)
+		}
+		if po.TargetRef.Namespace == "" {
+			po.TargetRef.Namespace = trial.Spec.TargetNamespace
+		}
+		if po.TargetRef.Namespace == "" {
+			po.TargetRef.Namespace = trial.Namespace
 		}
 
-		// Find the targets to apply the patch to
-		targets, err := findPatchTargets(r, &p, trial)
+		// Evaluate the patch template
+		po.Data, err = te.RenderPatch(&p, trial)
 		if err != nil {
 			return err
 		}
 
 		// If the patch is effectively null, we do not need to evaluate it
-		attempts := 3
-		if len(data) == 0 || string(data) == "null" {
-			attempts = 0
+		if len(po.Data) == 0 || string(po.Data) == "null" {
+			po.AttemptsRemaining = 0
 		}
 
-		// For each target resource, record a copy of the patch
-		for _, ref := range targets {
-			trial.Spec.PatchOperations = append(trial.Spec.PatchOperations, redskyv1alpha1.PatchOperation{
-				TargetRef:         ref,
-				PatchType:         pt,
-				Data:              data,
-				AttemptsRemaining: attempts,
-				Wait:              true,
-			})
-		}
+		trial.Spec.PatchOperations = append(trial.Spec.PatchOperations, po)
 	}
 
 	return nil
-}
-
-// Finds the patch targets
-func findPatchTargets(r client.Reader, p *redskyv1alpha1.PatchTemplate, trial *redskyv1alpha1.Trial) ([]corev1.ObjectReference, error) {
-	if trial.Spec.TargetNamespace == "" {
-		trial.Spec.TargetNamespace = trial.Namespace
-	}
-
-	var targets []corev1.ObjectReference
-	if p.TargetRef.Name == "" {
-		list := &unstructured.UnstructuredList{}
-		list.SetGroupVersionKind(p.TargetRef.GroupVersionKind())
-		inNamespace := client.InNamespace(p.TargetRef.Namespace)
-		if inNamespace == "" {
-			inNamespace = client.InNamespace(trial.Spec.TargetNamespace)
-		}
-		matchingSelector, err := util.MatchingSelector(p.Selector)
-		if err != nil {
-			return nil, err
-		}
-		if err := r.List(context.TODO(), list, inNamespace, matchingSelector); err != nil {
-			return nil, err
-		}
-
-		for _, item := range list.Items {
-			// TODO There isn't a function that does this?
-			targets = append(targets, corev1.ObjectReference{
-				Kind:       item.GetKind(),
-				Name:       item.GetName(),
-				Namespace:  item.GetNamespace(),
-				APIVersion: item.GetAPIVersion(),
-			})
-		}
-	} else {
-		ref := p.TargetRef.DeepCopy()
-		if ref.Namespace == "" {
-			ref.Namespace = trial.Spec.TargetNamespace
-		}
-		targets = []corev1.ObjectReference{*ref}
-	}
-
-	return targets, nil
 }
 
 func checkAssignments(trial *redskyv1alpha1.Trial, experiment *redskyv1alpha1.Experiment, log logr.Logger) error {
