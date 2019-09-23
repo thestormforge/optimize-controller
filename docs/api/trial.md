@@ -25,8 +25,8 @@ Assignment represents an individual name/value pair. Assignment names must corre
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| `name` |  | _string_ | true |
-| `value` |  | _int64_ | true |
+| `name` | Parameter name being assigned | _string_ | true |
+| `value` | The value of the assignment | _int64_ | true |
 
 [Back to TOC](#table-of-contents)
 
@@ -69,7 +69,7 @@ HelmValueFromSource represents a source of a values mapping
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| `configMap` |  | _*[ConfigMapHelmValuesFromSource](#configmaphelmvaluesfromsource)_ | true |
+| `configMap` | The ConfigMap to select from | _*[ConfigMapHelmValuesFromSource](#configmaphelmvaluesfromsource)_ | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -120,9 +120,9 @@ Trial is the Schema for the trials API
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| `metadata` |  | _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#objectmeta-v1-meta)_ | false |
-| `spec` |  | _[TrialSpec](#trialspec)_ | false |
-| `status` |  | _[TrialStatus](#trialstatus)_ | false |
+| `metadata` | Standard object metadata | _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#objectmeta-v1-meta)_ | false |
+| `spec` | Specification of the desired behavior for a trial | _[TrialSpec](#trialspec)_ | false |
+| `status` | Current status of a trial | _[TrialStatus](#trialstatus)_ | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -147,8 +147,8 @@ TrialList contains a list of Trial
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| `metadata` |  | _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#listmeta-v1-meta)_ | false |
-| `items` |  | _[][Trial](#trial)_ | true |
+| `metadata` | Standard list metadata | _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#listmeta-v1-meta)_ | false |
+| `items` | The list of trials | _[][Trial](#trial)_ | true |
 
 [Back to TOC](#table-of-contents)
 
@@ -197,7 +197,6 @@ Value represents an observed metric value after a trial run has completed succes
 | `name` | The metric name the value corresponds to | _string_ | true |
 | `value` | The observed float64 value, formatted as a string | _string_ | true |
 | `error` | The observed float64 error (standard deviation), formatted as a string | _string_ | false |
-| `initialValue` | The initial observed float64 value, formatted as a string, for metrics that require a delta calculation | _string_ | false |
 | `attemptsRemaining` | The number of remaining attempts to observer the value, will be automatically set to zero if the metric is successfully collected | _int_ | false |
 
 [Back to TOC](#table-of-contents)

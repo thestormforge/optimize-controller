@@ -19,9 +19,9 @@ Experiment is the Schema for the experiments API
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| `metadata` |  | _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#objectmeta-v1-meta)_ | false |
-| `spec` |  | _[ExperimentSpec](#experimentspec)_ | false |
-| `status` |  | _[ExperimentStatus](#experimentstatus)_ | false |
+| `metadata` | Standard object metadata | _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#objectmeta-v1-meta)_ | false |
+| `spec` | Specification of the desired behavior for an experiment | _[ExperimentSpec](#experimentspec)_ | false |
+| `status` | Current status of an experiment | _[ExperimentStatus](#experimentstatus)_ | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -31,8 +31,8 @@ ExperimentList contains a list of Experiment
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| `metadata` |  | _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#listmeta-v1-meta)_ | false |
-| `items` |  | _[][Experiment](#experiment)_ | true |
+| `metadata` | Standard list metadata | _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#listmeta-v1-meta)_ | false |
+| `items` | The list of experiments | _[][Experiment](#experiment)_ | true |
 
 [Back to TOC](#table-of-contents)
 
@@ -103,8 +103,7 @@ PatchTemplate defines a target resource and a patch template to apply
 | ----- | ----------- | ------ | -------- |
 | `type` | The patch type, one of: json\|merge\|strategic, default: strategic | _PatchType_ | false |
 | `patch` | A Go Template that evaluates to valid patch. | _string_ | true |
-| `targetRef` | Direct reference to the object the patch should be applied to. The name can be omitted to match by label selector. | _[ObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#objectreference-v1-core)_ | true |
-| `selector` | A selector matching multiple labeled objects the patch should be applied to. Used only if the target reference name is empty, the target reference API version and kind are used to determine what type of object should be matched. | _*[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#labelselector-v1-meta)_ | false |
+| `targetRef` | Direct reference to the object the patch should be applied to. | _*[ObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#objectreference-v1-core)_ | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -114,7 +113,7 @@ TrialTemplateSpec is used as a template for creating new trials
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| `metadata` |  | _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#objectmeta-v1-meta)_ | false |
-| `spec` |  | _[TrialSpec](#trialspec)_ | true |
+| `metadata` | Standard object metadata | _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#objectmeta-v1-meta)_ | false |
+| `spec` | Specification of the desired behavior for the trial | _[TrialSpec](#trialspec)_ | true |
 
 [Back to TOC](#table-of-contents)
