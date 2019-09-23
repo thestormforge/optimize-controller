@@ -26,10 +26,10 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/watch"
 	clientbatchv1 "k8s.io/client-go/kubernetes/typed/batch/v1"
 	clientcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	clientrbacv1 "k8s.io/client-go/kubernetes/typed/rbac/v1"
@@ -38,13 +38,25 @@ import (
 
 // BootstrapConfig holds the objects necessary for bootstrapping a Red Sky Ops Manager
 type BootstrapConfig struct {
+
+	// Bootstrap objects required to run the setuptools install job
+
 	Namespace          corev1.Namespace
 	ClusterRole        rbacv1.ClusterRole
 	ClusterRoleBinding rbacv1.ClusterRoleBinding
 	Role               rbacv1.Role
 	RoleBinding        rbacv1.RoleBinding
 	Secret             corev1.Secret
-	Job                batchv1.Job
+
+	// RBAC objects required for runtime
+
+	PatchingClusterRole        rbacv1.ClusterRole
+	PatchingClusterRoleBinding rbacv1.ClusterRoleBinding
+	DefaultPatchingClusterRole rbacv1.ClusterRole
+
+	// The actual setuptools install job
+
+	Job batchv1.Job
 
 	// Keep an instance of all of the clients we will need for manipulating these objects
 
@@ -58,42 +70,72 @@ type BootstrapConfig struct {
 	jobsClient                clientbatchv1.JobInterface
 }
 
+// Create the bootstrap configuration in the cluster, stopping on the first error
+func createInCluster(b *BootstrapConfig) error {
+	var err error
+	if _, err = b.namespacesClient.Create(&b.Namespace); err != nil && !errors.IsAlreadyExists(err) {
+		return err
+	}
+	if _, err = b.clusterRolesClient.Create(&b.ClusterRole); err != nil {
+		return err
+	}
+	if _, err = b.clusterRoleBindingsClient.Create(&b.ClusterRoleBinding); err != nil {
+		return err
+	}
+	if _, err = b.rolesClient.Create(&b.Role); err != nil {
+		return err
+	}
+	if _, err = b.roleBindingsClient.Create(&b.RoleBinding); err != nil {
+		return err
+	}
+	if _, err = b.secretsClient.Create(&b.Secret); err != nil {
+		return err
+	}
+	if _, err := b.clusterRolesClient.Get(b.PatchingClusterRole.Name, metav1.GetOptions{}); err != nil {
+		// Only try to create these resources once, then let them persist through updates
+		if !errors.IsNotFound(err) {
+			return err
+		}
+		// TODO We should always force update the role and binding to match the bootstrap config
+		if _, err = b.clusterRolesClient.Create(&b.PatchingClusterRole); err != nil {
+			return err
+		}
+		if _, err = b.clusterRoleBindingsClient.Create(&b.PatchingClusterRoleBinding); err != nil && !errors.IsAlreadyExists(err) {
+			return err
+		}
+		// TODO We should offer an init option to overwrite this to the current defaults
+		if _, err = b.clusterRolesClient.Create(&b.DefaultPatchingClusterRole); err != nil && !errors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+	if _, err := b.jobsClient.Create(&b.Job); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Deletes the bootstrap configuration from the cluster, ignoring all errors
 func deleteFromCluster(b *BootstrapConfig) {
-	pp := metav1.DeletePropagationForeground
+	// DO NOT delete the namespace or patching roles
+
 	_ = b.clusterRolesClient.Delete(b.ClusterRole.Name, nil)
 	_ = b.clusterRoleBindingsClient.Delete(b.ClusterRoleBinding.Name, nil)
 	_ = b.rolesClient.Delete(b.Role.Name, nil)
 	_ = b.roleBindingsClient.Delete(b.RoleBinding.Name, nil)
 	_ = b.secretsClient.Delete(b.Secret.Name, nil)
+
+	pp := metav1.DeletePropagationForeground
 	_ = b.jobsClient.Delete(b.Job.Name, &metav1.DeleteOptions{PropagationPolicy: &pp})
 }
 
-// Create the bootstrap configuration in the cluster, stopping on the first error
-func createInCluster(b *BootstrapConfig) (watch.Interface, error) {
-	w, err := b.podsClient.Watch(metav1.ListOptions{LabelSelector: "job-name = " + b.Job.Name})
-	if err != nil {
-		return nil, err
-	}
-	if _, err = b.clusterRolesClient.Create(&b.ClusterRole); err != nil {
-		return w, err
-	}
-	if _, err = b.clusterRoleBindingsClient.Create(&b.ClusterRoleBinding); err != nil {
-		return w, err
-	}
-	if _, err = b.rolesClient.Create(&b.Role); err != nil {
-		return w, err
-	}
-	if _, err = b.roleBindingsClient.Create(&b.RoleBinding); err != nil {
-		return w, err
-	}
-	if _, err = b.secretsClient.Create(&b.Secret); err != nil {
-		return w, err
-	}
-	if _, err := b.jobsClient.Create(&b.Job); err != nil {
-		return w, err
-	}
-	return w, nil
+// Deletes the application configuration from the cluster, ignoring all errors
+func resetFromCluster(b *BootstrapConfig) {
+	_ = b.clusterRolesClient.Delete(b.PatchingClusterRole.Name, nil)
+	_ = b.clusterRoleBindingsClient.Delete(b.PatchingClusterRoleBinding.Name, nil)
+
+	// TODO Should we leave this behind? Should we check for updates and only delete it in the default state?
+	_ = b.clusterRolesClient.Delete(b.DefaultPatchingClusterRole.Name, nil)
 }
 
 // Marshal a bootstrap configuration as a YAML stream
@@ -332,6 +374,68 @@ func NewBootstrapInitConfig(o *SetupOptions, clientConfig *api.Config) (*Bootstr
 							RunAsNonRoot: &runAsNonRoot,
 						},
 					},
+				},
+			},
+		},
+
+		// This role allows individual deployments more flexibility in defining what can be patched by manager
+		PatchingClusterRole: rbacv1.ClusterRole{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "redsky-patching-role",
+				Labels: map[string]string{
+					"app.kubernetes.io/name":       "redskyops",
+					"app.kubernetes.io/version":    version.Version,
+					"app.kubernetes.io/managed-by": "redskyctl",
+				},
+			},
+			AggregationRule: &rbacv1.AggregationRule{
+				ClusterRoleSelectors: []metav1.LabelSelector{
+					{MatchLabels: map[string]string{"redskyops.dev/aggregate-to-patching": "true"}},
+				},
+			},
+		},
+		PatchingClusterRoleBinding: rbacv1.ClusterRoleBinding{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "redsky-patching-rolebinding",
+				Labels: map[string]string{
+					"app.kubernetes.io/name":       "redskyops",
+					"app.kubernetes.io/version":    version.Version,
+					"app.kubernetes.io/managed-by": "redskyctl",
+				},
+			},
+			Subjects: []rbacv1.Subject{
+				{
+					Kind:      rbacv1.ServiceAccountKind,
+					Namespace: namespace,
+					Name:      "default",
+				},
+			},
+			RoleRef: rbacv1.RoleRef{
+				APIGroup: "rbac.authorization.k8s.io",
+				Kind:     "ClusterRole",
+				Name:     "redsky-manager-local-role",
+			},
+		},
+
+		// The default patching cluster role determines which objects can be patched for a trial by default, customers may modify or even delete this role
+		DefaultPatchingClusterRole: rbacv1.ClusterRole{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "redsky-aggregate-to-patching",
+				Labels: map[string]string{
+					// Do not give this an application name label to prevent modified instances from being pruned during init
+					"redskyops.dev/aggregate-to-patching": "true",
+				},
+			},
+			Rules: []rbacv1.PolicyRule{
+				{
+					Verbs:     []string{"get", "list", "patch"},
+					APIGroups: []string{""},
+					Resources: []string{"configmaps"},
+				},
+				{
+					Verbs:     []string{"get", "list", "patch"},
+					APIGroups: []string{"apps", "extensions"},
+					Resources: []string{"deployments", "statefulsets"},
 				},
 			},
 		},

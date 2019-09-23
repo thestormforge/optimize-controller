@@ -23,16 +23,23 @@ import (
 
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	clientcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
-func waitForJob(podsClient clientcorev1.PodInterface, podWatch watch.Interface, out, errOut io.Writer) error {
+func waitForJob(b *BootstrapConfig, out, errOut io.Writer) error {
+	podWatch, err := b.podsClient.Watch(metav1.ListOptions{LabelSelector: "job-name = " + b.Job.Name})
+	if err != nil {
+		return err
+	}
+	defer podWatch.Stop()
+
 	for event := range podWatch.ResultChan() {
 		if p, ok := event.Object.(*corev1.Pod); ok {
 			if p.Status.Phase == corev1.PodSucceeded {
 				// TODO Go routine to pump pod logs to stdout? Should we do that no matter what?
-				if err := dumpLog(podsClient, p.Name, out); err != nil {
+				if err := dumpLog(b.podsClient, p.Name, out); err != nil {
 					return err
 				}
 				podWatch.Stop()
@@ -42,7 +49,7 @@ func waitForJob(podsClient clientcorev1.PodInterface, podWatch watch.Interface, 
 						return &SetupError{ImagePullBackOff: c.Image}
 					} else if c.State.Terminated != nil && c.State.Terminated.Reason == "Error" {
 						// TODO For now just copy logs over?
-						if err := dumpLog(podsClient, p.Name, errOut); err != nil {
+						if err := dumpLog(b.podsClient, p.Name, errOut); err != nil {
 							return err
 						}
 						return &SetupError{}

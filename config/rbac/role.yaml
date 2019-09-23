@@ -9,14 +9,6 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - configmaps
-  verbs:
-  - get
-  - list
-  - patch
-- apiGroups:
-  - ""
-  resources:
   - pods
   verbs:
   - list
@@ -26,16 +18,6 @@ rules:
   - services
   verbs:
   - list
-- apiGroups:
-  - apps
-  - extensions
-  resources:
-  - deployments
-  - statefulsets
-  verbs:
-  - get
-  - list
-  - patch
 - apiGroups:
   - batch
   - extensions

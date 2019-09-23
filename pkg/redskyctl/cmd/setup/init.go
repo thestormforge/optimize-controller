@@ -70,22 +70,13 @@ func (o *SetupOptions) initCluster() error {
 	// If there are any left over bootstrap objects, remove them before initializing
 	deleteFromCluster(bootstrapConfig)
 
-	// We need the namespace to exist so we can bind roles to the service account
-	if _, err = bootstrapConfig.namespacesClient.Create(&bootstrapConfig.Namespace); err != nil && os.IsExist(err) {
-		return err
-	}
-
 	// If we are bootstrapping the install, leave the objects, otherwise ensure even a partial creation is cleaned up
 	if !o.Bootstrap {
 		defer deleteFromCluster(bootstrapConfig)
 	}
 
 	// Create the bootstrap config to initiate the install job
-	podWatch, err := createInCluster(bootstrapConfig)
-	if podWatch != nil {
-		defer podWatch.Stop()
-	}
-	if err != nil {
+	if err := createInCluster(bootstrapConfig); err != nil {
 		return err
 	}
 
@@ -95,7 +86,7 @@ func (o *SetupOptions) initCluster() error {
 	}
 
 	// Wait for the job to finish
-	if err = waitForJob(o.ClientSet.CoreV1().Pods(o.namespace), podWatch, o.Out, o.ErrOut); err != nil {
+	if err = waitForJob(bootstrapConfig, o.Out, o.ErrOut); err != nil {
 		return err
 	}
 

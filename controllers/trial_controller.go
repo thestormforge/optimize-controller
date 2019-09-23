@@ -54,8 +54,6 @@ func (r *TrialReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // +kubebuilder:rbac:groups=batch;extensions,resources=jobs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=batch;extensions,resources=jobs/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=apps;extensions,resources=deployments;statefulsets,verbs=get;list;patch
-// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;patch
 // +kubebuilder:rbac:groups="",resources=pods,verbs=list
 // +kubebuilder:rbac:groups="",resources=services,verbs=list
 // +kubebuilder:rbac:groups=redskyops.dev,resources=trials,verbs=get;list;watch;create;update;patch;delete

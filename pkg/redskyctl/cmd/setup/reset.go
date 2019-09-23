@@ -68,16 +68,15 @@ func (o *SetupOptions) resetCluster() error {
 	defer deleteFromCluster(bootstrapConfig)
 
 	// Create the bootstrap config to initiate the uninstall job
-	podWatch, err := createInCluster(bootstrapConfig)
-	if podWatch != nil {
-		defer podWatch.Stop()
-	}
-	if err != nil {
+	if err := createInCluster(bootstrapConfig); err != nil {
 		return err
 	}
 
+	// Delete the application objects that normally persist through init calls
+	resetFromCluster(bootstrapConfig)
+
 	// Wait for the job to finish; ignore errors as we are having the namespace pulled out from under us
-	_ = waitForJob(o.ClientSet.CoreV1().Pods(o.namespace), podWatch, nil, nil)
+	_ = waitForJob(bootstrapConfig, nil, nil)
 
 	return nil
 
