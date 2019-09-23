@@ -55,6 +55,9 @@ func (e *StabilityError) Error() string {
 // If stabilization has not occurred, an error is returned: errors with a delay indicate that the resource is
 // not ready, errors without a delay indicate the resource is never expected to become ready.
 func WaitForStableState(r client.Reader, ctx context.Context, log logr.Logger, p *redskyv1alpha1.PatchOperation) error {
+	// TODO Should we be checking apiVersions?
+	log = log.WithValues("kind", p.TargetRef.Kind, "name", p.TargetRef.Name, "namespace", p.TargetRef.Namespace)
+
 	var selector *metav1.LabelSelector
 	var err error
 
@@ -71,21 +74,33 @@ func WaitForStableState(r client.Reader, ctx context.Context, log logr.Logger, p
 		err = checkDeployment(d)
 
 	case "DaemonSet":
-		ds := &appsv1.DaemonSet{}
-		if err := r.Get(ctx, name(p.TargetRef), ds); err != nil {
+		daemon := &appsv1.DaemonSet{}
+		if err := r.Get(ctx, name(p.TargetRef), daemon); err != nil {
 			return ignoreNotFound(err)
 		}
-		selector = ds.Spec.Selector
-		err = checkDaemonSet(ds, log)
+		selector = daemon.Spec.Selector
+		err = checkDaemonSet(daemon)
+
+		err = ignoreUpdateStrategy(err, log.WithValues("updateStrategyType", daemon.Spec.UpdateStrategy.Type))
 
 	case "StatefulSet":
-		ss := &appsv1.StatefulSet{}
-		if err := r.Get(ctx, name(p.TargetRef), ss); err != nil {
+		sts := &appsv1.StatefulSet{}
+		if err := r.Get(ctx, name(p.TargetRef), sts); err != nil {
 			return ignoreNotFound(err)
 		}
-		selector = ss.Spec.Selector
-		err = checkStatefulSet(ss, log)
+		selector = sts.Spec.Selector
+		err = checkStatefulSet(sts)
 
+		err = ignoreUpdateStrategy(err, log.WithValues("updateStrategyType", sts.Spec.UpdateStrategy.Type))
+
+	case "ConfigMap":
+	// Nothing to check
+
+	default:
+		// TODO Can we have some kind of generic condition check? Or "readiness gates"?
+		// Get unstructured, look for status conditions list
+
+		log.Info("Stability check skipped due to unsupported object kind")
 	}
 
 	if serr, ok := err.(*StabilityError); ok {
@@ -119,6 +134,14 @@ func name(ref corev1.ObjectReference) types.NamespacedName {
 
 func ignoreNotFound(err error) error {
 	if errors.IsNotFound(err) {
+		return nil
+	}
+	return err
+}
+
+func ignoreUpdateStrategy(err error, log logr.Logger) error {
+	if serr, ok := err.(*StabilityError); ok && serr.Reason == "UpdateStrategy" {
+		log.Info("Stability check skipped due to unsupported update strategy")
 		return nil
 	}
 	return err
@@ -162,11 +185,9 @@ func checkDeployment(deployment *appsv1.Deployment) error {
 	return nil
 }
 
-func checkDaemonSet(daemon *appsv1.DaemonSet, log logr.Logger) error {
+func checkDaemonSet(daemon *appsv1.DaemonSet) error {
 	if daemon.Spec.UpdateStrategy.Type != appsv1.RollingUpdateDaemonSetStrategyType {
-		// TODO Can we still do something to test this?
-		log.Info("DaemonSet stability check skipped due to legacy update strategy", "name", daemon.Name, "updateStrategyType", daemon.Spec.UpdateStrategy.Type)
-		return nil
+		return &StabilityError{Reason: "UpdateStrategy"}
 	}
 	if daemon.Generation > daemon.Status.ObservedGeneration {
 		return &StabilityError{Reason: "ObservedGeneration", RetryAfter: 5 * time.Second}
@@ -181,11 +202,9 @@ func checkDaemonSet(daemon *appsv1.DaemonSet, log logr.Logger) error {
 }
 
 // Check a stateful set to see if it has reached a stable state
-func checkStatefulSet(sts *appsv1.StatefulSet, log logr.Logger) error {
+func checkStatefulSet(sts *appsv1.StatefulSet) error {
 	if sts.Spec.UpdateStrategy.Type != appsv1.RollingUpdateStatefulSetStrategyType {
-		// TODO Can we still do something to test this?
-		log.Info("StatefulSet stability check skipped due to legacy update strategy", "name", sts.Name, "updateStrategyType", sts.Spec.UpdateStrategy.Type)
-		return nil
+		return &StabilityError{Reason: "UpdateStrategy"}
 	}
 	if sts.Status.ObservedGeneration == 0 || sts.Generation > sts.Status.ObservedGeneration {
 		return &StabilityError{Reason: "ObservedGeneration", RetryAfter: 5 * time.Second}
