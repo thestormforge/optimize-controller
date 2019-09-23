@@ -18,6 +18,7 @@ package setup
 import (
 	"fmt"
 	"io"
+	"reflect"
 
 	"github.com/redskyops/k8s-experiment/pkg/api"
 	"github.com/redskyops/k8s-experiment/pkg/controller/trial"
@@ -103,18 +104,14 @@ func (b *BootstrapConfig) Marshal(w io.Writer) error {
 	_ = batchv1.AddToScheme(scheme)
 	_ = rbacv1.AddToScheme(scheme)
 
-	// Collect all of the objects into an array of runtime objects
-	var objs []runtime.Object
-	objs = append(objs,
-		&b.Namespace,
-		&b.ClusterRole,
-		&b.ClusterRoleBinding,
-		&b.Role,
-		&b.RoleBinding,
-		&b.Secret,
-		&b.Job)
+	// Iterate over the fields of the bootstrap configuration
+	val := reflect.ValueOf(b).Elem()
+	for i := 0; i < val.NumField(); i++ {
+		f := val.Field(i)
+		if !f.CanInterface() {
+			continue
+		}
 
-	for i := range objs {
 		// YAML stream delimiter
 		if i > 0 {
 			if _, err := w.Write([]byte("---\n")); err != nil {
@@ -124,7 +121,7 @@ func (b *BootstrapConfig) Marshal(w io.Writer) error {
 
 		// Use the scheme to convert into a map that contains type information
 		u := &unstructured.Unstructured{}
-		err := scheme.Convert(objs[i], u, runtime.InternalGroupVersioner)
+		err := scheme.Convert(f.Interface(), u, runtime.InternalGroupVersioner)
 		if err != nil {
 			return err
 		}
