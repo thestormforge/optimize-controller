@@ -149,8 +149,12 @@ func (b *BootstrapConfig) Marshal(w io.Writer) error {
 	// Iterate over the fields of the bootstrap configuration
 	val := reflect.ValueOf(b).Elem()
 	for i := 0; i < val.NumField(); i++ {
-		f := val.Field(i)
-		if !f.CanInterface() {
+		// Only take the fields whose address is a runtime object
+		if !val.Field(i).CanAddr() || !val.Field(i).Addr().CanInterface() {
+			continue
+		}
+		f, ok := val.Field(i).Addr().Interface().(runtime.Object)
+		if !ok {
 			continue
 		}
 
@@ -163,7 +167,7 @@ func (b *BootstrapConfig) Marshal(w io.Writer) error {
 
 		// Use the scheme to convert into a map that contains type information
 		u := &unstructured.Unstructured{}
-		err := scheme.Convert(f.Interface(), u, runtime.InternalGroupVersioner)
+		err := scheme.Convert(f, u, runtime.InternalGroupVersioner)
 		if err != nil {
 			return err
 		}
