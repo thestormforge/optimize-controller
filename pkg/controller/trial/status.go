@@ -21,7 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// Checks to see if the specified trial is finished
+// IsTrialFinished checks to see if the specified trial is finished
 func IsTrialFinished(trial *redskyv1alpha1.Trial) bool {
 	for _, c := range trial.Status.Conditions {
 		if (c.Type == redskyv1alpha1.TrialComplete || c.Type == redskyv1alpha1.TrialFailed) && c.Status == corev1.ConditionTrue {
@@ -31,7 +31,21 @@ func IsTrialFinished(trial *redskyv1alpha1.Trial) bool {
 	return false
 }
 
-// Updates a the status of an existing condition or adds it if it does not exist
+// IsTrialActive checks to see if the specified trial and any setup delete tasks are NOT finished
+func IsTrialActive(trial *redskyv1alpha1.Trial) bool {
+	if !IsTrialFinished(trial) {
+		return true
+	}
+	for _, c := range trial.Status.Conditions {
+		if c.Type == redskyv1alpha1.TrialSetupDeleted && c.Status != corev1.ConditionTrue {
+			// A setup delete tasks exists and has not yet completed (remember the TrialSetupDeleted status is optional!)
+			return true
+		}
+	}
+	return false
+}
+
+// ApplyCondition updates a the status of an existing condition or adds it if it does not exist
 func ApplyCondition(status *redskyv1alpha1.TrialStatus, conditionType redskyv1alpha1.TrialConditionType, conditionStatus corev1.ConditionStatus, reason, message string, time *metav1.Time) {
 	if time == nil {
 		now := metav1.Now()
@@ -66,7 +80,7 @@ func ApplyCondition(status *redskyv1alpha1.TrialStatus, conditionType redskyv1al
 	})
 }
 
-// Checks to see if a condition has a specific status and if it exists
+// CheckCondition checks to see if a condition has a specific status and if it exists
 func CheckCondition(status *redskyv1alpha1.TrialStatus, conditionType redskyv1alpha1.TrialConditionType, conditionStatus corev1.ConditionStatus) (bool, bool) {
 	for i := range status.Conditions {
 		if status.Conditions[i].Type == conditionType {

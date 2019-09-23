@@ -143,9 +143,9 @@ const (
 	TrialComplete TrialConditionType = "Complete"
 	// Condition that indicates a failed trial run
 	TrialFailed TrialConditionType = "Failed"
-	// Condition that indicates all "create" setup tasks have executed successfully
+	// Condition that indicates all "create" setup tasks have finished
 	TrialSetupCreated TrialConditionType = "SetupCreated"
-	// Condition that indicates all "delete" setup tasks have executed successfully
+	// Condition that indicates all "delete" setup tasks have finished
 	TrialSetupDeleted TrialConditionType = "SetupDeleted"
 	// Condition that indicates patches have been applied for a trial
 	TrialPatched TrialConditionType = "Patched"

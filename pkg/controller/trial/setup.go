@@ -81,6 +81,7 @@ func ManageSetup(c client.Client, s *runtime.Scheme, ctx context.Context, probeT
 		}
 
 		// If any setup job failed, mark any un-finished trial as failed
+		finished := corev1.ConditionTrue
 		if failed, message := isSetupJobFailed(job); failed && !IsTrialFinished(trial) {
 			trial.Status.Conditions = append(trial.Status.Conditions, redskyv1alpha1.TrialCondition{
 				Type:               redskyv1alpha1.TrialFailed,
@@ -90,10 +91,12 @@ func ManageSetup(c client.Client, s *runtime.Scheme, ctx context.Context, probeT
 				Reason:             "SetupJobFailed",
 				Message:            message,
 			})
+		} else if !failed {
+			finished = isSetupJobComplete(job)
 		}
 
 		// Update the condition associated with this job
-		setSetupTrialCondition(trial, conditionType, isSetupJobComplete(job))
+		setSetupTrialCondition(trial, conditionType, finished)
 	}
 
 	// Check to see if we need to update the trial to record a condition change

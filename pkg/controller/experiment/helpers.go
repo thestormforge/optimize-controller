@@ -81,14 +81,7 @@ func FindAvailableNamespace(r client.Reader, experiment *redskyv1alpha1.Experime
 	var activeTrials int
 	inuse := make(map[string]bool, len(trials))
 	for i := range trials {
-		if redskytrial.IsTrialFinished(&trials[i]) {
-			for _, c := range trials[i].Status.Conditions {
-				if c.Type == redskyv1alpha1.TrialSetupDeleted && c.Status != corev1.ConditionTrue {
-					// Do not count this against the active trials, i.e. allow setup tasks to overlap
-					inuse[trials[i].Namespace] = true
-				}
-			}
-		} else {
+		if redskytrial.IsTrialActive(&trials[i]) {
 			activeTrials++
 			inuse[trials[i].Namespace] = true
 		}
