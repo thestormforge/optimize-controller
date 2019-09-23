@@ -92,7 +92,7 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		if err := checkAssignments(trial, e, log); err != nil {
 			return ctrl.Result{}, err
 		}
-		if err := evaluatePatches(r, trial, e); err != nil {
+		if err := evaluatePatches(trial, e); err != nil {
 			return ctrl.Result{}, err
 		}
 		if len(trial.Spec.PatchOperations) > 0 {
@@ -302,7 +302,7 @@ func (r *TrialReconciler) forTrialUpdate(trial *redskyv1alpha1.Trial, ctx contex
 	return util.IgnoreConflict(err)
 }
 
-func evaluatePatches(r client.Reader, trial *redskyv1alpha1.Trial, e *redskyv1alpha1.Experiment) error {
+func evaluatePatches(trial *redskyv1alpha1.Trial, e *redskyv1alpha1.Experiment) error {
 	var err error
 	te := template.NewTemplateEngine()
 	for _, p := range e.Spec.Patches {
