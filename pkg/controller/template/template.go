@@ -45,6 +45,8 @@ type MetricData struct {
 	CompletionTime time.Time
 	// The duration of the trial run expressed as a Prometheus range value
 	Range string
+	// Trial assignments
+	Values map[string]int64
 }
 
 func NewPatchData(t *redskyv1alpha1.Trial) *PatchData {
@@ -52,6 +54,11 @@ func NewPatchData(t *redskyv1alpha1.Trial) *PatchData {
 
 	t.ObjectMeta.DeepCopyInto(&d.Trial)
 
+	if t.Spec.TargetNamespace != "" {
+		d.Trial.Namespace = t.Spec.TargetNamespace
+	}
+
+	d.Values = make(map[string]int64, len(t.Spec.Assignments))
 	for _, a := range t.Spec.Assignments {
 		d.Values[a.Name] = a.Value
 	}
@@ -63,6 +70,11 @@ func NewMetricData(t *redskyv1alpha1.Trial) *MetricData {
 	d := &MetricData{}
 
 	t.ObjectMeta.DeepCopyInto(&d.Trial)
+
+	d.Values = make(map[string]int64, len(t.Spec.Assignments))
+	for _, a := range t.Spec.Assignments {
+		d.Values[a.Name] = a.Value
+	}
 
 	// Override the namespace with the target namespace
 	if t.Spec.TargetNamespace != "" {

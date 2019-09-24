@@ -16,13 +16,14 @@ Regardless of the query type, the `query` field is always preprocessed as a Go t
 
 The following variables are defined for use in query processing:
 
-| Variable Name     |  Type    | Description                                   |
-|-------------------|----------|-----------------------------------------------|
-| `Trial.Name`      | `string` | The name of the trial                         |
-| `Trial.Namespace` | `string` | The namespace the trial ran in                |
-| `StartTime`       | `time`   | The adjusted start time of the trial run job  |
-| `CompletionTime`  | `time`   | The completion time of the trial run job      |
-| `Range`           | `string` | The duration of the trial run job, e.g. "5s"  |
+| Variable Name     |  Type              | Description                                   |
+|-------------------|--------------------|-----------------------------------------------|
+| `Trial.Name`      | `string`           | The name of the trial                         |
+| `Trial.Namespace` | `string`           | The namespace the trial ran in                |
+| `Values`          | `map[string]int64` | The parameter assignments                     |
+| `StartTime`       | `time`             | The adjusted start time of the trial run job  |
+| `CompletionTime`  | `time`             | The completion time of the trial run job      |
+| `Range`           | `string`           | The duration of the trial run job, e.g. "5s"  |
 
 ### Local Collection Type
 
