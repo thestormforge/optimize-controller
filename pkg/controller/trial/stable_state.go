@@ -81,8 +81,6 @@ func WaitForStableState(r client.Reader, ctx context.Context, log logr.Logger, p
 		selector = daemon.Spec.Selector
 		err = checkDaemonSet(daemon)
 
-		err = ignoreUpdateStrategy(err, log.WithValues("updateStrategyType", daemon.Spec.UpdateStrategy.Type))
-
 	case "StatefulSet":
 		sts := &appsv1.StatefulSet{}
 		if err := r.Get(ctx, name(p.TargetRef), sts); err != nil {
@@ -90,8 +88,6 @@ func WaitForStableState(r client.Reader, ctx context.Context, log logr.Logger, p
 		}
 		selector = sts.Spec.Selector
 		err = checkStatefulSet(sts)
-
-		err = ignoreUpdateStrategy(err, log.WithValues("updateStrategyType", sts.Spec.UpdateStrategy.Type))
 
 	case "ConfigMap":
 	// Nothing to check
@@ -104,8 +100,8 @@ func WaitForStableState(r client.Reader, ctx context.Context, log logr.Logger, p
 	}
 
 	if serr, ok := err.(*StabilityError); ok {
-		if serr.RetryAfter != 0 {
-			// We were already going to initiate a delay, so the overhead of checking pods shouldn't hurt
+		// If we are going to initiate a delay, or if we failed to check due to a legacy update strategy, try checking the pods
+		if serr.RetryAfter != 0 || serr.Reason == "UpdateStrategy" {
 			list := &corev1.PodList{}
 			if matchingSelector, err := util.MatchingSelector(selector); err == nil {
 				_ = r.List(ctx, list, matchingSelector)
@@ -115,6 +111,12 @@ func WaitForStableState(r client.Reader, ctx context.Context, log logr.Logger, p
 			if err, ok := (checkPods(list)).(*StabilityError); ok {
 				serr = err
 			}
+		}
+
+		// Just log update strategy failures
+		if serr.Reason == "UpdateStrategy" {
+			log.Info("Stability check skipped due to unsupported update strategy")
+			return nil
 		}
 
 		// Add some additional context to the error
@@ -139,14 +141,6 @@ func ignoreNotFound(err error) error {
 	return err
 }
 
-func ignoreUpdateStrategy(err error, log logr.Logger) error {
-	if serr, ok := err.(*StabilityError); ok && serr.Reason == "UpdateStrategy" {
-		log.Info("Stability check skipped due to unsupported update strategy")
-		return nil
-	}
-	return err
-}
-
 func checkPods(list *corev1.PodList) error {
 	for i := range list.Items {
 		p := &list.Items[i]
@@ -155,10 +149,25 @@ func checkPods(list *corev1.PodList) error {
 				return &StabilityError{Reason: c.Reason}
 			}
 		}
-		for _, c := range p.Status.ContainerStatuses {
-			if !c.Ready && c.RestartCount > 0 && c.State.Waiting != nil && c.State.Waiting.Reason == "CrashLoopBackOff" {
-				return &StabilityError{Reason: c.State.Waiting.Reason}
+		if err := checkContainerStatus(p.Status.InitContainerStatuses); err != nil {
+			return err
+		}
+		if err := checkContainerStatus(p.Status.ContainerStatuses); err != nil {
+			return err
+		}
+		for _, c := range p.Status.Conditions {
+			if c.Type == corev1.PodReady && c.Status == corev1.ConditionFalse {
+				return &StabilityError{Reason: c.Reason, RetryAfter: 5 * time.Second}
 			}
+		}
+	}
+	return nil
+}
+
+func checkContainerStatus(cs []corev1.ContainerStatus) error {
+	for _, c := range cs {
+		if !c.Ready && c.RestartCount > 0 && c.State.Waiting != nil && c.State.Waiting.Reason == "CrashLoopBackOff" {
+			return &StabilityError{Reason: c.State.Waiting.Reason}
 		}
 	}
 	return nil
