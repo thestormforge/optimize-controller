@@ -17,25 +17,20 @@ package generate
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
 
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
 )
 
 // TODO `redskyctl kustomize edit add experiment`...?
 // TODO Have the option to read a partial experiment from a file
 // TODO Use patch conventions like Kubebuilder
-// TODO Add documentation about Kustomize v3, `--enable_alpha_plugins`, and what config files should look like
 // TODO Name pattern/name randomizer?
 // TODO No-op "wait" patches, patches from files
-// TODO Should we have a "create scaffolding" command that has a stub Kustomize project?
 // TODO Metric generators that can build PromQL queries for you
 // TODO Parameter macros (e.g. template values that are replaced in Kustomize to make writing experiments more concise)
 // TODO Resource limit/request tuning automatically, e.g. give it a deployment name, get a full experiment
@@ -98,23 +93,5 @@ func (o *GenerateExperimentOptions) Run() error {
 
 	// TODO Populate this thing
 
-	if err := serialize(&e, o.Out); err != nil {
-		return err
-	}
-	return nil
-}
-
-func serialize(e *redskyv1alpha1.Experiment, w io.Writer) error {
-	scheme := runtime.NewScheme()
-	_ = redskyv1alpha1.AddToScheme(scheme)
-	u := &unstructured.Unstructured{}
-	if err := scheme.Convert(e, u, runtime.InternalGroupVersioner); err != nil {
-		return err
-	}
-	if b, err := yaml.Marshal(u); err != nil {
-		return err
-	} else if _, err := w.Write(b); err != nil {
-		return err
-	}
-	return nil
+	return serialize(&e, o.Out)
 }
