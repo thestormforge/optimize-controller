@@ -48,9 +48,9 @@ $ kustomize build github.com/redskyops/k8s-experiment//examples/simple | kubectl
 
 Clone a local copy of the k8s experiment repository: 
 
-git@github.com:redskyops/k8s-experiment.git
+```git@github.com:redskyops/k8s-experiment.git```
 
-Navigate to the /examples/simple folder 
+Navigate to the `/examples/simple` folder 
 
 
 ## Run a Trial
