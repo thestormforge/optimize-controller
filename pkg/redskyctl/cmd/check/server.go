@@ -34,7 +34,7 @@ const (
 	checkServerExample = ``
 )
 
-type ServerCheckOptions struct {
+type CheckServerOptions struct {
 	Name           string
 	ParameterCount int
 	MetricCount    int
@@ -47,14 +47,14 @@ type ServerCheckOptions struct {
 	cmdutil.IOStreams
 }
 
-func NewServerCheckOptions(ioStreams cmdutil.IOStreams) *ServerCheckOptions {
-	return &ServerCheckOptions{
+func NewCheckServerOptions(ioStreams cmdutil.IOStreams) *CheckServerOptions {
+	return &CheckServerOptions{
 		IOStreams: ioStreams,
 	}
 }
 
 func NewServerCheckCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
-	o := NewServerCheckOptions(ioStreams)
+	o := NewCheckServerOptions(ioStreams)
 
 	cmd := &cobra.Command{
 		Use:     "server",
@@ -77,7 +77,7 @@ func NewServerCheckCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobr
 	return cmd
 }
 
-func (o *ServerCheckOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) error {
+func (o *CheckServerOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) error {
 	// Randomly assign parameter and metric counts if they are not provided
 	if o.ParameterCount == 0 {
 		o.ParameterCount = rand.Intn(20) + 1
@@ -97,7 +97,7 @@ func (o *ServerCheckOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) err
 	return nil
 }
 
-func (o *ServerCheckOptions) Validate() error {
+func (o *CheckServerOptions) Validate() error {
 	if !o.AllowInvalid {
 		if o.ParameterCount < 1 || o.ParameterCount > 20 {
 			return fmt.Errorf("invalid parameter count: %d (should be [1,20])", o.ParameterCount)
@@ -109,7 +109,7 @@ func (o *ServerCheckOptions) Validate() error {
 	return nil
 }
 
-func (o *ServerCheckOptions) Run() error {
+func (o *CheckServerOptions) Run() error {
 	var err error
 
 	// Generate an experiment
@@ -196,7 +196,7 @@ func doDryRun(out io.Writer, name string, experiment *redsky.Experiment) error {
 }
 
 // Generates an experiment
-func generateExperiment(o *ServerCheckOptions) *redsky.Experiment {
+func generateExperiment(o *CheckServerOptions) *redsky.Experiment {
 	e := &redsky.Experiment{}
 
 	// TODO Optimization?
@@ -221,7 +221,7 @@ func generateExperiment(o *ServerCheckOptions) *redsky.Experiment {
 	return e
 }
 
-func generateObservation(o *ServerCheckOptions, exp *redsky.Experiment) *redsky.TrialValues {
+func generateObservation(o *CheckServerOptions, exp *redsky.Experiment) *redsky.TrialValues {
 	vals := &redsky.TrialValues{}
 	if o.ReportFailure {
 		vals.Failed = true
