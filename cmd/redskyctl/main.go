@@ -47,7 +47,7 @@ func main() {
 	var command *cobra.Command
 	switch filepath.Base(os.Args[0]) {
 	case setup.KustomizePluginKind:
-		command = cmd.NewDefaultCommand(generate.NewGenerateCommand)
+		command = cmd.NewDefaultCommand(generate.NewGenerateExperimentCommand)
 	default:
 		command = cmd.NewDefaultRedskyctlCommand()
 	}

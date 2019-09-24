@@ -35,10 +35,14 @@ import (
 // TODO Add documentation about Kustomize v3, `--enable_alpha_plugins`, and what config files should look like
 // TODO Name pattern/name randomizer?
 // TODO No-op "wait" patches, patches from files
+// TODO Should we have a "create scaffolding" command that has a stub Kustomize project?
+// TODO Metric generators that can build PromQL queries for you
+// TODO Parameter macros (e.g. template values that are replaced in Kustomize to make writing experiments more concise)
+// TODO Resource limit/request tuning automatically, e.g. give it a deployment name, get a full experiment
 
 const (
-	generateLong    = `Generate an experiment manifest from a configuration file`
-	generateExample = ``
+	generateExperimentLong    = `Generate an experiment manifest from a configuration file`
+	generateExperimentExample = ``
 )
 
 type ExperimentGenerator struct {
@@ -46,25 +50,25 @@ type ExperimentGenerator struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 }
 
-type GenerateOptions struct {
+type GenerateExperimentOptions struct {
 	Config *ExperimentGenerator
 	cmdutil.IOStreams
 }
 
-func NewGenerateOptions(ioStreams cmdutil.IOStreams) *GenerateOptions {
-	return &GenerateOptions{
+func NewGenerateExperimentOptions(ioStreams cmdutil.IOStreams) *GenerateExperimentOptions {
+	return &GenerateExperimentOptions{
 		IOStreams: ioStreams,
 	}
 }
 
-func NewGenerateCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
-	o := NewGenerateOptions(ioStreams)
+func NewGenerateExperimentCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
+	o := NewGenerateExperimentOptions(ioStreams)
 
 	cmd := &cobra.Command{
 		Use:     "generate",
 		Short:   "Generate experiments",
-		Long:    generateLong,
-		Example: generateExample,
+		Long:    generateExperimentLong,
+		Example: generateExperimentExample,
 		Args:    cobra.ExactArgs(1),
 		Hidden:  true,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -76,7 +80,7 @@ func NewGenerateCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.C
 	return cmd
 }
 
-func (o *GenerateOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []string) error {
+func (o *GenerateExperimentOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []string) error {
 	// TODO There are probably APIs for doing this if we register the experiment generator properly
 	if b, err := ioutil.ReadFile(args[0]); err != nil {
 		return err
@@ -89,7 +93,7 @@ func (o *GenerateOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args [
 	return nil
 }
 
-func (o *GenerateOptions) Run() error {
+func (o *GenerateExperimentOptions) Run() error {
 	e := redskyv1alpha1.Experiment{}
 
 	// TODO Populate this thing
