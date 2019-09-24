@@ -2,13 +2,13 @@
 
 ## Prerequisites
 
-You must have a Kubernetes cluster. Additionally, you will need a local configured copy of `kubectl`. This example requires more resources then the [quick start](quickstart.md) tutorial, therefore you will need something larger then a typical minikube cluster. A three node cluster with 12 total vCPUs (4 on each node) and 24GB total memory (8GB on each node) is generally sufficient.
+You must have a Kubernetes cluster. Additionally, you will need a local configured copy of `kubectl`. This example requires more resources then the [quick start](quickstart.md) tutorial, therefore you will need something larger then a typical minikube cluster. A four node cluster with 36 total vCPUs (8 on each node) and 64GB total memory (16GB on each node) is generally sufficient.
 
 A local install of [Kustomize](https://github.com/kubernetes-sigs/kustomize/releases) (v3.1.0+) is required to manage the objects in you cluster.
 
-Additionally, you will to initialize Red Sky Ops in your cluster. You can download a binary for your platform from the [releases page](https://github.com/redskyops/k8s-experiment/releases) and run `redskyctl init`. For more details, see [the installation guide](install.md).
+Additionally, you will to initialize Red Sky Ops in your cluster. You can download a binary for your platform from the [releases page](https://github.com/redskyops/k8s-experiment/releases) and run `redskyctl init` (while connected to your cluster). For more details, see [the installation guide](install.md).
 
-## Example Resources
+## Tutorial Resources
 
 The resources for this tutorial can be found in the [`/examples/tutorial/`](https://github.com/redskyops/k8s-experiment/tree/master/examples/tutorial) directory of the `k8s-experiment` source repository.
 
@@ -26,7 +26,7 @@ The resources for this tutorial can be found in the [`/examples/tutorial/`](http
 
 ## Experiment Lifecycle
 
-Creating an Red Sky Ops experiment stores the experiment state in your cluster (if you are using the Enterprise solution the definition of the experiment is also synchronized to the server to begin searching for optimal assignments). No additional objects are created until trial assignments have been suggested.
+Creating a Red Sky Ops experiment (see next section on how to start the experiment) stores the experiment state in your cluster (if using the Enterprise solution, the experiment definition is also synchronized to our AI server). No additional objects are created until trial assignments have been suggested (either manually or using our machine learning API, see next section on adding manual trials).
 
 Once assignments have been suggested, a trial run will start generating workloads for your cluster. The creation of a trial object populated with assignments will initiate the following work:
 
@@ -44,6 +44,7 @@ Build the experiment resources and apply the configuration to the cluster (note 
 ```sh
 $ kustomize build github.com/redskyops/k8s-experiment//examples/tutorial | kubectl apply -f -
 ```
+(or, if running this experiment from a locally cloned copy of this repo, you can simply run `kustomize build | kubectl apply -f -`)
 
 When configured to use the Enterprise solution, trials will be created automatically. You may interactively suggest trial assignments to start a trial run as well:
 
@@ -57,9 +58,17 @@ Both `experiments` and `trials` are created as custom Kubernetes objects. You ca
 
 The experiment objects themselves will not have their state modified over the course of a trial run: once created they represent generally static state.
 
-Trial objects will undergo a number of state progressions over the course of a trial run. These progressions can be monitored by watching the "status" portion of the trial object (e.g. when viewing `kubectl get trials -o yaml <NAME>`). You can also obtain a summary status by passing the experiment name to the `redskyctl status <NAME>` command.
+Trial objects will undergo a number of state progressions over the course of a trial run. These progressions can be monitored by watching the "status" portion of the trial object (e.g. when viewing `kubectl get trials -o yaml <TRIAL NAME>`). You can also obtain a summary status by passing the experiment name to the `redskyctl status <EXPERIMENT NAME>` command.
 
 The trial object will also own several (one to three) job objects depending on the experiment; those jobs will be labeled using the trial name (e.g. `trial=<name>`) and are typically named using the trial name as a prefix. The `-create` and `-delete` suffixes on job names indicate setup tasks (also labeled with `role=trialSetup`).
+
+## Collecting Experiment Output
+
+Once an experiment is underway and some trials have completed, you can get the trial results in `yaml`, `json` or `csv` output using
+```sh
+redskyctl get trials < EXPERIMENT NAME> -o <OUTPUT TYPE>
+```
+
 
 ## Re-running the Experiment
 
