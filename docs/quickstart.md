@@ -2,6 +2,11 @@
 
 This is brief guide to get you up and running with Red Sky Ops as quickly as possible.
 
+## Overview
+
+The purpose of the simple experiment is to gain a basic sense of running experiment setups, configuration of yaml files and to run an experiment with a limited (in this case 2) sets of parameters. The simple experiment is a great way to confirm the redskyctl tool and experiments setup are running properly in your cluster before designing more complex experiments as well as to gain a better understanding of the operational components for the Red Sky Ops tool. 
+
+
 ## Prerequisites
 
 You must have a Kubernetes cluster. Additionally, you will need a local configured copy of `kubectl`. The Red Sky Ops Tool will use the same configuration as `kubectl` (usually `$HOME/.kube/config`) to connect to your cluster.
@@ -9,6 +14,15 @@ You must have a Kubernetes cluster. Additionally, you will need a local configur
 A local install of [Kustomize](https://github.com/kubernetes-sigs/kustomize/releases) (v3.1.0+) is required to build the objects for your cluster.
 
 If you are planing to create the simple experiment from this guide, a [minikube](https://kubernetes.io/docs/setup/learning-environment/minikube/) cluster is preferred.
+
+You must have a Kubernetes cluster. Additionally, you will need a local configured copy of kubectl. The Red Sky Ops Tool will use the same configuration as kubectl (usually $HOME/.kube/config) to connect to your cluster.
+
+	1. Client cluster configuration 
+	2. A local installation of Kustomize 
+	3. A client ID and client secret 
+	4. Installation of redskyops to your instance per steps here: https://github.com/redskyops/k8s-experiment/blob/master/docs/install.md
+	5. Server configuration using your client id and client secret here: https://github.com/redskyops/k8s-experiment/blob/master/docs/remote.md
+
 
 ## Install the Red Sky Ops Tool
 
@@ -31,6 +45,13 @@ Generally you will want to write your own experiments to run trials on your own 
 ```sh
 $ kustomize build github.com/redskyops/k8s-experiment//examples/simple | kubectl apply -f -
 ```
+
+Clone a local copy of the k8s experiment repository: 
+
+git@github.com:redskyops/k8s-experiment.git
+
+Navigate to the /examples/simple folder 
+
 
 ## Run a Trial
 
