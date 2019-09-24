@@ -311,6 +311,17 @@ func evaluatePatches(trial *redskyv1alpha1.Trial, e *redskyv1alpha1.Experiment) 
 			Wait:              true,
 		}
 
+		// Evaluate the patch template
+		po.Data, err = te.RenderPatch(&p, trial)
+		if err != nil {
+			return err
+		}
+
+		// If the patch is effectively null, we do not need to evaluate it
+		if len(po.Data) == 0 || string(po.Data) == "null" {
+			po.AttemptsRemaining = 0
+		}
+
 		// Determine the patch type
 		switch p.Type {
 		case redskyv1alpha1.PatchStrategic, "":
@@ -324,26 +335,16 @@ func evaluatePatches(trial *redskyv1alpha1.Trial, e *redskyv1alpha1.Experiment) 
 		}
 
 		// Attempt to populate the target reference
-		// TODO Allow strategic merge patches to specify the target reference
 		if p.TargetRef != nil {
 			p.TargetRef.DeepCopyInto(&po.TargetRef)
+		} else if po.PatchType == types.StrategicMergePatchType {
+			// TODO Allow strategic merge patches to specify the target reference
 		}
 		if po.TargetRef.Namespace == "" {
 			po.TargetRef.Namespace = trial.Spec.TargetNamespace
 		}
 		if po.TargetRef.Namespace == "" {
 			po.TargetRef.Namespace = trial.Namespace
-		}
-
-		// Evaluate the patch template
-		po.Data, err = te.RenderPatch(&p, trial)
-		if err != nil {
-			return err
-		}
-
-		// If the patch is effectively null, we do not need to evaluate it
-		if len(po.Data) == 0 || string(po.Data) == "null" {
-			po.AttemptsRemaining = 0
 		}
 
 		trial.Spec.PatchOperations = append(trial.Spec.PatchOperations, po)
