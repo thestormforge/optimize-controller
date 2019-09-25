@@ -24,6 +24,7 @@ import (
 
 	"github.com/go-logr/logr"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
+	"github.com/redskyops/k8s-experiment/pkg/controller/metric"
 	"github.com/redskyops/k8s-experiment/pkg/controller/template"
 	redskytrial "github.com/redskyops/k8s-experiment/pkg/controller/trial"
 	"github.com/redskyops/k8s-experiment/pkg/util"
@@ -238,8 +239,8 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			var captureError error
 			if target, err := getMetricTarget(r, ctx, &m); err != nil {
 				captureError = err
-			} else if value, stddev, err := redskytrial.CaptureMetric(&m, trial, target); err != nil {
-				if merr, ok := err.(*redskytrial.MetricError); ok && merr.RetryAfter > 0 {
+			} else if value, stddev, err := metric.CaptureMetric(&m, trial, target); err != nil {
+				if merr, ok := err.(*metric.CaptureError); ok && merr.RetryAfter > 0 {
 					// Do not count retries against the remaining attempts
 					return ctrl.Result{RequeueAfter: merr.RetryAfter}, nil
 				}
@@ -257,7 +258,7 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				v.AttemptsRemaining = v.AttemptsRemaining - 1
 				if v.AttemptsRemaining == 0 {
 					redskytrial.ApplyCondition(&trial.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "MetricFailed", captureError.Error(), &now)
-					if merr, ok := captureError.(*redskytrial.MetricError); ok {
+					if merr, ok := captureError.(*metric.CaptureError); ok {
 						// Metric errors contain additional information which should be logged for debugging
 						log.Error(err, "Metric collection failed", "address", merr.Address, "query", merr.Query, "completionTime", merr.CompletionTime)
 					}
