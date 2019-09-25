@@ -126,7 +126,7 @@ func (e *TemplateEngine) RenderHelmValue(helmValue *redskyv1alpha1.HelmValue, tr
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s=%s", helmValue.Name, b.String()), nil
+	return fmt.Sprintf(`"%s=%s"`, helmValue.Name, b.String()), nil
 }
 
 // RenderMetricQueries returns the metric query and the metric error query
