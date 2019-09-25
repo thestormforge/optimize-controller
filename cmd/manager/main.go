@@ -48,17 +48,19 @@ func init() {
 
 func main() {
 	// Make it possible to just print the version number and exit
-	if os.Args[1] == "version" {
-		fmt.Printf("%s version: %s\n", filepath.Base(os.Args[0]), version.GetVersion())
-		os.Exit(0)
-	} else if os.Args[1] == "config" {
-		if cfg, err := api.DefaultConfig(); err != nil {
-			os.Exit(1)
-		} else if output, err := yaml.Marshal(cfg); err != nil {
-			os.Exit(1)
-		} else {
-			fmt.Printf(string(output))
+	if len(os.Args) > 1 {
+		if os.Args[1] == "version" {
+			fmt.Printf("%s version: %s\n", filepath.Base(os.Args[0]), version.GetVersion())
 			os.Exit(0)
+		} else if os.Args[1] == "config" {
+			if cfg, err := api.DefaultConfig(); err != nil {
+				os.Exit(1)
+			} else if output, err := yaml.Marshal(cfg); err != nil {
+				os.Exit(1)
+			} else {
+				fmt.Printf(string(output))
+				os.Exit(0)
+			}
 		}
 	}
 
