@@ -30,15 +30,17 @@ import (
 )
 
 func capturePrometheusMetric(m *redskyv1alpha1.Metric, target runtime.Object, completionTime time.Time) (value float64, stddev float64, err error) {
-	// Iterate over the target URLs, taking the first successful attempt
-	if urls, err := toURL(target, m); err == nil {
+	urls, err := toURL(target, m)
+	if err == nil {
 		for _, u := range urls {
-			if value, stddev, err = captureOnePrometheusMetric(u, m.Query, m.ErrorQuery, completionTime); err == nil {
-				return
+			if value, stddev, cerr := captureOnePrometheusMetric(u, m.Query, m.ErrorQuery, completionTime); cerr != nil {
+				err = cerr
+			} else {
+				return value, stddev, nil
 			}
 		}
 	}
-	return
+	return 0, 0, err
 }
 
 func captureOnePrometheusMetric(address, query, errorQuery string, completionTime time.Time) (float64, float64, error) {
