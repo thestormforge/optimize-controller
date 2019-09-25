@@ -140,24 +140,24 @@ type TrialConditionType string
 
 const (
 	// Condition that indicates a successful trial run
-	TrialComplete TrialConditionType = "Complete"
+	TrialComplete TrialConditionType = "redskyops.dev/trial-complete"
 	// Condition that indicates a failed trial run
-	TrialFailed TrialConditionType = "Failed"
+	TrialFailed TrialConditionType = "redskyops.dev/trial-failed"
 	// Condition that indicates all "create" setup tasks have finished
-	TrialSetupCreated TrialConditionType = "SetupCreated"
+	TrialSetupCreated TrialConditionType = "redskyops.dev/trial-setup-created"
 	// Condition that indicates all "delete" setup tasks have finished
-	TrialSetupDeleted TrialConditionType = "SetupDeleted"
+	TrialSetupDeleted TrialConditionType = "redskyops.dev/trial-setup-deleted"
 	// Condition that indicates patches have been applied for a trial
-	TrialPatched TrialConditionType = "Patched"
+	TrialPatched TrialConditionType = "redskyops.dev/trial-patched"
 	// Condition that indicates a trail has stabilized after patches
-	TrialStable TrialConditionType = "Stable"
+	TrialStable TrialConditionType = "redskyops.dev/trial-stable"
 	// Condition that indicates a trial has had metrics collected
-	TrialObserved TrialConditionType = "Observed"
+	TrialObserved TrialConditionType = "redskyops.dev/trial-observed"
 )
 
 // TrialCondition represents an observed condition of a trial
 type TrialCondition struct {
-	// The condition type, e.g. "Complete"
+	// The condition type, e.g. "redskyops.dev/trial-complete"
 	Type TrialConditionType `json:"type"`
 	// The status of the condition, one of "True", "False", or "Unknown
 	Status corev1.ConditionStatus `json:"status"`
