@@ -417,7 +417,7 @@ func NewBootstrapInitConfig(o *SetupOptions, clientConfig *api.Config) (*Bootstr
 			RoleRef: rbacv1.RoleRef{
 				APIGroup: "rbac.authorization.k8s.io",
 				Kind:     "ClusterRole",
-				Name:     "redsky-manager-local-role",
+				Name:     "redsky-patching-role",
 			},
 		},
 
