@@ -28,11 +28,12 @@ type TrialSummary string
 
 // TODO Make the constant names better reflect the code, not the text
 const (
-	ExperimentCreated ExperimentSummary = "Created"
-	ExperimentPaused                    = "Paused"
-	ExperimentEmpty                     = "Never run" // TODO This is misleading, it could be that we already deleted the trials that ran
-	ExperimentIdle                      = "Idle"
-	ExperimentRunning                   = "Running"
+	ExperimentCreated   ExperimentSummary = "Created"
+	ExperimentPaused                      = "Paused"
+	ExperimentEmpty                       = "Never run" // TODO This is misleading, it could be that we already deleted the trials that ran
+	ExperimentIdle                        = "Idle"
+	ExperimentRunning                     = "Running"
+	ExperimentCompleted                   = "Completed"
 
 	TrialCreated      TrialSummary = "Created"
 	TrialSetupCreated              = "Setup Created"
@@ -81,7 +82,12 @@ func NewExperimentStatusSummary(experiment *v1alpha1.Experiment, trialList *v1al
 
 	// The order if this if/else block is very specific
 	if experiment.GetReplicas() == 0 {
-		s.Status = ExperimentPaused
+		if experiment.Annotations[v1alpha1.AnnotationExperimentURL] != "" && experiment.Annotations[v1alpha1.AnnotationNextTrialURL] == "" {
+			// If the "next trial URL" has been removed, we probably hit the end of the experiment
+			s.Status = ExperimentCompleted
+		} else {
+			s.Status = ExperimentPaused
+		}
 	} else if len(trialList.Items) == 0 {
 		s.Status = ExperimentEmpty
 	} else if s.ActiveCount == 0 {
