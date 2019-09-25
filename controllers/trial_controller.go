@@ -234,35 +234,37 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				continue
 			}
 
-			urls, verr := findMetricTargets(r, &m)
-			for _, u := range urls {
-				if value, stddev, err := redskytrial.CaptureMetric(&m, u, trial); err != nil {
-					if merr, ok := err.(*redskytrial.MetricError); ok && merr.RetryAfter > 0 {
-						// Do not count retries against the remaining attempts, do not look for additional URLs
-						return ctrl.Result{RequeueAfter: merr.RetryAfter}, nil
-					}
-					verr = err
-				} else {
-					v.AttemptsRemaining = 0
-					v.Value = strconv.FormatFloat(value, 'f', -1, 64)
-					if stddev != 0 {
-						v.Error = strconv.FormatFloat(stddev, 'f', -1, 64)
-					}
-					break
+			// Capture the metric
+			var captureError error
+			if target, err := getMetricTarget(r, ctx, &m); err != nil {
+				captureError = err
+			} else if value, stddev, err := redskytrial.CaptureMetric(&m, trial, target); err != nil {
+				if merr, ok := err.(*redskytrial.MetricError); ok && merr.RetryAfter > 0 {
+					// Do not count retries against the remaining attempts
+					return ctrl.Result{RequeueAfter: merr.RetryAfter}, nil
+				}
+				captureError = err
+			} else {
+				v.AttemptsRemaining = 0
+				v.Value = strconv.FormatFloat(value, 'f', -1, 64)
+				if stddev != 0 {
+					v.Error = strconv.FormatFloat(stddev, 'f', -1, 64)
 				}
 			}
 
-			if verr != nil && v.AttemptsRemaining > 0 {
+			// Handle any errors the occurred while collecting the value
+			if captureError != nil && v.AttemptsRemaining > 0 {
 				v.AttemptsRemaining = v.AttemptsRemaining - 1
 				if v.AttemptsRemaining == 0 {
-					redskytrial.ApplyCondition(&trial.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "MetricFailed", verr.Error(), &now)
-					if merr, ok := verr.(*redskytrial.MetricError); ok {
+					redskytrial.ApplyCondition(&trial.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "MetricFailed", captureError.Error(), &now)
+					if merr, ok := captureError.(*redskytrial.MetricError); ok {
 						// Metric errors contain additional information which should be logged for debugging
 						log.Error(err, "Metric collection failed", "address", merr.Address, "query", merr.Query, "completionTime", merr.CompletionTime)
 					}
 				}
 			}
 
+			// Set the observed condition to false since we have observed at least one, but possibly not all of, the metrics
 			redskytrial.ApplyCondition(&trial.Status, redskyv1alpha1.TrialObserved, corev1.ConditionFalse, "", "", &now)
 			return r.forTrialUpdate(trial, ctx, log)
 		}
@@ -379,59 +381,23 @@ func checkAssignments(trial *redskyv1alpha1.Trial, experiment *redskyv1alpha1.Ex
 	return nil
 }
 
-func findMetricTargets(r client.Reader, m *redskyv1alpha1.Metric) ([]string, error) {
-	// Local metrics don't need to resolve service URLs
-	if m.Type == redskyv1alpha1.MetricLocal || m.Type == "" {
-		return []string{""}, nil
-	}
-
-	// Get the URL components that are independent of the service
-	// TODO If m.Scheme == "file" we actually want to get pods so we can access the file system
-	scheme := strings.ToLower(m.Scheme)
-	if scheme == "" {
-		scheme = "http"
-	} else if scheme != "http" && scheme != "https" {
-		return nil, fmt.Errorf("scheme must be 'http' or 'https': %s", scheme)
-	}
-	path := "/" + strings.TrimLeft(m.Path, "/")
-
-	// Find services matching the selector
-	list := &corev1.ServiceList{}
-	matchingSelector, err := util.MatchingSelector(m.Selector)
-	if err != nil {
-		return nil, err
-	}
-	if err := r.List(context.TODO(), list, matchingSelector); err != nil {
-		return nil, err
-	}
-
-	// Construct a URL for each service (use IP literals instead of host names to avoid DNS lookups)
-	var urls []string
-	for _, s := range list.Items {
-		host := s.Spec.ClusterIP
-		port := m.Port.IntValue()
-
-		if port < 1 {
-			portName := m.Port.StrVal
-			// TODO Default an empty portName to scheme?
-			for _, sp := range s.Spec.Ports {
-				if sp.Name == portName || len(s.Spec.Ports) == 1 {
-					port = int(sp.Port)
-				}
-			}
+func getMetricTarget(r client.Reader, ctx context.Context, m *redskyv1alpha1.Metric) (runtime.Object, error) {
+	switch m.Type {
+	case redskyv1alpha1.MetricLocal, "":
+		// There is no target for local metrics
+		return nil, nil
+	case redskyv1alpha1.MetricPrometheus, redskyv1alpha1.MetricJSONPath:
+		// Both Prometheus and JSONPath target a service
+		target := &corev1.ServiceList{}
+		if sel, err := util.MatchingSelector(m.Selector); err != nil {
+			return nil, err
+		} else if err := r.List(ctx, target, sel); err != nil {
+			return nil, err
 		}
-
-		if port < 1 {
-			return nil, fmt.Errorf("metric '%s' has unresolvable port: %s", m.Name, m.Port.String())
-		}
-
-		urls = append(urls, fmt.Sprintf("%s://%s:%d%s", scheme, host, port, path))
+		return target, nil
+	default:
+		return nil, fmt.Errorf("unknown metric type: %s", m.Type)
 	}
-
-	if len(urls) == 0 {
-		return nil, fmt.Errorf("unable to find metric targets for '%s'", m.Name)
-	}
-	return urls, nil
 }
 
 func findOrCreateValue(trial *redskyv1alpha1.Trial, name string) *redskyv1alpha1.Value {

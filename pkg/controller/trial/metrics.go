@@ -31,6 +31,8 @@ import (
 	"github.com/prometheus/common/model"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	"github.com/redskyops/k8s-experiment/pkg/controller/template"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/util/jsonpath"
 )
 
@@ -55,35 +57,49 @@ func (e *MetricError) Error() string {
 	return e.Message
 }
 
-// TODO The duration (retry delay) should be incorporated into the error
-func CaptureMetric(m *redskyv1alpha1.Metric, u string, trial *redskyv1alpha1.Trial) (float64, float64, error) {
+// CaptureMetric captures a point-in-time metric value and it's error (standard deviation)
+func CaptureMetric(metric *redskyv1alpha1.Metric, trial *redskyv1alpha1.Trial, target runtime.Object) (float64, float64, error) {
+	// Work on a copy so we can render the queries in place
+	metric = metric.DeepCopy()
+
 	// Execute the query as a template against the current state of the trial
-	te := template.NewTemplateEngine()
-	q, eq, err := te.RenderMetricQueries(m, trial)
-	if err != nil {
+	var err error
+	if metric.Query, metric.ErrorQuery, err = template.NewTemplateEngine().RenderMetricQueries(metric, trial); err != nil {
 		return 0, 0, err
 	}
 
 	// Capture the value based on the metric type
-	switch m.Type {
+	switch metric.Type {
 	case redskyv1alpha1.MetricLocal, "":
-		return captureLocalMetric(q)
+		return captureLocalMetric(metric)
 	case redskyv1alpha1.MetricPrometheus:
-		return capturePrometheusMetric(u, q, eq, trial.Status.CompletionTime.Time)
+		return capturePrometheusMetric(metric, target, trial.Status.CompletionTime.Time)
 	case redskyv1alpha1.MetricJSONPath:
-		return captureJSONPathMetric(u, m.Name, q)
+		return captureJSONPathMetric(metric, target)
 	default:
-		return 0, 0, fmt.Errorf("unknown metric type: %s", m.Type)
+		return 0, 0, fmt.Errorf("unknown metric type: %s", metric.Type)
 	}
 }
 
-func captureLocalMetric(query string) (float64, float64, error) {
+func captureLocalMetric(m *redskyv1alpha1.Metric) (float64, float64, error) {
 	// Just parse the query as a float
-	value, err := strconv.ParseFloat(query, 64)
+	value, err := strconv.ParseFloat(m.Query, 64)
 	return value, 0, err
 }
 
-func capturePrometheusMetric(address, query, errorQuery string, completionTime time.Time) (float64, float64, error) {
+func capturePrometheusMetric(m *redskyv1alpha1.Metric, target runtime.Object, completionTime time.Time) (value float64, stddev float64, err error) {
+	// Iterate over the target URLs, taking the first successful attempt
+	if urls, err := toURL(target, m); err == nil {
+		for _, u := range urls {
+			if value, stddev, err = captureOnePrometheusMetric(u, m.Query, m.ErrorQuery, completionTime); err == nil {
+				return
+			}
+		}
+	}
+	return
+}
+
+func captureOnePrometheusMetric(address, query, errorQuery string, completionTime time.Time) (float64, float64, error) {
 	// Get the Prometheus client based on the metric URL
 	// TODO Cache these by URL
 	c, err := prom.NewClient(prom.Config{Address: address})
@@ -146,7 +162,19 @@ func capturePrometheusMetric(address, query, errorQuery string, completionTime t
 	return result, errorResult, nil
 }
 
-func captureJSONPathMetric(url, name, query string) (float64, float64, error) {
+func captureJSONPathMetric(m *redskyv1alpha1.Metric, target runtime.Object) (value float64, stddev float64, err error) {
+	// Iterate over the target URLs, taking the first successful attempt
+	if urls, err := toURL(target, m); err == nil {
+		for _, u := range urls {
+			if value, stddev, err = captureOneJSONPathMetric(u, m.Name, m.Query); err == nil {
+				return
+			}
+		}
+	}
+	return
+}
+
+func captureOneJSONPathMetric(url, name, query string) (float64, float64, error) {
 	// Fetch the URL
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
@@ -202,4 +230,50 @@ func captureJSONPathMetric(url, name, query string) (float64, float64, error) {
 
 	// If we made it this far we weren't able to extract the value
 	return 0, 0, fmt.Errorf("query '%s' did not match", query)
+}
+
+func toURL(target runtime.Object, m *redskyv1alpha1.Metric) ([]string, error) {
+	// Make sure we got a service list
+	// TODO We can probably handle a pod list by addressing it directly
+	list, ok := target.(*corev1.ServiceList)
+	if !ok {
+		return nil, fmt.Errorf("expected service list")
+	}
+
+	// Get URL components
+	scheme := strings.ToLower(m.Scheme)
+	if scheme == "" {
+		scheme = "http"
+	} else if scheme != "http" && scheme != "https" {
+		return nil, fmt.Errorf("scheme must be 'http' or 'https': %s", scheme)
+	}
+	path := "/" + strings.TrimLeft(m.Path, "/")
+
+	// Construct a URL for each service (use IP literals instead of host names to avoid DNS lookups)
+	var urls []string
+	for _, s := range list.Items {
+		host := s.Spec.ClusterIP
+		port := m.Port.IntValue()
+
+		if port < 1 {
+			portName := m.Port.StrVal
+			// TODO Default an empty portName to scheme?
+			for _, sp := range s.Spec.Ports {
+				if sp.Name == portName || len(s.Spec.Ports) == 1 {
+					port = int(sp.Port)
+				}
+			}
+		}
+
+		if port < 1 {
+			return nil, fmt.Errorf("metric '%s' has unresolvable port: %s", m.Name, m.Port.String())
+		}
+
+		urls = append(urls, fmt.Sprintf("%s://%s:%d%s", scheme, host, port, path))
+	}
+
+	if len(urls) == 0 {
+		return nil, fmt.Errorf("unable to find metric targets for '%s'", m.Name)
+	}
+	return urls, nil
 }
