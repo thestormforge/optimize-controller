@@ -88,7 +88,7 @@ fi
 
 # Add trial labels to the resulting manifests so they can be more easily located for removal
 if [ -n "$TRIAL" ]; then
-    kustomize edit add label {redskyops.dev/trial,$TRIAL},{redskyops.dev/trial-role,trialResource}
+    kustomize edit add label redskyops.dev/trial:$TRIAL,redskyops.dev/trial-role:trialResource
 fi
 
 
