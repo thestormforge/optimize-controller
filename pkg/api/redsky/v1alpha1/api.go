@@ -535,8 +535,10 @@ func (h *httpAPI) NextTrial(ctx context.Context, u string) (TrialAssignments, er
 	case http.StatusServiceUnavailable:
 		// TODO We should include the retry logic here or at the HTTP client
 		ra, err := strconv.Atoi(resp.Header.Get("Retry-After"))
-		if err != nil {
+		if err != nil || ra < 1 {
 			ra = 5
+		} else if ra > 120 {
+			ra = 120
 		}
 		return asm, &Error{Type: ErrTrialUnavailable, RetryAfter: time.Duration(ra) * time.Second}
 	default:
