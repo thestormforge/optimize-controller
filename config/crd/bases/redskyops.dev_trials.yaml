@@ -6222,7 +6222,7 @@ spec:
                       or "Unknown
                     type: string
                   type:
-                    description: The condition type, e.g. "Complete"
+                    description: The condition type, e.g. "redskyops.dev/trial-complete"
                     type: string
                 required:
                 - lastProbeTime
