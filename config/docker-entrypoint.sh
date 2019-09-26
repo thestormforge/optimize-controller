@@ -88,20 +88,8 @@ fi
 
 # Add trial labels to the resulting manifests so they can be more easily located for removal
 if [ -n "$TRIAL" ]; then
-    kustomize edit add label redskyops.dev/trial:$TRIAL,redskyops.dev/trial-role:trialResource
-    cat >> kustomization.yaml <<- EOF
-	configurations:
-	- labelconfig.yaml
-	EOF
-
-    cat >> labelconfig.yaml <<- EOF
-	commonLabels:
-	- path: spec/selector/matchLabels
-	  create: false
-	  group: apps
-	  version: v1beta1
-	  kind: StatefulSet
-	EOF
+    # TODO This needs Kustomize #1567 to be fixed so the tutorial doesn't fail
+    #kustomize edit add label redskyops.dev/trial:$TRIAL,redskyops.dev/trial-role:trialResource
 fi
 
 
