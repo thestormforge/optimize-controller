@@ -104,7 +104,7 @@ func WaitForStableState(r client.Reader, ctx context.Context, log logr.Logger, p
 		if serr.RetryAfter != 0 || serr.Reason == "UpdateStrategy" {
 			list := &corev1.PodList{}
 			if matchingSelector, err := util.MatchingSelector(selector); err == nil {
-				_ = r.List(ctx, list, matchingSelector)
+				_ = r.List(ctx, list, client.InNamespace(p.TargetRef.Namespace), matchingSelector)
 			}
 
 			// Continue to ignore anything that isn't a StabilityError so we retain the original error
