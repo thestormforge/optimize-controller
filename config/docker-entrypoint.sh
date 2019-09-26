@@ -86,11 +86,23 @@ if [ -n "$CHART" ] ; then
 fi
 
 
-## We can't do this, it sets the selector and overwrites the implicit selectors to something ambiguous
 # Add trial labels to the resulting manifests so they can be more easily located for removal
-#if [ -n "$TRIAL" ]; then
-#    kustomize edit add label redskyops.dev/trial:$TRIAL,redskyops.dev/trial-role:trialResource
-#fi
+if [ -n "$TRIAL" ]; then
+    kustomize edit add label redskyops.dev/trial:$TRIAL,redskyops.dev/trial-role:trialResource
+    cat >> kustomization.yaml <<- EOF
+	configurations:
+	- labelconfig.yaml
+	EOF
+
+    cat >> labelconfig.yaml <<- EOF
+	commonLabels:
+	- path: spec/selector/matchLabels
+	  create: false
+	  group: apps
+	  version: v1beta1
+	  kind: StatefulSet
+	EOF
+fi
 
 
 # Run Kustomize and pipe it into the handler
