@@ -12,11 +12,6 @@ namePrefix: redsky-
 #commonLabels:
 #  someName: someValue
 
-# Each entry in this list must resolve to an existing
-# resource definition in YAML.  These are the resource
-# files that kustomize reads, modifies and emits as a
-# YAML string, with resources separated by document
-# markers ("---").
 resources:
 - ../crd
 - ../rbac
@@ -33,6 +28,3 @@ patchesStrategicMerge:
   # Only one of manager_auth_proxy_patch.yaml and
   # manager_prometheus_metrics_patch.yaml should be enabled.
 #- manager_prometheus_metrics_patch.yaml
-
-vars:
-

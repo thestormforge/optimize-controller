@@ -9,7 +9,9 @@ spec:
   group: redskyops.dev
   names:
     kind: Experiment
+    listKind: ExperimentList
     plural: experiments
+    singular: experiment
   scope: ""
   validation:
     openAPIV3Schema:

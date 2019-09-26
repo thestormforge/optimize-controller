@@ -18,7 +18,9 @@ spec:
   group: redskyops.dev
   names:
     kind: Trial
+    listKind: TrialList
     plural: trials
+    singular: trial
   scope: ""
   subresources: {}
   validation:

@@ -20,7 +20,7 @@ function defineEnvvar {
     echo "export $1=\"$2\"" >> $BASH_ENV
 }
 
-KUBEBUILDER_VERSION=2.0.0
+KUBEBUILDER_VERSION=2.0.1
 GHR_VERSION=0.12.2
 
 echo "Using environment variables from bootstrap script"
