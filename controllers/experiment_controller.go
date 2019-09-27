@@ -104,6 +104,19 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 		return ctrl.Result{}, err
 	}
 
+	// Update the active trial count
+	var activeTrials int32
+	for i := range list.Items {
+		if redskytrial.IsTrialActive(&list.Items[i]) {
+			activeTrials++
+		}
+	}
+	if experiment.Status.ActiveTrials != activeTrials {
+		experiment.Status.ActiveTrials = activeTrials
+		err := r.Update(ctx, experiment)
+		return ctrl.Result{}, err
+	}
+
 	// Add an additional trial if needed
 	if nextTrialURL := experiment.GetAnnotations()[redskyv1alpha1.AnnotationNextTrialURL]; nextTrialURL != "" {
 		// Find an available namespace

@@ -140,7 +140,9 @@ type ExperimentSpec struct {
 
 // ExperimentStatus defines the observed state of Experiment
 type ExperimentStatus struct {
-	// TODO Number of trials: Active, Succeeded, Failed int32 (this is difficult, if not impossible, because we delete trials)
+	// ActiveTrials is the observed number of running trials
+	ActiveTrials int32 `json:"activeTrials"`
+	// TODO Number of trials: Succeeded, Failed int32 (this is difficult, if not impossible, because we delete trials)
 }
 
 // +genclient

@@ -7173,6 +7173,13 @@ spec:
           type: object
         status:
           description: Current status of an experiment
+          properties:
+            activeTrials:
+              description: ActiveTrials is the observed number of running trials
+              format: int32
+              type: integer
+          required:
+          - activeTrials
           type: object
       type: object
   version: v1alpha1
