@@ -86,12 +86,5 @@ if [ -n "$CHART" ] ; then
 fi
 
 
-# Add trial labels to the resulting manifests so they can be more easily located for removal
-if [ -n "$TRIAL" ]; then
-    # TODO This needs Kustomize #1567 to be fixed so the tutorial doesn't fail
-    #kustomize edit add label redskyops.dev/trial:$TRIAL,redskyops.dev/trial-role:trialResource
-fi
-
-
 # Run Kustomize and pipe it into the handler
 kustomize build | handle
