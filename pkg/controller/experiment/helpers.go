@@ -77,19 +77,18 @@ func PopulateTrialFromTemplate(experiment *redskyv1alpha1.Experiment, trial *red
 
 // FindAvailableNamespace searches for a namespace to run a new trial in, returning an empty string if no such namespace can be found
 func FindAvailableNamespace(r client.Reader, experiment *redskyv1alpha1.Experiment, trials []redskyv1alpha1.Trial) (string, error) {
+	// Do not return a namespace if the number of desired replicas has been reached
+	// IMPORTANT: This is a safe guard for callers who don't make this check prior to calling
+	if experiment.Status.ActiveTrials >= experiment.GetReplicas() {
+		return "", nil
+	}
+
 	// Determine which namespaces are already in use
-	var activeTrials int32
 	inuse := make(map[string]bool, len(trials))
 	for i := range trials {
 		if redskytrial.IsTrialActive(&trials[i]) {
-			activeTrials++
 			inuse[trials[i].Namespace] = true
 		}
-	}
-
-	// Do not return a namespace if the number of desired replicas has been reached
-	if activeTrials >= experiment.GetReplicas() {
-		return "", nil
 	}
 
 	// Find eligible namespaces
