@@ -302,6 +302,22 @@ type TrialItem struct {
 	Labels map[string]string `json:"labels,omitempty"`
 }
 
+type TrialListQuery struct {
+	Status []TrialStatus
+}
+
+func (p *TrialListQuery) Encode() string {
+	q := url.Values{}
+	if p != nil && len(p.Status) > 0 {
+		strs := make([]string, len(p.Status))
+		for i := range p.Status {
+			strs[i] = string(p.Status[i])
+		}
+		q.Add("status", strings.Join(strs, ","))
+	}
+	return q.Encode()
+}
+
 type TrialList struct {
 	// The list of trials.
 	Trials []TrialItem `json:"trials"`
@@ -315,7 +331,7 @@ type API interface {
 	GetExperiment(context.Context, string) (Experiment, error)
 	CreateExperiment(context.Context, ExperimentName, Experiment) (Experiment, error)
 	DeleteExperiment(context.Context, string) error
-	GetAllTrials(context.Context, string) (TrialList, error)
+	GetAllTrials(context.Context, string, *TrialListQuery) (TrialList, error)
 	CreateTrial(context.Context, string, TrialAssignments) (string, error) // TODO Should this return TrialAssignments?
 	NextTrial(context.Context, string) (TrialAssignments, error)
 	ReportTrial(context.Context, string, TrialValues) error
@@ -461,8 +477,17 @@ func (h *httpAPI) DeleteExperiment(ctx context.Context, u string) error {
 	}
 }
 
-func (h *httpAPI) GetAllTrials(ctx context.Context, u string) (TrialList, error) {
+func (h *httpAPI) GetAllTrials(ctx context.Context, u string, q *TrialListQuery) (TrialList, error) {
 	lst := TrialList{}
+
+	rawQuery := q.Encode()
+	if rawQuery != "" {
+		if uu, err := url.Parse(u); err == nil {
+			// TODO Should we be merging the query in this case?
+			uu.RawQuery = rawQuery
+			u = uu.String()
+		}
+	}
 
 	req, err := http.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
@@ -578,6 +603,7 @@ func (h *httpAPI) ReportTrial(ctx context.Context, u string, vls TrialValues) er
 	}
 }
 
+// TODO Unmarshal _expected_ errors to get better messages as well
 func unexpected(resp *http.Response, body []byte) error {
 	err := &Error{Type: ErrUnexpected}
 

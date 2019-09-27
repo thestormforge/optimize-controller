@@ -98,9 +98,10 @@ func getRedSkyAPITrialList(o *GetOptions, meta *trialTableMeta) (*redsky.TrialLi
 	}
 
 	// Fetch the trial data
+	tq := &redsky.TrialListQuery{Status: []redsky.TrialStatus{redsky.TrialActive, redsky.TrialCompleted, redsky.TrialFailed}}
 	if exp.Trials == "" {
 		return &redsky.TrialList{}, nil
-	} else if tl, err := api.GetAllTrials(context.TODO(), exp.Trials); err != nil {
+	} else if tl, err := api.GetAllTrials(context.TODO(), exp.Trials, tq); err != nil {
 		return nil, err
 	} else {
 		return filterAndSortTrials(&tl, o.Selector, o.SortBy)
