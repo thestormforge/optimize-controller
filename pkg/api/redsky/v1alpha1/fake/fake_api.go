@@ -74,7 +74,7 @@ func (f *FakeAPI) DeleteExperiment(ctx context.Context, uri string) error {
 	return nil
 }
 
-func (f *FakeAPI) GetAllTrials(ctx context.Context, uri string) (v1alpha1.TrialList, error) {
+func (f *FakeAPI) GetAllTrials(ctx context.Context, uri string, q *v1alpha1.TrialListQuery) (v1alpha1.TrialList, error) {
 	panic("implement me")
 }
 
