@@ -58,12 +58,6 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 		return util.IgnoreNotFound(err)
 	}
 
-	// Make sure we aren't deleted without a chance to clean up
-	if util.AddFinalizer(experiment, redskyexperiment.ExperimentFinalizer) {
-		err := r.Update(ctx, experiment)
-		return ctrl.Result{}, err
-	}
-
 	// Define the experiment on the server
 	if experiment.GetReplicas() > 0 {
 		if experimentURL := experiment.GetAnnotations()[redskyv1alpha1.AnnotationExperimentURL]; experimentURL == "" {
@@ -92,6 +86,7 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 				if experiment.Spec.BurnIn == nil && ee.Optimization.BurnIn > 0 {
 					experiment.Spec.BurnIn = &ee.Optimization.BurnIn
 				}
+				util.AddFinalizer(experiment, redskyexperiment.ExperimentFinalizer)
 				err = r.Update(ctx, experiment)
 				return ctrl.Result{}, err
 			}
