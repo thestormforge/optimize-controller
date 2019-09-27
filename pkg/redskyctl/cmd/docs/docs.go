@@ -81,6 +81,7 @@ func (o *DocsOptions) Complete(cmd *cobra.Command) error {
 	}
 
 	o.root = cmd.Root()
+	o.root.DisableAutoGenTag = true
 
 	return nil
 }

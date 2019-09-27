@@ -132,7 +132,7 @@ TrialCondition represents an observed condition of a trial
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| `type` | The condition type, e.g. "Complete" | _TrialConditionType_ | true |
+| `type` | The condition type, e.g. "redskyops.dev/trial-complete" | _TrialConditionType_ | true |
 | `status` | The status of the condition, one of "True", "False", or "Unknown | _corev1.ConditionStatus_ | true |
 | `lastProbeTime` | The last known time the condition was checked | _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#time-v1-meta)_ | true |
 | `lastTransitionTime` | The time at which the condition last changed status | _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#time-v1-meta)_ | true |

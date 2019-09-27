@@ -1,20 +1,19 @@
-## redskyctl version
+## redskyctl generate
 
-Print the version information
+Generate Red Sky Ops obejcts
 
 ### Synopsis
 
-Print the version information for Red Sky Ops components
+Generate Red Sky Ops object manifests
 
 ```
-redskyctl version [flags]
+redskyctl generate [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help         help for version
-      --setuptools   Print only the name of the setuptools image.
+  -h, --help   help for generate
 ```
 
 ### Options inherited from parent commands
@@ -29,4 +28,5 @@ redskyctl version [flags]
 ### SEE ALSO
 
 * [redskyctl](redskyctl.md)	 - Kubernetes Exploration
+* [redskyctl generate rbac](redskyctl_generate_rbac.md)	 - Generate experiment roles
 

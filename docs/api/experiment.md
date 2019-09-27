@@ -61,7 +61,7 @@ ExperimentStatus defines the observed state of Experiment
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| _N/A_ |
+| `activeTrials` | ActiveTrials is the observed number of running trials | _int32_ | true |
 
 [Back to TOC](#table-of-contents)
 
