@@ -127,6 +127,7 @@ func (e *TemplateEngine) RenderHelmValue(helmValue *redskyv1alpha1.HelmValue, tr
 	if err != nil {
 		return "", err
 	}
+	// IMPORTANT: This generates a quoted string (i.e. the double quotes are part of the result!)
 	return fmt.Sprintf(`"%s=%s"`, helmValue.Name, b.String()), nil
 }
 

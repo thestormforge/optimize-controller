@@ -1,11 +1,11 @@
 # Red Sky Ops Documentation
 
 - [Introduction](introduction.md)
-- [Quick Start](quickstart.md)
 - [Overview](overview.md)
+- [Quick Start](quickstart.md)
 - [Installing Red Sky Ops](install.md)
 - [Tutorial](tutorial.md)
 - [Server Configuration](remote.md)
-- [Experiment Lifecycle](lifecycle.md)
-- [Using Metrics](metrics.md)
+- [Lifecycle](lifecycle.md)
 - [Using Parameters](parameters.md)
+- [Using Metrics](metrics.md)
