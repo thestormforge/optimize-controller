@@ -9,7 +9,7 @@ ENV KUBECTL_VERSION="v1.14.5" \
     KUBECTL_SHA256="26681319de56820a8467c9407e9203d5b15fb010ffc75ac5b99c9945ad0bd28c"
 
 ENV KUSTOMIZE_VERSION="v3.2.1" \
-    KUSTOMIZE_URL="https://github.com/kubernetes-sigs/kustomize/releases/download/v3.2.1/kustomize_3.2.1_linux_amd64" \
+    KUSTOMIZE_URL="https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv3.2.1/kustomize_kustomize.v3.2.1_linux_amd64" \
     KUSTOMIZE_SHA256="a91b38778945e8a63fe70bc7522703a94c1d572d5dcee245e96647359e1fd04b"
 
 RUN apk --no-cache add curl && \
