@@ -45,6 +45,7 @@ func (r *ExperimentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
+// +kubebuilder:rbac:groups="",resources=namespaces,verbs=list
 // +kubebuilder:rbac:groups=redskyops.dev,resources=experiments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=redskyops.dev,resources=experiments/status,verbs=get;update;patch
 
