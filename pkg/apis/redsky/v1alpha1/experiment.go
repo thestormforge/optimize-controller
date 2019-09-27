@@ -35,12 +35,12 @@ func (in *Experiment) GetSelfReference() *corev1.ObjectReference {
 }
 
 // GetReplicas returns the effective replica (trial) count for the experiment
-func (in *Experiment) GetReplicas() int {
+func (in *Experiment) GetReplicas() int32 {
 	if in == nil || !in.DeletionTimestamp.IsZero() {
 		return 0
 	}
 	if in.Spec.Replicas != nil {
-		return int(*in.Spec.Replicas)
+		return *in.Spec.Replicas
 	}
 	return 1
 }

@@ -77,7 +77,7 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 				}
 				experiment.GetAnnotations()[redskyv1alpha1.AnnotationExperimentURL] = ee.Self
 				experiment.GetAnnotations()[redskyv1alpha1.AnnotationNextTrialURL] = ee.NextTrial
-				if experiment.GetReplicas() > int(ee.Optimization.ParallelTrials) && ee.Optimization.ParallelTrials > 0 {
+				if experiment.GetReplicas() > ee.Optimization.ParallelTrials && ee.Optimization.ParallelTrials > 0 {
 					experiment.Spec.Replicas = &ee.Optimization.ParallelTrials
 				}
 				if experiment.Spec.Budget == nil && ee.Optimization.ExperimentBudget > 0 {
