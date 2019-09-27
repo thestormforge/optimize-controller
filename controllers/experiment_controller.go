@@ -219,7 +219,9 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 		// Also delete the experiment on the server if necessary
 		if experimentURL := experiment.GetAnnotations()[redskyv1alpha1.AnnotationExperimentURL]; experimentURL != "" {
 			if err := r.RedSkyAPI.DeleteExperiment(ctx, experimentURL); err != nil {
-				return ctrl.Result{}, err
+				if rserr, ok := err.(*redskyapi.Error); ok && rserr.Type != redskyapi.ErrExperimentNotFound {
+					return ctrl.Result{}, err
+				}
 			}
 			delete(experiment.GetAnnotations(), redskyv1alpha1.AnnotationExperimentURL)
 			delete(experiment.GetAnnotations(), redskyv1alpha1.AnnotationNextTrialURL)
