@@ -138,7 +138,7 @@ func ManageSetup(c client.Client, s *runtime.Scheme, ctx context.Context, probeT
 
 	// If the create job isn't finished, wait for it (unless the trial is already finished, i.e. failed)
 	if cc, ok := CheckCondition(&trial.Status, redskyv1alpha1.TrialSetupCreated, corev1.ConditionFalse); ok && cc {
-		if !IsTrialFinished(trial) {
+		if !IsTrialFinished(trial) && trial.DeletionTimestamp.IsZero() {
 			return &ctrl.Result{RequeueAfter: 1 * time.Second}, nil
 		}
 	}
