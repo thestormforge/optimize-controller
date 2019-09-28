@@ -100,6 +100,12 @@ func ManageSetup(c client.Client, s *runtime.Scheme, ctx context.Context, probeT
 		setSetupTrialCondition(trial, conditionType, finished)
 	}
 
+	// This is purely for recovery, normally if the list size is zero the conditions will already be unknown
+	if len(list.Items) == 0 {
+		setSetupTrialCondition(trial, redskyv1alpha1.TrialSetupCreated, corev1.ConditionUnknown)
+		setSetupTrialCondition(trial, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionUnknown)
+	}
+
 	// Check to see if we need to update the trial to record a condition change
 	if needsUpdate(trial, probeTime) {
 		err := c.Update(ctx, trial)
