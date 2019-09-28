@@ -183,6 +183,7 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 				}
 
 				// Include the reason for failure in the log message (note we return from the block so `log` goes out of scope)
+				// TODO Should this just iterate over the conditions and include all non-empty reason/messages?
 				if trialValues.Failed {
 					for i := range trial.Status.Conditions {
 						c := trial.Status.Conditions[i]
@@ -214,13 +215,25 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 				err = r.Delete(ctx, trial)
 				return ctrl.Result{}, err
 			}
-		} else if !trial.DeletionTimestamp.IsZero() || !experiment.DeletionTimestamp.IsZero() {
-			// The trial was explicitly deleted before it finished or the experiment was deleted, remove the finalizer from the trial so it can be garbage collected
+		} else if !trial.DeletionTimestamp.IsZero() {
+			// The trial was explicitly deleted before it finished, remove the finalizer from the trial so it can be garbage collected
 			if util.RemoveFinalizer(trial, redskyexperiment.ExperimentFinalizer) {
 				// TODO Notify the server that the trial was abandoned (ignore errors in case the whole experiment was abandoned)
+				log.Info("Trial deleted before finishing", "name", trial.Name, "namespace", trial.Namespace)
 				err := r.Update(ctx, trial)
 				return util.IgnoreConflict(err)
 			}
+		} else if !experiment.DeletionTimestamp.IsZero() {
+			// The experiment was deleted before the trial finished, explicitly delete the trial so setup tasks can be cleaned up
+			err = r.Delete(ctx, trial)
+			return ctrl.Result{}, err
+		}
+	}
+
+	// If any trial still has a finalizer, we need to wait for it to be removed
+	for i := range list.Items {
+		if util.HasFinalizer(&list.Items[i], redskyexperiment.ExperimentFinalizer) {
+			return ctrl.Result{}, nil
 		}
 	}
 
@@ -242,7 +255,5 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 		err := r.Update(ctx, experiment)
 		return ctrl.Result{}, err
 	}
-
-	// No action, e.g. a trial is still in progress
 	return ctrl.Result{}, nil
 }
