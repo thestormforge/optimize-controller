@@ -224,18 +224,6 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	// Create a trial run job if needed
 	if needsJob {
-		// Initial collection of metrics
-		e := &redskyv1alpha1.Experiment{}
-		if err = r.Get(ctx, trial.ExperimentNamespacedName(), e); err != nil {
-			return ctrl.Result{}, err
-		}
-		for i := range e.Spec.Metrics {
-			if e.Spec.Metrics[i].Type == redskyv1alpha1.MetricPrometheus {
-
-			}
-		}
-
-		// Create the trial run job
 		job := createJob(trial)
 		if err := controllerutil.SetControllerReference(trial, job, r.Scheme); err != nil {
 			return ctrl.Result{}, err
@@ -278,7 +266,6 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				captureError = err
 			} else {
 				v.AttemptsRemaining = 0
-				// TODO Apply the delta expression here (to the float) if necessary
 				v.Value = strconv.FormatFloat(value, 'f', -1, 64)
 				if stddev != 0 {
 					v.Error = strconv.FormatFloat(stddev, 'f', -1, 64)
