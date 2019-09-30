@@ -22,26 +22,30 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-// IgnoreNotFound returns a default result and the supplied error, unless that error is a "not found" error
-func IgnoreNotFound(err error) (ctrl.Result, error) {
+// IgnoreNotFound returns the supplied error, unless that error is a "not found" error
+func IgnoreNotFound(err error) error {
 	if apierrs.IsNotFound(err) {
-		return ctrl.Result{}, nil
+		return nil
 	}
-	return ctrl.Result{}, err
+	return err
 }
 
-// IgnoreConflict returns a default result and the supplied error, unless that error is a "conflict" in which case a requeue is requested
-func IgnoreConflict(err error) (ctrl.Result, error) {
-	if apierrs.IsConflict(err) {
-		return ctrl.Result{Requeue: true}, nil
-	}
-	return ctrl.Result{}, err
-}
-
-// IgnoreTrialUnavailable returns a default result and the supplied error, unless that error is a "trial unavailable" in which case a delayed requeue is requested
-func IgnoreTrialUnavailable(err error) (ctrl.Result, error) {
+// RequeueTrialUnavailable  returns the supplied result and error, unless that error is a "trial unavailable" in
+// which case the requeue delay is set on the result and a nil error is returned.
+func RequeueTrialUnavailable(result ctrl.Result, err error) (ctrl.Result, error) {
 	if rse, ok := err.(*redskyapi.Error); ok && rse.Type == redskyapi.ErrTrialUnavailable {
-		return ctrl.Result{RequeueAfter: rse.RetryAfter}, nil
+		result.RequeueAfter = rse.RetryAfter
+		err = nil
 	}
-	return ctrl.Result{}, err
+	return result, err
+}
+
+// RequeueConflict returns the supplied result and error, unless that error is a "conflict" error in
+// which case the requeue state is set on the result and a nil error is returned.
+func RequeueConflict(result ctrl.Result, err error) (ctrl.Result, error) {
+	if apierrs.IsConflict(err) {
+		result.Requeue = true
+		err = nil
+	}
+	return result, err
 }

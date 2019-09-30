@@ -57,7 +57,7 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 	// Fetch the Experiment instance
 	experiment := &redskyv1alpha1.Experiment{}
 	if err := r.Get(ctx, req.NamespacedName, experiment); err != nil {
-		return util.IgnoreNotFound(err)
+		return ctrl.Result{}, util.IgnoreNotFound(err)
 	}
 
 	// Define the experiment on the server
@@ -142,7 +142,7 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 					err := r.Update(ctx, experiment)
 					return ctrl.Result{}, err
 				}
-				return util.IgnoreTrialUnavailable(err)
+				return util.RequeueTrialUnavailable(ctrl.Result{}, err)
 			}
 
 			// Add the information from the server
@@ -179,7 +179,7 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 				// TODO If the server operation were idempotent (i.e. a PUT instead of a POST), this would go after the server update
 				delete(trial.GetAnnotations(), redskyv1alpha1.AnnotationReportTrialURL)
 				if err := r.Update(ctx, trial); err != nil {
-					return util.IgnoreConflict(err)
+					return util.RequeueConflict(ctrl.Result{}, err)
 				}
 
 				// Include the reason for failure in the log message (note we return from the block so `log` goes out of scope)
@@ -207,7 +207,7 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 			// Remove the trial finalizer once we have sent information to the server
 			if util.RemoveFinalizer(trial, redskyexperiment.ExperimentFinalizer) {
 				err := r.Update(ctx, trial)
-				return util.IgnoreConflict(err)
+				return util.RequeueConflict(ctrl.Result{}, err)
 			}
 
 			// Delete the trial if necessary
@@ -221,7 +221,7 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 				// TODO Notify the server that the trial was abandoned (ignore errors in case the whole experiment was abandoned)
 				log.Info("Trial deleted before finishing", "name", trial.Name, "namespace", trial.Namespace)
 				err := r.Update(ctx, trial)
-				return util.IgnoreConflict(err)
+				return util.RequeueConflict(ctrl.Result{}, err)
 			}
 		} else if !experiment.DeletionTimestamp.IsZero() {
 			// The experiment was deleted before the trial finished, explicitly delete the trial so setup tasks can be cleaned up

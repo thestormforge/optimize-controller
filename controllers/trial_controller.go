@@ -69,7 +69,7 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	// Fetch the Trial instance
 	trial := &redskyv1alpha1.Trial{}
 	if err := r.Get(ctx, req.NamespacedName, trial); err != nil {
-		return util.IgnoreNotFound(err)
+		return ctrl.Result{}, util.IgnoreNotFound(err)
 	}
 
 	// Ahead of everything is the setup/teardown (contains finalization logic)
@@ -303,7 +303,7 @@ func (r *TrialReconciler) forTrialUpdate(trial *redskyv1alpha1.Trial, ctx contex
 	trial.Status.Values = strings.Join(values, ", ")
 
 	err := r.Update(ctx, trial)
-	return util.IgnoreConflict(err)
+	return util.RequeueConflict(ctrl.Result{}, err)
 }
 
 func evaluatePatches(trial *redskyv1alpha1.Trial, e *redskyv1alpha1.Experiment) error {
