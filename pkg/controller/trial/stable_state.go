@@ -114,9 +114,8 @@ func WaitForStableState(r client.Reader, ctx context.Context, log logr.Logger, p
 			}
 		}
 
-		// Just log update strategy failures
+		// Ignore legacy update strategy errors
 		if serr.Reason == "UpdateStrategy" {
-			log.Info("Stability check skipped due to unsupported update strategy")
 			return nil
 		}
 
