@@ -45,9 +45,16 @@ type TrialReconciler struct {
 	client.Client
 	Log    logr.Logger
 	Scheme *runtime.Scheme
+
+	// Keep the raw API reader for doing stabilization checks. In that case we only have patch/get permissions
+	// on the object and if we were to use the standard caching reader we would hang because cache itself also
+	// requires list/watch. If we ever get a way to disable the cache or the cache becomes smart enough to handle
+	// permission errors without hanging we can go back to using standard reader.
+	apiReader client.Reader
 }
 
 func (r *TrialReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.apiReader = mgr.GetAPIReader()
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&redskyv1alpha1.Trial{}).
 		Owns(&batchv1.Job{}).
@@ -154,7 +161,8 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			continue
 		}
 
-		if err := redskytrial.WaitForStableState(r.Client, ctx, log, p); err != nil {
+		// This is the only place we should be using `apiReader`
+		if err := redskytrial.WaitForStableState(r.apiReader, ctx, log, p); err != nil {
 			// Record the largest retry delay, but continue through the list looking for show stoppers
 			if serr, ok := err.(*redskytrial.StabilityError); ok && serr.RetryAfter > 0 {
 				if serr.RetryAfter > waitForStability {
@@ -177,7 +185,7 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return r.forTrialUpdate(trial, ctx, log)
 	}
 
-	// All remaining "unwaited" patches require a delay; update the trial and adjust the response
+	// Remaining patches require a delay; update the trial and adjust the response
 	if waitForStability > 0 {
 		rr, re := r.forTrialUpdate(trial, ctx, log)
 		if re == nil {
@@ -216,6 +224,18 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	// Create a trial run job if needed
 	if needsJob {
+		// Initial collection of metrics
+		e := &redskyv1alpha1.Experiment{}
+		if err = r.Get(ctx, trial.ExperimentNamespacedName(), e); err != nil {
+			return ctrl.Result{}, err
+		}
+		for i := range e.Spec.Metrics {
+			if e.Spec.Metrics[i].Type == redskyv1alpha1.MetricPrometheus {
+
+			}
+		}
+
+		// Create the trial run job
 		job := createJob(trial)
 		if err := controllerutil.SetControllerReference(trial, job, r.Scheme); err != nil {
 			return ctrl.Result{}, err
@@ -258,6 +278,7 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				captureError = err
 			} else {
 				v.AttemptsRemaining = 0
+				// TODO Apply the delta expression here (to the float) if necessary
 				v.Value = strconv.FormatFloat(value, 'f', -1, 64)
 				if stddev != 0 {
 					v.Error = strconv.FormatFloat(stddev, 'f', -1, 64)
