@@ -146,32 +146,42 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	// Wait for a stable (ish) state
+	var waitForStability time.Duration
 	for i := range trial.Spec.PatchOperations {
 		p := &trial.Spec.PatchOperations[i]
 		if !p.Wait {
+			// We have already reached stability for this patch (eventually the whole list should be in this state)
 			continue
 		}
 
-		var requeueAfter time.Duration
 		if err := redskytrial.WaitForStableState(r.Client, ctx, log, p); err != nil {
+			// Record the largest retry delay, but continue through the list looking for show stoppers
 			if serr, ok := err.(*redskytrial.StabilityError); ok && serr.RetryAfter > 0 {
-				// Mark the trial as not stable and wait
-				redskytrial.ApplyCondition(&trial.Status, redskyv1alpha1.TrialStable, corev1.ConditionFalse, "Waiting", err.Error(), &now)
-				requeueAfter = serr.RetryAfter
-			} else {
-				// No retry delay specified, fail the whole trial
-				redskytrial.ApplyCondition(&trial.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "WaitFailed", err.Error(), &now)
+				if serr.RetryAfter > waitForStability {
+					redskytrial.ApplyCondition(&trial.Status, redskyv1alpha1.TrialStable, corev1.ConditionFalse, "Waiting", err.Error(), &now)
+					waitForStability = serr.RetryAfter
+				}
+				continue
 			}
-		} else {
-			// We have successfully waited for one patch so we are no longer "unknown"
-			redskytrial.ApplyCondition(&trial.Status, redskyv1alpha1.TrialStable, corev1.ConditionFalse, "", "", &now)
-			p.Wait = false
+
+			// Fail the trial since we couldn't detect a stable state
+			redskytrial.ApplyCondition(&trial.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "WaitFailed", err.Error(), &now)
+			return r.forTrialUpdate(trial, ctx, log)
 		}
 
-		// Inject the retry delay if necessary
+		// Mark that we have successfully waited for this patch
+		p.Wait = false
+
+		// Either overwrite the "waiting" reason from an earlier iteration or change the status from "unknown" to "false"
+		redskytrial.ApplyCondition(&trial.Status, redskyv1alpha1.TrialStable, corev1.ConditionFalse, "", "", &now)
+		return r.forTrialUpdate(trial, ctx, log)
+	}
+
+	// All remaining "unwaited" patches require a delay; update the trial and adjust the response
+	if waitForStability > 0 {
 		rr, re := r.forTrialUpdate(trial, ctx, log)
-		if re == nil && requeueAfter > 0 {
-			rr.RequeueAfter = requeueAfter
+		if re == nil {
+			rr.RequeueAfter = waitForStability
 		}
 		return rr, re
 	}
