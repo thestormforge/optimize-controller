@@ -115,7 +115,7 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 	if experiment.Status.ActiveTrials != activeTrials {
 		experiment.Status.ActiveTrials = activeTrials
 		err := r.Update(ctx, experiment)
-		return ctrl.Result{}, err
+		return util.RequeueConflict(ctrl.Result{}, err)
 	}
 
 	// Add an additional trial if needed
@@ -140,7 +140,7 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 					experiment.SetReplicas(0)
 					delete(experiment.GetAnnotations(), redskyv1alpha1.AnnotationNextTrialURL) // HTTP "Gone" semantics require us to purge this
 					err := r.Update(ctx, experiment)
-					return ctrl.Result{}, err
+					return util.RequeueConflict(ctrl.Result{}, err) // It will still be "Gone" if we try again
 				}
 				return util.RequeueTrialUnavailable(ctrl.Result{}, err)
 			}
@@ -253,7 +253,7 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 			experiment.SetReplicas(0)
 		}
 		err := r.Update(ctx, experiment)
-		return ctrl.Result{}, err
+		return util.RequeueConflict(ctrl.Result{}, err)
 	}
 	return ctrl.Result{}, nil
 }
