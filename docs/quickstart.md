@@ -38,6 +38,13 @@ kustomize build github.com/redskyops/k8s-experiment//examples/simple | kubectl a
 
 With your experiment created, you can be begin running trials by suggesting parameter assignments locally. Each trial will create one or more Kubernetes jobs and will conclude by collecting a small number of metric values indicative of the performance for the trial.
 
+To run a trial with parameters assigned, run `redskyctl suggest`:
+
+<!-- @manualSuggestion @sleep -->
+```sh
+redskyctl suggest simple --assign workers=2 -A batchSize=265
+```
+
 To interactively create a new trial for the example experiment, run:
 
 > ```
@@ -46,23 +53,7 @@ To interactively create a new trial for the example experiment, run:
 > Assignment for integer parameter 'workers' [1,10]: 2
 > ```
 
-You will be prompted to enter a value for each parameter in the experiment and a new trial will be created. Alternatively, using `expect` to send the suggestion in one non-interactive command:
-
-<!-- @manualSuggestion @sleep -->
-```sh
-expect <<-EOF
-	set timeout -1
-	spawn redskyctl suggest --interactive simple
-
-	expect "Assignment for integer parameter 'batchSize'"
-	send -- "256\r"
-
-	expect "Assignment for integer parameter 'workers'"
-	send -- "2\r"
-
-	expect eof
-EOF
-```
+You will be prompted to enter a value for each parameter in the experiment and a new trial will be created.
 
 You can monitor the progress using `kubectl`:
 
