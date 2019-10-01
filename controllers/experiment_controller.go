@@ -120,7 +120,7 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 
 	// Add an additional trial if needed
 	if nextTrialURL := experiment.GetAnnotations()[redskyv1alpha1.AnnotationNextTrialURL]; nextTrialURL != "" {
-		// Find an available namespace
+		// Find an available namespace (this will check active trials against the desired replica count)
 		if namespace, err := redskyexperiment.FindAvailableNamespace(r, experiment, list.Items); err != nil {
 			return ctrl.Result{}, err
 		} else if namespace != "" {
@@ -201,7 +201,7 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 					return ctrl.Result{}, err
 				}
 
-				return ctrl.Result{}, err
+				return ctrl.Result{}, nil
 			}
 
 			// Remove the trial finalizer once we have sent information to the server
@@ -224,7 +224,7 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 				return util.RequeueConflict(ctrl.Result{}, err)
 			}
 		} else if !experiment.DeletionTimestamp.IsZero() {
-			// The experiment was deleted before the trial finished, explicitly delete the trial so setup tasks can be cleaned up
+			// If experiment was deleted before a trial finished, explicitly delete the trial so we don't need to wait for it to finish
 			err = r.Delete(ctx, trial)
 			return ctrl.Result{}, err
 		}
@@ -248,9 +248,6 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 			}
 			delete(experiment.GetAnnotations(), redskyv1alpha1.AnnotationExperimentURL)
 			delete(experiment.GetAnnotations(), redskyv1alpha1.AnnotationNextTrialURL)
-
-			// Set the replicas to 0 to prevent us from recreating the remote experiment on the subsequent reconciliation
-			experiment.SetReplicas(0)
 		}
 		err := r.Update(ctx, experiment)
 		return util.RequeueConflict(ctrl.Result{}, err)
