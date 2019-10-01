@@ -490,8 +490,13 @@ func createJob(trial *redskyv1alpha1.Trial) *batchv1.Job {
 	if len(job.Labels) == 0 {
 		job.Labels = trial.GetDefaultLabels()
 	}
+	if len(job.Spec.Template.Labels) == 0 {
+		job.Spec.Template.Labels = trial.GetDefaultLabels()
+	}
 
-	// TODO Also add the "trial" label to the pod template?
+	// Always provide experiment labels
+	job.Labels[redskyv1alpha1.LabelExperiment] = trial.ExperimentNamespacedName().Name
+	job.Spec.Template.Labels[redskyv1alpha1.LabelExperiment] = trial.ExperimentNamespacedName().Name
 
 	// The default restart policy for a pod is not acceptable in the context of a job
 	if job.Spec.Template.Spec.RestartPolicy == "" {
