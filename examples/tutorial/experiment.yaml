@@ -48,7 +48,7 @@ spec:
   - name: speed
     minimize: false
     type: prometheus
-    query: "scalar(sum by (cluster)(rate(elasticsearch_indices_docs_primary[{{ .Range }}])))"
+    query: "scalar(sum(rate(elasticsearch_indices_docs_primary[{{ .Range }}])))"
     selector:
       matchLabels:
         app: prometheus
