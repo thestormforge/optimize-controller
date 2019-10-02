@@ -88,7 +88,11 @@ func FindAvailableNamespace(r client.Reader, experiment *redskyv1alpha1.Experime
 	inuse := make(map[string]bool, len(trials))
 	for i := range trials {
 		if redskytrial.IsTrialActive(&trials[i]) {
-			inuse[trials[i].Namespace] = true
+			if trials[i].Spec.TargetNamespace != "" {
+				inuse[trials[i].Spec.TargetNamespace] = true
+			} else {
+				inuse[trials[i].Namespace] = true
+			}
 		}
 	}
 
