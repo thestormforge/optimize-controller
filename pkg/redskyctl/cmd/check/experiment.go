@@ -158,7 +158,7 @@ func checkMetric(lint Linter, metric *redskyv1alpha1.Metric) {
 		lint.Error().Invalid("scheme", metric.Scheme, "http", "https")
 	}
 
-	if _, _, err := template.NewTemplateEngine().RenderMetricQueries(metric, &redskyv1alpha1.Trial{}); err != nil {
+	if _, _, err := template.NewTemplateEngine().RenderMetricQueries(metric, &redskyv1alpha1.Trial{}, nil); err != nil {
 		lint.Error().Failed("query", err)
 	}
 
