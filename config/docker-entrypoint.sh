@@ -9,16 +9,14 @@ if [ "$1" == "chart" ] ; then
 fi
 
 
-# Require a kustomization.yaml file to exist for edits
-if [ ! -e kustomization.yaml ] ; then
+# Update the "base" root (default from Dockerfile) to account for mounted files
+if [ -e kustomization.yaml ] ; then
+    find . -type f \( -name "*_resource.yaml" -o -path "./resources/*.yaml" \) -exec kustomize edit add resource {} +
+    find . -type f \( -name "*_patch.yaml" -o -path "./patches/*.yaml" \) -exec kustomize edit add patch {} +
+else
     echo "Error: unable to find 'kustomization.yaml' in directory '$(pwd)'"
+    exit 1
 fi
-
-
-# Update the Kustomization to account for mounted files
-# This only applies to the "base" (default from Dockerfile) root, so do it before processing arguments
-find . -type f \( -name "*_resource.yaml" -o -path "./resources/*.yaml" \) -exec kustomize edit add resource {} +
-find . -type f \( -name "*_patch.yaml" -o -path "./patches/*.yaml" \) -exec kustomize edit add patch {} +
 
 
 # Process arguments
