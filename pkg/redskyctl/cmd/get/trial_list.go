@@ -240,6 +240,8 @@ func (t *trialTableMeta) ExtractValue(obj interface{}, column string) (string, e
 			switch column {
 			case "name":
 				return fmt.Sprintf("%s-%d", t.name, o.Number), nil
+			case "status":
+				return string(o.Status), nil
 			case "labels":
 				var l []string
 				for k, v := range o.Labels {
@@ -267,7 +269,7 @@ func (t *trialTableMeta) Columns(outputFormat string) []string {
 			columns = append(columns, "metric_"+m)
 		}
 	default:
-		columns = append(columns, "name")
+		columns = append(columns, "name", "status")
 	}
 	return columns
 }
