@@ -24,7 +24,9 @@ import (
 	"time"
 
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
@@ -48,6 +50,8 @@ type MetricData struct {
 	Range string
 	// Trial assignments
 	Values map[string]int64
+	// List of pods from the trial namespace (only available for "pods" type metrics)
+	Pods *corev1.PodList
 }
 
 func NewPatchData(t *redskyv1alpha1.Trial) *PatchData {
@@ -67,7 +71,7 @@ func NewPatchData(t *redskyv1alpha1.Trial) *PatchData {
 	return d
 }
 
-func NewMetricData(t *redskyv1alpha1.Trial) *MetricData {
+func NewMetricData(t *redskyv1alpha1.Trial, target runtime.Object) *MetricData {
 	d := &MetricData{}
 
 	t.ObjectMeta.DeepCopyInto(&d.Trial)
@@ -75,6 +79,10 @@ func NewMetricData(t *redskyv1alpha1.Trial) *MetricData {
 	d.Values = make(map[string]int64, len(t.Spec.Assignments))
 	for _, a := range t.Spec.Assignments {
 		d.Values[a.Name] = a.Value
+	}
+
+	if pods, ok := target.(*corev1.PodList); ok {
+		d.Pods = pods
 	}
 
 	// Override the namespace with the target namespace
@@ -132,8 +140,8 @@ func (e *TemplateEngine) RenderHelmValue(helmValue *redskyv1alpha1.HelmValue, tr
 }
 
 // RenderMetricQueries returns the metric query and the metric error query
-func (e *TemplateEngine) RenderMetricQueries(metric *redskyv1alpha1.Metric, trial *redskyv1alpha1.Trial) (string, string, error) {
-	data := NewMetricData(trial)
+func (e *TemplateEngine) RenderMetricQueries(metric *redskyv1alpha1.Metric, trial *redskyv1alpha1.Trial, target runtime.Object) (string, string, error) {
+	data := NewMetricData(trial, target)
 	b1, err := e.render(metric.Name, metric.Query, data)
 	if err != nil {
 		return "", "", nil

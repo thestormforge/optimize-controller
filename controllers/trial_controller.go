@@ -247,6 +247,12 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			}
 		}
 
+		// Determine the namespace used to get metric targets
+		ns := trial.Spec.TargetNamespace
+		if ns == "" {
+			ns = trial.Namespace
+		}
+
 		// Look for metrics that have not been collected yet
 		for _, m := range e.Spec.Metrics {
 			v := findOrCreateValue(trial, m.Name)
@@ -256,7 +262,7 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 			// Capture the metric
 			var captureError error
-			if target, err := getMetricTarget(r, ctx, &m); err != nil {
+			if target, err := getMetricTarget(r, ctx, ns, &m); err != nil {
 				captureError = err
 			} else if value, stddev, err := metric.CaptureMetric(&m, trial, target); err != nil {
 				if merr, ok := err.(*metric.CaptureError); ok && merr.RetryAfter > 0 {
@@ -401,13 +407,23 @@ func checkAssignments(trial *redskyv1alpha1.Trial, experiment *redskyv1alpha1.Ex
 	return nil
 }
 
-func getMetricTarget(r client.Reader, ctx context.Context, m *redskyv1alpha1.Metric) (runtime.Object, error) {
+func getMetricTarget(r client.Reader, ctx context.Context, namespace string, m *redskyv1alpha1.Metric) (runtime.Object, error) {
 	switch m.Type {
 	case redskyv1alpha1.MetricLocal, "":
 		// There is no target for local metrics
 		return nil, nil
+	case redskyv1alpha1.MetricPods:
+		// Use the selector to get a list of pods
+		target := &corev1.PodList{}
+		if sel, err := util.MatchingSelector(m.Selector); err != nil {
+			return nil, err
+		} else if err := r.List(ctx, target, client.InNamespace(namespace), sel); err != nil {
+			return nil, err
+		}
+		return target, nil
 	case redskyv1alpha1.MetricPrometheus, redskyv1alpha1.MetricJSONPath:
 		// Both Prometheus and JSONPath target a service
+		// NOTE: This purposely ignores the namespace in case Prometheus is running cluster wide
 		target := &corev1.ServiceList{}
 		if sel, err := util.MatchingSelector(m.Selector); err != nil {
 			return nil, err

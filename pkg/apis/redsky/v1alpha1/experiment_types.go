@@ -61,6 +61,9 @@ const (
 	// Local metrics are Go Templates evaluated against the trial itself. No external service is consulted, primarily
 	// useful for extracting start and completion times.
 	MetricLocal MetricType = "local"
+	// Pod metrics are similar to local metrics, however the list of pods in the trial namespace matched by the selector
+	// is also available.
+	MetricPods = "pods"
 	// Prometheus metrics issue PromQL queries to a matched service. Queries MUST evaluate to a scalar value.
 	MetricPrometheus = "prometheus"
 	// JSON path metrics fetch a JSON resource from the matched service. Queries are JSON path expression evaluated against the resource.

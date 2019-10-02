@@ -24,6 +24,7 @@ The following variables are defined for use in query processing:
 | `StartTime`       | `time`             | The adjusted start time of the trial run job  |
 | `CompletionTime`  | `time`             | The completion time of the trial run job      |
 | `Range`           | `string`           | The duration of the trial run job, e.g. "5s"  |
+| `Pods`            | `PodList`          | The list of pods in the trial namespace       |
 
 ### Local Collection Type
 
@@ -37,6 +38,10 @@ The `"local"` (default) type simply parses the `query` field as a floating point
 ```
 
 In this example, the `duration` template function is used to subtract the start time from the completion time of the trial.
+
+### Pods Collection Type
+
+The `"pods"` collection type is similar to the local type in that the evaluated query is expected to be a floating point number. However, the template data is given a list of pod definitions matching the metric selector.
 
 ### Prometheus Collection Type
 

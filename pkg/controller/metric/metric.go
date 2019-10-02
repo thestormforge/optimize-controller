@@ -53,14 +53,16 @@ func CaptureMetric(metric *redskyv1alpha1.Metric, trial *redskyv1alpha1.Trial, t
 
 	// Execute the query as a template against the current state of the trial
 	var err error
-	if metric.Query, metric.ErrorQuery, err = template.NewTemplateEngine().RenderMetricQueries(metric, trial); err != nil {
+	if metric.Query, metric.ErrorQuery, err = template.NewTemplateEngine().RenderMetricQueries(metric, trial, target); err != nil {
 		return 0, 0, err
 	}
 
 	// Capture the value based on the metric type
 	switch metric.Type {
-	case redskyv1alpha1.MetricLocal, "":
-		return captureLocalMetric(metric)
+	case redskyv1alpha1.MetricLocal, redskyv1alpha1.MetricPods, "":
+		// Just parse the query as a float
+		value, err := strconv.ParseFloat(metric.Query, 64)
+		return value, 0, err
 	case redskyv1alpha1.MetricPrometheus:
 		return capturePrometheusMetric(metric, target, trial.Status.CompletionTime.Time)
 	case redskyv1alpha1.MetricJSONPath:
@@ -68,12 +70,6 @@ func CaptureMetric(metric *redskyv1alpha1.Metric, trial *redskyv1alpha1.Trial, t
 	default:
 		return 0, 0, fmt.Errorf("unknown metric type: %s", metric.Type)
 	}
-}
-
-func captureLocalMetric(m *redskyv1alpha1.Metric) (float64, float64, error) {
-	// Just parse the query as a float
-	value, err := strconv.ParseFloat(m.Query, 64)
-	return value, 0, err
 }
 
 func toURL(target runtime.Object, m *redskyv1alpha1.Metric) ([]string, error) {
