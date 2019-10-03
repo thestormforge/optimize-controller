@@ -519,6 +519,11 @@ func createJob(trial *redskyv1alpha1.Trial) *batchv1.Job {
 		job.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyNever
 	}
 
+	// The default backoff limit will restart the trial job which is unlikely to produce desirable results
+	if job.Spec.BackoffLimit == nil {
+		job.Spec.BackoffLimit = new(int32)
+	}
+
 	// Containers cannot be empty, inject a sleep by default
 	if len(job.Spec.Template.Spec.Containers) == 0 {
 		s := trial.Spec.ApproximateRuntime
