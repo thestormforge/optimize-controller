@@ -20,7 +20,7 @@ For more details, see [the installation guide](install.md).
 
 Once you have the Red Sky Ops Tool you can initialize the manager in your cluster:
 
-<!-- @init -->
+<!-- @init @test -->
 ```sh
 redskyctl init
 ```
@@ -29,7 +29,7 @@ redskyctl init
 
 Generally you will want to write your own experiments to run trials on your own applications. For the purposes of this guide we can use the simple example found in the `k8s-experiment` [repository on GitHub](https://github.com/redskyops/k8s-experiment/tree/master/examples/simple):
 
-<!-- @apply -->
+<!-- @apply @test -->
 ```sh
 kustomize build github.com/redskyops/k8s-experiment//examples/simple | kubectl apply -f -
 ```
@@ -40,7 +40,7 @@ With your experiment created, you can be begin running trials by suggesting para
 
 To run a trial with parameters assigned, run `redskyctl suggest`:
 
-<!-- @manualSuggestion @sleep -->
+<!-- @manualSuggestion @test @sleep -->
 ```sh
 redskyctl suggest simple --assign workers=2 -A batchSize=265
 ```
@@ -57,9 +57,9 @@ You will be prompted to enter a value for each parameter in the experiment and a
 
 You can monitor the progress using `kubectl`:
 
-<!-- @getTrials -->
+<!-- @getTrials @test -->
 ```sh
-kubectl get trials
+kubectl get trials | grep simple
 ```
 
 When running interactive trials in a single namespace, be sure only trial is active at a time.
@@ -68,7 +68,7 @@ When running interactive trials in a single namespace, be sure only trial is act
 
 To clean up the data from your experiment, simply delete the experiment. The delete will cascade to the associated trials and other Kubernetes objects:
 
-<!-- @deleteExperiment -->
+<!-- @deleteExperiment @test -->
 ```sh
 kubectl delete experiment simple
 ```
