@@ -27,6 +27,11 @@ func IgnoreNotFound(err error) error {
 	if apierrs.IsNotFound(err) {
 		return nil
 	}
+	if rserr, ok := err.(*redskyapi.Error); ok {
+		if rserr.Type == redskyapi.ErrExperimentNotFound || rserr.Type == redskyapi.ErrTrialNotFound {
+			return nil
+		}
+	}
 	return err
 }
 

@@ -218,8 +218,12 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 		} else if !trial.DeletionTimestamp.IsZero() {
 			// The trial was explicitly deleted before it finished, remove the finalizer from the trial so it can be garbage collected
 			if util.RemoveFinalizer(trial, redskyexperiment.ExperimentFinalizer) {
-				// TODO Notify the server that the trial was abandoned (ignore errors in case the whole experiment was abandoned)
-				log.Info("Trial deleted before finishing", "name", trial.Name, "namespace", trial.Namespace)
+				if reportTrialURL := trial.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL]; reportTrialURL != "" {
+					if err := r.RedSkyAPI.AbandonRunningTrial(ctx, reportTrialURL); util.IgnoreNotFound(err) != nil {
+						return ctrl.Result{}, err
+					}
+					delete(trial.GetAnnotations(), redskyv1alpha1.AnnotationReportTrialURL)
+				}
 				err := r.Update(ctx, trial)
 				return util.RequeueConflict(ctrl.Result{}, err)
 			}
@@ -241,10 +245,8 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 	if !experiment.DeletionTimestamp.IsZero() && util.RemoveFinalizer(experiment, redskyexperiment.ExperimentFinalizer) {
 		// Also delete the experiment on the server if necessary
 		if experimentURL := experiment.GetAnnotations()[redskyv1alpha1.AnnotationExperimentURL]; experimentURL != "" {
-			if err := r.RedSkyAPI.DeleteExperiment(ctx, experimentURL); err != nil {
-				if rserr, ok := err.(*redskyapi.Error); ok && rserr.Type != redskyapi.ErrExperimentNotFound {
-					return ctrl.Result{}, err
-				}
+			if err := r.RedSkyAPI.DeleteExperiment(ctx, experimentURL); util.IgnoreNotFound(err) != nil {
+				return ctrl.Result{}, err
 			}
 			delete(experiment.GetAnnotations(), redskyv1alpha1.AnnotationExperimentURL)
 			delete(experiment.GetAnnotations(), redskyv1alpha1.AnnotationNextTrialURL)

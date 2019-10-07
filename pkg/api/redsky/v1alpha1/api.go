@@ -289,6 +289,7 @@ const (
 	TrialActive                = "active"
 	TrialCompleted             = "completed"
 	TrialFailed                = "failed"
+	TrialAbandoned             = "abandoned"
 )
 
 type TrialItem struct {
@@ -336,6 +337,7 @@ type API interface {
 	CreateTrial(context.Context, string, TrialAssignments) (string, error) // TODO Should this return TrialAssignments?
 	NextTrial(context.Context, string) (TrialAssignments, error)
 	ReportTrial(context.Context, string, TrialValues) error
+	AbandonRunningTrial(context.Context, string) error
 }
 
 // NewApi returns a new version specific API for the specified client
@@ -599,6 +601,27 @@ func (h *httpAPI) ReportTrial(ctx context.Context, u string, vls TrialValues) er
 		return &Error{Type: ErrTrialNotFound}
 	case http.StatusUnprocessableEntity:
 		return &Error{Type: ErrTrialInvalid}
+	default:
+		return unexpected(resp, body)
+	}
+}
+
+func (h *httpAPI) AbandonRunningTrial(ctx context.Context, u string) error {
+	req, err := http.NewRequest(http.MethodDelete, u, nil)
+	if err != nil {
+		return err
+	}
+
+	resp, body, err := h.client.Do(ctx, req)
+	if err != nil {
+		return err
+	}
+
+	switch resp.StatusCode {
+	case http.StatusNoContent:
+		return nil
+	case http.StatusNotFound:
+		return &Error{Type: ErrTrialNotFound}
 	default:
 		return unexpected(resp, body)
 	}
