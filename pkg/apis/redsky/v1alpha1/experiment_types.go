@@ -66,6 +66,8 @@ const (
 	MetricPods = "pods"
 	// Prometheus metrics issue PromQL queries to a matched service. Queries MUST evaluate to a scalar value.
 	MetricPrometheus = "prometheus"
+	// Datadog metrics issue queries to the Datadog service. Requires API and application key configuration.
+	MetricDatadog = "datadog"
 	// JSON path metrics fetch a JSON resource from the matched service. Queries are JSON path expression evaluated against the resource.
 	MetricJSONPath = "jsonpath"
 	// TODO "regex"?

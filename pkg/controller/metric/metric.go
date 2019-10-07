@@ -65,6 +65,8 @@ func CaptureMetric(metric *redskyv1alpha1.Metric, trial *redskyv1alpha1.Trial, t
 		return value, 0, err
 	case redskyv1alpha1.MetricPrometheus:
 		return capturePrometheusMetric(metric, target, trial.Status.CompletionTime.Time)
+	case redskyv1alpha1.MetricDatadog:
+		return captureDatadogMetric(metric.Query, trial.Status.StartTime.Time, trial.Status.CompletionTime.Time)
 	case redskyv1alpha1.MetricJSONPath:
 		return captureJSONPathMetric(metric, target)
 	default:
