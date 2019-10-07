@@ -383,6 +383,9 @@ func NewBootstrapInitConfig(o *SetupOptions, clientConfig *api.Config) (*Bootstr
 			},
 		},
 
+		// IMPORTANT: Changes to the patching role and the default need to be reflected in the static configuration
+		// maintained for the Helm chart (patching_role.yaml and rbac_footer.txt)
+
 		// This role allows individual deployments more flexibility in defining what can be patched by manager
 		PatchingClusterRole: rbacv1.ClusterRole{
 			ObjectMeta: metav1.ObjectMeta{

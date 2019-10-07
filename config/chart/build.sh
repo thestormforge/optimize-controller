@@ -65,6 +65,8 @@ cd "$WORKSPACE/rbac"
 kustomize edit add label "app.kubernetes.io/name:redskyops"
 kustomize edit set namespace "redsky-system"
 kustomize edit set nameprefix "redsky-"
+kustomize edit add resource "patching_role.yaml"
+kustomize edit add resource "patching_role_binding.yaml"
 kustomize edit remove resource "auth_proxy_service.yaml"
 
 
