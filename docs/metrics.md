@@ -53,6 +53,12 @@ When using the Prometheus collection type, the `selector` field is used to deter
 
 Prometheus connection information can be further refined using the `scheme` (must be `"https"` or `"http"`, the later of which is used by default), the `port` (a port number or name specified on the service, if the service only specifies one port this can be omitted) and the `path` (the context root of the Prometheus API).
 
+### Datadog Collection Type
+
+The `"datadog"` collection can be used to execute metric queries against the Datadog API.
+
+In order to authenticate to the Datadog API, the `DATADOG_API_KEY` and `DATADOG_APP_KEY` environment variables must be set on the manager deployment.
+
 ### JSONPath Collection Type
 
 The `"jsonpath"` collection type fetches a JSON payload from an arbitrary HTTP endpoint and evaluates a [Kubernetes JSONPath](https://kubernetes.io/docs/reference/kubectl/jsonpath/) expression from the `query` field against it.
