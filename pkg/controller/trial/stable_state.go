@@ -149,10 +149,10 @@ func checkPods(list *corev1.PodList) error {
 				return &StabilityError{Reason: c.Reason}
 			}
 		}
-		if err := checkContainerStatus(p.Status.InitContainerStatuses); err != nil {
+		if err := checkContainerStatus(p.Status.InitContainerStatuses, p.Spec.RestartPolicy); err != nil {
 			return err
 		}
-		if err := checkContainerStatus(p.Status.ContainerStatuses); err != nil {
+		if err := checkContainerStatus(p.Status.ContainerStatuses, p.Spec.RestartPolicy); err != nil {
 			return err
 		}
 		for _, c := range p.Status.Conditions {
@@ -164,10 +164,16 @@ func checkPods(list *corev1.PodList) error {
 	return nil
 }
 
-func checkContainerStatus(cs []corev1.ContainerStatus) error {
+func checkContainerStatus(cs []corev1.ContainerStatus, restartPolicy corev1.RestartPolicy) error {
 	for _, c := range cs {
-		if !c.Ready && c.RestartCount > 0 && c.State.Waiting != nil && c.State.Waiting.Reason == "CrashLoopBackOff" {
+		if c.Ready {
+			continue
+		}
+		if c.RestartCount > 0 && c.State.Waiting != nil && c.State.Waiting.Reason == "CrashLoopBackOff" {
 			return &StabilityError{Reason: c.State.Waiting.Reason}
+		}
+		if restartPolicy == corev1.RestartPolicyNever && c.RestartCount == 0 && c.State.Terminated != nil && c.State.Terminated.Reason == "Error" {
+			return &StabilityError{Reason: c.State.Terminated.Reason}
 		}
 	}
 	return nil
