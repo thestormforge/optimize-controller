@@ -7,10 +7,12 @@ resources:
 - ../default
 
 patchesStrategicMerge:
-- label_patch.yaml
 - manager_patch.yaml
 
 secretGenerator:
 - name: client-config
   files:
   - client.yaml
+
+transformers:
+- metadata_labels.yaml
