@@ -199,7 +199,8 @@ func NewBootstrapInitConfig(o *SetupOptions, clientConfig *api.Config) (*Bootstr
 	allowPrivilegeEscalation := false
 	runAsNonRoot := true
 
-	// Note that we cannot scope "create" roles to a particular resource name
+	// Verbs used by `kubectl apply` during installation
+	applyVerbs := []string{"get", "create", "patch", "delete"}
 
 	b := &BootstrapConfig{
 		// This is the namespace ultimately used by the product
@@ -218,7 +219,10 @@ func NewBootstrapInitConfig(o *SetupOptions, clientConfig *api.Config) (*Bootstr
 			},
 		},
 
-		// Bootstrap cluster role bound to the default service account of the namespace
+		// The bootstrap cluster role serves two purposes: first we must be able to create cluster scoped objects for
+		// the application (namespace and CRD); second, we must create cluster roles for the application which means
+		// we would either need escalation privileges or at least as many permissions as we are going to grant to the
+		// application roles.
 		ClusterRole: rbacv1.ClusterRole{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: name,
@@ -230,11 +234,51 @@ func NewBootstrapInitConfig(o *SetupOptions, clientConfig *api.Config) (*Bootstr
 				},
 			},
 			Rules: []rbacv1.PolicyRule{
+				// Application objects
 				{
-					Verbs:     []string{rbacv1.VerbAll},
-					APIGroups: []string{rbacv1.APIGroupAll},
-					Resources: []string{rbacv1.ResourceAll},
+					APIGroups: []string{""},
+					Resources: []string{"namespaces"},
+					Verbs:     applyVerbs,
 				},
+				{
+					APIGroups: []string{"apiextensions.k8s.io"},
+					Resources: []string{"customresourcedefinitions"},
+					Verbs:     applyVerbs,
+				},
+				{
+					APIGroups: []string{"rbac.authorization.k8s.io"},
+					Resources: []string{"clusterroles", "clusterrolebindings"},
+					Verbs:     applyVerbs,
+				},
+				// Manager Role (role.yaml)
+				{
+					APIGroups: []string{""},
+					Resources: []string{"namespaces", "pods", "services"},
+					Verbs:     []string{"list"},
+				},
+				{
+					APIGroups: []string{"batch", "extensions"},
+					Resources: []string{"jobs", "jobs/status"},
+					Verbs:     []string{rbacv1.VerbAll},
+				},
+				{
+					APIGroups: []string{"redskyops.dev"},
+					Resources: []string{rbacv1.ResourceAll},
+					Verbs:     []string{rbacv1.VerbAll},
+				},
+				// Authentication Proxy Role (auth_proxy_role.yaml)
+				{
+					APIGroups: []string{"authentication.k8s.io"},
+					Resources: []string{"tokenreviews"},
+					Verbs:     []string{"create"},
+				},
+				{
+					APIGroups: []string{"authorization.k8s.io"},
+					Resources: []string{"subjectaccessreviews"},
+					Verbs:     []string{"create"},
+				},
+				// Patching Roles (patching_role.yaml, rbac_footer.txt)
+				// ...added programmatically below
 			},
 		},
 		ClusterRoleBinding: rbacv1.ClusterRoleBinding{
@@ -261,7 +305,7 @@ func NewBootstrapInitConfig(o *SetupOptions, clientConfig *api.Config) (*Bootstr
 			},
 		},
 
-		// Bootstrap role bound to the default service account of the namespace
+		// The bootstrap role is used by the setuptools container to actually install the application
 		Role: rbacv1.Role{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: name,
@@ -274,9 +318,14 @@ func NewBootstrapInitConfig(o *SetupOptions, clientConfig *api.Config) (*Bootstr
 			},
 			Rules: []rbacv1.PolicyRule{
 				{
-					Verbs:     []string{rbacv1.VerbAll},
-					APIGroups: []string{rbacv1.APIGroupAll},
-					Resources: []string{rbacv1.ResourceAll},
+					APIGroups: []string{""},
+					Resources: []string{"secrets", "services"},
+					Verbs:     applyVerbs,
+				},
+				{
+					APIGroups: []string{"apps"},
+					Resources: []string{"deployments"},
+					Verbs:     applyVerbs,
 				},
 			},
 		},
@@ -450,6 +499,9 @@ func NewBootstrapInitConfig(o *SetupOptions, clientConfig *api.Config) (*Bootstr
 			},
 		},
 	}
+
+	// Make sure the bootstrap cluster role has all the rules needed to create the default cluster role
+	b.ClusterRole.Rules = append(b.ClusterRole.Rules, b.DefaultPatchingClusterRole.Rules...)
 
 	// Create, but do not execute the job
 	if o.Bootstrap && !o.DryRun {
