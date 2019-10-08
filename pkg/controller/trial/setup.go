@@ -378,6 +378,7 @@ func newSetupJob(trial *redskyv1alpha1.Trial, mode string) (*batchv1.Job, error)
 			helmOpts = append(helmOpts, "--namespace", namespace)
 
 			c.Env = append(c.Env, corev1.EnvVar{Name: "CHART", Value: task.HelmChart})
+			c.Env = append(c.Env, corev1.EnvVar{Name: "CHART_VERSION", Value: task.HelmChartVersion})
 			c.Env = append(c.Env, corev1.EnvVar{Name: "HELM_OPTS", Value: strings.Join(helmOpts, " ")})
 
 			for _, hvf := range task.HelmValuesFrom {

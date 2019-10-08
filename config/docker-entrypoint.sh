@@ -75,7 +75,7 @@ if [ -n "$CHART" ] ; then
     find . -type f -name "*patch.yaml" -exec kustomize edit add patch {} +
     values=$(find . -type f -name "*values.yaml" -exec echo -n "--values {} " \;)
 
-    helm fetch "$CHART"
+    helm fetch "$CHART" --version "$CHART_VERSION"
     for c in *.tgz ; do
         # TODO HELM_OPTS can't be trusted, how do we sanitize that?
         eval helm template $values $HELM_OPTS $c > ${c%%.tgz}.yaml 2> /dev/null

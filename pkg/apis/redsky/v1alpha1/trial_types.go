@@ -90,6 +90,8 @@ type SetupTask struct {
 	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
 	// The Helm chart reference to release as part of this task
 	HelmChart string `json:"helmChart,omitempty"`
+	// The Helm chart version, empty means use the latest
+	HelmChartVersion string `json:"helmChartVersion,omitempty"`
 	// The Helm values to set, ignored unless helmChart is also set
 	HelmValues []HelmValue `json:"helmValues,omitempty"`
 	// The Helm values, ignored unless helmChart is also set
