@@ -8,7 +8,7 @@ When used with a Red Sky Ops API server, the Red Sky Ops Manager tunes your Kube
 
 Although Red Sky Ops was developed to tune performance, it can run non-performance-related experiments on your application as well. This documentation describes the concepts and capabilities of Red Sky Ops generically, and typically includes performance-related examples for relevant concepts.
 
-*Using Red Sky Ops in a novel way? Encounter an issue with these docs? We'd love to hear from you! File an issue on [GitHub](https://github.com/redskyops/k8s-experiment/issues)" or reach out on [Twitter](https://twitter.com/redskyops1)*
+*Using Red Sky Ops in a novel way? Encounter an issue with these docs? We'd love to hear from you! File an issue on [GitHub](https://github.com/redskyops/k8s-experiment/issues)" or reach out on [Twitter](https://twitter.com/redskyops)*
 
 ## Motivation: Managing Resources in Kubernetes
 
