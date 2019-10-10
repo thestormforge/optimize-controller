@@ -29,3 +29,11 @@ An **Experiment** is the basic unit of organization in Red Sky Ops. The purpose 
 **Trials** are single runs of an experiment, with values assigned to every parameter. An experiment typically consists of many trials.
 
 **Metrics** are the output or outcome of a trial. They are used to measure the result of a particular choice of parameters. A metric is a numeric value that an experiment attempts to minimize (like cost in dollars) or maximize (like throughput) by adjusting the values of parameters. For in-depth explanation, see the [metrics](metrics.md) page.
+
+## Timeline
+
+An experiment and its trials run in several steps, coordinated by the Red Sky Ops Manager: _(click to view larger)_
+
+[![Timeline](images/timeline.png)](images/timeline.png)
+
+Note: If the Manager is not configured to use a Red Sky Ops Server, you can suggest trial configurations manually using `redskyctl suggest`. This replaces the _Suggest Assignments_ step in the diagram.
