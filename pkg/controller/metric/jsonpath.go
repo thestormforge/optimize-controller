@@ -71,7 +71,7 @@ func captureOneJSONPathMetric(url, name, query string) (float64, float64, error)
 
 	// Unmarshal as generic JSON
 	data := make(map[string]interface{})
-	if err := json.NewDecoder(req.Body).Decode(&data); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
 		return 0, 0, err
 	}
 
