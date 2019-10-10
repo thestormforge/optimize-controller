@@ -2,6 +2,16 @@
 
 The experiment lifecycle consists largely of creating an experiment and iterating over trials, each operating within their own namespace on the cluster. The number of concurrently running trials is determined by the availability of namespaces to run trials in.
 
+## Timeline
+
+An experiment and its trials run in several steps, coordinated by the Red Sky Ops Manager: _(click to view larger)_
+
+[![Timeline](images/timeline.png)](images/timeline.png)
+
+Note: If the Manager is not configured to use a Red Sky Ops Server, you can suggest trial configurations manually using `redskyctl suggest`. The Experiment process then starts with the _Create Trial_ step instead of _Reconcile Experiment_.
+
+(`redskyctl suggest` can still be used with a server configured, but the suggestion will be sent to the server to be queued.)
+
 ## Experiment Creation
 
 An experiment manifest is written and loaded into the cluster. When using the Enterprise product this will synchronize the cluster state with the remote Red Sky API server and begin requesting suggested parameter assignments; otherwise the system will be idle until suggestions are manually provided.
