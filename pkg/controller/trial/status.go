@@ -43,6 +43,13 @@ func IsTrialActive(trial *redskyv1alpha1.Trial) bool {
 			return true
 		}
 	}
+
+	// We do not have a condition indicating that the trial has been reported so we need to check
+	// for the presence of a reporting URL (which will be removed once the trial has been reported)
+	if trial.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL] != "" {
+		return true
+	}
+
 	return false
 }
 
