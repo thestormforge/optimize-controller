@@ -218,7 +218,7 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 		} else if !trial.DeletionTimestamp.IsZero() {
 			// The trial was explicitly deleted before it finished, remove the finalizer from the trial so it can be garbage collected
 			if util.RemoveFinalizer(trial, redskyexperiment.ExperimentFinalizer) {
-				if reportTrialURL := trial.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL]; reportTrialURL != "" {
+				if reportTrialURL := trial.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL]; reportTrialURL != "" && experiment.DeletionTimestamp.IsZero() {
 					if err := r.RedSkyAPI.AbandonRunningTrial(ctx, reportTrialURL); util.IgnoreNotFound(err) != nil {
 						return ctrl.Result{}, err
 					}
