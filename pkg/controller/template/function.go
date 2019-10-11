@@ -19,10 +19,13 @@ package template
 import (
 	"fmt"
 	"reflect"
+	"strconv"
+	"strings"
 	"text/template"
 	"time"
 
 	"github.com/Masterminds/sprig"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/client-go/util/jsonpath"
 )
@@ -37,6 +40,7 @@ func FuncMap() template.FuncMap {
 		"duration": duration,
 		"percent":  percent,
 		"sum":      sum,
+		"resource": totalResources,
 	}
 
 	for k, v := range extra {
@@ -84,4 +88,34 @@ func sum(data interface{}, path string) int64 {
 		}
 	}
 	return sum
+}
+
+// total_resources uses a map of resource types to weights to calculate a weighted sum of the resources
+func totalResources(pods v1.PodList, weights string) float64 {
+	var totalResources float64
+	parsedWeights := make(map[v1.ResourceName]float64)
+
+	for _, singleEntry := range strings.Split(weights, ",") {
+		parsedEntry := strings.Split(singleEntry, "=")
+		weight, err := strconv.ParseInt(parsedEntry[1], 10, 64)
+		if err != nil {
+			return totalResources
+		}
+		switch parsedEntry[0] {
+		case "cpu":
+			parsedWeights[v1.ResourceCPU] = float64(weight) / float64(1000)
+		case "memory":
+			parsedWeights[v1.ResourceMemory] = float64(weight) / float64(1e9)
+		}
+	}
+	for _, pod := range pods.Items {
+		for _, container := range pod.Spec.Containers {
+			for resourceType, weight := range parsedWeights {
+				resourceValue := container.Resources.Requests[resourceType]
+				amount, _ := resourceValue.AsInt64()
+				totalResources += weight * float64(amount)
+			}
+		}
+	}
+	return totalResources
 }

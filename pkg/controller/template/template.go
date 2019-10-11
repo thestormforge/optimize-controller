@@ -144,11 +144,11 @@ func (e *TemplateEngine) RenderMetricQueries(metric *redskyv1alpha1.Metric, tria
 	data := NewMetricData(trial, target)
 	b1, err := e.render(metric.Name, metric.Query, data)
 	if err != nil {
-		return "", "", nil
+		return "", "", err
 	}
 	b2, err := e.render(metric.Name, metric.ErrorQuery, data)
 	if err != nil {
-		return "", "", nil
+		return "", "", err
 	}
 	return b1.String(), b2.String(), nil
 }
