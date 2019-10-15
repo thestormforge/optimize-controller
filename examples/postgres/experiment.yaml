@@ -1,0 +1,49 @@
+apiVersion: redskyops.dev/v1alpha1
+kind: Experiment
+metadata:
+  name: postgres-example-experiment
+spec:
+  parameters:
+  - name: memory
+    min: 500
+    max: 4000
+  - name: cpu
+    min: 100
+    max: 4000
+  metrics:
+  - name: duration
+    minimize: true
+    query: "{{duration .StartTime .CompletionTime}}"
+  - name: cost
+    minimize: true
+    query: "{{div (add (mul .Values.cpu 22) (mul .Values.memory 3)) 1000}}"
+  patches:
+  - targetRef:
+      kind: Deployment
+      apiVersion: apps/v1
+      name: postgres
+    patch: |
+      spec:
+        template:
+          spec:
+            containers:
+            - name: postgres
+              resources:
+                limits:
+                  cpu: "{{ .Values.cpu }}m"
+                  memory: "{{ .Values.memory }}Mi"
+                requests:
+                  cpu: "{{ .Values.cpu }}m"
+                  memory: "{{ .Values.memory }}Mi"
+  template: # trial
+    spec:
+      template: # job
+        spec:
+          template: # pod
+            spec:
+              containers:
+              - image: crunchydata/crunchy-pgbench:centos7-11.4-2.4.1
+                name: pgbench
+                envFrom:
+                - secretRef:
+                    name: postgres-secret
