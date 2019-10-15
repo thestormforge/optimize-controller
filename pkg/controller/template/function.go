@@ -18,13 +18,13 @@ package template
 
 import (
 	"fmt"
-	"reflect"
+	"strconv"
+	"strings"
 	"text/template"
 	"time"
 
 	"github.com/Masterminds/sprig"
-	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/client-go/util/jsonpath"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // FuncMap returns the functions used for template evaluation
@@ -34,9 +34,9 @@ func FuncMap() template.FuncMap {
 	delete(f, "expandenv")
 
 	extra := template.FuncMap{
-		"duration": duration,
-		"percent":  percent,
-		"sum":      sum,
+		"duration":         duration,
+		"percent":          percent,
+		"resourceRequests": resourceRequests,
 	}
 
 	for k, v := range extra {
@@ -59,29 +59,26 @@ func percent(value int64, percent int64) string {
 	return fmt.Sprintf("%d", int64(float64(value)*(float64(percent)/100.0)))
 }
 
-// sum evaluates a JSON path expression against an object and returns the sum of the results coerced to an integral value
-func sum(data interface{}, path string) int64 {
-	var sum int64
-	jp := jsonpath.New("sum")
-	if err := jp.Parse(path); err != nil {
-		return sum
+// total_resources uses a map of resource types to weights to calculate a weighted sum of the resource requests
+func resourceRequests(pods corev1.PodList, weights string) (float64, error) {
+	var totalResources float64
+	parsedWeights := make(map[string]float64)
+
+	for _, singleEntry := range strings.Split(weights, ",") {
+		parsedEntry := strings.Split(singleEntry, "=")
+		weight, err := strconv.ParseFloat(parsedEntry[1], 64)
+		if err != nil {
+			return 0.0, fmt.Errorf("unable to parse weight for %s", parsedEntry[0])
+		}
+		parsedWeights[parsedEntry[0]] = weight
 	}
-	values, err := jp.FindResults(data)
-	if err != nil {
-		return sum
-	}
-	if len(values) == 1 {
-		for i := range values[0] {
-			v := reflect.ValueOf(values[0][i].Interface())
-			if v.Kind() == reflect.Int64 {
-				sum += v.Int()
-			} else if v.CanInterface() {
-				switch vv := v.Interface().(type) {
-				case resource.Quantity:
-					sum += vv.MilliValue()
-				}
+	for _, pod := range pods.Items {
+		for _, container := range pod.Spec.Containers {
+			for resourceType, weight := range parsedWeights {
+				resourceValue := container.Resources.Requests[corev1.ResourceName(resourceType)]
+				totalResources += weight * float64(resourceValue.MilliValue())
 			}
 		}
 	}
-	return sum
+	return totalResources, nil
 }
