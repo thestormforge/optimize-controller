@@ -34,9 +34,9 @@ func FuncMap() template.FuncMap {
 	delete(f, "expandenv")
 
 	extra := template.FuncMap{
-		"duration":  duration,
-		"percent":   percent,
-		"resources": resources,
+		"duration":         duration,
+		"percent":          percent,
+		"resourceRequests": resourceRequests,
 	}
 
 	for k, v := range extra {
@@ -59,8 +59,8 @@ func percent(value int64, percent int64) string {
 	return fmt.Sprintf("%d", int64(float64(value)*(float64(percent)/100.0)))
 }
 
-// total_resources uses a map of resource types to weights to calculate a weighted sum of the resources
-func resources(pods corev1.PodList, weights string) (float64, error) {
+// total_resources uses a map of resource types to weights to calculate a weighted sum of the resource requests
+func resourceRequests(pods corev1.PodList, weights string) (float64, error) {
 	var totalResources float64
 	parsedWeights := make(map[string]float64)
 
