@@ -1,0 +1,86 @@
+# Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  labels:
+    component: postgres
+spec:
+  ports:
+    - port: 5432
+  selector:
+    component: postgres
+---
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  labels:
+    component: postgres
+spec:
+  selector:
+    matchLabels:
+      component: postgres
+  template:
+    metadata:
+      labels:
+        component: postgres
+    spec:
+      containers:
+      - image: postgres:11.1-alpine
+        name: postgres
+        securityContext:
+          runAsUser: 70 # postgres user on Alpine
+          allowPrivilegeEscalation: false
+        resources:
+          limits:
+            memory: 2000Mi
+            cpu: 1.0
+          requests:
+            memory: 2000Mi
+            cpu: 1.0
+        env:
+          - name: PGDATA
+            value: "/var/lib/postgresql/data/pgdata"
+          - name: POSTGRES_DB
+            valueFrom:
+              secretKeyRef:
+                name: postgres-secret
+                key: PG_DATABASE
+          - name: POSTGRES_USER
+            valueFrom:
+              secretKeyRef:
+                name: postgres-secret
+                key: PG_USERNAME
+          - name: POSTGRES_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: postgres-secret
+                key: PG_PASSWORD
+        ports:
+        - containerPort: 5432
+          name: postgres
+        volumeMounts:
+          - name: postgres-storage
+            mountPath: /var/lib/postgresql/data
+        readinessProbe:
+          tcpSocket:
+            port: 5432
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -h
+            - localhost
+            - -U
+            - test_user
+            - -d
+            - test_db
+          initialDelaySeconds: 10
+          periodSeconds: 5
+      volumes:
+        - name: postgres-storage
+          emptyDir: {}
