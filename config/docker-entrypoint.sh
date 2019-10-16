@@ -84,5 +84,20 @@ if [ -n "$CHART" ] ; then
 fi
 
 
+# Add trial labels to the resulting manifests so they can be more easily located
+if [ -n "$TRIAL" ]; then
+    cat <<-EOF >"trial_labels.yaml"
+		apiVersion: konjure.carbonrelay.com/v1beta1
+		kind: LabelTransformer
+		metadata:
+		  name: trial-labels
+		labels:
+		  "redskyops.dev/trial": $TRIAL
+		  "redskyops.dev/trial-role": trialResource
+		EOF
+    konjure kustomize edit add transformer trial_labels.yaml
+fi
+
+
 # Run Kustomize and pipe it into the handler
 kustomize build --enable_alpha_plugins | handle
