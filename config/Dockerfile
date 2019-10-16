@@ -12,11 +12,16 @@ ENV KUSTOMIZE_VERSION="v3.2.2" \
     KUSTOMIZE_URL="https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv3.2.2/kustomize_kustomize.v3.2.2_linux_amd64" \
     KUSTOMIZE_SHA256="c25c41d2295326d0af7c2613ff9d0ce7d3432dfc7a6426da6242213a1fd60e0e"
 
+ENV KONJURE_VERSION="v0.1.0-beta.3" \
+    KONJURE_URL="https://github.com/carbonrelay/konjure/releases/download/v0.1.0-beta.3/konjure-linux-amd64" \
+    KONJURE_SHA256="ff8cc149192b55aaabcf82709012c31acd181d4034f88054b0992ce5e8511aa0"
+
 RUN apk --no-cache add curl && \
     curl -L "$HELM_URL" | tar xz --exclude '*/*[^helm]' --strip-components=1 -C /usr/local/bin/ && \
     curl -L "$KUBECTL_URL" -o /usr/local/bin/kubectl && \
     curl -L "$KUSTOMIZE_URL" -o /usr/local/bin/kustomize && \
-    chmod +x /usr/local/bin/kubectl /usr/local/bin/kustomize && \
+    curl -L "$KONJURE_URL" -o /usr/local/bin/konjure && \
+    chmod +x /usr/local/bin/kubectl /usr/local/bin/kustomize /usr/local/bin/konjure && \
     addgroup -g 1000 -S setup && \
     adduser -u 1000 -S setup -G setup
 
@@ -34,6 +39,9 @@ RUN cd /workspace/manager && kustomize edit set image controller=${IMG} && \
     mkdir -p /workspace/base && touch /workspace/base/kustomization.yaml && \
     mkdir -p /workspace/helm && touch /workspace/helm/kustomization.yaml && \
     chown -R setup /workspace
+
+USER setup:setup
+RUN konjure kustomize init
 
 WORKDIR "/workspace/base"
 ENTRYPOINT ["/workspace/docker-entrypoint.sh"]

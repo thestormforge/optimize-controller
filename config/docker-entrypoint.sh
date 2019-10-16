@@ -85,4 +85,4 @@ fi
 
 
 # Run Kustomize and pipe it into the handler
-kustomize build | handle
+kustomize build --enable_alpha_plugins | handle
