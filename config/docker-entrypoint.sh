@@ -61,7 +61,12 @@ while [ "$#" != "0" ] ; do
         shift
         ;;
     delete)
-        handle () { kubectl delete -f - ; }
+        handle () {
+            kubectl delete -f -
+            if [ -n "$TRIAL" ] && [ -n "$NAMESPACE" ] ; then
+                kubectl wait pods --for=delete --namespace "$NAMESPACE" --selector "redskyops.dev/trial=$TRIAL,redskyops.dev/trial-role=trialResource"
+            fi
+        }
         shift
         ;;
     --dry-run)
