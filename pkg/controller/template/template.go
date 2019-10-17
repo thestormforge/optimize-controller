@@ -128,15 +128,14 @@ func (e *TemplateEngine) RenderPatch(patch *redskyv1alpha1.PatchTemplate, trial 
 	return yaml.ToJSON(b.Bytes())
 }
 
-// RenderHelmValue returns a "name=value" string of the supplied Helm value
+// RenderHelmValue returns a rendered string of the supplied Helm value
 func (e *TemplateEngine) RenderHelmValue(helmValue *redskyv1alpha1.HelmValue, trial *redskyv1alpha1.Trial) (string, error) {
 	data := NewPatchData(trial)
 	b, err := e.render(helmValue.Name, helmValue.Value.String(), data)
 	if err != nil {
 		return "", err
 	}
-	// IMPORTANT: This generates a quoted string (i.e. the double quotes are part of the result!)
-	return fmt.Sprintf(`"%s=%s"`, helmValue.Name, b.String()), nil
+	return b.String(), nil
 }
 
 // RenderMetricQueries returns the metric query and the metric error query

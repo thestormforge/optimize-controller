@@ -18,6 +18,7 @@ package trial
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"path"
 	"strings"
@@ -33,6 +34,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/yaml"
 )
 
 var (
@@ -369,42 +371,74 @@ func newSetupJob(trial *redskyv1alpha1.Trial, mode string) (*batchv1.Job, error)
 			c.VolumeMounts = append(c.VolumeMounts, vm)
 		}
 
-		// For Helm installs, include the chart name and options for setting values
-		if task.HelmChart != "" {
-			helmOpts, err := generateHelmOptions(trial, &task)
+		// For Helm installs, serialize a Konjure configuration
+		helmConfig := NewHelmGeneratorConfig(&task)
+		if helmConfig != nil {
+			te := template.NewTemplateEngine()
+
+			// Helm Values
+			for _, hv := range task.HelmValues {
+				hgv := HelmGeneratorValue{
+					Name:        hv.Name,
+					ForceString: hv.ForceString,
+				}
+
+				if hv.ValueFrom != nil {
+					// Evaluate the external value source
+					switch {
+					case hv.ValueFrom.ParameterRef != nil:
+						v, ok := trial.GetAssignment(hv.ValueFrom.ParameterRef.Name)
+						if !ok {
+							return nil, fmt.Errorf("invalid parameter reference '%s' for Helm value '%s'", hv.ValueFrom.ParameterRef.Name, hv.Name)
+						}
+						hgv.Value = v
+
+					default:
+						return nil, fmt.Errorf("unknown source for Helm value '%s'", hv.Name)
+					}
+				} else {
+					// If there is no external source, evaluate the value field as a template
+					v, err := te.RenderHelmValue(&hv, trial)
+					if err != nil {
+						return nil, err
+					}
+					hgv.Value = v
+				}
+
+				helmConfig.Values = append(helmConfig.Values, hgv)
+			}
+
+			// Helm Values From
+			for _, hvf := range task.HelmValuesFrom {
+				if hvf.ConfigMap != nil {
+					hgv := HelmGeneratorValue{
+						File: path.Join("/workspace", "helm-values", hvf.ConfigMap.Name, "*values.yaml"),
+					}
+					vm := corev1.VolumeMount{
+						Name:      hvf.ConfigMap.Name,
+						MountPath: path.Dir(hgv.File),
+						ReadOnly:  true,
+					}
+
+					if _, ok := volumes[vm.Name]; !ok {
+						vs := corev1.VolumeSource{
+							ConfigMap: &corev1.ConfigMapVolumeSource{
+								LocalObjectReference: corev1.LocalObjectReference{Name: hvf.ConfigMap.Name},
+							},
+						}
+						volumes[vm.Name] = &corev1.Volume{Name: vm.Name, VolumeSource: vs}
+					}
+					c.VolumeMounts = append(c.VolumeMounts, vm)
+					helmConfig.Values = append(helmConfig.Values, hgv)
+				}
+			}
+
+			// Record the base64 encoded YAML representation in the environment
+			b, err := yaml.Marshal(helmConfig)
 			if err != nil {
 				return nil, err
 			}
-			helmOpts = append(helmOpts, "--namespace", namespace)
-
-			c.Env = append(c.Env, corev1.EnvVar{Name: "CHART", Value: task.HelmChart})
-			c.Env = append(c.Env, corev1.EnvVar{Name: "CHART_VERSION", Value: task.HelmChartVersion})
-			c.Env = append(c.Env, corev1.EnvVar{Name: "HELM_OPTS", Value: strings.Join(helmOpts, " ")})
-
-			for _, hvf := range task.HelmValuesFrom {
-				// TODO Since this is "HelmValuesFrom", do we need to somehow limit keys to "*values.yaml"?
-				if hvf.ConfigMap != nil {
-					c.VolumeMounts = append(c.VolumeMounts, corev1.VolumeMount{
-						Name:      hvf.ConfigMap.Name,
-						MountPath: path.Join("/workspace", "helm", hvf.ConfigMap.Name),
-						ReadOnly:  true,
-					})
-					if v, ok := volumes[hvf.ConfigMap.Name]; !ok {
-						volumes[hvf.ConfigMap.Name] = &corev1.Volume{
-							Name: hvf.ConfigMap.Name,
-							VolumeSource: corev1.VolumeSource{
-								ConfigMap: &corev1.ConfigMapVolumeSource{
-									LocalObjectReference: corev1.LocalObjectReference{
-										Name: hvf.ConfigMap.Name,
-									},
-								},
-							},
-						}
-					} else if v.ConfigMap == nil {
-						return nil, fmt.Errorf("expected configMap volume for %s", v.Name)
-					}
-				}
-			}
+			c.Env = append(c.Env, corev1.EnvVar{Name: "HELM_CONFIG", Value: base64.StdEncoding.EncodeToString(b)})
 		}
 
 		job.Spec.Template.Spec.Containers = append(job.Spec.Template.Spec.Containers, c)
@@ -418,44 +452,36 @@ func newSetupJob(trial *redskyv1alpha1.Trial, mode string) (*batchv1.Job, error)
 	return job, nil
 }
 
-func generateHelmOptions(trial *redskyv1alpha1.Trial, task *redskyv1alpha1.SetupTask) ([]string, error) {
-	var opts []string
+type HelmGeneratorValue struct {
+	File        string      `json:"file,omitempty"`
+	Name        string      `json:"name,omitempty"`
+	Value       interface{} `json:"value,omitempty"`
+	ForceString bool        `json:"forceString,omitempty"`
+}
 
-	// NOTE: Since the content of the ConfigMaps is dynamic, we only look for --values files from the running container
+type HelmGeneratorConfig struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+	ReleaseName       string               `json:"releaseName"`
+	Chart             string               `json:"chart"`
+	Version           string               `json:"version"`
+	Values            []HelmGeneratorValue `json:"values"`
+}
 
-	// Add individual --set options
-	te := template.NewTemplateEngine()
-	for _, hv := range task.HelmValues {
-		if hv.ForceString {
-			opts = append(opts, "--set-string")
-		} else {
-			opts = append(opts, "--set")
-		}
-
-		if hv.ValueFrom != nil {
-			// Evaluate the external value source
-			switch {
-			case hv.ValueFrom.ParameterRef != nil:
-				if v, ok := trial.GetAssignment(hv.ValueFrom.ParameterRef.Name); ok {
-					opts = append(opts, fmt.Sprintf(`"%s=%d"`, hv.Name, v))
-				} else {
-					return nil, fmt.Errorf("invalid parameter reference '%s' for Helm value '%s'", hv.ValueFrom.ParameterRef.Name, hv.Name)
-				}
-			default:
-				return nil, fmt.Errorf("unknown source for Helm value '%s'", hv.Name)
-			}
-		} else {
-			// If there is no external source, evaluate the value field as a template
-			if v, err := te.RenderHelmValue(&hv, trial); err != nil {
-				return nil, err
-			} else {
-				opts = append(opts, v)
-			}
-		}
+func NewHelmGeneratorConfig(task *redskyv1alpha1.SetupTask) *HelmGeneratorConfig {
+	if task.HelmChart == "" {
+		return nil
 	}
 
-	// Use the task name as the Helm release name
-	opts = append(opts, "--name", task.Name)
+	cfg := &HelmGeneratorConfig{
+		ReleaseName: task.Name,
+		Chart:       task.HelmChart,
+		Version:     task.HelmChartVersion,
+	}
 
-	return opts, nil
+	cfg.APIVersion = "konjure.carbonrelay.com/v1beta1"
+	cfg.Kind = "HelmGenerator"
+	cfg.Name = task.Name
+
+	return cfg
 }

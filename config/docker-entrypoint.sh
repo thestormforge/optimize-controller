@@ -9,13 +9,33 @@ if [ "$1" == "chart" ] ; then
 fi
 
 
-# Update the "base" root (default from Dockerfile) to account for mounted files
-if [ -e kustomization.yaml ] ; then
-    find . -type f \( -name "*_resource.yaml" -o -path "./resources/*.yaml" \) -exec kustomize edit add resource {} +
-    find . -type f \( -name "*_patch.yaml" -o -path "./patches/*.yaml" \) -exec kustomize edit add patch {} +
-else
-    echo "Error: unable to find 'kustomization.yaml' in directory '$(pwd)'"
-    exit 1
+# Create the "base" root
+kustomize create --autodetect --recursive
+
+
+# Detect and add patches
+find . -type f \( -name "*_patch.yaml" -o -path "./patches/*.yaml" \) -exec kustomize edit add patch {} +
+
+
+# Add Helm configuration
+if [ -n "$HELM_CONFIG" ] ; then
+    echo "$HELM_CONFIG" | base64 -d > helm.yaml
+    konjure kustomize edit add generator helm.yaml
+fi
+
+
+# Add trial labels to the resulting manifests so they can be more easily located
+if [ -n "$TRIAL" ]; then
+    cat <<-EOF >"trial_labels.yaml"
+		apiVersion: konjure.carbonrelay.com/v1beta1
+		kind: LabelTransformer
+		metadata:
+		  name: trial-labels
+		labels:
+		  "redskyops.dev/trial": $TRIAL
+		  "redskyops.dev/trial-role": trialResource
+		EOF
+    konjure kustomize edit add transformer trial_labels.yaml
 fi
 
 
@@ -60,42 +80,6 @@ done
 # Namespace support
 if [ -n "$NAMESPACE" ] ; then
     kustomize edit set namespace "$NAMESPACE"
-fi
-
-
-# Helm support
-if [ -n "$CHART" ] ; then
-    cd /workspace/helm
-
-    if [ ! -d "$(helm home)" ]; then
-        helm init --client-only > /dev/null
-    fi
-
-    kustomize edit add base ../base
-    find . -type f -name "*patch.yaml" -exec kustomize edit add patch {} +
-    values=$(find . -type f -name "*values.yaml" -exec echo -n "--values {} " \;)
-
-    helm fetch "$CHART" --version "$CHART_VERSION"
-    for c in *.tgz ; do
-        # TODO HELM_OPTS can't be trusted, how do we sanitize that?
-        eval helm template $values $HELM_OPTS $c > ${c%%.tgz}.yaml 2> /dev/null
-        kustomize edit add resource ${c%%.tgz}.yaml
-    done
-fi
-
-
-# Add trial labels to the resulting manifests so they can be more easily located
-if [ -n "$TRIAL" ]; then
-    cat <<-EOF >"trial_labels.yaml"
-		apiVersion: konjure.carbonrelay.com/v1beta1
-		kind: LabelTransformer
-		metadata:
-		  name: trial-labels
-		labels:
-		  "redskyops.dev/trial": $TRIAL
-		  "redskyops.dev/trial-role": trialResource
-		EOF
-    konjure kustomize edit add transformer trial_labels.yaml
 fi
 
 
