@@ -26,12 +26,12 @@ import (
 	"github.com/spf13/cobra"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/yaml"
 )
 
 // TODO Determine if this should be exposed as a Kustomize plugin also
+// TODO Instead of it's own plugin, have it be an option on the experiment plugin
 
 const (
 	generateRBACLong    = `Generate an experiment manifest from a configuration file`
@@ -39,9 +39,11 @@ const (
 )
 
 type GenerateRBACOptions struct {
-	Filename     string
-	Name         string
-	IncludeNames bool
+	Filename        string
+	Name            string
+	IncludeNames    bool
+	Bootstrap       bool
+	AdditionalRules []PatchingRule
 
 	mapper meta.RESTMapper
 	cmdutil.IOStreams
@@ -62,20 +64,20 @@ func NewGenerateRBACCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cob
 		Long:    generateRBACLong,
 		Example: generateRBACExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(o.Complete(f, cmd, args))
+			cmdutil.CheckErr(o.Complete())
 			cmdutil.CheckErr(o.Run())
 		},
 	}
 
 	cmd.Flags().StringVarP(&o.Filename, "filename", "f", "", "File that contains the experiment to extract roles from.")
-	_ = cmd.MarkFlagRequired("filename")
 	cmd.Flags().StringVar(&o.Name, "role-name", "", "Name of the cluster role to generate (default is to use a generated name).")
 	cmd.Flags().BoolVar(&o.IncludeNames, "include-names", false, "Include resource names in the generated role.")
+	cmd.Flags().BoolVar(&o.Bootstrap, "bootstrap", false, "Generate the default cluster used for initial installations")
 
 	return cmd
 }
 
-func (o *GenerateRBACOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []string) error {
+func (o *GenerateRBACOptions) Complete() error {
 	// Create a REST mapper to convert from GroupVersionKind (used on patch targets) to GroupVersionResource (used in policy rules)
 	rm := meta.NewDefaultRESTMapper(scheme.Scheme.PreferredVersionAllGroups())
 	for gvk := range scheme.Scheme.AllKnownTypes() {
@@ -83,11 +85,63 @@ func (o *GenerateRBACOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, ar
 	}
 	o.mapper = rm
 
+	// The bootstrap configuration
+	if o.Bootstrap {
+		o.Name = "redsky-aggregate-to-patching"
+		o.AdditionalRules = []PatchingRule{
+			{APIGroups: []string{""}, Resources: []string{"configmaps"}},
+			{APIGroups: []string{"apps", "extensions"}, Resources: []string{"deployments", "statefulsets"}},
+		}
+	}
+
 	return nil
 }
 
 func (o *GenerateRBACOptions) Run() error {
+	// Generate a cluster role
+	clusterRole := &rbacv1.ClusterRole{}
+	if o.Name != "" {
+		clusterRole.Name = o.Name
+	} else {
+		clusterRole.GenerateName = "redsky-patching-"
+	}
+	clusterRole.Labels = map[string]string{"redskyops.dev/aggregate-to-patching": "true"}
+
+	// Add additional rules
+	for _, r := range o.AdditionalRules {
+		clusterRole.Rules = append(clusterRole.Rules, *r.ToPolicyRule())
+	}
+
 	// Read the experiment
+	experiment := &redskyv1alpha1.Experiment{}
+	if err := o.readExperiment(experiment); err != nil {
+		return err
+	}
+
+	// Add rules from the experiment
+	rules, err := findRules(experiment, o.mapper)
+	if err != nil {
+		return err
+	}
+	for _, r := range rules {
+		pr := r.ToPolicyRule()
+		if !o.IncludeNames {
+			pr.ResourceNames = nil
+		}
+		clusterRole.Rules = mergeRule(clusterRole.Rules, pr)
+	}
+
+	// TODO If Rules is empty, just emit "---\n"?
+
+	return serialize(clusterRole, o.Out)
+}
+
+// readExperiment unmarshals experiment data based on the current options
+func (o *GenerateRBACOptions) readExperiment(experiment *redskyv1alpha1.Experiment) error {
+	if o.Filename == "" {
+		return nil
+	}
+
 	var data []byte
 	var err error
 	if o.Filename == "-" {
@@ -98,55 +152,43 @@ func (o *GenerateRBACOptions) Run() error {
 	if err != nil {
 		return err
 	}
-	experiment := &redskyv1alpha1.Experiment{}
 	if err = yaml.Unmarshal(data, experiment); err != nil {
 		return err
 	}
 	if experiment.GroupVersionKind().GroupVersion() != redskyv1alpha1.GroupVersion || experiment.Kind != "Experiment" {
 		return fmt.Errorf("expected experiment, got: %s", experiment.GroupVersionKind())
 	}
+	return nil
+}
 
-	// Generate a cluster role
-	clusterRole := &rbacv1.ClusterRole{}
-	if o.Name != "" {
-		clusterRole.Name = o.Name
-	} else {
-		clusterRole.GenerateName = "redsky-patching-"
-	}
-	clusterRole.Labels = map[string]string{"redskyops.dev/aggregate-to-patching": "true"}
-
+// findRules finds the patch targets from an experiment
+func findRules(experiment *redskyv1alpha1.Experiment, mapper meta.RESTMapper) ([]PatchingRule, error) {
+	var rules []PatchingRule
 	for i := range experiment.Spec.Patches {
-		gvk, name, ok := extractTarget(&experiment.Spec.Patches[i])
-		if !ok {
+		// TODO This should evaluate patch templates to ensure consistency; e.g. extract ref from the patch
+		ref := experiment.Spec.Patches[i].TargetRef
+		if ref == nil {
 			continue
 		}
 
-		r := &rbacv1.PolicyRule{Verbs: []string{"get", "patch"}}
-
-		if m, err := o.mapper.RESTMapping(gvk.GroupKind(), gvk.Version); err != nil {
-			return err
-		} else {
-			r.APIGroups = appendMissing(r.APIGroups, m.Resource.Group)
-			r.Resources = appendMissing(r.Resources, m.Resource.Resource)
+		gvk := ref.GroupVersionKind()
+		m, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+		if err != nil {
+			return nil, err
 		}
 
-		if o.IncludeNames && name != "" {
-			r.ResourceNames = appendMissing(r.ResourceNames, name)
+		var names []string
+		if ref.Name != "" {
+			names = []string{ref.Name}
 		}
 
-		clusterRole.Rules = mergeRule(clusterRole.Rules, r)
+		rules = append(rules, PatchingRule{
+			APIGroups:     []string{m.Resource.Group},
+			Resources:     []string{m.Resource.Resource},
+			ResourceNames: names,
+		})
 	}
-
-	return serialize(clusterRole, o.Out)
-}
-
-// extractTarget attempts to get the patch target from the template
-func extractTarget(p *redskyv1alpha1.PatchTemplate) (schema.GroupVersionKind, string, bool) {
-	// TODO This should evaluate patch templates to ensure consistency; e.g. extract ref from the patch
-	if p.TargetRef == nil {
-		return schema.GroupVersionKind{}, "", false
-	}
-	return p.TargetRef.GroupVersionKind(), p.TargetRef.Name, true
+	return rules, nil
 }
 
 // mergeRule attempts to combine the supplied rule with an existing compatible rule, failing that the rules are return with a new rule appended
@@ -199,4 +241,28 @@ func appendMissing(s []string, e string) []string {
 		}
 	}
 	return append(s, e)
+}
+
+type PatchingRule struct {
+	APIGroups     []string
+	Resources     []string
+	ResourceNames []string
+}
+
+func (r *PatchingRule) ToPolicyRule() *rbacv1.PolicyRule {
+	pr := &rbacv1.PolicyRule{Verbs: []string{"get", "patch"}}
+	r.CopyTo(pr)
+	return pr
+}
+
+func (r *PatchingRule) CopyTo(pr *rbacv1.PolicyRule) {
+	for _, apiGroup := range r.APIGroups {
+		pr.APIGroups = appendMissing(pr.APIGroups, apiGroup)
+	}
+	for _, resource := range r.Resources {
+		pr.Resources = appendMissing(pr.Resources, resource)
+	}
+	for _, resourceName := range r.ResourceNames {
+		pr.ResourceNames = appendMissing(pr.ResourceNames, resourceName)
+	}
 }
