@@ -65,7 +65,7 @@ while [ "$#" != "0" ] ; do
         shift
         ;;
     --dry-run)
-        # TODO Should this just add --dry-run to the kubectl invocation?
+        sed -i '\|app.kubernetes.io/managed-by|d' /workspace/install/metadata_labels.yaml
         handle () { cat ; }
         shift
         ;;
