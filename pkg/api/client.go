@@ -18,7 +18,10 @@ package api
 
 import (
 	"bufio"
+	"bytes"
 	"context"
+	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -113,6 +116,26 @@ func loadEnvironment(config *Config, configOAuth2 *OAuth2) {
 	if v, ok := os.LookupEnv("REDSKY_OAUTH2_TOKEN_URL"); ok {
 		configOAuth2.TokenURL = v
 	}
+}
+
+// Environment returns the configuration as a stream of environment variable definitions
+func (c *Config) Environment() io.Reader {
+	b := &bytes.Buffer{}
+	if c.Address != "" {
+		_, _ = fmt.Fprintf(b, "REDSKY_ADDRESS=%s\n", c.Address)
+	}
+	if c.OAuth2 != nil {
+		if c.OAuth2.ClientID != "" {
+			_, _ = fmt.Fprintf(b, "REDSKY_OAUTH2_CLIENT_ID=%s\n", c.OAuth2.ClientID)
+		}
+		if c.OAuth2.ClientSecret != "" {
+			_, _ = fmt.Fprintf(b, "REDSKY_OAUTH2_CLIENT_SECRET=%s\n", c.OAuth2.ClientSecret)
+		}
+		if c.OAuth2.TokenURL != "" {
+			_, _ = fmt.Fprintf(b, "REDSKY_OAUTH2_TOKEN_URL=%s\n", c.OAuth2.TokenURL)
+		}
+	}
+	return b
 }
 
 func NewClient(cfg Config) (Client, error) {

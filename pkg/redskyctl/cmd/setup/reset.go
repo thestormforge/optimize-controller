@@ -17,9 +17,6 @@ limitations under the License.
 package setup
 
 import (
-	"os"
-	"path/filepath"
-
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 )
@@ -29,8 +26,22 @@ const (
 	resetExample = ``
 )
 
+// ResetOptions is the configuration for suggesting assignments
+type ResetOptions struct {
+	Kubectl
+
+	cmdutil.IOStreams
+}
+
+// NewResetOptions returns a new reset options struct
+func NewResetOptions(ioStreams cmdutil.IOStreams) *ResetOptions {
+	return &ResetOptions{
+		IOStreams: ioStreams,
+	}
+}
+
 func NewResetCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
-	o := NewSetupOptions(ioStreams)
+	o := NewResetOptions(ioStreams)
 
 	cmd := &cobra.Command{
 		Use:     "reset",
@@ -38,53 +49,25 @@ func NewResetCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Comm
 		Long:    resetLong,
 		Example: resetExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			CheckErr(o.Complete(f, cmd))
-			CheckErr(o.Run())
+			cmdutil.CheckErr(o.Complete(f, cmd))
+			cmdutil.CheckErr(o.Run())
 		},
 	}
-
-	o.AddFlags(cmd)
 
 	return cmd
 }
 
-func (o *SetupOptions) resetCluster() error {
-	bootstrapConfig, err := NewBootstrapResetConfig(o)
-	if err != nil {
+func (o *ResetOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) error {
+	if err := o.Kubectl.Complete(); err != nil {
 		return err
 	}
-
-	// A bootstrap dry run just means serialize the bootstrap config
-	if o.Bootstrap && o.DryRun {
-		return bootstrapConfig.Marshal(o.Out)
-	}
-
-	// Remove bootstrap objects and return if that was all we are doing
-	deleteFromCluster(bootstrapConfig)
-	if o.Bootstrap {
-		return nil
-	}
-
-	// Ensure a partial bootstrap is cleaned up properly
-	defer deleteFromCluster(bootstrapConfig)
-
-	// Create the bootstrap config to initiate the uninstall job
-	if err := createInCluster(bootstrapConfig); err != nil {
-		return err
-	}
-
-	// Delete the application objects that normally persist through init calls
-	resetFromCluster(bootstrapConfig)
-
-	// Wait for the job to finish; ignore errors as we are having the namespace pulled out from under us
-	_ = waitForJob(bootstrapConfig, nil, nil)
 
 	return nil
-
 }
 
-func (o *SetupOptions) resetKustomize() error {
-	// TODO Walk back through the array to clean up empty directories
-	p := filepath.Join(kustomizePluginDir()...)
-	return os.RemoveAll(p)
+func (o *ResetOptions) Run() error {
+	cmd := o.Kubectl.GenerateRedSkyOpsManifests(nil)
+	deleteCmd := o.Kubectl.Delete()
+	deleteCmd.Stdout = o.Out
+	return RunPiped(cmd, deleteCmd)
 }

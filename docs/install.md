@@ -29,7 +29,7 @@ The Red Sky Ops Manager runs inside your Kubernetes cluster. It can be configure
 
 To perform an easy install, simply run `redskyctl init`. This will create a new `redsky-system` namespace and will create a Kubernetes job to manage the actual installation.
 
-Using `redskyctl init` is safe for multiple invocations; in fact re-running it with a new version of `redskyctl` is also the easiest way to upgrade your in cluster components.
+Using `redskyctl init` is safe for multiple invocations; in fact re-running it with a new version of `redskyctl` is also the easiest way to upgrade your in cluster components or configuration.
 
 ### Easy Enterprise Install
 
@@ -55,9 +55,8 @@ The `redskyops` Helm chart includes additional values to configure when using th
 
 If you have specific security requirements or the default RBAC configuration for the easy install is too permissive for your environment, there are a number of ways to obtain the raw Red Sky Ops Manager manifests:
 
-1. Using `redskyctl init --bootstrap` will create a paused Kubernetes job, you can adjust the bootstrap configuration in cluster and proceed with the installation by scaling the job to 1.
-2. Using `redskyctl init --dry-run` will print the raw manifests used during installation, however this still requires creating a Kubernetes job. This option can be combined with the `--bootstrap` option to get the raw manifests of the bootstrap job.
-3. Using Docker to run the `setuptools` image directly. For example, `docker container run --rm $(redskyctl version --setuptools)` will produce the same output as `redskyctl init --dry-run` without requiring a configured Kubernetes context.
+1. Using `redskyctl init --dry-run` will print the raw manifests used during installation, however this still requires creating a Kubernetes pod.
+2. Using Docker to run the `setuptools` image directly. For example, `docker container run --rm $(redskyctl version --setuptools)` will produce the same output as `redskyctl init --dry-run` without requiring a configured Kubernetes context.
 
 ## Upgrading the Red Sky Ops Manager
 

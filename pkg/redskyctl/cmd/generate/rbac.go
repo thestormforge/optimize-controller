@@ -87,6 +87,7 @@ func (o *GenerateRBACOptions) Complete() error {
 
 	// The bootstrap configuration
 	if o.Bootstrap {
+		o.Filename = ""
 		o.Name = "redsky-aggregate-to-patching"
 		o.AdditionalRules = []PatchingRule{
 			{APIGroups: []string{""}, Resources: []string{"configmaps"}},

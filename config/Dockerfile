@@ -44,4 +44,4 @@ RUN konjure kustomize init
 
 WORKDIR "/workspace/base"
 ENTRYPOINT ["/workspace/docker-entrypoint.sh"]
-CMD ["install", "--dry-run"]
+CMD ["install"]

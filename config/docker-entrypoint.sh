@@ -2,7 +2,14 @@
 set -eo pipefail
 
 
-# Package the Helm chart and do nothing else
+# Generate installation manifests
+if [ "$1" == "install" ] ; then
+    shift && /workspace/install/install.sh $@
+    exit $?
+fi
+
+
+# Package the Helm chart
 if [ "$1" == "chart" ] ; then
     shift && /workspace/chart/build.sh $@
     exit $?
@@ -39,25 +46,28 @@ if [ -n "$TRIAL" ]; then
 fi
 
 
+# Namespace support
+if [ -n "$NAMESPACE" ] ; then
+    kustomize edit set namespace "$NAMESPACE"
+fi
+
+
 # Process arguments
 while [ "$#" != "0" ] ; do
     case "$1" in
-    install)
-        cd /workspace/install
-        handle () { kubectl apply -f - ; }
-        shift
-        ;;
-    uninstall)
-        cd /workspace/install
-        handle () { kubectl delete -f - ; }
+    apply)
+        handle () {
+            kubectl apply -f -
+        }
         shift
         ;;
     create)
-        handle () { kubectl create -f - ; }
-        shift
-        ;;
-    apply)
-        handle () { kubectl apply -f - ; }
+        handle () {
+            kubectl create -f -
+            #if [ -n "$TRIAL" ] && [ -n "$NAMESPACE" ] ; then
+            #    kubectl get sts,deploy,ds --namespace "$NAMESPACE" --selector "redskyops.dev/trial=$TRIAL,redskyops.dev/trial-role=trialResource" -o name | xargs -n 1 kubectl rollout status --namespace "$NAMESPACE"
+            #fi
+        }
         shift
         ;;
     delete)
@@ -70,7 +80,6 @@ while [ "$#" != "0" ] ; do
         shift
         ;;
     --dry-run)
-        sed -i '\|app.kubernetes.io/managed-by|d' /workspace/install/metadata_labels.yaml
         handle () { cat ; }
         shift
         ;;
@@ -80,12 +89,6 @@ while [ "$#" != "0" ] ; do
         ;;
     esac
 done
-
-
-# Namespace support
-if [ -n "$NAMESPACE" ] ; then
-    kustomize edit set namespace "$NAMESPACE"
-fi
 
 
 # Run Kustomize and pipe it into the handler

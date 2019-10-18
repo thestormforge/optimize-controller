@@ -10,9 +10,9 @@ patchesStrategicMerge:
 - manager_patch.yaml
 
 secretGenerator:
-- name: client-config
-  files:
-  - client.yaml
+- name: manager
+  envs:
+  - manager.env
 
 transformers:
 - metadata_labels.yaml

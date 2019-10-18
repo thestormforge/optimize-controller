@@ -21,14 +21,10 @@ import (
 	"encoding/binary"
 	"math/rand"
 	"os"
-	"path/filepath"
 
 	"github.com/redskyops/k8s-experiment/pkg/api"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd"
-	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/generate"
-	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/setup"
 	"github.com/redskyops/k8s-experiment/pkg/version"
-	"github.com/spf13/cobra"
 )
 
 func main() {
@@ -44,14 +40,8 @@ func main() {
 	// Set the UA string for the API client
 	api.DefaultUserAgent = version.GetUserAgentString("redskyctl")
 
-	// Determine which command to run
-	var command *cobra.Command
-	switch filepath.Base(os.Args[0]) {
-	case setup.KustomizePluginKind:
-		command = cmd.NewDefaultCommand(generate.NewGenerateExperimentCommand)
-	default:
-		command = cmd.NewDefaultRedskyctlCommand()
-	}
+	// TODO Determine which command to run by looking at the base name of $0
+	command := cmd.NewDefaultRedskyctlCommand()
 
 	// Run the command
 	if err := command.Execute(); err != nil {

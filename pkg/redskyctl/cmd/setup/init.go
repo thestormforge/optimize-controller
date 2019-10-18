@@ -17,24 +17,44 @@ limitations under the License.
 package setup
 
 import (
-	"os"
-	"path/filepath"
+	"bytes"
+	"fmt"
 
 	"github.com/redskyops/k8s-experiment/pkg/api"
+	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/generate"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 )
-
-// TODO Add documentation about what this creates and how it works, including Kustomize support
-// TODO How do we collect Red Sky API information? Does it need to be exposed by the cmdutil.Factory?
 
 const (
 	initLong    = `Install Red Sky Ops to a cluster`
 	initExample = ``
 )
 
+// InitOptions is the configuration for initialization
+type InitOptions struct {
+	Kubectl
+	IncludeBootstrapRole bool
+	DryRun               bool
+
+	// TODO Add --env options that are merged with the configuration environment variables
+
+	cmdutil.IOStreams
+}
+
+// NewInitOptions returns a new initialization options struct
+func NewInitOptions(ioStreams cmdutil.IOStreams) *InitOptions {
+	return &InitOptions{
+		Kubectl: Kubectl{
+			Namespace: "redsky-system",
+		},
+		IncludeBootstrapRole: true,
+		IOStreams:            ioStreams,
+	}
+}
+
 func NewInitCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
-	o := NewSetupOptions(ioStreams)
+	o := NewInitOptions(ioStreams)
 
 	cmd := &cobra.Command{
 		Use:     "init",
@@ -42,83 +62,88 @@ func NewInitCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Comma
 		Long:    initLong,
 		Example: initExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			CheckErr(o.Complete(f, cmd))
-			CheckErr(o.Run())
+			cmdutil.CheckErr(o.Complete(f, cmd))
+			cmdutil.CheckErr(o.Run())
 		},
 	}
 
-	o.AddFlags(cmd)
+	cmd.Flags().BoolVar(&o.IncludeBootstrapRole, "--bootstrap-role", true, "Create the bootstrap role (if it does not exist).")
+	cmd.Flags().BoolVar(&o.DryRun, "dry-run", false, "Generate the manifests instead of applying them.")
 
 	return cmd
 }
 
-func (o *SetupOptions) initCluster() error {
-	clientConfig, err := api.DefaultConfig()
-	if err != nil {
-		return err
-	}
-
-	bootstrapConfig, err := NewBootstrapInitConfig(o, clientConfig)
-	if err != nil {
-		return err
-	}
-
-	// A bootstrap dry run just means serialize the bootstrap config
-	if o.Bootstrap && o.DryRun {
-		return bootstrapConfig.Marshal(o.Out)
-	}
-
-	// If there are any left over bootstrap objects, remove them before initializing
-	deleteFromCluster(bootstrapConfig)
-
-	// If we are bootstrapping the install, leave the objects, otherwise ensure even a partial creation is cleaned up
-	if !o.Bootstrap {
-		defer deleteFromCluster(bootstrapConfig)
-	}
-
-	// Create the bootstrap config to initiate the install job
-	if err := createInCluster(bootstrapConfig); err != nil {
-		return err
-	}
-
-	// When bootstrapping the job won't start so don't wait for it
-	if o.Bootstrap {
-		return nil
-	}
-
-	// Wait for the job to finish
-	if err = waitForJob(bootstrapConfig, o.Out, o.ErrOut); err != nil {
+func (o *InitOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) error {
+	if err := o.Kubectl.Complete(); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-// The current implementation of Kustomize exec plugins use an executable whose name matches the plugin
-// kind and accepts a single argument (the config input file). To support that we create a symlink to the
-// `redskyctl` executable from the location Kustomize will invoke it.
-func (o *SetupOptions) initKustomize() error {
-	e, err := os.Executable()
+func (o *InitOptions) Run() error {
+	if err := o.applyConfiguration(); err != nil {
+		return err
+	}
+
+	if err := o.bootstrapRole(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Kubectl applies the '/config' contents (via the setuptools image)
+func (o *InitOptions) applyConfiguration() error {
+	// Generate the environment for the manager
+	cfg, err := api.DefaultConfig()
 	if err != nil {
 		return err
 	}
 
-	p := filepath.Join(kustomizePluginDir()...)
-	s := filepath.Join(p, KustomizePluginKind)
+	// TODO We need to get more stuff into the environment, e.g. Datadog keys
 
-	if err = os.MkdirAll(p, 0700); err != nil {
+	// Generate the product manifests
+	cmd := o.Kubectl.GenerateRedSkyOpsManifests(cfg.Environment())
+	if o.DryRun {
+		cmd.Stdout = o.Out
+		return cmd.Run()
+	}
+
+	applyCmd := o.Kubectl.Apply()
+	applyCmd.Stdout = o.Out
+	return RunPiped(cmd, applyCmd)
+}
+
+// Kubectl creates the `redskyctl generate rbac --bootstrap` output
+func (o *InitOptions) bootstrapRole() error {
+	if !o.IncludeBootstrapRole {
+		return nil
+	}
+
+	opts := generate.NewGenerateRBACOptions(cmdutil.IOStreams{Out: o.Out})
+	opts.Bootstrap = true
+	if err := opts.Complete(); err != nil {
 		return err
 	}
 
-	if _, err = os.Lstat(s); err == nil {
-		if err = os.Remove(s); err != nil {
-			return err
-		}
+	if o.DryRun {
+		_, _ = fmt.Fprintln(o.Out, "---")
+		return opts.Run()
 	}
 
-	if err = os.Symlink(e, s); err != nil {
+	buf := &bytes.Buffer{}
+	opts.IOStreams.Out = buf
+	if err := opts.Run(); err != nil {
 		return err
 	}
+
+	createCmd := o.Kubectl.Create()
+	createCmd.Stdout = o.Out
+	createCmd.Stdin = buf
+
+	// TODO We expect this to fail when the resource exists, but what about everything else?
+	_ = createCmd.Run()
 
 	return nil
 }

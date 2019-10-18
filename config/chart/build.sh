@@ -46,7 +46,7 @@ mv "$WORKSPACE/rbac/auth_proxy_service.yaml" "$WORKSPACE/default/."
 # Edit the kustomizations for templatization
 
 cd "$WORKSPACE/install"
-kustomize edit remove patch label_patch.yaml
+konjure kustomize edit remove transformer metadata_labels.yaml
 
 cd "$WORKSPACE/crd"
 kustomize edit add label "app.kubernetes.io/name:redskyops"
@@ -65,8 +65,6 @@ cd "$WORKSPACE/rbac"
 kustomize edit add label "app.kubernetes.io/name:redskyops"
 kustomize edit set namespace "redsky-system"
 kustomize edit set nameprefix "redsky-"
-kustomize edit add resource "patching_role.yaml"
-kustomize edit add resource "patching_role_binding.yaml"
 kustomize edit remove resource "auth_proxy_service.yaml"
 
 
