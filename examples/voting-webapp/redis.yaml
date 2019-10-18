@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  labels:
+    app: voting-app
+    component: redis
+spec:
+  ports:
+  - port: 6379
+  selector:
+    app: voting-app
+    component: redis
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  labels:
+    app: voting-app
+    component: redis
+spec:
+  selector:
+    matchLabels:
+      app: voting-app
+      component: redis
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      name: redis
+      labels:
+        app: voting-app
+        component: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:5.0-alpine
+        ports:
+        - containerPort: 6379
+        resources:
+          limits:
+            memory: 2000Mi
+            cpu: 1.0
+          requests:
+            memory: 2000Mi
+            cpu: 1.0
+        readinessProbe:
+          tcpSocket:
+            port: 6379
+          initialDelaySeconds: 10
+          periodSeconds: 5

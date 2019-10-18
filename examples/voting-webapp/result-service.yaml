@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: result-service
+  labels:
+    app: voting-app
+    component: result-service
+spec:
+  ports:
+  - port: 80
+  selector:
+    app: voting-app
+    component: result-service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: result-service
+  labels:
+    app: voting-app
+    component: result-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: voting-app
+      component: result-service
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      name: result-service
+      labels:
+        app: voting-app
+        component: result-service
+    spec:
+      containers:
+      - name: result-service
+        image: dockersamples/examplevotingapp_result
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            memory: 2000Mi
+            cpu: 1.0
+          requests:
+            memory: 2000Mi
+            cpu: 1.0

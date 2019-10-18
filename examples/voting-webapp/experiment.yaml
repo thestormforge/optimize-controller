@@ -1,0 +1,179 @@
+apiVersion: redskyops.dev/v1alpha1
+kind: Experiment
+metadata:
+  name: example-voting-app
+spec:
+  parallelism: 4
+  budget: 400
+  parameters:
+  - name: worker_memory
+    min: 200
+    max: 2000
+  - name: worker_cpu
+    min: 100
+    max: 1000
+  - name: worker_replicas
+    min: 1
+    max: 4
+  - name: voting_memory
+    min: 200
+    max: 2000
+  - name: voting_cpu
+    min: 100
+    max: 1000
+  - name: voting_replicas
+    min: 1
+    max: 4
+  - name: result_memory
+    min: 200
+    max: 2000
+  - name: result_cpu
+    min: 100
+    max: 1000
+  - name: result_replicas
+    min: 1
+    max: 4
+  - name: db_memory
+    min: 200
+    max: 2000
+  - name: db_cpu
+    min: 100
+    max: 1000
+  - name: redis_memory
+    min: 200
+    max: 2000
+  - name: redis_cpu
+    min: 100
+    max: 1000
+  metrics:
+  - name: throughput
+    minimize: false
+    type: jsonpath
+    query: '{.total}'
+    path: '/metrics'
+    port: 5000
+    selector:
+      matchLabels:
+        component: result-exporter
+  - name: cost
+    minimize: true
+    type: pods
+    # Note that these cost weights are specific to GKE and represent $22/month/cpu and $3/month/GB
+    query: '{{resourceRequests .Pods "cpu=0.022,memory=0.000000000003"}}'
+    selector:
+      matchLabels:
+        app: voting-app
+  patches:
+  - targetRef:
+      kind: Deployment
+      apiVersion: apps/v1
+      name: worker
+    patch: |
+      spec:
+        replicas: {{ .Values.worker_replicas }}
+        template:
+          spec:
+            containers:
+            - name: worker
+              resources:
+                limits:
+                  cpu: "{{ .Values.worker_cpu }}m"
+                  memory: "{{ .Values.worker_memory }}Mi"
+                requests:
+                  cpu: "{{ .Values.worker_cpu }}m"
+                  memory: "{{ .Values.worker_memory }}Mi"
+  - targetRef:
+      kind: Deployment
+      apiVersion: apps/v1
+      name: voting-service
+    patch: |
+      spec:
+        replicas: {{ .Values.voting_replicas }}
+        template:
+          spec:
+            containers:
+            - name: voting-service
+              resources:
+                limits:
+                  cpu: "{{ .Values.voting_cpu }}m"
+                  memory: "{{ .Values.voting_memory }}Mi"
+                requests:
+                  cpu: "{{ .Values.voting_cpu }}m"
+                  memory: "{{ .Values.voting_memory }}Mi"
+  - targetRef:
+      kind: Deployment
+      apiVersion: apps/v1
+      name: result-service
+    patch: |
+      spec:
+        replicas: {{ .Values.result_replicas }}
+        template:
+          spec:
+            containers:
+            - name: result-service
+              resources:
+                limits:
+                  cpu: "{{ .Values.result_cpu }}m"
+                  memory: "{{ .Values.result_memory }}Mi"
+                requests:
+                  cpu: "{{ .Values.result_cpu }}m"
+                  memory: "{{ .Values.result_memory }}Mi"
+  - targetRef:
+      kind: Deployment
+      apiVersion: apps/v1
+      name: db
+    patch: |
+      spec:
+        template:
+          spec:
+            containers:
+            - name: db
+              resources:
+                limits:
+                  cpu: "{{ .Values.db_cpu }}m"
+                  memory: "{{ .Values.db_memory }}Mi"
+                requests:
+                  cpu: "{{ .Values.db_cpu }}m"
+                  memory: "{{ .Values.db_memory }}Mi"
+  - targetRef:
+      kind: Deployment
+      apiVersion: apps/v1
+      name: redis
+    patch: |
+      spec:
+        template:
+          spec:
+            containers:
+            - name: redis
+              resources:
+                limits:
+                  cpu: "{{ .Values.redis_cpu }}m"
+                  memory: "{{ .Values.redis_memory }}Mi"
+                requests:
+                  cpu: "{{ .Values.redis_cpu }}m"
+                  memory: "{{ .Values.redis_memory }}Mi"
+  template: # trial
+    spec:
+      template: # job
+        spec:
+          template: # pod
+            spec:
+              containers:
+              - name: locust
+                image: grubykarol/locust:0.12.0-python3.7-alpine3.10
+                command: ["/usr/local/bin/locust"]
+                args: ["--locustfile=/locust-tasks/tasks.py",
+                       "--no-web",
+                       "--host=http://voting-service",
+                       "--clients=200",
+                       "--hatch-rate=20",
+                       "--run-time=300",
+                       "--exit-code-on-error=0"]
+                volumeMounts:
+                - name: locustfile
+                  mountPath: /locust-tasks/tasks.py
+                  subPath: tasks.py
+              volumes:
+              - name: locustfile
+                configMap:
+                  name: locustfile

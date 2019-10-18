@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  labels:
+    app: voting-app
+    component: worker
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: voting-app
+      component: worker
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      name: worker
+      labels:
+        app: voting-app
+        component: worker
+    spec:
+      containers:
+      - name: worker
+        image: dockersamples/examplevotingapp_worker
+        resources:
+          limits:
+            memory: 2000Mi
+            cpu: 1.0
+          requests:
+            memory: 2000Mi
+            cpu: 1.0
