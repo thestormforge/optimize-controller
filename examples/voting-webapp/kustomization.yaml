@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- ./locust-config.yaml
+- ./postgres.yaml
+- ./redis.yaml
+- ./voting-service.yaml
+- ./result-service.yaml
+- ./result-exporter.yaml
+- ./worker.yaml
+- ./experiment.yaml

@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: result-exporter
+  labels:
+    component: result-exporter
+spec:
+  ports:
+  - port: 5000
+  selector:
+    component: result-exporter
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: result-exporter
+  labels:
+    component: result-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: result-exporter
+  template:
+    metadata:
+      name: result-exporter
+      labels:
+        component: result-exporter
+    spec:
+      containers:
+      - name: result-exporter
+        image: gcr.io/redskyops/result-exporter:1.0.0
+        env:
+        - name: RESULTS_HOST
+          value: "http://result-service"
+        ports:
+        - containerPort: 5000
+        resources:
+          limits:
+            memory: 2000Mi
+            cpu: 1.0
+          requests:
+            memory: 2000Mi
+            cpu: 1.0
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 5
