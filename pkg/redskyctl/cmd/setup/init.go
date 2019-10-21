@@ -37,7 +37,9 @@ type InitOptions struct {
 	IncludeBootstrapRole bool
 	DryRun               bool
 
-	// TODO Add --env options that are merged with the configuration environment variables
+	// TODO Add --envFile option that gets merged with the configuration environment variables
+	// TODO Should we get information from other secrets in other namespaces?
+	// TODO What about overriding the secret name to something we do not overwrite?
 
 	cmdutil.IOStreams
 }
@@ -95,16 +97,35 @@ func (o *InitOptions) Run() error {
 
 // Kubectl applies the '/config' contents (via the setuptools image)
 func (o *InitOptions) applyConfiguration() error {
-	// Generate the environment for the manager
+	env := make(map[string]string)
+
+	// Add environment variables from the default configuration
 	cfg, err := api.DefaultConfig()
 	if err != nil {
 		return err
 	}
+	env["REDSKY_ADDRESS"] = cfg.Address
+	if cfg.OAuth2 != nil {
+		env["REDSKY_OAUTH2_CLIENT_ID"] = cfg.OAuth2.ClientID
+		env["REDSKY_OAUTH2_CLIENT_SECRET"] = cfg.OAuth2.ClientSecret
+		env["REDSKY_OAUTH2_TOKEN_URL"] = cfg.OAuth2.TokenURL
+	}
+	if cfg.Manager != nil {
+		for k, v := range cfg.Manager.Environment {
+			env[k] = v
+		}
+	}
 
-	// TODO We need to get more stuff into the environment, e.g. Datadog keys
+	// Serialize the environment map to a ".env" format
+	b := &bytes.Buffer{}
+	for k, v := range env {
+		if v != "" {
+			_, _ = fmt.Fprintf(b, "%s=%s\n", k, v)
+		}
+	}
 
 	// Generate the product manifests
-	cmd := o.Kubectl.GenerateRedSkyOpsManifests(cfg.Environment())
+	cmd := o.Kubectl.GenerateRedSkyOpsManifests(b)
 	if o.DryRun {
 		cmd.Stdout = o.Out
 		return cmd.Run()

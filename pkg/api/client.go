@@ -17,24 +17,19 @@ limitations under the License.
 package api
 
 import (
-	"bufio"
-	"bytes"
 	"context"
-	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/redskyops/k8s-experiment/pkg/version"
+	"github.com/spf13/viper"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
-	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
 type OAuth2 struct {
@@ -45,9 +40,15 @@ type OAuth2 struct {
 	Token string `json:"token,omitempty"`
 }
 
+type Manager struct {
+	Environment map[string]string `json:"env,omitempty"`
+	// TODO Have an option for not including the local config?
+}
+
 type Config struct {
-	Address string  `json:"address,omitempty"`
-	OAuth2  *OAuth2 `json:"oauth2,omitempty"`
+	Address string   `json:"address,omitempty"`
+	OAuth2  *OAuth2  `json:"oauth2,omitempty"`
+	Manager *Manager `json:"manager,omitempty"`
 }
 
 type Client interface {
@@ -55,88 +56,67 @@ type Client interface {
 	Do(context.Context, *http.Request) (*http.Response, []byte, error)
 }
 
-var DefaultUserAgent string
+func NewConfig(v *viper.Viper) *Config {
+	config := &Config{
+		Address: v.GetString("address"),
+	}
+
+	if v.IsSet("oauth2.client_id") && v.IsSet("oauth2.client_secret") {
+		config.OAuth2 = &OAuth2{
+			ClientID:     v.GetString("oauth2.client_id"),
+			ClientSecret: v.GetString("oauth2.client_secret"),
+			TokenURL:     v.GetString("oauth2.token_url"),
+		}
+	}
+
+	if v.IsSet("manager.env") {
+		config.Manager = &Manager{
+			Environment: v.GetStringMapString("manager.env"),
+		}
+	}
+
+	return config
+}
 
 func DefaultConfig() (*Config, error) {
-	config := &Config{}
+	v := viper.New()
+	v.SetDefault("oauth2.token_url", "./auth/token")
 
-	p := ".redsky"
-	home := os.Getenv("HOME")
-	if home == "" {
-		home = os.Getenv("USERPROFILE")
-	}
-	if home != "" {
-		p = filepath.Join(home, p)
-	}
-	f, err := os.Open(p)
-	if err == nil {
-		if err = yaml.NewYAMLOrJSONDecoder(bufio.NewReader(f), 4096).Decode(config); err != nil {
-			return nil, err
-		}
-		if err = f.Close(); err != nil {
-			return nil, err
-		}
-	} else if !os.IsNotExist(err) {
+	// Get configuration from environment variables
+	// TODO Switch to explicit binding
+	v.SetEnvPrefix("redsky")
+	v.AutomaticEnv()
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+
+	// Get configuration from disk
+	// TODO ~/.config/redskyops/??? ~/.redskyops/config???
+	v.SetConfigType("yaml")
+	v.SetConfigFile("$HOME/.redsky")
+
+	// Read the configuration and convert to a typed configuration object
+	// TODO Get rid of the structs and just pass the Viper around
+	if err := v.ReadInConfig(); ignoreConfigFileNotFound(err) != nil {
 		return nil, err
 	}
-
-	// Do not add an OAuth2 section until we know we need it
-	configOAuth2 := config.OAuth2
-	if configOAuth2 == nil {
-		configOAuth2 = &OAuth2{}
-	}
-
-	loadEnvironment(config, configOAuth2)
-
-	if configOAuth2.ClientID != "" && configOAuth2.ClientSecret != "" {
-		if configOAuth2.TokenURL == "" {
-			configOAuth2.TokenURL = "./auth/token/"
-		}
-
-		if config.OAuth2 == nil {
-			config.OAuth2 = configOAuth2
-		}
-	}
-
-	return config, nil
+	return NewConfig(v), nil
 }
 
-// Loads the relevant environment variables into the supplied configuration objects.
-// Note that the OAuth2 configuration is passed separately to account for the the case were we may not need it.
-func loadEnvironment(config *Config, configOAuth2 *OAuth2) {
-	if v, ok := os.LookupEnv("REDSKY_ADDRESS"); ok {
-		config.Address = v
+func ignoreConfigFileNotFound(err error) error {
+	if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+		return nil
 	}
-	if v, ok := os.LookupEnv("REDSKY_OAUTH2_CLIENT_ID"); ok {
-		configOAuth2.ClientID = v
+	// `SetConfigFile` bypasses the `ConfigFileNotFoundError` logic
+	if os.IsNotExist(err) {
+		return nil
 	}
-	if v, ok := os.LookupEnv("REDSKY_OAUTH2_CLIENT_SECRET"); ok {
-		configOAuth2.ClientSecret = v
-	}
-	if v, ok := os.LookupEnv("REDSKY_OAUTH2_TOKEN_URL"); ok {
-		configOAuth2.TokenURL = v
-	}
+	return err
 }
 
-// Environment returns the configuration as a stream of environment variable definitions
-func (c *Config) Environment() io.Reader {
-	b := &bytes.Buffer{}
-	if c.Address != "" {
-		_, _ = fmt.Fprintf(b, "REDSKY_ADDRESS=%s\n", c.Address)
-	}
-	if c.OAuth2 != nil {
-		if c.OAuth2.ClientID != "" {
-			_, _ = fmt.Fprintf(b, "REDSKY_OAUTH2_CLIENT_ID=%s\n", c.OAuth2.ClientID)
-		}
-		if c.OAuth2.ClientSecret != "" {
-			_, _ = fmt.Fprintf(b, "REDSKY_OAUTH2_CLIENT_SECRET=%s\n", c.OAuth2.ClientSecret)
-		}
-		if c.OAuth2.TokenURL != "" {
-			_, _ = fmt.Fprintf(b, "REDSKY_OAUTH2_TOKEN_URL=%s\n", c.OAuth2.TokenURL)
-		}
-	}
-	return b
-}
+// TODO This should come from the externally configured round-tripper instead
+
+var DefaultUserAgent string
+
+// TODO Should this be `NewClient(*viper.Viper, context.Context, http.RoundTripper)`?
 
 func NewClient(cfg Config) (Client, error) {
 	u, err := url.Parse(cfg.Address)
@@ -184,7 +164,6 @@ func NewClient(cfg Config) (Client, error) {
 	u.Path = strings.TrimRight(u.Path, "/")
 
 	// Make sure we have a User-Agent string
-	// TODO This should be done separately via a configurable round-tripper
 	ua := DefaultUserAgent
 	if ua == "" {
 		ua = version.GetUserAgentString("RedSky")
