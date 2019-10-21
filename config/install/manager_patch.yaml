@@ -17,4 +17,4 @@ spec:
           allowPrivilegeEscalation: false
         envFrom:
         - secretRef:
-            name: manager
+            name: redsky-manager

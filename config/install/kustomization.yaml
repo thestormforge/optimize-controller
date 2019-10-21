@@ -10,7 +10,7 @@ patchesStrategicMerge:
 - manager_patch.yaml
 
 secretGenerator:
-- name: manager
+- name: redsky-manager
   envs:
   - manager.env
 
