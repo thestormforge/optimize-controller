@@ -104,6 +104,12 @@ func (k *Kubectl) Create() *exec.Cmd {
 func (k *Kubectl) Delete() *exec.Cmd {
 	args := []string{"delete"}
 
+	// We ignore not found errors for a few reasons:
+	// 1. We are deleting the namespace and there may be timing issues
+	// 2. The secret hash name could have changed ("old" secrets are deleted with the namespace itself)
+	// 3. The bootstrap role may be been removed by the customer
+	args = append(args, "--ignore-not-found")
+
 	// Take stdin
 	args = append(args, "-f", "-")
 
@@ -112,9 +118,6 @@ func (k *Kubectl) Delete() *exec.Cmd {
 
 // RunPiped runs c1 and pipes the output into c2
 func RunPiped(c1, c2 *exec.Cmd) error {
-	// TODO How do we get error text from either process?
-
-	// TODO Or use os.Pipe, e.g. https://stackoverflow.com/questions/10781516/how-to-pipe-several-commands-in-go
 	stdout, err := c1.StdoutPipe()
 	if err != nil {
 		return err

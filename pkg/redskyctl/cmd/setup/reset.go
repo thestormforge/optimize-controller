@@ -17,6 +17,9 @@ limitations under the License.
 package setup
 
 import (
+	"bytes"
+
+	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/generate"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 )
@@ -66,8 +69,33 @@ func (o *ResetOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) error {
 }
 
 func (o *ResetOptions) Run() error {
+	// Delete the bootstrap role if it exists
+	if err := o.bootstrapRole(); err != nil {
+		return err
+	}
+
+	// Delete the created manifests
 	cmd := o.Kubectl.GenerateRedSkyOpsManifests(nil)
 	deleteCmd := o.Kubectl.Delete()
 	deleteCmd.Stdout = o.Out
 	return RunPiped(cmd, deleteCmd)
+}
+
+func (o *ResetOptions) bootstrapRole() error {
+	opts := generate.NewGenerateRBACOptions(cmdutil.IOStreams{Out: o.Out})
+	opts.Bootstrap = true
+	if err := opts.Complete(); err != nil {
+		return err
+	}
+
+	buf := &bytes.Buffer{}
+	opts.IOStreams.Out = buf
+	if err := opts.Run(); err != nil {
+		return err
+	}
+
+	deleteCmd := o.Kubectl.Delete()
+	deleteCmd.Stdout = o.Out
+	deleteCmd.Stdin = buf
+	return deleteCmd.Run()
 }
