@@ -133,6 +133,7 @@ func (o *InitOptions) applyConfiguration() error {
 
 	applyCmd := o.Kubectl.Apply()
 	applyCmd.Stdout = o.Out
+	applyCmd.Stderr = o.ErrOut
 	return RunPiped(cmd, applyCmd)
 }
 
