@@ -18,11 +18,24 @@ metadata:
   annotations:
     checksum/config: SECRET_SHA256
 spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: RELEASE_NAME
   template:
     metadata:
       labels:
         app.kubernetes.io/version: VERSION
+        app.kubernetes.io/instance: RELEASE_NAME
     spec:
       containers:
         - name: manager
           imagePullPolicy: PULL_POLICY
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: controller-manager-metrics-service
+  namespace: system
+spec:
+  selector:
+    app.kubernetes.io/instance: RELEASE_NAME

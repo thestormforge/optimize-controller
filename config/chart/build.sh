@@ -1,6 +1,7 @@
 #!/bin/sh
 set -eo pipefail
 
+
 # Parse arguments and set variables
 if [ -z "$1" ]; then
     echo "usage: $(basename $0) [CHART_VERSION]"
@@ -14,6 +15,7 @@ WORKSPACE=${WORKSPACE:-/workspace}
 function templatizeDeployment {
     sed '/namespace: redsky-system/d' | \
         sed 's/SECRET_SHA256/{{ include (print $.Template.BasePath "\/secret.yaml") . | sha256sum }}/g' | \
+        sed 's/RELEASE_NAME/{{ .Release.Name | quote }}/g' | \
         sed 's/VERSION/{{ .Chart.AppVersion | quote }}/g' | \
         sed 's/IMG:TAG/{{ .Values.redskyImage }}:{{ .Values.redskyTag }}/g' | \
         sed 's/PULL_POLICY/{{ .Values.redskyImagePullPolicy }}/g' | \
@@ -29,43 +31,55 @@ function templatizeRBAC {
 
 # Post processing to add recommended labels
 function label {
+    sed '/creationTimestamp: null/d' | \
     sed '/^  labels:$/,/^    app\.kubernetes\.io\/name: redskyops$/c\
   labels:\
     app.kubernetes.io/name: redskyops\
-    helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"\
-    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}\
+    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}\
     app.kubernetes.io/instance: {{ .Release.Name | quote }}\
-    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}'
+    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}\
+    helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"'
 }
 
 
-# Move non-role resource out of RBAC
-mv "$WORKSPACE/rbac/auth_proxy_service.yaml" "$WORKSPACE/default/."
-
-
-# Edit the kustomizations for templatization
-
+# For the installation root we remove the labels that are typically added during
+# an install because the chart will contain templatized labels instead.
 cd "$WORKSPACE/install"
 konjure kustomize edit remove transformer metadata_labels.yaml
 
-cd "$WORKSPACE/crd"
-kustomize edit add label "app.kubernetes.io/name:redskyops"
-# NOTE: Not using the crd-install hook is more consistent with `redskyctl reset`
-# kustomize edit add annotation "helm.sh/hook:crd-install"
 
+# For the default root we are going to relocate the HTTPS proxy used for serving
+# Prometheus metrics since it would otherwise be in RBAC (which would put it in
+# a conditional block in the chart template). We also separate out the different
+# resources so they can be built individually.
+cd "$WORKSPACE/default"
+mv "$WORKSPACE/rbac/auth_proxy_service.yaml" .
+kustomize edit add resource "auth_proxy_service.yaml"
+kustomize edit remove resource "../crd"
+kustomize edit remove resource "../rbac"
+
+
+# For the manager we need to replace the image name with something that will
+# match the filters later.
 cd "$WORKSPACE/manager"
 kustomize edit set image controller="IMG:TAG"
 
-cd "$WORKSPACE/default"
-kustomize edit remove resource "../crd"
-kustomize edit remove resource "../rbac"
-kustomize edit add resource "auth_proxy_service.yaml"
 
+# For the CRD resources we need to add back the "name" label so the label filters
+# will find it. We do not add the Helm CRD hook annotation because the CRD isn't
+# used during the installation process.
+cd "$WORKSPACE/crd"
+kustomize edit add label "app.kubernetes.io/name:redskyops"
+
+
+# For the RBAC resources we need to add back the "name" label so the label filters
+# will find it and because we removed it from the default root, we need to add
+# back the name prefix and namespace transformations.
 cd "$WORKSPACE/rbac"
+kustomize edit remove resource "auth_proxy_service.yaml"
 kustomize edit add label "app.kubernetes.io/name:redskyops"
 kustomize edit set namespace "redsky-system"
 kustomize edit set nameprefix "redsky-"
-kustomize edit remove resource "auth_proxy_service.yaml"
 
 
 # Build the templates for the chart
