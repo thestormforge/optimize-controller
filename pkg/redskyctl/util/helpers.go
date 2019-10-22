@@ -19,12 +19,18 @@ package util
 import (
 	"fmt"
 	"os"
+	"os/exec"
 )
 
 // CheckErr ensures the supplied error is reported and handled correctly. Errors may be reported and/or may cause the process to exit.
 func CheckErr(err error) {
 	if err == nil {
 		return
+	}
+
+	// Handle forked process errors by propagating the exit status
+	if eerr, ok := err.(*exec.ExitError); ok && !eerr.Success() {
+		os.Exit(eerr.ExitCode())
 	}
 
 	// This error handling leaves a lot to be desired...
