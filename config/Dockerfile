@@ -12,9 +12,9 @@ ENV KUSTOMIZE_VERSION="v3.2.2" \
     KUSTOMIZE_URL="https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv3.2.2/kustomize_kustomize.v3.2.2_linux_amd64" \
     KUSTOMIZE_SHA256="c25c41d2295326d0af7c2613ff9d0ce7d3432dfc7a6426da6242213a1fd60e0e"
 
-ENV KONJURE_VERSION="v0.1.0-beta.5" \
-    KONJURE_URL="https://github.com/carbonrelay/konjure/releases/download/v0.1.0-beta.5/konjure-linux-amd64" \
-    KONJURE_SHA256="f4bf498eeaccd45cd6aeea7d4758fbaae677645d1033e5df6ace3c69933b5300"
+ENV KONJURE_VERSION="v0.1.0-beta.6" \
+    KONJURE_URL="https://github.com/carbonrelay/konjure/releases/download/v0.1.0-beta.6/konjure-linux-amd64" \
+    KONJURE_SHA256="fa56126f6d670e4d83ef4d924e2dfa18698ca02dd320ec1fdd5f7127e528b605"
 
 RUN apk --no-cache add curl && \
     curl -L "$HELM_URL" | tar xz --exclude '*/*[^helm]' --strip-components=1 -C /usr/local/bin/ && \
