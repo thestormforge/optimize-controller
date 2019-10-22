@@ -13,10 +13,7 @@ redskyctl reset [flags]
 ### Options
 
 ```
-      --bootstrap   Stop after creating the bootstrap configuration.
-      --dry-run     Generate the manifests instead of applying them.
-  -h, --help        help for reset
-      --kustomize   Install/update the Kustomize plugin and exit.
+  -h, --help   help for reset
 ```
 
 ### Options inherited from parent commands

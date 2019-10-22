@@ -13,6 +13,7 @@ redskyctl generate rbac [flags]
 ### Options
 
 ```
+      --bootstrap          Generate the default cluster used for initial installations
   -f, --filename string    File that contains the experiment to extract roles from.
   -h, --help               help for rbac
       --include-names      Include resource names in the generated role.

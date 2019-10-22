@@ -1,21 +1,19 @@
-## redskyctl init
+## redskyctl delete
 
-Install to a cluster
+Delete a Red Sky experiment
 
 ### Synopsis
 
-Install Red Sky Ops to a cluster
+Delete Red Sky experiments from the remote server
 
 ```
-redskyctl init [flags]
+redskyctl delete [experiment...] [flags]
 ```
 
 ### Options
 
 ```
-      ----bootstrap-role   Create the bootstrap role (if it does not exist). (default true)
-      --dry-run            Generate the manifests instead of applying them.
-  -h, --help               help for init
+  -h, --help   help for delete
 ```
 
 ### Options inherited from parent commands
