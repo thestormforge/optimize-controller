@@ -6,3 +6,4 @@ aggregationRule:
   clusterRoleSelectors:
     - matchLabels:
         "redskyops.dev/aggregate-to-patching": "true"
+rules: []
