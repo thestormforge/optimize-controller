@@ -7,7 +7,7 @@ $patch: delete
 apiVersion: v1
 kind: Secret
 metadata:
-  name: manager
+  name: redsky-manager
 $patch: delete
 ---
 apiVersion: apps/v1
