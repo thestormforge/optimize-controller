@@ -22,6 +22,7 @@ import (
 
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/check"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/config"
+	deleteCmd "github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/delete"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/docs"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/generate"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/get"
@@ -66,6 +67,7 @@ func NewRedskyctlCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 	rootCmd.AddCommand(generate.NewGenerateCommand(f, ioStreams))
 	rootCmd.AddCommand(status.NewStatusCommand(f, ioStreams))
 	rootCmd.AddCommand(get.NewGetCommand(f, ioStreams))
+	rootCmd.AddCommand(deleteCmd.NewDeleteCommand(f, ioStreams))
 
 	// TODO Add 'backup' and 'restore' maintenance commands ('maint' subcommands?)
 	// TODO We need helpers for doing a "dry run" on patches to make configuration easier
