@@ -40,8 +40,13 @@ type OAuth2 struct {
 	Token string `json:"token,omitempty"`
 }
 
+type ManagerEnvVar struct {
+	Name  string `json:"name" mapstructure:"name"`
+	Value string `json:"value" mapstructure:"value"`
+}
+
 type Manager struct {
-	Environment map[string]string `json:"env,omitempty"`
+	Environment []ManagerEnvVar `json:"env,omitempty"`
 	// TODO Have an option for not including the local config?
 }
 
@@ -56,7 +61,7 @@ type Client interface {
 	Do(context.Context, *http.Request) (*http.Response, []byte, error)
 }
 
-func NewConfig(v *viper.Viper) *Config {
+func NewConfig(v *viper.Viper) (*Config, error) {
 	config := &Config{
 		Address: v.GetString("address"),
 	}
@@ -70,12 +75,13 @@ func NewConfig(v *viper.Viper) *Config {
 	}
 
 	if v.IsSet("manager.env") {
-		config.Manager = &Manager{
-			Environment: v.GetStringMapString("manager.env"),
+		config.Manager = &Manager{}
+		if err := v.UnmarshalKey("manager.env", &config.Manager.Environment); err != nil {
+			return nil, err
 		}
 	}
 
-	return config
+	return config, nil
 }
 
 func DefaultConfig() (*Config, error) {
@@ -98,7 +104,7 @@ func DefaultConfig() (*Config, error) {
 	if err := v.ReadInConfig(); ignoreConfigFileNotFound(err) != nil {
 		return nil, err
 	}
-	return NewConfig(v), nil
+	return NewConfig(v)
 }
 
 func ignoreConfigFileNotFound(err error) error {

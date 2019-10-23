@@ -51,11 +51,36 @@ func captureArgs(args []string, o *ConfigOptions) []string {
 	return args
 }
 
+func handleManagerEnv(manager *api.Manager, k, v string) bool {
+	if !strings.HasPrefix(k, "manager.env.") {
+		return false
+	}
+	k = strings.TrimPrefix(k, "manager.env.")
+	for i := range manager.Environment {
+		if manager.Environment[i].Name == k {
+			manager.Environment[i].Value = v
+			return true
+		}
+	}
+	manager.Environment = append(manager.Environment, api.ManagerEnvVar{Name: k, Value: v})
+	return true
+}
+
 func (o *ConfigOptions) runSet() error {
 	for k, v := range o.Source {
 		// If this is an attempt to set an OAuth setting to a non-empty value, make sure we have someplace to put it
 		if strings.HasPrefix(k, "oauth2.") && v != "" && o.Config.OAuth2 == nil {
 			o.Config.OAuth2 = &api.OAuth2{}
+		}
+
+		// Same for manager
+		if strings.HasPrefix(k, "manager.") && v != "" && o.Config.Manager == nil {
+			o.Config.Manager = &api.Manager{}
+		}
+
+		// Allow manager environment variables to be set using map syntax
+		if handleManagerEnv(o.Config.Manager, k, v) {
+			continue
 		}
 
 		// Evaluate the JSON path expression and set the result

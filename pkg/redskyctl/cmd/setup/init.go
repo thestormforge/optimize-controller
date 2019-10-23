@@ -111,8 +111,8 @@ func (o *InitOptions) applyConfiguration() error {
 		env["REDSKY_OAUTH2_TOKEN_URL"] = cfg.OAuth2.TokenURL
 	}
 	if cfg.Manager != nil {
-		for k, v := range cfg.Manager.Environment {
-			env[k] = v
+		for _, v := range cfg.Manager.Environment {
+			env[v.Name] = v.Value
 		}
 	}
 
