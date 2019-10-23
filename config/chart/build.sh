@@ -3,11 +3,12 @@ set -eo pipefail
 
 
 # Parse arguments and set variables
-if [ -z "$1" ]; then
-    echo "usage: $(basename $0) [CHART_VERSION]"
+if [ -z "$1" -o -z "$2" ]; then
+    echo "usage: $(basename $0) [CHART_FORMAT] [CHART_VERSION]"
     exit 1
 fi
-CHART_VERSION=$1
+CHART_FORMAT=$1
+CHART_VERSION=$2
 WORKSPACE=${WORKSPACE:-/workspace}
 
 
@@ -89,6 +90,36 @@ kustomize build rbac | templatizeRBAC | label > "$WORKSPACE/chart/redskyops/temp
 kustomize build chart | templatizeDeployment | label > "$WORKSPACE/chart/redskyops/templates/deployment.yaml"
 
 
+# Remove icon reference from Rancher chart
+if [ "$CHART_FORMAT" == "rancher" ] ; then
+    sed -i 's|^icon: .*/icon.png$|icon: file://../icon.png|' "$WORKSPACE/chart/redskyops/Chart.yaml"
+fi
+
+
 # Package everything together using Helm
 helm package --save=false --version "$CHART_VERSION" "$WORKSPACE/chart/redskyops" > /dev/null
-cat "/workspace/redskyops-$CHART_VERSION.tgz" | base64
+
+
+# Output the chart in the expected format
+case "$CHART_FORMAT" in
+helm)
+    tar c -z -C "$WORKSPACE" "redskyops-$CHART_VERSION.tgz" | base64
+    ;;
+rancher)
+    BASE="$WORKSPACE/chart/rancher"
+    DEST="$BASE/charts/redskyops/v$CHART_VERSION"
+    mkdir -p "$DEST"
+    tar x -z --strip-components 1 -f "$WORKSPACE/redskyops-$CHART_VERSION.tgz" -C "$DEST"
+    tar c -z -C "$BASE" . | base64
+    ;;
+digitalocean)
+    BASE="$WORKSPACE/chart/digitalocean"
+    DEST="$BASE/src/redskyops/$CHART_VERSION"
+    mkdir -p "$DEST"
+    tar x -z --strip-components 1 -f "$WORKSPACE/redskyops-$CHART_VERSION.tgz" -C "$DEST"
+    tar c -z -C "$BASE" . | base64
+    ;;
+*)
+    echo "Unknown chart format: $CHART_FORMAT"
+    exit 1
+esac
