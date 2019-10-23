@@ -91,7 +91,7 @@ func DefaultConfig() (*Config, error) {
 	// Get configuration from disk
 	// TODO ~/.config/redskyops/??? ~/.redskyops/config???
 	v.SetConfigType("yaml")
-	v.SetConfigFile("$HOME/.redsky")
+	v.SetConfigFile(os.ExpandEnv("$HOME/.redsky"))
 
 	// Read the configuration and convert to a typed configuration object
 	// TODO Get rid of the structs and just pass the Viper around
