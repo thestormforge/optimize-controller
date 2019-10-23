@@ -61,7 +61,7 @@ func NewConfig(v *viper.Viper) *Config {
 		Address: v.GetString("address"),
 	}
 
-	if v.IsSet("oauth2.client_id") && v.IsSet("oauth2.client_secret") {
+	if v.IsSet("oauth2.client_id") || v.IsSet("oauth2.client_secret") {
 		config.OAuth2 = &OAuth2{
 			ClientID:     v.GetString("oauth2.client_id"),
 			ClientSecret: v.GetString("oauth2.client_secret"),
