@@ -55,7 +55,7 @@ func NewGenerateRBACOptions(ioStreams cmdutil.IOStreams) *GenerateRBACOptions {
 	}
 }
 
-func NewGenerateRBACCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
+func NewGenerateRBACCommand(ioStreams cmdutil.IOStreams) *cobra.Command {
 	o := NewGenerateRBACOptions(ioStreams)
 
 	cmd := &cobra.Command{

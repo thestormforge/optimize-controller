@@ -45,8 +45,9 @@ func NewGenerateCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.C
 	}
 	cmd.Run = cmd.HelpFunc()
 
-	cmd.AddCommand(NewGenerateExperimentCommand(f, ioStreams))
-	cmd.AddCommand(NewGenerateRBACCommand(f, ioStreams))
+	cmd.AddCommand(NewGenerateExperimentCommand(ioStreams))
+	cmd.AddCommand(NewGenerateInstallCmd(ioStreams))
+	cmd.AddCommand(NewGenerateRBACCommand(ioStreams))
 
 	return cmd
 }

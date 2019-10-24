@@ -55,8 +55,8 @@ The `redskyops` Helm chart includes additional values to configure when using th
 
 If you have specific security requirements or the default RBAC configuration for the easy install is too permissive for your environment, there are a number of ways to obtain the raw Red Sky Ops Manager manifests:
 
-1. Using `redskyctl init --dry-run` will print the raw manifests used during installation, however this still requires creating a Kubernetes pod.
-2. Using Docker to run the `setuptools` image directly. For example, `docker container run --rm $(redskyctl version --setuptools)` will produce the same output as `redskyctl init --dry-run` without requiring a configured Kubernetes context.
+1. Using `redskyctl generate install` will print the raw manifests used during installation, however this still requires creating a Kubernetes pod.
+2. Using Docker to run the `setuptools` image directly. For example, `docker container run --rm $(redskyctl version --setuptools)` will produce the same output as `redskyctl generate install` without requiring a configured Kubernetes context.
 
 ## Upgrading the Red Sky Ops Manager
 

@@ -19,9 +19,10 @@ package setup
 import (
 	"bytes"
 	"fmt"
+	"io"
+	"os/exec"
 
 	"github.com/redskyops/k8s-experiment/pkg/api"
-	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/generate"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 )
@@ -33,9 +34,9 @@ const (
 
 // InitOptions is the configuration for initialization
 type InitOptions struct {
-	Kubectl
+	Kubectl              *cmdutil.Kubectl
+	Namespace            string
 	IncludeBootstrapRole bool
-	DryRun               bool
 
 	// TODO Add --envFile option that gets merged with the configuration environment variables
 	// TODO Should we get information from other secrets in other namespaces?
@@ -47,9 +48,7 @@ type InitOptions struct {
 // NewInitOptions returns a new initialization options struct
 func NewInitOptions(ioStreams cmdutil.IOStreams) *InitOptions {
 	return &InitOptions{
-		Kubectl: Kubectl{
-			Namespace: "redsky-system",
-		},
+		Kubectl:              cmdutil.NewKubectl(),
 		IncludeBootstrapRole: true,
 		IOStreams:            ioStreams,
 	}
@@ -64,18 +63,18 @@ func NewInitCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Comma
 		Long:    initLong,
 		Example: initExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(o.Complete(f, cmd))
+			cmdutil.CheckErr(o.Complete(f, cmd, args))
 			cmdutil.CheckErr(o.Run())
 		},
 	}
 
-	cmd.Flags().BoolVar(&o.IncludeBootstrapRole, "--bootstrap-role", true, "Create the bootstrap role (if it does not exist).")
-	cmd.Flags().BoolVar(&o.DryRun, "dry-run", false, "Generate the manifests instead of applying them.")
+	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", o.Namespace, "Override default namespace.")
+	cmd.Flags().BoolVar(&o.IncludeBootstrapRole, "bootstrap-role", o.IncludeBootstrapRole, "Create the bootstrap role (if it does not exist).")
 
 	return cmd
 }
 
-func (o *InitOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) error {
+func (o *InitOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []string) error {
 	if err := o.Kubectl.Complete(); err != nil {
 		return err
 	}
@@ -84,7 +83,7 @@ func (o *InitOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) error {
 }
 
 func (o *InitOptions) Run() error {
-	if err := o.applyConfiguration(); err != nil {
+	if err := o.install(); err != nil {
 		return err
 	}
 
@@ -95,14 +94,42 @@ func (o *InitOptions) Run() error {
 	return nil
 }
 
-// Kubectl applies the '/config' contents (via the setuptools image)
-func (o *InitOptions) applyConfiguration() error {
+func (o *InitOptions) install() error {
+	env, err := o.generateManagerEnv()
+	if err != nil {
+		return err
+	}
+
+	// TODO Handle upgrades with "--prune", "--selector", "app.kubernetes.io/name=redskyops,app.kubernetes.io/managed-by=%s"
+	applyCmd := o.Kubectl.NewCmd("apply", "-f", "-")
+	applyCmd.Stdout = o.Out
+	applyCmd.Stderr = o.ErrOut
+	return install(o.Kubectl, o.Namespace, env, applyCmd)
+}
+
+func (o *InitOptions) bootstrapRole() error {
+	if !o.IncludeBootstrapRole {
+		return nil
+	}
+
+	createCmd := o.Kubectl.NewCmd("create", "-f", "-")
+	if err := bootstrapRole(o.Kubectl, createCmd); err != nil {
+		if _, ok := err.(*exec.ExitError); ok {
+			// TODO We expect this to fail when the resource exists, but what about everything else?
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+func (o *InitOptions) generateManagerEnv() (io.Reader, error) {
 	env := make(map[string]string)
 
 	// Add environment variables from the default configuration
 	cfg, err := api.DefaultConfig()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	env["REDSKY_ADDRESS"] = cfg.Address
 	if cfg.OAuth2 != nil {
@@ -123,49 +150,5 @@ func (o *InitOptions) applyConfiguration() error {
 			_, _ = fmt.Fprintf(b, "%s=%s\n", k, v)
 		}
 	}
-
-	// Generate the product manifests
-	cmd := o.Kubectl.GenerateRedSkyOpsManifests(b)
-	if o.DryRun {
-		cmd.Stdout = o.Out
-		return cmd.Run()
-	}
-
-	applyCmd := o.Kubectl.Apply()
-	applyCmd.Stdout = o.Out
-	applyCmd.Stderr = o.ErrOut
-	return RunPiped(cmd, applyCmd)
-}
-
-// Kubectl creates the `redskyctl generate rbac --bootstrap` output
-func (o *InitOptions) bootstrapRole() error {
-	if !o.IncludeBootstrapRole {
-		return nil
-	}
-
-	opts := generate.NewGenerateRBACOptions(cmdutil.IOStreams{Out: o.Out})
-	opts.Bootstrap = true
-	if err := opts.Complete(); err != nil {
-		return err
-	}
-
-	if o.DryRun {
-		_, _ = fmt.Fprintln(o.Out, "---")
-		return opts.Run()
-	}
-
-	buf := &bytes.Buffer{}
-	opts.IOStreams.Out = buf
-	if err := opts.Run(); err != nil {
-		return err
-	}
-
-	createCmd := o.Kubectl.Create()
-	createCmd.Stdout = o.Out
-	createCmd.Stdin = buf
-
-	// TODO We expect this to fail when the resource exists, but what about everything else?
-	_ = createCmd.Run()
-
-	return nil
+	return b, nil
 }

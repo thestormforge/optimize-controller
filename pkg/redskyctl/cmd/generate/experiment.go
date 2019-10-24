@@ -57,7 +57,7 @@ func NewGenerateExperimentOptions(ioStreams cmdutil.IOStreams) *GenerateExperime
 	}
 }
 
-func NewGenerateExperimentCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
+func NewGenerateExperimentCommand(ioStreams cmdutil.IOStreams) *cobra.Command {
 	o := NewGenerateExperimentOptions(ioStreams)
 
 	cmd := &cobra.Command{
@@ -68,7 +68,7 @@ func NewGenerateExperimentCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams
 		Args:    cobra.ExactArgs(1),
 		Hidden:  true,
 		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(o.Complete(f, cmd, args))
+			cmdutil.CheckErr(o.Complete(cmd, args))
 			cmdutil.CheckErr(o.Run())
 		},
 	}
@@ -76,7 +76,7 @@ func NewGenerateExperimentCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams
 	return cmd
 }
 
-func (o *GenerateExperimentOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []string) error {
+func (o *GenerateExperimentOptions) Complete(cmd *cobra.Command, args []string) error {
 	// TODO There are probably APIs for doing this if we register the experiment generator properly
 	if b, err := ioutil.ReadFile(args[0]); err != nil {
 		return err

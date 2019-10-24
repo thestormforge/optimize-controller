@@ -17,9 +17,6 @@ limitations under the License.
 package setup
 
 import (
-	"bytes"
-
-	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/generate"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 )
@@ -31,7 +28,8 @@ const (
 
 // ResetOptions is the configuration for suggesting assignments
 type ResetOptions struct {
-	Kubectl
+	Kubectl   *cmdutil.Kubectl
+	Namespace string
 
 	cmdutil.IOStreams
 }
@@ -39,6 +37,7 @@ type ResetOptions struct {
 // NewResetOptions returns a new reset options struct
 func NewResetOptions(ioStreams cmdutil.IOStreams) *ResetOptions {
 	return &ResetOptions{
+		Kubectl:   cmdutil.NewKubectl(),
 		IOStreams: ioStreams,
 	}
 }
@@ -52,15 +51,17 @@ func NewResetCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Comm
 		Long:    resetLong,
 		Example: resetExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(o.Complete(f, cmd))
+			cmdutil.CheckErr(o.Complete(f, cmd, args))
 			cmdutil.CheckErr(o.Run())
 		},
 	}
 
+	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", o.Namespace, "Override default namespace.")
+
 	return cmd
 }
 
-func (o *ResetOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) error {
+func (o *ResetOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []string) error {
 	if err := o.Kubectl.Complete(); err != nil {
 		return err
 	}
@@ -69,33 +70,27 @@ func (o *ResetOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) error {
 }
 
 func (o *ResetOptions) Run() error {
-	// Delete the bootstrap role if it exists
 	if err := o.bootstrapRole(); err != nil {
 		return err
 	}
 
-	// Delete the created manifests
-	cmd := o.Kubectl.GenerateRedSkyOpsManifests(nil)
-	deleteCmd := o.Kubectl.Delete()
+	if err := o.install(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (o *ResetOptions) install() error {
+	deleteCmd := o.Kubectl.NewCmd("delete", "--ignore-not-found", "-f", "-")
 	deleteCmd.Stdout = o.Out
-	return RunPiped(cmd, deleteCmd)
+	deleteCmd.Stderr = o.ErrOut
+	return install(o.Kubectl, o.Namespace, nil, deleteCmd)
 }
 
 func (o *ResetOptions) bootstrapRole() error {
-	opts := generate.NewGenerateRBACOptions(cmdutil.IOStreams{Out: o.Out})
-	opts.Bootstrap = true
-	if err := opts.Complete(); err != nil {
-		return err
-	}
-
-	buf := &bytes.Buffer{}
-	opts.IOStreams.Out = buf
-	if err := opts.Run(); err != nil {
-		return err
-	}
-
-	deleteCmd := o.Kubectl.Delete()
+	deleteCmd := o.Kubectl.NewCmd("delete", "--ignore-not-found", "-f", "-")
 	deleteCmd.Stdout = o.Out
-	deleteCmd.Stdin = buf
-	return deleteCmd.Run()
+	deleteCmd.Stderr = o.ErrOut
+	return bootstrapRole(o.Kubectl, deleteCmd)
 }
