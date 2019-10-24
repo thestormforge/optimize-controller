@@ -113,6 +113,7 @@ func (o *InitOptions) bootstrapRole() error {
 	}
 
 	createCmd := o.Kubectl.NewCmd("create", "-f", "-")
+	createCmd.Stdout = o.Out
 	if err := bootstrapRole(o.Kubectl, createCmd); err != nil {
 		if _, ok := err.(*exec.ExitError); ok {
 			// TODO We expect this to fail when the resource exists, but what about everything else?
