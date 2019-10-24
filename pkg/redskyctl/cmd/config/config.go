@@ -59,6 +59,7 @@ func NewConfigCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Com
 	cmd.AddCommand(NewViewCommand(f, ioStreams))
 	cmd.AddCommand(NewSetCommand(f, ioStreams))
 	cmd.AddCommand(NewFixCommand(f, ioStreams))
+	cmd.AddCommand(NewEnvCommand(f, ioStreams))
 
 	return cmd
 }
