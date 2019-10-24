@@ -86,7 +86,7 @@ func NewConfig(v *viper.Viper) (*Config, error) {
 
 func DefaultConfig() (*Config, error) {
 	v := viper.New()
-	v.SetDefault("oauth2.token_url", "./auth/token")
+	v.SetDefault("oauth2.token_url", "./auth/token/")
 
 	// Get configuration from environment variables
 	// TODO Switch to explicit binding
