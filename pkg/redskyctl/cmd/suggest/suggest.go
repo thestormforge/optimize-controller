@@ -72,7 +72,7 @@ func NewSuggestOptions(ioStreams cmdutil.IOStreams) *SuggestOptions {
 	}
 }
 
-// NewDocsCommand returns a new suggestion command
+// NewSuggestCommand returns a new suggestion command
 func NewSuggestCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
 	o := NewSuggestOptions(ioStreams)
 

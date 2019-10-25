@@ -37,6 +37,7 @@ import (
 // TODO Add "--client" and "--server" and "--manager" for only printing some versions
 // TODO Add a "--notes" option to print the release notes?
 // TODO Add an "--output" to control format (json, yaml)
+// TODO Check GitHub for new releases
 
 const (
 	versionLong    = `Print the version information for Red Sky Ops components`

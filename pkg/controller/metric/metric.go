@@ -94,6 +94,7 @@ func toURL(target runtime.Object, m *redskyv1alpha1.Metric) ([]string, error) {
 	// Construct a URL for each service (use IP literals instead of host names to avoid DNS lookups)
 	var urls []string
 	for _, s := range list.Items {
+		// When debugging in minikube, use `minikube tunnel` to expose the cluster IP on the host
 		host := s.Spec.ClusterIP
 		port := m.Port.IntValue()
 
