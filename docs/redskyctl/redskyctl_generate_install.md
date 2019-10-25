@@ -1,20 +1,19 @@
-## redskyctl init
+## redskyctl generate install
 
-Install to a cluster
+Generate Red Sky Ops manifests
 
 ### Synopsis
 
-Install Red Sky Ops to a cluster
+Generate installation manifests for Red Sky Ops
 
 ```
-redskyctl init [flags]
+redskyctl generate install [flags]
 ```
 
 ### Options
 
 ```
-      --bootstrap-role   Create the bootstrap role (if it does not exist). (default true)
-  -h, --help             help for init
+  -h, --help   help for install
 ```
 
 ### Options inherited from parent commands
@@ -28,5 +27,5 @@ redskyctl init [flags]
 
 ### SEE ALSO
 
-* [redskyctl](redskyctl.md)	 - Kubernetes Exploration
+* [redskyctl generate](redskyctl_generate.md)	 - Generate Red Sky Ops obejcts
 

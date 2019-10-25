@@ -28,7 +28,7 @@ redskyctl config [flags]
 ### SEE ALSO
 
 * [redskyctl](redskyctl.md)	 - Kubernetes Exploration
-* [redskyctl config fix](redskyctl_config_fix.md)	 - Fix configurations
+* [redskyctl config env](redskyctl_config_env.md)	 - Generate environment variables from configuration
 * [redskyctl config set](redskyctl_config_set.md)	 - Modify the configuration file
 * [redskyctl config view](redskyctl_config_view.md)	 - View the configuration file
 

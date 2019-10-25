@@ -1,20 +1,20 @@
-## redskyctl init
+## redskyctl config env
 
-Install to a cluster
+Generate environment variables from configuration
 
 ### Synopsis
 
-Install Red Sky Ops to a cluster
+View the Red Sky Ops configuration file as environment variables
 
 ```
-redskyctl init [flags]
+redskyctl config env [flags]
 ```
 
 ### Options
 
 ```
-      --bootstrap-role   Create the bootstrap role (if it does not exist). (default true)
-  -h, --help             help for init
+  -h, --help      help for env
+      --manager   Generate the manager environment.
 ```
 
 ### Options inherited from parent commands
@@ -28,5 +28,5 @@ redskyctl init [flags]
 
 ### SEE ALSO
 
-* [redskyctl](redskyctl.md)	 - Kubernetes Exploration
+* [redskyctl config](redskyctl_config.md)	 - Work with the configuration file
 

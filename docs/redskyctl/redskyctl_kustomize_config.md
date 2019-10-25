@@ -1,20 +1,21 @@
-## redskyctl init
+## redskyctl kustomize config
 
-Install to a cluster
+Configure Kustomize transformers
 
 ### Synopsis
 
-Install Red Sky Ops to a cluster
+Configure Kustomize transformers for Red Sky types
 
 ```
-redskyctl init [flags]
+redskyctl kustomize config [flags]
 ```
 
 ### Options
 
 ```
-      --bootstrap-role   Create the bootstrap role (if it does not exist). (default true)
-  -h, --help             help for init
+  -f, --filename string    
+  -h, --help               help for config
+  -k, --kustomize string   
 ```
 
 ### Options inherited from parent commands
@@ -28,5 +29,5 @@ redskyctl init [flags]
 
 ### SEE ALSO
 
-* [redskyctl](redskyctl.md)	 - Kubernetes Exploration
+* [redskyctl kustomize](redskyctl_kustomize.md)	 - 
 

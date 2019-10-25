@@ -28,5 +28,6 @@ redskyctl generate [flags]
 ### SEE ALSO
 
 * [redskyctl](redskyctl.md)	 - Kubernetes Exploration
+* [redskyctl generate install](redskyctl_generate_install.md)	 - Generate Red Sky Ops manifests
 * [redskyctl generate rbac](redskyctl_generate_rbac.md)	 - Generate experiment roles
 

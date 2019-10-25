@@ -1,19 +1,15 @@
-## redskyctl config fix
+## redskyctl kustomize
 
-Fix configurations
+
 
 ### Synopsis
 
-Fix configurations to make them canonical, for example, upgrading from older versions
 
-```
-redskyctl config fix [flags]
-```
 
 ### Options
 
 ```
-  -h, --help   help for fix
+  -h, --help   help for kustomize
 ```
 
 ### Options inherited from parent commands
@@ -27,5 +23,6 @@ redskyctl config fix [flags]
 
 ### SEE ALSO
 
-* [redskyctl config](redskyctl_config.md)	 - Work with the configuration file
+* [redskyctl](redskyctl.md)	 - Kubernetes Exploration
+* [redskyctl kustomize config](redskyctl_kustomize_config.md)	 - Configure Kustomize transformers
 
