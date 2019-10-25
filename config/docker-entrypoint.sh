@@ -17,7 +17,7 @@ fi
 
 
 # Create the "base" root
-kustomize create --autodetect --recursive
+kustomize create --autodetect --recursive --namespace "$NAMESPACE"
 
 
 # Detect and add patches
@@ -43,12 +43,6 @@ if [ -n "$TRIAL" ]; then
 		  "redskyops.dev/trial-role": trialResource
 		EOF
     konjure kustomize edit add transformer trial_labels.yaml
-fi
-
-
-# Namespace support
-if [ -n "$NAMESPACE" ] ; then
-    kustomize edit set namespace "$NAMESPACE"
 fi
 
 
