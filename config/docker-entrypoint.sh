@@ -49,12 +49,6 @@ fi
 # Process arguments
 while [ "$#" != "0" ] ; do
     case "$1" in
-    apply)
-        handle () {
-            kubectl apply -f -
-        }
-        shift
-        ;;
     create)
         handle () {
             kubectl create -f -
