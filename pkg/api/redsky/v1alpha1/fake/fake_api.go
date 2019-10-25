@@ -38,6 +38,10 @@ func (f *FakeAPI) key(n v1alpha1.ExperimentName) string {
 	return "http://example/com/api/experiments/" + n.Name()
 }
 
+func (f *FakeAPI) Options(context.Context) (v1alpha1.ServerMeta, error) {
+	return v1alpha1.ServerMeta{}, nil
+}
+
 func (f *FakeAPI) GetAllExperiments(ctx context.Context, q *v1alpha1.ExperimentListQuery) (v1alpha1.ExperimentList, error) {
 	return f.GetAllExperimentsByPage(ctx, q.Encode())
 }

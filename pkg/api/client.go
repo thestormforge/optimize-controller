@@ -32,79 +32,33 @@ import (
 	"golang.org/x/oauth2/clientcredentials"
 )
 
-type OAuth2 struct {
-	ClientID     string `json:"client_id,omitempty"`
-	ClientSecret string `json:"client_secret,omitempty"`
-	TokenURL     string `json:"token_url,omitempty"`
-
-	Token string `json:"token,omitempty"`
-}
-
-type ManagerEnvVar struct {
-	Name  string `json:"name" mapstructure:"name"`
-	Value string `json:"value" mapstructure:"value"`
-}
-
-type Manager struct {
-	Environment []ManagerEnvVar `json:"env,omitempty"`
-	// TODO Have an option for not including the local config?
-}
-
-type Config struct {
-	Address string   `json:"address,omitempty"`
-	OAuth2  *OAuth2  `json:"oauth2,omitempty"`
-	Manager *Manager `json:"manager,omitempty"`
-}
-
 type Client interface {
 	URL(endpoint string) *url.URL
 	Do(context.Context, *http.Request) (*http.Response, []byte, error)
 }
 
-func NewConfig(v *viper.Viper) (*Config, error) {
-	config := &Config{
-		Address: v.GetString("address"),
-	}
-
-	if v.IsSet("oauth2.client_id") || v.IsSet("oauth2.client_secret") {
-		config.OAuth2 = &OAuth2{
-			ClientID:     v.GetString("oauth2.client_id"),
-			ClientSecret: v.GetString("oauth2.client_secret"),
-			TokenURL:     v.GetString("oauth2.token_url"),
-		}
-	}
-
-	if v.IsSet("manager.env") {
-		config.Manager = &Manager{}
-		if err := v.UnmarshalKey("manager.env", &config.Manager.Environment); err != nil {
-			return nil, err
-		}
-	}
-
-	return config, nil
-}
-
-func DefaultConfig() (*Config, error) {
+func DefaultConfig() (*viper.Viper, error) {
 	v := viper.New()
+
+	// Defaults
 	v.SetDefault("oauth2.token_url", "./auth/token/")
 
-	// Get configuration from environment variables
-	// TODO Switch to explicit binding
-	v.SetEnvPrefix("redsky")
-	v.AutomaticEnv()
-	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	// Environment variables
+	_ = v.BindEnv("address", "REDSKY_ADDRESS")
+	_ = v.BindEnv("oauth2.client_id", "REDSKY_OAUTH2_CLIENT_ID")
+	_ = v.BindEnv("oauth2.client_secret", "REDSKY_OAUTH2_CLIENT_SECRET")
+	_ = v.BindEnv("oauth2.token_url", "REDSKY_OAUTH2_TOKEN_URL")
 
-	// Get configuration from disk
+	// Configuration on disk
 	// TODO ~/.config/redskyops/??? ~/.redskyops/config???
 	v.SetConfigType("yaml")
 	v.SetConfigFile(os.ExpandEnv("$HOME/.redsky"))
 
-	// Read the configuration and convert to a typed configuration object
-	// TODO Get rid of the structs and just pass the Viper around
+	// Read the configuration
 	if err := v.ReadInConfig(); ignoreConfigFileNotFound(err) != nil {
 		return nil, err
 	}
-	return NewConfig(v)
+	return v, nil
 }
 
 func ignoreConfigFileNotFound(err error) error {
@@ -122,64 +76,49 @@ func ignoreConfigFileNotFound(err error) error {
 
 var DefaultUserAgent string
 
-// TODO Should this be `NewClient(*viper.Viper, context.Context, http.RoundTripper)`?
+func NewClient(cfg *viper.Viper, ctx context.Context, transport http.RoundTripper) (Client, error) {
+	hc := &httpClient{}
+	hc.client.Transport = transport
+	hc.client.Timeout = 10 * time.Second
 
-func NewClient(cfg Config) (Client, error) {
-	u, err := url.Parse(cfg.Address)
-	if err != nil {
+	// Parse the API endpoint address and force a trailing slash
+	var err error
+	if hc.endpoint, err = url.Parse(cfg.GetString("address")); err != nil {
 		return nil, err
 	}
+	hc.endpoint.Path = strings.TrimRight(hc.endpoint.Path, "/") + "/"
 
-	// Force a trailing slash before calling URL.ResolveReference to better meet user expectations
-	u.Path = strings.TrimRight(u.Path, "/") + "/"
+	// Set the User-Agent string
+	hc.userAgent = DefaultUserAgent
+	if hc.userAgent == "" {
+		hc.userAgent = version.GetUserAgentString("RedSky")
+	}
 
-	var hc *http.Client
-	if cfg.OAuth2 != nil {
-		ctx := context.TODO()
-		if cfg.OAuth2.TokenURL != "" && cfg.OAuth2.ClientID != "" && cfg.OAuth2.ClientSecret != "" {
-			// Client credential ("two-legged") token flow
-			t, err := url.Parse(cfg.OAuth2.TokenURL)
-			if err != nil {
-				return nil, err
-			}
-
-			c := clientcredentials.Config{
-				ClientID:     cfg.OAuth2.ClientID,
-				ClientSecret: cfg.OAuth2.ClientSecret,
-				TokenURL:     u.ResolveReference(t).String(),
-				AuthStyle:    oauth2.AuthStyleInParams,
-			}
-
-			hc = c.Client(ctx)
-		} else if cfg.OAuth2.Token != "" {
-			// Static token flow
-			ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: cfg.OAuth2.Token})
-			hc = oauth2.NewClient(ctx, ts)
+	// Configure OAuth2
+	if cfg.IsSet("oauth2.client_id") && cfg.IsSet("oauth2.client_secret") {
+		// Client credential ("two-legged") token flow
+		cc := clientcredentials.Config{
+			ClientID:     cfg.GetString("oauth2.client_id"),
+			ClientSecret: cfg.GetString("oauth2.client_secret"),
+			AuthStyle:    oauth2.AuthStyleInParams,
 		}
+
+		// Resolve the token URL against the endpoint address
+		tokenURL, err := hc.endpoint.Parse(cfg.GetString("oauth2.token_url"))
+		if err != nil {
+			return nil, err
+		}
+		cc.TokenURL = tokenURL.String()
+
+		hc.client.Transport = &oauth2.Transport{Source: cc.TokenSource(ctx), Base: hc.client.Transport}
+	} else if cfg.IsSet("oauth2.token") {
+		// Static token flow
+		sts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: cfg.GetString("oauth2.token")})
+
+		hc.client.Transport = &oauth2.Transport{Source: sts, Base: hc.client.Transport}
 	}
 
-	// Default client
-	if hc == nil {
-		hc = &http.Client{}
-	}
-
-	// Use an explicit timeout
-	hc.Timeout = 10 * time.Second
-
-	// Strip the trailing slash back out so it isn't displayed
-	u.Path = strings.TrimRight(u.Path, "/")
-
-	// Make sure we have a User-Agent string
-	ua := DefaultUserAgent
-	if ua == "" {
-		ua = version.GetUserAgentString("RedSky")
-	}
-
-	return &httpClient{
-		endpoint:  u,
-		client:    *hc,
-		userAgent: ua,
-	}, nil
+	return hc, nil
 }
 
 type httpClient struct {
@@ -189,9 +128,8 @@ type httpClient struct {
 }
 
 func (c *httpClient) URL(ep string) *url.URL {
-	p := path.Join(c.endpoint.Path, ep)
 	u := *c.endpoint
-	u.Path = p
+	u.Path = path.Join(u.Path, ep)
 	return &u
 }
 

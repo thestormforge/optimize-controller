@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/redskyops/k8s-experiment/pkg/api"
+	"github.com/spf13/viper"
 )
 
 const (
@@ -83,6 +84,7 @@ const (
 	ErrTrialInvalid                     = "trial-invalid"
 	ErrTrialUnavailable                 = "trial-unavailable"
 	ErrTrialNotFound                    = "trial-not-found"
+	ErrConfigAddressMissing             = "config-address-missing"
 	ErrUnexpected                       = "unexpected"
 )
 
@@ -98,6 +100,14 @@ func (e *Error) Error() string {
 		return e.Message
 	}
 	return string(e.Type)
+}
+
+type ServerMeta struct {
+	Server string `json:"-"`
+}
+
+func (m *ServerMeta) Unmarshal(header http.Header) {
+	m.Server = header.Get("Server")
 }
 
 // ExperimentName exists to clearly separate cases where an actual name can be used
@@ -327,6 +337,7 @@ type TrialList struct {
 
 // API provides bindings for the supported endpoints
 type API interface {
+	Options(context.Context) (ServerMeta, error)
 	GetAllExperiments(context.Context, *ExperimentListQuery) (ExperimentList, error)
 	GetAllExperimentsByPage(context.Context, string) (ExperimentList, error)
 	GetExperimentByName(context.Context, ExperimentName) (Experiment, error)
@@ -340,22 +351,53 @@ type API interface {
 	AbandonRunningTrial(context.Context, string) error
 }
 
-// NewApi returns a new version specific API for the specified client
-func NewApi(c api.Client) API {
-	return &httpAPI{client: c}
-}
-
-// NewForConfig returns a new version specific API for the specified client configuration
-func NewForConfig(c *api.Config) (API, error) {
-	client, err := api.NewClient(*c)
+// NewForConfig returns a new API instance for the specified configuration
+func NewForConfig(cfg *viper.Viper) (API, error) {
+	// TODO We should be providing a transport, e.g. for retry-after
+	c, err := api.NewClient(cfg, context.Background(), nil)
 	if err != nil {
 		return nil, err
 	}
-	return NewApi(client), nil
+	return &httpAPI{client: c}, nil
 }
 
 type httpAPI struct {
 	client api.Client
+}
+
+func (h *httpAPI) Options(ctx context.Context) (ServerMeta, error) {
+	sm := ServerMeta{}
+
+	// Check to see that we got an actual address before we try to use it
+	u := h.client.URL("/").String()
+	if u == "/" {
+		return sm, &Error{Type: ErrConfigAddressMissing, Message: "address is missing"}
+	}
+
+	req, err := http.NewRequest(http.MethodOptions, u, nil)
+	if err != nil {
+		return sm, err
+	}
+
+	// We actually want to do OPTIONS for the whole server, now that the host:port has been captured, overwrite the RequestURL
+	req.URL.Opaque = "*"
+
+	resp, body, err := h.client.Do(ctx, req)
+	if err != nil {
+		return sm, err
+	}
+
+	switch resp.StatusCode {
+	case http.StatusNoContent:
+		sm.Unmarshal(resp.Header)
+		return sm, nil
+	case http.StatusNotFound:
+		// TODO Current behavior is to return 404 instead of 204
+		sm.Unmarshal(resp.Header)
+		return sm, nil
+	default:
+		return sm, unexpected(resp, body)
+	}
 }
 
 func (h *httpAPI) GetAllExperiments(ctx context.Context, q *ExperimentListQuery) (ExperimentList, error) {
@@ -628,6 +670,7 @@ func (h *httpAPI) AbandonRunningTrial(ctx context.Context, u string) error {
 }
 
 // TODO Unmarshal _expected_ errors to get better messages as well
+// TODO Just return nil for any 2xx status codes?
 func unexpected(resp *http.Response, body []byte) error {
 	err := &Error{Type: ErrUnexpected}
 

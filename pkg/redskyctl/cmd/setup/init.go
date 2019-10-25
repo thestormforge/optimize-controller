@@ -18,11 +18,10 @@ package setup
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"os/exec"
 
-	"github.com/redskyops/k8s-experiment/pkg/api"
+	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/config"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 )
@@ -125,31 +124,11 @@ func (o *InitOptions) bootstrapRole() error {
 }
 
 func (o *InitOptions) generateManagerEnv() (io.Reader, error) {
-	env := make(map[string]string)
-
-	// Add environment variables from the default configuration
-	cfg, err := api.DefaultConfig()
-	if err != nil {
-		return nil, err
-	}
-	env["REDSKY_ADDRESS"] = cfg.Address
-	if cfg.OAuth2 != nil {
-		env["REDSKY_OAUTH2_CLIENT_ID"] = cfg.OAuth2.ClientID
-		env["REDSKY_OAUTH2_CLIENT_SECRET"] = cfg.OAuth2.ClientSecret
-		env["REDSKY_OAUTH2_TOKEN_URL"] = cfg.OAuth2.TokenURL
-	}
-	if cfg.Manager != nil {
-		for _, v := range cfg.Manager.Environment {
-			env[v.Name] = v.Value
-		}
-	}
-
-	// Serialize the environment map to a ".env" format
 	b := &bytes.Buffer{}
-	for k, v := range env {
-		if v != "" {
-			_, _ = fmt.Fprintf(b, "%s=%s\n", k, v)
-		}
+	opts := config.NewConfigEnvOptions(cmdutil.IOStreams{Out: b})
+	opts.Manager = true
+	if err := opts.Run(); err != nil {
+		return nil, err
 	}
 	return b, nil
 }

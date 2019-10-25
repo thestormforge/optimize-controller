@@ -74,21 +74,13 @@ func main() {
 
 	ctrl.SetLogger(zap.Logger(false))
 
+	// Establish the Red Sky API
 	setupLog.Info("Red Sky", "version", version.GetVersion(), "gitCommit", version.GitCommit)
 	api.DefaultUserAgent = version.GetUserAgentString("RedSkyManager")
-	var redSkyAPI redsky.API
-	if cfg, err := api.DefaultConfig(); err != nil {
-		setupLog.Error(err, "unable to load Red Sky configuration")
+	redSkyAPI, err := newRedSkyAPI()
+	if err != nil {
+		setupLog.Error(err, "unable to create Red Sky API")
 		os.Exit(1)
-	} else if cfg.Address != "" {
-		if c, err := api.NewClient(*cfg); err != nil {
-			setupLog.Error(err, "unable to start Red Sky client")
-			os.Exit(1)
-		} else {
-			redSkyAPI = redsky.NewApi(c)
-		}
-	} else {
-		setupLog.Info("no available client configuration")
 	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
@@ -101,16 +93,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	if redSkyAPI != nil {
-		if err = (&controllers.ExperimentReconciler{
-			Client:    mgr.GetClient(),
-			Log:       ctrl.Log.WithName("controllers").WithName("Experiment"),
-			Scheme:    mgr.GetScheme(),
-			RedSkyAPI: redSkyAPI,
-		}).SetupWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "Experiment")
-			os.Exit(1)
-		}
+	if err = (&controllers.ExperimentReconciler{
+		Client:    mgr.GetClient(),
+		Log:       ctrl.Log.WithName("controllers").WithName("Experiment"),
+		Scheme:    mgr.GetScheme(),
+		RedSkyAPI: redSkyAPI,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Experiment")
+		os.Exit(1)
 	}
 	if err = (&controllers.TrialReconciler{
 		Client: mgr.GetClient(),
@@ -127,4 +117,13 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+}
+
+// newRedSkyAPI reads the default configuration and attempt to create an API interface
+func newRedSkyAPI() (redsky.API, error) {
+	cfg, err := api.DefaultConfig()
+	if err != nil {
+		return nil, err
+	}
+	return redsky.NewForConfig(cfg)
 }

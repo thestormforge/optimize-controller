@@ -17,12 +17,12 @@ limitations under the License.
 package config
 
 import (
-	"os"
-	"path/filepath"
+	"net/url"
+	"strings"
 
-	client "github.com/redskyops/k8s-experiment/pkg/api"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 const (
@@ -30,63 +30,37 @@ const (
 	configExample = ``
 )
 
-type ConfigOptions struct {
-	ConfigFile string
-	Config     *client.Config
-
-	Source map[string]string
-
-	Manager bool
-
-	Run func() error
-	cmdutil.IOStreams
-}
-
-func NewConfigOptions(ioStreams cmdutil.IOStreams) *ConfigOptions {
-	o := &ConfigOptions{IOStreams: ioStreams}
-	o.ConfigFile = ".redsky"
-
-	home := os.Getenv("HOME")
-	if home == "" {
-		home = os.Getenv("USERPROFILE")
-	}
-	if home != "" {
-		o.ConfigFile = filepath.Join(home, o.ConfigFile)
-	}
-
-	return o
+// TODO managerEnvVar?
+type ManagerEnvVar struct {
+	Name  string `mapstructure:"name"`
+	Value string `mapstructure:"value"`
 }
 
 func NewConfigCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
-	o := NewConfigOptions(ioStreams)
-
-	// By default, perform a "view"
-	o.Run = o.runView
-
 	cmd := &cobra.Command{
 		Use:     "config",
 		Short:   "Work with the configuration file",
 		Long:    configLong,
 		Example: configExample,
-		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(o.Complete(f, cmd, args))
-			cmdutil.CheckErr(o.Run())
-		},
 	}
 
-	cmd.AddCommand(NewViewCommand(f, ioStreams))
-	cmd.AddCommand(NewSetCommand(f, ioStreams))
-	cmd.AddCommand(NewFixCommand(f, ioStreams))
-	cmd.AddCommand(NewEnvCommand(f, ioStreams))
+	cmd.AddCommand(NewConfigViewCommand(f, ioStreams))
+	cmd.AddCommand(NewConfigEnvCommand(f, ioStreams))
+	cmd.AddCommand(NewConfigSetCommand(f, ioStreams))
+
+	// By default, we want to run a view command
+	cmd.Run = func(cmd *cobra.Command, args []string) {
+		cmdutil.CheckErr(NewConfigViewOptions(ioStreams).Run())
+	}
 
 	return cmd
 }
 
-func (o *ConfigOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []string) error {
-	if cfg, err := f.ToClientConfig(false); err != nil {
-		return err
-	} else {
-		o.Config = cfg
+func getAddress(cfg *viper.Viper) (*url.URL, error) {
+	u, err := url.Parse(cfg.GetString("address"))
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	u.Path = strings.TrimRight(u.Path, "/") + "/"
+	return u, nil
 }

@@ -40,6 +40,13 @@ type ExperimentReconciler struct {
 }
 
 func (r *ExperimentReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	if _, err := r.RedSkyAPI.Options(context.Background()); err != nil {
+		// TODO We may need to ignore transient errors to prevent skipping setup in recoverable or "not ready" scenarios
+		// TODO We may need to look for specific errors to skip setup, i.e. "ErrConfigAddressMissing"
+		r.Log.Info("Red Sky API is unavailable, skipping setup", "message", err.Error())
+		return nil
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&redskyv1alpha1.Experiment{}).
 		Owns(&redskyv1alpha1.Trial{}).

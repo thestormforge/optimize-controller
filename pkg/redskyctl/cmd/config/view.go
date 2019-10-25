@@ -17,8 +17,7 @@ limitations under the License.
 package config
 
 import (
-	"fmt"
-
+	"github.com/redskyops/k8s-experiment/pkg/api"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 	"sigs.k8s.io/yaml"
@@ -29,9 +28,22 @@ const (
 	viewExample = ``
 )
 
-func NewViewCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
-	o := NewConfigOptions(ioStreams)
-	o.Run = o.runView
+// TODO Like the version command, support dumping the default configuration from the manager
+// `kubectl exec -n redsky-system -c manager $(kubectl get pods -n redsky-system -o name) /manager config`
+// TODO Add a --helm-values option to output the configuration as a Helm values file
+
+type ConfigViewOptions struct {
+	cmdutil.IOStreams
+}
+
+func NewConfigViewOptions(ioStreams cmdutil.IOStreams) *ConfigViewOptions {
+	return &ConfigViewOptions{
+		IOStreams: ioStreams,
+	}
+}
+
+func NewConfigViewCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
+	o := NewConfigViewOptions(ioStreams)
 
 	cmd := &cobra.Command{
 		Use:     "view",
@@ -39,7 +51,6 @@ func NewViewCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Comma
 		Long:    viewLong,
 		Example: viewExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(o.Complete(f, cmd, args))
 			cmdutil.CheckErr(o.Run())
 		},
 	}
@@ -47,11 +58,17 @@ func NewViewCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Comma
 	return cmd
 }
 
-func (o *ConfigOptions) runView() error {
-	output, err := yaml.Marshal(o.Config)
+func (o *ConfigViewOptions) Run() error {
+	cfg, err := api.DefaultConfig()
 	if err != nil {
 		return err
 	}
-	_, err = fmt.Fprintf(o.Out, string(output))
+
+	output, err := yaml.Marshal(cfg.AllSettings())
+	if err != nil {
+		return err
+	}
+
+	_, err = o.Out.Write(output)
 	return err
 }

@@ -17,17 +17,12 @@ limitations under the License.
 package config
 
 import (
-	"fmt"
-	"io/ioutil"
 	"os"
-	"reflect"
 	"strings"
 
 	"github.com/redskyops/k8s-experiment/pkg/api"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
-	"k8s.io/client-go/util/jsonpath"
-	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -38,10 +33,21 @@ const (
 redskyctl config set address http://example.carbonrelay.io`
 )
 
-func NewSetCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
-	o := NewConfigOptions(ioStreams)
-	o.Run = o.runSet
-	o.Source = make(map[string]string)
+type ConfigSetOptions struct {
+	Key   string
+	Value string
+
+	cmdutil.IOStreams
+}
+
+func NewConfigSetOptions(ioStreams cmdutil.IOStreams) *ConfigSetOptions {
+	return &ConfigSetOptions{
+		IOStreams: ioStreams,
+	}
+}
+
+func NewConfigSetCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
+	o := NewConfigSetOptions(ioStreams)
 
 	cmd := &cobra.Command{
 		Use:     "set NAME [VALUE]",
@@ -50,7 +56,7 @@ func NewSetCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Comman
 		Example: setExample,
 		Args:    cobra.RangeArgs(1, 2),
 		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(o.Complete(f, cmd, captureArgs(args, o)))
+			cmdutil.CheckErr(o.Complete(args))
 			cmdutil.CheckErr(o.Run())
 		},
 	}
@@ -58,77 +64,50 @@ func NewSetCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Comman
 	return cmd
 }
 
-func captureArgs(args []string, o *ConfigOptions) []string {
+func (o *ConfigSetOptions) Complete(args []string) error {
+	if len(args) > 0 {
+		o.Key = args[0]
+	}
 	if len(args) > 1 {
-		o.Source[args[0]] = args[1]
-	} else if len(args) > 0 {
-		o.Source[args[0]] = ""
+		o.Value = args[1]
 	}
-	return args
+	return nil
 }
 
-func handleManagerEnv(manager *api.Manager, k, v string) bool {
-	if !strings.HasPrefix(k, "manager.env.") {
-		return false
-	}
-	k = strings.TrimPrefix(k, "manager.env.")
-	for i := range manager.Environment {
-		if manager.Environment[i].Name == k {
-			manager.Environment[i].Value = v
-			return true
-		}
-	}
-	manager.Environment = append(manager.Environment, api.ManagerEnvVar{Name: k, Value: v})
-	return true
-}
-
-func (o *ConfigOptions) runSet() error {
-	for k, v := range o.Source {
-		// If this is an attempt to set an OAuth setting to a non-empty value, make sure we have someplace to put it
-		if strings.HasPrefix(k, "oauth2.") && v != "" && o.Config.OAuth2 == nil {
-			o.Config.OAuth2 = &api.OAuth2{}
-		}
-
-		// Same for manager
-		if strings.HasPrefix(k, "manager.") && v != "" && o.Config.Manager == nil {
-			o.Config.Manager = &api.Manager{}
-		}
-
-		// Allow manager environment variables to be set using map syntax
-		if handleManagerEnv(o.Config.Manager, k, v) {
-			continue
-		}
-
-		// Evaluate the JSON path expression and set the result
-		jp := jsonpath.New("config")
-		if err := jp.Parse(fmt.Sprintf("{.%s}", k)); err != nil {
-			return err
-		}
-		fullResults, err := jp.FindResults(o.Config)
-		if err != nil {
-			return err
-		}
-		if len(fullResults) == 1 && len(fullResults[0]) == 1 {
-			fullResults[0][0].Set(reflect.ValueOf(v))
-		} else {
-			return fmt.Errorf("%s could not be set", k)
-		}
-	}
-
-	// If there is nothing left in the configuration, remove the file
-	if (api.Config{}) == *o.Config {
-		err := os.Remove(o.ConfigFile)
-		if err != nil && !os.IsNotExist(err) {
-			return err
-		}
-		return nil
-	}
-
-	// Write the file to disk
-	output, err := yaml.Marshal(o.Config)
+func (o *ConfigSetOptions) Run() error {
+	cfg, err := api.DefaultConfig()
 	if err != nil {
 		return err
 	}
-	err = ioutil.WriteFile(o.ConfigFile, output, 0644)
-	return err
+
+	if strings.HasPrefix(o.Key, "manager.env.") {
+		// TODO No idea if this is the best way to do this
+		var mgrEnv []ManagerEnvVar
+		if err := cfg.UnmarshalKey("manager.env", &mgrEnv); err != nil {
+			return err
+		}
+		mgrEnv = setEnvVar(mgrEnv, strings.TrimPrefix(o.Key, "manager.env."), o.Value)
+		cfg.Set("manager.env", mgrEnv)
+	} else {
+		cfg.Set(o.Key, o.Value)
+	}
+
+	// Viper is frustratingly buggy. We can't just use WriteConfig because it won't honor the explicit configuration type.
+	if err := cfg.WriteConfigAs(os.ExpandEnv("${HOME}/redsky.yaml")); err != nil {
+		return err
+	}
+	if err := os.Rename(os.ExpandEnv("${HOME}/redsky.yaml"), os.ExpandEnv("${HOME}/.redsky")); err != nil {
+		return err
+	}
+	return nil
+}
+
+func setEnvVar(mgrEnv []ManagerEnvVar, key, value string) []ManagerEnvVar {
+	for i := range mgrEnv {
+		if mgrEnv[i].Name == key {
+			mgrEnv[i].Value = value
+			return mgrEnv
+		}
+	}
+	return append(mgrEnv, ManagerEnvVar{Name: key, Value: value})
 }
