@@ -19,8 +19,8 @@ package config
 import (
 	"fmt"
 	"net/url"
+	"sort"
 
-	"github.com/redskyops/k8s-experiment/pkg/api"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 )
@@ -45,6 +45,8 @@ func NewEnvCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Comman
 		},
 	}
 
+	cmd.Flags().BoolVar(&o.Manager, "manager", false, "Generate the manager environment.")
+
 	return cmd
 }
 
@@ -52,37 +54,39 @@ func (o *ConfigOptions) runEnv() error {
 	env := make(map[string]string)
 
 	env["REDSKY_ADDRESS"] = o.Config.Address
+
 	if o.Config.OAuth2 != nil {
 		env["REDSKY_OAUTH2_CLIENT_ID"] = o.Config.OAuth2.ClientID
 		env["REDSKY_OAUTH2_CLIENT_SECRET"] = o.Config.OAuth2.ClientSecret
+		env["REDSKY_OAUTH2_TOKEN_URL"] = o.Config.OAuth2.TokenURL
 
-		// TODO Make this behavior optional
-		env["REDSKY_OAUTH2_TOKEN_URL"] = resolveTokenURL(o.Config)
+		// Outside the context of the manager it is easier to have the resolved URL
+		if !o.Manager {
+			if b, err := url.Parse(o.Config.Address); err == nil {
+				if r, err := b.Parse(o.Config.OAuth2.TokenURL); err == nil {
+					env["REDSKY_OAUTH2_TOKEN_URL"] = r.String()
+				}
+			}
+		}
 	}
-	if o.Config.Manager != nil {
+
+	if o.Config.Manager != nil && o.Manager {
 		for _, v := range o.Config.Manager.Environment {
 			env[v.Name] = v.Value
 		}
 	}
 
 	// Serialize the environment map to a ".env" format
+	var keys []string
 	for k, v := range env {
 		if v != "" {
-			_, _ = fmt.Fprintf(o.Out, "%s=%s\n", k, v)
+			keys = append(keys, k)
 		}
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		_, _ = fmt.Fprintf(o.Out, "%s=%s\n", k, env[k])
 	}
 
 	return nil
-}
-
-func resolveTokenURL(cfg *api.Config) string {
-	u, err := url.Parse(cfg.Address)
-	if err != nil {
-		return cfg.OAuth2.TokenURL
-	}
-	t, err := url.Parse(cfg.OAuth2.TokenURL)
-	if err != nil {
-		return cfg.OAuth2.TokenURL
-	}
-	return u.ResolveReference(t).String()
 }

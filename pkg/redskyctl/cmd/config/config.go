@@ -36,6 +36,8 @@ type ConfigOptions struct {
 
 	Source map[string]string
 
+	Manager bool
+
 	Run func() error
 	cmdutil.IOStreams
 }
