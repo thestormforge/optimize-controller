@@ -72,13 +72,59 @@ func ignoreConfigFileNotFound(err error) error {
 	return err
 }
 
+// ConfigureOAuth2 checks the supplied to configuration to see if the (possibly nil) transport needs to be wrapped to
+// perform authentication. The context is used for token management if necessary.
+func ConfigureOAuth2(cfg *viper.Viper, ctx context.Context, transport http.RoundTripper) (http.RoundTripper, error) {
+
+	// Client credential ("two-legged") token flow
+	if cfg.IsSet("oauth2.client_id") && cfg.IsSet("oauth2.client_secret") {
+		cc := clientcredentials.Config{
+			ClientID:     cfg.GetString("oauth2.client_id"),
+			ClientSecret: cfg.GetString("oauth2.client_secret"),
+			AuthStyle:    oauth2.AuthStyleInParams,
+		}
+
+		// Resolve the token URL against the endpoint address
+		endpoint, err := url.Parse(cfg.GetString("address"))
+		if err != nil {
+			return nil, err
+		}
+		endpoint.Path = strings.TrimRight(endpoint.Path, "/") + "/"
+		tokenURL, err := endpoint.Parse(cfg.GetString("oauth2.token_url"))
+		if err != nil {
+			return nil, err
+		}
+		cc.TokenURL = tokenURL.String()
+
+		return &oauth2.Transport{Source: cc.TokenSource(ctx), Base: transport}, nil
+	}
+
+	// Static token flow
+	if cfg.IsSet("oauth2.token") {
+		sts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: cfg.GetString("oauth2.token")})
+		return &oauth2.Transport{Source: sts, Base: transport}, nil
+	}
+
+	// No OAuth
+	return transport, nil
+}
+
+// GetAddress returns the URL representation of the address configuration parameter
+func GetAddress(cfg *viper.Viper) (*url.URL, error) {
+	u, err := url.Parse(cfg.GetString("address"))
+	if err != nil {
+		return nil, err
+	}
+	u.Path = strings.TrimRight(u.Path, "/") + "/"
+	return u, nil
+}
+
 // TODO This should come from the externally configured round-tripper instead
 
 var DefaultUserAgent string
 
 func NewClient(cfg *viper.Viper, ctx context.Context, transport http.RoundTripper) (Client, error) {
 	hc := &httpClient{}
-	hc.client.Transport = transport
 	hc.client.Timeout = 10 * time.Second
 
 	// Parse the API endpoint address and force a trailing slash
@@ -88,34 +134,16 @@ func NewClient(cfg *viper.Viper, ctx context.Context, transport http.RoundTrippe
 	}
 	hc.endpoint.Path = strings.TrimRight(hc.endpoint.Path, "/") + "/"
 
+	// Configure the OAuth2 transport
+	hc.client.Transport, err = ConfigureOAuth2(cfg, ctx, transport)
+	if err != nil {
+		return nil, err
+	}
+
 	// Set the User-Agent string
 	hc.userAgent = DefaultUserAgent
 	if hc.userAgent == "" {
 		hc.userAgent = version.GetUserAgentString("RedSky")
-	}
-
-	// Configure OAuth2
-	if cfg.IsSet("oauth2.client_id") && cfg.IsSet("oauth2.client_secret") {
-		// Client credential ("two-legged") token flow
-		cc := clientcredentials.Config{
-			ClientID:     cfg.GetString("oauth2.client_id"),
-			ClientSecret: cfg.GetString("oauth2.client_secret"),
-			AuthStyle:    oauth2.AuthStyleInParams,
-		}
-
-		// Resolve the token URL against the endpoint address
-		tokenURL, err := hc.endpoint.Parse(cfg.GetString("oauth2.token_url"))
-		if err != nil {
-			return nil, err
-		}
-		cc.TokenURL = tokenURL.String()
-
-		hc.client.Transport = &oauth2.Transport{Source: cc.TokenSource(ctx), Base: hc.client.Transport}
-	} else if cfg.IsSet("oauth2.token") {
-		// Static token flow
-		sts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: cfg.GetString("oauth2.token")})
-
-		hc.client.Transport = &oauth2.Transport{Source: sts, Base: hc.client.Transport}
 	}
 
 	return hc, nil

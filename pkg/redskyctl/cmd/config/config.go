@@ -17,12 +17,8 @@ limitations under the License.
 package config
 
 import (
-	"net/url"
-	"strings"
-
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 const (
@@ -54,13 +50,4 @@ func NewConfigCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Com
 	}
 
 	return cmd
-}
-
-func getAddress(cfg *viper.Viper) (*url.URL, error) {
-	u, err := url.Parse(cfg.GetString("address"))
-	if err != nil {
-		return nil, err
-	}
-	u.Path = strings.TrimRight(u.Path, "/") + "/"
-	return u, nil
 }

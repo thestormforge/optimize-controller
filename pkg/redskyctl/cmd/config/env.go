@@ -79,7 +79,7 @@ func (o *ConfigEnvOptions) Run() error {
 
 		// When we are not targeting the manager, resolve the full URL (e.g. so you can use it in cURL)
 		if !o.Manager {
-			if b, err := getAddress(cfg); err == nil {
+			if b, err := api.GetAddress(cfg); err == nil {
 				if r, err := b.Parse(cfg.GetString("oauth2.token_url")); err == nil {
 					env["REDSKY_OAUTH2_TOKEN_URL"] = r.String()
 				}
