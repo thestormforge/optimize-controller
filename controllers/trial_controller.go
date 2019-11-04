@@ -475,8 +475,7 @@ func applyJobStatus(trial *redskyv1alpha1.Trial, job *batchv1.Job, time *metav1.
 
 	// Mark the trial as failed if the job itself failed
 	for _, c := range job.Status.Conditions {
-		// If activeDeadlineSeconds was used a workaround for having a sidecar, ignore the failure
-		if c.Type == batchv1.JobFailed && c.Status == corev1.ConditionTrue && c.Reason != "DeadlineExceeded" {
+		if c.Type == batchv1.JobFailed && c.Status == corev1.ConditionTrue {
 			redskytrial.ApplyCondition(&trial.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, c.Reason, c.Message, time)
 			dirty = true
 		}
