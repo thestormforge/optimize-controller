@@ -533,6 +533,10 @@ func createJob(trial *redskyv1alpha1.Trial) *batchv1.Job {
 		if trial.Spec.StartTimeOffset != nil {
 			s = &metav1.Duration{Duration: s.Duration + trial.Spec.StartTimeOffset.Duration}
 		}
+		if job.Spec.ActiveDeadlineSeconds == nil || *job.Spec.ActiveDeadlineSeconds <= int64(s.Duration/time.Second) {
+			ads := int64(s.Duration/time.Second)*2 + 1
+			job.Spec.ActiveDeadlineSeconds = &ads
+		}
 		job.Spec.Template.Spec.Containers = []corev1.Container{
 			{
 				Name:    "default-trial-run",
