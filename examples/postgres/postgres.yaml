@@ -67,7 +67,7 @@ spec:
         readinessProbe:
           tcpSocket:
             port: 5432
-          initialDelaySeconds: 10
+          initialDelaySeconds: 15
           periodSeconds: 5
         livenessProbe:
           exec:
