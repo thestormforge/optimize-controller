@@ -25,6 +25,7 @@ require (
 	github.com/onsi/ginkgo v1.8.0
 	github.com/onsi/gomega v1.5.0
 	github.com/pborman/uuid v0.0.0-20180906182336-adf5a7427709 // indirect
+	github.com/pkg/browser v0.0.0-20180916011732-0a3d74bf9ce4
 	github.com/prometheus/client_golang v0.9.3
 	github.com/prometheus/common v0.4.1
 	github.com/prometheus/procfs v0.0.2 // indirect

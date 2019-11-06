@@ -19,11 +19,18 @@ package results
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
+	"os/signal"
+	"os/user"
 	"strings"
+	"syscall"
+	"time"
 
+	"github.com/pkg/browser"
 	"github.com/redskyops/k8s-experiment/pkg/api"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/redskyops/redskyops-ui/ui"
@@ -36,11 +43,9 @@ const (
 	resultsExample = ``
 )
 
-// TODO Should we fork a browser process with the correct URL?
-// TODO Should we default to something different for ServerAddress?
-
 type ResultsOptions struct {
 	ServerAddress string
+	DisplayURL    bool
 	BackendConfig *viper.Viper
 
 	cmdutil.IOStreams
@@ -67,11 +72,16 @@ func NewResultsCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Co
 	}
 
 	cmd.Flags().StringVar(&o.ServerAddress, "address", "", "Address to listen on.")
+	cmd.Flags().BoolVar(&o.DisplayURL, "url", false, "Display the URL instead of opening a browser.")
 
 	return cmd
 }
 
 func (o *ResultsOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []string) error {
+	if o.ServerAddress == "" {
+		o.ServerAddress = ":8080" // TODO Use ":0" once we figure out the listener stuff
+	}
+
 	if o.BackendConfig == nil {
 		var err error
 		if o.BackendConfig, err = f.ToClientConfig(); err != nil {
@@ -82,40 +92,116 @@ func (o *ResultsOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []
 }
 
 func (o *ResultsOptions) Run() error {
-	apiHandler, err := o.apiHandler()
-	if err != nil {
+	// Create the router to match requests
+	router := http.NewServeMux()
+	if err := o.handleUI(router, "/ui/"); err != nil {
+		return err
+	}
+	if err := o.handleAPI(router, "/api/"); err != nil {
 		return err
 	}
 
-	uiHandler, err := o.uiHandler("/ui/")
-	if err != nil {
-		return err
+	// Create the server
+	server := &http.Server{
+		Addr:         o.ServerAddress,
+		Handler:      router,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  15 * time.Second,
 	}
 
-	http.Handle("/api/", apiHandler)
-	http.Handle("/ui/", uiHandler)
-	return http.ListenAndServe(o.ServerAddress, nil)
+	serve, shutdown := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+
+	// Start the server and a blocked shutdown routine
+	go func() {
+		if err := server.ListenAndServe(); err != http.ErrServerClosed {
+			done <- err
+		}
+	}()
+	go func() {
+		<-serve.Done()
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		done <- server.Shutdown(ctx)
+	}()
+
+	// Add a signal handler so we shutdown cleanly on SIGINT/TERM
+	go func() {
+		quit := make(chan os.Signal, 1)
+		signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+		<-quit
+		_, _ = fmt.Fprintln(o.Out)
+		shutdown()
+	}()
+
+	// Try to connect to see if start up failed
+	// TODO Do we need to retry this?
+	conn, err := net.DialTimeout("tcp", o.ServerAddress, 2*time.Second)
+	if err == nil {
+		_ = conn.Close()
+	}
+
+	// Before opening the browser, check to see if there were any errors
+	select {
+	case err := <-done:
+		return err
+	default:
+		if err := o.openBrowser(); err != nil {
+			shutdown()
+			return err
+		}
+	}
+	return <-done
 }
 
-func (o *ResultsOptions) apiHandler() (http.Handler, error) {
+func (o *ResultsOptions) openBrowser() error {
+	// Build the URL
+	loc := url.URL{Scheme: "http", Host: o.ServerAddress}
+	if loc.Hostname() == "" {
+		loc.Host = "localhost" + loc.Host
+	}
+
+	u, err := user.Current()
+	if err != nil {
+		return err
+	}
+
+	// Do not open the browser for root
+	if o.DisplayURL || u.Uid == "0" {
+		_, _ = fmt.Fprintf(o.Out, "%s\n", loc.String())
+		return nil
+	}
+
+	_, _ = fmt.Fprintf(o.Out, "Opening %s in your default browser...", loc.String())
+	return browser.OpenURL(loc.String())
+}
+
+func (o *ResultsOptions) handleUI(serveMux *http.ServeMux, prefix string) error {
+	serveMux.Handle("/", http.RedirectHandler(prefix, http.StatusMovedPermanently))
+	serveMux.Handle(prefix, http.StripPrefix(prefix, http.FileServer(ui.Assets)))
+	return nil
+}
+
+func (o *ResultsOptions) handleAPI(serveMux *http.ServeMux, prefix string) error {
 	// Configure a director to rewrite request URLs
 	address, err := api.GetAddress(o.BackendConfig)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	director := direct(address)
 
 	// Configure a transport to provide OAuth2 tokens to the backend
 	transport, err := api.ConfigureOAuth2(o.BackendConfig, context.Background(), nil)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return &httputil.ReverseProxy{Director: director, Transport: transport}, nil
-}
-
-func (o *ResultsOptions) uiHandler(prefix string) (http.Handler, error) {
-	return http.StripPrefix(prefix, http.FileServer(ui.Assets)), nil
+	// TODO Modify the response to include redskyctl in the Server header?
+	serveMux.Handle(prefix, &httputil.ReverseProxy{
+		Director:  direct(address),
+		Transport: transport,
+	})
+	return nil
 }
 
 // Returns a reverse proxy director that rewrite the request URL to point to the API at the configured address
