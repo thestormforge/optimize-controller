@@ -57,7 +57,23 @@ Prometheus connection information can be further refined using the `scheme` (mus
 
 The `"datadog"` collection can be used to execute metric queries against the Datadog API.
 
-In order to authenticate to the Datadog API, the `DATADOG_API_KEY` and `DATADOG_APP_KEY` environment variables must be set on the manager deployment.
+In order to authenticate to the Datadog API, the `DATADOG_API_KEY` and `DATADOG_APP_KEY` environment variables must be set on the manager deployment. You can populate these environment variables during initialization by adding them to your configuration:
+
+```sh
+redskyctl config set manager.env.DATADOG_API_KEY xxx-yyy-zzz
+redskyctl config set manager.env.DATADOG_APP_KEY xxx-yyy-zzz
+```
+
+Alternately you can manually edit your `~/.redsky` configuration file to include the following snippet:
+
+```yaml
+manager:
+  env:
+    - name: DATADOG_API_KEY
+      value: xxx-yyy-zzz
+    - name: DATADOG_APP_KEY
+      value: xxx-yyy-zzz
+```
 
 ### JSONPath Collection Type
 
