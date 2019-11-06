@@ -58,6 +58,13 @@ func DefaultConfig() (*viper.Viper, error) {
 	if err := v.ReadInConfig(); ignoreConfigFileNotFound(err) != nil {
 		return nil, err
 	}
+
+	// Give explicit types to the manager environment
+	var mgrEnv []map[string]string
+	if err := v.UnmarshalKey("manager.env", &mgrEnv); err == nil && len(mgrEnv) > 0 {
+		v.Set("manager.env", mgrEnv)
+	}
+
 	return v, nil
 }
 
