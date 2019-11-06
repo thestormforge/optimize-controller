@@ -70,6 +70,10 @@ func (o *ConfigSetOptions) Complete(args []string) error {
 	}
 	if len(args) > 1 {
 		o.Value = args[1]
+	} else if strings.Contains(o.Key, "=") {
+		s := strings.SplitN(o.Key, "=", 2)
+		o.Key = s[0]
+		o.Value = s[1]
 	}
 	return nil
 }
@@ -105,9 +109,15 @@ func (o *ConfigSetOptions) Run() error {
 func setEnvVar(mgrEnv []ManagerEnvVar, key, value string) []ManagerEnvVar {
 	for i := range mgrEnv {
 		if mgrEnv[i].Name == key {
+			if value == "" {
+				return append(mgrEnv[:i], mgrEnv[i+1:]...)
+			}
 			mgrEnv[i].Value = value
 			return mgrEnv
 		}
+	}
+	if value == "" {
+		return mgrEnv
 	}
 	return append(mgrEnv, ManagerEnvVar{Name: key, Value: value})
 }
