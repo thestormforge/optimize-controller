@@ -29,7 +29,7 @@ require (
 	github.com/prometheus/client_golang v0.9.3
 	github.com/prometheus/common v0.4.1
 	github.com/prometheus/procfs v0.0.2 // indirect
-	github.com/redskyops/redskyops-ui v0.0.0-20191028172145-12010f06501d
+	github.com/redskyops/redskyops-ui v1.0.0-alpha.1
 	github.com/spf13/cobra v0.0.4
 	github.com/spf13/pflag v1.0.3
 	github.com/spf13/viper v1.4.0

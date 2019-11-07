@@ -26,7 +26,6 @@ import (
 	"os"
 	"os/signal"
 	"os/user"
-	"strings"
 	"syscall"
 	"time"
 
@@ -155,13 +154,16 @@ func (o *ResultsOptions) Run() error {
 	return <-done
 }
 
-func (o *ResultsOptions) openBrowser() error {
-	// Build the URL
-	loc := url.URL{Scheme: "http", Host: o.ServerAddress}
+func (o *ResultsOptions) url() *url.URL {
+	loc := &url.URL{Scheme: "http", Host: o.ServerAddress}
 	if loc.Hostname() == "" {
 		loc.Host = "localhost" + loc.Host
 	}
+	return loc
+}
 
+func (o *ResultsOptions) openBrowser() error {
+	loc := o.url().String()
 	u, err := user.Current()
 	if err != nil {
 		return err
@@ -169,12 +171,12 @@ func (o *ResultsOptions) openBrowser() error {
 
 	// Do not open the browser for root
 	if o.DisplayURL || u.Uid == "0" {
-		_, _ = fmt.Fprintf(o.Out, "%s\n", loc.String())
+		_, _ = fmt.Fprintf(o.Out, "%s\n", loc)
 		return nil
 	}
 
-	_, _ = fmt.Fprintf(o.Out, "Opening %s in your default browser...", loc.String())
-	return browser.OpenURL(loc.String())
+	_, _ = fmt.Fprintf(o.Out, "Opening %s in your default browser...", loc)
+	return browser.OpenURL(loc)
 }
 
 func (o *ResultsOptions) handleUI(serveMux *http.ServeMux, prefix string) error {
@@ -189,6 +191,7 @@ func (o *ResultsOptions) handleAPI(serveMux *http.ServeMux, prefix string) error
 	if err != nil {
 		return err
 	}
+	rp := &RewriteProxy{Address: *address}
 
 	// Configure a transport to provide OAuth2 tokens to the backend
 	transport, err := api.ConfigureOAuth2(o.BackendConfig, context.Background(), nil)
@@ -198,26 +201,9 @@ func (o *ResultsOptions) handleAPI(serveMux *http.ServeMux, prefix string) error
 
 	// TODO Modify the response to include redskyctl in the Server header?
 	serveMux.Handle(prefix, &httputil.ReverseProxy{
-		Director:  direct(address),
-		Transport: transport,
+		Director:       rp.Outgoing,
+		ModifyResponse: rp.Incoming,
+		Transport:      transport,
 	})
 	return nil
-}
-
-// Returns a reverse proxy director that rewrite the request URL to point to the API at the configured address
-func direct(address *url.URL) func(r *http.Request) {
-	return func(request *http.Request) {
-		// Update forwarding headers
-		request.Header.Set("Forwarded", fmt.Sprintf("proto=http;host=%s", request.Host))
-		request.Header.Set("X-Forwarded-Proto", "http")
-		request.Header.Set("X-Forwarded-Host", request.Host)
-		request.Host = ""
-
-		// Overwrite the request address
-		request.URL.Scheme = address.Scheme
-		request.URL.Host = address.Host
-		request.URL.Path = address.Path + strings.TrimLeft(request.URL.Path, "/") // path.Join eats trailing slashes
-
-		// TODO Should we limit this to only the API required by the UI?
-	}
 }
