@@ -30,37 +30,42 @@ type RewriteProxy struct {
 }
 
 func (p *RewriteProxy) Outgoing(request *http.Request) {
-	// Update forwarding headers
-	ApplyForwardedToOutgoingRequest(request, "_redskyctl")
+	// Ensure the forwarding headers are set
+	if request.Header.Get("X-Forwarded-Host") == "" {
+		request.Header.Set("X-Forwarded-Host", request.Host) // TODO Can this still be empty?
+	}
+	if request.Header.Get("X-Forwarded-Proto") == "" {
+		forwardedProto := "http"
+		if request.TLS != nil { // TODO Is this right?
+			forwardedProto = "https"
+		}
+		request.Header.Set("X-Forwarded-Proto", forwardedProto)
+	}
 
-	// Overwrite the request address
+	// Set the server side established host value to empty so the client side will use the URL for the `Host` header
 	request.Host = ""
+
+	// Overwrite the request address; do not bother with merging the query strings
 	request.URL.Scheme = p.Address.Scheme
 	request.URL.Host = p.Address.Host
-	request.URL.Path = p.Address.Path + strings.TrimLeft(request.URL.Path, "/") // path.Join eats trailing slashes
-	// TODO This requires that Address.Path ends with "/", where can we enforce that?
+	request.URL.Path = strings.TrimRight(p.Address.Path, "/") + "/" + strings.TrimLeft(request.URL.Path, "/")
+
+	// NewSingleHostReverseProxy does this, so it must be right
+	if _, ok := request.Header["User-Agent"]; !ok {
+		request.Header.Set("User-Agent", "")
+	}
 }
 
 func (p *RewriteProxy) Incoming(response *http.Response) error {
-	if err := rewriteLocation(response, &p.Address); err != nil {
-		return err
-	}
-	if err := rewriteBody(response, &p.Address); err != nil {
-		return err
-	}
-	return nil
-}
-
-func rewriteLocation(response *http.Response, address *url.URL) error {
 	loc, err := url.Parse(response.Header.Get("Location"))
-	if err == nil && loc.Scheme == address.Scheme && loc.Host == address.Host {
-		applyOriginURL(response.Request, loc)
-		response.Header.Set("Location", loc.String())
+	if err != nil {
+		return err
 	}
-	return nil
-}
 
-func rewriteBody(response *http.Response, address *url.URL) error {
+	if loc.Scheme == p.Address.Scheme && loc.Host == p.Address.Host {
+		response.Header.Set("Location", forwarded(loc, response))
+	}
+
 	b, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		return err
@@ -69,34 +74,20 @@ func rewriteBody(response *http.Response, address *url.URL) error {
 		return err
 	}
 
-	loc := *address
-	applyOriginURL(response.Request, &loc)
-
-	old := []byte(address.String())
-	new := []byte(loc.String())
+	old := []byte(p.Address.String())
+	new := []byte(forwarded(&p.Address, response))
 	buf := bytes.NewBuffer(bytes.ReplaceAll(b, old, new))
 	response.Body = ioutil.NopCloser(buf)
 	response.ContentLength = int64(buf.Len())
 	response.Header.Set("Content-Length", strconv.Itoa(buf.Len()))
+
 	return nil
 }
 
-func applyOriginURL(request *http.Request, loc *url.URL) {
-	// We don't know about the proxies in front of us, if they do not include
-	// forwarding information the best we can do is assume they are running right next to us
-	fwd := ParseForwarded(request.Header)
-
-	for i := range fwd {
-		if fwd[i].Proto != "" {
-			loc.Scheme = fwd[i].Proto
-			break
-		}
-	}
-
-	for i := range fwd {
-		if fwd[i].Host != "" {
-			loc.Host = fwd[i].Host
-			break
-		}
-	}
+// Since we always set the X-Forwarded-* headers before sending the request, we can use them to fix the response
+func forwarded(u *url.URL, r *http.Response) string {
+	loc := *u
+	loc.Scheme = r.Request.Header.Get("X-Forwarded-Proto")
+	loc.Host = r.Request.Header.Get("X-Forwarded-Host")
+	return loc.String()
 }
