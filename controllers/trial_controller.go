@@ -409,9 +409,6 @@ func checkAssignments(trial *redskyv1alpha1.Trial, experiment *redskyv1alpha1.Ex
 
 func getMetricTarget(r client.Reader, ctx context.Context, namespace string, m *redskyv1alpha1.Metric) (runtime.Object, error) {
 	switch m.Type {
-	case redskyv1alpha1.MetricLocal, "":
-		// There is no target for local metrics
-		return nil, nil
 	case redskyv1alpha1.MetricPods:
 		// Use the selector to get a list of pods
 		target := &corev1.PodList{}
@@ -432,7 +429,8 @@ func getMetricTarget(r client.Reader, ctx context.Context, namespace string, m *
 		}
 		return target, nil
 	default:
-		return nil, fmt.Errorf("unknown metric type: %s", m.Type)
+		// Assume no target is necessary
+		return nil, nil
 	}
 }
 
