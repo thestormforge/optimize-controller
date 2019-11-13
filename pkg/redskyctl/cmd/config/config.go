@@ -17,6 +17,9 @@ limitations under the License.
 package config
 
 import (
+	"fmt"
+	"os"
+
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 )
@@ -48,6 +51,9 @@ func NewConfigCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Com
 	cmd.Run = func(cmd *cobra.Command, args []string) {
 		cmdutil.CheckErr(NewConfigViewOptions(ioStreams).Run())
 	}
+
+	// Add the config file name to the help output
+	cmd.Long = fmt.Sprintf("%s ('%s')", cmd.Long, os.ExpandEnv("$HOME/.redsky"))
 
 	return cmd
 }
