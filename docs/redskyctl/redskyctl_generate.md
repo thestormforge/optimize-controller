@@ -1,6 +1,6 @@
 ## redskyctl generate
 
-Generate Red Sky Ops obejcts
+Generate Red Sky Ops objects
 
 ### Synopsis
 
