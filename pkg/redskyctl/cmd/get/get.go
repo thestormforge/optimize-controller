@@ -104,7 +104,7 @@ func (o *GetOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []stri
 	}
 
 	if o.RedSkyAPI == nil && o.RedSkyClientSet == nil {
-		return fmt.Errorf("unable to connect")
+		return fmt.Errorf("unable to connect, make sure either your Red Sky API or Kube configuration is valid")
 	}
 
 	if len(args) > 0 {

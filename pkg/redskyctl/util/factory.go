@@ -17,6 +17,9 @@ limitations under the License.
 package util
 
 import (
+	"context"
+	"fmt"
+
 	redsky "github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1"
 	redskykube "github.com/redskyops/k8s-experiment/pkg/kubernetes"
 	"github.com/spf13/viper"
@@ -85,5 +88,17 @@ func (f *factoryImpl) RedSkyAPI() (redsky.API, error) {
 	if err != nil {
 		return nil, err
 	}
-	return redsky.NewForConfig(c)
+	rsAPI, err := redsky.NewForConfig(c)
+	if err != nil {
+		return nil, err
+	}
+
+	// Verify it at least has an address associated with it
+	if _, err := rsAPI.Options(context.Background()); err != nil {
+		if rserr, ok := err.(*redsky.Error); ok && rserr.Type == redsky.ErrConfigAddressMissing {
+			return nil, fmt.Errorf("the current configuration does not include the Red Sky API server address")
+		}
+	}
+
+	return rsAPI, nil
 }
