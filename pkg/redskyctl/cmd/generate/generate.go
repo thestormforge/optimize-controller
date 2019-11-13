@@ -39,7 +39,7 @@ const (
 func NewGenerateCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "generate",
-		Short:   "Generate Red Sky Ops obejcts",
+		Short:   "Generate Red Sky Ops objects",
 		Long:    generateLong,
 		Example: generateExample,
 	}

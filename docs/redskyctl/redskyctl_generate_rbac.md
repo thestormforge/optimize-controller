@@ -31,5 +31,5 @@ redskyctl generate rbac [flags]
 
 ### SEE ALSO
 
-* [redskyctl generate](redskyctl_generate.md)	 - Generate Red Sky Ops obejcts
+* [redskyctl generate](redskyctl_generate.md)	 - Generate Red Sky Ops objects
 
