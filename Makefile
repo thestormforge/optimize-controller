@@ -1,6 +1,7 @@
 
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
+REDSKYCTL_IMG ?= redskyctl:latest
 SETUPTOOLS_IMG ?= setuptools:latest
 PULL_POLICY ?= IfNotPresent
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
@@ -71,11 +72,13 @@ generate: controller-gen
 # Build the docker images
 docker-build:
 	docker build . -t ${IMG} --build-arg LDFLAGS='$(LDFLAGS)'
+	docker build . -f Dockerfile.redskyctl -t ${REDSKYCTL_IMG} --build-arg LDFLAGS='$(LDFLAGS)'
 	docker build config -t ${SETUPTOOLS_IMG} --build-arg IMG='$(IMG)' --build-arg PULL_POLICY='$(PULL_POLICY)' --build-arg VERSION='$(VERSION)'
 
 # Push the docker images
 docker-push:
 	docker push ${IMG}
+	docker push ${REDSKYCTL_IMG}
 	docker push ${SETUPTOOLS_IMG}
 
 # find or download controller-gen
