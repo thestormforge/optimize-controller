@@ -18,13 +18,14 @@ package metric
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"time"
 
 	datadog "github.com/zorkian/go-datadog-api"
 )
 
-func captureDatadogMetric(query string, startTime, completionTime time.Time) (float64, float64, error) {
+func captureDatadogMetric(aggregator, query string, startTime, completionTime time.Time) (float64, float64, error) {
 	apiKey := os.Getenv("DATADOG_API_KEY")
 	if apiKey == "" {
 		apiKey = os.Getenv("DD_API_KEY")
@@ -42,15 +43,38 @@ func captureDatadogMetric(query string, startTime, completionTime time.Time) (fl
 		return 0, 0, err
 	}
 
-	// TODO Is it reasonable that we would get a single data point?
-
 	if len(metrics) != 1 {
 		return 0, 0, fmt.Errorf("expected one series")
 	}
 
-	if len(metrics[0].Points) != 1 {
-		return 0, 0, fmt.Errorf("expected one data point")
+	var value float64
+	for _, p := range metrics[0].Points {
+		if p[1] != nil {
+			switch aggregator {
+			case "avg", "":
+				value = value + *p[1] // Just compute the total first
+			case "last":
+				value = *p[1]
+			case "max":
+				value = math.Max(value, *p[1])
+			case "min":
+				value = math.Min(value, *p[1])
+			case "sum":
+				value = value + *p[1]
+			default:
+				return 0, 0, fmt.Errorf("unsupported aggregator: %s (expected: avg, last, max, min, sum)", aggregator)
+			}
+		}
 	}
 
-	return *metrics[0].Points[0][1], 0, nil
+	if len(metrics[0].Points) == 0 {
+		return 0, 0, nil
+	}
+
+	if aggregator == "avg" || aggregator == "" {
+		value = value / float64(len(metrics[0].Points))
+	}
+
+	// TODO Compute stddev for error?
+	return value, 0, nil
 }

@@ -75,6 +75,8 @@ manager:
       value: xxx-yyy-zzz
 ```
 
+Datadog metrics are subject to further aggregation (in addition to the aggregation method of the query); this is similar to the [Query Value](https://docs.datadoghq.com/graphing/widgets/query_value/) widget. By default, the `avg` aggregator is used, however this can be overridden by setting the `scheme` field of the metric to any of the supported aggregator values (avg, last, max, min, sum).
+
 ### JSONPath Collection Type
 
 The `"jsonpath"` collection type fetches a JSON payload from an arbitrary HTTP endpoint and evaluates a [Kubernetes JSONPath](https://kubernetes.io/docs/reference/kubectl/jsonpath/) expression from the `query` field against it.
