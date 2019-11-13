@@ -17,7 +17,8 @@ ENV KUBECTL_VERSION="v1.14.5" \
     KUBECTL_URL="https://storage.googleapis.com/kubernetes-release/release/v1.14.5/bin/linux/amd64/kubectl" \
     KUBECTL_SHA256="26681319de56820a8467c9407e9203d5b15fb010ffc75ac5b99c9945ad0bd28c"
 
-RUN apk add --no-cache -t .build-deps curl && \
+RUN apk add --no-cache ca-certificates && \
+    apk add --no-cache -t .build-deps curl && \
     curl -L "$KUBECTL_URL" -o /usr/local/bin/kubectl && \
     chmod +x /usr/local/bin/kubectl && \
     apk del .build-deps
