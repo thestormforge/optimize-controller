@@ -49,12 +49,16 @@ jobs:
             if [[ -n "${CIRCLE_TAG:-}" ]]; then
               docker tag "${IMG}" "${IMG%%:*}:latest"
               docker push "${IMG%%:*}:latest"
+              docker tag "${REDSKYCTL_IMG}" "${REDSKYCTL_IMG%%:*}:latest"
+              docker push "${REDSKYCTL_IMG%%:*}:latest"
               docker tag "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:latest"
               docker push "${SETUPTOOLS_IMG%%:*}:latest"
               ghr -draft -body "$(cat .circleci/RELEASE_TEMPLATE.md)" "${CIRCLE_TAG}" bin
             else
               docker tag "${IMG}" "${IMG%%:*}:canary"
               docker push "${IMG%%:*}:canary"
+              docker tag "${REDSKYCTL_IMG}" "${REDSKYCTL_IMG%%:*}:canary"
+              docker push "${REDSKYCTL_IMG%%:*}:canary"
               docker tag "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:canary"
               docker push "${SETUPTOOLS_IMG%%:*}:canary"
             fi
