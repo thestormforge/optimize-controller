@@ -8,20 +8,19 @@ ENV KUBECTL_VERSION="v1.14.5" \
     KUBECTL_URL="https://storage.googleapis.com/kubernetes-release/release/v1.14.5/bin/linux/amd64/kubectl" \
     KUBECTL_SHA256="26681319de56820a8467c9407e9203d5b15fb010ffc75ac5b99c9945ad0bd28c"
 
-ENV KUSTOMIZE_VERSION="v3.2.2" \
-    KUSTOMIZE_URL="https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv3.2.2/kustomize_kustomize.v3.2.2_linux_amd64" \
-    KUSTOMIZE_SHA256="c25c41d2295326d0af7c2613ff9d0ce7d3432dfc7a6426da6242213a1fd60e0e"
+ENV KUSTOMIZE_VERSION="v3.4.0" \
+    KUSTOMIZE_URL="https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv3.4.0/kustomize_v3.4.0_linux_amd64.tar.gz" \
+    KUSTOMIZE_SHA256="eabfa641685b1a168c021191e6029f66125be94449b60eb12843da8df3b092ba"
 
-ENV KONJURE_VERSION="v0.1.0-beta.6" \
-    KONJURE_URL="https://github.com/carbonrelay/konjure/releases/download/v0.1.0-beta.6/konjure-linux-amd64" \
-    KONJURE_SHA256="fa56126f6d670e4d83ef4d924e2dfa18698ca02dd320ec1fdd5f7127e528b605"
+ENV KONJURE_VERSION="v0.1.0" \
+    KONJURE_URL="https://github.com/carbonrelay/konjure/releases/download/v0.1.0/konjure-linux-amd64.tar.gz" \
+    KONJURE_SHA256="2b5243c30c8f4e4f5451109b9ddeeeb85e57d638dfb7b34112c57e3099a75ed8"
 
 RUN apk --no-cache add curl && \
-    curl -L "$HELM_URL" | tar xz --exclude '*/*[^helm]' --strip-components=1 -C /usr/local/bin/ && \
-    curl -L "$KUBECTL_URL" -o /usr/local/bin/kubectl && \
-    curl -L "$KUSTOMIZE_URL" -o /usr/local/bin/kustomize && \
-    curl -L "$KONJURE_URL" -o /usr/local/bin/konjure && \
-    chmod +x /usr/local/bin/kubectl /usr/local/bin/kustomize /usr/local/bin/konjure && \
+    curl -L "$HELM_URL" | tar xz -C /usr/local/bin --exclude '*/*[^helm]' --strip-components=1 && \
+    curl -L "$KUBECTL_URL" -o /usr/local/bin/kubectl && chmod +x /usr/local/bin/kubectl && \
+    curl -L "$KUSTOMIZE_URL" | tar xz -C /usr/local/bin && \
+    curl -L "$KONJURE_URL" | tar xz -C /usr/local/bin && \
     addgroup -g 1000 -S setup && \
     adduser -u 1000 -S setup -G setup
 
