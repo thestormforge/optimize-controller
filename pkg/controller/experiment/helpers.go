@@ -125,28 +125,44 @@ func FindAvailableNamespace(r client.Reader, experiment *redskyv1alpha1.Experime
 
 // NeedsCleanup checks whether a trial's TTL has expired
 func NeedsCleanup(t *redskyv1alpha1.Trial) bool {
-	// Trials that are deleted or do not have a TTL are never ready for clean up
-	if !t.DeletionTimestamp.IsZero() || t.Spec.TTLSecondsAfterFinished == nil {
+	// Already deleted or still active, no cleanup necessary
+	if !t.DeletionTimestamp.IsZero() || redskytrial.IsTrialActive(t) {
 		return false
 	}
 
-	// Determine the finish time
-	finishTime := trialFinishTime(t)
-	if finishTime.IsZero() {
+	// Try to determine effective finish time and TTL
+	finishTime := metav1.Time{}
+	ttlSeconds := t.Spec.TTLSecondsAfterFinished
+	for _, c := range t.Status.Conditions {
+		if isFinishTimeCondition(&c) {
+			// Adjust the TTL if specified separately for failures
+			if c.Type == redskyv1alpha1.TrialFailed && t.Spec.TTLSecondsAfterFailure != nil {
+				ttlSeconds = t.Spec.TTLSecondsAfterFailure
+			}
+
+			// Take the latest time possible
+			if finishTime.Before(&c.LastTransitionTime) {
+				finishTime = c.LastTransitionTime
+			}
+		}
+	}
+
+	// No finish time or TTL, no cleanup necessary
+	if finishTime.IsZero() || ttlSeconds == nil || *ttlSeconds < 0 {
 		return false
 	}
 
 	// Check to see if we are still in the TTL window
-	ttl := time.Duration(*t.Spec.TTLSecondsAfterFinished) * time.Second
+	ttl := time.Duration(*ttlSeconds) * time.Second
 	return finishTime.UTC().Add(ttl).Before(time.Now().UTC())
 }
 
-// trialFinishTime returns the time that a trial finished; this time can skip ahead of the normal definition of "finished" if there are setup delete tasks.
-func trialFinishTime(t *redskyv1alpha1.Trial) metav1.Time {
-	for _, c := range t.Status.Conditions {
-		if c.Status == corev1.ConditionTrue && !c.LastTransitionTime.IsZero() && (c.Type == redskyv1alpha1.TrialSetupDeleted || c.Type == redskyv1alpha1.TrialComplete || c.Type == redskyv1alpha1.TrialFailed) {
-			return c.LastTransitionTime
-		}
+// isFinishTimeCondition returns true if the condition is relevant to the "finish time"
+func isFinishTimeCondition(c *redskyv1alpha1.TrialCondition) bool {
+	switch c.Type {
+	case redskyv1alpha1.TrialComplete, redskyv1alpha1.TrialFailed, redskyv1alpha1.TrialSetupDeleted:
+		return c.Status == corev1.ConditionTrue
+	default:
+		return false
 	}
-	return metav1.Time{}
 }

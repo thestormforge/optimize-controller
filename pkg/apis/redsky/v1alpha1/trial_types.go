@@ -191,8 +191,10 @@ type TrialSpec struct {
 	StartTimeOffset *metav1.Duration `json:"startTimeOffset,omitempty"`
 	// The approximate amount of time the trial run should execute (not inclusive of the start time offset)
 	ApproximateRuntime *metav1.Duration `json:"approximateRuntime,omitempty"`
-	// The minimum number of seconds before an attempt should be made to clean up the trial
+	// The minimum number of seconds before an attempt should be made to clean up the trial, if unset or negative no attempt is made to clean up the trial
 	TTLSecondsAfterFinished *int32 `json:"ttlSecondsAfterFinished,omitempty"`
+	// The minimum number of seconds before an attempt should be made to clean up a failed trial, defaults to TTLSecondsAfterFinished
+	TTLSecondsAfterFailure *int32 `json:"ttlSecondsAfterFailure,omitempty"`
 
 	// Values are the collected metrics at the end of the trial run
 	Values []Value `json:"values,omitempty"`
