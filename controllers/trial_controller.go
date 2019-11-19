@@ -216,9 +216,10 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		// Setup jobs always have "role=trialSetup" so ignore jobs with that label
 		// NOTE: We do not use label selectors on search because we don't know if they are user modified
 		if list.Items[i].Labels[redskyv1alpha1.LabelTrialRole] != "trialSetup" {
-			if update, requeue := applyJobStatus(r, log, trial, &list.Items[i], &now); update {
+			if update, requeue := applyJobStatus(r, trial, &list.Items[i], &now); update {
 				return r.forTrialUpdate(trial, ctx, log)
 			} else if requeue {
+				// We are watching jobs, not pods; there is a possible gap in state which we need to cover
 				return ctrl.Result{Requeue: true}, nil
 			}
 			needsJob = false
@@ -448,7 +449,7 @@ func findOrCreateValue(trial *redskyv1alpha1.Trial, name string) *redskyv1alpha1
 	return &trial.Spec.Values[len(trial.Spec.Values)-1]
 }
 
-func applyJobStatus(r client.Reader, log logr.Logger, trial *redskyv1alpha1.Trial, job *batchv1.Job, time *metav1.Time) (bool, bool) {
+func applyJobStatus(r client.Reader, trial *redskyv1alpha1.Trial, job *batchv1.Job, time *metav1.Time) (bool, bool) {
 	var dirty bool
 
 	// Get the interval of the container execution in the job pods
@@ -460,17 +461,15 @@ func applyJobStatus(r client.Reader, log logr.Logger, trial *redskyv1alpha1.Tria
 			startedAt, finishedAt = containerTime(pods)
 		}
 	}
-
-	// A disturbance. Possibly caused by watching the jobs and not the pods?
-	if startedAt != nil && finishedAt == nil && job.Status.CompletionTime != nil {
-		log.Info("Job is completed but finish time is not available")
-		return false, true
-	}
-
-	// If there is no information about the containers, fall back to the job
-	if startedAt == nil && finishedAt == nil {
-		startedAt = job.Status.StartTime
-		finishedAt = job.Status.CompletionTime
+	if finishedAt == nil {
+		if startedAt == nil {
+			// No information could be extracted from the pod state, fall back to the job state
+			startedAt = job.Status.StartTime
+			finishedAt = job.Status.CompletionTime
+		} else if job.Status.CompletionTime != nil {
+			// The job has a completion time, but it is not yet reflected in the pod state we are seeing
+			return false, true
+		}
 	}
 
 	// Adjust the trial start time
