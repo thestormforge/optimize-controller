@@ -305,8 +305,8 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return r.forTrialUpdate(trial, ctx, log)
 	}
 
-	// If nothing changed, check again
-	return ctrl.Result{Requeue: true}, nil
+	// Nothing changed
+	return ctrl.Result{}, nil
 }
 
 // Returns from the reconcile loop after updating the supplied trial instance
