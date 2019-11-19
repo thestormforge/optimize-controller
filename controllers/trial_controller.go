@@ -214,8 +214,9 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	needsJob := true
 	for i := range list.Items {
 		// Setup jobs always have "role=trialSetup" so ignore jobs with that label
+		// NOTE: We do not use label selectors on search because we don't know if they are user modified
 		if list.Items[i].Labels[redskyv1alpha1.LabelTrialRole] != "trialSetup" {
-			if applyJobStatus(trial, &list.Items[i], &now) {
+			if applyJobStatus(r, trial, &list.Items[i], &now) {
 				return r.forTrialUpdate(trial, ctx, log)
 			}
 			needsJob = false
@@ -445,29 +446,34 @@ func findOrCreateValue(trial *redskyv1alpha1.Trial, name string) *redskyv1alpha1
 	return &trial.Spec.Values[len(trial.Spec.Values)-1]
 }
 
-func applyJobStatus(trial *redskyv1alpha1.Trial, job *batchv1.Job, time *metav1.Time) bool {
+func applyJobStatus(r client.Reader, trial *redskyv1alpha1.Trial, job *batchv1.Job, time *metav1.Time) bool {
 	var dirty bool
 
-	if trial.Status.StartTime == nil {
-		// Establish a start time if available
-		trial.Status.StartTime = job.Status.StartTime.DeepCopy()
-		dirty = dirty || job.Status.StartTime != nil
-		if dirty && trial.Spec.StartTimeOffset != nil {
-			*trial.Status.StartTime = metav1.NewTime(trial.Status.StartTime.Add(trial.Spec.StartTimeOffset.Duration))
+	// Get the interval of the container execution in the job pods
+	var startedAt, finishedAt *metav1.Time
+	if matchingSelector, err := util.MatchingSelector(job.Spec.Selector); err == nil {
+		pods := &corev1.PodList{}
+		err := r.List(context.TODO(), pods, matchingSelector, client.InNamespace(job.Namespace))
+		if err == nil && len(pods.Items) > 0 {
+			startedAt, finishedAt = containerTime(pods)
 		}
-	} else if job.Status.StartTime != nil && trial.Status.StartTime.Before(job.Status.StartTime) {
-		// Move the start time back
-		trial.Status.StartTime = job.Status.StartTime.DeepCopy()
+	}
+
+	// If there is no information about the containers, fall back to the job
+	if startedAt == nil && finishedAt == nil {
+		startedAt = job.Status.StartTime
+		finishedAt = job.Status.CompletionTime
+	}
+
+	// Adjust the trial start time
+	if t, updated := latestTime(trial.Status.StartTime, startedAt, trial.Spec.StartTimeOffset); updated {
+		trial.Status.StartTime = t
 		dirty = true
 	}
 
-	if trial.Status.CompletionTime == nil {
-		// Establish an end time if available
-		trial.Status.CompletionTime = job.Status.CompletionTime.DeepCopy()
-		dirty = dirty || job.Status.CompletionTime != nil
-	} else if job.Status.CompletionTime != nil && trial.Status.CompletionTime.Before(job.Status.CompletionTime) {
-		// Move the completion time back
-		trial.Status.CompletionTime = job.Status.CompletionTime.DeepCopy()
+	// Adjust the trial completion time
+	if t, updated := earliestTime(trial.Status.CompletionTime, finishedAt); updated {
+		trial.Status.CompletionTime = t
 		dirty = true
 	}
 
@@ -545,4 +551,37 @@ func createJob(trial *redskyv1alpha1.Trial) *batchv1.Job {
 	}
 
 	return job
+}
+
+func containerTime(pods *corev1.PodList) (startedAt *metav1.Time, finishedAt *metav1.Time) {
+	for i := range pods.Items {
+		for j := range pods.Items[i].Status.ContainerStatuses {
+			s := &pods.Items[i].Status.ContainerStatuses[j].State
+			if s.Running != nil {
+				startedAt, _ = earliestTime(startedAt, &s.Running.StartedAt)
+			} else if s.Terminated != nil {
+				startedAt, _ = earliestTime(startedAt, &s.Terminated.StartedAt)
+				finishedAt, _ = latestTime(finishedAt, &s.Terminated.FinishedAt, nil)
+			}
+		}
+	}
+	return
+}
+
+func earliestTime(c, n *metav1.Time) (*metav1.Time, bool) {
+	if n != nil && (c == nil || n.Before(c)) {
+		return n.DeepCopy(), true
+	}
+	return c, false
+}
+
+func latestTime(c, n *metav1.Time, offset *metav1.Duration) (*metav1.Time, bool) {
+	if n != nil && (c == nil || c.Before(n)) {
+		if offset != nil {
+			t := metav1.NewTime(n.Add(offset.Duration))
+			return &t, true
+		}
+		return n.DeepCopy(), true
+	}
+	return c, false
 }
