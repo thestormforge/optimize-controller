@@ -500,6 +500,11 @@ func (in *TrialSpec) DeepCopyInto(out *TrialSpec) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.TTLSecondsAfterFailure != nil {
+		in, out := &in.TTLSecondsAfterFailure, &out.TTLSecondsAfterFailure
+		*out = new(int32)
+		**out = **in
+	}
 	if in.Values != nil {
 		in, out := &in.Values, &out.Values
 		*out = make([]Value, len(*in))
