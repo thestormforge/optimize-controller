@@ -216,8 +216,10 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		// Setup jobs always have "role=trialSetup" so ignore jobs with that label
 		// NOTE: We do not use label selectors on search because we don't know if they are user modified
 		if list.Items[i].Labels[redskyv1alpha1.LabelTrialRole] != "trialSetup" {
-			if applyJobStatus(r, trial, &list.Items[i], &now) {
+			if update, requeue := applyJobStatus(r, log, trial, &list.Items[i], &now); update {
 				return r.forTrialUpdate(trial, ctx, log)
+			} else if requeue {
+				return ctrl.Result{Requeue: true}, nil
 			}
 			needsJob = false
 		}
@@ -446,7 +448,7 @@ func findOrCreateValue(trial *redskyv1alpha1.Trial, name string) *redskyv1alpha1
 	return &trial.Spec.Values[len(trial.Spec.Values)-1]
 }
 
-func applyJobStatus(r client.Reader, trial *redskyv1alpha1.Trial, job *batchv1.Job, time *metav1.Time) bool {
+func applyJobStatus(r client.Reader, log logr.Logger, trial *redskyv1alpha1.Trial, job *batchv1.Job, time *metav1.Time) (bool, bool) {
 	var dirty bool
 
 	// Get the interval of the container execution in the job pods
@@ -457,6 +459,12 @@ func applyJobStatus(r client.Reader, trial *redskyv1alpha1.Trial, job *batchv1.J
 		if err == nil && len(pods.Items) > 0 {
 			startedAt, finishedAt = containerTime(pods)
 		}
+	}
+
+	// A disturbance. Possibly caused by watching the jobs and not the pods?
+	if startedAt != nil && finishedAt == nil && job.Status.CompletionTime != nil {
+		log.Info("Job is completed but finish time is not available")
+		return false, true
 	}
 
 	// If there is no information about the containers, fall back to the job
@@ -485,7 +493,7 @@ func applyJobStatus(r client.Reader, trial *redskyv1alpha1.Trial, job *batchv1.J
 		}
 	}
 
-	return dirty
+	return dirty, false
 }
 
 func createJob(trial *redskyv1alpha1.Trial) *batchv1.Job {
