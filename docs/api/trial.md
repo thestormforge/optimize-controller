@@ -166,7 +166,8 @@ TrialSpec defines the desired state of Trial
 | `template` | Template is the job template used to create trial run jobs | _*[JobTemplateSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#jobtemplatespec-v1beta1-batch)_ | false |
 | `startTimeOffset` | The offset used to adjust the start time to account for spin up of the trial run | _*metav1.Duration_ | false |
 | `approximateRuntime` | The approximate amount of time the trial run should execute (not inclusive of the start time offset) | _*metav1.Duration_ | false |
-| `ttlSecondsAfterFinished` | The minimum number of seconds before an attempt should be made to clean up the trial | _*int32_ | false |
+| `ttlSecondsAfterFinished` | The minimum number of seconds before an attempt should be made to clean up the trial, if unset or negative no attempt is made to clean up the trial | _*int32_ | false |
+| `ttlSecondsAfterFailure` | The minimum number of seconds before an attempt should be made to clean up a failed trial, defaults to TTLSecondsAfterFinished | _*int32_ | false |
 | `values` | Values are the collected metrics at the end of the trial run | _[][Value](#value)_ | false |
 | `patchOperations` | PatchOperations are the patches from the experiment evaluated in the context of this trial | _[][PatchOperation](#patchoperation)_ | false |
 | `setupTasks` | Setup tasks that must run before the trial starts (and possibly after it ends) | _[][SetupTask](#setuptask)_ | false |

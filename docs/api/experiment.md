@@ -73,7 +73,7 @@ Metric represents an observable outcome from a trial run
 | ----- | ----------- | ------ | -------- |
 | `name` | The name of the metric | _string_ | true |
 | `minimize` | Indicator that the goal of the experiment is to minimize the value of this metric | _bool_ | false |
-| `type` | The metric collection type, one of: local\|prometheus\|jsonpath, default: local | _MetricType_ | false |
+| `type` | The metric collection type, one of: local\|prometheus\|datadog\|jsonpath, default: local | _MetricType_ | false |
 | `query` | Collection type specific query, e.g. Go template for "local", PromQL for "prometheus" or a JSON pointer expression (with curly braces) for "jsonpath" | _string_ | true |
 | `errorQuery` | Collection type specific query for the error associated with collected metric value | _string_ | false |
 | `scheme` | The scheme to use when collecting metrics | _string_ | false |
