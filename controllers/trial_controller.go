@@ -453,22 +453,17 @@ func applyJobStatus(r client.Reader, trial *redskyv1alpha1.Trial, job *batchv1.J
 	var dirty bool
 
 	// Get the interval of the container execution in the job pods
-	var startedAt, finishedAt *metav1.Time
+	startedAt := job.Status.StartTime
+	finishedAt := job.Status.CompletionTime
 	if matchingSelector, err := util.MatchingSelector(job.Spec.Selector); err == nil {
 		pods := &corev1.PodList{}
-		err := r.List(context.TODO(), pods, matchingSelector, client.InNamespace(job.Namespace))
-		if err == nil && len(pods.Items) > 0 {
+		if err := r.List(context.TODO(), pods, matchingSelector, client.InNamespace(job.Namespace)); err == nil {
 			startedAt, finishedAt = containerTime(pods)
-		}
-	}
-	if finishedAt == nil {
-		if startedAt == nil {
-			// No information could be extracted from the pod state, fall back to the job state
-			startedAt = job.Status.StartTime
-			finishedAt = job.Status.CompletionTime
-		} else if job.Status.CompletionTime != nil {
-			// The job has a completion time, but it is not yet reflected in the pod state we are seeing
-			return false, true
+
+			// Check if the job has a completion time, but it is not yet reflected in the pod state we are seeing
+			if finishedAt == nil && job.Status.CompletionTime != nil {
+				return false, true
+			}
 		}
 	}
 
