@@ -47,34 +47,33 @@ func captureDatadogMetric(aggregator, query string, startTime, completionTime ti
 		return 0, 0, fmt.Errorf("expected one series")
 	}
 
-	var value float64
+	var value, n float64
 	for _, p := range metrics[0].Points {
-		if p[1] != nil {
-			switch aggregator {
-			case "avg", "":
-				value = value + *p[1] // Just compute the total first
-			case "last":
-				value = *p[1]
-			case "max":
-				value = math.Max(value, *p[1])
-			case "min":
-				value = math.Min(value, *p[1])
-			case "sum":
-				value = value + *p[1]
-			default:
-				return 0, 0, fmt.Errorf("unsupported aggregator: %s (expected: avg, last, max, min, sum)", aggregator)
-			}
+		if p[1] == nil {
+			continue
+		}
+
+		// TODO What is `metrics[0].Aggr`?
+		switch aggregator {
+		case "avg", "":
+			value = value + *p[1]
+			n++
+		case "last":
+			value = *p[1]
+		case "max":
+			value = math.Max(value, *p[1])
+		case "min":
+			value = math.Min(value, *p[1])
+		case "sum":
+			value = value + *p[1]
+		default:
+			return 0, 0, fmt.Errorf("unsupported aggregator: %s (expected: avg, last, max, min, sum)", aggregator)
 		}
 	}
 
-	if len(metrics[0].Points) == 0 {
-		return 0, 0, nil
+	if n > 0 {
+		value = value / n
 	}
 
-	if aggregator == "avg" || aggregator == "" {
-		value = value / float64(len(metrics[0].Points))
-	}
-
-	// TODO Compute stddev for error?
 	return value, 0, nil
 }
