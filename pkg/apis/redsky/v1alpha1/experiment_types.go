@@ -80,7 +80,7 @@ type Metric struct {
 	// Indicator that the goal of the experiment is to minimize the value of this metric
 	Minimize bool `json:"minimize,omitempty"`
 
-	// The metric collection type, one of: local|prometheus|jsonpath, default: local
+	// The metric collection type, one of: local|prometheus|datadog|jsonpath, default: local
 	Type MetricType `json:"type,omitempty"`
 	// Collection type specific query, e.g. Go template for "local", PromQL for "prometheus" or a JSON pointer expression (with curly braces) for "jsonpath"
 	Query string `json:"query"`
