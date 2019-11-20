@@ -13,9 +13,9 @@ redskyctl kustomize config [flags]
 ### Options
 
 ```
-  -f, --filename string    
-  -h, --help               help for config
-  -k, --kustomize string   
+  -f, --filename file    file to write the configuration to (relative to the Kustomize root, if specified)
+  -h, --help             help for config
+  -k, --kustomize root   Kustomize root to update
 ```
 
 ### Options inherited from parent commands
@@ -29,5 +29,5 @@ redskyctl kustomize config [flags]
 
 ### SEE ALSO
 
-* [redskyctl kustomize](redskyctl_kustomize.md)	 - 
+* [redskyctl kustomize](redskyctl_kustomize.md)	 - Kustomize integrations
 

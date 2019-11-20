@@ -22,14 +22,14 @@ import (
 )
 
 const (
-	kustomizeLong    = ``
+	kustomizeLong    = `Kustomize integrations for Red Sky Ops`
 	kustomizeExample = ``
 )
 
 func NewKustomizeCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "kustomize",
-		Short:   "",
+		Short:   "Kustomize integrations",
 		Long:    kustomizeLong,
 		Example: kustomizeExample,
 	}

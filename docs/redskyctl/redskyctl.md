@@ -28,7 +28,7 @@ redskyctl [flags]
 * [redskyctl generate](redskyctl_generate.md)	 - Generate Red Sky Ops objects
 * [redskyctl get](redskyctl_get.md)	 - Display a Red Sky resource
 * [redskyctl init](redskyctl_init.md)	 - Install to a cluster
-* [redskyctl kustomize](redskyctl_kustomize.md)	 - 
+* [redskyctl kustomize](redskyctl_kustomize.md)	 - Kustomize integrations
 * [redskyctl reset](redskyctl_reset.md)	 - Uninstall from a cluster
 * [redskyctl results](redskyctl_results.md)	 - Serve a visualization of the results
 * [redskyctl status](redskyctl_status.md)	 - Check in cluster experiment status
