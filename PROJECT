@@ -1,3 +1,10 @@
-version: "1"
 domain: redskyops.dev
 repo: github.com/redskyops/k8s-experiment
+resources:
+- group: redskyops.dev
+  version: v1alpha1
+  kind: Experiment
+- group: redskyops.dev
+  version: v1alpha1
+  kind: Trial
+version: "2"

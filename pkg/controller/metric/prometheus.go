@@ -68,7 +68,7 @@ func captureOnePrometheusMetric(address, query, errorQuery string, completionTim
 	}
 
 	// Execute query
-	v, err := promAPI.Query(context.TODO(), query, completionTime)
+	v, _, err := promAPI.Query(context.TODO(), query, completionTime)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -91,7 +91,7 @@ func captureOnePrometheusMetric(address, query, errorQuery string, completionTim
 	// Execute the error query (if configured)
 	var errorResult float64
 	if errorQuery != "" {
-		ev, err := promAPI.Query(context.TODO(), errorQuery, completionTime)
+		ev, _, err := promAPI.Query(context.TODO(), errorQuery, completionTime)
 		if err != nil {
 			return 0, 0, err
 		}

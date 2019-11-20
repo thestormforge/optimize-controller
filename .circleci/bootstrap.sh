@@ -17,10 +17,10 @@ set -euo pipefail
 
 function defineEnvvar {
     echo "  $1=$2"
-    echo "export $1=\"$2\"" >> $BASH_ENV
+    echo "export $1=\"$2\"" >> "$BASH_ENV"
 }
 
-KUBEBUILDER_VERSION=2.0.1
+KUBEBUILDER_VERSION=2.2.0
 GHR_VERSION=0.12.2
 
 echo "Using environment variables from bootstrap script"

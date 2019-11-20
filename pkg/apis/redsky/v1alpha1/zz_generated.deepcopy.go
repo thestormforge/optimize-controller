@@ -89,7 +89,7 @@ func (in *Experiment) DeepCopyObject() runtime.Object {
 func (in *ExperimentList) DeepCopyInto(out *ExperimentList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]Experiment, len(*in))
@@ -434,7 +434,7 @@ func (in *TrialCondition) DeepCopy() *TrialCondition {
 func (in *TrialList) DeepCopyInto(out *TrialList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]Trial, len(*in))
