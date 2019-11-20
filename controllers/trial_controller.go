@@ -529,13 +529,6 @@ func createJob(trial *redskyv1alpha1.Trial) *batchv1.Job {
 		job.Spec.BackoffLimit = new(int32)
 	}
 
-	// Inject an initContainer to allow the Kubelet to catch up
-	// NOTE: Explicitly check for nil here so `initContainers: []` can be used to bypass the sleep
-	if job.Spec.Template.Spec.InitContainers == nil {
-		s := &metav1.Duration{Duration: 1 * time.Second}
-		job.Spec.Template.Spec.InitContainers = appendSleep(job.Spec.Template.Spec.InitContainers, "default-trial-init", s)
-	}
-
 	// Containers cannot be empty, inject a sleep by default
 	if len(job.Spec.Template.Spec.Containers) == 0 {
 		s := trial.Spec.ApproximateRuntime
@@ -545,7 +538,14 @@ func createJob(trial *redskyv1alpha1.Trial) *batchv1.Job {
 		if trial.Spec.StartTimeOffset != nil {
 			s = &metav1.Duration{Duration: s.Duration + trial.Spec.StartTimeOffset.Duration}
 		}
-		job.Spec.Template.Spec.Containers = appendSleep(job.Spec.Template.Spec.Containers, "default-trial-run", s)
+		job.Spec.Template.Spec.Containers = []corev1.Container{
+			{
+				Name:    "default-trial-run",
+				Image:   "busybox",
+				Command: []string{"/bin/sh"},
+				Args:    []string{"-c", fmt.Sprintf("echo 'Sleeping for %s...' && sleep %.0f && echo 'Done.'", s.Duration.String(), s.Seconds())},
+			},
+		}
 	}
 
 	return job
@@ -582,13 +582,4 @@ func latestTime(c, n *metav1.Time, offset *metav1.Duration) (*metav1.Time, bool)
 		return n.DeepCopy(), true
 	}
 	return c, false
-}
-
-func appendSleep(containers []corev1.Container, name string, s *metav1.Duration) []corev1.Container {
-	return append(containers, corev1.Container{
-		Name:    name,
-		Image:   "busybox",
-		Command: []string{"/bin/sh"},
-		Args:    []string{"-c", fmt.Sprintf("echo 'Sleeping for %s...' && sleep %.0f && echo 'Done.'", s.Duration.String(), s.Seconds())},
-	})
 }
