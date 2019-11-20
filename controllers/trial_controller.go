@@ -200,6 +200,13 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return r.forTrialUpdate(trial, ctx, log)
 	}
 
+	// TODO Remove this once we know why it is actually needed
+	for _, c := range trial.Status.Conditions {
+		if c.Type == redskyv1alpha1.TrialStable && c.LastTransitionTime.Add(1*time.Second).After(now.Time) {
+			return ctrl.Result{RequeueAfter: 1 * time.Second}, nil
+		}
+	}
+
 	// Find jobs labeled for this trial
 	list := &batchv1.JobList{}
 	matchingSelector, err := util.MatchingSelector(trial.GetJobSelector())
