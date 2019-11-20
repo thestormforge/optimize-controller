@@ -219,7 +219,7 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			if update, requeue := applyJobStatus(r, trial, &list.Items[i], &now); update {
 				return r.forTrialUpdate(trial, ctx, log)
 			} else if requeue {
-				// We are watching jobs, not pods; there is a possible gap in state which we need to cover
+				// We are watching jobs, not pods; we may need to poll the pod state before it is consistent
 				return ctrl.Result{Requeue: true}, nil
 			}
 			needsJob = false
@@ -460,8 +460,8 @@ func applyJobStatus(r client.Reader, trial *redskyv1alpha1.Trial, job *batchv1.J
 		if err := r.List(context.TODO(), pods, matchingSelector, client.InNamespace(job.Namespace)); err == nil {
 			startedAt, finishedAt = containerTime(pods)
 
-			// Check if the job has a completion time, but it is not yet reflected in the pod state we are seeing
-			if finishedAt == nil && job.Status.CompletionTime != nil {
+			// Check if the job has a start/completion time, but it is not yet reflected in the pod state we are seeing
+			if (startedAt == nil && job.Status.StartTime != nil) || (finishedAt == nil && job.Status.CompletionTime != nil) {
 				return false, true
 			}
 		}
