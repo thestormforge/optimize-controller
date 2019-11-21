@@ -8,7 +8,7 @@ There are two parts to Red Sky Ops: the `redskyctl` tool and Red Sky Ops Manager
 
 You can download binaries directly from the [releases page](https://github.com/redskyops/k8s-experiment/releases).
 
-### Using cURL and jq
+### Using cURL
 
 To download the latest release, select your platform (`linux` or `darwin`) and run:
 
@@ -26,7 +26,7 @@ The Red Sky Ops Manager runs inside your Kubernetes cluster. It can be configure
 
 ### Easy Install
 
-To perform an easy install, simply run `redskyctl init`. This will create a new `redsky-system` namespace and will create a Kubernetes job to manage the actual installation.
+To perform an easy install, simply run `redskyctl init`. This will run a pod in your cluster to generate the necessary installation manifests.
 
 Using `redskyctl init` is safe for multiple invocations; in fact re-running it with a new version of `redskyctl` is also the easiest way to upgrade your in cluster components or configuration.
 
@@ -50,12 +50,24 @@ The latest release of the Helm chart may not reference the latest application ve
 
 The `redskyops` Helm chart includes additional values to configure when using the Enterprise product, please contact your sales representative for the additional values to use when installing with Helm.
 
+### RBAC Requirements
+
+Red Sky Ops uses Kubernetes jobs to implement trial runs along with custom resources describing the experiment and trial. The Red Sky Ops Manager needs full permission to manipulate these resources. Additionally, the Red Sky Ops manager must be able to list core pods, services, and namespaces.
+
+The exact role requirements for a specific version can be reproduced using Kustomize, for example to view the [roles for v1.2.3](https://github.com/redskyops/k8s-experiment/tree/v1.2.3/config/rbac):
+
+```sh
+kustomize build github.com/redskyops/k8s-experiment//config/rbac/?ref=v1.2.3
+```
+
+The `redskyctl init` command will attempt to run a container in the default namespace of current context from your Kubernetes configuration. The container being run generates the manifests required for installation (see "Advanced Installation" for more details). Running the container requires "create" permission for the core "pods" resource.
+
 ### Advanced Installation
 
 If you have specific security requirements or the default RBAC configuration for the easy install is too permissive for your environment, there are a number of ways to obtain the raw Red Sky Ops Manager manifests:
 
 1. Using `redskyctl generate install` will print the raw manifests used during installation, however this still requires creating a Kubernetes pod.
-2. Using Docker to run the `setuptools` image directly. For example, `docker container run --rm $(redskyctl version --setuptools)` will produce the same output as `redskyctl generate install` without requiring a configured Kubernetes context.
+2. Using Docker to run the `setuptools` image directly. For example, `docker container run --rm $(redskyctl version --setuptools)` will produce the same output as `redskyctl generate install --bootstrap-role=false` without requiring a configured Kubernetes context.
 
 ## Upgrading the Red Sky Ops Manager
 
