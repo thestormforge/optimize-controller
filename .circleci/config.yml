@@ -61,7 +61,7 @@ jobs:
             if [[ -n "${CIRCLE_TAG:-}" ]]; then
               ghr -draft -body "$(cat .circleci/RELEASE_TEMPLATE.md)" -name "${CIRCLE_TAG}" "${CIRCLE_TAG}" dist
             else
-              echo "Skipping, no tag to release
+              echo "Skipping, no tag to release"
             fi
       - save_cache:
           key: go-mod-v1-{{ checksum "go.sum" }}
