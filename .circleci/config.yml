@@ -33,7 +33,8 @@ jobs:
           command: make tool
       - run:
           name: Compute checksums
-          command: sha256sum bin/* | tee bin/checksums.txt
+          command: |
+            sha256sum bin/* | tee bin/checksums.txt
       - store_artifacts:
           path: bin/redskyctl-darwin-amd64
           destination: redskyctl-darwin-amd64
@@ -44,23 +45,26 @@ jobs:
           path: bin/checksums.txt
           destination: checksums.txt
       - run:
-          name: Apply tags
+          name: Tag Docker images
+          command: |
+            DOCKER_TAG=${CIRCLE_TAG:+latest}
+            DOCKER_TAG=${DOCKER_TAG:-canary}
+            docker tag "${IMG}" "${IMG%%:*}:${DOCKER_TAG}"
+            docker push "${IMG%%:*}:${DOCKER_TAG}"
+            docker tag "${REDSKYCTL_IMG}" "${REDSKYCTL_IMG%%:*}:${DOCKER_TAG}"
+            docker push "${REDSKYCTL_IMG%%:*}:${DOCKER_TAG}"
+            docker tag "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:${DOCKER_TAG}"
+            docker push "${SETUPTOOLS_IMG%%:*}:${DOCKER_TAG}"
+      - run:
+          name: Create release
           command: |
             if [[ -n "${CIRCLE_TAG:-}" ]]; then
-              docker tag "${IMG}" "${IMG%%:*}:latest"
-              docker push "${IMG%%:*}:latest"
-              docker tag "${REDSKYCTL_IMG}" "${REDSKYCTL_IMG%%:*}:latest"
-              docker push "${REDSKYCTL_IMG%%:*}:latest"
-              docker tag "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:latest"
-              docker push "${SETUPTOOLS_IMG%%:*}:latest"
-              ghr -draft -body "$(cat .circleci/RELEASE_TEMPLATE.md)" "${CIRCLE_TAG}" bin
+              mkdir dist
+              for f in bin/redskyctl* ; do tar --transform 's,-.*,,;s,.*/,,' -czf "dist/$(basename $f).tar.gz" "$f" ; done
+              sha256sum dist/* | tee dist/checksums.txt
+              ghr -draft -body "$(cat .circleci/RELEASE_TEMPLATE.md)" "${CIRCLE_TAG}" dist
             else
-              docker tag "${IMG}" "${IMG%%:*}:canary"
-              docker push "${IMG%%:*}:canary"
-              docker tag "${REDSKYCTL_IMG}" "${REDSKYCTL_IMG%%:*}:canary"
-              docker push "${REDSKYCTL_IMG%%:*}:canary"
-              docker tag "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:canary"
-              docker push "${SETUPTOOLS_IMG%%:*}:canary"
+              echo "Skipping, no tag to release
             fi
       - save_cache:
           key: go-mod-v1-{{ checksum "go.sum" }}
