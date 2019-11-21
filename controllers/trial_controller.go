@@ -62,11 +62,8 @@ func (r *TrialReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 // +kubebuilder:rbac:groups=batch;extensions,resources=jobs,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=batch;extensions,resources=jobs/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups="",resources=pods,verbs=list
-// +kubebuilder:rbac:groups="",resources=services,verbs=list
+// +kubebuilder:rbac:groups="",resources=pods;services,verbs=list
 // +kubebuilder:rbac:groups=redskyops.dev,resources=trials,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=redskyops.dev,resources=trials/status,verbs=get;update;patch
 
 func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()

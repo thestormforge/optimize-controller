@@ -55,7 +55,6 @@ func (r *ExperimentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // +kubebuilder:rbac:groups="",resources=namespaces,verbs=list
 // +kubebuilder:rbac:groups=redskyops.dev,resources=experiments,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=redskyops.dev,resources=experiments/status,verbs=get;update;patch
 
 func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()

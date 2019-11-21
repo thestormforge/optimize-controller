@@ -16,11 +16,6 @@ rules:
   - ""
   resources:
   - pods
-  verbs:
-  - list
-- apiGroups:
-  - ""
-  resources:
   - services
   verbs:
   - list
@@ -38,15 +33,6 @@ rules:
   - update
   - watch
 - apiGroups:
-  - batch
-  - extensions
-  resources:
-  - jobs/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
   - redskyops.dev
   resources:
   - experiments
@@ -61,14 +47,6 @@ rules:
 - apiGroups:
   - redskyops.dev
   resources:
-  - experiments/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - redskyops.dev
-  resources:
   - trials
   verbs:
   - create
@@ -78,11 +56,3 @@ rules:
   - patch
   - update
   - watch
-- apiGroups:
-  - redskyops.dev
-  resources:
-  - trials/status
-  verbs:
-  - get
-  - patch
-  - update
