@@ -30,6 +30,8 @@ const (
 	generateInstallExample = ``
 )
 
+// TODO What about the namespace the pod will execute in? Currently we use the default namespace of the current context (hopefully "default")
+
 type GenerateInstallOptions struct {
 	Kubectl   *cmdutil.Kubectl
 	Namespace string
@@ -87,7 +89,11 @@ func (o *GenerateInstallOptions) Run() error {
 
 	// Use the image embedded in the code
 	args = append(args, "--image", trial.Image)
+	// TODO We may need to overwrite this for offline clusters
 	args = append(args, "--image-pull-policy", trial.ImagePullPolicy)
+
+	// Do not allow the pod to access the API
+	args = append(args, "--overrides", `{"spec":{"automountServiceAccountToken":false}}`)
 
 	// Overwrite the "redsky-system" namespace if configured
 	if o.Namespace != "" {
