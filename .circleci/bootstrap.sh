@@ -21,7 +21,7 @@ function defineEnvvar {
 }
 
 KUBEBUILDER_VERSION=2.2.0
-GHR_VERSION=0.12.2
+GHR_VERSION=0.13.0
 
 echo "Using environment variables from bootstrap script"
 if [[ -n "${CIRCLE_TAG:-}" ]]; then

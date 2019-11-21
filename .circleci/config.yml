@@ -23,30 +23,15 @@ jobs:
           name: Run tests
           command: make test
       - run:
-          name: Docker build
-          command: make docker-build
-      - run:
-          name: Docker push
-          command: make docker-push
-      - run:
           name: Build tool
           command: make tool
       - run:
-          name: Compute checksums
-          command: |
-            sha256sum bin/* | tee bin/checksums.txt
-      - store_artifacts:
-          path: bin/redskyctl-darwin-amd64
-          destination: redskyctl-darwin-amd64
-      - store_artifacts:
-          path: bin/redskyctl-linux-amd64
-          destination: redskyctl-linux-amd64
-      - store_artifacts:
-          path: bin/checksums.txt
-          destination: checksums.txt
+          name: Build Docker images
+          command: make docker-build
       - run:
-          name: Tag Docker images
+          name: Push Docker images
           command: |
+            make docker-push
             DOCKER_TAG=${CIRCLE_TAG:+latest}
             DOCKER_TAG=${DOCKER_TAG:-canary}
             docker tag "${IMG}" "${IMG%%:*}:${DOCKER_TAG}"
@@ -56,13 +41,25 @@ jobs:
             docker tag "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:${DOCKER_TAG}"
             docker push "${SETUPTOOLS_IMG%%:*}:${DOCKER_TAG}"
       - run:
+          name: Prepare artifacts
+          command: |
+            mkdir dist
+            for f in bin/* ; do tar --create --file "dist/$(basename $f).tar.gz" --gzip --transform 's,-.*,,;s,.*/,,' "$f" ; done
+            sha256sum dist/* | tee dist/checksums.txt
+      - store_artifacts:
+          path: dist/redskyctl-darwin-amd64.tar.gz
+          destination: redskyctl-darwin-amd64
+      - store_artifacts:
+          path: dist/redskyctl-linux-amd64.tar.gz
+          destination: redskyctl-linux-amd64
+      - store_artifacts:
+          path: dist/checksums.txt
+          destination: checksums.txt
+      - run:
           name: Create release
           command: |
             if [[ -n "${CIRCLE_TAG:-}" ]]; then
-              mkdir dist
-              for f in bin/redskyctl* ; do tar --transform 's,-.*,,;s,.*/,,' -czf "dist/$(basename $f).tar.gz" "$f" ; done
-              sha256sum dist/* | tee dist/checksums.txt
-              ghr -draft -body "$(cat .circleci/RELEASE_TEMPLATE.md)" "${CIRCLE_TAG}" dist
+              ghr -draft -body "$(cat .circleci/RELEASE_TEMPLATE.md)" -name "${CIRCLE_TAG}" "${CIRCLE_TAG}" dist
             else
               echo "Skipping, no tag to release
             fi
