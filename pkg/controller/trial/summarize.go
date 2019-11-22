@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package status
+package trial
 
 import (
 	"github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"

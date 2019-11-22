@@ -211,6 +211,8 @@ type TrialSpec struct {
 
 // TrialStatus defines the observed state of Trial
 type TrialStatus struct {
+	// Summary is a brief human readable description of the trial status
+	Summary string `json:"summary"`
 	// Assignments is a string representation of the trial assignments for reporting purposes
 	Assignments string `json:"assignments"`
 	// Values is a string representation of the trial values for reporting purposes
@@ -227,6 +229,7 @@ type TrialStatus struct {
 // +kubebuilder:object:root=true
 
 // Trial is the Schema for the trials API
+// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.summary",description="Trial status"
 // +kubebuilder:printcolumn:name="Assignments",type="string",JSONPath=".status.assignments",description="Current assignments"
 // +kubebuilder:printcolumn:name="Values",type="string",JSONPath=".status.values",description="Current values"
 type Trial struct {

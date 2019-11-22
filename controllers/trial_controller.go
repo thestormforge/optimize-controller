@@ -320,6 +320,13 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 // Returns from the reconcile loop after updating the supplied trial instance
 func (r *TrialReconciler) forTrialUpdate(trial *redskyv1alpha1.Trial, ctx context.Context, log logr.Logger) (ctrl.Result, error) {
 	// If we are going to be updating the trial, make sure the status is synchronized
+
+	if s, err := redskytrial.NewTrialStatusSummary(trial); err != nil {
+		trial.Status.Summary = "Unknown"
+	} else {
+		trial.Status.Summary = s.String()
+	}
+
 	assignments := make([]string, len(trial.Spec.Assignments))
 	for i := range trial.Spec.Assignments {
 		assignments[i] = fmt.Sprintf("%s=%d", trial.Spec.Assignments[i].Name, trial.Spec.Assignments[i].Value)

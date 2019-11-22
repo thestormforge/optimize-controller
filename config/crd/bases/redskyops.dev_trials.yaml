@@ -9,6 +9,10 @@ metadata:
   name: trials.redskyops.dev
 spec:
   additionalPrinterColumns:
+  - JSONPath: .status.summary
+    description: Trial status
+    name: Status
+    type: string
   - JSONPath: .status.assignments
     description: Current assignments
     name: Assignments
@@ -7954,12 +7958,17 @@ spec:
                 trial run job started
               format: date-time
               type: string
+            summary:
+              description: Summary is a brief human readable description of the trial
+                status
+              type: string
             values:
               description: Values is a string representation of the trial values for
                 reporting purposes
               type: string
           required:
           - assignments
+          - summary
           - values
           type: object
       type: object
