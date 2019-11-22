@@ -111,15 +111,14 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 		return ctrl.Result{}, err
 	}
 
-	// Update the active trial count
-	var activeTrials int32
-	for i := range list.Items {
-		if redskytrial.IsTrialActive(&list.Items[i]) {
-			activeTrials++
-		}
+	// Update experiment status
+	es, err := redskytrial.NewExperimentStatusSummary(experiment, list)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
-	if experiment.Status.ActiveTrials != activeTrials {
-		experiment.Status.ActiveTrials = activeTrials
+	if experiment.Status.Summary != es.String() || experiment.Status.ActiveTrials != es.ActiveCount {
+		experiment.Status.Summary = es.String()
+		experiment.Status.ActiveTrials = es.ActiveCount
 		err := r.Update(ctx, experiment)
 		return util.RequeueConflict(ctrl.Result{}, err)
 	}

@@ -8,6 +8,11 @@ metadata:
   creationTimestamp: null
   name: experiments.redskyops.dev
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.summary
+    description: Experiment status
+    name: Status
+    type: string
   group: redskyops.dev
   names:
     kind: Experiment
@@ -9102,8 +9107,13 @@ spec:
               description: ActiveTrials is the observed number of running trials
               format: int32
               type: integer
+            summary:
+              description: Summary is a brief human readable description of the experiment
+                status
+              type: string
           required:
           - activeTrials
+          - summary
           type: object
       type: object
   version: v1alpha1
