@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/redskyops/k8s-experiment/internal/trial"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	"github.com/redskyops/k8s-experiment/pkg/controller/template"
 	"github.com/redskyops/k8s-experiment/pkg/util"
@@ -59,9 +60,9 @@ const (
 	modeDelete = "delete"
 )
 
-func ManageSetup(c client.Client, s *runtime.Scheme, ctx context.Context, probeTime *metav1.Time, trial *redskyv1alpha1.Trial) (*ctrl.Result, error) {
+func ManageSetup(c client.Client, s *runtime.Scheme, ctx context.Context, probeTime *metav1.Time, t *redskyv1alpha1.Trial) (*ctrl.Result, error) {
 	// Determine if there is anything to do
-	if probeSetupTrialConditions(trial, probeTime) {
+	if probeSetupTrialConditions(t, probeTime) {
 		return nil, nil
 	}
 
@@ -69,15 +70,15 @@ func ManageSetup(c client.Client, s *runtime.Scheme, ctx context.Context, probeT
 
 	// Find the setup jobs for this trial
 	list := &batchv1.JobList{}
-	setupJobLabels := map[string]string{redskyv1alpha1.LabelTrial: trial.Name, redskyv1alpha1.LabelTrialRole: "trialSetup"}
-	if err := c.List(ctx, list, client.InNamespace(trial.Namespace), client.MatchingLabels(setupJobLabels)); err != nil {
+	setupJobLabels := map[string]string{redskyv1alpha1.LabelTrial: t.Name, redskyv1alpha1.LabelTrialRole: "trialSetup"}
+	if err := c.List(ctx, list, client.InNamespace(t.Namespace), client.MatchingLabels(setupJobLabels)); err != nil {
 		return &ctrl.Result{}, err
 	}
 
 	// This is purely for recovery, normally if the list size is zero the condition status will already be "unknown"
 	if len(list.Items) == 0 {
-		ApplyCondition(&trial.Status, redskyv1alpha1.TrialSetupCreated, corev1.ConditionUnknown, "", "", probeTime)
-		ApplyCondition(&trial.Status, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionUnknown, "", "", probeTime)
+		ApplyCondition(&t.Status, redskyv1alpha1.TrialSetupCreated, corev1.ConditionUnknown, "", "", probeTime)
+		ApplyCondition(&t.Status, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionUnknown, "", "", probeTime)
 	}
 
 	// Update the conditions based on existing jobs
@@ -92,20 +93,20 @@ func ManageSetup(c client.Client, s *runtime.Scheme, ctx context.Context, probeT
 
 		// Determine if the job is finished (i.e. completed or failed)
 		conditionStatus, failureMessage := getSetupJobStatus(c, ctx, job)
-		ApplyCondition(&trial.Status, conditionType, conditionStatus, "", "", probeTime)
+		ApplyCondition(&t.Status, conditionType, conditionStatus, "", "", probeTime)
 
 		// Only fail the trial itself if it isn't already finished; both to prevent overwriting an existing success
 		// or failure status and to avoid updating the probe time (which would get us stuck in a busy loop)
-		if failureMessage != "" && !IsTrialFinished(trial) {
-			ApplyCondition(&trial.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "SetupJobFailed", failureMessage, probeTime)
+		if failureMessage != "" && !trial.IsFinished(t) {
+			ApplyCondition(&t.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "SetupJobFailed", failureMessage, probeTime)
 		}
 	}
 
 	// Check to see if we need to update the trial to record a condition change
 	// TODO This check just looks for the probeTime in "last transition" times, is this causing unnecessary updates?
 	// TODO Can we use pointer equivalence on probeTime to help mitigate that problem?
-	if needsUpdate(trial, probeTime) {
-		err := c.Update(ctx, trial)
+	if needsUpdate(t, probeTime) {
+		err := c.Update(ctx, t)
 		rr, re := util.RequeueConflict(ctrl.Result{}, err)
 		return &rr, re
 	}
@@ -114,10 +115,10 @@ func ManageSetup(c client.Client, s *runtime.Scheme, ctx context.Context, probeT
 	mode := ""
 
 	// If the created condition is unknown, we will need a create job
-	if cc, ok := CheckCondition(&trial.Status, redskyv1alpha1.TrialSetupCreated, corev1.ConditionUnknown); cc && ok {
+	if cc, ok := CheckCondition(&t.Status, redskyv1alpha1.TrialSetupCreated, corev1.ConditionUnknown); cc && ok {
 		// Before we can have a create job, we need a finalizer so we get a chance to run the delete job
-		if addSetupFinalizer(trial) {
-			err := c.Update(ctx, trial)
+		if addSetupFinalizer(t) {
+			err := c.Update(ctx, t)
 			return &ctrl.Result{}, err
 		}
 
@@ -125,20 +126,20 @@ func ManageSetup(c client.Client, s *runtime.Scheme, ctx context.Context, probeT
 	}
 
 	// If the deleted condition is unknown, we may need a delete job
-	if cc, ok := CheckCondition(&trial.Status, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionUnknown); cc && ok {
+	if cc, ok := CheckCondition(&t.Status, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionUnknown); cc && ok {
 		// We do not need the deleted job until the trial is finished or it gets deleted
-		if IsTrialFinished(trial) || !trial.DeletionTimestamp.IsZero() {
+		if trial.IsFinished(t) || !t.DeletionTimestamp.IsZero() {
 			mode = modeDelete
 		}
 	}
 
 	// Create a setup job if necessary
 	if mode != "" {
-		job, err := newSetupJob(trial, mode)
+		job, err := newSetupJob(t, mode)
 		if err != nil {
 			return &ctrl.Result{}, err
 		}
-		if err := controllerutil.SetControllerReference(trial, job, s); err != nil {
+		if err := controllerutil.SetControllerReference(t, job, s); err != nil {
 			return nil, err
 		}
 		err = c.Create(ctx, job)
@@ -146,16 +147,16 @@ func ManageSetup(c client.Client, s *runtime.Scheme, ctx context.Context, probeT
 	}
 
 	// If the create job isn't finished, wait for it (unless the trial is already finished, i.e. failed)
-	if cc, ok := CheckCondition(&trial.Status, redskyv1alpha1.TrialSetupCreated, corev1.ConditionFalse); ok && cc {
-		if !IsTrialFinished(trial) && trial.DeletionTimestamp.IsZero() {
+	if cc, ok := CheckCondition(&t.Status, redskyv1alpha1.TrialSetupCreated, corev1.ConditionFalse); ok && cc {
+		if !trial.IsFinished(t) && t.DeletionTimestamp.IsZero() {
 			return &ctrl.Result{RequeueAfter: 1 * time.Second}, nil
 		}
 	}
 
 	// Do not remove the finalizer until the delete job is finished
-	if cc, ok := CheckCondition(&trial.Status, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionTrue); ok && cc {
-		if util.RemoveFinalizer(trial, setupFinalizer) {
-			err := c.Update(ctx, trial)
+	if cc, ok := CheckCondition(&t.Status, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionTrue); ok && cc {
+		if util.RemoveFinalizer(t, setupFinalizer) {
+			err := c.Update(ctx, t)
 			return &ctrl.Result{}, err
 		}
 	}
@@ -176,6 +177,7 @@ func addSetupFinalizer(trial *redskyv1alpha1.Trial) bool {
 }
 
 func getSetupJobType(job *batchv1.Job) (redskyv1alpha1.TrialConditionType, error) {
+	// TODO This should just be a label or annotation on the job
 	for _, c := range job.Spec.Template.Spec.Containers {
 		if len(c.Args) > 0 {
 			switch c.Args[0] {

@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/redskyops/k8s-experiment/internal/trial"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	"github.com/redskyops/k8s-experiment/pkg/controller/metric"
 	"github.com/redskyops/k8s-experiment/pkg/controller/template"
@@ -71,13 +72,13 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	now := metav1.Now()
 
 	// Fetch the Trial instance
-	trial := &redskyv1alpha1.Trial{}
-	if err := r.Get(ctx, req.NamespacedName, trial); err != nil {
+	t := &redskyv1alpha1.Trial{}
+	if err := r.Get(ctx, req.NamespacedName, t); err != nil {
 		return ctrl.Result{}, util.IgnoreNotFound(err)
 	}
 
 	// Ahead of everything is the setup/teardown (contains finalization logic)
-	if result, err := redskytrial.ManageSetup(r.Client, r.Scheme, ctx, &now, trial); result != nil {
+	if result, err := redskytrial.ManageSetup(r.Client, r.Scheme, ctx, &now, t); result != nil {
 		if err != nil {
 			log.Error(err, "Setup task failed")
 		}
@@ -85,37 +86,37 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	// If we are in a finished or deleted state there is nothing for us to do
-	if redskytrial.IsTrialFinished(trial) || !trial.DeletionTimestamp.IsZero() {
+	if trial.IsFinished(t) || !t.DeletionTimestamp.IsZero() {
 		return ctrl.Result{}, nil
 	}
 
 	// Copy the patches over from the experiment
-	if len(trial.Spec.PatchOperations) == 0 {
+	if len(t.Spec.PatchOperations) == 0 {
 		e := &redskyv1alpha1.Experiment{}
-		if err := r.Get(ctx, trial.ExperimentNamespacedName(), e); err != nil {
+		if err := r.Get(ctx, t.ExperimentNamespacedName(), e); err != nil {
 			return ctrl.Result{}, err
 		}
-		if err := checkAssignments(trial, e, log); err != nil {
+		if err := checkAssignments(t, e, log); err != nil {
 			return ctrl.Result{}, err
 		}
-		if err := evaluatePatches(trial, e); err != nil {
+		if err := evaluatePatches(t, e); err != nil {
 			return ctrl.Result{}, err
 		}
-		if len(trial.Spec.PatchOperations) > 0 {
+		if len(t.Spec.PatchOperations) > 0 {
 			// We know we have at least one patch to apply, use an unknown status until we start applying them
-			redskytrial.ApplyCondition(&trial.Status, redskyv1alpha1.TrialPatched, corev1.ConditionUnknown, "", "", &now)
-			return r.forTrialUpdate(trial, ctx, log)
+			redskytrial.ApplyCondition(&t.Status, redskyv1alpha1.TrialPatched, corev1.ConditionUnknown, "", "", &now)
+			return r.forTrialUpdate(t, ctx, log)
 		}
 	}
 
 	// Check the "initializer" annotation, do not progress unless it is empty (don't requeue, wait for a change)
-	if trial.HasInitializer() {
+	if t.HasInitializer() {
 		return ctrl.Result{}, nil
 	}
 
 	// Apply the patches
-	for i := range trial.Spec.PatchOperations {
-		p := &trial.Spec.PatchOperations[i]
+	for i := range t.Spec.PatchOperations {
+		p := &t.Spec.PatchOperations[i]
 		if p.AttemptsRemaining == 0 {
 			continue
 		}
@@ -128,31 +129,31 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			p.AttemptsRemaining = p.AttemptsRemaining - 1
 			if p.AttemptsRemaining == 0 {
 				// There are no remaining patch attempts remaining, fail the trial
-				redskytrial.ApplyCondition(&trial.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "PatchFailed", err.Error(), &now)
+				redskytrial.ApplyCondition(&t.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "PatchFailed", err.Error(), &now)
 			}
 		} else {
 			p.AttemptsRemaining = 0
 			if p.Wait {
 				// We successfully applied a patch that requires a wait, use an unknown status until we start waiting
-				redskytrial.ApplyCondition(&trial.Status, redskyv1alpha1.TrialStable, corev1.ConditionUnknown, "", "", &now)
+				redskytrial.ApplyCondition(&t.Status, redskyv1alpha1.TrialStable, corev1.ConditionUnknown, "", "", &now)
 			}
 		}
 
 		// We have started applying patches (success or fail), transition into a false status
-		redskytrial.ApplyCondition(&trial.Status, redskyv1alpha1.TrialPatched, corev1.ConditionFalse, "", "", &now)
-		return r.forTrialUpdate(trial, ctx, log)
+		redskytrial.ApplyCondition(&t.Status, redskyv1alpha1.TrialPatched, corev1.ConditionFalse, "", "", &now)
+		return r.forTrialUpdate(t, ctx, log)
 	}
 
 	// If there is a patched condition that is not yet true, update the status
-	if cc, ok := redskytrial.CheckCondition(&trial.Status, redskyv1alpha1.TrialPatched, corev1.ConditionTrue); ok && !cc {
-		redskytrial.ApplyCondition(&trial.Status, redskyv1alpha1.TrialPatched, corev1.ConditionTrue, "", "", &now)
-		return r.forTrialUpdate(trial, ctx, log)
+	if cc, ok := redskytrial.CheckCondition(&t.Status, redskyv1alpha1.TrialPatched, corev1.ConditionTrue); ok && !cc {
+		redskytrial.ApplyCondition(&t.Status, redskyv1alpha1.TrialPatched, corev1.ConditionTrue, "", "", &now)
+		return r.forTrialUpdate(t, ctx, log)
 	}
 
 	// Wait for a stable (ish) state
 	var waitForStability time.Duration
-	for i := range trial.Spec.PatchOperations {
-		p := &trial.Spec.PatchOperations[i]
+	for i := range t.Spec.PatchOperations {
+		p := &t.Spec.PatchOperations[i]
 		if !p.Wait {
 			// We have already reached stability for this patch (eventually the whole list should be in this state)
 			continue
@@ -163,28 +164,28 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			// Record the largest retry delay, but continue through the list looking for show stoppers
 			if serr, ok := err.(*redskytrial.StabilityError); ok && serr.RetryAfter > 0 {
 				if serr.RetryAfter > waitForStability {
-					redskytrial.ApplyCondition(&trial.Status, redskyv1alpha1.TrialStable, corev1.ConditionFalse, "Waiting", err.Error(), &now)
+					redskytrial.ApplyCondition(&t.Status, redskyv1alpha1.TrialStable, corev1.ConditionFalse, "Waiting", err.Error(), &now)
 					waitForStability = serr.RetryAfter
 				}
 				continue
 			}
 
 			// Fail the trial since we couldn't detect a stable state
-			redskytrial.ApplyCondition(&trial.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "WaitFailed", err.Error(), &now)
-			return r.forTrialUpdate(trial, ctx, log)
+			redskytrial.ApplyCondition(&t.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "WaitFailed", err.Error(), &now)
+			return r.forTrialUpdate(t, ctx, log)
 		}
 
 		// Mark that we have successfully waited for this patch
 		p.Wait = false
 
 		// Either overwrite the "waiting" reason from an earlier iteration or change the status from "unknown" to "false"
-		redskytrial.ApplyCondition(&trial.Status, redskyv1alpha1.TrialStable, corev1.ConditionFalse, "", "", &now)
-		return r.forTrialUpdate(trial, ctx, log)
+		redskytrial.ApplyCondition(&t.Status, redskyv1alpha1.TrialStable, corev1.ConditionFalse, "", "", &now)
+		return r.forTrialUpdate(t, ctx, log)
 	}
 
 	// Remaining patches require a delay; update the trial and adjust the response
 	if waitForStability > 0 {
-		rr, re := r.forTrialUpdate(trial, ctx, log)
+		rr, re := r.forTrialUpdate(t, ctx, log)
 		if re == nil {
 			rr.RequeueAfter = waitForStability
 		}
@@ -192,13 +193,13 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	// If there is a stable condition that is not yet true, update the status
-	if cc, ok := redskytrial.CheckCondition(&trial.Status, redskyv1alpha1.TrialStable, corev1.ConditionTrue); ok && !cc {
-		redskytrial.ApplyCondition(&trial.Status, redskyv1alpha1.TrialStable, corev1.ConditionTrue, "", "", &now)
-		return r.forTrialUpdate(trial, ctx, log)
+	if cc, ok := redskytrial.CheckCondition(&t.Status, redskyv1alpha1.TrialStable, corev1.ConditionTrue); ok && !cc {
+		redskytrial.ApplyCondition(&t.Status, redskyv1alpha1.TrialStable, corev1.ConditionTrue, "", "", &now)
+		return r.forTrialUpdate(t, ctx, log)
 	}
 
 	// TODO Remove this once we know why it is actually needed
-	for _, c := range trial.Status.Conditions {
+	for _, c := range t.Status.Conditions {
 		if c.Type == redskyv1alpha1.TrialStable && c.LastTransitionTime.Add(1*time.Second).After(now.Time) {
 			return ctrl.Result{RequeueAfter: 1 * time.Second}, nil
 		}
@@ -206,7 +207,7 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	// Find jobs labeled for this trial
 	list := &batchv1.JobList{}
-	matchingSelector, err := util.MatchingSelector(trial.GetJobSelector())
+	matchingSelector, err := util.MatchingSelector(t.GetJobSelector())
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -220,8 +221,8 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		// Setup jobs always have "role=trialSetup" so ignore jobs with that label
 		// NOTE: We do not use label selectors on search because we don't know if they are user modified
 		if list.Items[i].Labels[redskyv1alpha1.LabelTrialRole] != "trialSetup" {
-			if update, requeue := applyJobStatus(r, trial, &list.Items[i], &now); update {
-				return r.forTrialUpdate(trial, ctx, log)
+			if update, requeue := applyJobStatus(r, t, &list.Items[i], &now); update {
+				return r.forTrialUpdate(t, ctx, log)
 			} else if requeue {
 				// We are watching jobs, not pods; we may need to poll the pod state before it is consistent
 				return ctrl.Result{Requeue: true}, nil
@@ -232,8 +233,8 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	// Create a trial run job if needed
 	if needsJob {
-		job := createJob(trial)
-		if err := controllerutil.SetControllerReference(trial, job, r.Scheme); err != nil {
+		job := createJob(t)
+		if err := controllerutil.SetControllerReference(t, job, r.Scheme); err != nil {
 			return ctrl.Result{}, err
 		}
 		err = r.Create(ctx, job)
@@ -241,29 +242,29 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	// The completion time will be non-nil as soon as the (a?) trial run job finishes
-	if trial.Status.CompletionTime != nil {
+	if t.Status.CompletionTime != nil {
 		e := &redskyv1alpha1.Experiment{}
-		if err = r.Get(ctx, trial.ExperimentNamespacedName(), e); err != nil {
+		if err = r.Get(ctx, t.ExperimentNamespacedName(), e); err != nil {
 			return ctrl.Result{}, err
 		}
 
 		// If we have metrics to collect, use an unknown status to fill the gap (e.g. TCP timeout) until the transition to false
 		if len(e.Spec.Metrics) > 0 {
-			if _, ok := redskytrial.CheckCondition(&trial.Status, redskyv1alpha1.TrialObserved, corev1.ConditionUnknown); !ok {
-				redskytrial.ApplyCondition(&trial.Status, redskyv1alpha1.TrialObserved, corev1.ConditionUnknown, "", "", &now)
-				return r.forTrialUpdate(trial, ctx, log)
+			if _, ok := redskytrial.CheckCondition(&t.Status, redskyv1alpha1.TrialObserved, corev1.ConditionUnknown); !ok {
+				redskytrial.ApplyCondition(&t.Status, redskyv1alpha1.TrialObserved, corev1.ConditionUnknown, "", "", &now)
+				return r.forTrialUpdate(t, ctx, log)
 			}
 		}
 
 		// Determine the namespace used to get metric targets
-		ns := trial.Spec.TargetNamespace
+		ns := t.Spec.TargetNamespace
 		if ns == "" {
-			ns = trial.Namespace
+			ns = t.Namespace
 		}
 
 		// Look for metrics that have not been collected yet
 		for _, m := range e.Spec.Metrics {
-			v := findOrCreateValue(trial, m.Name)
+			v := findOrCreateValue(t, m.Name)
 			if v.AttemptsRemaining == 0 {
 				continue
 			}
@@ -272,7 +273,7 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			var captureError error
 			if target, err := getMetricTarget(r, ctx, ns, &m); err != nil {
 				captureError = err
-			} else if value, stddev, err := metric.CaptureMetric(&m, trial, target); err != nil {
+			} else if value, stddev, err := metric.CaptureMetric(&m, t, target); err != nil {
 				if merr, ok := err.(*metric.CaptureError); ok && merr.RetryAfter > 0 {
 					// Do not count retries against the remaining attempts
 					return ctrl.Result{RequeueAfter: merr.RetryAfter}, nil
@@ -290,7 +291,7 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			if captureError != nil && v.AttemptsRemaining > 0 {
 				v.AttemptsRemaining = v.AttemptsRemaining - 1
 				if v.AttemptsRemaining == 0 {
-					redskytrial.ApplyCondition(&trial.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "MetricFailed", captureError.Error(), &now)
+					redskytrial.ApplyCondition(&t.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "MetricFailed", captureError.Error(), &now)
 					if merr, ok := captureError.(*metric.CaptureError); ok {
 						// Metric errors contain additional information which should be logged for debugging
 						log.Error(err, "Metric collection failed", "address", merr.Address, "query", merr.Query, "completionTime", merr.CompletionTime)
@@ -299,18 +300,18 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			}
 
 			// Set the observed condition to false since we have observed at least one, but possibly not all of, the metrics
-			redskytrial.ApplyCondition(&trial.Status, redskyv1alpha1.TrialObserved, corev1.ConditionFalse, "", "", &now)
-			return r.forTrialUpdate(trial, ctx, log)
+			redskytrial.ApplyCondition(&t.Status, redskyv1alpha1.TrialObserved, corev1.ConditionFalse, "", "", &now)
+			return r.forTrialUpdate(t, ctx, log)
 		}
 
 		// If all of the metrics are collected, finish the observation
-		if cc, ok := redskytrial.CheckCondition(&trial.Status, redskyv1alpha1.TrialObserved, corev1.ConditionTrue); ok && !cc {
-			redskytrial.ApplyCondition(&trial.Status, redskyv1alpha1.TrialObserved, corev1.ConditionTrue, "", "", &now)
+		if cc, ok := redskytrial.CheckCondition(&t.Status, redskyv1alpha1.TrialObserved, corev1.ConditionTrue); ok && !cc {
+			redskytrial.ApplyCondition(&t.Status, redskyv1alpha1.TrialObserved, corev1.ConditionTrue, "", "", &now)
 		}
 
 		// Mark the trial as completed
-		redskytrial.ApplyCondition(&trial.Status, redskyv1alpha1.TrialComplete, corev1.ConditionTrue, "", "", &now)
-		return r.forTrialUpdate(trial, ctx, log)
+		redskytrial.ApplyCondition(&t.Status, redskyv1alpha1.TrialComplete, corev1.ConditionTrue, "", "", &now)
+		return r.forTrialUpdate(t, ctx, log)
 	}
 
 	// Nothing changed
@@ -318,30 +319,11 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 }
 
 // Returns from the reconcile loop after updating the supplied trial instance
-func (r *TrialReconciler) forTrialUpdate(trial *redskyv1alpha1.Trial, ctx context.Context, log logr.Logger) (ctrl.Result, error) {
-	// If we are going to be updating the trial, make sure the status is synchronized
+func (r *TrialReconciler) forTrialUpdate(t *redskyv1alpha1.Trial, ctx context.Context, log logr.Logger) (ctrl.Result, error) {
+	// If we are going to be updating the trial, make sure the status is synchronized (ignore errors)
+	_ = trial.UpdateStatus(t)
 
-	if s, err := redskytrial.NewTrialStatusSummary(trial); err != nil {
-		trial.Status.Summary = "Unknown"
-	} else {
-		trial.Status.Summary = s.String()
-	}
-
-	assignments := make([]string, len(trial.Spec.Assignments))
-	for i := range trial.Spec.Assignments {
-		assignments[i] = fmt.Sprintf("%s=%d", trial.Spec.Assignments[i].Name, trial.Spec.Assignments[i].Value)
-	}
-	trial.Status.Assignments = strings.Join(assignments, ", ")
-
-	values := make([]string, len(trial.Spec.Values))
-	for i := range trial.Spec.Values {
-		if trial.Spec.Values[i].AttemptsRemaining == 0 {
-			values[i] = fmt.Sprintf("%s=%s", trial.Spec.Values[i].Name, trial.Spec.Values[i].Value)
-		}
-	}
-	trial.Status.Values = strings.Join(values, ", ")
-
-	err := r.Update(ctx, trial)
+	err := r.Update(ctx, t)
 	return util.RequeueConflict(ctrl.Result{}, err)
 }
 

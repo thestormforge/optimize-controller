@@ -18,10 +18,9 @@ package experiment
 
 import (
 	"context"
-	"time"
 
+	"github.com/redskyops/k8s-experiment/internal/trial"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
-	redskytrial "github.com/redskyops/k8s-experiment/pkg/controller/trial"
 	"github.com/redskyops/k8s-experiment/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,45 +33,45 @@ const (
 )
 
 // PopulateTrialFromTemplate creates a new trial for an experiment
-func PopulateTrialFromTemplate(experiment *redskyv1alpha1.Experiment, trial *redskyv1alpha1.Trial, namespace string) {
+func PopulateTrialFromTemplate(experiment *redskyv1alpha1.Experiment, t *redskyv1alpha1.Trial, namespace string) {
 	// Start with the trial template
-	experiment.Spec.Template.ObjectMeta.DeepCopyInto(&trial.ObjectMeta)
-	experiment.Spec.Template.Spec.DeepCopyInto(&trial.Spec)
+	experiment.Spec.Template.ObjectMeta.DeepCopyInto(&t.ObjectMeta)
+	experiment.Spec.Template.Spec.DeepCopyInto(&t.Spec)
 
 	// The creation timestamp is NOT a pointer so it needs an explicit value that serializes to something
 	// TODO This should not be necessary
-	if trial.Spec.Template != nil {
-		trial.Spec.Template.ObjectMeta.CreationTimestamp = metav1.Now()
-		trial.Spec.Template.Spec.Template.ObjectMeta.CreationTimestamp = metav1.Now()
+	if t.Spec.Template != nil {
+		t.Spec.Template.ObjectMeta.CreationTimestamp = metav1.Now()
+		t.Spec.Template.Spec.Template.ObjectMeta.CreationTimestamp = metav1.Now()
 	}
 
 	// Overwrite the target namespace unless we are only running a single trial on the cluster
 	if experiment.GetReplicas() > 1 || experiment.Spec.NamespaceSelector != nil || experiment.Spec.Template.Namespace != "" {
-		trial.Spec.TargetNamespace = namespace
+		t.Spec.TargetNamespace = namespace
 	}
 
-	if trial.Namespace == "" {
-		trial.Namespace = namespace
+	if t.Namespace == "" {
+		t.Namespace = namespace
 	}
 
-	if trial.Name == "" {
-		if trial.Namespace != experiment.Namespace {
-			trial.Name = experiment.Name
-		} else if trial.GenerateName == "" {
-			trial.GenerateName = experiment.Name + "-"
+	if t.Name == "" {
+		if t.Namespace != experiment.Namespace {
+			t.Name = experiment.Name
+		} else if t.GenerateName == "" {
+			t.GenerateName = experiment.Name + "-"
 		}
 	}
 
-	if len(trial.Labels) == 0 {
-		trial.Labels = experiment.GetDefaultLabels()
+	if len(t.Labels) == 0 {
+		t.Labels = experiment.GetDefaultLabels()
 	}
 
-	if trial.Annotations == nil {
-		trial.Annotations = make(map[string]string)
+	if t.Annotations == nil {
+		t.Annotations = make(map[string]string)
 	}
 
-	if trial.Spec.ExperimentRef == nil {
-		trial.Spec.ExperimentRef = experiment.GetSelfReference()
+	if t.Spec.ExperimentRef == nil {
+		t.Spec.ExperimentRef = experiment.GetSelfReference()
 	}
 }
 
@@ -87,7 +86,7 @@ func FindAvailableNamespace(r client.Reader, experiment *redskyv1alpha1.Experime
 	// Determine which namespaces are already in use
 	inuse := make(map[string]bool, len(trials))
 	for i := range trials {
-		if redskytrial.IsTrialActive(&trials[i]) {
+		if trial.IsActive(&trials[i]) {
 			if trials[i].Spec.TargetNamespace != "" {
 				inuse[trials[i].Spec.TargetNamespace] = true
 			} else {
@@ -121,48 +120,4 @@ func FindAvailableNamespace(r client.Reader, experiment *redskyv1alpha1.Experime
 		return experiment.Namespace, nil
 	}
 	return "", nil
-}
-
-// NeedsCleanup checks whether a trial's TTL has expired
-func NeedsCleanup(t *redskyv1alpha1.Trial) bool {
-	// Already deleted or still active, no cleanup necessary
-	if !t.DeletionTimestamp.IsZero() || redskytrial.IsTrialActive(t) {
-		return false
-	}
-
-	// Try to determine effective finish time and TTL
-	finishTime := metav1.Time{}
-	ttlSeconds := t.Spec.TTLSecondsAfterFinished
-	for _, c := range t.Status.Conditions {
-		if isFinishTimeCondition(&c) {
-			// Adjust the TTL if specified separately for failures
-			if c.Type == redskyv1alpha1.TrialFailed && t.Spec.TTLSecondsAfterFailure != nil {
-				ttlSeconds = t.Spec.TTLSecondsAfterFailure
-			}
-
-			// Take the latest time possible
-			if finishTime.Before(&c.LastTransitionTime) {
-				finishTime = c.LastTransitionTime
-			}
-		}
-	}
-
-	// No finish time or TTL, no cleanup necessary
-	if finishTime.IsZero() || ttlSeconds == nil || *ttlSeconds < 0 {
-		return false
-	}
-
-	// Check to see if we are still in the TTL window
-	ttl := time.Duration(*ttlSeconds) * time.Second
-	return finishTime.UTC().Add(ttl).Before(time.Now().UTC())
-}
-
-// isFinishTimeCondition returns true if the condition is relevant to the "finish time"
-func isFinishTimeCondition(c *redskyv1alpha1.TrialCondition) bool {
-	switch c.Type {
-	case redskyv1alpha1.TrialComplete, redskyv1alpha1.TrialFailed, redskyv1alpha1.TrialSetupDeleted:
-		return c.Status == corev1.ConditionTrue
-	default:
-		return false
-	}
 }

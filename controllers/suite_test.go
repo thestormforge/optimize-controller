@@ -80,8 +80,13 @@ var _ = BeforeSuite(func(done Done) {
 	redSkyAPI = fake.NewFakeAPI()
 
 	err = (&ExperimentReconciler{
+		Client: k8sManager.GetClient(),
+	}).SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
+	err = (&ServerReconciler{
 		Client:    k8sManager.GetClient(),
-		Log:       ctrl.Log.WithName("controllers").WithName("Experiment"),
+		Log:       ctrl.Log.WithName("controllers").WithName("Server"),
 		Scheme:    k8sManager.GetScheme(),
 		RedSkyAPI: redSkyAPI,
 	}).SetupWithManager(k8sManager)

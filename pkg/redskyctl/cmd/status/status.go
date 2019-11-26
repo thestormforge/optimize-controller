@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
-	"github.com/redskyops/k8s-experiment/pkg/controller/trial"
 	redskykube "github.com/redskyops/k8s-experiment/pkg/kubernetes"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/redskyops/k8s-experiment/pkg/util"
@@ -163,22 +162,9 @@ func (o *StatusOptions) ExtractValue(obj runtime.Object, column string) (string,
 	case "status":
 		switch v := obj.(type) {
 		case *v1alpha1.Trial:
-			if s, err := trial.NewTrialStatusSummary(v); err != nil {
-				return "", err
-			} else {
-				return s.String(), nil
-			}
+			return v.Status.Summary, nil
 		case *v1alpha1.Experiment:
-			// We need the list of trials to summarize an experiment
-			list, err := o.listTrials(v)
-			if err != nil {
-				return "", err
-			}
-			if s, err := trial.NewExperimentStatusSummary(v, list); err != nil {
-				return "", err
-			} else {
-				return s.String(), nil
-			}
+			return v.Status.Summary, nil
 		}
 	}
 	return "", nil
