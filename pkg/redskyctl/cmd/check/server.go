@@ -81,10 +81,10 @@ func NewServerCheckCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobr
 func (o *CheckServerOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) error {
 	// Randomly assign parameter and metric counts if they are not provided
 	if o.ParameterCount == 0 {
-		o.ParameterCount = rand.Intn(20) + 1
+		o.ParameterCount = rand.Intn(5) + 1
 	}
 	if o.MetricCount == 0 {
-		o.MetricCount = rand.Intn(2) + 1
+		o.MetricCount = 1
 	}
 
 	if !o.DryRun {
