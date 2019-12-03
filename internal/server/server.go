@@ -43,7 +43,7 @@ func FromCluster(in *redskyv1alpha1.Experiment) (redskyapi.ExperimentName, *reds
 	if in.Spec.Parallelism != nil {
 		out.Optimization.ParallelTrials = *in.Spec.Parallelism
 	} else {
-		out.Optimization.ParallelTrials = in.GetReplicas()
+		out.Optimization.ParallelTrials = in.Replicas()
 	}
 	if in.Spec.BurnIn != nil {
 		out.Optimization.BurnIn = *in.Spec.BurnIn
@@ -90,7 +90,7 @@ func ToCluster(exp *redskyv1alpha1.Experiment, ee *redskyapi.Experiment) {
 	exp.GetAnnotations()[redskyv1alpha1.AnnotationExperimentURL] = ee.Self
 	exp.GetAnnotations()[redskyv1alpha1.AnnotationNextTrialURL] = ee.NextTrial
 
-	if exp.GetReplicas() > ee.Optimization.ParallelTrials && ee.Optimization.ParallelTrials > 0 {
+	if exp.Replicas() > ee.Optimization.ParallelTrials && ee.Optimization.ParallelTrials > 0 {
 		exp.Spec.Replicas = &ee.Optimization.ParallelTrials
 	}
 

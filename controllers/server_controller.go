@@ -71,14 +71,14 @@ func (r *ServerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	// Create the experiment on the server
-	if exp.GetReplicas() > 0 {
+	if exp.Replicas() > 0 {
 		if result, err := r.createExperiment(ctx, log, exp); result != nil {
 			return *result, err
 		}
 	}
 
 	// Create a new trial if necessary
-	if exp.Status.ActiveTrials < exp.GetReplicas() {
+	if exp.Status.ActiveTrials < exp.Replicas() {
 		if result, err := r.nextTrial(ctx, log, exp); result != nil {
 			return *result, err
 		}

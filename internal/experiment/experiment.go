@@ -47,7 +47,7 @@ func UpdateStatus(exp *redskyv1alpha1.Experiment, trialList *redskyv1alpha1.Tria
 	}
 
 	// The order if this if/else block is very specific
-	if exp.GetReplicas() == 0 {
+	if exp.Replicas() == 0 {
 		if exp.Annotations[redskyv1alpha1.AnnotationExperimentURL] != "" && exp.Annotations[redskyv1alpha1.AnnotationNextTrialURL] == "" {
 			// Either we got paused using manual suggestions (which doesn't make sense because you don't need to pause)
 			// ...or we hit the end of the experiment and the server told us to stop

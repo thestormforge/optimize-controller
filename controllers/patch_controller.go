@@ -126,10 +126,7 @@ func (r *PatchReconciler) evaluatePatches(ctx context.Context, t *redskyv1alpha1
 
 		// Fix the namespace
 		if po.TargetRef.Namespace == "" {
-			po.TargetRef.Namespace = t.Spec.TargetNamespace
-		}
-		if po.TargetRef.Namespace == "" {
-			po.TargetRef.Namespace = t.Namespace
+			po.TargetRef.Namespace = t.TargetNamespace()
 		}
 
 		t.Spec.PatchOperations = append(t.Spec.PatchOperations, *po)

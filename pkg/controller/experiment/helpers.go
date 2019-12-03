@@ -41,7 +41,7 @@ func PopulateTrialFromTemplate(experiment *redskyv1alpha1.Experiment, t *redskyv
 	}
 
 	// Overwrite the target namespace unless we are only running a single trial on the cluster
-	if experiment.GetReplicas() > 1 || experiment.Spec.NamespaceSelector != nil || experiment.Spec.Template.Namespace != "" {
+	if experiment.Replicas() > 1 || experiment.Spec.NamespaceSelector != nil || experiment.Spec.Template.Namespace != "" {
 		t.Spec.TargetNamespace = namespace
 	}
 
@@ -74,7 +74,7 @@ func PopulateTrialFromTemplate(experiment *redskyv1alpha1.Experiment, t *redskyv
 func FindAvailableNamespace(r client.Reader, experiment *redskyv1alpha1.Experiment, trials []redskyv1alpha1.Trial) (string, error) {
 	// Do not return a namespace if the number of desired replicas has been reached
 	// IMPORTANT: This is a safe guard for callers who don't make this check prior to calling
-	if experiment.Status.ActiveTrials >= experiment.GetReplicas() {
+	if experiment.Status.ActiveTrials >= experiment.Replicas() {
 		return "", nil
 	}
 

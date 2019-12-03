@@ -38,7 +38,7 @@ func ConvertExperiment(in *redskyv1alpha1.Experiment, out *redskyapi.Experiment)
 	if in.Spec.Parallelism != nil {
 		out.Optimization.ParallelTrials = *in.Spec.Parallelism
 	} else {
-		out.Optimization.ParallelTrials = in.GetReplicas()
+		out.Optimization.ParallelTrials = in.Replicas()
 	}
 	if in.Spec.BurnIn != nil {
 		out.Optimization.BurnIn = *in.Spec.BurnIn

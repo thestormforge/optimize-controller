@@ -71,12 +71,6 @@ func NewJob(t *redskyv1alpha1.Trial, mode string) (*batchv1.Job, error) {
 		volumes[v.Name] = &v
 	}
 
-	// Determine the namespace to operate in
-	namespace := t.Spec.TargetNamespace
-	if namespace == "" {
-		namespace = t.Namespace
-	}
-
 	// We need to run as a non-root user that has the same UID and GID
 	id := int64(1000)
 	allowPrivilegeEscalation := false
@@ -95,7 +89,7 @@ func NewJob(t *redskyv1alpha1.Trial, mode string) (*batchv1.Job, error) {
 			Image: task.Image,
 			Args:  []string{mode},
 			Env: []corev1.EnvVar{
-				{Name: "NAMESPACE", Value: namespace},
+				{Name: "NAMESPACE", Value: t.TargetNamespace()},
 				{Name: "NAME", Value: task.Name},
 				{Name: "TRIAL", Value: t.Name},
 			},
