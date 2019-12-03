@@ -14,23 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package trial
+package wait
 
 import (
-	"context"
 	"fmt"
-	"time"
-
-	"github.com/go-logr/logr"
-	"github.com/redskyops/k8s-experiment/internal/meta"
-	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"time"
 )
+
+// This mostly uses the same tests as `kubectl rollout status`
+// https://github.com/kubernetes/kubernetes/blob/master/staging/src/k8s.io/kubectl/pkg/polymorphichelpers/rollout_status.go
 
 // StabilityError indicates that the cluster has not reached a sufficiently stable state
 type StabilityError struct {
@@ -42,6 +36,7 @@ type StabilityError struct {
 	RetryAfter time.Duration
 }
 
+// Error returns the summary about why the stability check failed
 func (e *StabilityError) Error() string {
 	if e.RetryAfter > 0 {
 		// This is more of an informational message then an error since the problem may resolve itself after the wait
@@ -52,96 +47,8 @@ func (e *StabilityError) Error() string {
 	}
 }
 
-// WaitForStableState checks to see if the object referenced by the supplied patch operation has stabilized.
-// If stabilization has not occurred, an error is returned: errors with a delay indicate that the resource is
-// not ready, errors without a delay indicate the resource is never expected to become ready.
-func WaitForStableState(r client.Reader, ctx context.Context, log logr.Logger, p *redskyv1alpha1.PatchOperation) error {
-	// TODO Should we be checking apiVersions?
-	log = log.WithValues("kind", p.TargetRef.Kind, "name", p.TargetRef.Name, "namespace", p.TargetRef.Namespace)
-
-	var selector *metav1.LabelSelector
-	var err error
-
-	// Same tests used by `kubectl rollout status`
-	// https://github.com/kubernetes/kubernetes/blob/master/staging/src/k8s.io/kubectl/pkg/polymorphichelpers/rollout_status.go
-	switch p.TargetRef.Kind {
-
-	case "Deployment":
-		d := &appsv1.Deployment{}
-		if err := r.Get(ctx, name(p.TargetRef), d); err != nil {
-			return ignoreNotFound(err)
-		}
-		selector = d.Spec.Selector
-		err = checkDeployment(d)
-
-	case "DaemonSet":
-		daemon := &appsv1.DaemonSet{}
-		if err := r.Get(ctx, name(p.TargetRef), daemon); err != nil {
-			return ignoreNotFound(err)
-		}
-		selector = daemon.Spec.Selector
-		err = checkDaemonSet(daemon)
-
-	case "StatefulSet":
-		sts := &appsv1.StatefulSet{}
-		if err := r.Get(ctx, name(p.TargetRef), sts); err != nil {
-			return ignoreNotFound(err)
-		}
-		selector = sts.Spec.Selector
-		err = checkStatefulSet(sts)
-
-	case "ConfigMap":
-	// Nothing to check
-
-	default:
-		// TODO Can we have some kind of generic condition check? Or "readiness gates"?
-		// Get unstructured, look for status conditions list
-
-		log.Info("Stability check skipped due to unsupported object kind")
-	}
-
-	if serr, ok := err.(*StabilityError); ok {
-		// If we are going to initiate a delay, or if we failed to check due to a legacy update strategy, try checking the pods
-		if serr.RetryAfter != 0 || serr.Reason == "UpdateStrategy" {
-			list := &corev1.PodList{}
-			if matchingSelector, err := meta.MatchingSelector(selector); err == nil {
-				_ = r.List(ctx, list, client.InNamespace(p.TargetRef.Namespace), matchingSelector)
-			}
-
-			// Continue to ignore anything that isn't a StabilityError so we retain the original error
-			if err, ok := (checkPods(list)).(*StabilityError); ok {
-				serr = err
-			}
-		}
-
-		// Ignore legacy update strategy errors
-		if serr.Reason == "UpdateStrategy" {
-			return nil
-		}
-
-		// Add some additional context to the error
-		p.TargetRef.DeepCopyInto(&serr.TargetRef)
-		return serr
-	}
-
-	return err
-}
-
-func name(ref corev1.ObjectReference) types.NamespacedName {
-	return types.NamespacedName{
-		Name:      ref.Name,
-		Namespace: ref.Namespace,
-	}
-}
-
-func ignoreNotFound(err error) error {
-	if errors.IsNotFound(err) {
-		return nil
-	}
-	return err
-}
-
-func checkPods(list *corev1.PodList) error {
+// CheckPods inspects a pod list for stability
+func CheckPods(list *corev1.PodList) error {
 	for i := range list.Items {
 		p := &list.Items[i]
 		for _, c := range p.Status.Conditions {
@@ -179,7 +86,8 @@ func checkContainerStatus(cs []corev1.ContainerStatus, restartPolicy corev1.Rest
 	return nil
 }
 
-func checkDeployment(deployment *appsv1.Deployment) error {
+// CheckDeployment inspects a deployment for stability
+func CheckDeployment(deployment *appsv1.Deployment) error {
 	if deployment.Generation > deployment.Status.ObservedGeneration {
 		return &StabilityError{Reason: "ObservedGeneration", RetryAfter: 5 * time.Second}
 	}
@@ -200,7 +108,8 @@ func checkDeployment(deployment *appsv1.Deployment) error {
 	return nil
 }
 
-func checkDaemonSet(daemon *appsv1.DaemonSet) error {
+// CheckDaemonSet inspects a daemon set for stability
+func CheckDaemonSet(daemon *appsv1.DaemonSet) error {
 	if daemon.Spec.UpdateStrategy.Type != appsv1.RollingUpdateDaemonSetStrategyType {
 		return &StabilityError{Reason: "UpdateStrategy"}
 	}
@@ -216,8 +125,8 @@ func checkDaemonSet(daemon *appsv1.DaemonSet) error {
 	return nil
 }
 
-// Check a stateful set to see if it has reached a stable state
-func checkStatefulSet(sts *appsv1.StatefulSet) error {
+// CheckStatefulSet inspects a stateful set for stability
+func CheckStatefulSet(sts *appsv1.StatefulSet) error {
 	if sts.Spec.UpdateStrategy.Type != appsv1.RollingUpdateStatefulSetStrategyType {
 		return &StabilityError{Reason: "UpdateStrategy"}
 	}

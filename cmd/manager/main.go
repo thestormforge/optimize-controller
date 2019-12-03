@@ -132,6 +132,14 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Trial")
 		os.Exit(1)
 	}
+	if err = (&controllers.WaitReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("Wait"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Wait")
+		os.Exit(1)
+	}
 	// +kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")

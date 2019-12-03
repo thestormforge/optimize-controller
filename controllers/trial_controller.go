@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 	"strconv"
-	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/redskyops/k8s-experiment/internal/controller"
@@ -27,7 +26,6 @@ import (
 	"github.com/redskyops/k8s-experiment/internal/trial"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	"github.com/redskyops/k8s-experiment/pkg/controller/metric"
-	redskytrial "github.com/redskyops/k8s-experiment/pkg/controller/trial"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,16 +40,9 @@ type TrialReconciler struct {
 	client.Client
 	Log    logr.Logger
 	Scheme *runtime.Scheme
-
-	// Keep the raw API reader for doing stabilization checks. In that case we only have patch/get permissions
-	// on the object and if we were to use the standard caching reader we would hang because cache itself also
-	// requires list/watch. If we ever get a way to disable the cache or the cache becomes smart enough to handle
-	// permission errors without hanging we can go back to using standard reader.
-	apiReader client.Reader
 }
 
 func (r *TrialReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.apiReader = mgr.GetAPIReader()
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&redskyv1alpha1.Trial{}).
 		Owns(&batchv1.Job{}).
@@ -76,61 +67,6 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	// If we are finished or deleted there is nothing for us to do
 	if trial.IsFinished(t) || !t.DeletionTimestamp.IsZero() {
 		return ctrl.Result{}, nil
-	}
-
-	// Wait for a stable (ish) state
-	var waitForStability time.Duration
-	for i := range t.Spec.PatchOperations {
-		p := &t.Spec.PatchOperations[i]
-		if !p.Wait {
-			// We have already reached stability for this patch (eventually the whole list should be in this state)
-			continue
-		}
-
-		// This is the only place we should be using `apiReader`
-		if err := redskytrial.WaitForStableState(r.apiReader, ctx, log, p); err != nil {
-			// Record the largest retry delay, but continue through the list looking for show stoppers
-			if serr, ok := err.(*redskytrial.StabilityError); ok && serr.RetryAfter > 0 {
-				if serr.RetryAfter > waitForStability {
-					trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialStable, corev1.ConditionFalse, "Waiting", err.Error(), &now)
-					waitForStability = serr.RetryAfter
-				}
-				continue
-			}
-
-			// Fail the trial since we couldn't detect a stable state
-			trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "WaitFailed", err.Error(), &now)
-			return r.forTrialUpdate(t, ctx, log)
-		}
-
-		// Mark that we have successfully waited for this patch
-		p.Wait = false
-
-		// Either overwrite the "waiting" reason from an earlier iteration or change the status from "unknown" to "false"
-		trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialStable, corev1.ConditionFalse, "", "", &now)
-		return r.forTrialUpdate(t, ctx, log)
-	}
-
-	// Remaining patches require a delay; update the trial and adjust the response
-	if waitForStability > 0 {
-		rr, re := r.forTrialUpdate(t, ctx, log)
-		if re == nil {
-			rr.RequeueAfter = waitForStability
-		}
-		return rr, re
-	}
-
-	// If there is a stable condition that is not yet true, update the status
-	if cc, ok := trial.CheckCondition(&t.Status, redskyv1alpha1.TrialStable, corev1.ConditionTrue); ok && !cc {
-		trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialStable, corev1.ConditionTrue, "", "", &now)
-		return r.forTrialUpdate(t, ctx, log)
-	}
-
-	// TODO Remove this once we know why it is actually needed
-	for _, c := range t.Status.Conditions {
-		if c.Type == redskyv1alpha1.TrialStable && c.LastTransitionTime.Add(1*time.Second).After(now.Time) {
-			return ctrl.Result{RequeueAfter: 1 * time.Second}, nil
-		}
 	}
 
 	// Find jobs labeled for this trial
