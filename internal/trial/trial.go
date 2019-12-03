@@ -17,11 +17,10 @@ limitations under the License.
 package trial
 
 import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"time"
-
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"time"
 )
 
 // IsFinished checks to see if the specified trial is finished
