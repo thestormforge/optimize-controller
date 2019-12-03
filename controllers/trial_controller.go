@@ -20,13 +20,11 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/redskyops/k8s-experiment/internal/controller"
 	"github.com/redskyops/k8s-experiment/internal/meta"
-	"github.com/redskyops/k8s-experiment/internal/template"
 	"github.com/redskyops/k8s-experiment/internal/trial"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	"github.com/redskyops/k8s-experiment/pkg/controller/metric"
@@ -34,9 +32,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -81,66 +77,6 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	// If we are finished or deleted there is nothing for us to do
 	if trial.IsFinished(t) || !t.DeletionTimestamp.IsZero() {
 		return ctrl.Result{}, nil
-	}
-
-	// Copy the patches over from the experiment
-	if len(t.Spec.PatchOperations) == 0 {
-		e := &redskyv1alpha1.Experiment{}
-		if err := r.Get(ctx, t.ExperimentNamespacedName(), e); err != nil {
-			return ctrl.Result{}, err
-		}
-		if err := checkAssignments(t, e, log); err != nil {
-			return ctrl.Result{}, err
-		}
-		if err := evaluatePatches(t, e); err != nil {
-			return ctrl.Result{}, err
-		}
-		if len(t.Spec.PatchOperations) > 0 {
-			// We know we have at least one patch to apply, use an unknown status until we start applying them
-			trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialPatched, corev1.ConditionUnknown, "", "", &now)
-			return r.forTrialUpdate(t, ctx, log)
-		}
-	}
-
-	// Check the "initializer" annotation, do not progress unless it is empty (don't requeue, wait for a change)
-	if t.HasInitializer() {
-		return ctrl.Result{}, nil
-	}
-
-	// Apply the patches
-	for i := range t.Spec.PatchOperations {
-		p := &t.Spec.PatchOperations[i]
-		if p.AttemptsRemaining == 0 {
-			continue
-		}
-
-		u := unstructured.Unstructured{}
-		u.SetName(p.TargetRef.Name)
-		u.SetNamespace(p.TargetRef.Namespace)
-		u.SetGroupVersionKind(p.TargetRef.GroupVersionKind())
-		if err := r.Patch(ctx, &u, client.ConstantPatch(p.PatchType, p.Data)); err != nil {
-			p.AttemptsRemaining = p.AttemptsRemaining - 1
-			if p.AttemptsRemaining == 0 {
-				// There are no remaining patch attempts remaining, fail the trial
-				trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "PatchFailed", err.Error(), &now)
-			}
-		} else {
-			p.AttemptsRemaining = 0
-			if p.Wait {
-				// We successfully applied a patch that requires a wait, use an unknown status until we start waiting
-				trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialStable, corev1.ConditionUnknown, "", "", &now)
-			}
-		}
-
-		// We have started applying patches (success or fail), transition into a false status
-		trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialPatched, corev1.ConditionFalse, "", "", &now)
-		return r.forTrialUpdate(t, ctx, log)
-	}
-
-	// If there is a patched condition that is not yet true, update the status
-	if cc, ok := trial.CheckCondition(&t.Status, redskyv1alpha1.TrialPatched, corev1.ConditionTrue); ok && !cc {
-		trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialPatched, corev1.ConditionTrue, "", "", &now)
-		return r.forTrialUpdate(t, ctx, log)
 	}
 
 	// Wait for a stable (ish) state
@@ -318,83 +254,6 @@ func (r *TrialReconciler) forTrialUpdate(t *redskyv1alpha1.Trial, ctx context.Co
 
 	result, err := controller.RequeueConflict(r.Update(ctx, t))
 	return *result, err
-}
-
-func evaluatePatches(trial *redskyv1alpha1.Trial, e *redskyv1alpha1.Experiment) error {
-	var err error
-	te := template.New()
-	for _, p := range e.Spec.Patches {
-		po := redskyv1alpha1.PatchOperation{
-			AttemptsRemaining: 3,
-			Wait:              true,
-		}
-
-		// Evaluate the patch template
-		po.Data, err = te.RenderPatch(&p, trial)
-		if err != nil {
-			return err
-		}
-
-		// If the patch is effectively null, we do not need to evaluate it
-		if len(po.Data) == 0 || string(po.Data) == "null" {
-			po.AttemptsRemaining = 0
-		}
-
-		// Determine the patch type
-		switch p.Type {
-		case redskyv1alpha1.PatchStrategic, "":
-			po.PatchType = types.StrategicMergePatchType
-		case redskyv1alpha1.PatchMerge:
-			po.PatchType = types.MergePatchType
-		case redskyv1alpha1.PatchJSON:
-			po.PatchType = types.JSONPatchType
-		default:
-			return fmt.Errorf("unknown patch type: %s", p.Type)
-		}
-
-		// Attempt to populate the target reference
-		if p.TargetRef != nil {
-			p.TargetRef.DeepCopyInto(&po.TargetRef)
-		} else if po.PatchType == types.StrategicMergePatchType {
-			// TODO Allow strategic merge patches to specify the target reference
-		}
-		if po.TargetRef.Namespace == "" {
-			po.TargetRef.Namespace = trial.Spec.TargetNamespace
-		}
-		if po.TargetRef.Namespace == "" {
-			po.TargetRef.Namespace = trial.Namespace
-		}
-
-		trial.Spec.PatchOperations = append(trial.Spec.PatchOperations, po)
-	}
-
-	return nil
-}
-
-func checkAssignments(trial *redskyv1alpha1.Trial, experiment *redskyv1alpha1.Experiment, log logr.Logger) error {
-	// Index the assignments
-	assignments := make(map[string]int64, len(trial.Spec.Assignments))
-	for _, a := range trial.Spec.Assignments {
-		assignments[a.Name] = a.Value
-	}
-
-	// Verify against the parameter specifications
-	var missing []string
-	for _, p := range experiment.Spec.Parameters {
-		if a, ok := assignments[p.Name]; ok {
-			if a < p.Min || a > p.Max {
-				log.Info("Assignment out of bounds", "trialName", trial.Name, "parameterName", p.Name, "assignment", a, "min", p.Min, "max", p.Max)
-			}
-		} else {
-			missing = append(missing, p.Name)
-		}
-	}
-
-	// Fail if there are missing assignments
-	if len(missing) > 0 {
-		return fmt.Errorf("trial %s is missing assignments for %s", trial.Name, strings.Join(missing, ", "))
-	}
-	return nil
 }
 
 func getMetricTarget(r client.Reader, ctx context.Context, namespace string, m *redskyv1alpha1.Metric) (runtime.Object, error) {
