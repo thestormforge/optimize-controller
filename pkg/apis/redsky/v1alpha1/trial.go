@@ -47,6 +47,14 @@ func (in *Trial) HasInitializer() bool {
 	return strings.TrimSpace(in.GetAnnotations()[AnnotationInitializer]) != ""
 }
 
+// TargetNamespace returns the target namespace, defaulting to the trial namespace
+func (in *Trial) TargetNamespace() string {
+	if n := in.Spec.TargetNamespace; n != "" {
+		return n
+	}
+	return in.Namespace
+}
+
 // Returns an assignment value by name
 func (in *Trial) GetAssignment(name string) (int64, bool) {
 	for i := range in.Spec.Assignments {

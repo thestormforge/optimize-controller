@@ -95,6 +95,7 @@ func toURL(target runtime.Object, m *redskyv1alpha1.Metric) ([]string, error) {
 	var urls []string
 	for _, s := range list.Items {
 		// When debugging in minikube, use `minikube tunnel` to expose the cluster IP on the host
+		// TODO How do we setup port forwarding in GCP?
 		host := s.Spec.ClusterIP
 		port := m.Port.IntValue()
 

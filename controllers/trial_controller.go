@@ -18,14 +18,12 @@ package controllers
 
 import (
 	"context"
-	"strconv"
 
 	"github.com/go-logr/logr"
 	"github.com/redskyops/k8s-experiment/internal/controller"
 	"github.com/redskyops/k8s-experiment/internal/meta"
 	"github.com/redskyops/k8s-experiment/internal/trial"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
-	"github.com/redskyops/k8s-experiment/pkg/controller/metric"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -105,79 +103,6 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
-	// The completion time will be non-nil as soon as the (a?) trial run job finishes
-	if t.Status.CompletionTime != nil {
-		e := &redskyv1alpha1.Experiment{}
-		if err = r.Get(ctx, t.ExperimentNamespacedName(), e); err != nil {
-			return ctrl.Result{}, err
-		}
-
-		// If we have metrics to collect, use an unknown status to fill the gap (e.g. TCP timeout) until the transition to false
-		if len(e.Spec.Metrics) > 0 {
-			if _, ok := trial.CheckCondition(&t.Status, redskyv1alpha1.TrialObserved, corev1.ConditionUnknown); !ok {
-				trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialObserved, corev1.ConditionUnknown, "", "", &now)
-				return r.forTrialUpdate(t, ctx, log)
-			}
-		}
-
-		// Determine the namespace used to get metric targets
-		ns := t.Spec.TargetNamespace
-		if ns == "" {
-			ns = t.Namespace
-		}
-
-		// Look for metrics that have not been collected yet
-		for _, m := range e.Spec.Metrics {
-			v := findOrCreateValue(t, m.Name)
-			if v.AttemptsRemaining == 0 {
-				continue
-			}
-
-			// Capture the metric
-			var captureError error
-			if target, err := getMetricTarget(r, ctx, ns, &m); err != nil {
-				captureError = err
-			} else if value, stddev, err := metric.CaptureMetric(&m, t, target); err != nil {
-				if merr, ok := err.(*metric.CaptureError); ok && merr.RetryAfter > 0 {
-					// Do not count retries against the remaining attempts
-					return ctrl.Result{RequeueAfter: merr.RetryAfter}, nil
-				}
-				captureError = err
-			} else {
-				v.AttemptsRemaining = 0
-				v.Value = strconv.FormatFloat(value, 'f', -1, 64)
-				if stddev != 0 {
-					v.Error = strconv.FormatFloat(stddev, 'f', -1, 64)
-				}
-			}
-
-			// Handle any errors the occurred while collecting the value
-			if captureError != nil && v.AttemptsRemaining > 0 {
-				v.AttemptsRemaining = v.AttemptsRemaining - 1
-				if v.AttemptsRemaining == 0 {
-					trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "MetricFailed", captureError.Error(), &now)
-					if merr, ok := captureError.(*metric.CaptureError); ok {
-						// Metric errors contain additional information which should be logged for debugging
-						log.Error(err, "Metric collection failed", "address", merr.Address, "query", merr.Query, "completionTime", merr.CompletionTime)
-					}
-				}
-			}
-
-			// Set the observed condition to false since we have observed at least one, but possibly not all of, the metrics
-			trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialObserved, corev1.ConditionFalse, "", "", &now)
-			return r.forTrialUpdate(t, ctx, log)
-		}
-
-		// If all of the metrics are collected, finish the observation
-		if cc, ok := trial.CheckCondition(&t.Status, redskyv1alpha1.TrialObserved, corev1.ConditionTrue); ok && !cc {
-			trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialObserved, corev1.ConditionTrue, "", "", &now)
-		}
-
-		// Mark the trial as completed
-		trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialComplete, corev1.ConditionTrue, "", "", &now)
-		return r.forTrialUpdate(t, ctx, log)
-	}
-
 	// Nothing changed
 	return ctrl.Result{}, nil
 }
@@ -189,44 +114,6 @@ func (r *TrialReconciler) forTrialUpdate(t *redskyv1alpha1.Trial, ctx context.Co
 
 	result, err := controller.RequeueConflict(r.Update(ctx, t))
 	return *result, err
-}
-
-func getMetricTarget(r client.Reader, ctx context.Context, namespace string, m *redskyv1alpha1.Metric) (runtime.Object, error) {
-	switch m.Type {
-	case redskyv1alpha1.MetricPods:
-		// Use the selector to get a list of pods
-		target := &corev1.PodList{}
-		if sel, err := meta.MatchingSelector(m.Selector); err != nil {
-			return nil, err
-		} else if err := r.List(ctx, target, client.InNamespace(namespace), sel); err != nil {
-			return nil, err
-		}
-		return target, nil
-	case redskyv1alpha1.MetricPrometheus, redskyv1alpha1.MetricJSONPath:
-		// Both Prometheus and JSONPath target a service
-		// NOTE: This purposely ignores the namespace in case Prometheus is running cluster wide
-		target := &corev1.ServiceList{}
-		if sel, err := meta.MatchingSelector(m.Selector); err != nil {
-			return nil, err
-		} else if err := r.List(ctx, target, sel); err != nil {
-			return nil, err
-		}
-		return target, nil
-	default:
-		// Assume no target is necessary
-		return nil, nil
-	}
-}
-
-func findOrCreateValue(trial *redskyv1alpha1.Trial, name string) *redskyv1alpha1.Value {
-	for i := range trial.Spec.Values {
-		if trial.Spec.Values[i].Name == name {
-			return &trial.Spec.Values[i]
-		}
-	}
-
-	trial.Spec.Values = append(trial.Spec.Values, redskyv1alpha1.Value{Name: name, AttemptsRemaining: 3})
-	return &trial.Spec.Values[len(trial.Spec.Values)-1]
 }
 
 func applyJobStatus(r client.Reader, t *redskyv1alpha1.Trial, job *batchv1.Job, time *metav1.Time) (bool, bool) {
