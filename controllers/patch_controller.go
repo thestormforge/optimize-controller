@@ -23,6 +23,7 @@ import (
 	"github.com/redskyops/k8s-experiment/internal/controller"
 	"github.com/redskyops/k8s-experiment/internal/template"
 	"github.com/redskyops/k8s-experiment/internal/trial"
+	"github.com/redskyops/k8s-experiment/internal/validation"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -100,14 +101,14 @@ func (r *PatchReconciler) evaluatePatches(ctx context.Context, t *redskyv1alpha1
 		return &ctrl.Result{}, err
 	}
 
-	// An experiment with no patches is a valid case
-	if len(exp.Spec.Patches) == 0 {
-		return nil, nil
+	// Make sure the assignments are valid
+	if err := validation.CheckAssignments(t, exp); err != nil {
+		return &ctrl.Result{}, err
 	}
 
-	// Make sure the assignments are valid
-	if err := trial.CheckAssignments(t, exp); err != nil {
-		return &ctrl.Result{}, err
+	// Skip updating status if there are no patches on the experiment
+	if len(exp.Spec.Patches) == 0 {
+		return nil, nil
 	}
 
 	// Evaluate the patches

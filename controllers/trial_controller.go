@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -162,7 +161,7 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	// Create a trial run job if needed
 	if needsJob {
-		job := createJob(t)
+		job := trial.NewJob(t)
 		if err := controllerutil.SetControllerReference(t, job, r.Scheme); err != nil {
 			return ctrl.Result{}, err
 		}
@@ -333,67 +332,6 @@ func applyJobStatus(r client.Reader, t *redskyv1alpha1.Trial, job *batchv1.Job, 
 	}
 
 	return dirty, false
-}
-
-func createJob(trial *redskyv1alpha1.Trial) *batchv1.Job {
-	job := &batchv1.Job{}
-
-	// Start with the job template
-	if trial.Spec.Template != nil {
-		trial.Spec.Template.ObjectMeta.DeepCopyInto(&job.ObjectMeta)
-		trial.Spec.Template.Spec.DeepCopyInto(&job.Spec)
-	}
-
-	// Provide default metadata
-	if job.Name == "" {
-		job.Name = trial.Name
-	}
-	if job.Namespace == "" {
-		job.Namespace = trial.Namespace
-	}
-
-	// Provide default labels
-	if len(job.Labels) == 0 {
-		job.Labels = trial.GetDefaultLabels()
-	}
-	if len(job.Spec.Template.Labels) == 0 {
-		job.Spec.Template.Labels = trial.GetDefaultLabels()
-	}
-
-	// Always provide experiment labels
-	job.Labels[redskyv1alpha1.LabelExperiment] = trial.ExperimentNamespacedName().Name
-	job.Spec.Template.Labels[redskyv1alpha1.LabelExperiment] = trial.ExperimentNamespacedName().Name
-
-	// The default restart policy for a pod is not acceptable in the context of a job
-	if job.Spec.Template.Spec.RestartPolicy == "" {
-		job.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyNever
-	}
-
-	// The default backoff limit will restart the trial job which is unlikely to produce desirable results
-	if job.Spec.BackoffLimit == nil {
-		job.Spec.BackoffLimit = new(int32)
-	}
-
-	// Containers cannot be empty, inject a sleep by default
-	if len(job.Spec.Template.Spec.Containers) == 0 {
-		s := trial.Spec.ApproximateRuntime
-		if s == nil || s.Duration == 0 {
-			s = &metav1.Duration{Duration: 2 * time.Minute}
-		}
-		if trial.Spec.StartTimeOffset != nil {
-			s = &metav1.Duration{Duration: s.Duration + trial.Spec.StartTimeOffset.Duration}
-		}
-		job.Spec.Template.Spec.Containers = []corev1.Container{
-			{
-				Name:    "default-trial-run",
-				Image:   "busybox",
-				Command: []string{"/bin/sh"},
-				Args:    []string{"-c", fmt.Sprintf("echo 'Sleeping for %s...' && sleep %.0f && echo 'Done.'", s.Duration.String(), s.Seconds())},
-			},
-		}
-	}
-
-	return job
 }
 
 func containerTime(pods *corev1.PodList) (startedAt *metav1.Time, finishedAt *metav1.Time) {
