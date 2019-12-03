@@ -124,13 +124,13 @@ func NewJob(t *redskyv1alpha1.Trial, mode string) (*batchv1.Job, error) {
 		}
 
 		// For Helm installs, serialize a Konjure configuration
-		helmConfig := NewHelmGeneratorConfig(&task)
+		helmConfig := newHelmGeneratorConfig(&task)
 		if helmConfig != nil {
 			te := template.New()
 
 			// Helm Values
 			for _, hv := range task.HelmValues {
-				hgv := HelmGeneratorValue{
+				hgv := helmGeneratorValue{
 					Name:        hv.Name,
 					ForceString: hv.ForceString,
 				}
@@ -163,7 +163,7 @@ func NewJob(t *redskyv1alpha1.Trial, mode string) (*batchv1.Job, error) {
 			// Helm Values From
 			for _, hvf := range task.HelmValuesFrom {
 				if hvf.ConfigMap != nil {
-					hgv := HelmGeneratorValue{
+					hgv := helmGeneratorValue{
 						File: path.Join("/workspace", "helm-values", hvf.ConfigMap.Name, "*values.yaml"),
 					}
 					vm := corev1.VolumeMount{
@@ -204,28 +204,28 @@ func NewJob(t *redskyv1alpha1.Trial, mode string) (*batchv1.Job, error) {
 	return job, nil
 }
 
-type HelmGeneratorValue struct {
+type helmGeneratorValue struct {
 	File        string      `json:"file,omitempty"`
 	Name        string      `json:"name,omitempty"`
 	Value       interface{} `json:"value,omitempty"`
 	ForceString bool        `json:"forceString,omitempty"`
 }
 
-type HelmGeneratorConfig struct {
+type helmGeneratorConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	ReleaseName       string               `json:"releaseName"`
 	Chart             string               `json:"chart"`
 	Version           string               `json:"version"`
-	Values            []HelmGeneratorValue `json:"values"`
+	Values            []helmGeneratorValue `json:"values"`
 }
 
-func NewHelmGeneratorConfig(task *redskyv1alpha1.SetupTask) *HelmGeneratorConfig {
+func newHelmGeneratorConfig(task *redskyv1alpha1.SetupTask) *helmGeneratorConfig {
 	if task.HelmChart == "" {
 		return nil
 	}
 
-	cfg := &HelmGeneratorConfig{
+	cfg := &helmGeneratorConfig{
 		ReleaseName: task.Name,
 		Chart:       task.HelmChart,
 		Version:     task.HelmChartVersion,

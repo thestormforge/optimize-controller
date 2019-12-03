@@ -32,6 +32,7 @@ const (
 
 // TODO Split this into trial.go and experiment.go ?
 
+// FromCluster converts cluster state to API state
 func FromCluster(in *redskyv1alpha1.Experiment) (redskyapi.ExperimentName, *redskyapi.Experiment) {
 	out := &redskyapi.Experiment{}
 	out.ExperimentMeta.LastModified = in.CreationTimestamp.Time
@@ -80,6 +81,7 @@ func FromCluster(in *redskyv1alpha1.Experiment) (redskyapi.ExperimentName, *reds
 	return n, out
 }
 
+// ToCluster converts API state to cluster state
 func ToCluster(exp *redskyv1alpha1.Experiment, ee *redskyapi.Experiment) {
 	if exp.GetAnnotations() == nil {
 		exp.SetAnnotations(make(map[string]string))
@@ -101,6 +103,7 @@ func ToCluster(exp *redskyv1alpha1.Experiment, ee *redskyapi.Experiment) {
 	}
 }
 
+// ToClusterTrial converts API state to cluster state
 func ToClusterTrial(trial *redskyv1alpha1.Trial, suggestion *redskyapi.TrialAssignments) {
 	trial.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL] = suggestion.ReportTrial
 
@@ -114,6 +117,7 @@ func ToClusterTrial(trial *redskyv1alpha1.Trial, suggestion *redskyapi.TrialAssi
 	}
 }
 
+// FromClusterTrial converts cluster state to API state
 func FromClusterTrial(in *redskyv1alpha1.Trial) *redskyapi.TrialValues {
 	out := &redskyapi.TrialValues{}
 
@@ -144,6 +148,7 @@ func FromClusterTrial(in *redskyv1alpha1.Trial) *redskyapi.TrialValues {
 	return out
 }
 
+// StopExperiment updates the experiment in the event that it should be paused or halted
 func StopExperiment(exp *redskyv1alpha1.Experiment, err error) bool {
 	if rse, ok := err.(*redskyapi.Error); ok && rse.Type == redskyapi.ErrExperimentStopped {
 		exp.SetReplicas(0)
