@@ -54,7 +54,7 @@ type MetricData struct {
 	Pods *corev1.PodList
 }
 
-func NewPatchData(t *redskyv1alpha1.Trial) *PatchData {
+func newPatchData(t *redskyv1alpha1.Trial) *PatchData {
 	d := &PatchData{}
 
 	t.ObjectMeta.DeepCopyInto(&d.Trial)
@@ -71,7 +71,7 @@ func NewPatchData(t *redskyv1alpha1.Trial) *PatchData {
 	return d
 }
 
-func NewMetricData(t *redskyv1alpha1.Trial, target runtime.Object) *MetricData {
+func newMetricData(t *redskyv1alpha1.Trial, target runtime.Object) *MetricData {
 	d := &MetricData{}
 
 	t.ObjectMeta.DeepCopyInto(&d.Trial)
@@ -103,13 +103,15 @@ func NewMetricData(t *redskyv1alpha1.Trial, target runtime.Object) *MetricData {
 	return d
 }
 
-type TemplateEngine struct {
+// Engine is used to render Go text templates
+type Engine struct {
 	FuncMap template.FuncMap
 }
 
-func NewTemplateEngine() *TemplateEngine {
+// New creates a new template engine
+func New() *Engine {
 	f := FuncMap()
-	return &TemplateEngine{
+	return &Engine{
 		FuncMap: f,
 	}
 }
@@ -119,8 +121,8 @@ func NewTemplateEngine() *TemplateEngine {
 // of patch templates or metrics (or the experiment itself, trial for HelmValues) and then render the individual values by template name?
 
 // RenderPatch returns the JSON representation of the supplied patch template (input can be a Go template that produces YAML)
-func (e *TemplateEngine) RenderPatch(patch *redskyv1alpha1.PatchTemplate, trial *redskyv1alpha1.Trial) ([]byte, error) {
-	data := NewPatchData(trial)
+func (e *Engine) RenderPatch(patch *redskyv1alpha1.PatchTemplate, trial *redskyv1alpha1.Trial) ([]byte, error) {
+	data := newPatchData(trial)
 	b, err := e.render("patch", patch.Patch, data) // TODO What should we use for patch template names? Something from the targetRef?
 	if err != nil {
 		return nil, err
@@ -129,8 +131,8 @@ func (e *TemplateEngine) RenderPatch(patch *redskyv1alpha1.PatchTemplate, trial 
 }
 
 // RenderHelmValue returns a rendered string of the supplied Helm value
-func (e *TemplateEngine) RenderHelmValue(helmValue *redskyv1alpha1.HelmValue, trial *redskyv1alpha1.Trial) (string, error) {
-	data := NewPatchData(trial)
+func (e *Engine) RenderHelmValue(helmValue *redskyv1alpha1.HelmValue, trial *redskyv1alpha1.Trial) (string, error) {
+	data := newPatchData(trial)
 	b, err := e.render(helmValue.Name, helmValue.Value.String(), data)
 	if err != nil {
 		return "", err
@@ -139,8 +141,8 @@ func (e *TemplateEngine) RenderHelmValue(helmValue *redskyv1alpha1.HelmValue, tr
 }
 
 // RenderMetricQueries returns the metric query and the metric error query
-func (e *TemplateEngine) RenderMetricQueries(metric *redskyv1alpha1.Metric, trial *redskyv1alpha1.Trial, target runtime.Object) (string, string, error) {
-	data := NewMetricData(trial, target)
+func (e *Engine) RenderMetricQueries(metric *redskyv1alpha1.Metric, trial *redskyv1alpha1.Trial, target runtime.Object) (string, string, error) {
+	data := newMetricData(trial, target)
 	b1, err := e.render(metric.Name, metric.Query, data)
 	if err != nil {
 		return "", "", err
@@ -152,7 +154,7 @@ func (e *TemplateEngine) RenderMetricQueries(metric *redskyv1alpha1.Metric, tria
 	return b1.String(), b2.String(), nil
 }
 
-func (e *TemplateEngine) render(name, text string, data interface{}) (*bytes.Buffer, error) {
+func (e *Engine) render(name, text string, data interface{}) (*bytes.Buffer, error) {
 	tmpl, err := template.New(name).Funcs(e.FuncMap).Parse(text)
 	if err != nil {
 		return nil, err

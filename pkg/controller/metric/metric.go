@@ -53,7 +53,7 @@ func CaptureMetric(metric *redskyv1alpha1.Metric, trial *redskyv1alpha1.Trial, t
 
 	// Execute the query as a template against the current state of the trial
 	var err error
-	if metric.Query, metric.ErrorQuery, err = template.NewTemplateEngine().RenderMetricQueries(metric, trial, target); err != nil {
+	if metric.Query, metric.ErrorQuery, err = template.New().RenderMetricQueries(metric, trial, target); err != nil {
 		return 0, 0, err
 	}
 

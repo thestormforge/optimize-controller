@@ -126,7 +126,7 @@ func NewJob(t *redskyv1alpha1.Trial, mode string) (*batchv1.Job, error) {
 		// For Helm installs, serialize a Konjure configuration
 		helmConfig := NewHelmGeneratorConfig(&task)
 		if helmConfig != nil {
-			te := template.NewTemplateEngine()
+			te := template.New()
 
 			// Helm Values
 			for _, hv := range task.HelmValues {

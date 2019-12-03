@@ -322,7 +322,7 @@ func (r *TrialReconciler) forTrialUpdate(t *redskyv1alpha1.Trial, ctx context.Co
 
 func evaluatePatches(trial *redskyv1alpha1.Trial, e *redskyv1alpha1.Experiment) error {
 	var err error
-	te := template.NewTemplateEngine()
+	te := template.New()
 	for _, p := range e.Spec.Patches {
 		po := redskyv1alpha1.PatchOperation{
 			AttemptsRemaining: 3,
