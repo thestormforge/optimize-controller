@@ -24,12 +24,13 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/redskyops/k8s-experiment/internal/controller"
+	"github.com/redskyops/k8s-experiment/internal/meta"
 	"github.com/redskyops/k8s-experiment/internal/trial"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	"github.com/redskyops/k8s-experiment/pkg/controller/metric"
 	"github.com/redskyops/k8s-experiment/pkg/controller/template"
 	redskytrial "github.com/redskyops/k8s-experiment/pkg/controller/trial"
-	"github.com/redskyops/k8s-experiment/pkg/util"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -74,10 +75,10 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	// Fetch the Trial instance
 	t := &redskyv1alpha1.Trial{}
 	if err := r.Get(ctx, req.NamespacedName, t); err != nil {
-		return ctrl.Result{}, util.IgnoreNotFound(err)
+		return ctrl.Result{}, controller.IgnoreNotFound(err)
 	}
 
-	// If we are in a finished or deleted state there is nothing for us to do
+	// If we are finished or deleted there is nothing for us to do
 	if trial.IsFinished(t) || !t.DeletionTimestamp.IsZero() {
 		return ctrl.Result{}, nil
 	}
@@ -199,7 +200,7 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	// Find jobs labeled for this trial
 	list := &batchv1.JobList{}
-	matchingSelector, err := util.MatchingSelector(t.GetJobSelector())
+	matchingSelector, err := meta.MatchingSelector(t.GetJobSelector())
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -315,8 +316,8 @@ func (r *TrialReconciler) forTrialUpdate(t *redskyv1alpha1.Trial, ctx context.Co
 	// If we are going to be updating the trial, make sure the status is synchronized (ignore errors)
 	_ = trial.UpdateStatus(t)
 
-	err := r.Update(ctx, t)
-	return util.RequeueConflict(ctrl.Result{}, err)
+	result, err := controller.RequeueConflict(r.Update(ctx, t))
+	return *result, err
 }
 
 func evaluatePatches(trial *redskyv1alpha1.Trial, e *redskyv1alpha1.Experiment) error {
@@ -401,7 +402,7 @@ func getMetricTarget(r client.Reader, ctx context.Context, namespace string, m *
 	case redskyv1alpha1.MetricPods:
 		// Use the selector to get a list of pods
 		target := &corev1.PodList{}
-		if sel, err := util.MatchingSelector(m.Selector); err != nil {
+		if sel, err := meta.MatchingSelector(m.Selector); err != nil {
 			return nil, err
 		} else if err := r.List(ctx, target, client.InNamespace(namespace), sel); err != nil {
 			return nil, err
@@ -411,7 +412,7 @@ func getMetricTarget(r client.Reader, ctx context.Context, namespace string, m *
 		// Both Prometheus and JSONPath target a service
 		// NOTE: This purposely ignores the namespace in case Prometheus is running cluster wide
 		target := &corev1.ServiceList{}
-		if sel, err := util.MatchingSelector(m.Selector); err != nil {
+		if sel, err := meta.MatchingSelector(m.Selector); err != nil {
 			return nil, err
 		} else if err := r.List(ctx, target, sel); err != nil {
 			return nil, err
@@ -440,7 +441,7 @@ func applyJobStatus(r client.Reader, t *redskyv1alpha1.Trial, job *batchv1.Job, 
 	// Get the interval of the container execution in the job pods
 	startedAt := job.Status.StartTime
 	finishedAt := job.Status.CompletionTime
-	if matchingSelector, err := util.MatchingSelector(job.Spec.Selector); err == nil {
+	if matchingSelector, err := meta.MatchingSelector(job.Spec.Selector); err == nil {
 		pods := &corev1.PodList{}
 		if err := r.List(context.TODO(), pods, matchingSelector, client.InNamespace(job.Namespace)); err == nil {
 			startedAt, finishedAt = containerTime(pods)

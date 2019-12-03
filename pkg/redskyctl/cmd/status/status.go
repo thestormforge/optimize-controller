@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
+	meta2 "github.com/redskyops/k8s-experiment/internal/meta"
 	"github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	redskykube "github.com/redskyops/k8s-experiment/pkg/kubernetes"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
-	"github.com/redskyops/k8s-experiment/pkg/util"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -122,7 +122,7 @@ func (o *StatusOptions) Run() error {
 func (o *StatusOptions) listTrials(exp *v1alpha1.Experiment) (*v1alpha1.TrialList, error) {
 	// Get the trials for a specific experiment
 	opts := metav1.ListOptions{}
-	if sel, err := util.MatchingSelector(exp.GetTrialSelector()); err != nil {
+	if sel, err := meta2.MatchingSelector(exp.GetTrialSelector()); err != nil {
 		return nil, err
 	} else {
 		sel.ApplyToListOptions(&opts)

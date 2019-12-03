@@ -19,17 +19,12 @@ package experiment
 import (
 	"context"
 
+	"github.com/redskyops/k8s-experiment/internal/meta"
 	"github.com/redskyops/k8s-experiment/internal/trial"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
-	"github.com/redskyops/k8s-experiment/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-)
-
-const (
-	// ExperimentFinalizer is used by the experiment controller to ensure synchronization with the remote server
-	ExperimentFinalizer = "experimentFinalizer.redskyops.dev"
 )
 
 // PopulateTrialFromTemplate creates a new trial for an experiment
@@ -98,7 +93,7 @@ func FindAvailableNamespace(r client.Reader, experiment *redskyv1alpha1.Experime
 	// Find eligible namespaces
 	if experiment.Spec.NamespaceSelector != nil {
 		list := &corev1.NamespaceList{}
-		matchingSelector, err := util.MatchingSelector(experiment.Spec.NamespaceSelector)
+		matchingSelector, err := meta.MatchingSelector(experiment.Spec.NamespaceSelector)
 		if err != nil {
 			return "", err
 		}

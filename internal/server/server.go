@@ -25,6 +25,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+const (
+	// Finalizer is used to ensure synchronization with the server
+	Finalizer = "serverFinalizer.redskyops.dev"
+)
+
 // TODO Split this into trial.go and experiment.go ?
 
 func FromCluster(in *redskyv1alpha1.Experiment) (redskyapi.ExperimentName, *redskyapi.Experiment) {

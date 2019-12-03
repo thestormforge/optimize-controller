@@ -19,9 +19,9 @@ package delete
 import (
 	"context"
 
+	"github.com/redskyops/k8s-experiment/internal/controller"
 	redsky "github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
-	"github.com/redskyops/k8s-experiment/pkg/util"
 	"github.com/spf13/cobra"
 )
 
@@ -75,7 +75,7 @@ func (o *DeleteOptions) Run() error {
 		// Get the experiment
 		exp, err := o.RedSkyAPI.GetExperimentByName(ctx, redsky.NewExperimentName(name))
 		if err != nil {
-			if util.IgnoreNotFound(err) == nil {
+			if controller.IgnoreNotFound(err) == nil {
 				continue
 			}
 			return err

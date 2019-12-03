@@ -23,10 +23,10 @@ import (
 	"strconv"
 	"strings"
 
+	meta2 "github.com/redskyops/k8s-experiment/internal/meta"
 	redsky "github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1"
 	"github.com/redskyops/k8s-experiment/pkg/controller/experiment"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
-	"github.com/redskyops/k8s-experiment/pkg/util"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -130,7 +130,7 @@ func getKubernetesTrialList(o *GetOptions, meta *trialTableMeta) (*redsky.TrialL
 	// Fetch the trial data
 	list := &redsky.TrialList{}
 	opts := metav1.ListOptions{}
-	if sel, err := util.MatchingSelector(exp.GetTrialSelector()); err != nil {
+	if sel, err := meta2.MatchingSelector(exp.GetTrialSelector()); err != nil {
 		return nil, err
 	} else {
 		sel.ApplyToListOptions(&opts)

@@ -22,13 +22,13 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/redskyops/k8s-experiment/internal/meta"
 	redsky "github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1"
 	"github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	"github.com/redskyops/k8s-experiment/pkg/controller/experiment"
 	redskykube "github.com/redskyops/k8s-experiment/pkg/kubernetes"
 	"github.com/redskyops/k8s-experiment/pkg/kubernetes/scheme"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
-	"github.com/redskyops/k8s-experiment/pkg/util"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -229,7 +229,7 @@ func createKubernetesSuggestion(namespace, name string, suggestions SuggestionSo
 	}
 
 	opts := metav1.ListOptions{}
-	if sel, err := util.MatchingSelector(exp.GetTrialSelector()); err != nil {
+	if sel, err := meta.MatchingSelector(exp.GetTrialSelector()); err != nil {
 		return err
 	} else {
 		sel.ApplyToListOptions(&opts)

@@ -22,8 +22,8 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/redskyops/k8s-experiment/internal/meta"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
-	"github.com/redskyops/k8s-experiment/pkg/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -104,7 +104,7 @@ func WaitForStableState(r client.Reader, ctx context.Context, log logr.Logger, p
 		// If we are going to initiate a delay, or if we failed to check due to a legacy update strategy, try checking the pods
 		if serr.RetryAfter != 0 || serr.Reason == "UpdateStrategy" {
 			list := &corev1.PodList{}
-			if matchingSelector, err := util.MatchingSelector(selector); err == nil {
+			if matchingSelector, err := meta.MatchingSelector(selector); err == nil {
 				_ = r.List(ctx, list, client.InNamespace(p.TargetRef.Namespace), matchingSelector)
 			}
 

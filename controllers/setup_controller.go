@@ -21,10 +21,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/redskyops/k8s-experiment/internal/controller"
+	"github.com/redskyops/k8s-experiment/internal/meta"
 	"github.com/redskyops/k8s-experiment/internal/setup"
 	"github.com/redskyops/k8s-experiment/internal/trial"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
-	"github.com/redskyops/k8s-experiment/pkg/util"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -62,7 +63,7 @@ func (r *SetupReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	// Fetch the Trial instance
 	t := &redskyv1alpha1.Trial{}
 	if err := r.Get(ctx, req.NamespacedName, t); err != nil {
-		return ctrl.Result{}, util.IgnoreNotFound(err)
+		return ctrl.Result{}, controller.IgnoreNotFound(err)
 	}
 
 	// Update the status, return if there are no actionable setup tasks
@@ -133,7 +134,7 @@ func (r *SetupReconciler) inspectSetupJobs(ctx context.Context, t *redskyv1alpha
 	for i := range t.Status.Conditions {
 		if t.Status.Conditions[i].LastTransitionTime.Equal(probeTime) {
 			err := r.Update(ctx, t)
-			return requeueConflict(err)
+			return controller.RequeueConflict(err)
 		}
 	}
 	return nil, nil
@@ -142,7 +143,7 @@ func (r *SetupReconciler) inspectSetupJobs(ctx context.Context, t *redskyv1alpha
 // inspectSetupJobPods will do further inspection on a job's pods to determine its current state
 func (r *SetupReconciler) inspectSetupJobPods(ctx context.Context, j *batchv1.Job) (corev1.ConditionStatus, string) {
 	list := &corev1.PodList{}
-	if matchingSelector, err := util.MatchingSelector(j.Spec.Selector); err == nil {
+	if matchingSelector, err := meta.MatchingSelector(j.Spec.Selector); err == nil {
 		_ = r.List(ctx, list, client.InNamespace(j.Namespace), matchingSelector)
 	}
 
@@ -164,9 +165,9 @@ func (r *SetupReconciler) createSetupJob(ctx context.Context, t *redskyv1alpha1.
 	// If the created condition is unknown, we may need a create job
 	if cc, ok := trial.CheckCondition(&t.Status, redskyv1alpha1.TrialSetupCreated, corev1.ConditionUnknown); cc && ok {
 		// Before we can create the job, we need an initializer/finalizer
-		if trial.AddInitializer(t, setup.Initializer) || util.AddFinalizer(t, setup.Finalizer) {
+		if trial.AddInitializer(t, setup.Initializer) || meta.AddFinalizer(t, setup.Finalizer) {
 			err := r.Update(ctx, t)
-			return requeueConflict(err)
+			return controller.RequeueConflict(err)
 		}
 
 		mode = setup.ModeCreate
@@ -209,15 +210,15 @@ func (r *SetupReconciler) finish(ctx context.Context, t *redskyv1alpha1.Trial) (
 	if cc, ok := trial.CheckCondition(&t.Status, redskyv1alpha1.TrialSetupCreated, corev1.ConditionTrue); ok && cc {
 		if trial.RemoveInitializer(t, setup.Initializer) {
 			err := r.Update(ctx, t)
-			return requeueConflict(err)
+			return controller.RequeueConflict(err)
 		}
 	}
 
 	// Do not remove the finalizer until the delete job is finished
 	if cc, ok := trial.CheckCondition(&t.Status, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionTrue); ok && cc {
-		if util.RemoveFinalizer(t, setup.Finalizer) {
+		if meta.RemoveFinalizer(t, setup.Finalizer) {
 			err := r.Update(ctx, t)
-			return requeueConflict(err)
+			return controller.RequeueConflict(err)
 		}
 	}
 

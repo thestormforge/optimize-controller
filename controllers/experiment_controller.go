@@ -19,10 +19,11 @@ package controllers
 import (
 	"context"
 
+	"github.com/redskyops/k8s-experiment/internal/controller"
 	"github.com/redskyops/k8s-experiment/internal/experiment"
+	"github.com/redskyops/k8s-experiment/internal/meta"
 	"github.com/redskyops/k8s-experiment/internal/trial"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
-	"github.com/redskyops/k8s-experiment/pkg/util"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -49,7 +50,7 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 	// Fetch the Experiment instance
 	exp := &redskyv1alpha1.Experiment{}
 	if err := r.Get(ctx, req.NamespacedName, exp); err != nil {
-		return ctrl.Result{}, util.IgnoreNotFound(err)
+		return ctrl.Result{}, controller.IgnoreNotFound(err)
 	}
 
 	// Find trials labeled for this experiment
@@ -75,7 +76,7 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 func (r *ExperimentReconciler) updateStatus(ctx context.Context, exp *redskyv1alpha1.Experiment, trialList *redskyv1alpha1.TrialList) (*ctrl.Result, error) {
 	if experiment.UpdateStatus(exp, trialList) {
 		err := r.Update(ctx, exp)
-		return requeueConflict(err)
+		return controller.RequeueConflict(err)
 	}
 	return nil, nil
 }
@@ -108,7 +109,7 @@ func (r *ExperimentReconciler) cleanupTrials(ctx context.Context, exp *redskyv1a
 // listTrials will return all of the in cluster trials for the experiment
 func (r *ExperimentReconciler) listTrials(ctx context.Context, exp *redskyv1alpha1.Experiment) (*redskyv1alpha1.TrialList, error) {
 	trialList := &redskyv1alpha1.TrialList{}
-	matchingSelector, err := util.MatchingSelector(exp.GetTrialSelector())
+	matchingSelector, err := meta.MatchingSelector(exp.GetTrialSelector())
 	if err != nil {
 		return nil, err
 	}
