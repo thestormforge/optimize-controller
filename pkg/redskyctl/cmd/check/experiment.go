@@ -21,8 +21,8 @@ import (
 	"io/ioutil"
 	"strings"
 
+	"github.com/redskyops/k8s-experiment/internal/template"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
-	"github.com/redskyops/k8s-experiment/pkg/controller/template"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime/schema"
