@@ -17,11 +17,9 @@ fi
 
 
 # Create the "base" root
-kustomize create --autodetect --recursive --namespace "$NAMESPACE"
-
-
-# Detect and add patches
-find . -type f \( -name "*_patch.yaml" -o -path "./patches/*.yaml" \) -exec kustomize edit add patch {} +
+kustomize create --namespace "$NAMESPACE"
+# TODO --autodetect fails with symlinked directories
+find . -type f -name "*.yaml" -exec kustomize edit add resource {} +
 
 
 # Add Helm configuration
