@@ -48,10 +48,10 @@ jobs:
             sha256sum dist/* | tee dist/checksums.txt
       - store_artifacts:
           path: dist/redskyctl-darwin-amd64.tar.gz
-          destination: redskyctl-darwin-amd64
+          destination: redskyctl-darwin-amd64.tar.gz
       - store_artifacts:
           path: dist/redskyctl-linux-amd64.tar.gz
-          destination: redskyctl-linux-amd64
+          destination: redskyctl-linux-amd64.tar.gz
       - store_artifacts:
           path: dist/checksums.txt
           destination: checksums.txt
