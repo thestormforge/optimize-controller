@@ -48,17 +48,8 @@ type WaitReconciler struct {
 	apiReader client.Reader
 }
 
-func (r *WaitReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.apiReader = mgr.GetAPIReader()
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&redskyv1alpha1.Trial{}).
-		Complete(r)
-}
-
-// TODO Update RBAC
-// get,list,watch,update trials
-// list pods
-// ...like the patch controller we rely on customer supplied "get" permissions here
+// +kubebuilder:rbac:groups=redskyops.dev,resources=trials,verbs=get;list;watch;update
+// +kubebuilder:rbac:groups="",resources=pods,verbs=list
 
 func (r *WaitReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
@@ -86,6 +77,13 @@ func (r *WaitReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func (r *WaitReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.apiReader = mgr.GetAPIReader()
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&redskyv1alpha1.Trial{}).
+		Complete(r)
 }
 
 func (r *WaitReconciler) wait(ctx context.Context, t *redskyv1alpha1.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {

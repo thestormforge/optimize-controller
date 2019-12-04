@@ -42,22 +42,8 @@ type ServerReconciler struct {
 	RedSkyAPI redskyapi.API
 }
 
-func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	if _, err := r.RedSkyAPI.Options(context.Background()); err != nil {
-		// TODO We may need to ignore transient errors to prevent skipping setup in recoverable or "not ready" scenarios
-		// TODO We may need to look for specific errors to skip setup, i.e. "ErrConfigAddressMissing"
-		r.Log.Info("Red Sky API is unavailable, skipping setup", "message", err.Error())
-		return nil
-	}
-
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&redskyv1alpha1.Experiment{}).
-		Owns(&redskyv1alpha1.Trial{}).
-		Complete(r)
-}
-
-// TODO Update RBAC
-
+// +kubebuilder:rbac:groups=redskyops.dev,resources=experiments,verbs=get;list;watch;update
+// +kubebuilder:rbac:groups=redskyops.dev,resources=trials,verbs=list;watch;create;update
 // +kubebuilder:rbac:groups="",resources=namespaces,verbs=list
 
 func (r *ServerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
@@ -118,6 +104,20 @@ func (r *ServerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	return ctrl.Result{}, nil
 }
 
+func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	if _, err := r.RedSkyAPI.Options(context.Background()); err != nil {
+		// TODO We may need to ignore transient errors to prevent skipping setup in recoverable or "not ready" scenarios
+		// TODO We may need to look for specific errors to skip setup, i.e. "ErrConfigAddressMissing"
+		r.Log.Info("Red Sky API is unavailable, skipping setup", "message", err.Error())
+		return nil
+	}
+
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&redskyv1alpha1.Experiment{}).
+		Owns(&redskyv1alpha1.Trial{}).
+		Complete(r)
+}
+
 // createExperiment will create a new experiment on the server using the cluster state; any default values from the
 // server will be copied back into cluster along with the URLs needed for future interactions with server.
 func (r *ServerReconciler) createExperiment(ctx context.Context, log logr.Logger, exp *redskyv1alpha1.Experiment) (*ctrl.Result, error) {
@@ -154,6 +154,7 @@ func (r *ServerReconciler) deleteExperiment(ctx context.Context, exp *redskyv1al
 
 	// Delete the experiment from the server if we still have a URL
 	if experimentURL := exp.GetAnnotations()[redskyv1alpha1.AnnotationExperimentURL]; experimentURL != "" {
+		// TODO Stop doing this
 		err := r.RedSkyAPI.DeleteExperiment(ctx, experimentURL)
 		if controller.IgnoreNotFound(err) != nil {
 			return &ctrl.Result{}, err
@@ -274,7 +275,7 @@ func (r *ServerReconciler) abandonTrial(ctx context.Context, t *redskyv1alpha1.T
 // listTrials will return all of the in cluster trials for the experiment
 func (r *ServerReconciler) listTrials(ctx context.Context, exp *redskyv1alpha1.Experiment) (*redskyv1alpha1.TrialList, error) {
 	trialList := &redskyv1alpha1.TrialList{}
-	matchingSelector, err := meta.MatchingSelector(exp.GetTrialSelector())
+	matchingSelector, err := meta.MatchingSelector(exp.TrialSelector())
 	if err != nil {
 		return nil, err
 	}

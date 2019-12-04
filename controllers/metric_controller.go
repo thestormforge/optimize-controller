@@ -41,15 +41,10 @@ type MetricReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-func (r *MetricReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&redskyv1alpha1.Trial{}).
-		Complete(r)
-}
-
-// TODO Update RBAC
-// get,list,watch,update trials
-// list pods,services
+// +kubebuilder:rbac:groups=redskyops.dev,resources=experiments,verbs=get;list;watch
+// +kubebuilder:rbac:groups=redskyops.dev,resources=trials,verbs=get;list;watch;update
+// +kubebuilder:rbac:groups="",resources=pods,verbs=list
+// +kubebuilder:rbac:groups="",resources=services,verbs=list
 
 func (r *MetricReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
@@ -77,6 +72,12 @@ func (r *MetricReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func (r *MetricReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&redskyv1alpha1.Trial{}).
+		Complete(r)
 }
 
 func (r *MetricReconciler) collectMetrics(ctx context.Context, t *redskyv1alpha1.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {

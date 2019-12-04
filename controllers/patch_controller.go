@@ -42,15 +42,8 @@ type PatchReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-func (r *PatchReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&redskyv1alpha1.Trial{}).
-		Complete(r)
-}
-
-// TODO Update RBAC
-// get,list,watch,update trials
-// get,list,watch experiments
+// +kubebuilder:rbac:groups=redskyops.dev,resources=experiments,verbs=get;list;watch
+// +kubebuilder:rbac:groups=redskyops.dev,resources=trials,verbs=get;list;watch;update
 
 func (r *PatchReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
@@ -88,6 +81,12 @@ func (r *PatchReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func (r *PatchReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&redskyv1alpha1.Trial{}).
+		Complete(r)
 }
 
 // evaluatePatches will render the patch templates from the experiment using the trial assignments to create "patch operations" on the trial

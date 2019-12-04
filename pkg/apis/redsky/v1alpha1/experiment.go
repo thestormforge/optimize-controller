@@ -62,8 +62,8 @@ func (in *Experiment) GetDefaultLabels() map[string]string {
 	return map[string]string{LabelExperiment: in.Name}
 }
 
-// GetTrialSelector returns a label selector for matching trials associated with the experiment
-func (in *Experiment) GetTrialSelector() *metav1.LabelSelector {
+// TrialSelector returns a label selector for matching trials associated with the experiment
+func (in *Experiment) TrialSelector() *metav1.LabelSelector {
 	if in.Spec.Selector != nil {
 		return in.Spec.Selector
 	} else if len(in.Spec.Template.Labels) > 0 {

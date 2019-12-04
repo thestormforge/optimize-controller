@@ -40,17 +40,10 @@ type TrialReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-func (r *TrialReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&redskyv1alpha1.Trial{}).
-		Owns(&batchv1.Job{}).
-		Complete(r)
-}
-
-// TODO Update RBAC
-// +kubebuilder:rbac:groups=batch;extensions,resources=jobs,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups="",resources=pods;services,verbs=list
-// +kubebuilder:rbac:groups=redskyops.dev,resources=trials,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=redskyops.dev,resources=trials,verbs=get;list;watch;update
+// +kubebuilder:rbac:groups=batch;extensions,resources=jobs,verbs=list;watch;create
+// +kubebuilder:rbac:groups="",resources=pods,verbs=list
+// +kubebuilder:rbac:groups="",resources=services,verbs=list
 
 func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
@@ -92,6 +85,13 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	// Nothing changed
 	return ctrl.Result{}, nil
+}
+
+func (r *TrialReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&redskyv1alpha1.Trial{}).
+		Owns(&batchv1.Job{}).
+		Complete(r)
 }
 
 // updateStatus will ensure the trial status matches the current state

@@ -25,26 +25,19 @@ import (
 	"github.com/redskyops/k8s-experiment/internal/meta"
 	"github.com/redskyops/k8s-experiment/internal/trial"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// ExperimentReconciler reconciles a Experiment object
+// ExperimentReconciler reconciles an Experiment object
 type ExperimentReconciler struct {
 	client.Client
 	Log logr.Logger
 }
 
-func (r *ExperimentReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&redskyv1alpha1.Experiment{}).
-		Owns(&redskyv1alpha1.Trial{}).
-		Complete(r)
-}
-
-// TODO Update RBAC
-
-// +kubebuilder:rbac:groups=redskyops.dev,resources=experiments,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=redskyops.dev,resources=experiments,verbs=get;list;watch;update
+// +kubebuilder:rbac:groups=redskyops.dev,resources=trials,verbs=list;watch;delete
 
 func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
@@ -56,8 +49,8 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 	}
 
 	// Find trials labeled for this experiment
-	trialList, err := r.listTrials(ctx, exp)
-	if err != nil {
+	trialList := &redskyv1alpha1.TrialList{}
+	if err := r.listTrials(ctx, trialList, exp.TrialSelector()); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -74,6 +67,13 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 	return ctrl.Result{}, nil
 }
 
+func (r *ExperimentReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&redskyv1alpha1.Experiment{}).
+		Owns(&redskyv1alpha1.Trial{}).
+		Complete(r)
+}
+
 // updateStatus will ensure the experiment status matches the current state
 func (r *ExperimentReconciler) updateStatus(ctx context.Context, exp *redskyv1alpha1.Experiment, trialList *redskyv1alpha1.TrialList) (*ctrl.Result, error) {
 	if experiment.UpdateStatus(exp, trialList) {
@@ -88,19 +88,14 @@ func (r *ExperimentReconciler) cleanupTrials(ctx context.Context, exp *redskyv1a
 	for i := range trialList.Items {
 		t := &trialList.Items[i]
 
-		// Already deleted, nothing to do
-		if !t.GetDeletionTimestamp().IsZero() {
-			continue
+		// Cleanup finished trials
+		if trial.NeedsCleanup(t) {
+			err := r.Delete(ctx, t)
+			return &ctrl.Result{}, err
 		}
 
-		if trial.IsFinished(t) {
-			// Cleanup finished trials
-			if trial.NeedsCleanup(t) {
-				err := r.Delete(ctx, t)
-				return &ctrl.Result{}, err
-			}
-		} else if !exp.GetDeletionTimestamp().IsZero() {
-			// If the experiment was deleted, delete the trial instead of waiting for it to finish
+		// If the experiment was deleted, delete the trial instead of waiting for it to finish
+		if !trial.IsFinished(t) && !exp.GetDeletionTimestamp().IsZero() && t.GetDeletionTimestamp().IsZero() {
 			err := r.Delete(ctx, t)
 			return &ctrl.Result{}, err
 		}
@@ -108,15 +103,11 @@ func (r *ExperimentReconciler) cleanupTrials(ctx context.Context, exp *redskyv1a
 	return nil, nil
 }
 
-// listTrials will return all of the in cluster trials for the experiment
-func (r *ExperimentReconciler) listTrials(ctx context.Context, exp *redskyv1alpha1.Experiment) (*redskyv1alpha1.TrialList, error) {
-	trialList := &redskyv1alpha1.TrialList{}
-	matchingSelector, err := meta.MatchingSelector(exp.GetTrialSelector())
+// listTrials retrieves the list of trial objects matching the specified selector
+func (r *ExperimentReconciler) listTrials(ctx context.Context, trialList *redskyv1alpha1.TrialList, selector *metav1.LabelSelector) error {
+	matchingSelector, err := meta.MatchingSelector(selector)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	if err := r.List(ctx, trialList, matchingSelector); err != nil {
-		return nil, err
-	}
-	return trialList, nil
+	return r.List(ctx, trialList, matchingSelector)
 }

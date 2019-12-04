@@ -130,7 +130,7 @@ func getKubernetesTrialList(o *GetOptions, meta *trialTableMeta) (*redsky.TrialL
 	// Fetch the trial data
 	list := &redsky.TrialList{}
 	opts := metav1.ListOptions{}
-	if sel, err := meta2.MatchingSelector(exp.GetTrialSelector()); err != nil {
+	if sel, err := meta2.MatchingSelector(exp.TrialSelector()); err != nil {
 		return nil, err
 	} else {
 		sel.ApplyToListOptions(&opts)

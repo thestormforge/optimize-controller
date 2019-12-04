@@ -43,20 +43,9 @@ type SetupReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-func (r *SetupReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	// TODO Have some type of setting to by-pass this
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&redskyv1alpha1.Trial{}).
-		Owns(&batchv1.Job{}).
-		Complete(r)
-}
-
-// TODO Update RBAC
-// get,list,watch,update trials
-// list pods
-// create,list jobs
-
-// TODO Can we limit update on trials to just status updates?
+// +kubebuilder:rbac:groups=redskyops.dev,resources=trials,verbs=get;list;watch;update
+// +kubebuilder:rbac:groups="",resources=pods,verbs=list
+// +kubebuilder:rbac:groups=batch;extensions,resources=jobs,verbs=list;watch;create
 
 func (r *SetupReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
@@ -89,6 +78,14 @@ func (r *SetupReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func (r *SetupReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// TODO Have some type of setting to by-pass this
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&redskyv1alpha1.Trial{}).
+		Owns(&batchv1.Job{}).
+		Complete(r)
 }
 
 // inspectSetupJobs will look for the setup jobs and update the trial status accordingly

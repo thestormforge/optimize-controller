@@ -122,7 +122,7 @@ func (o *StatusOptions) Run() error {
 func (o *StatusOptions) listTrials(exp *v1alpha1.Experiment) (*v1alpha1.TrialList, error) {
 	// Get the trials for a specific experiment
 	opts := metav1.ListOptions{}
-	if sel, err := meta2.MatchingSelector(exp.GetTrialSelector()); err != nil {
+	if sel, err := meta2.MatchingSelector(exp.TrialSelector()); err != nil {
 		return nil, err
 	} else {
 		sel.ApplyToListOptions(&opts)

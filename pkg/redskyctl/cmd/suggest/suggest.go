@@ -229,7 +229,7 @@ func createKubernetesSuggestion(namespace, name string, suggestions SuggestionSo
 	}
 
 	opts := metav1.ListOptions{}
-	if sel, err := meta.MatchingSelector(exp.GetTrialSelector()); err != nil {
+	if sel, err := meta.MatchingSelector(exp.TrialSelector()); err != nil {
 		return err
 	} else {
 		sel.ApplyToListOptions(&opts)
