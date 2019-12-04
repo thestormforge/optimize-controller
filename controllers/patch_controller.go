@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/go-logr/logr"
 	"github.com/redskyops/k8s-experiment/internal/controller"
 	"github.com/redskyops/k8s-experiment/internal/template"
 	"github.com/redskyops/k8s-experiment/internal/trial"
@@ -37,6 +38,7 @@ import (
 // PatchReconciler reconciles the patches on a Trial object
 type PatchReconciler struct {
 	client.Client
+	Log    logr.Logger
 	Scheme *runtime.Scheme
 }
 

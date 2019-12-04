@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 
+	"github.com/go-logr/logr"
 	"github.com/redskyops/k8s-experiment/internal/controller"
 	"github.com/redskyops/k8s-experiment/internal/experiment"
 	"github.com/redskyops/k8s-experiment/internal/meta"
@@ -31,6 +32,7 @@ import (
 // ExperimentReconciler reconciles a Experiment object
 type ExperimentReconciler struct {
 	client.Client
+	Log logr.Logger
 }
 
 func (r *ExperimentReconciler) SetupWithManager(mgr ctrl.Manager) error {
