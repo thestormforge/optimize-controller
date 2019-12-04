@@ -202,18 +202,18 @@ func (r *WaitReconciler) waitFor(ctx context.Context, p *redskyv1alpha1.PatchOpe
 }
 
 func (r *WaitReconciler) finish(ctx context.Context, t *redskyv1alpha1.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
-	// If there is a stable condition that is not yet true, update the status
-	if cc, ok := trial.CheckCondition(&t.Status, redskyv1alpha1.TrialStable, corev1.ConditionTrue); ok && !cc {
-		trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialStable, corev1.ConditionTrue, "", "", probeTime)
-		err := r.Update(ctx, t)
-		return controller.RequeueConflict(err)
-	}
-
 	// TODO Remove this once we know why it is actually needed
 	for _, c := range t.Status.Conditions {
 		if c.Type == redskyv1alpha1.TrialStable && c.LastTransitionTime.Add(1*time.Second).After(probeTime.Time) {
 			return &ctrl.Result{RequeueAfter: 1 * time.Second}, nil
 		}
+	}
+
+	// If there is a stable condition that is not yet true, update the status
+	if cc, ok := trial.CheckCondition(&t.Status, redskyv1alpha1.TrialStable, corev1.ConditionTrue); ok && !cc {
+		trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialStable, corev1.ConditionTrue, "", "", probeTime)
+		err := r.Update(ctx, t)
+		return controller.RequeueConflict(err)
 	}
 
 	return nil, nil

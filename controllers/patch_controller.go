@@ -179,13 +179,13 @@ func (r *PatchReconciler) applyPatches(ctx context.Context, t *redskyv1alpha1.Tr
 // finish will update the trial status to indicate we are finished patching
 func (r *PatchReconciler) finish(ctx context.Context, t *redskyv1alpha1.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
 	// This will not add the patched condition if it is not there (e.g. the experiment had no patches)
-	if cc, ok := trial.CheckCondition(&t.Status, redskyv1alpha1.TrialPatched, corev1.ConditionTrue); !ok || cc {
-		return nil, nil
+	if cc, ok := trial.CheckCondition(&t.Status, redskyv1alpha1.TrialPatched, corev1.ConditionTrue); ok && !cc {
+		trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialPatched, corev1.ConditionTrue, "", "", probeTime)
+		err := r.Update(ctx, t)
+		return controller.RequeueConflict(err)
 	}
 
-	trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialPatched, corev1.ConditionTrue, "", "", probeTime)
-	err := r.Update(ctx, t)
-	return controller.RequeueConflict(err)
+	return nil, nil
 }
 
 func createPatchOperation(p *redskyv1alpha1.PatchTemplate, data []byte) (*redskyv1alpha1.PatchOperation, error) {

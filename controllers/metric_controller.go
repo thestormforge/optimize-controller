@@ -71,12 +71,11 @@ func (r *MetricReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return *result, err
 	}
 
-	// Update the trial status, this will mark the trial as finished (which means this code won't execute again)
+	// Update the trial status, this will mark the trial as finished
 	if result, err := r.finish(ctx, t, &now); result != nil {
 		return *result, err
 	}
 
-	// Technically this is unreachable since finish never returns nil
 	return ctrl.Result{}, nil
 }
 
@@ -149,13 +148,19 @@ func (r *MetricReconciler) finish(ctx context.Context, t *redskyv1alpha1.Trial, 
 	// Only update (do not create) the observed condition
 	if cc, ok := trial.CheckCondition(&t.Status, redskyv1alpha1.TrialObserved, corev1.ConditionTrue); ok && !cc {
 		trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialObserved, corev1.ConditionTrue, "", "", probeTime)
+		err := r.Update(ctx, t)
+		return controller.RequeueConflict(err)
 	}
 
 	// Mark the trial as completed
-	trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialComplete, corev1.ConditionTrue, "", "", probeTime)
+	// TODO This should be part of the trial controller
+	if cc, ok := trial.CheckCondition(&t.Status, redskyv1alpha1.TrialComplete, corev1.ConditionTrue); !ok || !cc {
+		trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialComplete, corev1.ConditionTrue, "", "", nil)
+		err := r.Update(ctx, t)
+		return controller.RequeueConflict(err)
+	}
 
-	err := r.Update(ctx, t)
-	return controller.RequeueConflict(err)
+	return nil, nil
 }
 
 func (r *MetricReconciler) target(ctx context.Context, namespace string, m *redskyv1alpha1.Metric) (runtime.Object, error) {
