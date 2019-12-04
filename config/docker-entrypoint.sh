@@ -19,7 +19,7 @@ fi
 # Create the "base" root
 kustomize create --namespace "$NAMESPACE"
 # TODO --autodetect fails with symlinked directories
-find . -type f -name "*.yaml" -exec kustomize edit add resource {} +
+find . -type f -name "*.yaml" ! -name "kustomization.yaml" -exec kustomize edit add resource {} +
 
 
 # Add Helm configuration
