@@ -1,5 +1,5 @@
 # The layers upto downloading dependencies should exactly match the manager build
-FROM golang:1.12.5 as builder
+FROM golang:1.13 as builder
 ARG LDFLAGS=""
 WORKDIR /workspace
 COPY go.mod go.mod
