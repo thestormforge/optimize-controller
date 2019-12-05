@@ -43,14 +43,11 @@ var _ = Describe("Experiment Controller", func() {
 				Namespace: "default",
 			}
 
-			spec := redskyv1alpha1.ExperimentSpec{}
-
 			instance := &redskyv1alpha1.Experiment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      key.Name,
 					Namespace: key.Namespace,
 				},
-				Spec: spec,
 			}
 
 			Expect(k8sClient.Create(context.Background(), instance)).Should(Succeed())

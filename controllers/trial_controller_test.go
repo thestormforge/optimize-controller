@@ -41,16 +41,11 @@ var _ = Describe("Trial Controller", func() {
 				Namespace: "default",
 			}
 
-			spec := redskyv1alpha1.TrialSpec{
-				PatchOperations: []redskyv1alpha1.PatchOperation{{Data: []byte("null")}},
-			}
-
 			instance := &redskyv1alpha1.Trial{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      key.Name,
 					Namespace: key.Namespace,
 				},
-				Spec: spec,
 			}
 
 			Expect(k8sClient.Create(context.Background(), instance)).Should(Succeed())

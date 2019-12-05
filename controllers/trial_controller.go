@@ -118,13 +118,14 @@ func (r *TrialReconciler) updateStatusFromJob(ctx context.Context, t *redskyv1al
 
 func (r *TrialReconciler) createJob(ctx context.Context, t *redskyv1alpha1.Trial) (*ctrl.Result, error) {
 	// TODO This is all basically to avoid a race condition creating the job too early
+	// TODO We should always add unknown so we can just return when the condition == ConditionFalse
 	if len(t.Spec.SetupTasks) > 0 {
 		if cc, ok := trial.CheckCondition(&t.Status, redskyv1alpha1.TrialSetupCreated, corev1.ConditionTrue); !ok || !cc {
 			return nil, nil
 		}
 	}
 	if len(t.Spec.PatchOperations) > 0 {
-		if cc, ok := trial.CheckCondition(&t.Status, redskyv1alpha1.TrialSetupCreated, corev1.ConditionTrue); !ok || !cc {
+		if cc, ok := trial.CheckCondition(&t.Status, redskyv1alpha1.TrialPatched, corev1.ConditionTrue); !ok || !cc {
 			return nil, nil
 		}
 		if cc, ok := trial.CheckCondition(&t.Status, redskyv1alpha1.TrialStable, corev1.ConditionTrue); !ok || !cc {
