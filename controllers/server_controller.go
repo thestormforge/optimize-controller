@@ -153,19 +153,11 @@ func (r *ServerReconciler) deleteExperiment(ctx context.Context, exp *redskyv1al
 		return nil, nil
 	}
 
-	// Delete the experiment from the server if we still have a URL
-	if experimentURL := exp.GetAnnotations()[redskyv1alpha1.AnnotationExperimentURL]; experimentURL != "" {
-		// TODO Stop doing this
-		err := r.RedSkyAPI.DeleteExperiment(ctx, experimentURL)
-		if controller.IgnoreNotFound(err) != nil {
-			return &ctrl.Result{}, err
-		}
+	// We do not actually delete the experiment from the server to preserve the data, for example, in a multi-cluster
+	// experiment we would require that the experiment still exist for all the other clusters.
 
-		delete(exp.GetAnnotations(), redskyv1alpha1.AnnotationExperimentURL)
-		delete(exp.GetAnnotations(), redskyv1alpha1.AnnotationNextTrialURL)
-	}
-
-	// This update will include the removal of the finalizer and URL annotations
+	delete(exp.GetAnnotations(), redskyv1alpha1.AnnotationExperimentURL)
+	delete(exp.GetAnnotations(), redskyv1alpha1.AnnotationNextTrialURL)
 	err := r.Update(ctx, exp)
 	return controller.RequeueConflict(err)
 }
