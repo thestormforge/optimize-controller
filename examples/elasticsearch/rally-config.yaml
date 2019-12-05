@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rally-ini
+data:
+  rally-config: |
+    [meta]
+    config.version = 17
+
+    [system]
+    env.name = docker
+
+    [node]
+    root.dir = /rally/.rally/benchmarks
+    src.root.dir = /rally/.rally/benchmarks/src
+
+    [source]
+    remote.repo.url = https://github.com/elastic/elasticsearch.git
+    elasticsearch.src.subdir = elasticsearch
+
+    [benchmarks]
+    local.dataset.cache = /rally/.rally/benchmarks/data
+
+    [reporting]
+    datastore.type = elasticsearch
+    datastore.host = elasticsearch-client
+    datastore.port = 9200
+    datastore.secure = False
+    datastore.user =
+    datastore.password =
+
+    [tracks]
+    default.url = https://github.com/elastic/rally-tracks
+
+    [teams]
+    default.url = https://github.com/elastic/rally-teams
+
+    [defaults]
+    preserve_benchmark_candidate = False
+
+    [distributions]
+    release.cache = true

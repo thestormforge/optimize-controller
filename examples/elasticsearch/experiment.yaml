@@ -1,0 +1,102 @@
+apiVersion: redskyops.dev/v1alpha1
+kind: Experiment
+metadata:
+  name: rally-helm
+spec:
+  parameters:
+  - name: memory
+    min: 2000
+    max: 8000
+  - name: cpu
+    min: 500
+    max: 6000
+  - name: replicas
+    min: 1
+    max: 4
+  metrics:
+  - name: duration
+    minimize: true
+    query: "{{duration .StartTime .CompletionTime}}"
+  - name: cost
+    minimize: true
+    type: pods
+    # Note that these cost weights are specific to GKE and represent $22/month/cpu and $3/month/GB
+    query: '{{resourceRequests .Pods "cpu=0.022,memory=0.000000000003"}}'
+    selector:
+      matchLabels:
+        app: elasticsearch
+  patches:
+  - targetRef:
+      kind: StatefulSet
+      apiVersion: apps/v1
+      name: elasticsearch-master
+    patch: ""
+  - targetRef:
+      kind: Deployment
+      apiVersion: apps/v1
+      name: elasticsearch-client
+    patch: ""
+  - targetRef:
+      kind: StatefulSet
+      apiVersion: apps/v1
+      name: elasticsearch-data
+    patch: |
+      spec:
+        replicas: {{ .Values.replicas }}
+        template:
+          spec:
+            containers:
+            - name: elasticsearch
+              resources:
+                limits:
+                  cpu: "{{ .Values.cpu }}m"
+                  memory: "{{ .Values.memory }}Mi"
+                requests:
+                  cpu: "{{ .Values.cpu }}m"
+                  memory: "{{ .Values.memory }}Mi"
+  template: # trial
+    spec:
+      setupTasks:
+      - name: elasticsearch
+        helmChart: stable/elasticsearch
+        helmChartVersion: "1.31.1"
+        helmValues:
+        - name: cluster.name
+          value: rally-demo
+        - name: data.terminationGracePeriodSeconds
+          value: "5"
+        - name: data.podManagementPolicy
+          value: Parallel
+        - name: data.replicas
+          value: "{{ .Values.replicas }}"
+        - name: data.resources.limits.cpu
+          value: "{{ .Values.cpu }}m"
+        - name: data.resources.limits.memory
+          value: "{{ .Values.memory }}Mi"
+        - name: data.resources.requests.cpu
+          value: "{{ .Values.cpu }}m"
+        - name: data.resources.requests.memory
+          value: "{{ .Values.memory }}Mi"
+      setupServiceAccountName: redsky
+      ttlSecondsAfterFinished: 1800
+      template: # job
+        activeDeadlineSeconds: 600
+        spec:
+          template: # pod
+            spec:
+              containers:
+              - image: elastic/rally:1.3.0
+                name: rally
+                args: ["--track=geopoint",
+                       "--target-hosts=elasticsearch-client",
+                       "--pipeline=benchmark-only",
+                       "--challenge=append-fast-with-conflicts",
+                       "--track-params=ingest_percentage:50"]
+                volumeMounts:
+                  - name: config
+                    mountPath: /rally/.rally/rally.ini
+                    subPath: rally-config
+              volumes:
+                - name: config
+                  configMap:
+                    name: rally-ini
