@@ -29,11 +29,11 @@ all: manager tool
 
 # Run tests
 test: generate fmt vet manifests
-	go test ./controllers/... ./internal/... ./pkg/... ./cmd/... -coverprofile cover.out
+	go test ./... -coverprofile cover.out
 
 # Build manager binary
 manager: generate fmt vet
-	go build -ldflags '$(LDFLAGS)' -o bin/manager cmd/manager/main.go
+	go build -ldflags '$(LDFLAGS)' -o bin/manager main.go
 
 # Build tool binary for all supported platforms
 tool: generate fmt vet
@@ -42,7 +42,7 @@ tool: generate fmt vet
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate fmt vet manifests
-	go run ./cmd/manager/main.go
+	go run ./main.go
 
 # Install CRDs into a cluster
 install: manifests
@@ -59,19 +59,19 @@ deploy: manifests
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./pkg/apis/...;./controllers/...;./cmd/..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 # Run go fmt against code
 fmt:
-	go fmt ./controllers/... ./internal/... ./pkg/... ./cmd/...
+	go fmt ./...
 
 # Run go vet against code
 vet:
-	go vet ./controllers/... ./internal/... ./pkg/... ./cmd/...
+	go vet ./...
 
 # Generate code
 generate: controller-gen
-	$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths="./pkg/apis/...;./controllers/...;./cmd/..."
+	$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths="./..."
 
 # Build the docker images
 docker-build:

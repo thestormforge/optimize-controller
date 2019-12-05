@@ -13,7 +13,7 @@ COPY go.sum go.sum
 RUN go mod download
 
 # Copy the go source
-COPY cmd/manager/main.go main.go
+COPY main.go main.go
 COPY internal/ internal/
 COPY pkg/ pkg/
 COPY controllers/ controllers/
