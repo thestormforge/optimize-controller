@@ -25,6 +25,7 @@ import (
 	"github.com/redskyops/k8s-experiment/internal/meta"
 	"github.com/redskyops/k8s-experiment/internal/server"
 	"github.com/redskyops/k8s-experiment/internal/trial"
+	"github.com/redskyops/k8s-experiment/internal/validation"
 	redskyapi "github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
@@ -130,11 +131,21 @@ func (r *ServerReconciler) createExperiment(ctx context.Context, log logr.Logger
 	}
 
 	// Convert the cluster state into a server representation
-	n, e := server.FromCluster(exp)
-
 	log.Info("Creating remote experiment")
+	n, e := server.FromCluster(exp)
 	ee, err := r.RedSkyAPI.CreateExperiment(ctx, n, *e)
+
+	// If we get a name conflict, trying fetching the experiment instead, maybe we already created it
+	// TODO The the server should do this for us and just accepting the PUT and returning the current representation
+	if rerr, ok := err.(*redskyapi.Error); ok && rerr.Type == redskyapi.ErrExperimentNameConflict {
+		ee, err = r.RedSkyAPI.GetExperimentByName(ctx, n)
+	}
 	if err != nil {
+		return &ctrl.Result{}, err
+	}
+
+	// Check that the server and the cluster have a compatible experiment definition
+	if err := validation.CheckDefinition(exp, &ee); err != nil {
 		return &ctrl.Result{}, err
 	}
 
