@@ -83,6 +83,7 @@ func (r *SetupReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 func (r *SetupReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// TODO Have some type of setting to by-pass this
 	return ctrl.NewControllerManagedBy(mgr).
+		Named("setup").
 		For(&redskyv1alpha1.Trial{}).
 		Owns(&batchv1.Job{}).
 		Complete(r)

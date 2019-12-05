@@ -113,6 +113,7 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
+		Named("server").
 		For(&redskyv1alpha1.Experiment{}).
 		Owns(&redskyv1alpha1.Trial{}).
 		Complete(r)

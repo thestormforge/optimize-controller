@@ -82,6 +82,7 @@ func (r *WaitReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 func (r *WaitReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.apiReader = mgr.GetAPIReader()
 	return ctrl.NewControllerManagedBy(mgr).
+		Named("wait").
 		For(&redskyv1alpha1.Trial{}).
 		Complete(r)
 }

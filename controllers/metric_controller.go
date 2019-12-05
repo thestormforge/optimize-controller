@@ -76,6 +76,7 @@ func (r *MetricReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 func (r *MetricReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		Named("metric").
 		For(&redskyv1alpha1.Trial{}).
 		Complete(r)
 }

@@ -69,6 +69,7 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 
 func (r *ExperimentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		Named("experiment").
 		For(&redskyv1alpha1.Experiment{}).
 		Owns(&redskyv1alpha1.Trial{}).
 		Complete(r)

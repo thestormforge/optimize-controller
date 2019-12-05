@@ -89,6 +89,7 @@ func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 func (r *TrialReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		Named("trial").
 		For(&redskyv1alpha1.Trial{}).
 		Owns(&batchv1.Job{}).
 		Complete(r)

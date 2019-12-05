@@ -85,6 +85,7 @@ func (r *PatchReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 func (r *PatchReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		Named("patch").
 		For(&redskyv1alpha1.Trial{}).
 		Complete(r)
 }
