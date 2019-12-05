@@ -37,8 +37,8 @@ manager: generate fmt vet
 
 # Build tool binary for all supported platforms
 tool: generate fmt vet
-	GOOS=darwin GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o bin/redskyctl-darwin-amd64 cmd/redskyctl/main.go
-	GOOS=linux GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o bin/redskyctl-linux-amd64 cmd/redskyctl/main.go
+	GOOS=darwin GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o bin/redskyctl-darwin-amd64 redskyctl/main.go
+	GOOS=linux GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o bin/redskyctl-linux-amd64 redskyctl/main.go
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate fmt vet manifests
@@ -108,5 +108,5 @@ generate-client:
 
 # Generate CLI and API documentation
 generate-docs:
-	go run -ldflags '$(LDFLAGS)' cmd/redskyctl/main.go docs --directory docs/redskyctl
-	go run -ldflags '$(LDFLAGS)' cmd/redskyctl/main.go docs --directory docs/api --doc-type api
+	go run -ldflags '$(LDFLAGS)' redskyctl/main.go docs --directory docs/redskyctl
+	go run -ldflags '$(LDFLAGS)' redskyctl/main.go docs --directory docs/api --doc-type api
