@@ -28,6 +28,7 @@ import (
 	redskyapi "github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -71,10 +72,11 @@ func (r *ServerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	// Check each trial
-	trialList, err := r.listTrials(ctx, exp)
-	if err != nil {
+	trialList := &redskyv1alpha1.TrialList{}
+	if err := r.listTrials(ctx, trialList, exp.TrialSelector()); err != nil {
 		return ctrl.Result{}, err
 	}
+
 	var trialHasFinalizer bool
 	for i := range trialList.Items {
 		t := &trialList.Items[i]
@@ -173,8 +175,8 @@ func (r *ServerReconciler) nextTrial(ctx context.Context, log logr.Logger, exp *
 
 	// Determine the namespace (if any) to use for the trial
 	// TODO This logic needs to change so we are creating namespaces
-	trialList, err := r.listTrials(ctx, exp)
-	if err != nil {
+	trialList := &redskyv1alpha1.TrialList{}
+	if err := r.listTrials(ctx, trialList, exp.TrialSelector()); err != nil {
 		return &ctrl.Result{}, err
 	}
 	namespace, err := experiment.FindAvailableNamespace(r, exp, trialList.Items)
@@ -265,17 +267,13 @@ func (r *ServerReconciler) abandonTrial(ctx context.Context, t *redskyv1alpha1.T
 	return controller.RequeueConflict(err)
 }
 
-// listTrials will return all of the in cluster trials for the experiment
-func (r *ServerReconciler) listTrials(ctx context.Context, exp *redskyv1alpha1.Experiment) (*redskyv1alpha1.TrialList, error) {
-	trialList := &redskyv1alpha1.TrialList{}
-	matchingSelector, err := meta.MatchingSelector(exp.TrialSelector())
+// listTrials retrieves the list of trial objects matching the specified selector
+func (r *ServerReconciler) listTrials(ctx context.Context, trialList *redskyv1alpha1.TrialList, selector *metav1.LabelSelector) error {
+	matchingSelector, err := meta.MatchingSelector(selector)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	if err := r.List(ctx, trialList, matchingSelector); err != nil {
-		return nil, err
-	}
-	return trialList, nil
+	return r.List(ctx, trialList, matchingSelector)
 }
 
 // logWithConditions returns a logger with additional key/value pairs extracted from the trial status
