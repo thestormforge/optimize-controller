@@ -14,12 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cmd
+package commands
 
 import (
 	"io"
 	"os"
 
+	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/check"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/config"
 	deleteCmd "github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/delete"
@@ -59,7 +60,7 @@ func NewRedskyctlCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 	ioStreams := util.IOStreams{In: in, Out: out, ErrOut: err}
 
 	rootCmd.AddCommand(docs.NewDocsCommand(ioStreams))
-	rootCmd.AddCommand(NewVersionCommand(f, ioStreams))
+	rootCmd.AddCommand(cmd.NewVersionCommand(f, ioStreams))
 
 	rootCmd.AddCommand(setup.NewInitCommand(f, ioStreams))
 	rootCmd.AddCommand(setup.NewResetCommand(f, ioStreams))

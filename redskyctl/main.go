@@ -23,8 +23,8 @@ import (
 	"os"
 
 	"github.com/redskyops/k8s-experiment/pkg/api"
-	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd"
 	"github.com/redskyops/k8s-experiment/pkg/version"
+	"github.com/redskyops/k8s-experiment/redskyctl/internal/commands"
 )
 
 func main() {
@@ -41,7 +41,7 @@ func main() {
 	api.DefaultUserAgent = version.GetUserAgentString("redskyctl")
 
 	// TODO Determine which command to run by looking at the base name of $0
-	command := cmd.NewDefaultRedskyctlCommand()
+	command := commands.NewDefaultRedskyctlCommand()
 
 	// Run the command
 	if err := command.Execute(); err != nil {
