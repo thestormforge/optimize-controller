@@ -22,8 +22,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/redskyops/k8s-experiment/internal/server"
 	redsky "github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1"
-	"github.com/redskyops/k8s-experiment/pkg/controller/experiment"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -103,9 +103,17 @@ func getKubernetesExperimentList(o *GetOptions) (*redsky.ExperimentList, error) 
 			return nil, err
 		}
 
-		err = experiment.ConvertExperimentList(el, l)
-		if err != nil {
-			return nil, err
+		for i := range el.Items {
+			n, exp := server.FromCluster(&el.Items[i])
+			e := redsky.ExperimentItem{Experiment: *exp}
+
+			// This is just a hack to ensure something is there
+			if e.Self == "" {
+				e.DisplayName = n.Name()
+				e.Self = path.Join(".", e.DisplayName)
+			}
+
+			l.Experiments = append(l.Experiments, e)
 		}
 
 		if opts.Continue == "" {

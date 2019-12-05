@@ -21,12 +21,12 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/redskyops/k8s-experiment/internal/controller"
+	"github.com/redskyops/k8s-experiment/internal/experiment"
 	"github.com/redskyops/k8s-experiment/internal/meta"
 	"github.com/redskyops/k8s-experiment/internal/server"
 	"github.com/redskyops/k8s-experiment/internal/trial"
 	redskyapi "github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
-	"github.com/redskyops/k8s-experiment/pkg/controller/experiment"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"

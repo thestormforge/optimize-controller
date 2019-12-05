@@ -22,10 +22,10 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/redskyops/k8s-experiment/internal/experiment"
 	"github.com/redskyops/k8s-experiment/internal/meta"
 	redsky "github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1"
 	"github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
-	"github.com/redskyops/k8s-experiment/pkg/controller/experiment"
 	redskykube "github.com/redskyops/k8s-experiment/pkg/kubernetes"
 	"github.com/redskyops/k8s-experiment/pkg/kubernetes/scheme"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"

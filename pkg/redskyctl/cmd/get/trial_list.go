@@ -18,14 +18,15 @@ package get
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
 	"strings"
 
 	meta2 "github.com/redskyops/k8s-experiment/internal/meta"
+	"github.com/redskyops/k8s-experiment/internal/server"
 	redsky "github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1"
-	"github.com/redskyops/k8s-experiment/pkg/controller/experiment"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -137,8 +138,19 @@ func getKubernetesTrialList(o *GetOptions, meta *trialTableMeta) (*redsky.TrialL
 	}
 	if tl, err := clientset.RedskyopsV1alpha1().Trials("").List(opts); err != nil {
 		return nil, err
-	} else if err := experiment.ConvertTrialList(tl, list); err != nil {
-		return nil, err
+	} else {
+		for i := range tl.Items {
+			t := redsky.TrialItem{TrialValues: *server.FromClusterTrial(&tl.Items[i])}
+			for i := range tl.Items[i].Spec.Assignments {
+				t.TrialAssignments.Assignments = append(t.TrialAssignments.Assignments, redsky.Assignment{
+					ParameterName: tl.Items[i].Spec.Assignments[i].Name,
+					Value:         json.Number(strconv.FormatInt(tl.Items[i].Spec.Assignments[i].Value, 10)),
+				})
+			}
+
+			// TODO Copy labels over? Status?
+			list.Trials = append(list.Trials, t)
+		}
 	}
 	return filterAndSortTrials(list, o.Selector, o.SortBy)
 }
