@@ -23,10 +23,10 @@ import (
 	"path/filepath"
 
 	"github.com/redskyops/k8s-experiment/controllers"
-	"github.com/redskyops/k8s-experiment/pkg/api"
-	redsky "github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	"github.com/redskyops/k8s-experiment/pkg/version"
+	redskyclient "github.com/redskyops/k8s-experiment/redskyapi"
+	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/redsky/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -54,7 +54,7 @@ func main() {
 			fmt.Printf("%s version: %s\n", filepath.Base(os.Args[0]), version.GetVersion())
 			os.Exit(0)
 		} else if os.Args[1] == "config" {
-			if cfg, err := api.DefaultConfig(); err != nil {
+			if cfg, err := redskyclient.DefaultConfig(); err != nil {
 				os.Exit(1)
 			} else if output, err := yaml.Marshal(cfg); err != nil {
 				os.Exit(1)
@@ -78,7 +78,7 @@ func main() {
 
 	// Establish the Red Sky API
 	setupLog.Info("Red Sky", "version", version.GetVersion(), "gitCommit", version.GitCommit)
-	api.DefaultUserAgent = version.GetUserAgentString("RedSkyManager")
+	redskyclient.DefaultUserAgent = version.GetUserAgentString("RedSkyManager")
 	redSkyAPI, err := newRedSkyAPI()
 	if err != nil {
 		setupLog.Error(err, "unable to create Red Sky API")
@@ -161,10 +161,10 @@ func main() {
 }
 
 // newRedSkyAPI reads the default configuration and attempt to create an API interface
-func newRedSkyAPI() (redsky.API, error) {
-	cfg, err := api.DefaultConfig()
+func newRedSkyAPI() (redskyapi.API, error) {
+	cfg, err := redskyclient.DefaultConfig()
 	if err != nil {
 		return nil, err
 	}
-	return redsky.NewForConfig(cfg)
+	return redskyapi.NewForConfig(cfg)
 }

@@ -23,8 +23,8 @@ import (
 	"strings"
 
 	"github.com/redskyops/k8s-experiment/internal/server"
-	redsky "github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
+	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/redsky/v1alpha1"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -75,8 +75,8 @@ func RunGetExperimentList(o *GetOptions) error {
 	return nil
 }
 
-func getRedSkyAPIExperimentList(api redsky.API, chunkSize int) (*redsky.ExperimentList, error) {
-	l, err := api.GetAllExperiments(context.TODO(), &redsky.ExperimentListQuery{Limit: chunkSize})
+func getRedSkyAPIExperimentList(api redskyapi.API, chunkSize int) (*redskyapi.ExperimentList, error) {
+	l, err := api.GetAllExperiments(context.TODO(), &redskyapi.ExperimentListQuery{Limit: chunkSize})
 	if err != nil {
 		return nil, err
 	}
@@ -92,11 +92,11 @@ func getRedSkyAPIExperimentList(api redsky.API, chunkSize int) (*redsky.Experime
 	return filterAndSortExperiments(&l, "", "")
 }
 
-func getKubernetesExperimentList(o *GetOptions) (*redsky.ExperimentList, error) {
+func getKubernetesExperimentList(o *GetOptions) (*redskyapi.ExperimentList, error) {
 	clientset := o.RedSkyClientSet
 	experiments := clientset.RedskyopsV1alpha1().Experiments(o.Namespace)
 	opts := metav1.ListOptions{Limit: int64(o.ChunkSize)}
-	l := &redsky.ExperimentList{}
+	l := &redskyapi.ExperimentList{}
 	for {
 		el, err := experiments.List(opts)
 		if err != nil {
@@ -105,7 +105,7 @@ func getKubernetesExperimentList(o *GetOptions) (*redsky.ExperimentList, error) 
 
 		for i := range el.Items {
 			n, exp := server.FromCluster(&el.Items[i])
-			e := redsky.ExperimentItem{Experiment: *exp}
+			e := redskyapi.ExperimentItem{Experiment: *exp}
 
 			// This is just a hack to ensure something is there
 			if e.Self == "" {
@@ -123,7 +123,7 @@ func getKubernetesExperimentList(o *GetOptions) (*redsky.ExperimentList, error) 
 	return filterAndSortExperiments(l, "", "")
 }
 
-func filterAndSortExperiments(el *redsky.ExperimentList, selector, sortBy string) (*redsky.ExperimentList, error) {
+func filterAndSortExperiments(el *redskyapi.ExperimentList, selector, sortBy string) (*redskyapi.ExperimentList, error) {
 	// Experiments do not have labels so anything but the empty selector will just nil out the list
 	if sel, err := labels.Parse(selector); err != nil {
 		return nil, err
@@ -139,7 +139,7 @@ func filterAndSortExperiments(el *redsky.ExperimentList, selector, sortBy string
 type experimentTableMeta struct{}
 
 func (*experimentTableMeta) IsListType(obj interface{}) bool {
-	if _, ok := obj.(*redsky.ExperimentList); ok {
+	if _, ok := obj.(*redskyapi.ExperimentList); ok {
 		return true
 	}
 	return false
@@ -147,7 +147,7 @@ func (*experimentTableMeta) IsListType(obj interface{}) bool {
 
 func (*experimentTableMeta) ExtractList(obj interface{}) ([]interface{}, error) {
 	switch o := obj.(type) {
-	case *redsky.ExperimentList:
+	case *redskyapi.ExperimentList:
 		list := make([]interface{}, len(o.Experiments))
 		for i := range o.Experiments {
 			list[i] = &o.Experiments[i]
@@ -160,7 +160,7 @@ func (*experimentTableMeta) ExtractList(obj interface{}) ([]interface{}, error) 
 
 func (*experimentTableMeta) ExtractValue(obj interface{}, column string) (string, error) {
 	switch o := obj.(type) {
-	case *redsky.ExperimentItem:
+	case *redskyapi.ExperimentItem:
 		switch column {
 		case "name":
 			return path.Base(o.Self), nil

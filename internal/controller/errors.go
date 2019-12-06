@@ -17,7 +17,7 @@
 package controller
 
 import (
-	redskyapi "github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1"
+	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/redsky/v1alpha1"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 )
 

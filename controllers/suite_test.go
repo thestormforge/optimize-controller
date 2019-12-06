@@ -25,9 +25,9 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/onsi/gomega/gexec"
-	redsky "github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1"
-	"github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1/fake"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
+	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/redsky/v1alpha1"
+	"github.com/redskyops/k8s-experiment/redskyapi/redsky/v1alpha1/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -45,7 +45,7 @@ var cfg *rest.Config
 var k8sClient client.Client
 var k8sManager ctrl.Manager
 var testEnv *envtest.Environment
-var redSkyAPI redsky.API
+var redSkyAPI redskyapi.API
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)

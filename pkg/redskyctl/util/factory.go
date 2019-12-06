@@ -20,8 +20,8 @@ import (
 	"context"
 	"fmt"
 
-	redsky "github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1"
 	redskykube "github.com/redskyops/k8s-experiment/pkg/kubernetes"
+	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/redsky/v1alpha1"
 	"github.com/spf13/viper"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -35,7 +35,7 @@ type Factory interface {
 
 	KubernetesClientSet() (*kubernetes.Clientset, error)
 	RedSkyClientSet() (*redskykube.Clientset, error)
-	RedSkyAPI() (redsky.API, error)
+	RedSkyAPI() (redskyapi.API, error)
 }
 
 var _ Factory = &factoryImpl{}
@@ -83,19 +83,19 @@ func (f *factoryImpl) RedSkyClientSet() (*redskykube.Clientset, error) {
 	return redskykube.NewForConfig(c)
 }
 
-func (f *factoryImpl) RedSkyAPI() (redsky.API, error) {
+func (f *factoryImpl) RedSkyAPI() (redskyapi.API, error) {
 	c, err := f.ToClientConfig()
 	if err != nil {
 		return nil, err
 	}
-	rsAPI, err := redsky.NewForConfig(c)
+	rsAPI, err := redskyapi.NewForConfig(c)
 	if err != nil {
 		return nil, err
 	}
 
 	// Verify it at least has an address associated with it
 	if _, err := rsAPI.Options(context.Background()); err != nil {
-		if rserr, ok := err.(*redsky.Error); ok && rserr.Type == redsky.ErrConfigAddressMissing {
+		if rserr, ok := err.(*redskyapi.Error); ok && rserr.Type == redskyapi.ErrConfigAddressMissing {
 			return nil, fmt.Errorf("the current configuration does not include the Red Sky API server address")
 		}
 	}

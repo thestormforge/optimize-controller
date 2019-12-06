@@ -1,8 +1,11 @@
 **
+!/api
+!/controllers
+!/internal
+!/redskyapi
+!/redskyctl
 !/go.mod
 !/go.sum
 !/main.go
-!/internal
+
 !/pkg
-!/redskyctl
-!/controllers

@@ -24,11 +24,11 @@ import (
 
 	"github.com/redskyops/k8s-experiment/internal/experiment"
 	"github.com/redskyops/k8s-experiment/internal/meta"
-	redsky "github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1"
 	"github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	redskykube "github.com/redskyops/k8s-experiment/pkg/kubernetes"
 	"github.com/redskyops/k8s-experiment/pkg/kubernetes/scheme"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
+	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/redsky/v1alpha1"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -58,7 +58,7 @@ type SuggestOptions struct {
 	ForceKubernetes bool
 
 	Suggestions      SuggestionSource
-	RedSkyAPI        *redsky.API
+	RedSkyAPI        *redskyapi.API
 	RedSkyClientSet  *redskykube.Clientset
 	ControllerReader client.Reader
 
@@ -170,16 +170,16 @@ func (o *SuggestOptions) Run() error {
 	return nil
 }
 
-func createRedSkyAPISuggestion(name string, suggestions SuggestionSource, api redsky.API) error {
-	exp, err := api.GetExperimentByName(context.TODO(), redsky.NewExperimentName(name))
+func createRedSkyAPISuggestion(name string, suggestions SuggestionSource, api redskyapi.API) error {
+	exp, err := api.GetExperimentByName(context.TODO(), redskyapi.NewExperimentName(name))
 	if err != nil {
 		return err
 	}
 
-	ta := redsky.TrialAssignments{}
+	ta := redskyapi.TrialAssignments{}
 	for _, p := range exp.Parameters {
 		switch p.Type {
-		case redsky.ParameterTypeInteger:
+		case redskyapi.ParameterTypeInteger:
 			min, err := p.Bounds.Min.Int64()
 			if err != nil {
 				return err
@@ -193,11 +193,11 @@ func createRedSkyAPISuggestion(name string, suggestions SuggestionSource, api re
 			if err != nil {
 				return err
 			}
-			ta.Assignments = append(ta.Assignments, redsky.Assignment{
+			ta.Assignments = append(ta.Assignments, redskyapi.Assignment{
 				ParameterName: p.Name,
 				Value:         json.Number(strconv.FormatInt(a, 10)),
 			})
-		case redsky.ParameterTypeDouble:
+		case redskyapi.ParameterTypeDouble:
 			min, err := p.Bounds.Min.Float64()
 			if err != nil {
 				return err
@@ -211,7 +211,7 @@ func createRedSkyAPISuggestion(name string, suggestions SuggestionSource, api re
 			if err != nil {
 				return err
 			}
-			ta.Assignments = append(ta.Assignments, redsky.Assignment{
+			ta.Assignments = append(ta.Assignments, redskyapi.Assignment{
 				ParameterName: p.Name,
 				Value:         json.Number(strconv.FormatFloat(a, 'f', -1, 64)),
 			})

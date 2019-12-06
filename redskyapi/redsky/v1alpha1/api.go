@@ -27,7 +27,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/redskyops/k8s-experiment/pkg/api"
+	redskyclient "github.com/redskyops/k8s-experiment/redskyapi"
 	"github.com/spf13/viper"
 )
 
@@ -354,7 +354,7 @@ type API interface {
 // NewForConfig returns a new API instance for the specified configuration
 func NewForConfig(cfg *viper.Viper) (API, error) {
 	// TODO We should be providing a transport, e.g. for retry-after
-	c, err := api.NewClient(cfg, context.Background(), nil)
+	c, err := redskyclient.NewClient(cfg, context.Background(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -362,7 +362,7 @@ func NewForConfig(cfg *viper.Viper) (API, error) {
 }
 
 type httpAPI struct {
-	client api.Client
+	client redskyclient.Client
 }
 
 func (h *httpAPI) Options(ctx context.Context) (ServerMeta, error) {

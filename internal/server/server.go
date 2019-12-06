@@ -20,8 +20,8 @@ import (
 	"encoding/json"
 	"strconv"
 
-	redskyapi "github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
+	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/redsky/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 )
 
