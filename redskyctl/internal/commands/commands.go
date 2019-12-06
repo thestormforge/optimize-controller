@@ -30,7 +30,6 @@ import (
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/kustomize"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/results"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/setup"
-	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/status"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/suggest"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
@@ -69,7 +68,6 @@ func NewRedskyctlCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 	rootCmd.AddCommand(check.NewCheckCommand(f, ioStreams))
 	rootCmd.AddCommand(suggest.NewSuggestCommand(f, ioStreams))
 	rootCmd.AddCommand(generate.NewGenerateCommand(f, ioStreams))
-	rootCmd.AddCommand(status.NewStatusCommand(f, ioStreams))
 	rootCmd.AddCommand(get.NewGetCommand(f, ioStreams))
 	rootCmd.AddCommand(deleteCmd.NewDeleteCommand(f, ioStreams))
 	rootCmd.AddCommand(results.NewResultsCommand(f, ioStreams))

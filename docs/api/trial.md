@@ -182,6 +182,7 @@ TrialStatus defines the observed state of Trial
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
+| `summary` | Summary is a brief human readable description of the trial status | _string_ | true |
 | `assignments` | Assignments is a string representation of the trial assignments for reporting purposes | _string_ | true |
 | `values` | Values is a string representation of the trial values for reporting purposes | _string_ | true |
 | `startTime` | StartTime is the effective (possibly adjusted) time the trial run job started | _*[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#time-v1-meta)_ | false |

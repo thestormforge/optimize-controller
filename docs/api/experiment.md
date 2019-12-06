@@ -61,6 +61,7 @@ ExperimentStatus defines the observed state of Experiment
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
+| `summary` | Summary is a brief human readable description of the experiment status | _string_ | true |
 | `activeTrials` | ActiveTrials is the observed number of running trials | _int32_ | true |
 
 [Back to TOC](#table-of-contents)
