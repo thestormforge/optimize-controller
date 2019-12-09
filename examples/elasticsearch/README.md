@@ -1,11 +1,11 @@
 # Elasticsearch Example
 
 ## Introduction
-[Elasticsearch](https://github.com/elastic/elasticsearch) is a widely used distributed database often used as a search engine or for logging. In this example, we demonstrate how to tune Elasticsearch using the benchmarking tool [Rally](https://esrally.readthedocs.io/en/stable/). Rally provides a variety of datasets, called tracks, that can be used to load test Elasticsearch. For each track there are several challenges, designed to test different workloads. This example shows how to i) use a setupTask to integrate with a Helm chart, and ii) set a maximum length a trial can run before being considered failed.
+[Elasticsearch](https://github.com/elastic/elasticsearch) is a widely used distributed database often used as a search engine or for logging. In this example, we demonstrate how to tune Elasticsearch using the benchmarking tool [Rally](https://esrally.readthedocs.io/en/stable/). Rally provides a variety of datasets, called tracks, that can be used to load test Elasticsearch. For each track there are several challenges, designed to test different workloads. This example shows how to i) use a setupTask to integrate with a Helm chart, ii) tune JVM parameters alongside the Kubernetes resources, and iii) set a maximum length a trial can run before being considered failed.
 
 ## Prerequisites
 
-You must have a Kubernetes cluster. We recommend using a cluster with 3 nodes, 24vCPUs (8 on each node) and 48GB of memory (16 on each node). Additionally, you will need a local configured copy of `kubectl` and  to initialize Red Sky Ops in your cluster. You can download a binary for your platform from the [releases page](https://github.com/redskyops/k8s-experiment/releases) and run `redskyctl init` (while connected to your cluster). For more details, see [the installation guide](install.md).
+You must have a Kubernetes cluster. We recommend using a cluster with 3 nodes, 24vCPUs (8 on each node) and 48GB of memory (16 on each node). Additionally, you will need a local configured copy of `kubectl` and to initialize Red Sky Ops in your cluster. You can download a binary for your platform from the [releases page](https://github.com/redskyops/k8s-experiment/releases) and run `redskyctl init` (while connected to your cluster). For more details, see [the installation guide](install.md).
 
 ## Example Resources
 

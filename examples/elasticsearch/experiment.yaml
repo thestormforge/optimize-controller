@@ -1,18 +1,34 @@
 apiVersion: redskyops.dev/v1alpha1
 kind: Experiment
 metadata:
-  name: rally-helm
+  name: rally-helm-jvm
 spec:
+  budget: 160
   parameters:
-  - name: memory
+  - name: data_memory
     min: 2000
     max: 8000
-  - name: cpu
+  - name: data_cpu
     min: 500
     max: 6000
-  - name: replicas
+  - name: data_replicas
     min: 1
-    max: 4
+    max: 3
+  - name: data_heap_percent
+    min: 20
+    max: 80
+  - name: client_memory
+    min: 2000
+    max: 8000
+  - name: client_cpu
+    min: 500
+    max: 6000
+  - name: client_replicas
+    min: 1
+    max: 3
+  - name: client_heap_percent
+    min: 20
+    max: 80
   metrics:
   - name: duration
     minimize: true
@@ -35,25 +51,44 @@ spec:
       kind: Deployment
       apiVersion: apps/v1
       name: elasticsearch-client
-    patch: ""
+    patch: |
+      spec:
+        replicas: {{ .Values.client_replicas }}
+        template:
+          spec:
+            containers:
+            - name: elasticsearch
+              env:
+              - name: ES_JAVA_OPTS
+                value: "-Djava.net.preferIPv4Stack=true -Xms{{ percent .Values.client_memory .Values.client_heap_percent }}m -Xmx{{ percent .Values.client_memory .Values.client_heap_percent }}m"
+              resources:
+                limits:
+                  cpu: "{{ .Values.client_cpu }}m"
+                  memory: "{{ .Values.client_memory }}Mi"
+                requests:
+                  cpu: "{{ .Values.client_cpu }}m"
+                  memory: "{{ .Values.client_memory }}Mi"
   - targetRef:
       kind: StatefulSet
       apiVersion: apps/v1
       name: elasticsearch-data
     patch: |
       spec:
-        replicas: {{ .Values.replicas }}
+        replicas: {{ .Values.data_replicas }}
         template:
           spec:
             containers:
             - name: elasticsearch
+              env:
+              - name: ES_JAVA_OPTS
+                value: "-Djava.net.preferIPv4Stack=true -Xms{{ percent .Values.data_memory .Values.data_heap_percent }}m -Xmx{{ percent .Values.data_memory .Values.data_heap_percent }}m"
               resources:
                 limits:
-                  cpu: "{{ .Values.cpu }}m"
-                  memory: "{{ .Values.memory }}Mi"
+                  cpu: "{{ .Values.data_cpu }}m"
+                  memory: "{{ .Values.data_memory }}Mi"
                 requests:
-                  cpu: "{{ .Values.cpu }}m"
-                  memory: "{{ .Values.memory }}Mi"
+                  cpu: "{{ .Values.data_cpu }}m"
+                  memory: "{{ .Values.data_memory }}Mi"
   template: # trial
     spec:
       setupTasks:
@@ -63,20 +98,34 @@ spec:
         helmValues:
         - name: cluster.name
           value: rally-demo
+        - name: client.replicas
+          value: "{{ .Values.client_replicas }}"
+        - name: client.resources.limits.cpu
+          value: "{{ .Values.client_cpu }}m"
+        - name: client.resources.limits.memory
+          value: "{{ .Values.client_memory }}Mi"
+        - name: client.resources.requests.cpu
+          value: "{{ .Values.client_cpu }}m"
+        - name: client.resources.requests.memory
+          value: "{{ .Values.client_memory }}Mi"
+        - name: client.heapSize
+          value: "{{ percent .Values.client_memory .Values.client_heap_percent }}m"
         - name: data.terminationGracePeriodSeconds
           value: "5"
         - name: data.podManagementPolicy
           value: Parallel
         - name: data.replicas
-          value: "{{ .Values.replicas }}"
+          value: "{{ .Values.data_replicas }}"
         - name: data.resources.limits.cpu
-          value: "{{ .Values.cpu }}m"
+          value: "{{ .Values.data_cpu }}m"
         - name: data.resources.limits.memory
-          value: "{{ .Values.memory }}Mi"
+          value: "{{ .Values.data_memory }}Mi"
         - name: data.resources.requests.cpu
-          value: "{{ .Values.cpu }}m"
+          value: "{{ .Values.data_cpu }}m"
         - name: data.resources.requests.memory
-          value: "{{ .Values.memory }}Mi"
+          value: "{{ .Values.data_memory }}Mi"
+        - name: data.heapSize
+          value: "{{ percent .Values.data_memory .Values.data_heap_percent }}m"
       setupServiceAccountName: redsky
       ttlSecondsAfterFinished: 1800
       template: # job
