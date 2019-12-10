@@ -25,17 +25,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-const (
-	// Annotation that contains a comma-delimited list of initializing processes. Similar to a "finalizer", the trial
-	// will not start executing until the initializer is empty.
-	AnnotationInitializer = "redskyops.dev/initializer"
-
-	// Label that contains the name of the trial associated with an object
-	LabelTrial = "redskyops.dev/trial"
-	// Label that contains the role in trial execution
-	LabelTrialRole = "redskyops.dev/trial-role"
-)
-
 // HelmValue represents a value in a Helm template
 type HelmValue struct {
 	// The name of Helm value as passed to one of the set options

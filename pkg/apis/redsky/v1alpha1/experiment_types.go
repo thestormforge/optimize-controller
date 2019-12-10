@@ -22,18 +22,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-const (
-	// Annotation that contains the URL of the experiment on the remote server
-	AnnotationExperimentURL = "redskyops.dev/experiment-url"
-	// Annotation that contains the URL used to obtain the next trial suggestion
-	AnnotationNextTrialURL = "redskyops.dev/next-trial-url"
-	// Annotation that contains the URL used to report trial observations
-	AnnotationReportTrialURL = "redskyops.dev/report-trial-url"
-
-	// Label that contains the name of the experiment associated with an object
-	LabelExperiment = "redskyops.dev/experiment"
-)
-
 // Parameter represents the domain of a single component of the experiment search space
 type Parameter struct {
 	// The name of the parameter
