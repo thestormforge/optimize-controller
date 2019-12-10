@@ -223,7 +223,7 @@ type TrialStatus struct {
 // +kubebuilder:object:root=true
 
 // Trial is the Schema for the trials API
-// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.summary",description="Trial status"
+// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase",description="Trial status"
 // +kubebuilder:printcolumn:name="Assignments",type="string",JSONPath=".status.assignments",description="Current assignments"
 // +kubebuilder:printcolumn:name="Values",type="string",JSONPath=".status.values",description="Current values"
 type Trial struct {

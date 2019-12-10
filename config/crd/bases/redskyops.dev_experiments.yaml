@@ -9,7 +9,7 @@ metadata:
   name: experiments.redskyops.dev
 spec:
   additionalPrinterColumns:
-  - JSONPath: .status.summary
+  - JSONPath: .status.phase
     description: Experiment status
     name: Status
     type: string
