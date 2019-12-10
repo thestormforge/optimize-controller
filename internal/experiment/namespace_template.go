@@ -122,11 +122,6 @@ func createNamespaceFromTemplate(c client.Client, ctx context.Context, exp *reds
 
 	// Create the support trial namespace objects
 	ts := createTrialNamespace(exp, n.Name)
-	if ts.ServiceAccount.Name != "default" {
-		if err := c.Create(ctx, &ts.ServiceAccount); ignorePermissions(err) != nil {
-			return "", err
-		}
-	}
 	if ts.Role != nil {
 		if err := c.Create(ctx, ts.Role); ignorePermissions(err) != nil {
 			return "", err
@@ -143,19 +138,18 @@ func createNamespaceFromTemplate(c client.Client, ctx context.Context, exp *reds
 
 // trialNamespace represents the supporting resources for a trial namespace
 type trialNamespace struct {
-	ServiceAccount corev1.ServiceAccount
-	Role           *rbacv1.Role
-	RoleBindings   []rbacv1.RoleBinding
+	Role         *rbacv1.Role
+	RoleBindings []rbacv1.RoleBinding
 }
 
 func createTrialNamespace(exp *redskyv1alpha1.Experiment, namespace string) *trialNamespace {
 	ts := &trialNamespace{}
 
 	// Fill in the details about the service account
-	ts.ServiceAccount.Namespace = namespace
-	ts.ServiceAccount.Name = exp.Spec.Template.Spec.SetupServiceAccountName
-	if ts.ServiceAccount.Name == "" {
-		ts.ServiceAccount.Name = "default"
+	serviceAccountNamespace := exp.Namespace
+	serviceAccountName := exp.Spec.Template.Spec.SetupServiceAccountName
+	if serviceAccountName == "" {
+		serviceAccountName = "default"
 	}
 
 	// Add a namespaced role and binding based on the default setup task policy rules
@@ -175,8 +169,8 @@ func createTrialNamespace(exp *redskyv1alpha1.Experiment, namespace string) *tri
 			},
 			Subjects: []rbacv1.Subject{{
 				Kind:      "ServiceAccount",
-				Name:      ts.ServiceAccount.Name,
-				Namespace: ts.ServiceAccount.Namespace,
+				Name:      serviceAccountName,
+				Namespace: serviceAccountNamespace,
 			}},
 			RoleRef: rbacv1.RoleRef{
 				APIGroup: "rbac.authorization.k8s.io",
@@ -195,8 +189,8 @@ func createTrialNamespace(exp *redskyv1alpha1.Experiment, namespace string) *tri
 			},
 			Subjects: []rbacv1.Subject{{
 				Kind:      "ServiceAccount",
-				Name:      ts.ServiceAccount.Name,
-				Namespace: ts.ServiceAccount.Namespace,
+				Name:      serviceAccountName,
+				Namespace: serviceAccountNamespace,
 			}},
 			RoleRef: rbacv1.RoleRef{
 				APIGroup: "rbac.authorization.k8s.io",
