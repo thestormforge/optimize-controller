@@ -22,35 +22,46 @@ import (
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 )
 
+// GetInitializer returns the initializers for the specified trial
+func GetInitializers(t *redskyv1alpha1.Trial) []string {
+	var initializers []string
+	for _, e := range strings.Split(t.GetAnnotations()[redskyv1alpha1.AnnotationInitializer], ",") {
+		e = strings.TrimSpace(e)
+		if e != "" {
+			initializers = append(initializers, e)
+		}
+	}
+	return initializers
+}
+
+// SetInitializers sets the supplied initializers on the trial
+func SetInitializers(t *redskyv1alpha1.Trial, initializers []string) {
+	a := t.GetAnnotations()
+	if a == nil {
+		a = make(map[string]string, 1)
+	}
+	a[redskyv1alpha1.AnnotationInitializer] = strings.Join(initializers, ",")
+	t.SetAnnotations(a)
+}
+
 // AddInitializer adds an initializer to the trial; returns true only if the trial is changed
 func AddInitializer(t *redskyv1alpha1.Trial, initializer string) bool {
-	annotation := strings.Split(t.GetAnnotations()[redskyv1alpha1.AnnotationInitializer], ",")
-	for i := range annotation {
-		annotation[i] = strings.TrimSpace(annotation[i])
-		if annotation[i] == initializer {
+	init := GetInitializers(t)
+	for _, e := range init {
+		if e == initializer {
 			return false
 		}
 	}
-
-	annotations := t.GetAnnotations()
-	if annotations == nil {
-		annotations = make(map[string]string)
-	}
-
-	annotations[redskyv1alpha1.AnnotationInitializer] = strings.Join(append(annotation, initializer), ",")
-	t.SetAnnotations(annotations)
+	SetInitializers(t, append(init, initializer))
 	return true
 }
 
-// RemoveInitializer removes the first occurrence of an initializer from the trial; return true on if the trial is changed
+// RemoveInitializer removes the first occurrence of an initializer from the trial; returns true only if the trial is changed
 func RemoveInitializer(t *redskyv1alpha1.Trial, initializer string) bool {
-	annotation := strings.Split(t.GetAnnotations()[redskyv1alpha1.AnnotationInitializer], ",")
-	for i := range initializer {
-		annotation[i] = strings.TrimSpace(annotation[i])
-		if annotation[i] == initializer {
-			annotations := t.GetAnnotations()
-			annotations[redskyv1alpha1.AnnotationInitializer] = strings.Join(append(annotation[:i], annotation[i+1:]...), ",")
-			t.SetAnnotations(annotations)
+	init := GetInitializers(t)
+	for i, e := range init {
+		if e == initializer {
+			SetInitializers(t, append(init[:i], init[i+1:]...))
 			return true
 		}
 	}
