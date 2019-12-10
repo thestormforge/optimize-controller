@@ -107,6 +107,14 @@ type PatchTemplate struct {
 	TargetRef *corev1.ObjectReference `json:"targetRef,omitempty"`
 }
 
+// NamespaceTemplateSpec is used as a template for creating new namespaces
+type NamespaceTemplateSpec struct {
+	// Standard object metadata
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+	// Specification of the namespace
+	Spec corev1.NamespaceSpec `json:"spec"`
+}
+
 // TrialTemplateSpec is used as a template for creating new trials
 type TrialTemplateSpec struct {
 	// Standard object metadata
@@ -132,10 +140,10 @@ type ExperimentSpec struct {
 	// Patches is a sequence of templates written against the experiment parameters that will be used to put the
 	// cluster into the desired state
 	Patches []PatchTemplate `json:"patches,omitempty"`
-	// NamespaceSelector is used to determine which namespaces on a cluster can be used to create trials. Only a single
-	// trial can be created in each namespace so if there are fewer matching namespaces then replicas, no trials will
-	// be created
+	// NamespaceSelector
 	NamespaceSelector *metav1.LabelSelector `json:"namespaceSelector,omitempty"`
+	// NamespaceTemplate
+	NamespaceTemplate *NamespaceTemplateSpec `json:"namespaceTemplate,omitempty"`
 	// Selector locates trial resources that are part of this experiment
 	Selector *metav1.LabelSelector `json:"selector,omitempty"`
 	// Template for creating a new trial. The resulting trial must be matched by Selector. The template can provide an

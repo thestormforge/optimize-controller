@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -179,7 +180,7 @@ type TrialSpec struct {
 	// ExperimentRef is the reference to the experiment that contains the definitions to use for this trial,
 	// defaults to an experiment in the same namespace with the same name
 	ExperimentRef *corev1.ObjectReference `json:"experimentRef,omitempty"`
-	// TargetNamespace defines the default namespace of the objects to apply patches to, defaults to the namespace of the trial
+	// TargetNamespace defines an existing namespace where the trial objects are being observed
 	TargetNamespace string `json:"targetNamespace,omitempty"`
 	// Assignments are used to patch the cluster state prior to the trial run
 	Assignments []Assignment `json:"assignments,omitempty"`
@@ -207,6 +208,10 @@ type TrialSpec struct {
 	SetupVolumes []corev1.Volume `json:"setupVolumes,omitempty"`
 	// Service account name for running setup tasks, needs enough permissions to add and remove software
 	SetupServiceAccountName string `json:"setupServiceAccountName,omitempty"`
+	// Cluster role name to be assigned to the setup service account when creating namespaces
+	SetupDefaultClusterRole string `json:"setupDefaultClusterRole,omitempty"`
+	// Policy rules to be assigned to the setup service account when creating namespaces
+	SetupDefaultRules []rbacv1.PolicyRule `json:"setupDefaultRules,omitempty"`
 }
 
 // TrialStatus defines the observed state of Trial

@@ -26,6 +26,9 @@ import (
 // ExperimentNamespacedName returns the namespaced name of the experiment for this trial
 func (in *Trial) ExperimentNamespacedName() types.NamespacedName {
 	nn := types.NamespacedName{Namespace: in.Namespace, Name: in.Name}
+	if in.Labels[LabelExperiment] != "" {
+		nn.Name = in.Labels[LabelExperiment]
+	}
 	if in.Spec.ExperimentRef != nil {
 		if in.Spec.ExperimentRef.Namespace != "" {
 			nn.Namespace = in.Spec.ExperimentRef.Namespace

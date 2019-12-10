@@ -17,23 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-// GetSelfReference returns an object reference to this experiment
-func (in *Experiment) GetSelfReference() *corev1.ObjectReference {
-	if in == nil {
-		return nil
-	}
-	// TODO Is there a standard helper somewhere that does this?
-	return &corev1.ObjectReference{
-		Kind:       in.TypeMeta.Kind,
-		Name:       in.GetName(),
-		Namespace:  in.GetNamespace(),
-		APIVersion: in.TypeMeta.APIVersion,
-	}
-}
 
 // Replicas returns the effective replica (trial) count for the experiment
 func (in *Experiment) Replicas() int32 {
@@ -57,18 +42,15 @@ func (in *Experiment) SetReplicas(r int) {
 	}
 }
 
-// GetDefaultLabels returns a fall back label for when the user has not specified anything
-func (in *Experiment) GetDefaultLabels() map[string]string {
-	return map[string]string{LabelExperiment: in.Name}
-}
-
 // TrialSelector returns a label selector for matching trials associated with the experiment
 func (in *Experiment) TrialSelector() *metav1.LabelSelector {
 	if in.Spec.Selector != nil {
 		return in.Spec.Selector
-	} else if len(in.Spec.Template.Labels) > 0 {
-		return &metav1.LabelSelector{MatchLabels: in.Spec.Template.Labels}
-	} else {
-		return &metav1.LabelSelector{MatchLabels: in.GetDefaultLabels()}
+	}
+
+	return &metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			LabelExperiment: in.Name,
+		},
 	}
 }

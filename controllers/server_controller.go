@@ -65,19 +65,20 @@ func (r *ServerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		}
 	}
 
-	// Create a new trial if necessary
-	if exp.Status.ActiveTrials < exp.Replicas() {
-		if result, err := r.nextTrial(ctx, log, exp); result != nil {
-			return *result, err
-		}
-	}
-
-	// Check each trial
+	// Get the current list of trials
 	trialList := &redskyv1alpha1.TrialList{}
 	if err := r.listTrials(ctx, trialList, exp.TrialSelector()); err != nil {
 		return ctrl.Result{}, err
 	}
 
+	// Create a new trial if necessary
+	if exp.Replicas() > 0 {
+		if result, err := r.nextTrial(ctx, log, exp, trialList); result != nil {
+			return *result, err
+		}
+	}
+
+	// Look for finished or abandoned trials
 	var trialHasFinalizer bool
 	for i := range trialList.Items {
 		t := &trialList.Items[i]
@@ -96,7 +97,7 @@ func (r *ServerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		trialHasFinalizer = trialHasFinalizer || meta.HasFinalizer(t, server.Finalizer)
 	}
 
-	// Delete the experiment
+	// Delete the experiment on the server
 	if !exp.DeletionTimestamp.IsZero() && !trialHasFinalizer {
 		if result, err := r.deleteExperiment(ctx, exp); result != nil {
 			return *result, err
@@ -177,7 +178,7 @@ func (r *ServerReconciler) deleteExperiment(ctx context.Context, exp *redskyv1al
 
 // nextTrial will try to obtain a suggestion from the server and create the corresponding cluster state in the form of
 // a trial; if the cluster can not accommodate additional trials at the time of invocation, not action will be taken
-func (r *ServerReconciler) nextTrial(ctx context.Context, log logr.Logger, exp *redskyv1alpha1.Experiment) (*ctrl.Result, error) {
+func (r *ServerReconciler) nextTrial(ctx context.Context, log logr.Logger, exp *redskyv1alpha1.Experiment, trialList *redskyv1alpha1.TrialList) (*ctrl.Result, error) {
 	// Check if we have an endpoint to obtain trials from
 	nextTrialURL := exp.GetAnnotations()[redskyv1alpha1.AnnotationNextTrialURL]
 	if nextTrialURL == "" {
@@ -185,12 +186,7 @@ func (r *ServerReconciler) nextTrial(ctx context.Context, log logr.Logger, exp *
 	}
 
 	// Determine the namespace (if any) to use for the trial
-	// TODO This logic needs to change so we are creating namespaces
-	trialList := &redskyv1alpha1.TrialList{}
-	if err := r.listTrials(ctx, trialList, exp.TrialSelector()); err != nil {
-		return &ctrl.Result{}, err
-	}
-	namespace, err := experiment.FindAvailableNamespace(r, exp, trialList.Items)
+	namespace, err := experiment.NextTrialNamespace(r, ctx, exp, trialList)
 	if err != nil {
 		return &ctrl.Result{}, err
 	}

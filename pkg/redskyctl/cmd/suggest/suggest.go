@@ -31,6 +31,7 @@ import (
 	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/redsky/v1alpha1"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -60,7 +61,7 @@ type SuggestOptions struct {
 	Suggestions      SuggestionSource
 	RedSkyAPI        *redskyapi.API
 	RedSkyClientSet  *redskykube.Clientset
-	ControllerReader client.Reader
+	ControllerClient client.Client
 
 	cmdutil.IOStreams
 }
@@ -132,10 +133,13 @@ func (o *SuggestOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []
 				if err := corev1.AddToScheme(s); err != nil {
 					return err
 				}
+				if err := rbacv1.AddToScheme(s); err != nil {
+					return err
+				}
 				if cc, err := client.New(rc, client.Options{Scheme: s}); err != nil {
 					return err
 				} else {
-					o.ControllerReader = cc
+					o.ControllerClient = cc
 				}
 			}
 		} else if o.ForceKubernetes {
@@ -162,7 +166,7 @@ func (o *SuggestOptions) Run() error {
 
 	// If we have a clientset then create the suggestion in the Kubernetes cluster
 	if o.RedSkyClientSet != nil {
-		if err := createKubernetesSuggestion(o.Namespace, o.Name, o.Suggestions, o.RedSkyClientSet, o.ControllerReader); err != nil {
+		if err := createKubernetesSuggestion(o.Namespace, o.Name, o.Suggestions, o.RedSkyClientSet, o.ControllerClient); err != nil {
 			return err
 		}
 	}
@@ -222,7 +226,7 @@ func createRedSkyAPISuggestion(name string, suggestions SuggestionSource, api re
 	return err
 }
 
-func createKubernetesSuggestion(namespace, name string, suggestions SuggestionSource, clientset *redskykube.Clientset, controllerClient client.Reader) error {
+func createKubernetesSuggestion(namespace, name string, suggestions SuggestionSource, clientset *redskykube.Clientset, controllerClient client.Client) error {
 	exp, err := clientset.RedskyopsV1alpha1().Experiments(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return err
@@ -240,12 +244,12 @@ func createKubernetesSuggestion(namespace, name string, suggestions SuggestionSo
 		return err
 	}
 
-	trialNamespace, err := experiment.FindAvailableNamespace(controllerClient, exp, trialList.Items)
+	trialNamespace, err := experiment.NextTrialNamespace(controllerClient, context.Background(), exp, trialList)
 	if err != nil {
 		return err
 	}
 	if trialNamespace == "" {
-		return fmt.Errorf("no available namespace to create trial")
+		return fmt.Errorf("experiment is already at scale")
 	}
 
 	trial := &v1alpha1.Trial{}
