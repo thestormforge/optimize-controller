@@ -43,10 +43,9 @@ func PopulateTrialFromTemplate(exp *redskyv1alpha1.Experiment, t *redskyv1alpha1
 		t.Annotations = map[string]string{}
 	}
 
-	// Record the target namespace
-	if t.Namespace == "" {
-		t.Namespace = namespace
-	} else {
+	// Record the target namespace (since trials are owned by experiments, they must be in the same namespace)
+	t.Namespace = exp.Namespace
+	if t.Namespace != namespace {
 		t.Spec.TargetNamespace = namespace
 	}
 
