@@ -112,7 +112,7 @@ type NamespaceTemplateSpec struct {
 	// Standard object metadata
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	// Specification of the namespace
-	Spec corev1.NamespaceSpec `json:"spec"`
+	Spec corev1.NamespaceSpec `json:"spec,omitempty"`
 }
 
 // TrialTemplateSpec is used as a template for creating new trials
@@ -120,7 +120,7 @@ type TrialTemplateSpec struct {
 	// Standard object metadata
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	// Specification of the desired behavior for the trial
-	Spec TrialSpec `json:"spec"`
+	Spec TrialSpec `json:"spec,omitempty"`
 }
 
 // ExperimentSpec defines the desired state of Experiment
@@ -140,9 +140,10 @@ type ExperimentSpec struct {
 	// Patches is a sequence of templates written against the experiment parameters that will be used to put the
 	// cluster into the desired state
 	Patches []PatchTemplate `json:"patches,omitempty"`
-	// NamespaceSelector
+	// NamespaceSelector is used to locate existing namespaces for trials
 	NamespaceSelector *metav1.LabelSelector `json:"namespaceSelector,omitempty"`
-	// NamespaceTemplate
+	// NamespaceTemplate can be specified to create new namespaces for trials; if specified created namespaces must be
+	// matched by the namespace selector
 	NamespaceTemplate *NamespaceTemplateSpec `json:"namespaceTemplate,omitempty"`
 	// Selector locates trial resources that are part of this experiment
 	Selector *metav1.LabelSelector `json:"selector,omitempty"`
