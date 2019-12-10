@@ -106,15 +106,17 @@ func createNamespaceFromTemplate(c client.Client, ctx context.Context, exp *reds
 	if n.Name == "" && n.GenerateName == "" {
 		n.GenerateName = exp.Name + "-"
 	}
-	n.Labels = map[string]string{
-		redskyv1alpha1.LabelExperiment: exp.Name,
-		redskyv1alpha1.LabelTrialRole:  "trialSetup",
+	if n.Labels == nil {
+		n.Labels = map[string]string{}
 	}
+	n.Labels[redskyv1alpha1.LabelExperiment] = exp.Name
+	n.Labels[redskyv1alpha1.LabelTrialRole] = "trialSetup"
+
 	// TODO We should also record the fact that we created the namespace for possible clean up later
 
 	// NOTE: The ignorePermission call is in different places for the namespace and supporting objects because
 	// if the namespace creation fails we cannot continue creating the supporting objects
-	if err := c.Create(ctx, exp); err != nil {
+	if err := c.Create(ctx, n); err != nil {
 		return "", ignorePermissions(err)
 	}
 

@@ -25,7 +25,7 @@ import (
 // AddInitializer adds an initializer to the trial; returns true only if the trial is changed
 func AddInitializer(t *redskyv1alpha1.Trial, initializer string) bool {
 	annotation := strings.Split(t.GetAnnotations()[redskyv1alpha1.AnnotationInitializer], ",")
-	for i := range initializer {
+	for i := range annotation {
 		annotation[i] = strings.TrimSpace(annotation[i])
 		if annotation[i] == initializer {
 			return false
