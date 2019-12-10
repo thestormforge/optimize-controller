@@ -23,10 +23,10 @@ import (
 )
 
 // PopulateTrialFromTemplate creates a new trial for an experiment
-func PopulateTrialFromTemplate(experiment *redskyv1alpha1.Experiment, t *redskyv1alpha1.Trial, namespace string) {
+func PopulateTrialFromTemplate(exp *redskyv1alpha1.Experiment, t *redskyv1alpha1.Trial, namespace string) {
 	// Start with the trial template
-	experiment.Spec.Template.ObjectMeta.DeepCopyInto(&t.ObjectMeta)
-	experiment.Spec.Template.Spec.DeepCopyInto(&t.Spec)
+	exp.Spec.Template.ObjectMeta.DeepCopyInto(&t.ObjectMeta)
+	exp.Spec.Template.Spec.DeepCopyInto(&t.Spec)
 
 	// The creation timestamp is NOT a pointer so it needs an explicit value that serializes to something
 	// TODO This should not be necessary
@@ -51,14 +51,14 @@ func PopulateTrialFromTemplate(experiment *redskyv1alpha1.Experiment, t *redskyv
 	}
 
 	// Record the experiment
-	t.Labels[redskyv1alpha1.LabelExperiment] = experiment.Name
+	t.Labels[redskyv1alpha1.LabelExperiment] = exp.Name
 	t.Spec.ExperimentRef = &corev1.ObjectReference{
-		Name:      experiment.Name,
-		Namespace: experiment.Namespace,
+		Name:      exp.Name,
+		Namespace: exp.Namespace,
 	}
 
 	// Default trial name is the experiment name with a random suffix
 	if t.Name == "" && t.GenerateName == "" {
-		t.GenerateName = experiment.Name + "-"
+		t.GenerateName = exp.Name + "-"
 	}
 }
