@@ -22,12 +22,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func checkSummary(t *testing.T, status *redskyv1alpha1.TrialStatus, expected string) {
+func checkPhase(t *testing.T, status *redskyv1alpha1.TrialStatus, expected string) {
 	tt := &redskyv1alpha1.Trial{Status: *status}
 	UpdateStatus(tt)
-	actual := tt.Status.Summary
+	actual := tt.Status.Phase
 	if actual != expected {
-		t.Errorf("incorrect status: %s (expecting %s)", actual, expected)
+		t.Errorf("incorrect phase: %s (expecting %s)", actual, expected)
 	}
 }
 
@@ -36,7 +36,7 @@ func TestUpdateStatusSummary(t *testing.T) {
 
 	// Initial state, no status
 	status.Conditions = nil
-	checkSummary(t, status, created)
+	checkPhase(t, status, created)
 
 	// First setup probe with at least one setup task
 	status.Conditions = nil
@@ -47,7 +47,7 @@ func TestUpdateStatusSummary(t *testing.T) {
 		Type:   redskyv1alpha1.TrialSetupDeleted,
 		Status: corev1.ConditionUnknown,
 	})
-	checkSummary(t, status, settingUp)
+	checkPhase(t, status, settingUp)
 
 	// Setup create task is running
 	status.Conditions = nil
@@ -58,7 +58,7 @@ func TestUpdateStatusSummary(t *testing.T) {
 		Type:   redskyv1alpha1.TrialSetupDeleted,
 		Status: corev1.ConditionUnknown,
 	})
-	checkSummary(t, status, settingUp)
+	checkPhase(t, status, settingUp)
 
 	// Setup create task is running
 	status.Conditions = nil
@@ -69,7 +69,7 @@ func TestUpdateStatusSummary(t *testing.T) {
 		Type:   redskyv1alpha1.TrialSetupDeleted,
 		Status: corev1.ConditionUnknown,
 	})
-	checkSummary(t, status, setupCreated)
+	checkPhase(t, status, setupCreated)
 
 	// Setup create task never started
 	status.Conditions = nil
@@ -83,7 +83,7 @@ func TestUpdateStatusSummary(t *testing.T) {
 		Type:   redskyv1alpha1.TrialFailed,
 		Status: corev1.ConditionTrue,
 	})
-	checkSummary(t, status, failed)
+	checkPhase(t, status, failed)
 
 	// Setup create task just failed
 	status.Conditions = nil
@@ -97,5 +97,5 @@ func TestUpdateStatusSummary(t *testing.T) {
 		Type:   redskyv1alpha1.TrialFailed,
 		Status: corev1.ConditionTrue,
 	})
-	checkSummary(t, status, failed)
+	checkPhase(t, status, failed)
 }

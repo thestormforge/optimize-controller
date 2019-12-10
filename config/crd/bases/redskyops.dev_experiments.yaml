@@ -9181,13 +9181,13 @@ spec:
               description: ActiveTrials is the observed number of running trials
               format: int32
               type: integer
-            summary:
-              description: Summary is a brief human readable description of the experiment
+            phase:
+              description: Phase is a brief human readable description of the experiment
                 status
               type: string
           required:
           - activeTrials
-          - summary
+          - phase
           type: object
       type: object
   version: v1alpha1

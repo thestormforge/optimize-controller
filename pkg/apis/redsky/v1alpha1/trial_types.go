@@ -216,8 +216,8 @@ type TrialSpec struct {
 
 // TrialStatus defines the observed state of Trial
 type TrialStatus struct {
-	// Summary is a brief human readable description of the trial status
-	Summary string `json:"summary"`
+	// Phase is a brief human readable description of the trial status
+	Phase string `json:"phase"`
 	// Assignments is a string representation of the trial assignments for reporting purposes
 	Assignments string `json:"assignments"`
 	// Values is a string representation of the trial values for reporting purposes

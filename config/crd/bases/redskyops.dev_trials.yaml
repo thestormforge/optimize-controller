@@ -8008,14 +8008,14 @@ spec:
                 - type
                 type: object
               type: array
+            phase:
+              description: Phase is a brief human readable description of the trial
+                status
+              type: string
             startTime:
               description: StartTime is the effective (possibly adjusted) time the
                 trial run job started
               format: date-time
-              type: string
-            summary:
-              description: Summary is a brief human readable description of the trial
-                status
               type: string
             values:
               description: Values is a string representation of the trial values for
@@ -8023,7 +8023,7 @@ spec:
               type: string
           required:
           - assignments
-          - summary
+          - phase
           - values
           type: object
       type: object

@@ -36,7 +36,7 @@ const (
 // UpdateStatus will ensure the experiment's status matches what is in the supplied trial list; returns true only if
 // changes were necessary
 func UpdateStatus(exp *redskyv1alpha1.Experiment, trialList *redskyv1alpha1.TrialList) bool {
-	summary := created
+	phase := created
 	activeTrials := int32(0)
 
 	// Count up the trials by state
@@ -50,26 +50,26 @@ func UpdateStatus(exp *redskyv1alpha1.Experiment, trialList *redskyv1alpha1.Tria
 	// The order if this if/else block is very specific
 	if exp.Replicas() == 0 {
 		if !exp.GetDeletionTimestamp().IsZero() {
-			summary = deleted
+			phase = deleted
 		} else if exp.Annotations[redskyv1alpha1.AnnotationExperimentURL] != "" && exp.Annotations[redskyv1alpha1.AnnotationNextTrialURL] == "" {
 			// Either we got paused using manual suggestions (which doesn't make sense because you don't need to pause)
 			// ...or we hit the end of the experiment and the server told us to stop
-			summary = completed
+			phase = completed
 		} else {
-			summary = paused
+			phase = paused
 		}
 	} else if len(trialList.Items) == 0 {
-		summary = empty
+		phase = empty
 	} else if activeTrials == 0 {
-		summary = idle
+		phase = idle
 	} else {
-		summary = running
+		phase = running
 	}
 
 	// Update the status object
 	var dirty bool
-	if exp.Status.Summary != summary {
-		exp.Status.Summary = summary
+	if exp.Status.Phase != phase {
+		exp.Status.Phase = phase
 		dirty = true
 	}
 	if exp.Status.ActiveTrials != activeTrials {

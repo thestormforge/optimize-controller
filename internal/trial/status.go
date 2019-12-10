@@ -46,13 +46,13 @@ const (
 
 // UpdateStatus will make sure the trial status matches the current state of the trial; returns true only if changes were necessary
 func UpdateStatus(t *redskyv1alpha1.Trial) bool {
-	summary := summarize(t)
+	phase := summarize(t)
 	assignments := assignments(t)
 	values := values(t)
 
 	var dirty bool
-	if t.Status.Summary != summary {
-		t.Status.Summary = summary
+	if t.Status.Phase != phase {
+		t.Status.Phase = phase
 		dirty = true
 	}
 	if t.Status.Assignments != assignments {

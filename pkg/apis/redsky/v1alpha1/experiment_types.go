@@ -155,8 +155,8 @@ type ExperimentSpec struct {
 
 // ExperimentStatus defines the observed state of Experiment
 type ExperimentStatus struct {
-	// Summary is a brief human readable description of the experiment status
-	Summary string `json:"summary"`
+	// Phase is a brief human readable description of the experiment status
+	Phase string `json:"phase"`
 	// ActiveTrials is the observed number of running trials
 	ActiveTrials int32 `json:"activeTrials"`
 	// TODO Number of trials: Succeeded, Failed int32 (this would need to be fetch remotely, falling back to the in cluster count)
