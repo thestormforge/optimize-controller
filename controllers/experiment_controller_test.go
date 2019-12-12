@@ -74,9 +74,6 @@ var _ = Describe("Experiment Controller", func() {
 				e := &redskyv1alpha1.Experiment{}
 				return k8sClient.Get(context.Background(), key, e)
 			}, timeout, interval).ShouldNot(Succeed())
-
-			_, err = redSkyAPI.GetExperimentByName(context.Background(), redskyapi.NewExperimentName(key.Name))
-			Expect(err).ShouldNot(Succeed())
 		})
 	})
 })

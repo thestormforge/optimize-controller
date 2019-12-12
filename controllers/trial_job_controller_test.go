@@ -21,6 +21,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	"golang.org/x/net/context"
@@ -45,6 +46,16 @@ var _ = Describe("Trial Controller", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      key.Name,
 					Namespace: key.Namespace,
+				},
+				Status: redskyv1alpha1.TrialStatus{
+					Conditions: []redskyv1alpha1.TrialCondition{
+						{
+							Type:               redskyv1alpha1.TrialPatched,
+							Status:             corev1.ConditionTrue,
+							LastProbeTime:      metav1.Now(),
+							LastTransitionTime: metav1.Now(),
+						},
+					},
 				},
 			}
 
