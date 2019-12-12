@@ -227,13 +227,7 @@ func (r *ServerReconciler) nextTrial(ctx context.Context, log logr.Logger, exp *
 
 // reportTrial will report the values from a finished in cluster trial back to the server
 func (r *ServerReconciler) reportTrial(ctx context.Context, log logr.Logger, t *redskyv1alpha1.Trial) (*ctrl.Result, error) {
-	// If the report URL has been removed, make sure the finalizer is also removed
-	reportTrialURL := t.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL]
-	if reportTrialURL == "" {
-		if meta.RemoveFinalizer(t, server.Finalizer) {
-			err := r.Update(ctx, t)
-			return controller.RequeueConflict(err)
-		}
+	if !meta.RemoveFinalizer(t, server.Finalizer) {
 		return nil, nil
 	}
 
@@ -241,11 +235,14 @@ func (r *ServerReconciler) reportTrial(ctx context.Context, log logr.Logger, t *
 	// places in the code: i.e. we do the Kube API update *first* before trying to update the server (we are more likely
 	// to conflict in the Kube API); this also means that returning an empty `ctrl.Result` will still result in an
 	// immediate call back into the reconciliation logic since we *do not* return from a successful Kube API update.
-
-	// Remove the report trial URL from the trial before updating the server
-	delete(t.GetAnnotations(), redskyv1alpha1.AnnotationReportTrialURL)
 	if err := r.Update(ctx, t); err != nil {
 		return controller.RequeueConflict(err)
+	}
+
+	// Even if there is no report URL, we still removed the finalizer and need to return a non-nil result
+	reportTrialURL := t.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL]
+	if reportTrialURL == "" {
+		return &ctrl.Result{}, nil
 	}
 
 	// Create an observation for the remote server and log it
@@ -255,7 +252,6 @@ func (r *ServerReconciler) reportTrial(ctx context.Context, log logr.Logger, t *
 
 	// Send the observation to the server
 	err := r.RedSkyAPI.ReportTrial(ctx, reportTrialURL, *trialValues)
-	// TODO Restore `reportTrialURL` annotation to retry on error?
 	return &ctrl.Result{}, controller.IgnoreNotFound(err)
 }
 
@@ -265,11 +261,11 @@ func (r *ServerReconciler) abandonTrial(ctx context.Context, t *redskyv1alpha1.T
 		return nil, nil
 	}
 
+	// TODO Should this be more like the report trial logic in terms of updating Kube first?
 	if reportTrialURL := t.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL]; reportTrialURL != "" {
 		if err := r.RedSkyAPI.AbandonRunningTrial(ctx, reportTrialURL); controller.IgnoreNotFound(err) != nil {
 			return &ctrl.Result{}, err
 		}
-		delete(t.GetAnnotations(), redskyv1alpha1.AnnotationReportTrialURL)
 	}
 
 	err := r.Update(ctx, t)
