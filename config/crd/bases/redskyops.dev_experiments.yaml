@@ -8,6 +8,11 @@ metadata:
   creationTimestamp: null
   name: experiments.redskyops.dev
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.phase
+    description: Experiment status
+    name: Status
+    type: string
   group: redskyops.dev
   names:
     kind: Experiment
@@ -135,10 +140,8 @@ spec:
                 type: object
               type: array
             namespaceSelector:
-              description: NamespaceSelector is used to determine which namespaces
-                on a cluster can be used to create trials. Only a single trial can
-                be created in each namespace so if there are fewer matching namespaces
-                then replicas, no trials will be created
+              description: NamespaceSelector is used to locate existing namespaces
+                for trials
               properties:
                 matchExpressions:
                   description: matchExpressions is a list of label selector requirements.
@@ -178,6 +181,28 @@ spec:
                     of matchExpressions, whose key field is "key", the operator is
                     "In", and the values array contains only "value". The requirements
                     are ANDed.
+                  type: object
+              type: object
+            namespaceTemplate:
+              description: NamespaceTemplate can be specified to create new namespaces
+                for trials; if specified created namespaces must be matched by the
+                namespace selector
+              properties:
+                metadata:
+                  description: Standard object metadata
+                  type: object
+                spec:
+                  description: Specification of the namespace
+                  properties:
+                    finalizers:
+                      description: 'Finalizers is an opaque list of values that must
+                        be empty to permanently remove object from storage. More info:
+                        https://kubernetes.io/docs/tasks/administer-cluster/namespaces/'
+                      items:
+                        description: FinalizerName is the name identifying a finalizer
+                          during namespace lifecycle.
+                        type: string
+                      type: array
                   type: object
               type: object
             parallelism:
@@ -502,6 +527,63 @@ spec:
                             only "value". The requirements are ANDed.
                           type: object
                       type: object
+                    setupDefaultClusterRole:
+                      description: Cluster role name to be assigned to the setup service
+                        account when creating namespaces
+                      type: string
+                    setupDefaultRules:
+                      description: Policy rules to be assigned to the setup service
+                        account when creating namespaces
+                      items:
+                        description: PolicyRule holds information that describes a
+                          policy rule, but does not contain information about who
+                          the rule applies to or which namespace the rule applies
+                          to.
+                        properties:
+                          apiGroups:
+                            description: APIGroups is the name of the APIGroup that
+                              contains the resources.  If multiple API groups are
+                              specified, any action requested against one of the enumerated
+                              resources in any API group will be allowed.
+                            items:
+                              type: string
+                            type: array
+                          nonResourceURLs:
+                            description: NonResourceURLs is a set of partial urls
+                              that a user should have access to.  *s are allowed,
+                              but only as the full, final step in the path Since non-resource
+                              URLs are not namespaced, this field is only applicable
+                              for ClusterRoles referenced from a ClusterRoleBinding.
+                              Rules can either apply to API resources (such as "pods"
+                              or "secrets") or non-resource URL paths (such as "/api"),  but
+                              not both.
+                            items:
+                              type: string
+                            type: array
+                          resourceNames:
+                            description: ResourceNames is an optional white list of
+                              names that the rule applies to.  An empty set means
+                              that everything is allowed.
+                            items:
+                              type: string
+                            type: array
+                          resources:
+                            description: Resources is a list of resources this rule
+                              applies to.  ResourceAll represents all resources.
+                            items:
+                              type: string
+                            type: array
+                          verbs:
+                            description: Verbs is a list of Verbs that apply to ALL
+                              the ResourceKinds and AttributeRestrictions contained
+                              in this rule.  VerbAll represents all kinds.
+                            items:
+                              type: string
+                            type: array
+                        required:
+                        - verbs
+                        type: object
+                      type: array
                     setupServiceAccountName:
                       description: Service account name for running setup tasks, needs
                         enough permissions to add and remove software
@@ -1914,9 +1996,8 @@ spec:
                         for spin up of the trial run
                       type: string
                     targetNamespace:
-                      description: TargetNamespace defines the default namespace of
-                        the objects to apply patches to, defaults to the namespace
-                        of the trial
+                      description: TargetNamespace defines an existing namespace where
+                        the trial objects are being observed
                       type: string
                     template:
                       description: Template is the job template used to create trial
@@ -9089,8 +9170,6 @@ spec:
                         type: object
                       type: array
                   type: object
-              required:
-              - spec
               type: object
           required:
           - template
@@ -9102,8 +9181,13 @@ spec:
               description: ActiveTrials is the observed number of running trials
               format: int32
               type: integer
+            phase:
+              description: Phase is a brief human readable description of the experiment
+                status
+              type: string
           required:
           - activeTrials
+          - phase
           type: object
       type: object
   version: v1alpha1

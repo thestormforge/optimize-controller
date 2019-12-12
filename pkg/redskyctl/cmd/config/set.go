@@ -20,8 +20,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/redskyops/k8s-experiment/pkg/api"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
+	redskyclient "github.com/redskyops/k8s-experiment/redskyapi"
 	"github.com/spf13/cobra"
 )
 
@@ -79,7 +79,7 @@ func (o *ConfigSetOptions) Complete(args []string) error {
 }
 
 func (o *ConfigSetOptions) Run() error {
-	cfg, err := api.DefaultConfig()
+	cfg, err := redskyclient.DefaultConfig()
 	if err != nil {
 		return err
 	}

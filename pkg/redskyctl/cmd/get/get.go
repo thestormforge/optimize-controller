@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"reflect"
 
-	redsky "github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1"
 	redskykube "github.com/redskyops/k8s-experiment/pkg/kubernetes"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
+	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/redsky/v1alpha1"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/util/jsonpath"
 )
@@ -43,7 +43,7 @@ type GetOptions struct {
 	SortBy    string
 
 	Printer         cmdutil.ResourcePrinter
-	RedSkyAPI       *redsky.API
+	RedSkyAPI       *redskyapi.API
 	RedSkyClientSet *redskykube.Clientset
 
 	cmdutil.IOStreams

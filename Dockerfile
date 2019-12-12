@@ -13,9 +13,11 @@ COPY go.sum go.sum
 RUN go mod download
 
 # Copy the go source
-COPY cmd/manager/main.go main.go
-COPY pkg/ pkg/
+COPY main.go main.go
 COPY controllers/ controllers/
+COPY internal/ internal/
+COPY pkg/ pkg/
+COPY redskyapi/ redskyapi/
 
 # Build
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -ldflags "${LDFLAGS}" -a -o manager main.go

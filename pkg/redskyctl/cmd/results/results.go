@@ -30,8 +30,8 @@ import (
 	"time"
 
 	"github.com/pkg/browser"
-	"github.com/redskyops/k8s-experiment/pkg/api"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
+	redskyclient "github.com/redskyops/k8s-experiment/redskyapi"
 	"github.com/redskyops/redskyops-ui/ui"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -187,14 +187,14 @@ func (o *ResultsOptions) handleUI(serveMux *http.ServeMux, prefix string) error 
 
 func (o *ResultsOptions) handleAPI(serveMux *http.ServeMux, prefix string) error {
 	// Configure a director to rewrite request URLs
-	address, err := api.GetAddress(o.BackendConfig)
+	address, err := redskyclient.GetAddress(o.BackendConfig)
 	if err != nil {
 		return err
 	}
 	rp := &RewriteProxy{Address: *address}
 
 	// Configure a transport to provide OAuth2 tokens to the backend
-	transport, err := api.ConfigureOAuth2(o.BackendConfig, context.Background(), nil)
+	transport, err := redskyclient.ConfigureOAuth2(o.BackendConfig, context.Background(), nil)
 	if err != nil {
 		return err
 	}

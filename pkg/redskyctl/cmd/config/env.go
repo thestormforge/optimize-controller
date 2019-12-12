@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/redskyops/k8s-experiment/pkg/api"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
+	redskyclient "github.com/redskyops/k8s-experiment/redskyapi"
 	"github.com/spf13/cobra"
 )
 
@@ -62,7 +62,7 @@ func NewConfigEnvCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.
 
 func (o *ConfigEnvOptions) Run() error {
 	// It would be nice if we could just access the bindings stored in Viper
-	cfg, err := api.DefaultConfig()
+	cfg, err := redskyclient.DefaultConfig()
 	if err != nil {
 		return err
 	}
@@ -79,7 +79,7 @@ func (o *ConfigEnvOptions) Run() error {
 
 		// When we are not targeting the manager, resolve the full URL (e.g. so you can use it in cURL)
 		if !o.Manager {
-			if b, err := api.GetAddress(cfg); err == nil {
+			if b, err := redskyclient.GetAddress(cfg); err == nil {
 				if r, err := b.Parse(cfg.GetString("oauth2.token_url")); err == nil {
 					env["REDSKY_OAUTH2_TOKEN_URL"] = r.String()
 				}

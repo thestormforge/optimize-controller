@@ -17,7 +17,7 @@ limitations under the License.
 package util
 
 import (
-	client "github.com/redskyops/k8s-experiment/pkg/api"
+	redskyclient "github.com/redskyops/k8s-experiment/redskyapi"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
@@ -45,7 +45,7 @@ func (f *ServerFlags) AddFlags(flags *pflag.FlagSet) {
 }
 
 func (f *ServerFlags) ToClientConfig() (*viper.Viper, error) {
-	clientConfig, err := client.DefaultConfig()
+	clientConfig, err := redskyclient.DefaultConfig()
 	if err != nil {
 		return nil, err
 	}

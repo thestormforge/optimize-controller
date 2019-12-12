@@ -18,15 +18,16 @@ package get
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
 	"strings"
 
-	redsky "github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1"
-	"github.com/redskyops/k8s-experiment/pkg/controller/experiment"
+	meta2 "github.com/redskyops/k8s-experiment/internal/meta"
+	"github.com/redskyops/k8s-experiment/internal/server"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
-	"github.com/redskyops/k8s-experiment/pkg/util"
+	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/redsky/v1alpha1"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -80,11 +81,11 @@ func RunGetTrialList(o *GetOptions, meta *trialTableMeta) error {
 	return nil
 }
 
-func getRedSkyAPITrialList(o *GetOptions, meta *trialTableMeta) (*redsky.TrialList, error) {
+func getRedSkyAPITrialList(o *GetOptions, meta *trialTableMeta) (*redskyapi.TrialList, error) {
 	api := *o.RedSkyAPI
 
 	// Get the experiment
-	exp, err := api.GetExperimentByName(context.TODO(), redsky.NewExperimentName(o.Name))
+	exp, err := api.GetExperimentByName(context.TODO(), redskyapi.NewExperimentName(o.Name))
 	if err != nil {
 		return nil, err
 	}
@@ -99,9 +100,9 @@ func getRedSkyAPITrialList(o *GetOptions, meta *trialTableMeta) (*redsky.TrialLi
 	}
 
 	// Fetch the trial data
-	tq := &redsky.TrialListQuery{Status: []redsky.TrialStatus{redsky.TrialActive, redsky.TrialCompleted, redsky.TrialFailed}}
+	tq := &redskyapi.TrialListQuery{Status: []redskyapi.TrialStatus{redskyapi.TrialActive, redskyapi.TrialCompleted, redskyapi.TrialFailed}}
 	if exp.Trials == "" {
-		return &redsky.TrialList{}, nil
+		return &redskyapi.TrialList{}, nil
 	} else if tl, err := api.GetAllTrials(context.TODO(), exp.Trials, tq); err != nil {
 		return nil, err
 	} else {
@@ -109,7 +110,7 @@ func getRedSkyAPITrialList(o *GetOptions, meta *trialTableMeta) (*redsky.TrialLi
 	}
 }
 
-func getKubernetesTrialList(o *GetOptions, meta *trialTableMeta) (*redsky.TrialList, error) {
+func getKubernetesTrialList(o *GetOptions, meta *trialTableMeta) (*redskyapi.TrialList, error) {
 	clientset := o.RedSkyClientSet
 
 	// Get the experiment
@@ -128,29 +129,40 @@ func getKubernetesTrialList(o *GetOptions, meta *trialTableMeta) (*redsky.TrialL
 	}
 
 	// Fetch the trial data
-	list := &redsky.TrialList{}
+	list := &redskyapi.TrialList{}
 	opts := metav1.ListOptions{}
-	if sel, err := util.MatchingSelector(exp.GetTrialSelector()); err != nil {
+	if sel, err := meta2.MatchingSelector(exp.TrialSelector()); err != nil {
 		return nil, err
 	} else {
 		sel.ApplyToListOptions(&opts)
 	}
 	if tl, err := clientset.RedskyopsV1alpha1().Trials("").List(opts); err != nil {
 		return nil, err
-	} else if err := experiment.ConvertTrialList(tl, list); err != nil {
-		return nil, err
+	} else {
+		for i := range tl.Items {
+			t := redskyapi.TrialItem{TrialValues: *server.FromClusterTrial(&tl.Items[i])}
+			for i := range tl.Items[i].Spec.Assignments {
+				t.TrialAssignments.Assignments = append(t.TrialAssignments.Assignments, redskyapi.Assignment{
+					ParameterName: tl.Items[i].Spec.Assignments[i].Name,
+					Value:         json.Number(strconv.FormatInt(tl.Items[i].Spec.Assignments[i].Value, 10)),
+				})
+			}
+
+			// TODO Copy labels over? Status?
+			list.Trials = append(list.Trials, t)
+		}
 	}
 	return filterAndSortTrials(list, o.Selector, o.SortBy)
 }
 
-func filterAndSortTrials(tl *redsky.TrialList, selector, sortBy string) (*redsky.TrialList, error) {
+func filterAndSortTrials(tl *redskyapi.TrialList, selector, sortBy string) (*redskyapi.TrialList, error) {
 	sel, err := labels.Parse(selector)
 	if err != nil {
 		return nil, err
 	}
 
 	if !sel.Empty() {
-		var filtered []redsky.TrialItem
+		var filtered []redskyapi.TrialItem
 		for i := range tl.Trials {
 			// TODO Add status into the label map?
 			if sel.Matches(labels.Set(tl.Trials[i].Labels)) {
@@ -168,7 +180,7 @@ func filterAndSortTrials(tl *redsky.TrialList, selector, sortBy string) (*redsky
 }
 
 // Slightly modifies the schema of the trial item to make it easier to specify sort orders
-func sortableTrialData(item *redsky.TrialItem) map[string]interface{} {
+func sortableTrialData(item *redskyapi.TrialItem) map[string]interface{} {
 	assignments := make(map[string]int64, len(item.Assignments))
 	for i := range item.Assignments {
 		if a, err := item.Assignments[i].Value.Int64(); err == nil {
@@ -200,7 +212,7 @@ type trialTableMeta struct {
 }
 
 func (*trialTableMeta) IsListType(obj interface{}) bool {
-	if _, ok := obj.(*redsky.TrialList); ok {
+	if _, ok := obj.(*redskyapi.TrialList); ok {
 		return true
 	}
 	return false
@@ -208,7 +220,7 @@ func (*trialTableMeta) IsListType(obj interface{}) bool {
 
 func (*trialTableMeta) ExtractList(obj interface{}) ([]interface{}, error) {
 	switch o := obj.(type) {
-	case *redsky.TrialList:
+	case *redskyapi.TrialList:
 		list := make([]interface{}, len(o.Trials))
 		for i := range o.Trials {
 			list[i] = &o.Trials[i]
@@ -221,7 +233,7 @@ func (*trialTableMeta) ExtractList(obj interface{}) ([]interface{}, error) {
 
 func (t *trialTableMeta) ExtractValue(obj interface{}, column string) (string, error) {
 	switch o := obj.(type) {
-	case *redsky.TrialItem:
+	case *redskyapi.TrialItem:
 		if strings.HasPrefix(column, "parameter_") {
 			column = strings.TrimPrefix(column, "parameter_")
 			for i := range o.Assignments {

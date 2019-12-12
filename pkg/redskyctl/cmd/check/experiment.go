@@ -21,8 +21,8 @@ import (
 	"io/ioutil"
 	"strings"
 
+	"github.com/redskyops/k8s-experiment/internal/template"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
-	"github.com/redskyops/k8s-experiment/pkg/controller/template"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -158,7 +158,7 @@ func checkMetric(lint Linter, metric *redskyv1alpha1.Metric) {
 		lint.Error().Invalid("scheme", metric.Scheme, "http", "https")
 	}
 
-	if _, _, err := template.NewTemplateEngine().RenderMetricQueries(metric, &redskyv1alpha1.Trial{}, nil); err != nil {
+	if _, _, err := template.New().RenderMetricQueries(metric, &redskyv1alpha1.Trial{}, nil); err != nil {
 		lint.Error().Failed("query", err)
 	}
 
@@ -189,7 +189,7 @@ func checkPatch(lint Linter, patch *redskyv1alpha1.PatchTemplate) {
 		lint.Error().Missing("kind")
 	}
 
-	if _, err := template.NewTemplateEngine().RenderPatch(patch, &redskyv1alpha1.Trial{}); err != nil {
+	if _, err := template.New().RenderPatch(patch, &redskyv1alpha1.Trial{}); err != nil {
 		lint.Error().Failed("patch", err)
 	}
 

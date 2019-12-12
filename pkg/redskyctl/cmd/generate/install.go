@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/redskyops/k8s-experiment/pkg/controller/trial"
+	"github.com/redskyops/k8s-experiment/internal/setup"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 )
@@ -88,9 +88,9 @@ func (o *GenerateInstallOptions) Run() error {
 	args = append(args, "--rm", "--quiet")
 
 	// Use the image embedded in the code
-	args = append(args, "--image", trial.Image)
+	args = append(args, "--image", setup.Image)
 	// TODO We may need to overwrite this for offline clusters
-	args = append(args, "--image-pull-policy", trial.ImagePullPolicy)
+	args = append(args, "--image-pull-policy", setup.ImagePullPolicy)
 
 	// Do not allow the pod to access the API
 	args = append(args, "--overrides", `{"spec":{"automountServiceAccountToken":false}}`)

@@ -22,8 +22,8 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"github.com/redskyops/k8s-experiment/pkg/api/redsky/v1alpha1"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
+	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/redsky/v1alpha1"
 	"golang.org/x/net/context"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -43,14 +43,11 @@ var _ = Describe("Experiment Controller", func() {
 				Namespace: "default",
 			}
 
-			spec := redskyv1alpha1.ExperimentSpec{}
-
 			instance := &redskyv1alpha1.Experiment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      key.Name,
 					Namespace: key.Namespace,
 				},
-				Spec: spec,
 			}
 
 			Expect(k8sClient.Create(context.Background(), instance)).Should(Succeed())
@@ -62,7 +59,7 @@ var _ = Describe("Experiment Controller", func() {
 				return e.GetAnnotations()[redskyv1alpha1.AnnotationExperimentURL]
 			}, timeout, interval).ShouldNot(BeEmpty())
 
-			_, err = redSkyAPI.GetExperimentByName(context.Background(), v1alpha1.NewExperimentName(key.Name))
+			_, err = redSkyAPI.GetExperimentByName(context.Background(), redskyapi.NewExperimentName(key.Name))
 			Expect(err).Should(Succeed())
 
 			By("Expecting to delete successfully")
@@ -78,7 +75,7 @@ var _ = Describe("Experiment Controller", func() {
 				return k8sClient.Get(context.Background(), key, e)
 			}, timeout, interval).ShouldNot(Succeed())
 
-			_, err = redSkyAPI.GetExperimentByName(context.Background(), v1alpha1.NewExperimentName(key.Name))
+			_, err = redSkyAPI.GetExperimentByName(context.Background(), redskyapi.NewExperimentName(key.Name))
 			Expect(err).ShouldNot(Succeed())
 		})
 	})

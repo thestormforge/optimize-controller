@@ -22,18 +22,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-const (
-	// Annotation that contains the URL of the experiment on the remote server
-	AnnotationExperimentURL = "redskyops.dev/experiment-url"
-	// Annotation that contains the URL used to obtain the next trial suggestion
-	AnnotationNextTrialURL = "redskyops.dev/next-trial-url"
-	// Annotation that contains the URL used to report trial observations
-	AnnotationReportTrialURL = "redskyops.dev/report-trial-url"
-
-	// Label that contains the name of the experiment associated with an object
-	LabelExperiment = "redskyops.dev/experiment"
-)
-
 // Parameter represents the domain of a single component of the experiment search space
 type Parameter struct {
 	// The name of the parameter
@@ -107,12 +95,20 @@ type PatchTemplate struct {
 	TargetRef *corev1.ObjectReference `json:"targetRef,omitempty"`
 }
 
+// NamespaceTemplateSpec is used as a template for creating new namespaces
+type NamespaceTemplateSpec struct {
+	// Standard object metadata
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+	// Specification of the namespace
+	Spec corev1.NamespaceSpec `json:"spec,omitempty"`
+}
+
 // TrialTemplateSpec is used as a template for creating new trials
 type TrialTemplateSpec struct {
 	// Standard object metadata
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	// Specification of the desired behavior for the trial
-	Spec TrialSpec `json:"spec"`
+	Spec TrialSpec `json:"spec,omitempty"`
 }
 
 // ExperimentSpec defines the desired state of Experiment
@@ -132,10 +128,11 @@ type ExperimentSpec struct {
 	// Patches is a sequence of templates written against the experiment parameters that will be used to put the
 	// cluster into the desired state
 	Patches []PatchTemplate `json:"patches,omitempty"`
-	// NamespaceSelector is used to determine which namespaces on a cluster can be used to create trials. Only a single
-	// trial can be created in each namespace so if there are fewer matching namespaces then replicas, no trials will
-	// be created
+	// NamespaceSelector is used to locate existing namespaces for trials
 	NamespaceSelector *metav1.LabelSelector `json:"namespaceSelector,omitempty"`
+	// NamespaceTemplate can be specified to create new namespaces for trials; if specified created namespaces must be
+	// matched by the namespace selector
+	NamespaceTemplate *NamespaceTemplateSpec `json:"namespaceTemplate,omitempty"`
 	// Selector locates trial resources that are part of this experiment
 	Selector *metav1.LabelSelector `json:"selector,omitempty"`
 	// Template for creating a new trial. The resulting trial must be matched by Selector. The template can provide an
@@ -146,15 +143,18 @@ type ExperimentSpec struct {
 
 // ExperimentStatus defines the observed state of Experiment
 type ExperimentStatus struct {
+	// Phase is a brief human readable description of the experiment status
+	Phase string `json:"phase"`
 	// ActiveTrials is the observed number of running trials
 	ActiveTrials int32 `json:"activeTrials"`
-	// TODO Number of trials: Succeeded, Failed int32 (this is difficult, if not impossible, because we delete trials)
+	// TODO Number of trials: Succeeded, Failed int32 (this would need to be fetch remotely, falling back to the in cluster count)
 }
 
 // +genclient
 // +kubebuilder:object:root=true
 
 // Experiment is the Schema for the experiments API
+// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase",description="Experiment status"
 type Experiment struct {
 	metav1.TypeMeta `json:",inline"`
 	// Standard object metadata

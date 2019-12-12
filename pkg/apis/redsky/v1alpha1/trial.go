@@ -26,6 +26,9 @@ import (
 // ExperimentNamespacedName returns the namespaced name of the experiment for this trial
 func (in *Trial) ExperimentNamespacedName() types.NamespacedName {
 	nn := types.NamespacedName{Namespace: in.Namespace, Name: in.Name}
+	if in.Labels[LabelExperiment] != "" {
+		nn.Name = in.Labels[LabelExperiment]
+	}
 	if in.Spec.ExperimentRef != nil {
 		if in.Spec.ExperimentRef.Namespace != "" {
 			nn.Namespace = in.Spec.ExperimentRef.Namespace
@@ -45,6 +48,14 @@ func (in *Trial) GetDefaultLabels() map[string]string {
 // Checks to see if the trial has an initializer
 func (in *Trial) HasInitializer() bool {
 	return strings.TrimSpace(in.GetAnnotations()[AnnotationInitializer]) != ""
+}
+
+// TargetNamespace returns the target namespace, defaulting to the trial namespace
+func (in *Trial) TargetNamespace() string {
+	if n := in.Spec.TargetNamespace; n != "" {
+		return n
+	}
+	return in.Namespace
 }
 
 // Returns an assignment value by name

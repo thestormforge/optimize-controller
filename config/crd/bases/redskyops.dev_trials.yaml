@@ -9,6 +9,10 @@ metadata:
   name: trials.redskyops.dev
 spec:
   additionalPrinterColumns:
+  - JSONPath: .status.phase
+    description: Trial status
+    name: Status
+    type: string
   - JSONPath: .status.assignments
     description: Current assignments
     name: Assignments
@@ -217,6 +221,61 @@ spec:
                     are ANDed.
                   type: object
               type: object
+            setupDefaultClusterRole:
+              description: Cluster role name to be assigned to the setup service account
+                when creating namespaces
+              type: string
+            setupDefaultRules:
+              description: Policy rules to be assigned to the setup service account
+                when creating namespaces
+              items:
+                description: PolicyRule holds information that describes a policy
+                  rule, but does not contain information about who the rule applies
+                  to or which namespace the rule applies to.
+                properties:
+                  apiGroups:
+                    description: APIGroups is the name of the APIGroup that contains
+                      the resources.  If multiple API groups are specified, any action
+                      requested against one of the enumerated resources in any API
+                      group will be allowed.
+                    items:
+                      type: string
+                    type: array
+                  nonResourceURLs:
+                    description: NonResourceURLs is a set of partial urls that a user
+                      should have access to.  *s are allowed, but only as the full,
+                      final step in the path Since non-resource URLs are not namespaced,
+                      this field is only applicable for ClusterRoles referenced from
+                      a ClusterRoleBinding. Rules can either apply to API resources
+                      (such as "pods" or "secrets") or non-resource URL paths (such
+                      as "/api"),  but not both.
+                    items:
+                      type: string
+                    type: array
+                  resourceNames:
+                    description: ResourceNames is an optional white list of names
+                      that the rule applies to.  An empty set means that everything
+                      is allowed.
+                    items:
+                      type: string
+                    type: array
+                  resources:
+                    description: Resources is a list of resources this rule applies
+                      to.  ResourceAll represents all resources.
+                    items:
+                      type: string
+                    type: array
+                  verbs:
+                    description: Verbs is a list of Verbs that apply to ALL the ResourceKinds
+                      and AttributeRestrictions contained in this rule.  VerbAll represents
+                      all kinds.
+                    items:
+                      type: string
+                    type: array
+                required:
+                - verbs
+                type: object
+              type: array
             setupServiceAccountName:
               description: Service account name for running setup tasks, needs enough
                 permissions to add and remove software
@@ -1534,8 +1593,8 @@ spec:
                 spin up of the trial run
               type: string
             targetNamespace:
-              description: TargetNamespace defines the default namespace of the objects
-                to apply patches to, defaults to the namespace of the trial
+              description: TargetNamespace defines an existing namespace where the
+                trial objects are being observed
               type: string
             template:
               description: Template is the job template used to create trial run jobs
@@ -7949,6 +8008,10 @@ spec:
                 - type
                 type: object
               type: array
+            phase:
+              description: Phase is a brief human readable description of the trial
+                status
+              type: string
             startTime:
               description: StartTime is the effective (possibly adjusted) time the
                 trial run job started
@@ -7960,6 +8023,7 @@ spec:
               type: string
           required:
           - assignments
+          - phase
           - values
           type: object
       type: object

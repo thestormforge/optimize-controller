@@ -19,7 +19,7 @@ package version
 import "strings"
 
 var (
-	Version       = "v1.2.4"
+	Version       = "v1.3.0"
 	BuildMetadata = "unreleased"
 	GitCommit     = ""
 )

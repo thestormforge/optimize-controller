@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/redskyops/k8s-experiment/pkg/controller/trial"
+	"github.com/redskyops/k8s-experiment/internal/setup"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/redskyops/k8s-experiment/pkg/version"
 	"github.com/spf13/cobra"
@@ -100,7 +100,7 @@ func (o *VersionOptions) Run() error {
 
 	if o.SetupToolsImage {
 		// TODO We should have an option to print this as JSON with the pull policy, e.g. `{"image":"...", "imagePullPolicy":"..."}`...
-		_, err := fmt.Fprintf(o.Out, "%s\n", trial.Image)
+		_, err := fmt.Fprintf(o.Out, "%s\n", setup.Image)
 		return err
 	}
 

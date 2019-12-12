@@ -22,27 +22,27 @@ ifneq ($(origin BUILD_METADATA), undefined)
     LDFLAGS += -X github.com/redskyops/k8s-experiment/pkg/version.BuildMetadata=${BUILD_METADATA}
 endif
 LDFLAGS += -X github.com/redskyops/k8s-experiment/pkg/version.GitCommit=$(shell git rev-parse HEAD)
-LDFLAGS += -X github.com/redskyops/k8s-experiment/pkg/controller/trial.Image=${SETUPTOOLS_IMG}
-LDFLAGS += -X github.com/redskyops/k8s-experiment/pkg/controller/trial.ImagePullPolicy=${PULL_POLICY}
+LDFLAGS += -X github.com/redskyops/k8s-experiment/internal/setup.Image=${SETUPTOOLS_IMG}
+LDFLAGS += -X github.com/redskyops/k8s-experiment/internal/setup.ImagePullPolicy=${PULL_POLICY}
 
 all: manager tool
 
 # Run tests
 test: generate fmt vet manifests
-	go test ./controllers/... ./pkg/... ./cmd/... -coverprofile cover.out
+	go test ./... -coverprofile cover.out
 
 # Build manager binary
 manager: generate fmt vet
-	go build -ldflags '$(LDFLAGS)' -o bin/manager cmd/manager/main.go
+	go build -ldflags '$(LDFLAGS)' -o bin/manager main.go
 
 # Build tool binary for all supported platforms
 tool: generate fmt vet
-	GOOS=darwin GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o bin/redskyctl-darwin-amd64 cmd/redskyctl/main.go
-	GOOS=linux GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o bin/redskyctl-linux-amd64 cmd/redskyctl/main.go
+	GOOS=darwin GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o bin/redskyctl-darwin-amd64 redskyctl/main.go
+	GOOS=linux GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o bin/redskyctl-linux-amd64 redskyctl/main.go
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate fmt vet manifests
-	go run ./cmd/manager/main.go
+	go run ./main.go
 
 # Install CRDs into a cluster
 install: manifests
@@ -59,19 +59,19 @@ deploy: manifests
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./pkg/apis/...;./controllers/...;./cmd/..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./controllers/...;./pkg/apis/..." output:crd:artifacts:config=config/crd/bases
 
 # Run go fmt against code
 fmt:
-	go fmt ./controllers/... ./pkg/... ./cmd/...
+	go fmt ./...
 
 # Run go vet against code
 vet:
-	go vet ./controllers/... ./pkg/... ./cmd/...
+	go vet ./...
 
 # Generate code
 generate: controller-gen
-	$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths="./pkg/apis/...;./controllers/...;./cmd/..."
+	$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths="./..."
 
 # Build the docker images
 docker-build:
@@ -108,5 +108,5 @@ generate-client:
 
 # Generate CLI and API documentation
 generate-docs:
-	go run -ldflags '$(LDFLAGS)' cmd/redskyctl/main.go docs --directory docs/redskyctl
-	go run -ldflags '$(LDFLAGS)' cmd/redskyctl/main.go docs --directory docs/api --doc-type api
+	go run -ldflags '$(LDFLAGS)' redskyctl/main.go docs --directory docs/redskyctl
+	go run -ldflags '$(LDFLAGS)' redskyctl/main.go docs --directory docs/api --doc-type api

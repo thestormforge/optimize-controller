@@ -31,7 +31,6 @@ redskyctl [flags]
 * [redskyctl kustomize](redskyctl_kustomize.md)	 - Kustomize integrations
 * [redskyctl reset](redskyctl_reset.md)	 - Uninstall from a cluster
 * [redskyctl results](redskyctl_results.md)	 - Serve a visualization of the results
-* [redskyctl status](redskyctl_status.md)	 - Check in cluster experiment status
 * [redskyctl suggest](redskyctl_suggest.md)	 - Suggest assignments
 * [redskyctl version](redskyctl_version.md)	 - Print the version information
 
