@@ -181,6 +181,10 @@ func assignments(t *redskyv1alpha1.Trial) string {
 }
 
 func values(t *redskyv1alpha1.Trial) string {
+	if CheckCondition(&t.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue) {
+		return ""
+	}
+
 	values := make([]string, len(t.Spec.Values))
 	for i := range t.Spec.Values {
 		if t.Spec.Values[i].AttemptsRemaining == 0 {
