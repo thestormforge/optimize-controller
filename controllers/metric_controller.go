@@ -50,24 +50,16 @@ func (r *MetricReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	now := metav1.Now()
 
-	// Fetch the Trial instance
 	t := &redskyv1alpha1.Trial{}
-	if err := r.Get(ctx, req.NamespacedName, t); err != nil {
+	if err := r.Get(ctx, req.NamespacedName, t); err != nil || r.ignoreTrial(t) {
 		return ctrl.Result{}, controller.IgnoreNotFound(err)
 	}
 
-	// If the trial is already finished or deleted or not yet complete, there is nothing for us to do
-	if trial.IsFinished(t) || t.Status.CompletionTime == nil || !t.DeletionTimestamp.IsZero() {
-		return ctrl.Result{}, nil
-	}
-
-	// Get the metric definitions from the experiment and collect the values
-	if result, err := r.collectMetrics(ctx, t, &now); result != nil {
+	if result, err := r.evaluateMetrics(ctx, t, &now); result != nil {
 		return *result, err
 	}
 
-	// Update the trial status, this will mark the trial as finished
-	if result, err := r.finish(ctx, t, &now); result != nil {
+	if result, err := r.collectMetrics(ctx, t, &now); result != nil {
 		return *result, err
 	}
 
@@ -81,36 +73,93 @@ func (r *MetricReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *MetricReconciler) collectMetrics(ctx context.Context, t *redskyv1alpha1.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
-	// Fetch the experiment
-	e := &redskyv1alpha1.Experiment{}
-	if err := r.Get(ctx, t.ExperimentNamespacedName(), e); err != nil {
-		return &ctrl.Result{}, err
+func (r *MetricReconciler) ignoreTrial(t *redskyv1alpha1.Trial) bool {
+	// Ignore deleted trials
+	if !t.DeletionTimestamp.IsZero() {
+		return true
 	}
-	if len(e.Spec.Metrics) == 0 {
+
+	// Ignore failed trials
+	if trial.CheckCondition(&t.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue) {
+		return true
+	}
+
+	// Ignore trials to do not have defined start/completion times
+	// NOTE: This checks the status to prevent needing to reproduce job start/completion lookup logic
+	if t.Status.StartTime == nil || t.Status.CompletionTime == nil {
+		return true
+	}
+
+	// Do not ignore trials that have metrics pending collection
+	for i := range t.Spec.Values {
+		if t.Spec.Values[i].AttemptsRemaining > 0 {
+			return false
+		}
+	}
+
+	// Do not ignore trials if we haven't finished processing them
+	if !trial.CheckCondition(&t.Status, redskyv1alpha1.TrialObserved, corev1.ConditionTrue) {
+		return false
+	}
+
+	// Ignore everything else
+	return true
+}
+
+func (r *MetricReconciler) evaluateMetrics(ctx context.Context, t *redskyv1alpha1.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
+	// TODO This check precludes manual additions of Values
+	if len(t.Spec.Values) > 0 {
 		return nil, nil
 	}
 
-	// Make sure we have a trial observed status
-	if _, ok := trial.CheckCondition(&t.Status, redskyv1alpha1.TrialObserved, corev1.ConditionUnknown); !ok {
+	// Get the experiment
+	exp := &redskyv1alpha1.Experiment{}
+	if err := r.Get(ctx, t.ExperimentNamespacedName(), exp); err != nil {
+		return &ctrl.Result{}, err
+	}
+
+	// Evaluate the metrics
+	for _, m := range exp.Spec.Metrics {
+		t.Spec.Values = append(t.Spec.Values, redskyv1alpha1.Value{
+			Name:              m.Name,
+			AttemptsRemaining: 3,
+		})
+	}
+
+	// Update the status to indicate that we will be collecting metrics
+	if len(t.Spec.Values) > 0 {
 		trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialObserved, corev1.ConditionUnknown, "", "", probeTime)
 		err := r.Update(ctx, t)
 		return controller.RequeueConflict(err)
 	}
 
-	// Look for metrics that have not been collected yet
+	return nil, nil
+}
+
+func (r *MetricReconciler) collectMetrics(ctx context.Context, t *redskyv1alpha1.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
+	// Index the metric definitions
+	exp := &redskyv1alpha1.Experiment{}
+	if err := r.Get(ctx, t.ExperimentNamespacedName(), exp); err != nil {
+		return &ctrl.Result{}, err
+	}
+	metrics := make(map[string]*redskyv1alpha1.Metric, len(exp.Spec.Metrics))
+	for i := range exp.Spec.Metrics {
+		metrics[exp.Spec.Metrics[i].Name] = &exp.Spec.Metrics[i]
+	}
+
+	// Iterate over the metric values, looking for remaining attempts
 	log := r.Log.WithValues("trial", fmt.Sprintf("%s/%s", t.Namespace, t.Name))
-	for _, m := range e.Spec.Metrics {
-		v := findOrCreateValue(t, m.Name)
+	for i := range t.Spec.Values {
+		v := &t.Spec.Values[i]
 		if v.AttemptsRemaining == 0 {
 			continue
 		}
 
 		// Capture the metric
 		var captureError error
-		if target, err := r.target(ctx, t.TargetNamespace(), &m); err != nil {
+		if target, err := r.target(ctx, t.TargetNamespace(), metrics[v.Name]); err != nil {
 			captureError = err
-		} else if value, stddev, err := metric.CaptureMetric(&m, t, target); err != nil {
+		} else if value, stddev, err := metric.CaptureMetric(metrics[v.Name], t, target); err != nil {
 			if merr, ok := err.(*metric.CaptureError); ok && merr.RetryAfter > 0 {
 				// Do not count retries against the remaining attempts
 				return &ctrl.Result{RequeueAfter: merr.RetryAfter}, nil
@@ -136,33 +185,16 @@ func (r *MetricReconciler) collectMetrics(ctx context.Context, t *redskyv1alpha1
 			}
 		}
 
-		// Set the observed condition to false since we have observed at least one, but possibly not all of, the metrics
+		// We have started collecting metrics (success or fail), transition into a false status
 		trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialObserved, corev1.ConditionFalse, "", "", probeTime)
-
 		err := r.Update(ctx, t)
 		return controller.RequeueConflict(err)
 	}
 
-	return nil, nil
-}
-
-func (r *MetricReconciler) finish(ctx context.Context, t *redskyv1alpha1.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
-	// Only update (do not create) the observed condition
-	if cc, ok := trial.CheckCondition(&t.Status, redskyv1alpha1.TrialObserved, corev1.ConditionTrue); ok && !cc {
-		trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialObserved, corev1.ConditionTrue, "", "", probeTime)
-		err := r.Update(ctx, t)
-		return controller.RequeueConflict(err)
-	}
-
-	// Mark the trial as completed
-	// TODO This should be part of the trial controller
-	if cc, ok := trial.CheckCondition(&t.Status, redskyv1alpha1.TrialComplete, corev1.ConditionTrue); !ok || !cc {
-		trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialComplete, corev1.ConditionTrue, "", "", nil)
-		err := r.Update(ctx, t)
-		return controller.RequeueConflict(err)
-	}
-
-	return nil, nil
+	// We made it through all of the metrics without needing additional changes
+	trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialObserved, corev1.ConditionTrue, "", "", probeTime)
+	err := r.Update(ctx, t)
+	return controller.RequeueConflict(err)
 }
 
 func (r *MetricReconciler) target(ctx context.Context, namespace string, m *redskyv1alpha1.Metric) (runtime.Object, error) {
@@ -190,15 +222,4 @@ func (r *MetricReconciler) target(ctx context.Context, namespace string, m *reds
 		// Assume no target is necessary
 		return nil, nil
 	}
-}
-
-func findOrCreateValue(trial *redskyv1alpha1.Trial, name string) *redskyv1alpha1.Value {
-	for i := range trial.Spec.Values {
-		if trial.Spec.Values[i].Name == name {
-			return &trial.Spec.Values[i]
-		}
-	}
-
-	trial.Spec.Values = append(trial.Spec.Values, redskyv1alpha1.Value{Name: name, AttemptsRemaining: 3})
-	return &trial.Spec.Values[len(trial.Spec.Values)-1]
 }

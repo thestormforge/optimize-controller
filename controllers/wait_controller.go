@@ -55,24 +55,12 @@ func (r *WaitReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	now := metav1.Now()
 
-	// Fetch the Trial instance
 	t := &redskyv1alpha1.Trial{}
-	if err := r.Get(ctx, req.NamespacedName, t); err != nil {
+	if err := r.Get(ctx, req.NamespacedName, t); err != nil || r.ignoreTrial(t) {
 		return ctrl.Result{}, controller.IgnoreNotFound(err)
 	}
 
-	// If the trial is already finished or deleted there is nothing for us to do
-	if trial.IsFinished(t) || !t.DeletionTimestamp.IsZero() {
-		return ctrl.Result{}, nil
-	}
-
-	// Wait for a stable (ish) state
 	if result, err := r.wait(ctx, t, &now); result != nil {
-		return *result, err
-	}
-
-	// Update the trial status
-	if result, err := r.finish(ctx, t, &now); result != nil {
 		return *result, err
 	}
 
@@ -87,12 +75,51 @@ func (r *WaitReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
+func (r *WaitReconciler) ignoreTrial(t *redskyv1alpha1.Trial) bool {
+	// Ignore deleted trials
+	if !t.DeletionTimestamp.IsZero() {
+		return true
+	}
+
+	// Ignore failed trials
+	if trial.CheckCondition(&t.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue) {
+		return true
+	}
+
+	// Ignore trials whose patches have not been evaluated yet
+	// NOTE: If "trial patched" is not unknown, then `len(t.Spec.PatchOperations) == 0` means the experiment had no patches
+	if trial.CheckCondition(&t.Status, redskyv1alpha1.TrialPatched, corev1.ConditionUnknown) {
+		return true
+	}
+
+	// Ignore trials that have patches which still need to be applied
+	for i := range t.Spec.PatchOperations {
+		if t.Spec.PatchOperations[i].AttemptsRemaining > 0 {
+			return true
+		}
+	}
+
+	// Do not ignore trials that have pending waits
+	for i := range t.Spec.PatchOperations {
+		if t.Spec.PatchOperations[i].Wait {
+			return false
+		}
+	}
+
+	// Do not ignore trials if we haven't finished processing them
+	if !trial.CheckCondition(&t.Status, redskyv1alpha1.TrialStable, corev1.ConditionTrue) {
+		return false
+	}
+
+	// Ignore everything else
+	return true
+}
+
 func (r *WaitReconciler) wait(ctx context.Context, t *redskyv1alpha1.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
 	var requeueAfter time.Duration
 	for i := range t.Spec.PatchOperations {
 		p := &t.Spec.PatchOperations[i]
 		if !p.Wait {
-			// We have already reached stability for this patch (eventually the whole list should be in this state)
 			continue
 		}
 
@@ -108,7 +135,6 @@ func (r *WaitReconciler) wait(ctx context.Context, t *redskyv1alpha1.Trial, prob
 
 			// Fail the trial since we couldn't detect a stable state
 			trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "WaitFailed", err.Error(), probeTime)
-
 			err := r.Update(ctx, t)
 			return controller.RequeueConflict(err)
 		}
@@ -116,9 +142,8 @@ func (r *WaitReconciler) wait(ctx context.Context, t *redskyv1alpha1.Trial, prob
 		// Mark that we have successfully waited for this patch
 		p.Wait = false
 
-		// Either overwrite the "waiting" reason from an earlier iteration or change the status from "unknown" to "false"
+		// We have started waiting, transition into a false status (without overwriting previous message)
 		trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialStable, corev1.ConditionFalse, "", "", probeTime)
-
 		err := r.Update(ctx, t)
 		return controller.RequeueConflict(err)
 	}
@@ -128,7 +153,10 @@ func (r *WaitReconciler) wait(ctx context.Context, t *redskyv1alpha1.Trial, prob
 		return &ctrl.Result{RequeueAfter: requeueAfter}, nil
 	}
 
-	return nil, nil
+	// We made it through all of the waits without needing additional changes
+	trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialStable, corev1.ConditionTrue, "", "", probeTime)
+	err := r.Update(ctx, t)
+	return controller.RequeueConflict(err)
 }
 
 func (r *WaitReconciler) waitFor(ctx context.Context, p *redskyv1alpha1.PatchOperation) error {
@@ -198,24 +226,6 @@ func (r *WaitReconciler) waitFor(ctx context.Context, p *redskyv1alpha1.PatchOpe
 	}
 
 	return err
-}
-
-func (r *WaitReconciler) finish(ctx context.Context, t *redskyv1alpha1.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
-	// TODO Remove this once we know why it is actually needed
-	for _, c := range t.Status.Conditions {
-		if c.Type == redskyv1alpha1.TrialStable && c.LastTransitionTime.Add(1*time.Second).After(probeTime.Time) {
-			return &ctrl.Result{RequeueAfter: 1 * time.Second}, nil
-		}
-	}
-
-	// If there is a stable condition that is not yet true, update the status
-	if cc, ok := trial.CheckCondition(&t.Status, redskyv1alpha1.TrialStable, corev1.ConditionTrue); ok && !cc {
-		trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialStable, corev1.ConditionTrue, "", "", probeTime)
-		err := r.Update(ctx, t)
-		return controller.RequeueConflict(err)
-	}
-
-	return nil, nil
 }
 
 func name(ref corev1.ObjectReference) types.NamespacedName {

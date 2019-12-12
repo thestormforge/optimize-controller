@@ -25,6 +25,7 @@ import (
 	"github.com/redskyops/k8s-experiment/internal/meta"
 	"github.com/redskyops/k8s-experiment/internal/trial"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,29 +38,25 @@ type ExperimentReconciler struct {
 }
 
 // +kubebuilder:rbac:groups=redskyops.dev,resources=experiments,verbs=get;list;watch;update
-// +kubebuilder:rbac:groups=redskyops.dev,resources=trials,verbs=list;watch;delete
+// +kubebuilder:rbac:groups=redskyops.dev,resources=trials,verbs=list;watch;update;delete
 
 func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 
-	// Fetch the Experiment instance
 	exp := &redskyv1alpha1.Experiment{}
 	if err := r.Get(ctx, req.NamespacedName, exp); err != nil {
 		return ctrl.Result{}, controller.IgnoreNotFound(err)
 	}
 
-	// Find trials labeled for this experiment
 	trialList := &redskyv1alpha1.TrialList{}
 	if err := r.listTrials(ctx, trialList, exp.TrialSelector()); err != nil {
 		return ctrl.Result{}, err
 	}
 
-	// Update experiment status
 	if result, err := r.updateStatus(ctx, exp, trialList); result != nil {
 		return *result, err
 	}
 
-	// Clean up trials
 	if result, err := r.cleanupTrials(ctx, exp, trialList); result != nil {
 		return *result, err
 	}
@@ -75,11 +72,21 @@ func (r *ExperimentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// updateStatus will ensure the experiment status matches the current state
+// updateStatus will ensure the experiment and trial status matches the current state
 func (r *ExperimentReconciler) updateStatus(ctx context.Context, exp *redskyv1alpha1.Experiment, trialList *redskyv1alpha1.TrialList) (*ctrl.Result, error) {
+	// Update the experiment status
 	if experiment.UpdateStatus(exp, trialList) {
 		err := r.Update(ctx, exp)
 		return controller.RequeueConflict(err)
+	}
+
+	// Update the trial status
+	for i := range trialList.Items {
+		t := &trialList.Items[i]
+		if trial.UpdateStatus(t) {
+			err := r.Update(ctx, t)
+			return controller.RequeueConflict(err)
+		}
 	}
 	return nil, nil
 }
@@ -89,16 +96,29 @@ func (r *ExperimentReconciler) cleanupTrials(ctx context.Context, exp *redskyv1a
 	for i := range trialList.Items {
 		t := &trialList.Items[i]
 
-		// Cleanup finished trials
+		// Delete inactive trials that have expired
 		if trial.NeedsCleanup(t) {
 			err := r.Delete(ctx, t)
 			return &ctrl.Result{}, err
 		}
 
+		// No further clean up necessary on finished trials
+		if trial.IsFinished(t) {
+			continue
+		}
+
 		// If the experiment was deleted, delete the trial instead of waiting for it to finish
-		if !trial.IsFinished(t) && !exp.GetDeletionTimestamp().IsZero() && t.GetDeletionTimestamp().IsZero() {
+		if !exp.GetDeletionTimestamp().IsZero() && t.GetDeletionTimestamp().IsZero() {
 			err := r.Delete(ctx, t)
 			return &ctrl.Result{}, err
+		}
+
+		// If the trial has been observed, mark it as complete (the IsFinished check above prevents re-entry)
+		if trial.CheckCondition(&t.Status, redskyv1alpha1.TrialObserved, corev1.ConditionTrue) {
+			now := metav1.Now()
+			trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialComplete, corev1.ConditionTrue, "", "", &now)
+			err := r.Update(ctx, t)
+			return controller.RequeueConflict(err)
 		}
 	}
 	return nil, nil

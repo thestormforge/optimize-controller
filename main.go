@@ -135,7 +135,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Setup")
 		os.Exit(1)
 	}
-	if err = (&controllers.TrialReconciler{
+	if err = (&controllers.TrialJobReconciler{
 		Client: mgr.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("Trial"),
 		Scheme: mgr.GetScheme(),

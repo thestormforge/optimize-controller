@@ -37,11 +37,9 @@ func NewJob(t *redskyv1alpha1.Trial) *batchv1.Job {
 	}
 
 	// Provide default metadata
+	job.Namespace = t.Namespace
 	if job.Name == "" {
 		job.Name = t.Name
-	}
-	if job.Namespace == "" {
-		job.Namespace = t.Namespace
 	}
 
 	// Provide default labels

@@ -40,7 +40,11 @@ func SetInitializers(t *redskyv1alpha1.Trial, initializers []string) {
 	if a == nil {
 		a = make(map[string]string, 1)
 	}
-	a[redskyv1alpha1.AnnotationInitializer] = strings.Join(initializers, ",")
+	if len(initializers) > 0 {
+		a[redskyv1alpha1.AnnotationInitializer] = strings.Join(initializers, ",")
+	} else {
+		delete(a, redskyv1alpha1.AnnotationInitializer)
+	}
 	t.SetAnnotations(a)
 }
 

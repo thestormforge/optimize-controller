@@ -49,34 +49,16 @@ func (r *PatchReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	now := metav1.Now()
 
-	// Fetch the Trial instance
 	t := &redskyv1alpha1.Trial{}
-	if err := r.Get(ctx, req.NamespacedName, t); err != nil {
+	if err := r.Get(ctx, req.NamespacedName, t); err != nil || r.ignoreTrial(t) {
 		return ctrl.Result{}, controller.IgnoreNotFound(err)
 	}
 
-	// If the trial is already finished or deleted there is nothing for us to do
-	if trial.IsFinished(t) || !t.DeletionTimestamp.IsZero() {
-		return ctrl.Result{}, nil
-	}
-
-	// Patches can be evaluated while the initializer is still present
 	if result, err := r.evaluatePatches(ctx, t, &now); result != nil {
 		return *result, err
 	}
 
-	// Check the "initializer" annotation, do not progress unless it is empty (don't requeue, wait for a change)
-	if t.HasInitializer() {
-		return ctrl.Result{}, nil
-	}
-
-	// Apply the patches, one at a time, until they all have no remaining attempts
 	if result, err := r.applyPatches(ctx, t, &now); result != nil {
-		return *result, err
-	}
-
-	// Finish up any status updates
-	if result, err := r.finish(ctx, t, &now); result != nil {
 		return *result, err
 	}
 
@@ -90,9 +72,41 @@ func (r *PatchReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
+func (r *PatchReconciler) ignoreTrial(t *redskyv1alpha1.Trial) bool {
+	// Ignore deleted trials
+	if !t.DeletionTimestamp.IsZero() {
+		return true
+	}
+
+	// Ignore failed trials
+	if trial.CheckCondition(&t.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue) {
+		return true
+	}
+
+	// Ignore trials that have an initializer
+	if t.HasInitializer() {
+		return true
+	}
+
+	// Do not ignore trials that have pending patches
+	for i := range t.Spec.PatchOperations {
+		if t.Spec.PatchOperations[i].AttemptsRemaining > 0 {
+			return false
+		}
+	}
+
+	// Do not ignore trials if we haven't finished processing them
+	if !trial.CheckCondition(&t.Status, redskyv1alpha1.TrialPatched, corev1.ConditionTrue) {
+		return false
+	}
+
+	// Ignore everything else
+	return true
+}
+
 // evaluatePatches will render the patch templates from the experiment using the trial assignments to create "patch operations" on the trial
 func (r *PatchReconciler) evaluatePatches(ctx context.Context, t *redskyv1alpha1.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
-	// TODO This check precludes manual additions of PatchOperations, but getting the experiment every time seems excessive
+	// TODO This check precludes manual additions of PatchOperations
 	if len(t.Spec.PatchOperations) > 0 {
 		return nil, nil
 	}
@@ -106,11 +120,6 @@ func (r *PatchReconciler) evaluatePatches(ctx context.Context, t *redskyv1alpha1
 	// Make sure the assignments are valid
 	if err := validation.CheckAssignments(t, exp); err != nil {
 		return &ctrl.Result{}, err
-	}
-
-	// Skip updating status if there are no patches on the experiment
-	if len(exp.Spec.Patches) == 0 {
-		return nil, nil
 	}
 
 	// Evaluate the patches
@@ -135,9 +144,13 @@ func (r *PatchReconciler) evaluatePatches(ctx context.Context, t *redskyv1alpha1
 	}
 
 	// Update the status to indicate that we will be patching
-	trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialPatched, corev1.ConditionUnknown, "", "", probeTime)
-	err := r.Update(ctx, t)
-	return controller.RequeueConflict(err)
+	if len(t.Spec.PatchOperations) > 0 {
+		trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialPatched, corev1.ConditionUnknown, "", "", probeTime)
+		err := r.Update(ctx, t)
+		return controller.RequeueConflict(err)
+	}
+
+	return nil, nil
 }
 
 // applyPatches will actually patch the objects from the patch operations
@@ -163,10 +176,6 @@ func (r *PatchReconciler) applyPatches(ctx context.Context, t *redskyv1alpha1.Tr
 			}
 		} else {
 			p.AttemptsRemaining = 0
-			if p.Wait {
-				// We successfully applied a patch that requires a wait, use an unknown status until we actually start waiting
-				trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialStable, corev1.ConditionUnknown, "", "", probeTime)
-			}
 		}
 
 		// We have started applying patches (success or fail), transition into a false status
@@ -175,19 +184,10 @@ func (r *PatchReconciler) applyPatches(ctx context.Context, t *redskyv1alpha1.Tr
 		return controller.RequeueConflict(err)
 	}
 
-	return nil, nil
-}
-
-// finish will update the trial status to indicate we are finished patching
-func (r *PatchReconciler) finish(ctx context.Context, t *redskyv1alpha1.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
-	// This will not add the patched condition if it is not there (e.g. the experiment had no patches)
-	if cc, ok := trial.CheckCondition(&t.Status, redskyv1alpha1.TrialPatched, corev1.ConditionTrue); ok && !cc {
-		trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialPatched, corev1.ConditionTrue, "", "", probeTime)
-		err := r.Update(ctx, t)
-		return controller.RequeueConflict(err)
-	}
-
-	return nil, nil
+	// We made it through all of the patches without needing additional changes
+	trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialPatched, corev1.ConditionTrue, "", "", probeTime)
+	err := r.Update(ctx, t)
+	return controller.RequeueConflict(err)
 }
 
 func createPatchOperation(p *redskyv1alpha1.PatchTemplate, data []byte) (*redskyv1alpha1.PatchOperation, error) {

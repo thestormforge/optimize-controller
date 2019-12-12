@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/redskyops/k8s-experiment/internal/controller"
@@ -33,8 +34,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-// TrialReconciler reconciles a Trial object
-type TrialReconciler struct {
+// TrialJobReconciler reconciles a Trial's job
+type TrialJobReconciler struct {
 	client.Client
 	Log    logr.Logger
 	Scheme *runtime.Scheme
@@ -43,51 +44,23 @@ type TrialReconciler struct {
 // +kubebuilder:rbac:groups=redskyops.dev,resources=trials,verbs=get;list;watch;update
 // +kubebuilder:rbac:groups=batch;extensions,resources=jobs,verbs=list;watch;create
 // +kubebuilder:rbac:groups="",resources=pods,verbs=list
-// +kubebuilder:rbac:groups="",resources=services,verbs=list
 
-func (r *TrialReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (r *TrialJobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	now := metav1.Now()
-
-	// Fetch the Trial instance
 	t := &redskyv1alpha1.Trial{}
-	if err := r.Get(ctx, req.NamespacedName, t); err != nil {
+	if err := r.Get(ctx, req.NamespacedName, t); err != nil || r.ignoreTrial(t) {
 		return ctrl.Result{}, controller.IgnoreNotFound(err)
 	}
 
-	// Update the status if necessary
-	if result, err := r.updateStatus(ctx, t); result != nil {
+	if result, err := r.runTrialJob(ctx, t, &now); result != nil {
 		return *result, err
 	}
 
-	// If the trial is being initialized, or is already finished or deleted there is nothing for us to do
-	if t.HasInitializer() || trial.IsFinished(t) || !t.DeletionTimestamp.IsZero() {
-		return ctrl.Result{}, nil
-	}
-
-	// List the trial jobs; really, there should only ever be 0 or 1 matching jobs
-	jobList, err := r.listJobs(ctx, t)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-
-	// Update the trial status using the job status
-	if result, err := r.updateStatusFromJob(ctx, t, jobList, &now); result != nil {
-		return *result, err
-	}
-
-	// If there are no trial jobs, try to create one
-	if len(jobList.Items) == 0 {
-		if result, err := r.createJob(ctx, t); result != nil {
-			return *result, err
-		}
-	}
-
-	// Nothing changed
 	return ctrl.Result{}, nil
 }
 
-func (r *TrialReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *TrialJobReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named("trial").
 		For(&redskyv1alpha1.Trial{}).
@@ -95,16 +68,67 @@ func (r *TrialReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// updateStatus will ensure the trial status matches the current state
-func (r *TrialReconciler) updateStatus(ctx context.Context, t *redskyv1alpha1.Trial) (*ctrl.Result, error) {
-	if trial.UpdateStatus(t) {
-		err := r.Update(ctx, t)
-		return controller.RequeueConflict(err)
+func (r *TrialJobReconciler) ignoreTrial(t *redskyv1alpha1.Trial) bool {
+	// Ignore deleted trials
+	if !t.DeletionTimestamp.IsZero() {
+		return true
 	}
-	return nil, nil
+
+	// Ignore failed trials
+	if trial.CheckCondition(&t.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue) {
+		return true
+	}
+
+	// Ignore trials that already have a start and completion time
+	if t.Status.StartTime != nil && t.Status.CompletionTime != nil {
+		return true
+	}
+
+	// Ignore trials that have an initializer
+	if t.HasInitializer() {
+		return true
+	}
+
+	// Ignore trials whose patches have not been evaluated yet
+	// NOTE: If "trial patched" is not unknown, then `len(t.Spec.PatchOperations) == 0` means the experiment had no patches
+	if trial.CheckCondition(&t.Status, redskyv1alpha1.TrialPatched, corev1.ConditionUnknown) {
+		return true
+	}
+
+	// Ignore trials that have not stabilized
+	for i := range t.Spec.PatchOperations {
+		if t.Spec.PatchOperations[i].Wait {
+			return true
+		}
+	}
+
+	return false
 }
 
-func (r *TrialReconciler) updateStatusFromJob(ctx context.Context, t *redskyv1alpha1.Trial, jobList *batchv1.JobList, probeTime *metav1.Time) (*ctrl.Result, error) {
+func (r *TrialJobReconciler) runTrialJob(ctx context.Context, t *redskyv1alpha1.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
+	// TODO Remove this once we know why it is actually needed (if it is needed)
+	for _, c := range t.Status.Conditions {
+		if c.Type == redskyv1alpha1.TrialStable && c.LastTransitionTime.Add(1*time.Second).After(probeTime.Time) {
+			return &ctrl.Result{RequeueAfter: 1 * time.Second}, nil
+		}
+	}
+
+	// List the trial jobs; really, there should only ever be 0 or 1 matching jobs
+	jobList := &batchv1.JobList{}
+	if err := r.listJobs(ctx, jobList, t); err != nil {
+		return &ctrl.Result{}, err
+	}
+
+	if len(jobList.Items) == 0 {
+		job := trial.NewJob(t)
+		if err := controllerutil.SetControllerReference(t, job, r.Scheme); err != nil {
+			return &ctrl.Result{}, err
+		}
+
+		err := r.Create(ctx, job)
+		return &ctrl.Result{}, err
+	}
+
 	for i := range jobList.Items {
 		if update, requeue := r.applyJobStatus(ctx, t, &jobList.Items[i], probeTime); update {
 			err := r.Update(ctx, t)
@@ -114,44 +138,18 @@ func (r *TrialReconciler) updateStatusFromJob(ctx context.Context, t *redskyv1al
 			return &ctrl.Result{Requeue: true}, nil
 		}
 	}
+
 	return nil, nil
 }
 
-func (r *TrialReconciler) createJob(ctx context.Context, t *redskyv1alpha1.Trial) (*ctrl.Result, error) {
-	// TODO This is all basically to avoid a race condition creating the job too early
-	// TODO We should always add unknown so we can just return when the condition == ConditionFalse
-	if len(t.Spec.SetupTasks) > 0 {
-		if cc, ok := trial.CheckCondition(&t.Status, redskyv1alpha1.TrialSetupCreated, corev1.ConditionTrue); !ok || !cc {
-			return nil, nil
-		}
-	}
-	if len(t.Spec.PatchOperations) > 0 {
-		if cc, ok := trial.CheckCondition(&t.Status, redskyv1alpha1.TrialPatched, corev1.ConditionTrue); !ok || !cc {
-			return nil, nil
-		}
-		if cc, ok := trial.CheckCondition(&t.Status, redskyv1alpha1.TrialStable, corev1.ConditionTrue); !ok || !cc {
-			return nil, nil
-		}
-	}
-
-	job := trial.NewJob(t)
-	if err := controllerutil.SetControllerReference(t, job, r.Scheme); err != nil {
-		return &ctrl.Result{}, err
-	}
-
-	err := r.Create(ctx, job)
-	return &ctrl.Result{}, err
-}
-
 // listJobs will return all of the jobs for the trial
-func (r *TrialReconciler) listJobs(ctx context.Context, t *redskyv1alpha1.Trial) (*batchv1.JobList, error) {
-	jobList := &batchv1.JobList{}
+func (r *TrialJobReconciler) listJobs(ctx context.Context, jobList *batchv1.JobList, t *redskyv1alpha1.Trial) error {
 	matchingSelector, err := meta.MatchingSelector(t.GetJobSelector())
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if err := r.List(ctx, jobList, matchingSelector); err != nil {
-		return nil, err
+		return err
 	}
 
 	// Setup jobs always have "role=trialSetup" so ignore jobs with that label
@@ -164,10 +162,10 @@ func (r *TrialReconciler) listJobs(ctx context.Context, t *redskyv1alpha1.Trial)
 	}
 	jobList.Items = items
 
-	return jobList, nil
+	return nil
 }
 
-func (r *TrialReconciler) applyJobStatus(ctx context.Context, t *redskyv1alpha1.Trial, job *batchv1.Job, time *metav1.Time) (bool, bool) {
+func (r *TrialJobReconciler) applyJobStatus(ctx context.Context, t *redskyv1alpha1.Trial, job *batchv1.Job, time *metav1.Time) (bool, bool) {
 	var dirty bool
 
 	// Get the interval of the container execution in the job pods
@@ -204,8 +202,6 @@ func (r *TrialReconciler) applyJobStatus(ctx context.Context, t *redskyv1alpha1.
 			dirty = true
 		}
 	}
-
-	// TODO Also set TrialCompleted, but not until the metric controller is updated to deal with that
 
 	return dirty, false
 }

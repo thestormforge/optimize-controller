@@ -18,6 +18,7 @@ package trial
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
@@ -26,7 +27,7 @@ import (
 )
 
 // TODO Make the constant names better reflect the code, not the text
-// TODO Use a prefix, like "summary"?
+// TODO Use a prefix, like "phase"?
 const (
 	created      string = "Created"
 	setupCreated        = "Setup Created"
@@ -42,6 +43,18 @@ const (
 	capturing           = "Capturing"
 	completed           = "Completed"
 	failed              = "Failed"
+)
+
+var (
+	trialConditionTypeOrder = []redskyv1alpha1.TrialConditionType{
+		redskyv1alpha1.TrialSetupCreated,
+		redskyv1alpha1.TrialSetupDeleted,
+		redskyv1alpha1.TrialPatched,
+		redskyv1alpha1.TrialStable,
+		redskyv1alpha1.TrialObserved,
+		redskyv1alpha1.TrialComplete,
+		redskyv1alpha1.TrialFailed,
+	}
 )
 
 // UpdateStatus will make sure the trial status matches the current state of the trial; returns true only if changes were necessary
@@ -71,6 +84,20 @@ func summarize(t *redskyv1alpha1.Trial) string {
 	if t.HasInitializer() {
 		return settingUp
 	}
+
+	// TODO Re-implement this so it doesn't use conditions, otherwise the conditions need to be ordered
+	sort.Slice(t.Status.Conditions, func(i, j int) bool {
+		for ii := range trialConditionTypeOrder {
+			if trialConditionTypeOrder[ii] == t.Status.Conditions[i].Type {
+				for ij := range trialConditionTypeOrder {
+					if trialConditionTypeOrder[ij] == t.Status.Conditions[j].Type {
+						return ii < ij
+					}
+				}
+			}
+		}
+		return false
+	})
 
 	summary := created
 	for i := range t.Status.Conditions {
@@ -204,12 +231,14 @@ func ApplyCondition(status *redskyv1alpha1.TrialStatus, conditionType redskyv1al
 	})
 }
 
-// CheckCondition checks to see if a condition has a specific status and if it exists
-func CheckCondition(status *redskyv1alpha1.TrialStatus, conditionType redskyv1alpha1.TrialConditionType, conditionStatus corev1.ConditionStatus) (bool, bool) {
+// CheckCondition checks to see if a condition has a specific status
+func CheckCondition(status *redskyv1alpha1.TrialStatus, conditionType redskyv1alpha1.TrialConditionType, conditionStatus corev1.ConditionStatus) bool {
 	for i := range status.Conditions {
 		if status.Conditions[i].Type == conditionType {
-			return status.Conditions[i].Status == conditionStatus, true
+			return status.Conditions[i].Status == conditionStatus
 		}
 	}
-	return false, false
+
+	// If the condition we are looking for *is* unknown, then we did "find" it
+	return conditionStatus == corev1.ConditionUnknown
 }

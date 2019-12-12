@@ -33,3 +33,11 @@ func IgnoreNotFound(err error) error {
 	}
 	return err
 }
+
+// IgnoreAlreadyExists returns the supplied error, unless that error is an "already exists" error
+func IgnoreAlreadyExists(err error) error {
+	if apierrs.IsAlreadyExists(err) {
+		return nil
+	}
+	return err
+}

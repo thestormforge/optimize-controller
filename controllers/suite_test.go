@@ -117,7 +117,7 @@ var _ = BeforeSuite(func(done Done) {
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
-	err = (&TrialReconciler{
+	err = (&TrialJobReconciler{
 		Client: k8sManager.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("Trial"),
 		Scheme: k8sManager.GetScheme(),

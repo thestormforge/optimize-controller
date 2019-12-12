@@ -132,9 +132,11 @@ func (r *ServerReconciler) createExperiment(ctx context.Context, log logr.Logger
 	}
 
 	// Convert the cluster state into a server representation
-	log.Info("Creating remote experiment")
 	n, e := server.FromCluster(exp)
 	ee, err := r.RedSkyAPI.CreateExperiment(ctx, n, *e)
+	if err == nil {
+		log.Info("Created remote experiment")
+	}
 
 	// If we get a name conflict, trying fetching the experiment instead, maybe we already created it
 	// TODO The the server should do this for us and just accepting the PUT and returning the current representation

@@ -51,7 +51,6 @@ func (r *SetupReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	now := metav1.Now()
 
-	// Fetch the Trial instance
 	t := &redskyv1alpha1.Trial{}
 	if err := r.Get(ctx, req.NamespacedName, t); err != nil {
 		return ctrl.Result{}, controller.IgnoreNotFound(err)
@@ -163,7 +162,7 @@ func (r *SetupReconciler) createSetupJob(ctx context.Context, t *redskyv1alpha1.
 	mode := ""
 
 	// If the created condition is unknown, we may need a create job
-	if cc, ok := trial.CheckCondition(&t.Status, redskyv1alpha1.TrialSetupCreated, corev1.ConditionUnknown); cc && ok {
+	if trial.CheckCondition(&t.Status, redskyv1alpha1.TrialSetupCreated, corev1.ConditionUnknown) {
 		// Before we can create the job, we need an initializer/finalizer
 		if trial.AddInitializer(t, setup.Initializer) || meta.AddFinalizer(t, setup.Finalizer) {
 			err := r.Update(ctx, t)
@@ -174,7 +173,7 @@ func (r *SetupReconciler) createSetupJob(ctx context.Context, t *redskyv1alpha1.
 	}
 
 	// If the deleted condition is unknown, we may need a delete job
-	if cc, ok := trial.CheckCondition(&t.Status, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionUnknown); cc && ok {
+	if trial.CheckCondition(&t.Status, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionUnknown) {
 		// We do not need the deleted job until the trial is finished or it gets deleted
 		if trial.IsFinished(t) || !t.DeletionTimestamp.IsZero() {
 			mode = setup.ModeDelete
@@ -191,7 +190,7 @@ func (r *SetupReconciler) createSetupJob(ctx context.Context, t *redskyv1alpha1.
 			return &ctrl.Result{}, err
 		}
 		err = r.Create(ctx, job)
-		return &ctrl.Result{}, err
+		return &ctrl.Result{}, controller.IgnoreAlreadyExists(err)
 	}
 
 	return nil, nil
@@ -200,14 +199,14 @@ func (r *SetupReconciler) createSetupJob(ctx context.Context, t *redskyv1alpha1.
 // finish takes care of removing initializers and finalizers
 func (r *SetupReconciler) finish(ctx context.Context, t *redskyv1alpha1.Trial) (*ctrl.Result, error) {
 	// If the create job isn't finished, wait for it (unless the trial is already finished, i.e. failed)
-	if cc, ok := trial.CheckCondition(&t.Status, redskyv1alpha1.TrialSetupCreated, corev1.ConditionFalse); ok && cc {
+	if trial.CheckCondition(&t.Status, redskyv1alpha1.TrialSetupCreated, corev1.ConditionFalse) {
 		if !trial.IsFinished(t) && t.DeletionTimestamp.IsZero() {
 			return &ctrl.Result{RequeueAfter: 1 * time.Second}, nil
 		}
 	}
 
 	// If the create job is finished, remove the initializer so the rest of the trial can run
-	if cc, ok := trial.CheckCondition(&t.Status, redskyv1alpha1.TrialSetupCreated, corev1.ConditionTrue); ok && cc {
+	if trial.CheckCondition(&t.Status, redskyv1alpha1.TrialSetupCreated, corev1.ConditionTrue) {
 		if trial.RemoveInitializer(t, setup.Initializer) {
 			err := r.Update(ctx, t)
 			return controller.RequeueConflict(err)
@@ -215,7 +214,7 @@ func (r *SetupReconciler) finish(ctx context.Context, t *redskyv1alpha1.Trial) (
 	}
 
 	// Do not remove the finalizer until the delete job is finished
-	if cc, ok := trial.CheckCondition(&t.Status, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionTrue); ok && cc {
+	if trial.CheckCondition(&t.Status, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionTrue) {
 		if meta.RemoveFinalizer(t, setup.Finalizer) {
 			err := r.Update(ctx, t)
 			return controller.RequeueConflict(err)
