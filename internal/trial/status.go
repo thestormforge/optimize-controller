@@ -99,7 +99,7 @@ func summarize(t *redskyv1alpha1.Trial) string {
 		return false
 	})
 
-	summary := created
+	phase := created
 	for i := range t.Status.Conditions {
 		c := t.Status.Conditions[i]
 		switch c.Type {
@@ -107,53 +107,53 @@ func summarize(t *redskyv1alpha1.Trial) string {
 		case redskyv1alpha1.TrialSetupCreated:
 			switch c.Status {
 			case corev1.ConditionTrue:
-				summary = setupCreated
+				phase = setupCreated
 			case corev1.ConditionFalse:
-				summary = settingUp
+				phase = settingUp
 			case corev1.ConditionUnknown:
-				summary = settingUp
+				phase = settingUp
 			}
 
 		case redskyv1alpha1.TrialSetupDeleted:
 			switch c.Status {
 			case corev1.ConditionTrue:
-				summary = setupDeleted
+				phase = setupDeleted
 			case corev1.ConditionFalse:
-				summary = tearingDown
+				phase = tearingDown
 			}
 
 		case redskyv1alpha1.TrialPatched:
 			switch c.Status {
 			case corev1.ConditionTrue:
-				summary = patched
+				phase = patched
 			case corev1.ConditionFalse:
-				summary = patching
+				phase = patching
 			case corev1.ConditionUnknown:
-				summary = patching
+				phase = patching
 			}
 
 		case redskyv1alpha1.TrialStable:
 			switch c.Status {
 			case corev1.ConditionTrue:
 				if t.Status.StartTime != nil {
-					summary = running
+					phase = running
 				} else {
-					summary = stabilized
+					phase = stabilized
 				}
 			case corev1.ConditionFalse:
-				summary = waiting
+				phase = waiting
 			case corev1.ConditionUnknown:
-				summary = waiting
+				phase = waiting
 			}
 
 		case redskyv1alpha1.TrialObserved:
 			switch c.Status {
 			case corev1.ConditionTrue:
-				summary = captured
+				phase = captured
 			case corev1.ConditionFalse:
-				summary = capturing
+				phase = capturing
 			case corev1.ConditionUnknown:
-				summary = capturing
+				phase = capturing
 			}
 
 		case redskyv1alpha1.TrialComplete:
@@ -169,7 +169,7 @@ func summarize(t *redskyv1alpha1.Trial) string {
 			}
 		}
 	}
-	return summary
+	return phase
 }
 
 func assignments(t *redskyv1alpha1.Trial) string {

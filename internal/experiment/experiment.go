@@ -22,24 +22,28 @@ import (
 )
 
 // TODO Make the constant names better reflect the code, not the text
-// TODO Use a prefix, like "summary"?
 const (
-	created   string = "Created"
-	paused           = "Paused"
-	empty            = "Never run" // TODO This is misleading, it could be that we already deleted the trials that ran
-	idle             = "Idle"
-	running          = "Running"
-	completed        = "Completed"
-	deleted          = "Deleted" // TODO Should we just preserve the existing status to avoid the extra update?
+	// PhaseCreated indicates that the experiment has been created on the remote server but is not receiving trials
+	PhaseCreated string = "Created"
+	// PhasePaused indicates that the experiment has been paused, i.e. the desired replica count is zero
+	PhasePaused = "Paused"
+	// PhaseEmpty indicates there is no record of trials being run in the cluster
+	PhaseEmpty = "Never run" // TODO This is misleading, it could be that we already deleted the trials that ran
+	// PhaseIdle indicates that the experiment is waiting for trials to be manually created
+	PhaseIdle = "Idle"
+	// PhaseRunning indicates that there are actively running trials for the experiment
+	PhaseRunning = "Running"
+	// PhaseCompleted indicates that the experiment has exhausted it's trial budget and is no longer expecting new trials
+	PhaseCompleted = "Completed"
+	// PhaseDeleted indicates that the experiment has been deleted and is waiting for trials to be cleaned up
+	PhaseDeleted = "Deleted"
 )
 
 // UpdateStatus will ensure the experiment's status matches what is in the supplied trial list; returns true only if
 // changes were necessary
 func UpdateStatus(exp *redskyv1alpha1.Experiment, trialList *redskyv1alpha1.TrialList) bool {
-	phase := created
+	// Count the active trials
 	activeTrials := int32(0)
-
-	// Count up the trials by state
 	for i := range trialList.Items {
 		t := &trialList.Items[i]
 		if trial.IsActive(t) {
@@ -47,24 +51,8 @@ func UpdateStatus(exp *redskyv1alpha1.Experiment, trialList *redskyv1alpha1.Tria
 		}
 	}
 
-	// The order if this if/else block is very specific
-	if exp.Replicas() == 0 {
-		if !exp.GetDeletionTimestamp().IsZero() {
-			phase = deleted
-		} else if exp.Annotations[redskyv1alpha1.AnnotationExperimentURL] != "" && exp.Annotations[redskyv1alpha1.AnnotationNextTrialURL] == "" {
-			// Either we got paused using manual suggestions (which doesn't make sense because you don't need to pause)
-			// ...or we hit the end of the experiment and the server told us to stop
-			phase = completed
-		} else {
-			phase = paused
-		}
-	} else if len(trialList.Items) == 0 {
-		phase = empty
-	} else if activeTrials == 0 {
-		phase = idle
-	} else {
-		phase = running
-	}
+	// Determine the phase
+	phase := summarize(exp, activeTrials, len(trialList.Items))
 
 	// Update the status object
 	var dirty bool
@@ -77,4 +65,32 @@ func UpdateStatus(exp *redskyv1alpha1.Experiment, trialList *redskyv1alpha1.Tria
 		dirty = true
 	}
 	return dirty
+}
+
+func summarize(exp *redskyv1alpha1.Experiment, activeTrials int32, totalTrials int) string {
+	remote := exp.Annotations[redskyv1alpha1.AnnotationExperimentURL] != "" // TODO Or check for the server finalizer?
+
+	if !exp.GetDeletionTimestamp().IsZero() {
+		return PhaseDeleted
+	}
+
+	if activeTrials > 0 {
+		return PhaseRunning
+	}
+
+	if exp.Replicas() == 0 {
+		if remote && exp.Annotations[redskyv1alpha1.AnnotationNextTrialURL] == "" {
+			return PhaseCompleted
+		}
+		return PhasePaused
+	}
+
+	if totalTrials == 0 {
+		if remote {
+			return PhaseCreated
+		}
+		return PhaseEmpty
+	}
+
+	return PhaseIdle
 }
