@@ -9,6 +9,7 @@
 * [ExperimentSpec](#experimentspec)
 * [ExperimentStatus](#experimentstatus)
 * [Metric](#metric)
+* [NamespaceTemplateSpec](#namespacetemplatespec)
 * [Parameter](#parameter)
 * [PatchTemplate](#patchtemplate)
 * [TrialTemplateSpec](#trialtemplatespec)
@@ -49,7 +50,8 @@ ExperimentSpec defines the desired state of Experiment
 | `parameters` | Parameters defines the search space for the experiment | _[][Parameter](#parameter)_ | false |
 | `metrics` | Metrics defines the outcomes for the experiment | _[][Metric](#metric)_ | false |
 | `patches` | Patches is a sequence of templates written against the experiment parameters that will be used to put the cluster into the desired state | _[][PatchTemplate](#patchtemplate)_ | false |
-| `namespaceSelector` | NamespaceSelector is used to determine which namespaces on a cluster can be used to create trials. Only a single trial can be created in each namespace so if there are fewer matching namespaces then replicas, no trials will be created | _*[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#labelselector-v1-meta)_ | false |
+| `namespaceSelector` | NamespaceSelector is used to locate existing namespaces for trials | _*[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#labelselector-v1-meta)_ | false |
+| `namespaceTemplate` | NamespaceTemplate can be specified to create new namespaces for trials; if specified created namespaces must be matched by the namespace selector | _*[NamespaceTemplateSpec](#namespacetemplatespec)_ | false |
 | `selector` | Selector locates trial resources that are part of this experiment | _*[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#labelselector-v1-meta)_ | false |
 | `template` | Template for creating a new trial. The resulting trial must be matched by Selector. The template can provide an initial namespace, however other namespaces (matched by NamespaceSelector) will be used if the effective replica count is more then one | _[TrialTemplateSpec](#trialtemplatespec)_ | true |
 
@@ -61,7 +63,7 @@ ExperimentStatus defines the observed state of Experiment
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| `summary` | Summary is a brief human readable description of the experiment status | _string_ | true |
+| `phase` | Phase is a brief human readable description of the experiment status | _string_ | true |
 | `activeTrials` | ActiveTrials is the observed number of running trials | _int32_ | true |
 
 [Back to TOC](#table-of-contents)
@@ -81,6 +83,17 @@ Metric represents an observable outcome from a trial run
 | `selector` | Selector matching services to collect this metric from, only the first matched service to provide a value is used | _*[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#labelselector-v1-meta)_ | false |
 | `port` | The port number or name on the matched service to collect the metric value from | _intstr.IntOrString_ | false |
 | `path` | URL path component used to collect the metric value from an endpoint (used as a prefix for the Prometheus API) | _string_ | false |
+
+[Back to TOC](#table-of-contents)
+
+## NamespaceTemplateSpec
+
+NamespaceTemplateSpec is used as a template for creating new namespaces
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| `metadata` | Standard object metadata | _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#objectmeta-v1-meta)_ | false |
+| `spec` | Specification of the namespace | _corev1.NamespaceSpec_ | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -115,6 +128,6 @@ TrialTemplateSpec is used as a template for creating new trials
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
 | `metadata` | Standard object metadata | _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#objectmeta-v1-meta)_ | false |
-| `spec` | Specification of the desired behavior for the trial | _[TrialSpec](#trialspec)_ | true |
+| `spec` | Specification of the desired behavior for the trial | _[TrialSpec](#trialspec)_ | false |
 
 [Back to TOC](#table-of-contents)

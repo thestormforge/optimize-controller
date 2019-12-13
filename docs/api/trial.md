@@ -160,7 +160,7 @@ TrialSpec defines the desired state of Trial
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
 | `experimentRef` | ExperimentRef is the reference to the experiment that contains the definitions to use for this trial, defaults to an experiment in the same namespace with the same name | _*[ObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#objectreference-v1-core)_ | false |
-| `targetNamespace` | TargetNamespace defines the default namespace of the objects to apply patches to, defaults to the namespace of the trial | _string_ | false |
+| `targetNamespace` | TargetNamespace defines an existing namespace where the trial objects are being observed | _string_ | false |
 | `assignments` | Assignments are used to patch the cluster state prior to the trial run | _[][Assignment](#assignment)_ | false |
 | `selector` | Selector matches the job representing the trial run | _*[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#labelselector-v1-meta)_ | false |
 | `template` | Template is the job template used to create trial run jobs | _*[JobTemplateSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#jobtemplatespec-v1beta1-batch)_ | false |
@@ -173,6 +173,8 @@ TrialSpec defines the desired state of Trial
 | `setupTasks` | Setup tasks that must run before the trial starts (and possibly after it ends) | _[][SetupTask](#setuptask)_ | false |
 | `setupVolumes` | Volumes to make available to setup tasks, typically ConfigMap backed volumes | _[][Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#volume-v1-core)_ | false |
 | `setupServiceAccountName` | Service account name for running setup tasks, needs enough permissions to add and remove software | _string_ | false |
+| `setupDefaultClusterRole` | Cluster role name to be assigned to the setup service account when creating namespaces | _string_ | false |
+| `setupDefaultRules` | Policy rules to be assigned to the setup service account when creating namespaces | _[]rbacv1.PolicyRule_ | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -182,7 +184,7 @@ TrialStatus defines the observed state of Trial
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| `summary` | Summary is a brief human readable description of the trial status | _string_ | true |
+| `phase` | Phase is a brief human readable description of the trial status | _string_ | true |
 | `assignments` | Assignments is a string representation of the trial assignments for reporting purposes | _string_ | true |
 | `values` | Values is a string representation of the trial values for reporting purposes | _string_ | true |
 | `startTime` | StartTime is the effective (possibly adjusted) time the trial run job started | _*[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#time-v1-meta)_ | false |
