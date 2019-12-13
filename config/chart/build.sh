@@ -1,10 +1,10 @@
 #!/bin/sh
-set -eo pipefail
+set -e
 
 
 # Parse arguments and set variables
-if [ -z "$1" -o -z "$2" ]; then
-    echo "usage: $(basename $0) [CHART_FORMAT] [CHART_VERSION]"
+if [ -z "$1" ] || [ -z "$2" ]; then
+    echo "usage: $(basename "$0") [CHART_FORMAT] [CHART_VERSION]"
     exit 1
 fi
 CHART_FORMAT=$1
@@ -13,7 +13,7 @@ WORKSPACE=${WORKSPACE:-/workspace}
 
 
 # Post process the deployment manifest
-function templatizeDeployment {
+templatizeDeployment() {
     sed '/namespace: redsky-system/d' | \
         sed 's/SECRET_SHA256/{{ include (print $.Template.BasePath "\/secret.yaml") . | sha256sum }}/g' | \
         sed 's/RELEASE_NAME/{{ .Release.Name | quote }}/g' | \
@@ -24,21 +24,21 @@ function templatizeDeployment {
 }
 
 # Post process the RBAC manifest
-function templatizeRBAC {
+templatizeRBAC() {
     sed 's/namespace: redsky-system/namespace: {{ .Release.Namespace | quote }}/g' | \
         sed 's/name: redsky-\(.*\)$/name: "{{ .Release.Name }}-\1"/g' | \
         cat "$WORKSPACE/chart/rbac_header.txt" - "$WORKSPACE/chart/rbac_footer.txt"
 }
 
 # Post processing to add recommended labels
-function label {
+label() {
     sed '/creationTimestamp: null/d' | \
-    sed '/^  labels:$/,/^    app\.kubernetes\.io\/name: redskyops$/c\
-  labels:\
-    app.kubernetes.io/name: redskyops\
-    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}\
-    app.kubernetes.io/instance: {{ .Release.Name | quote }}\
-    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}\
+    sed '/^  labels:$/,/^    app\.kubernetes\.io\/name: redskyops$/c
+  labels:
+    app.kubernetes.io/name: redskyops
+    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+    app.kubernetes.io/instance: {{ .Release.Name | quote }}
+    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
     helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"'
 }
 
@@ -91,7 +91,7 @@ kustomize build chart | templatizeDeployment | label > "$WORKSPACE/chart/redskyo
 
 
 # Remove icon reference from Rancher chart
-if [ "$CHART_FORMAT" == "rancher" ] ; then
+if [ "$CHART_FORMAT" = "rancher" ] ; then
     sed -i 's|^icon: .*/icon.png$|icon: file://../icon.png|' "$WORKSPACE/chart/redskyops/Chart.yaml"
 fi
 

@@ -1,8 +1,8 @@
 #!/bin/sh
-set -eo pipefail
+set -e
 
 WORKSPACE=${WORKSPACE:-/workspace}
-cd $WORKSPACE/install
+cd "$WORKSPACE/install"
 
 # Namespace support
 if [ -n "$NAMESPACE" ] ; then

@@ -1,17 +1,17 @@
 #!/bin/sh
-set -eo pipefail
+set -e
 
 
 # Generate installation manifests
-if [ "$1" == "install" ] ; then
-    shift && /workspace/install/install.sh $@
+if [ "$1" = "install" ] ; then
+    shift && /workspace/install/install.sh "$@"
     exit $?
 fi
 
 
 # Package the Helm chart
-if [ "$1" == "chart" ] ; then
-    shift && /workspace/chart/build.sh $@
+if [ "$1" = "chart" ] ; then
+    shift && /workspace/chart/build.sh "$@"
     exit $?
 fi
 
