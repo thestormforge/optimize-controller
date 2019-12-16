@@ -89,7 +89,7 @@ func NewJob(t *redskyv1alpha1.Trial, mode string) (*batchv1.Job, error) {
 			Image: task.Image,
 			Args:  []string{mode},
 			Env: []corev1.EnvVar{
-				{Name: "NAMESPACE", Value: t.TargetNamespace()},
+				{Name: "NAMESPACE", Value: t.Namespace},
 				{Name: "NAME", Value: task.Name},
 				{Name: "TRIAL", Value: t.Name},
 			},

@@ -157,7 +157,7 @@ func (r *MetricReconciler) collectMetrics(ctx context.Context, t *redskyv1alpha1
 
 		// Capture the metric
 		var captureError error
-		if target, err := r.target(ctx, t.TargetNamespace(), metrics[v.Name]); err != nil {
+		if target, err := r.target(ctx, t.Namespace, metrics[v.Name]); err != nil {
 			captureError = err
 		} else if value, stddev, err := metric.CaptureMetric(metrics[v.Name], t, target); err != nil {
 			if merr, ok := err.(*metric.CaptureError); ok && merr.RetryAfter > 0 {

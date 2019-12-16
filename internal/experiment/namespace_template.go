@@ -34,7 +34,7 @@ func NextTrialNamespace(c client.Client, ctx context.Context, exp *redskyv1alpha
 	for i := range trialList.Items {
 		t := &trialList.Items[i]
 		if trial.IsActive(t) {
-			activeNamespaces[t.TargetNamespace()] = true
+			activeNamespaces[t.Namespace] = true
 		}
 	}
 
@@ -44,7 +44,7 @@ func NextTrialNamespace(c client.Client, ctx context.Context, exp *redskyv1alpha
 	}
 
 	// If there is an explicit target namespace, just use it
-	if n := exp.Spec.Template.Spec.TargetNamespace; n != "" {
+	if n := exp.Spec.Template.Namespace; n != "" {
 		if activeNamespaces[n] {
 			return "", nil
 		}
@@ -122,6 +122,11 @@ func createNamespaceFromTemplate(c client.Client, ctx context.Context, exp *reds
 
 	// Create the support trial namespace objects
 	ts := createTrialNamespace(exp, n.Name)
+	if ts.ServiceAccount != nil {
+		if err := c.Create(ctx, ts.ServiceAccount); ignorePermissions(err) != nil {
+			return "", err
+		}
+	}
 	if ts.Role != nil {
 		if err := c.Create(ctx, ts.Role); ignorePermissions(err) != nil {
 			return "", err
@@ -138,18 +143,23 @@ func createNamespaceFromTemplate(c client.Client, ctx context.Context, exp *reds
 
 // trialNamespace represents the supporting resources for a trial namespace
 type trialNamespace struct {
-	Role         *rbacv1.Role
-	RoleBindings []rbacv1.RoleBinding
+	ServiceAccount *corev1.ServiceAccount
+	Role           *rbacv1.Role
+	RoleBindings   []rbacv1.RoleBinding
 }
 
 func createTrialNamespace(exp *redskyv1alpha1.Experiment, namespace string) *trialNamespace {
 	ts := &trialNamespace{}
 
 	// Fill in the details about the service account
-	serviceAccountNamespace := exp.Namespace
-	serviceAccountName := exp.Spec.Template.Spec.SetupServiceAccountName
-	if serviceAccountName == "" {
-		serviceAccountName = "default"
+	ts.ServiceAccount = &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      exp.Spec.Template.Spec.SetupServiceAccountName,
+			Namespace: namespace,
+		},
+	}
+	if ts.ServiceAccount.Name == "" {
+		ts.ServiceAccount.Name = "default"
 	}
 
 	// Add a namespaced role and binding based on the default setup task policy rules
@@ -169,8 +179,8 @@ func createTrialNamespace(exp *redskyv1alpha1.Experiment, namespace string) *tri
 			},
 			Subjects: []rbacv1.Subject{{
 				Kind:      "ServiceAccount",
-				Name:      serviceAccountName,
-				Namespace: serviceAccountNamespace,
+				Name:      ts.ServiceAccount.Name,
+				Namespace: ts.ServiceAccount.Namespace,
 			}},
 			RoleRef: rbacv1.RoleRef{
 				APIGroup: "rbac.authorization.k8s.io",
@@ -189,8 +199,8 @@ func createTrialNamespace(exp *redskyv1alpha1.Experiment, namespace string) *tri
 			},
 			Subjects: []rbacv1.Subject{{
 				Kind:      "ServiceAccount",
-				Name:      serviceAccountName,
-				Namespace: serviceAccountNamespace,
+				Name:      ts.ServiceAccount.Name,
+				Namespace: ts.ServiceAccount.Namespace,
 			}},
 			RoleRef: rbacv1.RoleRef{
 				APIGroup: "rbac.authorization.k8s.io",
@@ -198,6 +208,11 @@ func createTrialNamespace(exp *redskyv1alpha1.Experiment, namespace string) *tri
 				Name:     exp.Spec.Template.Spec.SetupDefaultClusterRole,
 			},
 		})
+	}
+
+	// Don't actually return the default service account for creation
+	if ts.ServiceAccount.Name == "default" {
+		ts.ServiceAccount = nil
 	}
 
 	return ts

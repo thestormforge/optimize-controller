@@ -35,7 +35,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 const (
@@ -254,9 +253,6 @@ func createKubernetesSuggestion(namespace, name string, suggestions SuggestionSo
 
 	trial := &v1alpha1.Trial{}
 	experiment.PopulateTrialFromTemplate(exp, trial, trialNamespace)
-	if err := controllerutil.SetControllerReference(exp, trial, scheme.Scheme); err != nil {
-		return err
-	}
 
 	for _, p := range exp.Spec.Parameters {
 		v, err := suggestions.AssignInt(p.Name, p.Min, p.Max, nil)

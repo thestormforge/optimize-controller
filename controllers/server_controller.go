@@ -33,7 +33,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // ServerReconciler reconciles a experiment and trial objects with a remote server
@@ -119,7 +120,7 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named("server").
 		For(&redskyv1alpha1.Experiment{}).
-		Owns(&redskyv1alpha1.Trial{}).
+		Watches(&source.Kind{Type: &redskyv1alpha1.Trial{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: handler.ToRequestsFunc(trialToExperimentRequest)}).
 		Complete(r)
 }
 
@@ -199,9 +200,6 @@ func (r *ServerReconciler) nextTrial(ctx context.Context, log logr.Logger, exp *
 	// Create a new trial from the template on the experiment
 	t := &redskyv1alpha1.Trial{}
 	experiment.PopulateTrialFromTemplate(exp, t, namespace)
-	if err := controllerutil.SetControllerReference(exp, t, r.Scheme); err != nil {
-		return &ctrl.Result{}, err
-	}
 
 	// Obtain a suggestion from the server
 	suggestion, err := r.RedSkyAPI.NextTrial(ctx, nextTrialURL)

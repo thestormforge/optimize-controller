@@ -24,6 +24,11 @@ import (
 
 // PopulateTrialFromTemplate creates a new trial for an experiment
 func PopulateTrialFromTemplate(exp *redskyv1alpha1.Experiment, t *redskyv1alpha1.Trial, namespace string) {
+	// The namespace must never be empty and if the experiment defines an explicit namespace it must be used
+	if namespace == "" || (exp.Spec.Template.Namespace != "" && exp.Spec.Template.Namespace != namespace) {
+		panic("invalid namespace: " + namespace)
+	}
+
 	// Start with the trial template
 	exp.Spec.Template.ObjectMeta.DeepCopyInto(&t.ObjectMeta)
 	exp.Spec.Template.Spec.DeepCopyInto(&t.Spec)
@@ -43,11 +48,8 @@ func PopulateTrialFromTemplate(exp *redskyv1alpha1.Experiment, t *redskyv1alpha1
 		t.Annotations = map[string]string{}
 	}
 
-	// Record the target namespace (since trials are owned by experiments, they must be in the same namespace)
-	t.Namespace = exp.Namespace
-	if t.Namespace != namespace {
-		t.Spec.TargetNamespace = namespace
-	}
+	// Overwrite the trial namespace (see the preconditions above)
+	t.Namespace = namespace
 
 	// Record the experiment
 	t.Labels[redskyv1alpha1.LabelExperiment] = exp.Name

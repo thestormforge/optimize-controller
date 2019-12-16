@@ -1592,10 +1592,6 @@ spec:
               description: The offset used to adjust the start time to account for
                 spin up of the trial run
               type: string
-            targetNamespace:
-              description: TargetNamespace defines an existing namespace where the
-                trial objects are being observed
-              type: string
             template:
               description: Template is the job template used to create trial run jobs
               properties:

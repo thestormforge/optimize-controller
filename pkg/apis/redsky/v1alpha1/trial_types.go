@@ -169,8 +169,6 @@ type TrialSpec struct {
 	// ExperimentRef is the reference to the experiment that contains the definitions to use for this trial,
 	// defaults to an experiment in the same namespace with the same name
 	ExperimentRef *corev1.ObjectReference `json:"experimentRef,omitempty"`
-	// TargetNamespace defines an existing namespace where the trial objects are being observed
-	TargetNamespace string `json:"targetNamespace,omitempty"`
 	// Assignments are used to patch the cluster state prior to the trial run
 	Assignments []Assignment `json:"assignments,omitempty"`
 	// Selector matches the job representing the trial run

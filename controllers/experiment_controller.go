@@ -29,6 +29,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // ExperimentReconciler reconciles an Experiment object
@@ -57,6 +60,10 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 		return *result, err
 	}
 
+	if result, err := r.completeTrials(ctx, trialList); result != nil {
+		return *result, err
+	}
+
 	if result, err := r.cleanupTrials(ctx, exp, trialList); result != nil {
 		return *result, err
 	}
@@ -68,12 +75,33 @@ func (r *ExperimentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named("experiment").
 		For(&redskyv1alpha1.Experiment{}).
-		Owns(&redskyv1alpha1.Trial{}).
+		Watches(&source.Kind{Type: &redskyv1alpha1.Trial{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: handler.ToRequestsFunc(trialToExperimentRequest)}).
 		Complete(r)
+}
+
+// trialToExperimentRequest extracts the reconcile request for an experiment of a trial
+func trialToExperimentRequest(o handler.MapObject) []reconcile.Request {
+	if t, ok := o.Object.(*redskyv1alpha1.Trial); ok {
+		return []reconcile.Request{{t.ExperimentNamespacedName()}}
+	}
+	return nil
 }
 
 // updateStatus will ensure the experiment and trial status matches the current state
 func (r *ExperimentReconciler) updateStatus(ctx context.Context, exp *redskyv1alpha1.Experiment, trialList *redskyv1alpha1.TrialList) (*ctrl.Result, error) {
+	// Update the HasTrialFinalizer
+	if len(trialList.Items) > 0 {
+		if meta.AddFinalizer(exp, experiment.HasTrialFinalizer) {
+			err := r.Update(ctx, exp)
+			return controller.RequeueConflict(err)
+		}
+	} else {
+		if meta.RemoveFinalizer(exp, experiment.HasTrialFinalizer) {
+			err := r.Update(ctx, exp)
+			return controller.RequeueConflict(err)
+		}
+	}
+
 	// Update the experiment status
 	if experiment.UpdateStatus(exp, trialList) {
 		err := r.Update(ctx, exp)
@@ -91,34 +119,41 @@ func (r *ExperimentReconciler) updateStatus(ctx context.Context, exp *redskyv1al
 	return nil, nil
 }
 
-// cleanupTrials will delete any trials whose TTL has expired or are active past
-func (r *ExperimentReconciler) cleanupTrials(ctx context.Context, exp *redskyv1alpha1.Experiment, trialList *redskyv1alpha1.TrialList) (*ctrl.Result, error) {
+// completeTrials will mark any observed trial as completed
+func (r *ExperimentReconciler) completeTrials(ctx context.Context, trialList *redskyv1alpha1.TrialList) (*ctrl.Result, error) {
 	for i := range trialList.Items {
 		t := &trialList.Items[i]
 
-		// Delete inactive trials that have expired
-		if trial.NeedsCleanup(t) {
-			err := r.Delete(ctx, t)
-			return &ctrl.Result{}, err
-		}
-
-		// No further clean up necessary on finished trials
+		// Trial is already finished, no completion possible
 		if trial.IsFinished(t) {
 			continue
 		}
 
-		// If the experiment was deleted, delete the trial instead of waiting for it to finish
-		if !exp.GetDeletionTimestamp().IsZero() && t.GetDeletionTimestamp().IsZero() {
-			err := r.Delete(ctx, t)
-			return &ctrl.Result{}, err
-		}
-
-		// If the trial has been observed, mark it as complete (the IsFinished check above prevents re-entry)
+		// If the trial has been observed, mark it as complete
 		if trial.CheckCondition(&t.Status, redskyv1alpha1.TrialObserved, corev1.ConditionTrue) {
 			now := metav1.Now()
 			trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialComplete, corev1.ConditionTrue, "", "", &now)
 			err := r.Update(ctx, t)
 			return controller.RequeueConflict(err)
+		}
+	}
+	return nil, nil
+}
+
+// cleanupTrials will delete any trials whose TTL has expired or are active past
+func (r *ExperimentReconciler) cleanupTrials(ctx context.Context, exp *redskyv1alpha1.Experiment, trialList *redskyv1alpha1.TrialList) (*ctrl.Result, error) {
+	for i := range trialList.Items {
+		t := &trialList.Items[i]
+
+		// Trial is already deleted, no clean up possible
+		if !t.GetDeletionTimestamp().IsZero() {
+			continue
+		}
+
+		// Delete trials if they have expired or if the experiment has been deleted
+		if trial.NeedsCleanup(t) || !exp.GetDeletionTimestamp().IsZero() {
+			err := r.Delete(ctx, t)
+			return &ctrl.Result{}, err
 		}
 	}
 	return nil, nil

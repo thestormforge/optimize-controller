@@ -59,10 +59,6 @@ func newPatchData(t *redskyv1alpha1.Trial) *PatchData {
 
 	t.ObjectMeta.DeepCopyInto(&d.Trial)
 
-	if t.Spec.TargetNamespace != "" {
-		d.Trial.Namespace = t.Spec.TargetNamespace
-	}
-
 	d.Values = make(map[string]int64, len(t.Spec.Assignments))
 	for _, a := range t.Spec.Assignments {
 		d.Values[a.Name] = a.Value
@@ -83,11 +79,6 @@ func newMetricData(t *redskyv1alpha1.Trial, target runtime.Object) *MetricData {
 
 	if pods, ok := target.(*corev1.PodList); ok {
 		d.Pods = pods
-	}
-
-	// Override the namespace with the target namespace
-	if t.Spec.TargetNamespace != "" {
-		d.Trial.Namespace = t.Spec.TargetNamespace
 	}
 
 	if t.Status.StartTime != nil {

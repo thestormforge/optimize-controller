@@ -160,7 +160,6 @@ TrialSpec defines the desired state of Trial
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
 | `experimentRef` | ExperimentRef is the reference to the experiment that contains the definitions to use for this trial, defaults to an experiment in the same namespace with the same name | _*[ObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#objectreference-v1-core)_ | false |
-| `targetNamespace` | TargetNamespace defines an existing namespace where the trial objects are being observed | _string_ | false |
 | `assignments` | Assignments are used to patch the cluster state prior to the trial run | _[][Assignment](#assignment)_ | false |
 | `selector` | Selector matches the job representing the trial run | _*[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#labelselector-v1-meta)_ | false |
 | `template` | Template is the job template used to create trial run jobs | _*[JobTemplateSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#jobtemplatespec-v1beta1-batch)_ | false |

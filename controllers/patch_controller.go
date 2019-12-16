@@ -135,9 +135,9 @@ func (r *PatchReconciler) evaluatePatches(ctx context.Context, t *redskyv1alpha1
 			return &ctrl.Result{}, err
 		}
 
-		// Fix the namespace
+		// Default the namespace to the trial namespace
 		if po.TargetRef.Namespace == "" {
-			po.TargetRef.Namespace = t.TargetNamespace()
+			po.TargetRef.Namespace = t.Namespace
 		}
 
 		t.Spec.PatchOperations = append(t.Spec.PatchOperations, *po)

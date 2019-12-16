@@ -21,6 +21,11 @@ import (
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 )
 
+const (
+	// HasTrialFinalizer is a finalizer that indicates an experiment has at least one trial
+	HasTrialFinalizer = "hasTrialFinalizer.redskyops.dev"
+)
+
 // TODO Make the constant names better reflect the code, not the text
 const (
 	// PhaseCreated indicates that the experiment has been created on the remote server but is not receiving trials
