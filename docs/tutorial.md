@@ -10,7 +10,7 @@ Additionally, you will to initialize Red Sky Ops in your cluster. You can downlo
 
 ## Tutorial Resources
 
-The resources for this tutorial can be found in the [`/examples/tutorial/`](https://github.com/redskyops/k8s-experiment/tree/master/examples/tutorial) directory of the `k8s-experiment` source repository.
+The resources for this tutorial can be found in the [`/tutorial/`](https://github.com/redskyops/redskyops-recipes/tree/master/tutorial) directory of the `redskyops-recipes` repository.
 
 `kustomization.yaml`
 : The input to Kustomize used to build the Kubernetes object manifests for this example.
@@ -42,7 +42,7 @@ Once assignments have been suggested, a trial run will start generating workload
 Build the experiment resources and apply the configuration to the cluster (note that the example kustomization leverages Kustomize features that may not be available from `kubectl apply -k`):
 
 ```sh
-$ kustomize build github.com/redskyops/k8s-experiment//examples/tutorial | kubectl apply -f -
+$ kustomize build github.com/redskyops/redskyops-recipes//tutorial | kubectl apply -f -
 ```
 (or, if running this experiment from a locally cloned copy of this repo, you can simply run `kustomize build | kubectl apply -f -`)
 

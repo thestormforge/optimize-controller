@@ -1,9 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: logstash-benchmark
-data:
-  BATCH_SIZE: "128"
-  WORKERS: "2"
-  REPEAT_DATA: "1"
-  TESTCASE: "baseline"

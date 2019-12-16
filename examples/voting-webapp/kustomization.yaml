@@ -1,12 +1,6 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
+# This example has moved to a new location.
 resources:
-- ./locust-config.yaml
-- ./postgres.yaml
-- ./redis.yaml
-- ./voting-service.yaml
-- ./result-service.yaml
-- ./result-exporter.yaml
-- ./worker.yaml
-- ./experiment.yaml
+  - github.com/redskyops/redskyops-recipes//voting-webapp/

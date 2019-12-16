@@ -26,10 +26,10 @@ $ redskyctl init
 
 ## Create a Simple Experiment
 
-Generally you will want to write your own experiments to run trials on your own applications. For the purposes of this guide we can use the simple example found in the `k8s-experiment` [repository on GitHub](https://github.com/redskyops/k8s-experiment/tree/master/examples/simple):
+Generally you will want to write your own experiments to run trials on your own applications. For the purposes of this guide we can use the simple example found in the `redskyops-recipes` [repository on GitHub](https://github.com/redskyops/redskyops-recipes/tree/master/simple):
 
 ```sh
-$ kustomize build github.com/redskyops/k8s-experiment//examples/simple | kubectl apply -f -
+$ kustomize build github.com/redskyops/redskyops-recipes//simple | kubectl apply -f -
 ```
 
 ## Run a Trial
