@@ -5,7 +5,7 @@
 
 ## Prerequisites
 
-You must have a Kubernetes cluster. We recommend using a cluster with 3 nodes, 24vCPUs (8 on each node) and 48GB of memory (16 on each node). Additionally, you will need a local configured copy of `kubectl` and to initialize Red Sky Ops in your cluster. You can download a binary for your platform from the [releases page](https://github.com/redskyops/k8s-experiment/releases) and run `redskyctl init` (while connected to your cluster). For more details, see [the installation guide](install.md).
+You must have a Kubernetes cluster. We recommend using a cluster with 4 nodes, 40vCPUs (10 on each node) and 80GB of memory (20 on each node). Additionally, you will need a local configured copy of `kubectl` and to initialize Red Sky Ops in your cluster. You can download a binary for your platform from the [releases page](https://github.com/redskyops/k8s-experiment/releases) and run `redskyctl init` (while connected to your cluster). For more details, see [the installation guide](install.md).
 
 ## Example Resources
 
