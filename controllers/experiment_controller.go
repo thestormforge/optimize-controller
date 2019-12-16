@@ -82,7 +82,7 @@ func (r *ExperimentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // trialToExperimentRequest extracts the reconcile request for an experiment of a trial
 func trialToExperimentRequest(o handler.MapObject) []reconcile.Request {
 	if t, ok := o.Object.(*redskyv1alpha1.Trial); ok {
-		return []reconcile.Request{{t.ExperimentNamespacedName()}}
+		return []reconcile.Request{{NamespacedName: t.ExperimentNamespacedName()}}
 	}
 	return nil
 }
