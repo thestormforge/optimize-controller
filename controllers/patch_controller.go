@@ -88,6 +88,12 @@ func (r *PatchReconciler) ignoreTrial(t *redskyv1alpha1.Trial) bool {
 		return true
 	}
 
+	// Ignore trials that have setup tasks which haven't run yet
+	// TODO This is to solve a specific race condition with establishing an initializer, is there a better check?
+	if len(t.Spec.SetupTasks) > 0 && !trial.CheckCondition(&t.Status, redskyv1alpha1.TrialSetupCreated, corev1.ConditionTrue) {
+		return true
+	}
+
 	// Do not ignore trials that have pending patches
 	for i := range t.Spec.PatchOperations {
 		if t.Spec.PatchOperations[i].AttemptsRemaining > 0 {
