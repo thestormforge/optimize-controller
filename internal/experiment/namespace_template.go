@@ -23,6 +23,7 @@ import (
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -89,7 +90,12 @@ func NextTrialNamespace(c client.Client, ctx context.Context, exp *redskyv1alpha
 }
 
 func ignorePermissions(err error) error {
-	// TODO We need to actually ignore permission errors here. And probably log them too.
+	if apierrs.IsUnauthorized(err) {
+		return nil
+	}
+	if apierrs.IsForbidden(err) {
+		return nil
+	}
 	return err
 }
 
@@ -117,7 +123,12 @@ func createNamespaceFromTemplate(c client.Client, ctx context.Context, exp *reds
 	// NOTE: The ignorePermission call is in different places for the namespace and supporting objects because
 	// if the namespace creation fails we cannot continue creating the supporting objects
 	if err := c.Create(ctx, n); err != nil {
-		return "", ignorePermissions(err)
+		// Ignore duplicates, e.g. it is possible that the namespace template has an explicit name
+		if apierrs.IsAlreadyExists(err) || ignorePermissions(err) == nil {
+			return "", nil
+		}
+		// TODO Fail the experiment? Set replicas to activeTrials? Just ignore log it and don't do anything?
+		return "", err
 	}
 
 	// Create the support trial namespace objects
