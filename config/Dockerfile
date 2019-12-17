@@ -8,9 +8,9 @@ ENV KUBECTL_VERSION="v1.14.5" \
     KUBECTL_URL="https://storage.googleapis.com/kubernetes-release/release/v1.14.5/bin/linux/amd64/kubectl" \
     KUBECTL_SHA256="26681319de56820a8467c9407e9203d5b15fb010ffc75ac5b99c9945ad0bd28c"
 
-ENV KUSTOMIZE_VERSION="v3.4.0" \
-    KUSTOMIZE_URL="https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv3.4.0/kustomize_v3.4.0_linux_amd64.tar.gz" \
-    KUSTOMIZE_SHA256="eabfa641685b1a168c021191e6029f66125be94449b60eb12843da8df3b092ba"
+ENV KUSTOMIZE_VERSION="v3.5.2" \
+    KUSTOMIZE_URL="https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv3.5.2/kustomize_v3.5.2_linux_amd64.tar.gz" \
+    KUSTOMIZE_SHA256="ae8bfaef5d9a39f48d20b16ff6b989cfb5f96d34587be1bcc109bde4d178b220"
 
 ENV KONJURE_VERSION="v0.1.0" \
     KONJURE_URL="https://github.com/carbonrelay/konjure/releases/download/v0.1.0/konjure-linux-amd64.tar.gz" \
