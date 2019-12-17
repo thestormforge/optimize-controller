@@ -88,7 +88,7 @@ func (r *ServerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				return *result, err
 			}
 		} else if !t.GetDeletionTimestamp().IsZero() {
-			if result, err := r.abandonTrial(ctx, t); result != nil {
+			if result, err := r.abandonTrial(ctx, log, t); result != nil {
 				return *result, err
 			}
 		}
@@ -254,13 +254,14 @@ func (r *ServerReconciler) reportTrial(ctx context.Context, log logr.Logger, t *
 }
 
 // abandonTrial will remove the finalizer and try to notify the server that the trial will not be reported
-func (r *ServerReconciler) abandonTrial(ctx context.Context, t *redskyv1alpha1.Trial) (*ctrl.Result, error) {
+func (r *ServerReconciler) abandonTrial(ctx context.Context, log logr.Logger, t *redskyv1alpha1.Trial) (*ctrl.Result, error) {
 	if !meta.RemoveFinalizer(t, server.Finalizer) {
 		return nil, nil
 	}
 
-	// TODO Should this be more like the report trial logic in terms of updating Kube first?
+	// We can repeatedly abandon trials (so long as we ignore "not found" errors since "abandon" is a DELETE)
 	if reportTrialURL := t.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL]; reportTrialURL != "" {
+		log.Info("Abandoning trial", "namespace", t.Namespace, "reportTrialURL", reportTrialURL)
 		if err := r.RedSkyAPI.AbandonRunningTrial(ctx, reportTrialURL); controller.IgnoreNotFound(err) != nil {
 			return &ctrl.Result{}, err
 		}
