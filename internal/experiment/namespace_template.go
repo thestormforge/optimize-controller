@@ -46,33 +46,26 @@ func NextTrialNamespace(c client.Client, ctx context.Context, exp *redskyv1alpha
 		return "", nil
 	}
 
-	// If there is an explicit target namespace, just use it
-	if n := exp.Spec.Template.Namespace; n != "" {
-		if activeNamespaces[n] {
-			return "", nil
-		}
-		return n, nil
-	}
-
-	// If there is no namespace information we can only use the experiment namespace
-	if exp.Spec.NamespaceSelector == nil && exp.Spec.NamespaceTemplate == nil {
-		if activeNamespaces[exp.Namespace] {
-			return "", nil
-		}
-		return exp.Namespace, nil
-	}
-
-	// Look for namespaces (a nil selector will match nothing)
+	// Produce a list of "allowed" namespaces
 	namespaceList := &corev1.NamespaceList{}
-	matchingSelector, err := meta.MatchingSelector(exp.Spec.NamespaceSelector)
-	if err != nil {
-		return "", err
-	}
-	if err := c.List(ctx, namespaceList, matchingSelector); err != nil {
-		return "", err
+	if n := exp.Spec.Template.Namespace; n != "" {
+		// If there is an explicit target namespace on the trial template it is the only one we will be allowed to use
+		addNamespace(namespaceList, n)
+	} else if exp.Spec.NamespaceSelector == nil && exp.Spec.NamespaceTemplate == nil {
+		// If there is no namespace selector/template we can only use the experiment namespace
+		addNamespace(namespaceList, exp.Namespace)
+	} else {
+		// Match the (possible nil) namespace selector
+		matchingSelector, err := meta.MatchingSelector(exp.Spec.NamespaceSelector)
+		if err != nil {
+			return "", err
+		}
+		if err := c.List(ctx, namespaceList, matchingSelector); err != nil {
+			return "", err
+		}
 	}
 
-	// Find the first available namespace
+	// Find the first available namespace from the list
 	for i := range namespaceList.Items {
 		n := namespaceList.Items[i].Name
 
@@ -80,15 +73,15 @@ func NextTrialNamespace(c client.Client, ctx context.Context, exp *redskyv1alpha
 		if !activeNamespaces[n] {
 			return n, nil
 		}
-
-		// If the namespace template has a name and already exists, creation would fail
-		if exp.Spec.NamespaceTemplate != nil && exp.Spec.NamespaceTemplate.Name != n {
-			return "", nil
-		}
 	}
 
-	// If we could not find a namespace, create it
-	return createNamespaceFromTemplate(c, ctx, exp)
+	// If we could not find a namespace, we may be able to create it
+	if exp.Spec.NamespaceTemplate != nil {
+		return createNamespaceFromTemplate(c, ctx, exp)
+	}
+
+	// No namespace is available
+	return "", nil
 }
 
 func ignorePermissions(err error) error {
@@ -101,12 +94,15 @@ func ignorePermissions(err error) error {
 	return err
 }
 
-func createNamespaceFromTemplate(c client.Client, ctx context.Context, exp *redskyv1alpha1.Experiment) (string, error) {
-	// If there is no template we cannot create the namespace
-	if exp.Spec.NamespaceTemplate == nil {
-		return "", nil
-	}
+func addNamespace(namespaceList *corev1.NamespaceList, namespace string) {
+	namespaceList.Items = append(namespaceList.Items, corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: namespace,
+		},
+	})
+}
 
+func createNamespaceFromTemplate(c client.Client, ctx context.Context, exp *redskyv1alpha1.Experiment) (string, error) {
 	// Use the template to populate a new namespace
 	n := &corev1.Namespace{}
 	exp.Spec.NamespaceTemplate.ObjectMeta.DeepCopyInto(&n.ObjectMeta)
