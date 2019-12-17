@@ -32,15 +32,17 @@ import (
 func NextTrialNamespace(c client.Client, ctx context.Context, exp *redskyv1alpha1.Experiment, trialList *redskyv1alpha1.TrialList) (string, error) {
 	// Determine which namespaces have an active trial
 	activeNamespaces := make(map[string]bool, len(trialList.Items))
+	desiredReplicas := exp.Replicas()
 	for i := range trialList.Items {
 		t := &trialList.Items[i]
 		if trial.IsActive(t) {
 			activeNamespaces[t.Namespace] = true
+			desiredReplicas--
 		}
 	}
 
 	// Check the number of desired replicas
-	if len(activeNamespaces) >= int(exp.Replicas()) {
+	if desiredReplicas <= 0 {
 		return "", nil
 	}
 
