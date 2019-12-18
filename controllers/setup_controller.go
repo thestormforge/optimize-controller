@@ -29,6 +29,7 @@ import (
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -67,7 +68,7 @@ func (r *SetupReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	// If necessary, create the setup (create or delete) job
-	if result, err := r.createSetupJob(ctx, t); result != nil {
+	if result, err := r.createSetupJob(ctx, t, &now); result != nil {
 		return *result, err
 	}
 
@@ -158,7 +159,7 @@ func (r *SetupReconciler) inspectSetupJobPods(ctx context.Context, j *batchv1.Jo
 }
 
 // createSetupJob determines if a setup job is necessary and creates it
-func (r *SetupReconciler) createSetupJob(ctx context.Context, t *redskyv1alpha1.Trial) (*ctrl.Result, error) {
+func (r *SetupReconciler) createSetupJob(ctx context.Context, t *redskyv1alpha1.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
 	mode := ""
 
 	// If the created condition is unknown, we may need a create job
@@ -193,6 +194,14 @@ func (r *SetupReconciler) createSetupJob(ctx context.Context, t *redskyv1alpha1.
 			return &ctrl.Result{}, err
 		}
 		err = r.Create(ctx, job)
+
+		// Forbidden for a delete job indicates that namespace was probably deleted
+		if apierrs.IsForbidden(err) && mode == setup.ModeDelete {
+			trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionTrue, "Forbidden", err.Error(), probeTime)
+			err := r.Update(ctx, t)
+			return controller.RequeueConflict(err)
+		}
+
 		return &ctrl.Result{}, controller.IgnoreAlreadyExists(err)
 	}
 
