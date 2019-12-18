@@ -98,7 +98,7 @@ func (r *SetupReconciler) inspectSetupJobs(ctx context.Context, t *redskyv1alpha
 	}
 
 	// This is purely for recovery, normally if the list size is zero the condition status will already be "unknown"
-	if len(list.Items) == 0 {
+	if len(list.Items) == 0 && t.DeletionTimestamp.IsZero() {
 		trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialSetupCreated, corev1.ConditionUnknown, "", "", probeTime)
 		trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionUnknown, "", "", probeTime)
 	}
@@ -169,7 +169,10 @@ func (r *SetupReconciler) createSetupJob(ctx context.Context, t *redskyv1alpha1.
 			return controller.RequeueConflict(err)
 		}
 
-		mode = setup.ModeCreate
+		// Do not create setup tasks if the trial is deleted
+		if t.DeletionTimestamp.IsZero() {
+			mode = setup.ModeCreate
+		}
 	}
 
 	// If the deleted condition is unknown, we may need a delete job
