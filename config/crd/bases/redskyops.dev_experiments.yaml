@@ -20,6 +20,7 @@ spec:
     plural: experiments
     singular: experiment
   scope: ""
+  subresources: {}
   validation:
     openAPIV3Schema:
       description: Experiment is the Schema for the experiments API
