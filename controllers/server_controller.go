@@ -219,7 +219,12 @@ func (r *ServerReconciler) nextTrial(ctx context.Context, log logr.Logger, exp *
 	// Add a finalizer so the trial cannot be deleted without first updating the server
 	meta.AddFinalizer(t, server.Finalizer)
 	err = r.Create(ctx, t)
-	// TODO If there is an error, notify server that we failed to adopt the suggestion?
+
+	// If creation fails, abandon the suggestion (ignoring errors)
+	if url := t.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL]; err != nil && url != "" {
+		_ = r.RedSkyAPI.AbandonRunningTrial(ctx, url)
+	}
+
 	return &ctrl.Result{}, err
 }
 
