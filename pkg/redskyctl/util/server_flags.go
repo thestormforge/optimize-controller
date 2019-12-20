@@ -19,7 +19,6 @@ package util
 import (
 	redskyclient "github.com/redskyops/k8s-experiment/redskyapi"
 	"github.com/spf13/pflag"
-	"github.com/spf13/viper"
 )
 
 // Red Sky server specific configuration flags
@@ -44,15 +43,14 @@ func (f *ServerFlags) AddFlags(flags *pflag.FlagSet) {
 	}
 }
 
-func (f *ServerFlags) ToClientConfig() (*viper.Viper, error) {
+func (f *ServerFlags) ToClientConfig() (*redskyclient.Config, error) {
 	clientConfig, err := redskyclient.DefaultConfig()
 	if err != nil {
 		return nil, err
 	}
 
 	if f.Address != nil && *f.Address != "" {
-		// TODO How do we use Viper pflags integration with this code?
-		clientConfig.Set("address", *f.Address)
+		clientConfig.Address = *f.Address
 	}
 
 	return clientConfig, nil

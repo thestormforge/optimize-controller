@@ -21,13 +21,11 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"os"
 	"path"
 	"strings"
 	"time"
 
 	"github.com/redskyops/k8s-experiment/pkg/version"
-	"github.com/spf13/viper"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 )
@@ -37,67 +35,25 @@ type Client interface {
 	Do(context.Context, *http.Request) (*http.Response, []byte, error)
 }
 
-func DefaultConfig() (*viper.Viper, error) {
-	v := viper.New()
-
-	// Defaults
-	v.SetDefault("oauth2.token_url", "./auth/token/")
-
-	// Environment variables
-	_ = v.BindEnv("address", "REDSKY_ADDRESS")
-	_ = v.BindEnv("oauth2.client_id", "REDSKY_OAUTH2_CLIENT_ID")
-	_ = v.BindEnv("oauth2.client_secret", "REDSKY_OAUTH2_CLIENT_SECRET")
-	_ = v.BindEnv("oauth2.token_url", "REDSKY_OAUTH2_TOKEN_URL")
-
-	// Configuration on disk
-	// TODO ~/.config/redskyops/??? ~/.redskyops/config???
-	v.SetConfigType("yaml")
-	v.SetConfigFile(os.ExpandEnv("$HOME/.redsky"))
-
-	// Read the configuration
-	if err := v.ReadInConfig(); ignoreConfigFileNotFound(err) != nil {
-		return nil, err
-	}
-
-	// Give explicit types to the manager environment
-	var mgrEnv []map[string]string
-	if err := v.UnmarshalKey("manager.env", &mgrEnv); err == nil && len(mgrEnv) > 0 {
-		v.Set("manager.env", mgrEnv)
-	}
-
-	return v, nil
-}
-
-func ignoreConfigFileNotFound(err error) error {
-	if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-		return nil
-	}
-	// `SetConfigFile` bypasses the `ConfigFileNotFoundError` logic
-	if os.IsNotExist(err) {
-		return nil
-	}
-	return err
-}
-
 // ConfigureOAuth2 checks the supplied to configuration to see if the (possibly nil) transport needs to be wrapped to
 // perform authentication. The context is used for token management if necessary.
-func ConfigureOAuth2(cfg *viper.Viper, ctx context.Context, transport http.RoundTripper) (http.RoundTripper, error) {
+func ConfigureOAuth2(cfg *Config, ctx context.Context, transport http.RoundTripper) (http.RoundTripper, error) {
 
 	// Client credential ("two-legged") token flow
-	if cfg.IsSet("oauth2.client_id") && cfg.IsSet("oauth2.client_secret") {
+	if cfg.OAuth2.ClientID != "" && cfg.OAuth2.ClientSecret != "" {
 		cc := clientcredentials.Config{
-			ClientID:     cfg.GetString("oauth2.client_id"),
-			ClientSecret: cfg.GetString("oauth2.client_secret"),
+			ClientID:     cfg.OAuth2.ClientID,
+			ClientSecret: cfg.OAuth2.ClientSecret,
 			AuthStyle:    oauth2.AuthStyleInParams,
 		}
 
 		// Resolve the token URL against the endpoint address
-		endpoint, err := url.Parse(cfg.GetString("address"))
+		endpoint, err := url.Parse(cfg.Address)
 		if err != nil {
 			return nil, err
 		}
 		endpoint.Path = strings.TrimRight(endpoint.Path, "/") + "/"
-		tokenURL, err := endpoint.Parse(cfg.GetString("oauth2.token_url"))
+		tokenURL, err := endpoint.Parse(cfg.OAuth2.TokenURL)
 		if err != nil {
 			return nil, err
 		}
@@ -107,8 +63,8 @@ func ConfigureOAuth2(cfg *viper.Viper, ctx context.Context, transport http.Round
 	}
 
 	// Static token flow
-	if cfg.IsSet("oauth2.token") {
-		sts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: cfg.GetString("oauth2.token")})
+	if cfg.OAuth2.Token != "" {
+		sts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: cfg.OAuth2.Token})
 		return &oauth2.Transport{Source: sts, Base: transport}, nil
 	}
 
@@ -117,8 +73,8 @@ func ConfigureOAuth2(cfg *viper.Viper, ctx context.Context, transport http.Round
 }
 
 // GetAddress returns the URL representation of the address configuration parameter
-func GetAddress(cfg *viper.Viper) (*url.URL, error) {
-	u, err := url.Parse(cfg.GetString("address"))
+func GetAddress(cfg *Config) (*url.URL, error) {
+	u, err := url.Parse(cfg.Address)
 	if err != nil {
 		return nil, err
 	}
@@ -130,13 +86,13 @@ func GetAddress(cfg *viper.Viper) (*url.URL, error) {
 
 var DefaultUserAgent string
 
-func NewClient(cfg *viper.Viper, ctx context.Context, transport http.RoundTripper) (Client, error) {
+func NewClient(cfg *Config, ctx context.Context, transport http.RoundTripper) (Client, error) {
 	hc := &httpClient{}
 	hc.client.Timeout = 10 * time.Second
 
 	// Parse the API endpoint address and force a trailing slash
 	var err error
-	if hc.endpoint, err = url.Parse(cfg.GetString("address")); err != nil {
+	if hc.endpoint, err = url.Parse(cfg.Address); err != nil {
 		return nil, err
 	}
 	hc.endpoint.Path = strings.TrimRight(hc.endpoint.Path, "/") + "/"

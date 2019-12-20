@@ -21,8 +21,8 @@ import (
 	"fmt"
 
 	redskykube "github.com/redskyops/k8s-experiment/pkg/kubernetes"
+	redskyclient "github.com/redskyops/k8s-experiment/redskyapi"
 	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/redsky/v1alpha1"
-	"github.com/spf13/viper"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -31,7 +31,7 @@ import (
 type Factory interface {
 	ToRawKubeConfigLoader() clientcmd.ClientConfig
 	ToRESTConfig() (*rest.Config, error)
-	ToClientConfig() (*viper.Viper, error)
+	ToClientConfig() (*redskyclient.Config, error)
 
 	KubernetesClientSet() (*kubernetes.Clientset, error)
 	RedSkyClientSet() (*redskykube.Clientset, error)
@@ -63,7 +63,7 @@ func (f *factoryImpl) ToRESTConfig() (*rest.Config, error) {
 	return f.configFlags.ToRESTConfig()
 }
 
-func (f *factoryImpl) ToClientConfig() (*viper.Viper, error) {
+func (f *factoryImpl) ToClientConfig() (*redskyclient.Config, error) {
 	return f.serverFlags.ToClientConfig()
 }
 

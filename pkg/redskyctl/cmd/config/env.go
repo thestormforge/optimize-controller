@@ -69,18 +69,18 @@ func (o *ConfigEnvOptions) Run() error {
 
 	// Create an environment map, we will ignore empty strings later
 	env := make(map[string]string)
-	env["REDSKY_ADDRESS"] = cfg.GetString("address")
-	env["REDSKY_OAUTH2_CLIENT_ID"] = cfg.GetString("oauth2.client_id")
-	env["REDSKY_OAUTH2_CLIENT_SECRET"] = cfg.GetString("oauth2.client_secret")
+	env["REDSKY_ADDRESS"] = cfg.Address
+	env["REDSKY_OAUTH2_CLIENT_ID"] = cfg.OAuth2.ClientID
+	env["REDSKY_OAUTH2_CLIENT_SECRET"] = cfg.OAuth2.ClientSecret
 
 	// No good way to detect defaults
-	if cfg.IsSet("oauth2.client_id") || cfg.IsSet("oauth2.client_secret") {
-		env["REDSKY_OAUTH2_TOKEN_URL"] = cfg.GetString("oauth2.token_url")
+	if cfg.OAuth2.ClientID != "" || cfg.OAuth2.ClientSecret != "" {
+		env["REDSKY_OAUTH2_TOKEN_URL"] = cfg.OAuth2.TokenURL
 
 		// When we are not targeting the manager, resolve the full URL (e.g. so you can use it in cURL)
 		if !o.Manager {
 			if b, err := redskyclient.GetAddress(cfg); err == nil {
-				if r, err := b.Parse(cfg.GetString("oauth2.token_url")); err == nil {
+				if r, err := b.Parse(cfg.OAuth2.TokenURL); err == nil {
 					env["REDSKY_OAUTH2_TOKEN_URL"] = r.String()
 				}
 			}
@@ -89,11 +89,7 @@ func (o *ConfigEnvOptions) Run() error {
 
 	// Add manager specific environment variables
 	if o.Manager {
-		var mgrEnv []ManagerEnvVar
-		if err := cfg.UnmarshalKey("manager.env", &mgrEnv); err != nil {
-			return err
-		}
-		for _, v := range mgrEnv {
+		for _, v := range cfg.Manager.Environment {
 			env[v.Name] = v.Value
 		}
 	}

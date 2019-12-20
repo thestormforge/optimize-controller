@@ -17,7 +17,6 @@ limitations under the License.
 package config
 
 import (
-	"os"
 	"strings"
 
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
@@ -84,40 +83,13 @@ func (o *ConfigSetOptions) Run() error {
 		return err
 	}
 
-	if strings.HasPrefix(o.Key, "manager.env.") {
-		// TODO No idea if this is the best way to do this
-		var mgrEnv []ManagerEnvVar
-		if err := cfg.UnmarshalKey("manager.env", &mgrEnv); err != nil {
-			return err
-		}
-		mgrEnv = setEnvVar(mgrEnv, strings.TrimPrefix(o.Key, "manager.env."), o.Value)
-		cfg.Set("manager.env", mgrEnv)
-	} else {
-		cfg.Set(o.Key, o.Value)
+	if err := cfg.Set(o.Key, o.Value); err != nil {
+		return err
 	}
 
-	// Viper is frustratingly buggy. We can't just use WriteConfig because it won't honor the explicit configuration type.
-	if err := cfg.WriteConfigAs(os.ExpandEnv("${HOME}/redsky.yaml")); err != nil {
+	if err := cfg.Write(); err != nil {
 		return err
 	}
-	if err := os.Rename(os.ExpandEnv("${HOME}/redsky.yaml"), os.ExpandEnv("${HOME}/.redsky")); err != nil {
-		return err
-	}
+
 	return nil
-}
-
-func setEnvVar(mgrEnv []ManagerEnvVar, key, value string) []ManagerEnvVar {
-	for i := range mgrEnv {
-		if mgrEnv[i].Name == key {
-			if value == "" {
-				return append(mgrEnv[:i], mgrEnv[i+1:]...)
-			}
-			mgrEnv[i].Value = value
-			return mgrEnv
-		}
-	}
-	if value == "" {
-		return mgrEnv
-	}
-	return append(mgrEnv, ManagerEnvVar{Name: key, Value: value})
 }

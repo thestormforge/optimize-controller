@@ -34,7 +34,6 @@ import (
 	redskyclient "github.com/redskyops/k8s-experiment/redskyapi"
 	"github.com/redskyops/redskyops-ui/ui"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 const (
@@ -45,7 +44,7 @@ const (
 type ResultsOptions struct {
 	ServerAddress string
 	DisplayURL    bool
-	BackendConfig *viper.Viper
+	BackendConfig *redskyclient.Config
 
 	cmdutil.IOStreams
 }

@@ -24,7 +24,6 @@ require (
 	github.com/redskyops/redskyops-ui v0.0.0-20191219155208-ccf32108fb7e
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/pflag v1.0.5
-	github.com/spf13/viper v1.4.0
 	github.com/zorkian/go-datadog-api v2.24.0+incompatible
 	golang.org/x/net v0.0.0-20191004110552-13f9640d40b9
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45

@@ -64,7 +64,7 @@ func (o *ConfigViewOptions) Run() error {
 		return err
 	}
 
-	output, err := yaml.Marshal(cfg.AllSettings())
+	output, err := yaml.Marshal(cfg)
 	if err != nil {
 		return err
 	}
