@@ -17,11 +17,9 @@ limitations under the License.
 package setup
 
 import (
-	"bytes"
-	"io"
+	"fmt"
 	"os/exec"
 
-	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/config"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 )
@@ -90,20 +88,19 @@ func (o *InitOptions) Run() error {
 		return err
 	}
 
+	if err := o.secret(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (o *InitOptions) install() error {
-	env, err := o.generateManagerEnv()
-	if err != nil {
-		return err
-	}
-
 	// TODO Handle upgrades with "--prune", "--selector", "app.kubernetes.io/name=redskyops,app.kubernetes.io/managed-by=%s"
 	applyCmd := o.Kubectl.NewCmd("apply", "-f", "-")
 	applyCmd.Stdout = o.Out
 	applyCmd.Stderr = o.ErrOut
-	return install(o.Kubectl, o.Namespace, env, applyCmd)
+	return install(o.Kubectl, o.Namespace, applyCmd)
 }
 
 func (o *InitOptions) bootstrapRole() error {
@@ -113,7 +110,7 @@ func (o *InitOptions) bootstrapRole() error {
 
 	createCmd := o.Kubectl.NewCmd("create", "-f", "-")
 	createCmd.Stdout = o.Out
-	if err := bootstrapRole(o.Kubectl, createCmd); err != nil {
+	if err := bootstrapRole(createCmd); err != nil {
 		if _, ok := err.(*exec.ExitError); ok {
 			// TODO We expect this to fail when the resource exists, but what about everything else?
 			return nil
@@ -123,12 +120,20 @@ func (o *InitOptions) bootstrapRole() error {
 	return nil
 }
 
-func (o *InitOptions) generateManagerEnv() (io.Reader, error) {
-	b := &bytes.Buffer{}
-	opts := config.NewConfigEnvOptions(cmdutil.IOStreams{Out: b})
-	opts.Manager = true
-	if err := opts.Run(); err != nil {
-		return nil, err
+func (o *InitOptions) secret() error {
+	applyCmd := o.Kubectl.NewCmd("apply", "-f", "-")
+	applyCmd.Stdout = o.Out
+	applyCmd.Stderr = o.ErrOut
+	name, err := secret(o.Namespace, applyCmd)
+	if err != nil {
+		return err
 	}
-	return b, nil
+
+	// Label the deployment with the unique name so it will trigger an update when it changes
+	annotateArgs := []string{"annotate", "--overwrite", "deployment", "redsky-controller-manager", fmt.Sprintf("%s=%s", "redskyops.dev/secret", name)}
+	if o.Namespace != "" {
+		annotateArgs = append(annotateArgs, "-n", o.Namespace)
+	}
+	annotateCmd := o.Kubectl.NewCmd(annotateArgs...)
+	return annotateCmd.Run()
 }

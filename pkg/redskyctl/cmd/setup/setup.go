@@ -18,20 +18,18 @@ package setup
 
 import (
 	"bytes"
-	"io"
 	"os/exec"
 
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/generate"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 )
 
-func install(kubectl *cmdutil.Kubectl, namespace string, env io.Reader, cmd *exec.Cmd) error {
+func install(kubectl *cmdutil.Kubectl, namespace string, cmd *exec.Cmd) error {
 	buffer := &bytes.Buffer{}
 
 	// Create generate install options
 	installOpts := generate.NewGenerateInstallOptions(cmdutil.IOStreams{Out: buffer, ErrOut: cmd.Stderr})
 	installOpts.Kubectl = kubectl
-	installOpts.Env = env
 	if namespace != "" {
 		installOpts.Namespace = namespace
 	}
@@ -46,7 +44,7 @@ func install(kubectl *cmdutil.Kubectl, namespace string, env io.Reader, cmd *exe
 	return cmd.Run()
 }
 
-func bootstrapRole(kubectl *cmdutil.Kubectl, cmd *exec.Cmd) error {
+func bootstrapRole(cmd *exec.Cmd) error {
 	buffer := &bytes.Buffer{}
 
 	// Create generate RBAC options
@@ -64,4 +62,28 @@ func bootstrapRole(kubectl *cmdutil.Kubectl, cmd *exec.Cmd) error {
 	// Run the command
 	cmd.Stdin = buffer
 	return cmd.Run()
+}
+
+func secret(namespace string, cmd *exec.Cmd) (string, error) {
+	buffer := &bytes.Buffer{}
+
+	// Create generate secret options
+	secretOpts := generate.NewGenerateSecretOptions(cmdutil.IOStreams{Out: buffer, ErrOut: cmd.Stderr})
+	if namespace != "" {
+		secretOpts.Namespace = namespace
+	}
+
+	// Populate the buffer
+	if err := secretOpts.Run(); err != nil {
+		return "", err
+	}
+
+	// Run the command
+	cmd.Stdin = buffer
+	if err := cmd.Run(); err != nil {
+		return "", err
+	}
+
+	// TODO ULTRA HACK. Return what the Kustomize hash name would have been
+	return secretOpts.Name, nil
 }

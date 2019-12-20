@@ -85,12 +85,12 @@ func (o *ResetOptions) install() error {
 	deleteCmd := o.Kubectl.NewCmd("delete", "--ignore-not-found", "-f", "-")
 	deleteCmd.Stdout = o.Out
 	deleteCmd.Stderr = o.ErrOut
-	return install(o.Kubectl, o.Namespace, nil, deleteCmd)
+	return install(o.Kubectl, o.Namespace, deleteCmd)
 }
 
 func (o *ResetOptions) bootstrapRole() error {
 	deleteCmd := o.Kubectl.NewCmd("delete", "--ignore-not-found", "-f", "-")
 	deleteCmd.Stdout = o.Out
 	deleteCmd.Stderr = o.ErrOut
-	return bootstrapRole(o.Kubectl, deleteCmd)
+	return bootstrapRole(deleteCmd)
 }

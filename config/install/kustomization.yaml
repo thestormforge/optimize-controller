@@ -9,10 +9,5 @@ resources:
 patchesStrategicMerge:
 - manager_patch.yaml
 
-secretGenerator:
-- name: redsky-manager
-  envs:
-  - manager.env
-
 transformers:
 - metadata_labels.yaml

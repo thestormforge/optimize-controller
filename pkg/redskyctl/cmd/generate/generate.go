@@ -22,6 +22,7 @@ import (
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -47,6 +48,7 @@ func NewGenerateCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.C
 
 	cmd.AddCommand(NewGenerateExperimentCommand(ioStreams))
 	cmd.AddCommand(NewGenerateInstallCmd(ioStreams))
+	cmd.AddCommand(NewGenerateSecretCmd(ioStreams))
 	cmd.AddCommand(NewGenerateRBACCommand(ioStreams))
 
 	return cmd
@@ -55,6 +57,7 @@ func NewGenerateCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.C
 func serialize(e interface{}, w io.Writer) error {
 	// This scheme is a subset with only the types that we are generating
 	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
 	_ = rbacv1.AddToScheme(scheme)
 	_ = redskyv1alpha1.AddToScheme(scheme)
 	u := &unstructured.Unstructured{}

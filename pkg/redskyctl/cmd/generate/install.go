@@ -18,7 +18,6 @@ package generate
 
 import (
 	"fmt"
-	"io"
 
 	"github.com/redskyops/k8s-experiment/internal/setup"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
@@ -35,7 +34,6 @@ const (
 type GenerateInstallOptions struct {
 	Kubectl   *cmdutil.Kubectl
 	Namespace string
-	Env       io.Reader
 
 	cmdutil.IOStreams
 }
@@ -100,22 +98,11 @@ func (o *GenerateInstallOptions) Run() error {
 		args = append(args, "--env", fmt.Sprintf("NAMESPACE=%s", o.Namespace))
 	}
 
-	// Tell kubectl to use stdin to read environment declarations
-	if o.Env != nil {
-		args = append(args, "--stdin")
-	}
-
 	// Arguments passed to the container
 	args = append(args, "--", "install")
 
-	// Tell the installer to pick up environment declarations from stdin
-	if o.Env != nil {
-		args = append(args, "-")
-	}
-
 	// Run it
 	cmd := o.Kubectl.NewCmd(args...)
-	cmd.Stdin = o.Env
 	cmd.Stdout = o.Out
 	cmd.Stderr = o.ErrOut
 	return cmd.Run()
