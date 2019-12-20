@@ -31,9 +31,10 @@ const (
 
 // InitOptions is the configuration for initialization
 type InitOptions struct {
-	Kubectl              *cmdutil.Kubectl
-	Namespace            string
-	IncludeBootstrapRole bool
+	Kubectl                 *cmdutil.Kubectl
+	Namespace               string
+	IncludeBootstrapRole    bool
+	IncludeExtraPermissions bool
 
 	// TODO Add --envFile option that gets merged with the configuration environment variables
 	// TODO Should we get information from other secrets in other namespaces?
@@ -67,6 +68,7 @@ func NewInitCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Comma
 
 	cmd.Flags().StringVarP(&o.Namespace, "namespace", "n", o.Namespace, "Override default namespace.")
 	cmd.Flags().BoolVar(&o.IncludeBootstrapRole, "bootstrap-role", o.IncludeBootstrapRole, "Create the bootstrap role (if it does not exist).")
+	cmd.Flags().BoolVar(&o.IncludeExtraPermissions, "extra-permissions", false, "Generate permissions required for features like namespace creation")
 
 	return cmd
 }
@@ -110,7 +112,7 @@ func (o *InitOptions) bootstrapRole() error {
 
 	createCmd := o.Kubectl.NewCmd("create", "-f", "-")
 	createCmd.Stdout = o.Out
-	if err := bootstrapRole(createCmd); err != nil {
+	if err := bootstrapRole(createCmd, o.IncludeExtraPermissions); err != nil {
 		if _, ok := err.(*exec.ExitError); ok {
 			// TODO We expect this to fail when the resource exists, but what about everything else?
 			return nil

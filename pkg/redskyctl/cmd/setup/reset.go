@@ -92,5 +92,5 @@ func (o *ResetOptions) bootstrapRole() error {
 	deleteCmd := o.Kubectl.NewCmd("delete", "--ignore-not-found", "-f", "-")
 	deleteCmd.Stdout = o.Out
 	deleteCmd.Stderr = o.ErrOut
-	return bootstrapRole(deleteCmd)
+	return bootstrapRole(deleteCmd, false)
 }

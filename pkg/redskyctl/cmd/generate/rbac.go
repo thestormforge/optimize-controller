@@ -39,11 +39,12 @@ const (
 )
 
 type GenerateRBACOptions struct {
-	Filename        string
-	Name            string
-	IncludeNames    bool
-	Bootstrap       bool
-	AdditionalRules []PatchingRule
+	Filename                string
+	Name                    string
+	IncludeNames            bool
+	IncludeBootstrapRole    bool
+	IncludeExtraPermissions bool
+	AdditionalRules         []PatchingRule
 
 	mapper meta.RESTMapper
 	cmdutil.IOStreams
@@ -72,7 +73,8 @@ func NewGenerateRBACCommand(ioStreams cmdutil.IOStreams) *cobra.Command {
 	cmd.Flags().StringVarP(&o.Filename, "filename", "f", "", "File that contains the experiment to extract roles from.")
 	cmd.Flags().StringVar(&o.Name, "role-name", "", "Name of the cluster role to generate (default is to use a generated name).")
 	cmd.Flags().BoolVar(&o.IncludeNames, "include-names", false, "Include resource names in the generated role.")
-	cmd.Flags().BoolVar(&o.Bootstrap, "bootstrap", false, "Generate the default cluster used for initial installations")
+	cmd.Flags().BoolVar(&o.IncludeBootstrapRole, "bootstrap-role", false, "Generate the default cluster used for initial installations")
+	cmd.Flags().BoolVar(&o.IncludeExtraPermissions, "extra-permissions", false, "Generate permissions required for features like namespace creation")
 
 	return cmd
 }
@@ -86,7 +88,7 @@ func (o *GenerateRBACOptions) Complete() error {
 	o.mapper = rm
 
 	// The bootstrap configuration
-	if o.Bootstrap {
+	if o.IncludeBootstrapRole {
 		o.Filename = ""
 		o.Name = "redsky-aggregate-to-patching"
 		o.AdditionalRules = []PatchingRule{
@@ -111,6 +113,12 @@ func (o *GenerateRBACOptions) Run() error {
 	// Add additional rules
 	for _, r := range o.AdditionalRules {
 		clusterRole.Rules = append(clusterRole.Rules, *r.ToPolicyRule())
+	}
+
+	// Add extra rules
+	// TODO "extra permissions" should be on a separate role (i.e. not named "patching")
+	if o.IncludeBootstrapRole && o.IncludeExtraPermissions {
+		clusterRole.Rules = append(clusterRole.Rules, extraRules()...)
 	}
 
 	// Read the experiment
@@ -266,4 +274,17 @@ func (r *PatchingRule) CopyTo(pr *rbacv1.PolicyRule) {
 	for _, resourceName := range r.ResourceNames {
 		pr.ResourceNames = appendMissing(pr.ResourceNames, resourceName)
 	}
+}
+
+// extraRules are the things like namespace creation
+func extraRules() []rbacv1.PolicyRule {
+	var rules []rbacv1.PolicyRule
+
+	rules = append(rules, rbacv1.PolicyRule{
+		Verbs:     []string{"create"},
+		APIGroups: []string{""},
+		Resources: []string{"namespaces,serviceaccounts"},
+	})
+
+	return rules
 }

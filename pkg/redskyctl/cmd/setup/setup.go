@@ -44,12 +44,13 @@ func install(kubectl *cmdutil.Kubectl, namespace string, cmd *exec.Cmd) error {
 	return cmd.Run()
 }
 
-func bootstrapRole(cmd *exec.Cmd) error {
+func bootstrapRole(cmd *exec.Cmd, extraPermissions bool) error {
 	buffer := &bytes.Buffer{}
 
 	// Create generate RBAC options
 	rbacOpts := generate.NewGenerateRBACOptions(cmdutil.IOStreams{Out: buffer, ErrOut: cmd.Stderr})
-	rbacOpts.Bootstrap = true
+	rbacOpts.IncludeBootstrapRole = true
+	rbacOpts.IncludeExtraPermissions = extraPermissions
 	if err := rbacOpts.Complete(); err != nil {
 		return err
 	}
