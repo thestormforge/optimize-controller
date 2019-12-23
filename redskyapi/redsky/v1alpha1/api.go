@@ -83,6 +83,7 @@ const (
 	ErrTrialInvalid                     = "trial-invalid"
 	ErrTrialUnavailable                 = "trial-unavailable"
 	ErrTrialNotFound                    = "trial-not-found"
+	ErrTrialAlreadyReported             = "trial-already-reported"
 	ErrConfigAddressMissing             = "config-address-missing"
 	ErrUnexpected                       = "unexpected"
 )
@@ -640,6 +641,8 @@ func (h *httpAPI) ReportTrial(ctx context.Context, u string, vls TrialValues) er
 		return nil
 	case http.StatusNotFound:
 		return &Error{Type: ErrTrialNotFound}
+	case http.StatusConflict:
+		return &Error{Type: ErrTrialAlreadyReported}
 	case http.StatusUnprocessableEntity:
 		return &Error{Type: ErrTrialInvalid}
 	default:

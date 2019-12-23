@@ -38,6 +38,11 @@ func IsFinished(t *redskyv1alpha1.Trial) bool {
 	return false
 }
 
+// IsAbandoned checks to see if the specified trial is abandoned
+func IsAbandoned(t *redskyv1alpha1.Trial) bool {
+	return !IsFinished(t) && !t.GetDeletionTimestamp().IsZero()
+}
+
 // IsActive checks to see if the specified trial and any setup delete tasks are NOT finished
 func IsActive(t *redskyv1alpha1.Trial) bool {
 	// Not finished, definitely active

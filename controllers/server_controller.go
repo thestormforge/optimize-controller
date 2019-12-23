@@ -83,22 +83,23 @@ func (r *ServerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	var trialHasFinalizer bool
 	for i := range trialList.Items {
 		t := &trialList.Items[i]
-		if trial.IsFinished(t) {
-			if result, err := r.reportTrial(ctx, log, t); result != nil {
-				return *result, err
-			}
-		} else if !t.GetDeletionTimestamp().IsZero() {
-			if result, err := r.abandonTrial(ctx, log, t); result != nil {
-				return *result, err
+		if meta.HasFinalizer(t, server.Finalizer) {
+			trialHasFinalizer = true
+
+			// Report or abandon the trial (will remove the finalizer)
+			if trial.IsFinished(t) {
+				if result, err := r.reportTrial(ctx, log, t); result != nil {
+					return *result, err
+				}
+			} else if trial.IsAbandoned(t) {
+				if result, err := r.abandonTrial(ctx, log, t); result != nil {
+					return *result, err
+				}
 			}
 		}
-
-		// We cannot delete the experiment if any trial still has a finalizer
-		// TODO Instead of a boolean should we use an array of trial names and make a useful log message?
-		trialHasFinalizer = trialHasFinalizer || meta.HasFinalizer(t, server.Finalizer)
 	}
 
-	// Delete the experiment on the server
+	// Delete the experiment on the server (only when all trial finalizers are removed)
 	if !exp.DeletionTimestamp.IsZero() && !trialHasFinalizer {
 		if result, err := r.deleteExperiment(ctx, exp); result != nil {
 			return *result, err
@@ -234,28 +235,19 @@ func (r *ServerReconciler) reportTrial(ctx context.Context, log logr.Logger, t *
 		return nil, nil
 	}
 
-	// NOTE: Because the server operation is not idempotent, the order of operations is different here then in other
-	// places in the code: i.e. we do the Kube API update *first* before trying to update the server (we are more likely
-	// to conflict in the Kube API); this also means that returning an empty `ctrl.Result` will still result in an
-	// immediate call back into the reconciliation logic since we *do not* return from a successful Kube API update.
-	if err := r.Update(ctx, t); err != nil {
-		return controller.RequeueConflict(err)
+	if reportTrialURL := t.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL]; reportTrialURL != "" {
+		trialValues := server.FromClusterTrial(t)
+		log = loggerWithConditions(log, &t.Status)
+		log.Info("Reporting trial", "namespace", t.Namespace, "reportTrialURL", reportTrialURL, "assignments", t.Spec.Assignments, "values", trialValues)
+		err := r.RedSkyAPI.ReportTrial(ctx, reportTrialURL, *trialValues)
+		err = controller.IgnoreReportError(err)
+		if err != nil {
+			return &ctrl.Result{}, err
+		}
 	}
 
-	// Even if there is no report URL, we still removed the finalizer and need to return a non-nil result
-	reportTrialURL := t.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL]
-	if reportTrialURL == "" {
-		return &ctrl.Result{}, nil
-	}
-
-	// Create an observation for the remote server and log it
-	trialValues := server.FromClusterTrial(t)
-	log = loggerWithConditions(log, &t.Status)
-	log.Info("Reporting trial", "namespace", t.Namespace, "reportTrialURL", reportTrialURL, "assignments", t.Spec.Assignments, "values", trialValues)
-
-	// Send the observation to the server
-	err := r.RedSkyAPI.ReportTrial(ctx, reportTrialURL, *trialValues)
-	return &ctrl.Result{}, controller.IgnoreNotFound(err)
+	err := r.Update(ctx, t)
+	return controller.RequeueConflict(err)
 }
 
 // abandonTrial will remove the finalizer and try to notify the server that the trial will not be reported
@@ -264,10 +256,11 @@ func (r *ServerReconciler) abandonTrial(ctx context.Context, log logr.Logger, t 
 		return nil, nil
 	}
 
-	// We can repeatedly abandon trials (so long as we ignore "not found" errors since "abandon" is a DELETE)
 	if reportTrialURL := t.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL]; reportTrialURL != "" {
 		log.Info("Abandoning trial", "namespace", t.Namespace, "reportTrialURL", reportTrialURL)
-		if err := r.RedSkyAPI.AbandonRunningTrial(ctx, reportTrialURL); controller.IgnoreNotFound(err) != nil {
+		err := r.RedSkyAPI.AbandonRunningTrial(ctx, reportTrialURL)
+		err = controller.IgnoreNotFound(err)
+		if err != nil {
 			return &ctrl.Result{}, err
 		}
 	}
