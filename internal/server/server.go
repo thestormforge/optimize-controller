@@ -42,8 +42,6 @@ func FromCluster(in *redskyv1alpha1.Experiment) (redskyapi.ExperimentName, *reds
 	out.Optimization = redskyapi.Optimization{}
 	if in.Spec.Parallelism != nil {
 		out.Optimization.ParallelTrials = *in.Spec.Parallelism
-	} else {
-		out.Optimization.ParallelTrials = in.Replicas()
 	}
 	if in.Spec.BurnIn != nil {
 		out.Optimization.BurnIn = *in.Spec.BurnIn
