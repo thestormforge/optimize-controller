@@ -17,7 +17,6 @@ limitations under the License.
 package setup
 
 import (
-	"fmt"
 	"os/exec"
 
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
@@ -36,9 +35,7 @@ type InitOptions struct {
 	IncludeBootstrapRole    bool
 	IncludeExtraPermissions bool
 
-	// TODO Add --envFile option that gets merged with the configuration environment variables
-	// TODO Should we get information from other secrets in other namespaces?
-	// TODO What about overriding the secret name to something we do not overwrite?
+	Authorization *AuthorizeOptions
 
 	cmdutil.IOStreams
 }
@@ -74,6 +71,15 @@ func NewInitCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Comma
 }
 
 func (o *InitOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []string) error {
+	if o.Authorization == nil {
+		o.Authorization = NewAuthorizeOptions(o.IOStreams)
+		o.Authorization.Namespace = o.Namespace
+	}
+
+	if err := o.Authorization.Complete(f, cmd, args); err != nil {
+		return err
+	}
+
 	if err := o.Kubectl.Complete(); err != nil {
 		return err
 	}
@@ -90,7 +96,7 @@ func (o *InitOptions) Run() error {
 		return err
 	}
 
-	if err := o.secret(); err != nil {
+	if err := o.Authorization.Run(); err != nil {
 		return err
 	}
 
@@ -120,23 +126,4 @@ func (o *InitOptions) bootstrapRole() error {
 		return err
 	}
 	return nil
-}
-
-func (o *InitOptions) secret() error {
-	applyCmd := o.Kubectl.NewCmd("apply", "-f", "-")
-	applyCmd.Stdout = o.Out
-	applyCmd.Stderr = o.ErrOut
-	name, err := secret(o.Namespace, applyCmd)
-	if err != nil {
-		return err
-	}
-
-	// Patch the pod template to trigger an update when the configuration changes
-	patch := fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"redskyops.dev/secretHash":"%s"}}}}}`, name)
-	patchArgs := []string{"patch", "deployment", "redsky-controller-manager", "--patch", patch}
-	if o.Namespace != "" {
-		patchArgs = append(patchArgs, "-n", o.Namespace)
-	}
-	patchCmd := o.Kubectl.NewCmd(patchArgs...)
-	return patchCmd.Run()
 }
