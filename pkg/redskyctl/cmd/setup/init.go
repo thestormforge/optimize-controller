@@ -131,11 +131,12 @@ func (o *InitOptions) secret() error {
 		return err
 	}
 
-	// Label the deployment with the unique name so it will trigger an update when it changes
-	annotateArgs := []string{"annotate", "--overwrite", "deployment", "redsky-controller-manager", fmt.Sprintf("%s=%s", "redskyops.dev/secret", name)}
+	// Patch the pod template to trigger an update when the configuration changes
+	patch := fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"redskyops.dev/secretHash":"%s"}}}}}`, name)
+	patchArgs := []string{"patch", "deployment", "redsky-controller-manager", "--patch", patch}
 	if o.Namespace != "" {
-		annotateArgs = append(annotateArgs, "-n", o.Namespace)
+		patchArgs = append(patchArgs, "-n", o.Namespace)
 	}
-	annotateCmd := o.Kubectl.NewCmd(annotateArgs...)
-	return annotateCmd.Run()
+	patchCmd := o.Kubectl.NewCmd(patchArgs...)
+	return patchCmd.Run()
 }
