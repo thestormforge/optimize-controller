@@ -61,6 +61,7 @@ func NewRedskyctlCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 	rootCmd.AddCommand(docs.NewDocsCommand(ioStreams))
 	rootCmd.AddCommand(cmd.NewVersionCommand(f, ioStreams))
 
+	rootCmd.AddCommand(setup.NewLoginCommand(f, ioStreams))
 	rootCmd.AddCommand(setup.NewInitCommand(f, ioStreams))
 	rootCmd.AddCommand(setup.NewResetCommand(f, ioStreams))
 	rootCmd.AddCommand(setup.NewAuthorizeCommand(f, ioStreams))
