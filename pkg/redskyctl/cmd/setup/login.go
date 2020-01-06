@@ -29,7 +29,6 @@ import (
 	"os"
 	"os/signal"
 	"os/user"
-	"strings"
 	"syscall"
 	"time"
 
