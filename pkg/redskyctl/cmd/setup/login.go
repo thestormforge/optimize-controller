@@ -289,15 +289,9 @@ func persistToken(t *oauth2.Token) error {
 	if err != nil {
 		return err
 	}
-	config.OAuth2.ClientID = accessToken["redsky_client_id"]
-	config.OAuth2.ClientSecret = accessToken["redsky_client_secret"]
+	config.Set("oauth2.client_id", accessToken["redsky_client_id"])
+	config.Set("oauth2.client_secret", accessToken["redsky_client_secret"])
 
-	// Allow the client ID to override the address
-	parts := strings.SplitN(config.OAuth2.ClientID, ".", 2)
-	if len(parts) > 1 {
-		config.OAuth2.ClientID = parts[0]
-		config.Address = fmt.Sprintf("https://%s/", parts[1])
-	}
 	// TODO How else do we get the endpoint identifier?
 
 	// Write the configuration back to disk

@@ -184,6 +184,15 @@ func (c *Config) Set(key, value string) error {
 		return nil
 	}
 
+	// Special handling for the client ID to extract the host name
+	if key == "oauth2.client_id" {
+		parts := strings.SplitN(value, ".", 2)
+		if len(parts) > 1 {
+			value = parts[0]
+			c.Address = fmt.Sprintf("https://%s/", parts[1])
+		}
+	}
+
 	jp := jsonpath.New("config")
 	// TODO Instead of always adding the braces and dot, check to see if they are needed
 	if err := jp.Parse(fmt.Sprintf("{.%s}", key)); err != nil {
