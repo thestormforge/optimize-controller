@@ -180,6 +180,15 @@ func (r *TrialJobReconciler) applyJobStatus(ctx context.Context, t *redskyv1alph
 			if (startedAt == nil && job.Status.StartTime != nil) || (finishedAt == nil && job.Status.CompletionTime != nil) {
 				return false, true
 			}
+
+			// Look for pod failures (edge case where job controller doesn't update status properly, e.g. initContainer failure)
+			for i := range podList.Items {
+				s := &podList.Items[i].Status
+				if s.Phase == corev1.PodFailed {
+					trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, s.Reason, "", time)
+					dirty = true
+				}
+			}
 		}
 	}
 
