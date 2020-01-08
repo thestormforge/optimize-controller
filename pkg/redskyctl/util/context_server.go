@@ -29,10 +29,11 @@ import (
 
 // ContextServer is a server bound to a context lifecycle
 type ContextServer struct {
-	ctx     context.Context
-	cancel  context.CancelFunc
-	srv     *http.Server
-	handler func(string) error
+	ctx    context.Context
+	cancel context.CancelFunc
+	srv    *http.Server
+
+	startUp func(string) error
 }
 
 type ContextServerOption func(*ContextServer)
@@ -79,66 +80,80 @@ func ShutdownOnInterrupt(onInterrupt func()) ContextServerOption {
 	}
 }
 
-// HandleOnStart runs the supplied function with the server URL once the server is listening
-func HandleOnStart(onStart func(string) error) ContextServerOption {
+// HandleStart runs the supplied function with the server URL once the server is listening
+func HandleStart(startUp func(string) error) ContextServerOption {
 	return func(cs *ContextServer) {
-		cs.handler = onStart
+		cs.startUp = startUp
 	}
 }
 
 // ListenAndServe will start the server and block, the resulting error may be from start up, start up handlers, or shutdown
 func (cs *ContextServer) ListenAndServe() error {
-	// Listen separately so we can capture the resolved address
-	addr := cs.srv.Addr
+	// Listen separately from serve so we can capture the resolved address
+	l, loc, err := listen(cs.srv.Addr)
+	if err != nil {
+		return err
+	}
+
+	// Start the server and the shutdown routine asynchronously
+	done := make(chan error, 1)
+	go cs.asyncServe(l, done)
+	go cs.asyncShutdown(done)
+
+	// Run the start up handler
+	cs.handleStartUp(loc, done)
+
+	return <-done
+}
+
+func listen(addr string) (net.Listener, *url.URL, error) {
 	if addr == "" {
 		addr = ":http"
 	}
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
-	loc := url.URL{Scheme: "http", Host: ln.Addr().String(), Path: "/"}
 
 	// Dummy reverse lookup for loopback/unspecified
+	loc := url.URL{Scheme: "http", Host: ln.Addr().String(), Path: "/"}
 	if ip := net.ParseIP(loc.Hostname()); ip != nil && (ip.IsLoopback() || ip.IsUnspecified()) {
 		loc.Host = net.JoinHostPort("localhost", loc.Port())
 	}
 
-	done := make(chan error, 1)
+	return ln, &loc, nil
+}
 
-	// Start the server asynchronously
-	go func() {
-		if err := cs.srv.Serve(ln); err != http.ErrServerClosed {
-			done <- err
-		}
-	}()
+func (cs *ContextServer) asyncServe(l net.Listener, done chan error) {
+	if err := cs.srv.Serve(l); err != http.ErrServerClosed {
+		done <- err
+	}
+}
 
-	// Start the shutdown routine
-	go func() {
-		// Wait for the server context
-		<-cs.ctx.Done()
+func (cs *ContextServer) asyncShutdown(done chan error) {
+	// Wait for the server context
+	<-cs.ctx.Done()
 
-		// Create a context with a 5 second timeout
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
+	// Create a context with a 5 second timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-		// Initiate an orderly shutdown, send errors to the channel
-		done <- cs.srv.Shutdown(ctx)
-	}()
+	// Initiate an orderly shutdown, send errors to the channel
+	done <- cs.srv.Shutdown(ctx)
+}
 
-	if cs.handler != nil {
+func (cs *ContextServer) handleStartUp(loc *url.URL, done chan error) {
+	if cs.startUp != nil {
 		select {
 		case err := <-done:
-			// We already hit an error, don't run the handler and requeue the error
+			// We already hit an error, don't run the handler and requeue
 			done <- err
 		default:
-			if err := cs.handler(loc.String()); err != nil {
+			if err := cs.startUp(loc.String()); err != nil {
 				// Shutdown the server since the startup handler failed
 				cs.cancel()
 				done <- err
 			}
 		}
 	}
-
-	return <-done
 }

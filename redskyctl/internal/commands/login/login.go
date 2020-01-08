@@ -120,7 +120,7 @@ func (o *LoginOptions) Run() error {
 	server := cmdutil.NewContextServer(ctx, router,
 		cmdutil.WithServerOptions(o.configureHTTPServer),
 		cmdutil.ShutdownOnInterrupt(func() { _, _ = fmt.Fprintln(o.Out) }),
-		cmdutil.HandleOnStart(func(string) error {
+		cmdutil.HandleStart(func(string) error {
 			return o.openBrowser(rh.authCodeURL())
 		}))
 

@@ -98,7 +98,7 @@ func (o *ResultsOptions) Run() error {
 	server := cmdutil.NewContextServer(context.Background(), router,
 		cmdutil.WithServerOptions(o.configureServer),
 		cmdutil.ShutdownOnInterrupt(func() { _, _ = fmt.Fprintln(o.Out) }),
-		cmdutil.HandleOnStart(o.openBrowser))
+		cmdutil.HandleStart(o.openBrowser))
 
 	return server.ListenAndServe()
 }
