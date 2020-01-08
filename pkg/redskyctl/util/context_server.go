@@ -97,7 +97,12 @@ func (cs *ContextServer) ListenAndServe() error {
 	if err != nil {
 		return err
 	}
-	loc := url.URL{Scheme: "http", Host: ln.Addr().String()}
+	loc := url.URL{Scheme: "http", Host: ln.Addr().String(), Path: "/"}
+
+	// Dummy reverse lookup for loopback/unspecified
+	if ip := net.ParseIP(loc.Hostname()); ip != nil && (ip.IsLoopback() || ip.IsUnspecified()) {
+		loc.Host = net.JoinHostPort("localhost", loc.Port())
+	}
 
 	done := make(chan error, 1)
 
