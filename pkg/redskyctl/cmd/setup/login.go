@@ -41,7 +41,7 @@ import (
 
 const (
 	// loginSuccessURL is the URL where users are redirected after a successful login
-	loginSuccessURL = "https://redskyops.dev/docs/" // TODO We should have a dedicated landing page in the doc site
+	loginSuccessURL = "https://redskyops.dev/api/auth_success/"
 
 	loginLong    = `Log into your Red Sky account`
 	loginExample = ``
