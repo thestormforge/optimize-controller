@@ -37,11 +37,13 @@ const loginFormPage = `<!DOCTYPE html>
 <html>
 <head>
 	<title>Sign In</title>
-	<style>*{font-family:Montserrat,sans-serif;font-size:14px}html{height:100%}body{background:radial-gradient(#40404b,#111118) rgba(34,34,40,.94);padding:40px}form{width:360px;margin:auto;background:#fff;border-radius:3px;padding:40px}form img{display:block;margin:auto;width:50%}form p{margin-top:10px;text-align:center;color:#f55467;font-size:26px}form input{width:340px;padding:9px;margin:2px;border:1px solid #d1cdcc;border-radius:3px}form button{width:100%;padding:10px;background:#f55467;color:#f9f9f9;font-weight:600;border:0;border-radius:3px;margin:2px;margin-top:20px}</style>
+	<style>*{font-family:Montserrat,sans-serif;font-size:14px}html{height:100%}body{background:radial-gradient(#40404b,#111118) rgba(34,34,40,.94);padding:40px}form{width:360px;margin:auto;background:#fff;border-radius:3px;padding:40px}form img{display:block;margin:auto;width:50%}form p{margin-top:10px;text-align:center;color:#f55467;font-size:26px}form .error p {background: #f9cdc4;color: #363232;font-size: 14px;text-align: left;border: 2px solid #e3606a;border-radius:9px;padding: 9px}form input{width:340px;padding:9px;margin:2px;border:1px solid #d1cdcc;border-radius:3px}form button{width:100%;padding:10px;background:#f55467;color:#f9f9f9;font-weight:600;border:0;border-radius:3px;margin:2px;margin-top:20px}</style>
 </head>
 <body>
 <form action="/login" method="POST">
 <div class="logo"><img src="https://redskyops.dev/img/redskylogo.png"><p>Red Sky Ops</p></div>
+{{with .ErrorMsg}}<div class="error"><p>{{.}}</p></div>
+{{end}}
 <input type="text" name="client_id" id="client_id" placeholder="Client ID" autocomplete="off" autocapitalize="off" autofocus>
 <input type="text" name="client_secret" id="client_secret" placeholder="Client secret" autocomplete="off" autocapitalize="off">
 <input type="hidden" name="redirect_uri" value="{{.RedirectURL}}">
@@ -51,6 +53,15 @@ const loginFormPage = `<!DOCTYPE html>
 </body>
 </html>
 `
+
+// errorMsg returns the message to use for an error code
+func errorMsg(code string) string {
+	// This level of indirection is meant to help with injection attacks...
+	switch code {
+	default:
+		return ""
+	}
+}
 
 // authenticationProvider is a provider which we can use to make a two-legged flow look like it has a third leg.
 type authenticationProvider struct {
@@ -111,7 +122,7 @@ func (ap *authenticationProvider) authorize(w http.ResponseWriter, r *http.Reque
 	}
 	p := make(map[string]interface{})
 	p["RedirectURL"] = r.FormValue("redirect_uri")
-	// TODO Error message from previous failed login attempt?
+	p["ErrorMsg"] = errorMsg(r.FormValue("error"))
 
 	err = tmpl.Execute(w, p)
 	if err != nil {
