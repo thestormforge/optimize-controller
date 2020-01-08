@@ -60,6 +60,8 @@ type authenticationProvider struct {
 	ClientID string
 	// ClientSecret is supplied by the user for each login request
 	ClientSecret string
+	// state is supplied by the client to mitigate CSRF attacks
+	state string
 }
 
 // register this authentication provider with the supplied mux at the specified base URL and get the OAuth endpoint back
@@ -80,7 +82,7 @@ func (ap *authenticationProvider) register(baseURL *url.URL, router *http.ServeM
 	}
 }
 
-// returns a hash of the current state; used to ensure the requests match
+// returns a hash of the current state; used to ensure the login request matches the token exchange
 func (ap *authenticationProvider) code() string {
 	h := sha256.New()
 	_, _ = h.Write(ap.Salt)
@@ -89,7 +91,7 @@ func (ap *authenticationProvider) code() string {
 	return base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 }
 
-// authorize handles the initial request for a login and the token exchange
+// authorize handles the initial request for a login
 func (ap *authenticationProvider) authorize(w http.ResponseWriter, r *http.Request) {
 	// Verify this is a GET method
 	if r.Method != http.MethodGet {
@@ -97,6 +99,8 @@ func (ap *authenticationProvider) authorize(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// Store request parameters for later
+	ap.state = r.FormValue("state")
 	// TODO We should also store the code challenge so we can verify it later
 
 	// We should only need this once so don't bother caching the parsed templates
@@ -150,6 +154,7 @@ func (ap *authenticationProvider) login(w http.ResponseWriter, r *http.Request) 
 	// Add the code to the redirect URL
 	query := redirectURL.Query()
 	query.Set("code", ap.code())
+	query.Set("state", ap.state)
 	redirectURL.RawQuery = query.Encode()
 
 	// Redirect back to the client (who will exchange the authorization code for an access token)

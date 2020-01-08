@@ -211,26 +211,34 @@ type redirectHandler struct {
 	OAuth2 oauth2.Config
 	// ShutdownServer is called to shutdown the server at the end of the process
 	ShutdownServer func()
+	// state is a random value to prevent CSRF attacks
+	state string
 	// verifier is the PKCE code verifier generated for this login attempt
 	verifier string
 }
 
 func newRedirectHandler() (*redirectHandler, error) {
-	// Generate a random verifier
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
+	// Generate a random state for CSRF
+	sb := make([]byte, 16)
+	if _, err := rand.Read(sb); err != nil {
 		return nil, err
 	}
-	v := base64.RawURLEncoding.EncodeToString(b)
+	s := base64.RawURLEncoding.EncodeToString(sb)
 
-	return &redirectHandler{verifier: v}, nil
+	// Generate a random verifier
+	vb := make([]byte, 32)
+	if _, err := rand.Read(vb); err != nil {
+		return nil, err
+	}
+	v := base64.RawURLEncoding.EncodeToString(vb)
+
+	return &redirectHandler{state: s, verifier: v}, nil
 }
 
 // authCodeURL returns the browser URL for the user to start the authentication flow
 func (h *redirectHandler) authCodeURL() string {
-	state := "" // TODO What should this be? Presumably something random...
 	codeChallenge := fmt.Sprintf("%x", sha256.Sum256([]byte(h.verifier)))
-	return h.OAuth2.AuthCodeURL(state, oauth2.SetAuthURLParam("code_challenge", codeChallenge), codeChallengeMethodS256)
+	return h.OAuth2.AuthCodeURL(h.state, oauth2.SetAuthURLParam("code_challenge", codeChallenge), codeChallengeMethodS256)
 }
 
 // ServeHTTP will handle the `GET /?code=...` request by exchanging the authorization code for an access token and storing it to disk
@@ -247,6 +255,12 @@ func (h *redirectHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// If this is a request for redirect target, shutdown the server once we leave this method
 	defer h.ShutdownServer()
+
+	// Verify the state for CSRF
+	if h.state != r.FormValue("state") {
+		http.Error(w, "CSRF state mismatch", http.StatusForbidden)
+		return
+	}
 
 	// Exchange the authorization code for an access token
 	t, err := h.OAuth2.Exchange(context.TODO(), r.FormValue("code"), oauth2.SetAuthURLParam("code_verifier", h.verifier))
