@@ -19,14 +19,9 @@ package results
 import (
 	"context"
 	"fmt"
-	"net"
 	"net/http"
 	"net/http/httputil"
-	"net/url"
-	"os"
-	"os/signal"
 	"os/user"
-	"syscall"
 	"time"
 
 	"github.com/pkg/browser"
@@ -77,7 +72,7 @@ func NewResultsCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Co
 
 func (o *ResultsOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []string) error {
 	if o.ServerAddress == "" {
-		o.ServerAddress = ":8080" // TODO Use ":0" once we figure out the listener stuff
+		o.ServerAddress = ":0"
 	}
 
 	if o.BackendConfig == nil {
@@ -100,69 +95,22 @@ func (o *ResultsOptions) Run() error {
 	}
 
 	// Create the server
-	server := &http.Server{
-		Addr:         o.ServerAddress,
-		Handler:      router,
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		IdleTimeout:  15 * time.Second,
-	}
+	server := cmdutil.NewContextServer(context.Background(), router,
+		cmdutil.WithServerOptions(o.configureServer),
+		cmdutil.ShutdownOnInterrupt(func() { _, _ = fmt.Fprintln(o.Out) }),
+		cmdutil.HandleOnStart(o.openBrowser))
 
-	serve, shutdown := context.WithCancel(context.Background())
-	done := make(chan error, 1)
-
-	// Start the server and a blocked shutdown routine
-	go func() {
-		if err := server.ListenAndServe(); err != http.ErrServerClosed {
-			done <- err
-		}
-	}()
-	go func() {
-		<-serve.Done()
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		done <- server.Shutdown(ctx)
-	}()
-
-	// Add a signal handler so we shutdown cleanly on SIGINT/TERM
-	go func() {
-		quit := make(chan os.Signal, 1)
-		signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
-		<-quit
-		_, _ = fmt.Fprintln(o.Out)
-		shutdown()
-	}()
-
-	// Try to connect to see if start up failed
-	// TODO Do we need to retry this?
-	conn, err := net.DialTimeout("tcp", o.ServerAddress, 2*time.Second)
-	if err == nil {
-		_ = conn.Close()
-	}
-
-	// Before opening the browser, check to see if there were any errors
-	select {
-	case err := <-done:
-		return err
-	default:
-		if err := o.openBrowser(); err != nil {
-			shutdown()
-			return err
-		}
-	}
-	return <-done
+	return server.ListenAndServe()
 }
 
-func (o *ResultsOptions) url() *url.URL {
-	loc := &url.URL{Scheme: "http", Host: o.ServerAddress}
-	if loc.Hostname() == "" {
-		loc.Host = "localhost" + loc.Host
-	}
-	return loc
+func (o *ResultsOptions) configureServer(srv *http.Server) {
+	srv.Addr = o.ServerAddress
+	srv.ReadTimeout = 5 * time.Second
+	srv.WriteTimeout = 10 * time.Second
+	srv.IdleTimeout = 15 * time.Second
 }
 
-func (o *ResultsOptions) openBrowser() error {
-	loc := o.url().String()
+func (o *ResultsOptions) openBrowser(loc string) error {
 	u, err := user.Current()
 	if err != nil {
 		return err
