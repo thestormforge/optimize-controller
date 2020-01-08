@@ -23,13 +23,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/http"
 	"net/url"
-	"os"
-	"os/signal"
 	"os/user"
-	"syscall"
 	"time"
 
 	"github.com/pkg/browser"
@@ -56,8 +52,6 @@ var (
 type LoginOptions struct {
 	DisplayURL bool
 	Force      bool
-
-	ServerAddress string // NOTE: The server address must be whitelisted as a redirect URI by the authentication provider
 
 	cmdutil.IOStreams
 }
@@ -90,10 +84,6 @@ func NewLoginCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Comm
 }
 
 func (o *LoginOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []string) error {
-	if o.ServerAddress == "" {
-		o.ServerAddress = ":8085"
-	}
-
 	return nil
 }
 
@@ -110,7 +100,7 @@ func (o *LoginOptions) Run() error {
 	if err != nil {
 		return nil
 	}
-	rh.OAuth2.RedirectURL = o.url().String()
+	rh.OAuth2.RedirectURL = "http://localhost:8085/"
 
 	// Create a new serve mux to handle incoming requests
 	router := http.NewServeMux()
@@ -120,69 +110,32 @@ func (o *LoginOptions) Run() error {
 	ap := &authenticationProvider{}
 	rh.OAuth2.Endpoint = *ap.register(o.url(), router)
 
-	server := &http.Server{
-		Addr:         o.ServerAddress,
-		Handler:      router,
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		IdleTimeout:  15 * time.Second,
-	}
-
-	// This context corresponds to the lifetime of the server, calling shutdown will cancel the context
-	serve, shutdown := context.WithCancel(context.Background())
-	done := make(chan error, 1)
-
-	// Make sure we can shutdown the server once the configuration is written out
+	ctx, shutdown := context.WithCancel(context.Background())
 	rh.ShutdownServer = func() {
 		shutdown()
 		// TODO Read back the configuration and print out something more informative
 		_, _ = fmt.Fprintln(o.Out, "You are now logged in.")
 	}
 
-	// Start the server and a blocked shutdown routine
-	go func() {
-		if err := server.ListenAndServe(); err != http.ErrServerClosed {
-			done <- err
-		}
-	}()
-	go func() {
-		<-serve.Done()
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		done <- server.Shutdown(ctx)
-	}()
+	server := cmdutil.NewContextServer(ctx, router,
+		cmdutil.WithServerOptions(o.configureHTTPServer),
+		cmdutil.ShutdownOnInterrupt(func() { _, _ = fmt.Fprintln(o.Out) }),
+		cmdutil.HandleOnStart(func(string) error {
+			return o.openBrowser(rh.authCodeURL())
+		}))
 
-	// Add a signal handler so we shutdown cleanly on SIGINT/TERM
-	go func() {
-		quit := make(chan os.Signal, 1)
-		signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
-		<-quit
-		_, _ = fmt.Fprintln(o.Out)
-		shutdown()
-	}()
+	return server.ListenAndServe()
+}
 
-	// Try to connect to see if start up failed
-	// TODO Do we need to retry this?
-	conn, err := net.DialTimeout("tcp", o.ServerAddress, 2*time.Second)
-	if err == nil {
-		_ = conn.Close()
-	}
-
-	// Before opening the browser, check to see if there were any errors
-	select {
-	case err := <-done:
-		return err
-	default:
-		if err := o.openBrowser(rh.authCodeURL()); err != nil {
-			shutdown()
-			return err
-		}
-	}
-	return <-done
+func (o *LoginOptions) configureHTTPServer(srv *http.Server) {
+	srv.Addr = "localhost:8085"
+	srv.ReadTimeout = 5 * time.Second
+	srv.WriteTimeout = 10 * time.Second
+	srv.IdleTimeout = 15 * time.Second
 }
 
 func (o *LoginOptions) url() *url.URL {
-	loc := &url.URL{Scheme: "http", Host: o.ServerAddress, Path: "/"}
+	loc := &url.URL{Scheme: "http", Host: "localhost:8085", Path: "/"}
 	if loc.Hostname() == "" {
 		loc.Host = "localhost" + loc.Host
 	}
