@@ -18,6 +18,7 @@ package redskyapi
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/url"
@@ -180,6 +181,25 @@ func (c *Config) Set(key, value string) error {
 			value = parts[0]
 			c.Address = fmt.Sprintf("https://%s/", parts[1])
 		}
+	}
+
+	// TODO MONSTER HACK
+	// Special handling for JSON blobs used by early versions of the login command
+	if strings.HasPrefix(strings.TrimSpace(key), "{") {
+		data := key
+		if value != "" {
+			data += "=" + value // Reconstruct the original SplitN(=,2) just in case a value contains "="
+		}
+		rawConfig := make(map[string]string)
+		if err := json.Unmarshal([]byte(data), &rawConfig); err != nil {
+			return err
+		}
+		for k, v := range rawConfig {
+			if err := c.Set("oauth2."+k, v); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 
 	jp := jsonpath.New("config")
