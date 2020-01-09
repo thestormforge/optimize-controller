@@ -48,13 +48,35 @@ type TrialJobReconciler struct {
 func (r *TrialJobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	now := metav1.Now()
+
 	t := &redskyv1alpha1.Trial{}
 	if err := r.Get(ctx, req.NamespacedName, t); err != nil || r.ignoreTrial(t) {
 		return ctrl.Result{}, controller.IgnoreNotFound(err)
 	}
 
-	if result, err := r.runTrialJob(ctx, t, &now); result != nil {
+	// List the trial jobs (there should only ever be 0 or 1 matching jobs)
+	jobList := &batchv1.JobList{}
+	if err := r.listJobs(ctx, jobList, t.GetJobSelector()); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// Update trial status based on existing job state
+	if result, err := r.updateStatus(ctx, t, jobList, &now); result != nil {
 		return *result, err
+	}
+
+	// Create a new job if necessary
+	if len(jobList.Items) == 0 {
+		// TODO Remove this once we know why it is actually needed (if it is needed)
+		for _, c := range t.Status.Conditions {
+			if c.Type == redskyv1alpha1.TrialStable && c.LastTransitionTime.Add(1*time.Second).After(now.Time) {
+				return ctrl.Result{RequeueAfter: 1 * time.Second}, nil
+			}
+		}
+
+		if result, err := r.createJob(ctx, t); result != nil {
+			return *result, err
+		}
 	}
 
 	return ctrl.Result{}, nil
@@ -105,30 +127,8 @@ func (r *TrialJobReconciler) ignoreTrial(t *redskyv1alpha1.Trial) bool {
 	return false
 }
 
-func (r *TrialJobReconciler) runTrialJob(ctx context.Context, t *redskyv1alpha1.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
-	// TODO Remove this once we know why it is actually needed (if it is needed)
-	for _, c := range t.Status.Conditions {
-		if c.Type == redskyv1alpha1.TrialStable && c.LastTransitionTime.Add(1*time.Second).After(probeTime.Time) {
-			return &ctrl.Result{RequeueAfter: 1 * time.Second}, nil
-		}
-	}
-
-	// List the trial jobs; really, there should only ever be 0 or 1 matching jobs
-	jobList := &batchv1.JobList{}
-	if err := r.listJobs(ctx, jobList, t); err != nil {
-		return &ctrl.Result{}, err
-	}
-
-	if len(jobList.Items) == 0 {
-		job := trial.NewJob(t)
-		if err := controllerutil.SetControllerReference(t, job, r.Scheme); err != nil {
-			return &ctrl.Result{}, err
-		}
-
-		err := r.Create(ctx, job)
-		return &ctrl.Result{}, err
-	}
-
+// updateStatus will update the trial status based on the supplied list of trial run jobs
+func (r *TrialJobReconciler) updateStatus(ctx context.Context, t *redskyv1alpha1.Trial, jobList *batchv1.JobList, probeTime *metav1.Time) (*ctrl.Result, error) {
 	for i := range jobList.Items {
 		if update, requeue := r.applyJobStatus(ctx, t, &jobList.Items[i], probeTime); update {
 			err := r.Update(ctx, t)
@@ -142,9 +142,20 @@ func (r *TrialJobReconciler) runTrialJob(ctx context.Context, t *redskyv1alpha1.
 	return nil, nil
 }
 
+// createJob will create a new trial run job
+func (r *TrialJobReconciler) createJob(ctx context.Context, t *redskyv1alpha1.Trial) (*ctrl.Result, error) {
+	job := trial.NewJob(t)
+	if err := controllerutil.SetControllerReference(t, job, r.Scheme); err != nil {
+		return &ctrl.Result{}, err
+	}
+
+	err := r.Create(ctx, job)
+	return &ctrl.Result{}, err
+}
+
 // listJobs will return all of the jobs for the trial
-func (r *TrialJobReconciler) listJobs(ctx context.Context, jobList *batchv1.JobList, t *redskyv1alpha1.Trial) error {
-	matchingSelector, err := meta.MatchingSelector(t.GetJobSelector())
+func (r *TrialJobReconciler) listJobs(ctx context.Context, jobList *batchv1.JobList, selector *metav1.LabelSelector) error {
+	matchingSelector, err := meta.MatchingSelector(selector)
 	if err != nil {
 		return err
 	}
