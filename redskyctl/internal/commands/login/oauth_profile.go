@@ -29,8 +29,9 @@ func NewOAuthConfig(profile string) *oauth2.Config {
 		return &oauth2.Config{
 			ClientID: "YOUR_CLIENT_ID_HERE",
 			Endpoint: oauth2.Endpoint{
-				AuthURL:  profile + "authorize",
-				TokenURL: profile + "oauth/token",
+				AuthURL:   profile + "authorize",
+				TokenURL:  profile + "oauth/token",
+				AuthStyle: oauth2.AuthStyleInParams,
 			},
 		}
 	}
@@ -40,10 +41,10 @@ func NewOAuthConfig(profile string) *oauth2.Config {
 		return &oauth2.Config{
 			ClientID: "TYNvHNNtl2iGKJ3k9TyECDe81vrouzOu",
 			Endpoint: oauth2.Endpoint{
-				AuthURL:  "https://redskyops-dev.auth0.com/authorize",
-				TokenURL: "https://redskyops-dev.auth0.com/oauth/token",
+				AuthURL:   "https://redskyops-dev.auth0.com/authorize",
+				TokenURL:  "https://redskyops-dev.auth0.com/oauth/token",
+				AuthStyle: oauth2.AuthStyleInParams,
 			},
-			Scopes: nil,
 		}
 	default:
 		return nil
