@@ -30,6 +30,8 @@ import (
 
 // AuthorizationCodeFlowWithPKCE implements an authorization code flow with proof key for code exchange.
 type AuthorizationCodeFlowWithPKCE struct {
+	// Audience is the URI identifying the target API
+	Audience string
 	// HandleToken receives the access token from the authorization flow
 	HandleToken func(*oauth2.Token) error
 	// GenerateResponse produces an HTTP response for the given status code
@@ -68,9 +70,11 @@ func NewAuthorizationCodeFlowWithPKCE(c *oauth2.Config) (*AuthorizationCodeFlowW
 
 // AuthCodeURL returns the browser URL for the user to start the authorization flow
 func (f *AuthorizationCodeFlowWithPKCE) AuthCodeURL() string {
-	codeChallenge := oauth2.SetAuthURLParam("code_challenge", fmt.Sprintf("%x", sha256.Sum256([]byte(f.verifier))))
+	audience := oauth2.SetAuthURLParam("audience", f.Audience)
+	sum256 := sha256.Sum256([]byte(f.verifier))
+	codeChallenge := oauth2.SetAuthURLParam("code_challenge", base64.RawURLEncoding.EncodeToString(sum256[:]))
 	codeChallengeMethod := oauth2.SetAuthURLParam("code_challenge_method", "S256")
-	return f.config.AuthCodeURL(f.state, codeChallenge, codeChallengeMethod)
+	return f.config.AuthCodeURL(f.state, audience, codeChallenge, codeChallengeMethod)
 }
 
 // Exchange returns the access token for the authorization flow

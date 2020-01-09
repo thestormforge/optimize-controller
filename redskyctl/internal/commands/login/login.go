@@ -99,12 +99,14 @@ func (o *LoginOptions) Run() error {
 		return fmt.Errorf("unknown OAuth profile: %s", OAuthProfile)
 	}
 	config.RedirectURL = "http://localhost:8085/"
+	config.Scopes = []string{"offline_access"}
 	flow, err := NewAuthorizationCodeFlowWithPKCE(config)
 	if err != nil {
 		return err
 	}
 
 	// Configure the flow to persist the access token for offline use and generate the appropriate callback responses
+	flow.Audience = "https://api.carbonrelay.dev/"
 	flow.HandleToken = o.takeOffline
 	flow.GenerateResponse = o.generateCallbackResponse
 
