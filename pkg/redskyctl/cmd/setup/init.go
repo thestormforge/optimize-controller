@@ -44,6 +44,7 @@ type InitOptions struct {
 func NewInitOptions(ioStreams cmdutil.IOStreams) *InitOptions {
 	return &InitOptions{
 		Kubectl:              cmdutil.NewKubectl(),
+		Namespace:            "redsky-system",
 		IncludeBootstrapRole: true,
 		IOStreams:            ioStreams,
 	}

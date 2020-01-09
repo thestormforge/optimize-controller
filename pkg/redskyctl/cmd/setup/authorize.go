@@ -44,6 +44,7 @@ type AuthorizeOptions struct {
 func NewAuthorizeOptions(ioStreams cmdutil.IOStreams) *AuthorizeOptions {
 	return &AuthorizeOptions{
 		Kubectl:   cmdutil.NewKubectl(),
+		Namespace: "redsky-system",
 		IOStreams: ioStreams,
 	}
 }

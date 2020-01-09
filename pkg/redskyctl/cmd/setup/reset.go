@@ -38,6 +38,7 @@ type ResetOptions struct {
 func NewResetOptions(ioStreams cmdutil.IOStreams) *ResetOptions {
 	return &ResetOptions{
 		Kubectl:   cmdutil.NewKubectl(),
+		Namespace: "redsky-system",
 		IOStreams: ioStreams,
 	}
 }
