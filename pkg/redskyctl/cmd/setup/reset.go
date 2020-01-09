@@ -71,6 +71,10 @@ func (o *ResetOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []st
 }
 
 func (o *ResetOptions) Run() error {
+	if err := o.crd(); err != nil {
+		return err
+	}
+
 	if err := o.bootstrapRole(); err != nil {
 		return err
 	}
@@ -94,4 +98,12 @@ func (o *ResetOptions) bootstrapRole() error {
 	deleteCmd.Stdout = o.Out
 	deleteCmd.Stderr = o.ErrOut
 	return bootstrapRole(deleteCmd, false)
+}
+
+func (o *ResetOptions) crd() error {
+	deleteCmd := o.Kubectl.NewCmd("delete", "--ignore-not-found", "crd",
+		"trials.redskyops.dev",
+		"experiments.redskyops.dev",
+	)
+	return deleteCmd.Run()
 }
