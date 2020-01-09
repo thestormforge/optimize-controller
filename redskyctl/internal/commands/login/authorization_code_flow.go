@@ -95,8 +95,8 @@ func (f *AuthorizationCodeFlowWithPKCE) CallbackAddr() (string, error) {
 // Callback implements an HTTP handler for the target of the OAuth2 redirect URL
 func (f *AuthorizationCodeFlowWithPKCE) Callback(w http.ResponseWriter, r *http.Request) {
 	// Make sure this request matches the configuration
-	if code, txt := f.validateRequest(r); code != http.StatusOK {
-		f.respond(w, r, txt, code)
+	if status, txt := f.validateRequest(r); status != http.StatusOK {
+		f.respond(w, r, txt, status)
 		return
 	}
 
