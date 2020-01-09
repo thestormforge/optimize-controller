@@ -161,21 +161,25 @@ func (o *LoginOptions) takeOffline(t *oauth2.Token) error {
 		return err
 	}
 
-	// TODO Print out something more informative
-	_, _ = fmt.Fprintln(o.Out, "You are now logged in.")
-
 	return nil
 }
 
 // generateCallbackResponse generates an HTTP response for the OAuth callback
-func (o *LoginOptions) generateCallbackResponse(w http.ResponseWriter, r *http.Request, message string, code int) {
+func (o *LoginOptions) generateCallbackResponse(w http.ResponseWriter, r *http.Request, message string, status int) {
 	// TODO Redirect to a troubleshooting page for internal server errors
-	if code == http.StatusOK {
+	if status == http.StatusOK {
 		http.Redirect(w, r, LoginSuccessURL, http.StatusSeeOther)
-	} else if message == "" {
-		http.Error(w, http.StatusText(code), code)
+		// TODO Print out something more informative
+		_, _ = fmt.Fprintln(o.Out, "You are now logged in.")
 	} else {
-		http.Error(w, message, code)
+		msg := message
+		if msg == "" {
+			msg = http.StatusText(status)
+		}
+		http.Error(w, message, status)
+		if isStatusTerminal(status) {
+			_, _ = fmt.Fprintln(o.Out, "An error occurred, please try again.")
+		}
 	}
 }
 
@@ -218,14 +222,20 @@ func serverShutdownContext(f *AuthorizationCodeFlowWithPKCE) context.Context {
 
 	// Wrap GenerateResponse so it cancels the context on success or server failure
 	genResp := f.GenerateResponse
-	f.GenerateResponse = func(w http.ResponseWriter, r *http.Request, message string, code int) {
+	f.GenerateResponse = func(w http.ResponseWriter, r *http.Request, message string, status int) {
 		if genResp != nil {
-			genResp(w, r, message, code)
+			genResp(w, r, message, status)
 		}
-		if code == http.StatusOK || code == http.StatusInternalServerError {
+
+		if isStatusTerminal(status) {
 			cancel()
 		}
 	}
 
 	return ctx
+}
+
+// isStatusTerminal checks to see if the status indicates that it is time to shutdown the server
+func isStatusTerminal(status int) bool {
+	return status != http.StatusNotFound && status != http.StatusMethodNotAllowed
 }
