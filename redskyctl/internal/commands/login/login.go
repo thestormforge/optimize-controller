@@ -18,13 +18,10 @@ package login
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os/user"
 	"time"
 
@@ -35,17 +32,18 @@ import (
 	"golang.org/x/oauth2"
 )
 
-const (
-	// loginSuccessURL is the URL where users are redirected after a successful login
-	loginSuccessURL = "https://redskyops.dev/api/auth_success/"
+var (
+	// OAuthProfile controls with OAuth configuration to use
+	// TODO As a temporary hack, we actually use the callback server as an OAuth provider
+	OAuthProfile = "http://localhost:8085/"
 
-	loginLong    = `Log into your Red Sky account`
-	loginExample = ``
+	// LoginSuccessURL is the URL where users are redirected after a successful login
+	LoginSuccessURL = "https://redskyops.dev/api/auth_success/"
 )
 
-var (
-	// codeChallengeMethodS256 is AuthCodeOption for specifying the S256 code challenge method
-	codeChallengeMethodS256 oauth2.AuthCodeOption = oauth2.SetAuthURLParam("code_challenge_method", "S256")
+const (
+	loginLong    = `Log into your Red Sky account`
+	loginExample = ``
 )
 
 // LoginOptions is the configuration for logging in
@@ -90,151 +88,48 @@ func (o *LoginOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []st
 func (o *LoginOptions) Run() error {
 	// Refuse to overwrite authentication unless forced
 	if !o.Force {
-		if config, err := redskyclient.DefaultConfig(); err == nil && config.Exists() {
+		if config, err := redskyclient.DefaultConfig(); err == nil && (config.OAuth2.ClientID != "" || config.OAuth2.ClientSecret != "") {
 			return fmt.Errorf("refusing to overwrite existing configuration without --force")
 		}
 	}
 
-	// The redirect handler is responsible for handling redirects from the OAuth2 flow
-	rh, err := newRedirectHandler()
-	if err != nil {
-		return nil
+	// Use the OAuth configuration to create a new authorization flow with PKCE
+	config := NewOAuthConfig(OAuthProfile)
+	if config == nil {
+		return fmt.Errorf("unknown OAuth profile: %s", OAuthProfile)
 	}
-	rh.OAuth2.RedirectURL = "http://localhost:8085/"
+	config.RedirectURL = "http://localhost:8085/"
+	flow, err := NewAuthorizationCodeFlowWithPKCE(config)
+	if err != nil {
+		return err
+	}
 
-	// Create a new serve mux to handle incoming requests
-	router := http.NewServeMux()
-	router.Handle("/", rh)
+	// Configure the flow to persist the access token for offline use and generate the appropriate callback responses
+	flow.HandleToken = o.takeOffline
+	flow.GenerateResponse = o.generateCallbackResponse
+
+	// TODO The flow for not launching a browser is actually somewhat different then just showing the URL:
+	// 1. We do not need a local webserver at all
+	// 2. We need to interactively prompt for the authorization code
+	// 3. The backend needs a special redirect URL that displays the authorization code in the browser instead of redirecting
+	// IS THIS AN AUTH0 "Device Flow" (e.g. a TV app authorization)
 
 	// TODO This is bogus until we get a real auth provider
 	ap := &authenticationProvider{}
-	rh.OAuth2.Endpoint = *ap.register(o.url(), router)
 
-	ctx, shutdown := context.WithCancel(context.Background())
-	rh.ShutdownServer = func() {
-		shutdown()
-		// TODO Read back the configuration and print out something more informative
-		_, _ = fmt.Fprintln(o.Out, "You are now logged in.")
-	}
-
-	server := cmdutil.NewContextServer(ctx, router,
-		cmdutil.WithServerOptions(o.configureHTTPServer),
+	// Create a new server that will be shutdown when the authorization flow completes
+	server := cmdutil.NewContextServer(serverShutdownContext(flow), ap.handler(flow.Callback),
+		cmdutil.WithServerOptions(configureCallbackServer(flow)),
 		cmdutil.ShutdownOnInterrupt(func() { _, _ = fmt.Fprintln(o.Out) }),
 		cmdutil.HandleStart(func(string) error {
-			return o.openBrowser(rh.authCodeURL())
+			return o.openBrowser(flow.AuthCodeURL())
 		}))
 
 	return server.ListenAndServe()
 }
 
-func (o *LoginOptions) configureHTTPServer(srv *http.Server) {
-	srv.Addr = "localhost:8085"
-	srv.ReadTimeout = 5 * time.Second
-	srv.WriteTimeout = 10 * time.Second
-	srv.IdleTimeout = 15 * time.Second
-}
-
-func (o *LoginOptions) url() *url.URL {
-	loc := &url.URL{Scheme: "http", Host: "localhost:8085", Path: "/"}
-	if loc.Hostname() == "" {
-		loc.Host = "localhost" + loc.Host
-	}
-	return loc
-}
-
-func (o *LoginOptions) openBrowser(loc string) error {
-	u, err := user.Current()
-	if err != nil {
-		return err
-	}
-
-	// Do not open the browser for root
-	if o.DisplayURL || u.Uid == "0" {
-		_, _ = fmt.Fprintf(o.Out, "%s\n", loc)
-		return nil
-	}
-
-	_, _ = fmt.Fprintf(o.Out, "Opening your default browser to visit:\n\n\t%s\n\n", loc)
-	return browser.OpenURL(loc)
-}
-
-// redirectHandler is the endpoint for handling OAuth2 login redirects
-type redirectHandler struct {
-	// OAuth2 configuration
-	OAuth2 oauth2.Config
-	// ShutdownServer is called to shutdown the server at the end of the process
-	ShutdownServer func()
-	// state is a random value to prevent CSRF attacks
-	state string
-	// verifier is the PKCE code verifier generated for this login attempt
-	verifier string
-}
-
-func newRedirectHandler() (*redirectHandler, error) {
-	// Generate a random state for CSRF
-	sb := make([]byte, 16)
-	if _, err := rand.Read(sb); err != nil {
-		return nil, err
-	}
-	s := base64.RawURLEncoding.EncodeToString(sb)
-
-	// Generate a random verifier
-	vb := make([]byte, 32)
-	if _, err := rand.Read(vb); err != nil {
-		return nil, err
-	}
-	v := base64.RawURLEncoding.EncodeToString(vb)
-
-	return &redirectHandler{state: s, verifier: v}, nil
-}
-
-// authCodeURL returns the browser URL for the user to start the authentication flow
-func (h *redirectHandler) authCodeURL() string {
-	codeChallenge := fmt.Sprintf("%x", sha256.Sum256([]byte(h.verifier)))
-	return h.OAuth2.AuthCodeURL(h.state, oauth2.SetAuthURLParam("code_challenge", codeChallenge), codeChallengeMethodS256)
-}
-
-// ServeHTTP will handle the `GET /?code=...` request by exchanging the authorization code for an access token and storing it to disk
-func (h *redirectHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// Verify the request (e.g. /favicon.ico)
-	if r.URL.Path != "/" {
-		http.Error(w, "Not found", http.StatusNotFound)
-		return
-	}
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	// If this is a request for redirect target, shutdown the server once we leave this method
-	defer h.ShutdownServer()
-
-	// Verify the state for CSRF
-	if h.state != r.FormValue("state") {
-		http.Error(w, "CSRF state mismatch", http.StatusForbidden)
-		return
-	}
-
-	// Exchange the authorization code for an access token
-	t, err := h.OAuth2.Exchange(context.TODO(), r.FormValue("code"), oauth2.SetAuthURLParam("code_verifier", h.verifier))
-	if err != nil {
-		// TODO Should we have a better error page, or maybe a redirect to a login troubleshooting doc page?
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Save the token in the user's local configuration
-	if err := persistToken(t); err != nil {
-		http.Error(w, "Unexpected token type", http.StatusInternalServerError)
-		return
-	}
-
-	// Redirect to the login success page
-	http.Redirect(w, r, loginSuccessURL, http.StatusSeeOther)
-}
-
-// persistToken write the token to disk
-func persistToken(t *oauth2.Token) error {
+// takeOffline caches the access token for offline use
+func (o *LoginOptions) takeOffline(t *oauth2.Token) error {
 	// For now, the token is kind of a dummy.
 	if t.TokenType != "dummy" {
 		return fmt.Errorf("unexpected token type")
@@ -255,10 +150,8 @@ func persistToken(t *oauth2.Token) error {
 	if err != nil {
 		return err
 	}
-	config.Set("oauth2.client_id", accessToken["redsky_client_id"])
-	config.Set("oauth2.client_secret", accessToken["redsky_client_secret"])
-
-	// TODO How else do we get the endpoint identifier?
+	_ = config.Set("oauth2.client_id", accessToken["redsky_client_id"])
+	_ = config.Set("oauth2.client_secret", accessToken["redsky_client_secret"])
 
 	// Write the configuration back to disk
 	err = config.Write()
@@ -266,5 +159,71 @@ func persistToken(t *oauth2.Token) error {
 		return err
 	}
 
+	// TODO Print out something more informative
+	_, _ = fmt.Fprintln(o.Out, "You are now logged in.")
+
 	return nil
+}
+
+// generateCallbackResponse generates an HTTP response for the OAuth callback
+func (o *LoginOptions) generateCallbackResponse(w http.ResponseWriter, r *http.Request, message string, code int) {
+	// TODO Redirect to a troubleshooting page for internal server errors
+	if code == http.StatusOK {
+		http.Redirect(w, r, LoginSuccessURL, http.StatusSeeOther)
+	} else if message == "" {
+		http.Error(w, http.StatusText(code), code)
+	} else {
+		http.Error(w, message, code)
+	}
+}
+
+// openBrowser prints the supplied URL and possibly opens a web browser pointing to that URL
+func (o *LoginOptions) openBrowser(loc string) error {
+	u, err := user.Current()
+	if err != nil {
+		return err
+	}
+
+	// Do not open the browser for root
+	if o.DisplayURL || u.Uid == "0" {
+		_, _ = fmt.Fprintf(o.Out, "%s\n", loc)
+		return nil
+	}
+
+	_, _ = fmt.Fprintf(o.Out, "Opening your default browser to visit:\n\n\t%s\n\n", loc)
+	return browser.OpenURL(loc)
+}
+
+// configureCallbackServer configures an HTTP server using the supplied callback redirect URL for the listen address
+func configureCallbackServer(f *AuthorizationCodeFlowWithPKCE) func(srv *http.Server) {
+	return func(srv *http.Server) {
+		// Try to make the server listen on the same host as the callback
+		if addr, err := f.CallbackAddr(); err == nil {
+			srv.Addr = addr
+		}
+
+		// Adjust timeouts
+		srv.ReadTimeout = 5 * time.Second
+		srv.WriteTimeout = 10 * time.Second
+		srv.IdleTimeout = 15 * time.Second
+	}
+}
+
+// serverShutdownContext wraps the response generator of the supplied flow to cancel the returned context.
+// This is effectively the code that shuts down the HTTP server once the OAuth callback is hit.
+func serverShutdownContext(f *AuthorizationCodeFlowWithPKCE) context.Context {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Wrap GenerateResponse so it cancels the context on success or server failure
+	genResp := f.GenerateResponse
+	f.GenerateResponse = func(w http.ResponseWriter, r *http.Request, message string, code int) {
+		if genResp != nil {
+			genResp(w, r, message, code)
+		}
+		if code == http.StatusOK || code == http.StatusInternalServerError {
+			cancel()
+		}
+	}
+
+	return ctx
 }

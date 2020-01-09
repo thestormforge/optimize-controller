@@ -127,17 +127,6 @@ func (c *Config) Write() error {
 	return err
 }
 
-// Exists checks to see if the configuration exists on disk
-func (c *Config) Exists() bool {
-	if c.Filename == "" {
-		return false
-	}
-	if _, err := os.Stat(c.Filename); err != nil {
-		return false
-	}
-	return true
-}
-
 // LoadEnv overwrites values in the configuration using environment variables
 func (c *Config) LoadEnv() {
 	if v, ok := os.LookupEnv("REDSKY_ADDRESS"); ok {

@@ -21,11 +21,10 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"net/http"
 	"net/url"
-
-	"golang.org/x/oauth2"
 )
 
 // NOTE: The `authenticationProvider` is throw-away code! It should be replaced by a real, external provider
@@ -73,24 +72,8 @@ type authenticationProvider struct {
 	ClientSecret string
 	// state is supplied by the client to mitigate CSRF attacks
 	state string
-}
-
-// register this authentication provider with the supplied mux at the specified base URL and get the OAuth endpoint back
-func (ap *authenticationProvider) register(baseURL *url.URL, router *http.ServeMux) *oauth2.Endpoint {
-	authURL := *baseURL
-	authURL.Path = "/authorize"
-	tokenURL := *baseURL
-	tokenURL.Path = "/oauth/token"
-
-	router.HandleFunc("/login", ap.login)
-	router.HandleFunc(authURL.Path, ap.authorize)
-	router.HandleFunc(tokenURL.Path, ap.token)
-
-	return &oauth2.Endpoint{
-		AuthURL:   authURL.String(),
-		TokenURL:  tokenURL.String(),
-		AuthStyle: oauth2.AuthStyleInParams,
-	}
+	// codeChallenge and codeChallengeMethod are supplied by the client
+	codeChallenge, codeChallengeMethod string
 }
 
 // returns a hash of the current state; used to ensure the login request matches the token exchange
@@ -100,6 +83,26 @@ func (ap *authenticationProvider) code() string {
 	_, _ = h.Write([]byte(ap.ClientID))
 	_, _ = h.Write([]byte(ap.ClientSecret))
 	return base64.RawURLEncoding.EncodeToString(h.Sum(nil))
+}
+
+// returns true if the verifier matches the originally supplied challenge
+func (ap *authenticationProvider) verifyCodeChallenge(verifier string) bool {
+	cc := verifier
+	switch ap.codeChallengeMethod {
+	case "S256":
+		cc = fmt.Sprintf("%x", sha256.Sum256([]byte(cc)))
+	}
+	return cc == ap.codeChallenge
+}
+
+// returns a new HTTP handler for this authentication provider
+func (ap *authenticationProvider) handler(root http.HandlerFunc) http.Handler {
+	router := http.NewServeMux()
+	router.HandleFunc("/", root)
+	router.HandleFunc("/login", ap.login)
+	router.HandleFunc("/authorize", ap.authorize)
+	router.HandleFunc("/oauth/token", ap.token)
+	return router
 }
 
 // authorize handles the initial request for a login
@@ -112,18 +115,20 @@ func (ap *authenticationProvider) authorize(w http.ResponseWriter, r *http.Reque
 
 	// Store request parameters for later
 	ap.state = r.FormValue("state")
-	// TODO We should also store the code challenge so we can verify it later
+	ap.codeChallenge = r.FormValue("code_challenge")
+	ap.codeChallengeMethod = r.FormValue("code_challenge_method")
 
-	// We should only need this once so don't bother caching the parsed templates
-	tmpl, err := template.New(",loginForm").Parse(loginFormPage)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	// Create the template data
 	p := make(map[string]interface{})
 	p["RedirectURL"] = r.FormValue("redirect_uri")
 	p["ErrorMsg"] = errorMsg(r.FormValue("error"))
 
+	// Execute the template (don't bother caching the parsed template)
+	tmpl, err := template.New("loginForm").Parse(loginFormPage)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	err = tmpl.Execute(w, p)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -141,16 +146,8 @@ func (ap *authenticationProvider) login(w http.ResponseWriter, r *http.Request) 
 
 	// Overwrite the salt
 	ap.Salt = make([]byte, 8)
-	_, err := rand.Read(ap.Salt)
-	if err != nil {
+	if _, err := rand.Read(ap.Salt); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Parse the redirect URL
-	redirectURL, err := url.Parse(r.PostFormValue("redirect_uri"))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -158,9 +155,15 @@ func (ap *authenticationProvider) login(w http.ResponseWriter, r *http.Request) 
 	ap.ClientID = r.PostFormValue("client_id")
 	ap.ClientSecret = r.PostFormValue("client_secret")
 
-	// TODO How do we get the address?
 	// TODO Make a mock request to the API to see if it works
 	// TODO On failed auth, we need to redirect back to the login page with an error message...
+
+	// Parse the redirect URL
+	redirectURL, err := url.Parse(r.PostFormValue("redirect_uri"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	// Add the code to the redirect URL
 	query := redirectURL.Query()
@@ -180,10 +183,14 @@ func (ap *authenticationProvider) token(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// TODO We should verify the code challenge here
-
 	// Verify the request matches the current state
 	if r.FormValue("code") != ap.code() {
+		http.Error(w, "Failed to validate request", http.StatusUnauthorized)
+		return
+	}
+
+	// Verify the code challenge
+	if !ap.verifyCodeChallenge(r.FormValue("code_verifier")) {
 		http.Error(w, "Failed to validate request", http.StatusUnauthorized)
 		return
 	}

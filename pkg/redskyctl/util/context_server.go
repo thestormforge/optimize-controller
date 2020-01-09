@@ -134,11 +134,12 @@ func (cs *ContextServer) asyncShutdown(done chan error) {
 	// Wait for the server context
 	<-cs.ctx.Done()
 
-	// Create a context with a 5 second timeout
+	// Create a context with a 5 second timeout for the orderly shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	// Initiate an orderly shutdown, send errors to the channel
+	// TODO Ignore the actual deadline exceeded errors?
 	done <- cs.srv.Shutdown(ctx)
 }
 
