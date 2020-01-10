@@ -98,10 +98,19 @@ func (r *SetupReconciler) inspectSetupJobs(ctx context.Context, t *redskyv1alpha
 		return &ctrl.Result{}, err
 	}
 
-	// This is purely for recovery, normally if the list size is zero the condition status will already be "unknown"
-	if len(list.Items) == 0 && t.DeletionTimestamp.IsZero() {
-		trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialSetupCreated, corev1.ConditionUnknown, "", "", probeTime)
-		trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionUnknown, "", "", probeTime)
+	// This is purely for recovery
+	if len(list.Items) == 0 {
+		if t.DeletionTimestamp.IsZero() {
+			// Normally if the trial hasn't been deleted and there are no jobs, the status will already be unknown
+			trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialSetupCreated, corev1.ConditionUnknown, "", "", probeTime)
+			trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionUnknown, "", "", probeTime)
+		} else if trial.CheckCondition(&t.Status, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionFalse) {
+			// We only need this for the delete job (the corresponding failure for the create job is handled when creating the jobs):
+			// If "setup deleted" condition is "false" then we must have started job, but if the list is empty someone
+			// deleted the job (e.g. the namespace was deleted while the setup delete job was running); mark the setup
+			// deletion as "true" to ensure the finalizers are cleaned up.
+			trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionTrue, "MissingJob", "", probeTime)
+		}
 	}
 
 	// Update the conditions based on existing jobs
