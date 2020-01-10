@@ -56,7 +56,7 @@ func (r *TrialJobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	// List the trial jobs (there should only ever be 0 or 1 matching jobs)
 	jobList := &batchv1.JobList{}
-	if err := r.listJobs(ctx, jobList, t.GetJobSelector()); err != nil {
+	if err := r.listJobs(ctx, jobList, t.Namespace, t.GetJobSelector()); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -154,12 +154,12 @@ func (r *TrialJobReconciler) createJob(ctx context.Context, t *redskyv1alpha1.Tr
 }
 
 // listJobs will return all of the jobs for the trial
-func (r *TrialJobReconciler) listJobs(ctx context.Context, jobList *batchv1.JobList, selector *metav1.LabelSelector) error {
+func (r *TrialJobReconciler) listJobs(ctx context.Context, jobList *batchv1.JobList, namespace string, selector *metav1.LabelSelector) error {
 	matchingSelector, err := meta.MatchingSelector(selector)
 	if err != nil {
 		return err
 	}
-	if err := r.List(ctx, jobList, matchingSelector); err != nil {
+	if err := r.List(ctx, jobList, client.InNamespace(namespace), matchingSelector); err != nil {
 		return err
 	}
 
