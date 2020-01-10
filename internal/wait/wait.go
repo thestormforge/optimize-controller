@@ -49,6 +49,9 @@ func (e *StabilityError) Error() string {
 
 // CheckPods inspects a pod list for stability
 func CheckPods(list *corev1.PodList) error {
+	// NOTE: We loop through the pods twice, look for hard failures first so they are not masked by something that just needs a wait
+
+	// First loop, look for hard failures
 	for i := range list.Items {
 		p := &list.Items[i]
 		for _, c := range p.Status.Conditions {
@@ -62,6 +65,11 @@ func CheckPods(list *corev1.PodList) error {
 		if err := checkContainerStatus(p.Status.ContainerStatuses, p.Spec.RestartPolicy); err != nil {
 			return err
 		}
+	}
+
+	// Do a second loop, this time look for things that may just need more time
+	for i := range list.Items {
+		p := &list.Items[i]
 		for _, c := range p.Status.Conditions {
 			if c.Type == corev1.PodReady && c.Status == corev1.ConditionFalse {
 				return &StabilityError{Reason: c.Reason, RetryAfter: 5 * time.Second}
