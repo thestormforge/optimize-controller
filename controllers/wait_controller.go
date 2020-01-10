@@ -127,8 +127,15 @@ func (r *WaitReconciler) wait(ctx context.Context, t *redskyv1alpha1.Trial, prob
 			// Record the largest retry delay, but continue through the list looking for show stoppers
 			if serr, ok := err.(*wait.StabilityError); ok && serr.RetryAfter > 0 {
 				if serr.RetryAfter > requeueAfter {
+					needsUpdate := trial.CheckCondition(&t.Status, redskyv1alpha1.TrialStable, corev1.ConditionUnknown)
 					trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialStable, corev1.ConditionFalse, "Waiting", err.Error(), probeTime)
 					requeueAfter = serr.RetryAfter
+
+					// If all of the patches are in a "waiting" state then we would never update the status
+					if needsUpdate {
+						err := r.Update(ctx, t)
+						return controller.RequeueConflict(err)
+					}
 				}
 				continue
 			}
