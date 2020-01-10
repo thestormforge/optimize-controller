@@ -40,11 +40,6 @@ func (in *Trial) ExperimentNamespacedName() types.NamespacedName {
 	return nn
 }
 
-// Returns a fall back label for when the user has not specified anything
-func (in *Trial) GetDefaultLabels() map[string]string {
-	return map[string]string{LabelTrial: in.Name, LabelTrialRole: "trialRun"}
-}
-
 // Checks to see if the trial has an initializer
 func (in *Trial) HasInitializer() bool {
 	return strings.TrimSpace(in.GetAnnotations()[AnnotationInitializer]) != ""
@@ -64,9 +59,16 @@ func (in *Trial) GetAssignment(name string) (int64, bool) {
 func (in *Trial) GetJobSelector() *metav1.LabelSelector {
 	if in.Spec.Selector != nil {
 		return in.Spec.Selector
-	} else if in.Spec.Template != nil && len(in.Spec.Template.Labels) > 0 {
+	}
+
+	if in.Spec.Template != nil && len(in.Spec.Template.Labels) > 0 {
 		return &metav1.LabelSelector{MatchLabels: in.Spec.Template.Labels}
-	} else {
-		return &metav1.LabelSelector{MatchLabels: in.GetDefaultLabels()}
+	}
+
+	return &metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			LabelTrial:     in.Name,
+			LabelTrialRole: "trialRun",
+		},
 	}
 }

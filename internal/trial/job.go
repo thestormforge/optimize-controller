@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/redskyops/k8s-experiment/internal/meta"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -36,23 +37,21 @@ func NewJob(t *redskyv1alpha1.Trial) *batchv1.Job {
 		t.Spec.Template.Spec.DeepCopyInto(&job.Spec)
 	}
 
+	// Apply labels to the job itself
+	meta.AddLabel(job, redskyv1alpha1.LabelExperiment, t.ExperimentNamespacedName().Name)
+	meta.AddLabel(job, redskyv1alpha1.LabelTrial, t.Name)
+	meta.AddLabel(job, redskyv1alpha1.LabelTrialRole, "trialRun")
+
+	// Apply labels to the pod template
+	meta.AddLabel(&job.Spec.Template, redskyv1alpha1.LabelExperiment, t.ExperimentNamespacedName().Name)
+	meta.AddLabel(&job.Spec.Template, redskyv1alpha1.LabelTrial, t.Name)
+	meta.AddLabel(&job.Spec.Template, redskyv1alpha1.LabelTrialRole, "trialRun")
+
 	// Provide default metadata
 	job.Namespace = t.Namespace
 	if job.Name == "" {
 		job.Name = t.Name
 	}
-
-	// Provide default labels
-	if len(job.Labels) == 0 {
-		job.Labels = t.GetDefaultLabels()
-	}
-	if len(job.Spec.Template.Labels) == 0 {
-		job.Spec.Template.Labels = t.GetDefaultLabels()
-	}
-
-	// Always provide experiment labels
-	job.Labels[redskyv1alpha1.LabelExperiment] = t.ExperimentNamespacedName().Name
-	job.Spec.Template.Labels[redskyv1alpha1.LabelExperiment] = t.ExperimentNamespacedName().Name
 
 	// The default restart policy for a pod is not acceptable in the context of a job
 	if job.Spec.Template.Spec.RestartPolicy == "" {

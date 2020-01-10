@@ -63,3 +63,13 @@ func HasFinalizer(obj metav1.Object, finalizer string) bool {
 	}
 	return false
 }
+
+// AddLabel adds (or overwrites) a label on an object
+func AddLabel(obj metav1.Object, label, value string) {
+	labels := obj.GetLabels()
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+	labels[label] = value
+	obj.SetLabels(labels)
+}
