@@ -18,6 +18,7 @@ package server
 
 import (
 	"encoding/json"
+	"path"
 	"strconv"
 
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
@@ -104,6 +105,11 @@ func ToCluster(exp *redskyv1alpha1.Experiment, ee *redskyapi.Experiment) {
 // ToClusterTrial converts API state to cluster state
 func ToClusterTrial(trial *redskyv1alpha1.Trial, suggestion *redskyapi.TrialAssignments) {
 	trial.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL] = suggestion.ReportTrial
+
+	// Try to make the cluster trial names match what is on the server
+	if trial.Name == "" {
+		trial.Name = trial.GenerateName + path.Base(suggestion.ReportTrial)
+	}
 
 	for _, a := range suggestion.Assignments {
 		if v, err := a.Value.Int64(); err == nil {
