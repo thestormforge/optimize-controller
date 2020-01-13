@@ -72,8 +72,11 @@ func (r *TrialJobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		// TODO Remove this once we have more flexible configuration of the wait controller
 		if jobStartDelay, err := strconv.ParseInt(os.Getenv("REDSKY_JOB_START_DELAY"), 10, 64); err == nil {
 			for _, c := range t.Status.Conditions {
-				if c.Type == redskyv1alpha1.TrialStable && c.LastTransitionTime.Add(time.Duration(jobStartDelay)*time.Second).After(now.Time) {
-					return ctrl.Result{RequeueAfter: now.Time.Sub(c.LastTransitionTime.Time)}, nil
+				if c.Type == redskyv1alpha1.TrialStable {
+					startTime := c.LastTransitionTime.Add(time.Duration(jobStartDelay) * time.Second)
+					if startTime.After(now.Time) {
+						return ctrl.Result{RequeueAfter: startTime.Sub(now.Time)}, nil
+					}
 				}
 			}
 		}
