@@ -18,6 +18,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"path"
 	"strconv"
 
@@ -107,8 +108,13 @@ func ToClusterTrial(trial *redskyv1alpha1.Trial, suggestion *redskyapi.TrialAssi
 	trial.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL] = suggestion.ReportTrial
 
 	// Try to make the cluster trial names match what is on the server
-	if trial.Name == "" {
-		trial.Name = trial.GenerateName + path.Base(suggestion.ReportTrial)
+	if trial.Name == "" && trial.GenerateName != "" {
+		name := path.Base(suggestion.ReportTrial)
+		if num, err := strconv.ParseInt(name, 10, 64); err == nil {
+			trial.Name = fmt.Sprintf("%s%03d", trial.GenerateName, num)
+		} else {
+			trial.Name = trial.GenerateName + name
+		}
 	}
 
 	for _, a := range suggestion.Assignments {
