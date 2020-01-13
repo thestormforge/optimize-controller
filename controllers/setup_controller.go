@@ -242,5 +242,17 @@ func (r *SetupReconciler) finish(ctx context.Context, t *redskyv1alpha1.Trial) (
 		}
 	}
 
+	// The trial is deleted and _both_ jobs are started but not completed; assume the trial job is misconfigured.
+	if !t.DeletionTimestamp.IsZero() &&
+		trial.CheckCondition(&t.Status, redskyv1alpha1.TrialSetupCreated, corev1.ConditionFalse) &&
+		trial.CheckCondition(&t.Status, redskyv1alpha1.TrialSetupDeleted, corev1.ConditionFalse) {
+		// To get into this state, just delete a trial that has a setup job with an invalid volume map (e.g. missing config map).
+		// TODO Is it possible we got here because the create job just never had a chance to finish?
+		if meta.RemoveFinalizer(t, setup.Finalizer) {
+			err := r.Update(ctx, t)
+			return controller.RequeueConflict(err)
+		}
+	}
+
 	return nil, nil
 }
