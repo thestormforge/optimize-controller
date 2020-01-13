@@ -195,7 +195,7 @@ func (r *ServerReconciler) nextTrial(ctx context.Context, log logr.Logger, exp *
 	// Determine the namespace (if any) to use for the trial
 	namespace, err := experiment.NextTrialNamespace(r, ctx, exp, trialList)
 	if err != nil {
-		return controller.RequeueConflict(err)
+		return &ctrl.Result{}, err
 	}
 	if namespace == "" {
 		return nil, nil
