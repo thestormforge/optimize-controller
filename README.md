@@ -52,7 +52,7 @@ kubectl scale deployment redsky-controller-manager -n redsky-system--replicas 0
 make run
 ```
 
-You can also debug using existing images (e.g. the latest CI builds): configure your debugger to pass the following arguments to the Go tools: `-ldflags "-X github.com/redskyops/k8s-experiment/pkg/controller/trial.Image=gcr.io/redskyops/setuptools:canary -X github.com/redskyops/k8s-experiment/pkg/controller/trial.ImagePullPolicy=Always"`.
+You can also debug using existing images (e.g. the latest CI builds): configure your debugger to pass the following arguments to the Go tools: `-ldflags "-X github.com/redskyops/k8s-experiment/internal/setup.Image=gcr.io/redskyops/setuptools:canary -X github.com/redskyops/k8s-experiment/internal/setup.ImagePullPolicy=Always"`.
 
 Alternatively, if you would like to package the manager image and run it in minikube, build the Docker images directly to the minikube host:
 
