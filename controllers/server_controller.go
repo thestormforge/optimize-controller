@@ -118,9 +118,6 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return nil
 	}
 
-	// To search for namespaces by name, we need to index them
-	_ = mgr.GetCache().IndexField(&corev1.Namespace{}, "metadata.name", func(obj runtime.Object) []string { return []string{obj.(*corev1.Namespace).Name} })
-
 	return ctrl.NewControllerManagedBy(mgr).
 		Named("server").
 		For(&redskyv1alpha1.Experiment{}).
