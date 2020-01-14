@@ -212,18 +212,19 @@ func (r *ServerReconciler) nextTrial(ctx context.Context, log logr.Logger, exp *
 		return controller.RequeueIfUnavailable(err)
 	}
 
-	log.Info("Creating new trial", "namespace", t.Namespace, "reportTrialURL", suggestion.ReportTrial, "assignments", t.Spec.Assignments)
-
 	// Apply the server response to the cluster state
 	server.ToClusterTrial(t, &suggestion)
 
 	// Add a finalizer so the trial cannot be deleted without first updating the server
 	meta.AddFinalizer(t, server.Finalizer)
 	err = r.Create(ctx, t)
-
-	// If creation fails, abandon the suggestion (ignoring errors)
-	if url := t.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL]; err != nil && url != "" {
-		_ = r.RedSkyAPI.AbandonRunningTrial(ctx, url)
+	if err == nil {
+		log.Info("Created new trial", "namespace", t.Namespace, "reportTrialURL", t.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL], "assignments", t.Spec.Assignments)
+	} else {
+		// If creation fails, abandon the suggestion (ignoring those errors)
+		if url := t.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL]; url != "" {
+			_ = r.RedSkyAPI.AbandonRunningTrial(ctx, url)
+		}
 	}
 
 	return &ctrl.Result{}, err
@@ -237,11 +238,16 @@ func (r *ServerReconciler) reportTrial(ctx context.Context, log logr.Logger, t *
 
 	if reportTrialURL := t.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL]; reportTrialURL != "" {
 		trialValues := server.FromClusterTrial(t)
-		log = loggerWithConditions(log, &t.Status)
-		log.Info("Reporting trial", "namespace", t.Namespace, "reportTrialURL", reportTrialURL, "assignments", t.Spec.Assignments, "values", trialValues)
 		err := r.RedSkyAPI.ReportTrial(ctx, reportTrialURL, *trialValues)
-		err = controller.IgnoreReportError(err)
-		if err != nil {
+		if err == nil {
+			for i := range t.Status.Conditions {
+				c := t.Status.Conditions[i]
+				if c.Type == redskyv1alpha1.TrialFailed && c.Status == corev1.ConditionTrue {
+					log = log.WithValues("failureReason", c.Reason, "failureMessage", c.Message)
+				}
+			}
+			log.Info("Reported trial", "namespace", t.Namespace, "reportTrialURL", reportTrialURL, "assignments", t.Spec.Assignments, "values", trialValues)
+		} else if controller.IgnoreReportError(err) != nil {
 			return &ctrl.Result{}, err
 		}
 	}
@@ -257,10 +263,10 @@ func (r *ServerReconciler) abandonTrial(ctx context.Context, log logr.Logger, t 
 	}
 
 	if reportTrialURL := t.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL]; reportTrialURL != "" {
-		log.Info("Abandoning trial", "namespace", t.Namespace, "reportTrialURL", reportTrialURL)
 		err := r.RedSkyAPI.AbandonRunningTrial(ctx, reportTrialURL)
-		err = controller.IgnoreNotFound(err)
-		if err != nil {
+		if err == nil {
+			log.Info("Abandoned trial", "namespace", t.Namespace, "reportTrialURL", reportTrialURL)
+		} else if controller.IgnoreNotFound(err) != nil {
 			return &ctrl.Result{}, err
 		}
 	}
@@ -276,16 +282,4 @@ func (r *ServerReconciler) listTrials(ctx context.Context, trialList *redskyv1al
 		return err
 	}
 	return r.List(ctx, trialList, matchingSelector)
-}
-
-// logWithConditions returns a logger with additional key/value pairs extracted from the trial status
-func loggerWithConditions(log logr.Logger, s *redskyv1alpha1.TrialStatus) logr.Logger {
-	// TODO Should this just iterate over the conditions and include all non-empty reason/messages?
-	for i := range s.Conditions {
-		c := s.Conditions[i]
-		if c.Type == redskyv1alpha1.TrialFailed && c.Status == corev1.ConditionTrue {
-			log = log.WithValues("failureReason", c.Reason, "failureMessage", c.Message)
-		}
-	}
-	return log
 }
