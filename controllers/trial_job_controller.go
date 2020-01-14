@@ -73,6 +73,10 @@ func (r *TrialJobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		if jobStartDelay, err := strconv.ParseInt(os.Getenv("REDSKY_JOB_START_DELAY"), 10, 64); err == nil {
 			for _, c := range t.Status.Conditions {
 				if c.Type == redskyv1alpha1.TrialStable {
+					if c.Status == corev1.ConditionFalse {
+						// If the condition hasn't transitioned yet, use the full delay
+						return ctrl.Result{RequeueAfter: time.Duration(jobStartDelay) * time.Second}, nil
+					}
 					startTime := c.LastTransitionTime.Add(time.Duration(jobStartDelay) * time.Second)
 					if startTime.After(now.Time) {
 						return ctrl.Result{RequeueAfter: startTime.Sub(now.Time)}, nil
