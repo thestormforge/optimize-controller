@@ -73,7 +73,7 @@ func (r *ServerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	// Create a new trial if necessary
-	if exp.Replicas() > 0 {
+	if exp.Replicas() > exp.Status.ActiveTrials {
 		if result, err := r.nextTrial(ctx, log, exp, trialList); result != nil {
 			return *result, err
 		}
