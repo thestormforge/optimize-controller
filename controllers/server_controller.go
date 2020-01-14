@@ -198,9 +198,11 @@ func (r *ServerReconciler) nextTrial(ctx context.Context, log logr.Logger, exp *
 		return nil, nil
 	}
 
-	// Create a new trial from the template on the experiment
-	t := &redskyv1alpha1.Trial{}
-	experiment.PopulateTrialFromTemplate(exp, t, namespace)
+	// Update the active count on the experiment
+	exp.Status.ActiveTrials++
+	if err := r.Update(ctx, exp); err != nil {
+		return controller.RequeueConflict(err)
+	}
 
 	// Obtain a suggestion from the server
 	suggestion, err := r.RedSkyAPI.NextTrial(ctx, nextTrialURL)
@@ -212,7 +214,9 @@ func (r *ServerReconciler) nextTrial(ctx context.Context, log logr.Logger, exp *
 		return controller.RequeueIfUnavailable(err)
 	}
 
-	// Apply the server response to the cluster state
+	// Create a new trial from the template on the experiment and apply the server response
+	t := &redskyv1alpha1.Trial{}
+	experiment.PopulateTrialFromTemplate(exp, t, namespace)
 	server.ToClusterTrial(t, &suggestion)
 
 	// Add a finalizer so the trial cannot be deleted without first updating the server
