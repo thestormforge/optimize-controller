@@ -218,6 +218,7 @@ func (r *ServerReconciler) nextTrial(ctx context.Context, log logr.Logger, exp *
 	err = r.Create(ctx, t)
 	if err == nil {
 		log.Info("Created new trial", "namespace", t.Namespace, "reportTrialURL", t.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL], "assignments", t.Spec.Assignments)
+		r.readBackTrial(ctx, t.Namespace, t.Name)
 	} else {
 		// If creation fails, abandon the suggestion (ignoring those errors)
 		if url := t.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL]; url != "" {
@@ -226,6 +227,19 @@ func (r *ServerReconciler) nextTrial(ctx context.Context, log logr.Logger, exp *
 	}
 
 	return &ctrl.Result{}, err
+}
+
+// readBack just attempts to read the specified trial. This is intended to help with a cache synchronization issue where
+// subsequent cache reads do not see the newly created trial and we end up trying to create multiple trials in the same
+// namespace. By reading back the trial after creation, the hope is that the next reconcile attempt will also see the trial.
+func (r *ServerReconciler) readBackTrial(ctx context.Context, namespace, name string) {
+	// TODO Use cenkalti/backoff on the context instead of the for loop
+	t := &redskyv1alpha1.Trial{}
+	for i := 0; i < 100; i++ {
+		if err := r.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, t); err == nil {
+			break
+		}
+	}
 }
 
 // reportTrial will report the values from a finished in cluster trial back to the server
