@@ -19,7 +19,6 @@ package experiment
 import (
 	"context"
 
-	"github.com/redskyops/k8s-experiment/internal/meta"
 	"github.com/redskyops/k8s-experiment/internal/trial"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
@@ -47,31 +46,30 @@ func NextTrialNamespace(c client.Client, ctx context.Context, exp *redskyv1alpha
 		return "", nil
 	}
 
-	// Produce a list of "allowed" namespaces
-	namespaceList := &corev1.NamespaceList{}
+	// Match the potential namespaces
+	var selector client.ListOption
 	if n := exp.Spec.Template.Namespace; n != "" {
 		// If there is an explicit target namespace on the trial template it is the only one we will be allowed to use
-		addNamespace(namespaceList, n)
+		selector = client.MatchingFields{".metadata.name": n}
 	} else if exp.Spec.NamespaceSelector == nil && exp.Spec.NamespaceTemplate == nil {
 		// If there is no namespace selector/template we can only use the experiment namespace
-		addNamespace(namespaceList, exp.Namespace)
+		selector = client.MatchingFields{".metadata.name": exp.Namespace}
 	} else {
-		// Match the (possible nil) namespace selector
-		matchingSelector, err := meta.MatchingSelector(exp.Spec.NamespaceSelector)
+		// Match the (possibly nil) namespace selector
+		s, err := metav1.LabelSelectorAsSelector(exp.Spec.NamespaceSelector)
 		if err != nil {
 			return "", err
 		}
-		if err := c.List(ctx, namespaceList, matchingSelector); err != nil {
-			return "", err
-		}
+		selector = client.MatchingLabelsSelector{Selector: s}
 	}
 
 	// Find the first available namespace from the list
+	namespaceList := &corev1.NamespaceList{}
+	if err := c.List(ctx, namespaceList, selector); err != nil {
+		return "", err
+	}
 	for i := range namespaceList.Items {
-		n := namespaceList.Items[i].Name
-
-		// If the namespace does not have an active trial, (re-)use it
-		if !activeNamespaces[n] {
+		if n := namespaceList.Items[i].Name; !activeNamespaces[n] {
 			return n, nil
 		}
 	}
@@ -93,14 +91,6 @@ func ignorePermissions(err error) error {
 		return nil
 	}
 	return err
-}
-
-func addNamespace(namespaceList *corev1.NamespaceList, namespace string) {
-	namespaceList.Items = append(namespaceList.Items, corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: namespace,
-		},
-	})
 }
 
 func createNamespaceFromTemplate(c client.Client, ctx context.Context, exp *redskyv1alpha1.Experiment) (string, error) {
