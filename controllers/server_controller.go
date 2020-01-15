@@ -198,12 +198,6 @@ func (r *ServerReconciler) nextTrial(ctx context.Context, log logr.Logger, exp *
 		return nil, nil
 	}
 
-	// Update the active count on the experiment
-	exp.Status.ActiveTrials++
-	if err := r.Update(ctx, exp); err != nil {
-		return controller.RequeueConflict(err)
-	}
-
 	// Obtain a suggestion from the server
 	suggestion, err := r.RedSkyAPI.NextTrial(ctx, nextTrialURL)
 	if err != nil {
