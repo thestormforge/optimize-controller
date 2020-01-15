@@ -242,6 +242,7 @@ func (r *ServerReconciler) readBackTrial(ctx context.Context, namespace, name st
 		if err := r.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, t); err == nil {
 			break
 		}
+		controller.ReconcileCacheMisses.Inc()
 	}
 }
 

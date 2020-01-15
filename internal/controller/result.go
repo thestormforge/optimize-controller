@@ -40,6 +40,7 @@ func RequeueIfUnavailable(err error) (*ctrl.Result, error) {
 func RequeueConflict(err error) (*ctrl.Result, error) {
 	result := &ctrl.Result{}
 	if apierrs.IsConflict(err) {
+		ReconcileConflictErrors.WithLabelValues(guessController()).Inc()
 		result.Requeue = true
 		err = nil
 	}
