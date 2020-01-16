@@ -17,6 +17,7 @@ limitations under the License.
 package experiment
 
 import (
+	"github.com/redskyops/k8s-experiment/internal/controller"
 	"github.com/redskyops/k8s-experiment/internal/trial"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 )
@@ -69,7 +70,14 @@ func UpdateStatus(exp *redskyv1alpha1.Experiment, trialList *redskyv1alpha1.Tria
 		exp.Status.ActiveTrials = activeTrials
 		dirty = true
 	}
-	return dirty
+
+	// If we made a change, record this in the metric gauges
+	if dirty {
+		controller.ExperimentTrials.WithLabelValues(exp.Name).Set(float64(len(trialList.Items)))
+		controller.ExperimentActiveTrials.WithLabelValues(exp.Name).Set(float64(activeTrials))
+		return true
+	}
+	return false
 }
 
 func summarize(exp *redskyv1alpha1.Experiment, activeTrials int32, totalTrials int) string {
