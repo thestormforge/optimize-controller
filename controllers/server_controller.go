@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
@@ -125,8 +126,20 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Named("server").
 		For(&redskyv1alpha1.Experiment{}).
 		Watches(&source.Kind{Type: &redskyv1alpha1.Trial{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: handler.ToRequestsFunc(trialToExperimentRequest)}).
+		WithEventFilter(&serverEventFilter{}).
 		Complete(r)
 }
+
+type serverEventFilter struct {
+}
+
+func (s serverEventFilter) Create(e event.CreateEvent) bool {
+	_, isTrial := e.Object.(*redskyv1alpha1.Trial)
+	return !isTrial
+}
+func (s serverEventFilter) Delete(event.DeleteEvent) bool   { return true }
+func (s serverEventFilter) Update(event.UpdateEvent) bool   { return true }
+func (s serverEventFilter) Generic(event.GenericEvent) bool { return true }
 
 // createExperiment will create a new experiment on the server using the cluster state; any default values from the
 // server will be copied back into cluster along with the URLs needed for future interactions with server.
