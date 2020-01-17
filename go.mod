@@ -27,6 +27,7 @@ require (
 	github.com/zorkian/go-datadog-api v2.24.0+incompatible
 	golang.org/x/net v0.0.0-20191004110552-13f9640d40b9
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
+	golang.org/x/time v0.0.0-20181108054448-85acf8d2951c
 	google.golang.org/appengine v1.6.0 // indirect
 	k8s.io/api v0.0.0-20191115135540-bbc9463b57e5
 	k8s.io/apimachinery v0.0.0-20191115015347-3c7067801da2
