@@ -149,10 +149,7 @@ func (r *ServerReconciler) createExperiment(ctx context.Context, log logr.Logger
 	// No phase, 99.999% chance adding an annotation here will cause a conflict with the experiment controller
 	// TODO We should just ignore experiment create
 	if exp.Status.Phase == "" {
-		log.Info("SKIPPING FIRST TRY AT CREATE")
 		return &ctrl.Result{}, nil
-	} else {
-		log.Info("NOW CREATE")
 	}
 
 	// Convert the cluster state into a server representation
