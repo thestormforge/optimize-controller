@@ -21,7 +21,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -90,7 +89,8 @@ func (ap *authenticationProvider) verifyCodeChallenge(verifier string) bool {
 	cc := verifier
 	switch ap.codeChallengeMethod {
 	case "S256":
-		cc = fmt.Sprintf("%x", sha256.Sum256([]byte(cc)))
+		sum256 := sha256.Sum256([]byte(verifier))
+		cc = base64.RawURLEncoding.EncodeToString(sum256[:])
 	}
 	return cc == ap.codeChallenge
 }
