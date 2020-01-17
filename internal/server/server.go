@@ -22,6 +22,7 @@ import (
 	"path"
 	"strconv"
 
+	"github.com/redskyops/k8s-experiment/internal/trial"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/redsky/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
@@ -107,29 +108,31 @@ func ToCluster(exp *redskyv1alpha1.Experiment, ee *redskyapi.Experiment) {
 }
 
 // ToClusterTrial converts API state to cluster state
-func ToClusterTrial(trial *redskyv1alpha1.Trial, suggestion *redskyapi.TrialAssignments) {
-	trial.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL] = suggestion.ReportTrial
+func ToClusterTrial(t *redskyv1alpha1.Trial, suggestion *redskyapi.TrialAssignments) {
+	t.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL] = suggestion.ReportTrial
 
 	// Try to make the cluster trial names match what is on the server
-	if trial.Name == "" && trial.GenerateName != "" {
+	if t.Name == "" && t.GenerateName != "" {
 		name := path.Base(suggestion.ReportTrial)
 		if num, err := strconv.ParseInt(name, 10, 64); err == nil {
-			trial.Name = fmt.Sprintf("%s%03d", trial.GenerateName, num)
+			t.Name = fmt.Sprintf("%s%03d", t.GenerateName, num)
 		} else {
-			trial.Name = trial.GenerateName + name
+			t.Name = t.GenerateName + name
 		}
 	}
 
 	for _, a := range suggestion.Assignments {
 		if v, err := a.Value.Int64(); err == nil {
-			trial.Spec.Assignments = append(trial.Spec.Assignments, redskyv1alpha1.Assignment{
+			t.Spec.Assignments = append(t.Spec.Assignments, redskyv1alpha1.Assignment{
 				Name:  a.ParameterName,
 				Value: v,
 			})
 		}
 	}
 
-	controllerutil.AddFinalizer(trial, Finalizer)
+	trial.UpdateStatus(t)
+
+	controllerutil.AddFinalizer(t, Finalizer)
 }
 
 // FromClusterTrial converts cluster state to API state
