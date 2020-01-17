@@ -25,6 +25,7 @@ import (
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/redsky/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 const (
@@ -101,6 +102,8 @@ func ToCluster(exp *redskyv1alpha1.Experiment, ee *redskyapi.Experiment) {
 	if exp.Spec.BurnIn == nil && ee.Optimization.BurnIn > 0 {
 		exp.Spec.BurnIn = &ee.Optimization.BurnIn
 	}
+
+	controllerutil.AddFinalizer(exp, Finalizer)
 }
 
 // ToClusterTrial converts API state to cluster state
@@ -125,6 +128,8 @@ func ToClusterTrial(trial *redskyv1alpha1.Trial, suggestion *redskyapi.TrialAssi
 			})
 		}
 	}
+
+	controllerutil.AddFinalizer(trial, Finalizer)
 }
 
 // FromClusterTrial converts cluster state to API state

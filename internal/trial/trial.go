@@ -19,8 +19,6 @@ package trial
 import (
 	"time"
 
-	"github.com/redskyops/k8s-experiment/internal/meta"
-	"github.com/redskyops/k8s-experiment/internal/server"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -55,12 +53,6 @@ func IsActive(t *redskyv1alpha1.Trial) bool {
 		if c.Type == redskyv1alpha1.TrialSetupDeleted && c.Status != corev1.ConditionTrue {
 			return true
 		}
-	}
-
-	// We do not have a condition indicating that the trial has been reported so we need to check
-	// for the presence of the server finalizer (which will be removed once the trial has been reported)
-	if meta.HasFinalizer(t, server.Finalizer) {
-		return true
 	}
 
 	return false

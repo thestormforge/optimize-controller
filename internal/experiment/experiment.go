@@ -52,7 +52,7 @@ func UpdateStatus(exp *redskyv1alpha1.Experiment, trialList *redskyv1alpha1.Tria
 	activeTrials := int32(0)
 	for i := range trialList.Items {
 		t := &trialList.Items[i]
-		if trial.IsActive(t) {
+		if trial.IsActive(t) && !trial.IsAbandoned(t) {
 			activeTrials++
 		}
 	}

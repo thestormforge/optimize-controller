@@ -33,9 +33,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // ServerReconciler reconciles a experiment and trial objects with a remote server
@@ -61,48 +58,57 @@ func (r *ServerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	// Create the experiment on the server
-	if exp.Replicas() > 0 {
+	if exp.GetAnnotations()[redskyv1alpha1.AnnotationExperimentURL] == "" && exp.Replicas() > 0 {
 		if result, err := r.createExperiment(ctx, log, exp); result != nil {
 			return *result, err
 		}
 	}
 
 	// Get the current list of trials
+	// NOTE: No need to use limits, the cache will just return the full list anyway
 	trialList := &redskyv1alpha1.TrialList{}
 	if err := r.listTrials(ctx, trialList, exp.TrialSelector()); err != nil {
 		return ctrl.Result{}, err
 	}
 
+	// Look for active, finished or abandoned trials
+	var activeTrials int32
+	var trialHasFinalizer bool
+	for i := range trialList.Items {
+		t := &trialList.Items[i]
+		tlog := log.WithValues("trial", t.Namespace+"/"+t.Name)
+
+		// Count active trials
+		if trial.IsActive(t) {
+			activeTrials++
+		}
+
+		// Trials that have the server finalizer may need to be reported
+		if meta.HasFinalizer(t, server.Finalizer) {
+			if trial.IsFinished(t) {
+				if result, err := r.reportTrial(ctx, tlog, t); result != nil {
+					return *result, err
+				}
+			} else if trial.IsAbandoned(t) {
+				if result, err := r.abandonTrial(ctx, tlog, t); result != nil {
+					return *result, err
+				}
+			} else {
+				trialHasFinalizer = true
+			}
+		}
+	}
+
 	// Create a new trial if necessary
-	if exp.Replicas() > 0 {
+	if exp.GetAnnotations()[redskyv1alpha1.AnnotationNextTrialURL] != "" && activeTrials < exp.Replicas() {
 		if result, err := r.nextTrial(ctx, log, exp, trialList); result != nil {
 			return *result, err
 		}
 	}
 
-	// Look for finished or abandoned trials
-	var trialHasFinalizer bool
-	for i := range trialList.Items {
-		t := &trialList.Items[i]
-		if meta.HasFinalizer(t, server.Finalizer) {
-			trialHasFinalizer = true
-
-			// Report or abandon the trial (will remove the finalizer)
-			if trial.IsFinished(t) {
-				if result, err := r.reportTrial(ctx, log, t); result != nil {
-					return *result, err
-				}
-			} else if trial.IsAbandoned(t) {
-				if result, err := r.abandonTrial(ctx, log, t); result != nil {
-					return *result, err
-				}
-			}
-		}
-	}
-
-	// Delete the experiment on the server (only when all trial finalizers are removed)
+	// Unlink the experiment from the server (only when all trial finalizers are removed)
 	if !exp.DeletionTimestamp.IsZero() && !trialHasFinalizer {
-		if result, err := r.deleteExperiment(ctx, exp); result != nil {
+		if result, err := r.unlinkExperiment(ctx, log, exp); result != nil {
 			return *result, err
 		}
 	}
@@ -125,42 +131,33 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named("server").
 		For(&redskyv1alpha1.Experiment{}).
-		Watches(&source.Kind{Type: &redskyv1alpha1.Trial{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: handler.ToRequestsFunc(trialToExperimentRequest)}).
-		WithEventFilter(&serverEventFilter{}).
 		Complete(r)
 }
 
-type serverEventFilter struct {
+// listTrials retrieves the list of trial objects matching the specified selector
+func (r *ServerReconciler) listTrials(ctx context.Context, trialList *redskyv1alpha1.TrialList, selector *metav1.LabelSelector) error {
+	s, err := metav1.LabelSelectorAsSelector(selector)
+	if err != nil {
+		return err
+	}
+	return r.List(ctx, trialList, client.MatchingLabelsSelector{Selector: s})
 }
-
-func (s serverEventFilter) Create(e event.CreateEvent) bool {
-	_, isTrial := e.Object.(*redskyv1alpha1.Trial)
-	return !isTrial
-}
-func (s serverEventFilter) Delete(event.DeleteEvent) bool   { return true }
-func (s serverEventFilter) Update(event.UpdateEvent) bool   { return true }
-func (s serverEventFilter) Generic(event.GenericEvent) bool { return true }
 
 // createExperiment will create a new experiment on the server using the cluster state; any default values from the
 // server will be copied back into cluster along with the URLs needed for future interactions with server.
 func (r *ServerReconciler) createExperiment(ctx context.Context, log logr.Logger, exp *redskyv1alpha1.Experiment) (*ctrl.Result, error) {
-	// Check if we have already created the experiment
-	if exp.GetAnnotations()[redskyv1alpha1.AnnotationExperimentURL] != "" {
-		return nil, nil
+	// No phase, 99.999% chance adding an annotation here will cause a conflict with the experiment controller
+	// TODO We should just ignore experiment create
+	if exp.Status.Phase == "" {
+		log.Info("SKIPPING FIRST TRY AT CREATE")
+		return &ctrl.Result{}, nil
+	} else {
+		log.Info("NOW CREATE")
 	}
 
 	// Convert the cluster state into a server representation
 	n, e := server.FromCluster(exp)
 	ee, err := r.RedSkyAPI.CreateExperiment(ctx, n, *e)
-	if err == nil {
-		log.Info("Created remote experiment")
-	}
-
-	// If we get a name conflict, trying fetching the experiment instead, maybe we already created it
-	// TODO The the server should do this for us and just accepting the PUT and returning the current representation
-	if rerr, ok := err.(*redskyapi.Error); ok && rerr.Type == redskyapi.ErrExperimentNameConflict {
-		ee, err = r.RedSkyAPI.GetExperimentByName(ctx, n)
-	}
 	if err != nil {
 		return &ctrl.Result{}, err
 	}
@@ -173,15 +170,18 @@ func (r *ServerReconciler) createExperiment(ctx context.Context, log logr.Logger
 	// Apply the server response to the cluster state
 	server.ToCluster(exp, &ee)
 
-	// Add a finalizer so the experiment cannot be deleted without first updating the server
-	meta.AddFinalizer(exp, server.Finalizer)
-	err = r.Update(ctx, exp)
-	return controller.RequeueConflict(err)
+	// Update the experiment
+	if err = r.Update(ctx, exp); err != nil {
+		return controller.RequeueConflict(err)
+	}
+
+	log.Info("Created remote experiment", "experimentURL", exp.Annotations[redskyv1alpha1.AnnotationExperimentURL])
+	return &ctrl.Result{}, nil
 }
 
-// deleteExperiment will delete the experiment from the server using the URLs recorded in the cluster; the finalizer
+// unlinkExperiment will delete the experiment from the server using the URLs recorded in the cluster; the finalizer
 // added when the experiment was created on the server will also be removed
-func (r *ServerReconciler) deleteExperiment(ctx context.Context, exp *redskyv1alpha1.Experiment) (*ctrl.Result, error) {
+func (r *ServerReconciler) unlinkExperiment(ctx context.Context, log logr.Logger, exp *redskyv1alpha1.Experiment) (*ctrl.Result, error) {
 	// Try to remove the finalizer, if it is already gone we do not need to do anything
 	if !meta.RemoveFinalizer(exp, server.Finalizer) {
 		return nil, nil
@@ -189,22 +189,23 @@ func (r *ServerReconciler) deleteExperiment(ctx context.Context, exp *redskyv1al
 
 	// We do not actually delete the experiment from the server to preserve the data, for example, in a multi-cluster
 	// experiment we would require that the experiment still exist for all the other clusters.
+	// We also would not want a reset (which deletes the CRD) to wipe out the data on the server
 
 	delete(exp.GetAnnotations(), redskyv1alpha1.AnnotationExperimentURL)
 	delete(exp.GetAnnotations(), redskyv1alpha1.AnnotationNextTrialURL)
-	err := r.Update(ctx, exp)
-	return controller.RequeueConflict(err)
+
+	// Update the experiment
+	if err := r.Update(ctx, exp); err != nil {
+		return controller.RequeueConflict(err)
+	}
+
+	log.Info("Unlinked remote experiment")
+	return &ctrl.Result{}, nil
 }
 
 // nextTrial will try to obtain a suggestion from the server and create the corresponding cluster state in the form of
 // a trial; if the cluster can not accommodate additional trials at the time of invocation, not action will be taken
 func (r *ServerReconciler) nextTrial(ctx context.Context, log logr.Logger, exp *redskyv1alpha1.Experiment, trialList *redskyv1alpha1.TrialList) (*ctrl.Result, error) {
-	// Check if we have an endpoint to obtain trials from
-	nextTrialURL := exp.GetAnnotations()[redskyv1alpha1.AnnotationNextTrialURL]
-	if nextTrialURL == "" {
-		return nil, nil
-	}
-
 	// Determine the namespace (if any) to use for the trial
 	namespace, err := experiment.NextTrialNamespace(r, ctx, exp, trialList)
 	if err != nil {
@@ -215,7 +216,7 @@ func (r *ServerReconciler) nextTrial(ctx context.Context, log logr.Logger, exp *
 	}
 
 	// Obtain a suggestion from the server
-	suggestion, err := r.RedSkyAPI.NextTrial(ctx, nextTrialURL)
+	suggestion, err := r.RedSkyAPI.NextTrial(ctx, exp.GetAnnotations()[redskyv1alpha1.AnnotationNextTrialURL])
 	if err != nil {
 		if server.StopExperiment(exp, err) {
 			err := r.Update(ctx, exp)
@@ -224,24 +225,23 @@ func (r *ServerReconciler) nextTrial(ctx context.Context, log logr.Logger, exp *
 		return controller.RequeueIfUnavailable(err)
 	}
 
-	// Create a new trial from the template on the experiment and apply the server response
+	// Generate a new trial from the template on the experiment and apply the server response
 	t := &redskyv1alpha1.Trial{}
-	experiment.PopulateTrialFromTemplate(exp, t, namespace)
+	experiment.PopulateTrialFromTemplate(exp, t)
+	t.Namespace = namespace
 	server.ToClusterTrial(t, &suggestion)
 
-	// Add a finalizer so the trial cannot be deleted without first updating the server
-	meta.AddFinalizer(t, server.Finalizer)
-	err = r.Create(ctx, t)
-	if err == nil {
-		log.Info("Created new trial", "namespace", t.Namespace, "reportTrialURL", t.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL], "assignments", t.Spec.Assignments)
-	} else {
+	// Create the trial
+	if err := r.Create(ctx, t); err != nil {
 		// If creation fails, abandon the suggestion (ignoring those errors)
 		if url := t.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL]; url != "" {
 			_ = r.RedSkyAPI.AbandonRunningTrial(ctx, url)
 		}
+		return &ctrl.Result{}, err
 	}
 
-	return &ctrl.Result{}, err
+	log.Info("Created new trial", "reportTrialURL", t.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL], "assignments", t.Spec.Assignments)
+	return &ctrl.Result{}, nil
 }
 
 // reportTrial will report the values from a finished in cluster trial back to the server
@@ -253,21 +253,28 @@ func (r *ServerReconciler) reportTrial(ctx context.Context, log logr.Logger, t *
 	if reportTrialURL := t.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL]; reportTrialURL != "" {
 		trialValues := server.FromClusterTrial(t)
 		err := r.RedSkyAPI.ReportTrial(ctx, reportTrialURL, *trialValues)
-		if err == nil {
-			for i := range t.Status.Conditions {
-				c := t.Status.Conditions[i]
-				if c.Type == redskyv1alpha1.TrialFailed && c.Status == corev1.ConditionTrue {
-					log = log.WithValues("failureReason", c.Reason, "failureMessage", c.Message)
-				}
-			}
-			log.Info("Reported trial", "namespace", t.Namespace, "reportTrialURL", reportTrialURL, "assignments", t.Spec.Assignments, "values", trialValues)
-		} else if controller.IgnoreReportError(err) != nil {
+		if controller.IgnoreReportError(err) != nil {
 			return &ctrl.Result{}, err
+		}
+
+		// Shadow the logger reference with one that will produce more contextual details
+		log = log.WithValues("reportTrialURL", reportTrialURL, "values", trialValues)
+		for i := range t.Status.Conditions {
+			c := t.Status.Conditions[i]
+			if c.Type == redskyv1alpha1.TrialFailed && c.Status == corev1.ConditionTrue {
+				log = log.WithValues("failureReason", c.Reason, "failureMessage", c.Message)
+				break
+			}
 		}
 	}
 
-	err := r.Update(ctx, t)
-	return controller.RequeueConflict(err)
+	// Update the trial
+	if err := r.Update(ctx, t); err != nil {
+		return controller.RequeueConflict(err)
+	}
+
+	log.Info("Reported trial")
+	return nil, nil
 }
 
 // abandonTrial will remove the finalizer and try to notify the server that the trial will not be reported
@@ -278,22 +285,19 @@ func (r *ServerReconciler) abandonTrial(ctx context.Context, log logr.Logger, t 
 
 	if reportTrialURL := t.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL]; reportTrialURL != "" {
 		err := r.RedSkyAPI.AbandonRunningTrial(ctx, reportTrialURL)
-		if err == nil {
-			log.Info("Abandoned trial", "namespace", t.Namespace, "reportTrialURL", reportTrialURL)
-		} else if controller.IgnoreNotFound(err) != nil {
+		if controller.IgnoreNotFound(err) != nil {
 			return &ctrl.Result{}, err
 		}
+
+		// Shadow the logger reference with one that will produce more contextual details
+		log = log.WithValues("reportTrialURL", reportTrialURL)
 	}
 
-	err := r.Update(ctx, t)
-	return controller.RequeueConflict(err)
-}
-
-// listTrials retrieves the list of trial objects matching the specified selector
-func (r *ServerReconciler) listTrials(ctx context.Context, trialList *redskyv1alpha1.TrialList, selector *metav1.LabelSelector) error {
-	matchingSelector, err := meta.MatchingSelector(selector)
-	if err != nil {
-		return err
+	// Update the trial
+	if err := r.Update(ctx, t); err != nil {
+		return controller.RequeueConflict(err)
 	}
-	return r.List(ctx, trialList, matchingSelector)
+
+	log.Info("Abandoned trial")
+	return nil, nil
 }

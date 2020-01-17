@@ -23,12 +23,7 @@ import (
 )
 
 // PopulateTrialFromTemplate creates a new trial for an experiment
-func PopulateTrialFromTemplate(exp *redskyv1alpha1.Experiment, t *redskyv1alpha1.Trial, namespace string) {
-	// The namespace must never be empty and if the experiment defines an explicit namespace it must be used
-	if namespace == "" || (exp.Spec.Template.Namespace != "" && exp.Spec.Template.Namespace != namespace) {
-		panic("invalid namespace: " + namespace)
-	}
-
+func PopulateTrialFromTemplate(exp *redskyv1alpha1.Experiment, t *redskyv1alpha1.Trial) {
 	// Start with the trial template
 	exp.Spec.Template.ObjectMeta.DeepCopyInto(&t.ObjectMeta)
 	exp.Spec.Template.Spec.DeepCopyInto(&t.Spec)
@@ -48,9 +43,6 @@ func PopulateTrialFromTemplate(exp *redskyv1alpha1.Experiment, t *redskyv1alpha1
 		t.Annotations = map[string]string{}
 	}
 
-	// Overwrite the trial namespace (see the preconditions above)
-	t.Namespace = namespace
-
 	// Record the experiment
 	t.Labels[redskyv1alpha1.LabelExperiment] = exp.Name
 	t.Spec.ExperimentRef = &corev1.ObjectReference{
@@ -61,5 +53,10 @@ func PopulateTrialFromTemplate(exp *redskyv1alpha1.Experiment, t *redskyv1alpha1
 	// Default trial name is the experiment name with a random suffix
 	if t.Name == "" && t.GenerateName == "" {
 		t.GenerateName = exp.Name + "-"
+	}
+
+	// Default trial namespace only if the experiment is not configured to find or create a namespace to run in
+	if t.Namespace == "" && exp.Spec.NamespaceSelector == nil && exp.Spec.NamespaceTemplate == nil {
+		t.Namespace = exp.Namespace
 	}
 }

@@ -252,7 +252,8 @@ func createKubernetesSuggestion(namespace, name string, suggestions SuggestionSo
 	}
 
 	trial := &v1alpha1.Trial{}
-	experiment.PopulateTrialFromTemplate(exp, trial, trialNamespace)
+	experiment.PopulateTrialFromTemplate(exp, trial)
+	trial.Namespace = trialNamespace
 
 	for _, p := range exp.Spec.Parameters {
 		v, err := suggestions.AssignInt(p.Name, p.Min, p.Max, nil)

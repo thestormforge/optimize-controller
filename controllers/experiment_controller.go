@@ -29,6 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -57,6 +58,10 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 	}
 
 	if result, err := r.updateStatus(ctx, exp, trialList); result != nil {
+		return *result, err
+	}
+
+	if result, err := r.updateTrialStatus(ctx, trialList); result != nil {
 		return *result, err
 	}
 
@@ -91,29 +96,28 @@ func trialToExperimentRequest(o handler.MapObject) []reconcile.Request {
 func (r *ExperimentReconciler) updateStatus(ctx context.Context, exp *redskyv1alpha1.Experiment, trialList *redskyv1alpha1.TrialList) (*ctrl.Result, error) {
 	// Update the HasTrialFinalizer
 	if len(trialList.Items) > 0 {
-		if meta.AddFinalizer(exp, experiment.HasTrialFinalizer) {
-			err := r.Update(ctx, exp)
-			return controller.RequeueConflict(err)
-		}
+		controllerutil.AddFinalizer(exp, experiment.HasTrialFinalizer)
 	} else {
-		if meta.RemoveFinalizer(exp, experiment.HasTrialFinalizer) {
-			err := r.Update(ctx, exp)
-			return controller.RequeueConflict(err)
-		}
+		controllerutil.RemoveFinalizer(exp, experiment.HasTrialFinalizer)
 	}
 
 	// Update the experiment status
-	if experiment.UpdateStatus(exp, trialList) {
-		err := r.Update(ctx, exp)
+	experiment.UpdateStatus(exp, trialList)
+
+	if err := r.Update(ctx, exp); err != nil {
 		return controller.RequeueConflict(err)
 	}
+	return nil, nil
+}
 
-	// Update the trial status
+// updateTrialStatus will update the status of all the experiment trials
+func (r *ExperimentReconciler) updateTrialStatus(ctx context.Context, trialList *redskyv1alpha1.TrialList) (*ctrl.Result, error) {
 	for i := range trialList.Items {
 		t := &trialList.Items[i]
 		if trial.UpdateStatus(t) {
-			err := r.Update(ctx, t)
-			return controller.RequeueConflict(err)
+			if err := r.Update(ctx, t); err != nil {
+				return controller.RequeueConflict(err)
+			}
 		}
 	}
 	return nil, nil
@@ -133,8 +137,9 @@ func (r *ExperimentReconciler) completeTrials(ctx context.Context, trialList *re
 		if trial.CheckCondition(&t.Status, redskyv1alpha1.TrialObserved, corev1.ConditionTrue) {
 			now := metav1.Now()
 			trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialComplete, corev1.ConditionTrue, "", "", &now)
-			err := r.Update(ctx, t)
-			return controller.RequeueConflict(err)
+			if err := r.Update(ctx, t); err != nil {
+				return controller.RequeueConflict(err)
+			}
 		}
 	}
 	return nil, nil
