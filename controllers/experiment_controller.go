@@ -157,8 +157,10 @@ func (r *ExperimentReconciler) cleanupTrials(ctx context.Context, exp *redskyv1a
 
 		// Delete trials if they have expired or if the experiment has been deleted
 		if trial.NeedsCleanup(t) || !exp.GetDeletionTimestamp().IsZero() {
-			err := r.Delete(ctx, t)
-			return &ctrl.Result{}, err
+			// TODO client.PropagationPolicy(metav1.DeletePropagationBackground) ?
+			if err := r.Delete(ctx, t); err != nil {
+				return &ctrl.Result{}, err
+			}
 		}
 	}
 	return nil, nil
