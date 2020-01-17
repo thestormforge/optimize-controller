@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"sync"
 
 	"github.com/go-logr/logr"
 	"github.com/redskyops/k8s-experiment/internal/controller"
@@ -45,8 +44,7 @@ type ServerReconciler struct {
 	Scheme    *runtime.Scheme
 	RedSkyAPI redskyapi.API
 
-	trialCreation map[string]*rate.Limiter
-	tcmu          sync.Mutex
+	trialCreation *rate.Limiter
 }
 
 // +kubebuilder:rbac:groups=redskyops.dev,resources=experiments,verbs=get;list;watch;update
@@ -131,6 +129,9 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return nil
 	}
 
+	// Enforce a one trial per-second creation limit (no burst! that is the whole point)
+	r.trialCreation = rate.NewLimiter(1, 1)
+
 	// To search for namespaces by name, we need to index them
 	_ = mgr.GetCache().IndexField(&corev1.Namespace{}, ".metadata.name", func(obj runtime.Object) []string { return []string{obj.(*corev1.Namespace).Name} })
 
@@ -205,9 +206,6 @@ func (r *ServerReconciler) unlinkExperiment(ctx context.Context, log logr.Logger
 		return controller.RequeueConflict(err)
 	}
 
-	// Clean up limiter
-	delete(r.trialCreation, exp.Name)
-
 	log.Info("Unlinked remote experiment")
 	return nil, nil
 }
@@ -216,8 +214,7 @@ func (r *ServerReconciler) unlinkExperiment(ctx context.Context, log logr.Logger
 // a trial; if the cluster can not accommodate additional trials at the time of invocation, not action will be taken
 func (r *ServerReconciler) nextTrial(ctx context.Context, log logr.Logger, exp *redskyv1alpha1.Experiment, trialList *redskyv1alpha1.TrialList) (*ctrl.Result, error) {
 	// Enforce a rate limit on trial creation
-	limiter := r.trialCreationLimit(exp.Name)
-	if res := limiter.Reserve(); res.OK() {
+	if res := r.trialCreation.Reserve(); res.OK() {
 		if d := res.Delay(); d > 0 {
 			res.Cancel()
 			return &ctrl.Result{RequeueAfter: d}, nil
@@ -318,18 +315,4 @@ func (r *ServerReconciler) abandonTrial(ctx context.Context, log logr.Logger, t 
 
 	log.Info("Abandoned trial")
 	return nil, nil
-}
-
-func (r *ServerReconciler) trialCreationLimit(name string) *rate.Limiter {
-	r.tcmu.Lock()
-	defer r.tcmu.Unlock()
-	l, ok := r.trialCreation[name]
-	if !ok {
-		if r.trialCreation == nil {
-			r.trialCreation = make(map[string]*rate.Limiter)
-		}
-		l = rate.NewLimiter(1, 1)
-		r.trialCreation[name] = l
-	}
-	return l
 }
