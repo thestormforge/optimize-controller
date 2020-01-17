@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"sync"
 
 	"github.com/go-logr/logr"
 	"github.com/redskyops/k8s-experiment/internal/controller"
@@ -28,6 +29,7 @@ import (
 	"github.com/redskyops/k8s-experiment/internal/validation"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/redsky/v1alpha1"
+	"golang.org/x/time/rate"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -42,6 +44,9 @@ type ServerReconciler struct {
 	Log       logr.Logger
 	Scheme    *runtime.Scheme
 	RedSkyAPI redskyapi.API
+
+	trialCreation map[string]*rate.Limiter
+	tcmu          sync.Mutex
 }
 
 // +kubebuilder:rbac:groups=redskyops.dev,resources=experiments,verbs=get;list;watch;update
@@ -200,6 +205,9 @@ func (r *ServerReconciler) unlinkExperiment(ctx context.Context, log logr.Logger
 		return controller.RequeueConflict(err)
 	}
 
+	// Clean up limiter
+	delete(r.trialCreation, exp.Name)
+
 	log.Info("Unlinked remote experiment")
 	return nil, nil
 }
@@ -207,6 +215,15 @@ func (r *ServerReconciler) unlinkExperiment(ctx context.Context, log logr.Logger
 // nextTrial will try to obtain a suggestion from the server and create the corresponding cluster state in the form of
 // a trial; if the cluster can not accommodate additional trials at the time of invocation, not action will be taken
 func (r *ServerReconciler) nextTrial(ctx context.Context, log logr.Logger, exp *redskyv1alpha1.Experiment, trialList *redskyv1alpha1.TrialList) (*ctrl.Result, error) {
+	// Enforce a rate limit on trial creation
+	limiter := r.trialCreationLimit(exp.Name)
+	if res := limiter.Reserve(); res.OK() {
+		if d := res.Delay(); d > 0 {
+			res.Cancel()
+			return &ctrl.Result{RequeueAfter: d}, nil
+		}
+	}
+
 	// Determine the namespace (if any) to use for the trial
 	namespace, err := experiment.NextTrialNamespace(r, ctx, exp, trialList)
 	if err != nil {
@@ -242,7 +259,7 @@ func (r *ServerReconciler) nextTrial(ctx context.Context, log logr.Logger, exp *
 	}
 
 	log.Info("Created new trial", "reportTrialURL", t.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL], "assignments", t.Spec.Assignments)
-	return &ctrl.Result{}, nil
+	return nil, nil
 }
 
 // reportTrial will report the values from a finished in cluster trial back to the server
@@ -301,4 +318,18 @@ func (r *ServerReconciler) abandonTrial(ctx context.Context, log logr.Logger, t 
 
 	log.Info("Abandoned trial")
 	return nil, nil
+}
+
+func (r *ServerReconciler) trialCreationLimit(name string) *rate.Limiter {
+	r.tcmu.Lock()
+	defer r.tcmu.Unlock()
+	l, ok := r.trialCreation[name]
+	if !ok {
+		if r.trialCreation == nil {
+			r.trialCreation = make(map[string]*rate.Limiter)
+		}
+		l = rate.NewLimiter(1, 1)
+		r.trialCreation[name] = l
+	}
+	return l
 }
