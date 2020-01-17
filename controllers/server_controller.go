@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 )
 
 // ServerReconciler reconciles a experiment and trial objects with a remote server
@@ -131,8 +132,17 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named("server").
 		For(&redskyv1alpha1.Experiment{}).
+		WithEventFilter(&createFilter{}).
 		Complete(r)
 }
+
+// createFilter ignores the experiment create event to allow the experiment status to stabilize more naturally
+type createFilter struct{}
+
+func (*createFilter) Create(e event.CreateEvent) bool { return false }
+func (*createFilter) Delete(event.DeleteEvent) bool   { return true }
+func (*createFilter) Update(event.UpdateEvent) bool   { return true }
+func (*createFilter) Generic(event.GenericEvent) bool { return true }
 
 // listTrials retrieves the list of trial objects matching the specified selector
 func (r *ServerReconciler) listTrials(ctx context.Context, trialList *redskyv1alpha1.TrialList, selector *metav1.LabelSelector) error {
@@ -146,12 +156,6 @@ func (r *ServerReconciler) listTrials(ctx context.Context, trialList *redskyv1al
 // createExperiment will create a new experiment on the server using the cluster state; any default values from the
 // server will be copied back into cluster along with the URLs needed for future interactions with server.
 func (r *ServerReconciler) createExperiment(ctx context.Context, log logr.Logger, exp *redskyv1alpha1.Experiment) (*ctrl.Result, error) {
-	// No phase, 99.999% chance adding an annotation here will cause a conflict with the experiment controller
-	// TODO We should just ignore experiment create
-	if exp.Status.Phase == "" {
-		return &ctrl.Result{}, nil
-	}
-
 	// Convert the cluster state into a server representation
 	n, e := server.FromCluster(exp)
 	ee, err := r.RedSkyAPI.CreateExperiment(ctx, n, *e)
