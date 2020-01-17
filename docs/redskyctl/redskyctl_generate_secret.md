@@ -1,21 +1,19 @@
-## redskyctl init
+## redskyctl generate secret
 
-Install to a cluster
+Generate Red Sky Ops authorization
 
 ### Synopsis
 
-Install Red Sky Ops to a cluster
+Generate authorization secret for Red Sky Ops
 
 ```
-redskyctl init [flags]
+redskyctl generate secret [flags]
 ```
 
 ### Options
 
 ```
-      --bootstrap-role      Create the bootstrap role (if it does not exist). (default true)
-      --extra-permissions   Generate permissions required for features like namespace creation
-  -h, --help                help for init
+  -h, --help   help for secret
 ```
 
 ### Options inherited from parent commands
@@ -29,5 +27,5 @@ redskyctl init [flags]
 
 ### SEE ALSO
 
-* [redskyctl](redskyctl.md)	 - Kubernetes Exploration
+* [redskyctl generate](redskyctl_generate.md)	 - Generate Red Sky Ops objects
 

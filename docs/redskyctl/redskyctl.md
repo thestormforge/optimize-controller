@@ -22,6 +22,7 @@ redskyctl [flags]
 
 ### SEE ALSO
 
+* [redskyctl authorize](redskyctl_authorize.md)	 - Authorize a cluster
 * [redskyctl check](redskyctl_check.md)	 - Run a consistency check
 * [redskyctl config](redskyctl_config.md)	 - Work with the configuration file
 * [redskyctl delete](redskyctl_delete.md)	 - Delete a Red Sky experiment
@@ -29,6 +30,7 @@ redskyctl [flags]
 * [redskyctl get](redskyctl_get.md)	 - Display a Red Sky resource
 * [redskyctl init](redskyctl_init.md)	 - Install to a cluster
 * [redskyctl kustomize](redskyctl_kustomize.md)	 - Kustomize integrations
+* [redskyctl login](redskyctl_login.md)	 - Authenticate
 * [redskyctl reset](redskyctl_reset.md)	 - Uninstall from a cluster
 * [redskyctl results](redskyctl_results.md)	 - Serve a visualization of the results
 * [redskyctl suggest](redskyctl_suggest.md)	 - Suggest assignments

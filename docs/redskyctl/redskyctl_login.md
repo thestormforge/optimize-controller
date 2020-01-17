@@ -1,21 +1,21 @@
-## redskyctl init
+## redskyctl login
 
-Install to a cluster
+Authenticate
 
 ### Synopsis
 
-Install Red Sky Ops to a cluster
+Log into your Red Sky account
 
 ```
-redskyctl init [flags]
+redskyctl login [flags]
 ```
 
 ### Options
 
 ```
-      --bootstrap-role      Create the bootstrap role (if it does not exist). (default true)
-      --extra-permissions   Generate permissions required for features like namespace creation
-  -h, --help                help for init
+      --force   Overwrite existing configuration
+  -h, --help    help for login
+      --url     Display the URL instead of opening a browser.
 ```
 
 ### Options inherited from parent commands

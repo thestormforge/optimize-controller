@@ -1,21 +1,19 @@
-## redskyctl init
+## redskyctl authorize
 
-Install to a cluster
+Authorize a cluster
 
 ### Synopsis
 
-Install Red Sky Ops to a cluster
+Authorize Red Sky Ops in a cluster
 
 ```
-redskyctl init [flags]
+redskyctl authorize [flags]
 ```
 
 ### Options
 
 ```
-      --bootstrap-role      Create the bootstrap role (if it does not exist). (default true)
-      --extra-permissions   Generate permissions required for features like namespace creation
-  -h, --help                help for init
+  -h, --help   help for authorize
 ```
 
 ### Options inherited from parent commands
