@@ -177,7 +177,7 @@ func (r *ServerReconciler) createExperiment(ctx context.Context, log logr.Logger
 	}
 
 	log.Info("Created remote experiment", "experimentURL", exp.Annotations[redskyv1alpha1.AnnotationExperimentURL])
-	return &ctrl.Result{}, nil
+	return nil, nil
 }
 
 // unlinkExperiment will delete the experiment from the server using the URLs recorded in the cluster; the finalizer
@@ -201,7 +201,7 @@ func (r *ServerReconciler) unlinkExperiment(ctx context.Context, log logr.Logger
 	}
 
 	log.Info("Unlinked remote experiment")
-	return &ctrl.Result{}, nil
+	return nil, nil
 }
 
 // nextTrial will try to obtain a suggestion from the server and create the corresponding cluster state in the form of
