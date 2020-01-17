@@ -93,9 +93,13 @@ func (o *ResultsOptions) Run() error {
 	if err := o.handleAPI(router, "/api/"); err != nil {
 		return err
 	}
+	ctx, err := o.handleShutdown(router, "/shutdown")
+	if err != nil {
+		return err
+	}
 
 	// Create the server
-	server := cmdutil.NewContextServer(context.Background(), router,
+	server := cmdutil.NewContextServer(ctx, router,
 		cmdutil.WithServerOptions(o.configureServer),
 		cmdutil.ShutdownOnInterrupt(func() { _, _ = fmt.Fprintln(o.Out) }),
 		cmdutil.HandleStart(o.openBrowser))
@@ -153,4 +157,13 @@ func (o *ResultsOptions) handleAPI(serveMux *http.ServeMux, prefix string) error
 		Transport:      transport,
 	})
 	return nil
+}
+
+func (o *ResultsOptions) handleShutdown(serveMux *http.ServeMux, prefix string) (context.Context, error) {
+	ctx, shutdown := context.WithCancel(context.Background())
+	serveMux.HandleFunc(prefix, func(w http.ResponseWriter, r *http.Request) {
+		shutdown()
+		_, _ = fmt.Fprintln(o.Out)
+	})
+	return ctx, nil
 }
