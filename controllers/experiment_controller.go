@@ -64,10 +64,6 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 		return *result, err
 	}
 
-	if result, err := r.completeTrials(ctx, trialList); result != nil {
-		return *result, err
-	}
-
 	if result, err := r.cleanupTrials(ctx, exp, trialList); result != nil {
 		return *result, err
 	}
@@ -118,29 +114,21 @@ func (r *ExperimentReconciler) updateStatus(ctx context.Context, exp *redskyv1al
 func (r *ExperimentReconciler) updateTrialStatus(ctx context.Context, trialList *redskyv1alpha1.TrialList) (*ctrl.Result, error) {
 	for i := range trialList.Items {
 		t := &trialList.Items[i]
-		if trial.UpdateStatus(t) {
-			if err := r.Update(ctx, t); err != nil {
-				return controller.RequeueConflict(err)
-			}
-		}
-	}
-	return nil, nil
-}
 
-// completeTrials will mark any observed trial as completed
-func (r *ExperimentReconciler) completeTrials(ctx context.Context, trialList *redskyv1alpha1.TrialList) (*ctrl.Result, error) {
-	for i := range trialList.Items {
-		t := &trialList.Items[i]
+		var dirty bool
 
-		// Trial is already finished, no completion possible
-		if trial.IsFinished(t) {
-			continue
-		}
-
-		// If the trial has been observed, mark it as complete
-		if trial.CheckCondition(&t.Status, redskyv1alpha1.TrialObserved, corev1.ConditionTrue) {
+		// If the trial is not finished, but it has been observed, mark it as complete
+		if !trial.IsFinished(t) && trial.CheckCondition(&t.Status, redskyv1alpha1.TrialObserved, corev1.ConditionTrue) {
 			now := metav1.Now()
 			trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialComplete, corev1.ConditionTrue, "", "", &now)
+			dirty = true
+		}
+
+		// Update the trial status
+		dirty = trial.UpdateStatus(t) || dirty
+
+		// Only send an update if something actually changed
+		if dirty {
 			if err := r.Update(ctx, t); err != nil {
 				return controller.RequeueConflict(err)
 			}
