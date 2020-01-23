@@ -29,7 +29,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -94,18 +93,23 @@ func trialToExperimentRequest(o handler.MapObject) []reconcile.Request {
 
 // updateStatus will ensure the experiment and trial status matches the current state
 func (r *ExperimentReconciler) updateStatus(ctx context.Context, exp *redskyv1alpha1.Experiment, trialList *redskyv1alpha1.TrialList) (*ctrl.Result, error) {
+	var dirty bool
+
 	// Update the HasTrialFinalizer
 	if len(trialList.Items) > 0 {
-		controllerutil.AddFinalizer(exp, experiment.HasTrialFinalizer)
+		dirty = meta.AddFinalizer(exp, experiment.HasTrialFinalizer) || dirty
 	} else {
-		controllerutil.RemoveFinalizer(exp, experiment.HasTrialFinalizer)
+		dirty = meta.RemoveFinalizer(exp, experiment.HasTrialFinalizer) || dirty
 	}
 
 	// Update the experiment status
-	experiment.UpdateStatus(exp, trialList)
+	dirty = experiment.UpdateStatus(exp, trialList) || dirty
 
-	if err := r.Update(ctx, exp); err != nil {
-		return controller.RequeueConflict(err)
+	// Only send an update if something actually changed
+	if dirty {
+		if err := r.Update(ctx, exp); err != nil {
+			return controller.RequeueConflict(err)
+		}
 	}
 	return nil, nil
 }
