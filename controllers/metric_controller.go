@@ -210,11 +210,10 @@ func (r *MetricReconciler) target(ctx context.Context, namespace string, m *reds
 		return target, nil
 	case redskyv1alpha1.MetricPrometheus, redskyv1alpha1.MetricJSONPath:
 		// Both Prometheus and JSONPath target a service
-		// NOTE: This purposely ignores the namespace in case Prometheus is running cluster wide
 		target := &corev1.ServiceList{}
 		if sel, err := meta.MatchingSelector(m.Selector); err != nil {
 			return nil, err
-		} else if err := r.List(ctx, target, sel); err != nil {
+		} else if err := r.List(ctx, target, client.InNamespace(namespace), sel); err != nil {
 			return nil, err
 		}
 		return target, nil
