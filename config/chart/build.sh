@@ -31,14 +31,16 @@ templatizeRBAC() {
 }
 
 # Post processing to add recommended labels
+# https://github.com/koalaman/shellcheck/issues/1246
+# shellcheck disable=SC1004
 label() {
     sed '/creationTimestamp: null/d' | \
-    sed '/^  labels:$/,/^    app\.kubernetes\.io\/name: redskyops$/c
-  labels:
-    app.kubernetes.io/name: redskyops
-    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-    app.kubernetes.io/instance: {{ .Release.Name | quote }}
-    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+    sed '/^  labels:$/,/^    app\.kubernetes\.io\/name: redskyops$/c\
+  labels:\
+    app.kubernetes.io/name: redskyops\
+    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}\
+    app.kubernetes.io/instance: {{ .Release.Name | quote }}\
+    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}\
     helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"'
 }
 
