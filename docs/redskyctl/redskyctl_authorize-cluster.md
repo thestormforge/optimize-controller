@@ -1,4 +1,4 @@
-## redskyctl authorize
+## redskyctl authorize-cluster
 
 Authorize a cluster
 
@@ -7,13 +7,13 @@ Authorize a cluster
 Authorize Red Sky Ops in a cluster
 
 ```
-redskyctl authorize [flags]
+redskyctl authorize-cluster [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for authorize
+  -h, --help   help for authorize-cluster
 ```
 
 ### Options inherited from parent commands

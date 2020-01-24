@@ -53,7 +53,7 @@ func NewAuthorizeCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.
 	o := NewAuthorizeOptions(ioStreams)
 
 	cmd := &cobra.Command{
-		Use:     "authorize",
+		Use:     "authorize-cluster",
 		Short:   "Authorize a cluster",
 		Long:    authorizeLong,
 		Example: authorizeExample,
