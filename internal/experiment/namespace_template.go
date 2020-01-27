@@ -50,10 +50,10 @@ func NextTrialNamespace(c client.Client, ctx context.Context, exp *redskyv1alpha
 	var selector client.ListOption
 	if n := exp.Spec.Template.Namespace; n != "" {
 		// If there is an explicit target namespace on the trial template it is the only one we will be allowed to use
-		selector = client.MatchingFields{".metadata.name": n}
+		selector = client.MatchingFields{"metadata.name": n}
 	} else if exp.Spec.NamespaceSelector == nil && exp.Spec.NamespaceTemplate == nil {
 		// If there is no namespace selector/template we can only use the experiment namespace
-		selector = client.MatchingFields{".metadata.name": exp.Namespace}
+		selector = client.MatchingFields{"metadata.name": exp.Namespace}
 	} else {
 		// Match the (possibly nil) namespace selector
 		s, err := metav1.LabelSelectorAsSelector(exp.Spec.NamespaceSelector)
