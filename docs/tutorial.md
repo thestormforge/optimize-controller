@@ -58,7 +58,7 @@ Both `experiments` and `trials` are created as custom Kubernetes objects. You ca
 
 The experiment objects themselves will not have their state modified over the course of a trial run: once created they represent generally static state.
 
-Trial objects will undergo a number of state progressions over the course of a trial run. These progressions can be monitored by watching the "status" portion of the trial object (e.g. when viewing `kubectl get trials -o yaml <TRIAL NAME>`). You can also obtain a summary status by passing the experiment name to the `redskyctl status <EXPERIMENT NAME>` command.
+Trial objects will undergo a number of state progressions over the course of a trial run. These progressions can be monitored by watching the "status" portion of the trial object (e.g. when viewing `kubectl get trials -o yaml <TRIAL NAME>`).
 
 The trial object will also own several (one to three) job objects depending on the experiment; those jobs will be labeled using the trial name (e.g. `trial=<name>`) and are typically named using the trial name as a prefix. The `-create` and `-delete` suffixes on job names indicate setup tasks (also labeled with `role=trialSetup`).
 
