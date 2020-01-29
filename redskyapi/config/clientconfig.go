@@ -16,6 +16,8 @@ limitations under the License.
 
 package config
 
+import "fmt"
+
 // Loader is used to initially populate a client configuration
 type Loader func(cfg *ClientConfig) error
 
@@ -34,7 +36,7 @@ type ClientConfig struct {
 // Load will populate the client configuration
 func (cc *ClientConfig) Load(extra ...Loader) error {
 	var loaders []Loader
-	loaders = append(loaders, fileLoader, migrationLoader)
+	loaders = append(loaders, fileLoader, migrationLoader, envLoader)
 	loaders = append(loaders, extra...)
 	for i := range loaders {
 		if err := loaders[i](cc); err != nil {
@@ -87,4 +89,34 @@ func (cc *ClientConfig) Merge(data *Config) {
 	mergeControllers(&cc.data, data.Controllers)
 	mergeContexts(&cc.data, data.Contexts)
 	mergeString(&cc.data.CurrentContext, data.CurrentContext)
+}
+
+// contextConfig returns all of the configurations objects for the named context
+func contextConfig(data *Config, name string) (*Server, *Authorization, *Cluster, *Controller, error) {
+	ctx := findContext(data.Contexts, name)
+	if ctx == nil {
+		return nil, nil, nil, nil, fmt.Errorf("could not find context (%s)", name)
+	}
+
+	srv := findServer(data.Servers, ctx.Server)
+	if srv == nil {
+		return srv, nil, nil, nil, fmt.Errorf("cound not find server (%s)", ctx.Server)
+	}
+
+	az := findAuthorization(data.Authorizations, ctx.Authorization)
+	if az == nil {
+		return srv, az, nil, nil, fmt.Errorf("could not find authorization (%s)", ctx.Authorization)
+	}
+
+	cstr := findCluster(data.Clusters, ctx.Cluster)
+	if cstr == nil {
+		return srv, az, cstr, nil, fmt.Errorf("could not find cluster (%s)", ctx.Cluster)
+	}
+
+	ctrl := findController(data.Controllers, cstr.Controller)
+	if ctrl == nil {
+		return srv, az, cstr, ctrl, fmt.Errorf("could not find controller (%s)", cstr.Controller)
+	}
+
+	return srv, az, cstr, ctrl, nil
 }
