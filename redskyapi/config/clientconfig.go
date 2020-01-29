@@ -34,7 +34,7 @@ type ClientConfig struct {
 // Load will populate the client configuration
 func (cc *ClientConfig) Load(extra ...Loader) error {
 	var loaders []Loader
-	loaders = append(loaders, fileLoader)
+	loaders = append(loaders, fileLoader, migrationLoader)
 	loaders = append(loaders, extra...)
 	for i := range loaders {
 		if err := loaders[i](cc); err != nil {
