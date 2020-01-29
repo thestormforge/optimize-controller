@@ -38,6 +38,7 @@ func (cc *ClientConfig) Load(extra ...Loader) error {
 	var loaders []Loader
 	loaders = append(loaders, fileLoader, migrationLoader, envLoader)
 	loaders = append(loaders, extra...)
+	loaders = append(loaders, defaultLoader) // Always do defaults last so it can fill in the gaps
 	for i := range loaders {
 		if err := loaders[i](cc); err != nil {
 			return err
