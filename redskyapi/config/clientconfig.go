@@ -34,6 +34,7 @@ type ClientConfig struct {
 // Load will populate the client configuration
 func (cc *ClientConfig) Load(extra ...Loader) error {
 	var loaders []Loader
+	loaders = append(loaders, fileLoader)
 	loaders = append(loaders, extra...)
 	for i := range loaders {
 		if err := loaders[i](cc); err != nil {
@@ -50,4 +51,40 @@ func (cc *ClientConfig) Update(change Change) error {
 	}
 	cc.unpersisted = append(cc.unpersisted, change)
 	return nil
+}
+
+// Write all unpersisted changes to disk
+func (cc *ClientConfig) Write() error {
+	if cc.Filename == "" || len(cc.unpersisted) == 0 {
+		return nil
+	}
+
+	f := file{}
+	if err := f.read(cc.Filename); err != nil {
+		return err
+	}
+
+	for i := range cc.unpersisted {
+		if err := cc.unpersisted[i](&f.data); err != nil {
+			return err
+		}
+	}
+
+	if err := f.write(cc.Filename); err != nil {
+		return err
+	}
+
+	cc.unpersisted = nil
+	return nil
+}
+
+// Merge combines the supplied data with what is already present in this client configuration; unlike Update, changes
+// will not be persisted on the next write
+func (cc *ClientConfig) Merge(data *Config) {
+	mergeServers(&cc.data, data.Servers)
+	mergeAuthorizations(&cc.data, data.Authorizations)
+	mergeClusters(&cc.data, data.Clusters)
+	mergeControllers(&cc.data, data.Controllers)
+	mergeContexts(&cc.data, data.Contexts)
+	mergeString(&cc.data.CurrentContext, data.CurrentContext)
 }
