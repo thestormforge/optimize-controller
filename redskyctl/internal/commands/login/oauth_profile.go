@@ -23,30 +23,22 @@ import (
 )
 
 // NewOAuthConfig returns a configuration for the specified profile (or nil if the profile is not known)
-func NewOAuthConfig(profile string) *oauth2.Config {
+func NewOAuthConfig(profile string, cfg *oauth2.Config) {
 	// TODO Hack, assume the profile is actually a URL
 	if strings.HasPrefix(profile, "http:") && strings.HasSuffix(profile, "/") {
-		return &oauth2.Config{
-			ClientID: "YOUR_CLIENT_ID_HERE",
-			Endpoint: oauth2.Endpoint{
-				AuthURL:   profile + "authorize",
-				TokenURL:  profile + "oauth/token",
-				AuthStyle: oauth2.AuthStyleInParams,
-			},
-		}
+		cfg.ClientID = "YOUR_CLIENT_ID_HERE"
+		cfg.Endpoint.AuthURL = profile + "authorize"
+		cfg.Endpoint.TokenURL = profile + "oauth/token"
+		cfg.Endpoint.AuthStyle = oauth2.AuthStyleInParams
+		return
 	}
 
 	switch profile {
 	case "dev":
-		return &oauth2.Config{
-			ClientID: "TYNvHNNtl2iGKJ3k9TyECDe81vrouzOu",
-			Endpoint: oauth2.Endpoint{
-				AuthURL:   "https://redskyops-dev.auth0.com/authorize",
-				TokenURL:  "https://redskyops-dev.auth0.com/oauth/token",
-				AuthStyle: oauth2.AuthStyleInParams,
-			},
-		}
-	default:
-		return nil
+		cfg.ClientID = "TYNvHNNtl2iGKJ3k9TyECDe81vrouzOu"
+		cfg.Endpoint.AuthURL = "https://redskyops-dev.auth0.com/authorize"
+		cfg.Endpoint.TokenURL = "https://redskyops-dev.auth0.com/oauth/token"
+		cfg.Endpoint.AuthStyle = oauth2.AuthStyleInParams
+		return
 	}
 }

@@ -14,14 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package login
+package oauth
 
 import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
-	"fmt"
 	"net/http"
 	"net/url"
 
@@ -30,6 +29,9 @@ import (
 
 // AuthorizationCodeFlowWithPKCE implements an authorization code flow with proof key for code exchange.
 type AuthorizationCodeFlowWithPKCE struct {
+	// Config is the OAuth2 configuration to use for this authorization flow
+	oauth2.Config
+
 	// Audience is the URI identifying the target API
 	Audience string
 	// HandleToken receives the access token from the authorization flow
@@ -37,8 +39,6 @@ type AuthorizationCodeFlowWithPKCE struct {
 	// GenerateResponse produces an HTTP response for the given status code
 	GenerateResponse func(w http.ResponseWriter, r *http.Request, message string, code int)
 
-	// config is a reference the OAuth2 configuration to use for this authorization flow
-	config *oauth2.Config
 	// state is a random value to prevent CSRF attacks
 	state string
 	// verifier is the PKCE code verifier generated for this login attempt
@@ -46,11 +46,7 @@ type AuthorizationCodeFlowWithPKCE struct {
 }
 
 // NewAuthorizationCodeFlowWithPKCE creates a new authorization flow using the supplied OAuth2 configuration
-func NewAuthorizationCodeFlowWithPKCE(c *oauth2.Config) (*AuthorizationCodeFlowWithPKCE, error) {
-	if c.ClientSecret != "" {
-		return nil, fmt.Errorf("cannot do authorize code flow with PKCE with a client secret")
-	}
-
+func NewAuthorizationCodeFlowWithPKCE() (*AuthorizationCodeFlowWithPKCE, error) {
 	// Generate a random state for CSRF
 	sb := make([]byte, 16)
 	if _, err := rand.Read(sb); err != nil {
@@ -65,27 +61,27 @@ func NewAuthorizationCodeFlowWithPKCE(c *oauth2.Config) (*AuthorizationCodeFlowW
 	}
 	v := base64.RawURLEncoding.EncodeToString(vb)
 
-	return &AuthorizationCodeFlowWithPKCE{config: c, state: s, verifier: v}, nil
+	return &AuthorizationCodeFlowWithPKCE{state: s, verifier: v}, nil
 }
 
 // AuthCodeURL returns the browser URL for the user to start the authorization flow
-func (f *AuthorizationCodeFlowWithPKCE) AuthCodeURL() string {
+func (f *AuthorizationCodeFlowWithPKCE) AuthCodeURLWithPKCE() string {
 	audience := oauth2.SetAuthURLParam("audience", f.Audience)
 	sum256 := sha256.Sum256([]byte(f.verifier))
 	codeChallenge := oauth2.SetAuthURLParam("code_challenge", base64.RawURLEncoding.EncodeToString(sum256[:]))
 	codeChallengeMethod := oauth2.SetAuthURLParam("code_challenge_method", "S256")
-	return f.config.AuthCodeURL(f.state, audience, codeChallenge, codeChallengeMethod)
+	return f.AuthCodeURL(f.state, audience, codeChallenge, codeChallengeMethod)
 }
 
 // Exchange returns the access token for the authorization flow
-func (f *AuthorizationCodeFlowWithPKCE) Exchange(code string) (*oauth2.Token, error) {
+func (f *AuthorizationCodeFlowWithPKCE) ExchangeWithPKCE(ctx context.Context, code string) (*oauth2.Token, error) {
 	codeVerifier := oauth2.SetAuthURLParam("code_verifier", f.verifier)
-	return f.config.Exchange(context.TODO(), code, codeVerifier)
+	return f.Exchange(ctx, code, codeVerifier)
 }
 
 // CallbackAddr returns the address of the callback server (i.e. the host of the OAuth redirect URL)
 func (f *AuthorizationCodeFlowWithPKCE) CallbackAddr() (string, error) {
-	u, err := url.Parse(f.config.RedirectURL)
+	u, err := url.Parse(f.RedirectURL)
 	if err != nil {
 		return "", err
 	}
@@ -101,7 +97,7 @@ func (f *AuthorizationCodeFlowWithPKCE) Callback(w http.ResponseWriter, r *http.
 	}
 
 	// Exchange the authorization code for an access token
-	token, err := f.Exchange(r.FormValue("code"))
+	token, err := f.ExchangeWithPKCE(context.TODO(), r.FormValue("code"))
 	if err != nil {
 		f.respond(w, r, err.Error(), http.StatusInternalServerError)
 		return
@@ -121,7 +117,7 @@ func (f *AuthorizationCodeFlowWithPKCE) Callback(w http.ResponseWriter, r *http.
 
 func (f *AuthorizationCodeFlowWithPKCE) validateRequest(r *http.Request) (int, string) {
 	// Validate the request URL matches the configured redirect URL
-	u, err := url.Parse(f.config.RedirectURL)
+	u, err := url.Parse(f.RedirectURL)
 	if err != nil {
 		return http.StatusInternalServerError, err.Error()
 	}
