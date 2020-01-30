@@ -20,6 +20,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"os/exec"
 
 	"github.com/redskyops/k8s-experiment/redskyapi/config"
 )
@@ -32,13 +33,15 @@ type Config interface {
 	// ExperimentsURL returns a URL to the experiments API
 	ExperimentsURL(path string) (*url.URL, error)
 
+	// Kubectl returns an executable command for running kubectl
+	Kubectl(arg ...string) (*exec.Cmd, error)
+
 	// Authorize returns a transport that applies the authorization defined by this configuration. The
 	// supplied context is used for any additional requests necessary to perform authentication. If this
 	// configuration does not define any authorization details, the supplied transport may be returned
 	// directly.
 	Authorize(ctx context.Context, transport http.RoundTripper) (http.RoundTripper, error)
 
-	// TODO We need to be able to access the Kube Cluster information (e.g. `Kubectl(args ...string) exec.Cmd`)
 }
 
 // DefaultConfig loads the mostly commonly used configuration
