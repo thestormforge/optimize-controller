@@ -28,6 +28,7 @@ import (
 	"github.com/pkg/browser"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	redskyclient "github.com/redskyops/k8s-experiment/redskyapi"
+	"github.com/redskyops/k8s-experiment/redskyapi/oauth"
 	"github.com/spf13/cobra"
 	"golang.org/x/oauth2"
 )
@@ -94,16 +95,13 @@ func (o *LoginOptions) Run() error {
 	}
 
 	// Use the OAuth configuration to create a new authorization flow with PKCE
-	config := NewOAuthConfig(OAuthProfile)
-	if config == nil {
-		return fmt.Errorf("unknown OAuth profile: %s", OAuthProfile)
-	}
-	config.RedirectURL = "http://localhost:8085/"
-	config.Scopes = []string{"offline_access"}
-	flow, err := NewAuthorizationCodeFlowWithPKCE(config)
+	flow, err := oauth.NewAuthorizationCodeFlowWithPKCE()
 	if err != nil {
 		return err
 	}
+	NewOAuthConfig(OAuthProfile, &flow.Config)
+	flow.RedirectURL = "http://localhost:8085/"
+	flow.Scopes = []string{"offline_access"}
 
 	// Configure the flow to persist the access token for offline use and generate the appropriate callback responses
 	flow.Audience = "https://api.carbonrelay.dev/"
@@ -124,7 +122,7 @@ func (o *LoginOptions) Run() error {
 		cmdutil.WithServerOptions(configureCallbackServer(flow)),
 		cmdutil.ShutdownOnInterrupt(func() { _, _ = fmt.Fprintln(o.Out) }),
 		cmdutil.HandleStart(func(string) error {
-			return o.openBrowser(flow.AuthCodeURL())
+			return o.openBrowser(flow.AuthCodeURLWithPKCE())
 		}))
 
 	return server.ListenAndServe()
@@ -201,7 +199,7 @@ func (o *LoginOptions) openBrowser(loc string) error {
 }
 
 // configureCallbackServer configures an HTTP server using the supplied callback redirect URL for the listen address
-func configureCallbackServer(f *AuthorizationCodeFlowWithPKCE) func(srv *http.Server) {
+func configureCallbackServer(f *oauth.AuthorizationCodeFlowWithPKCE) func(srv *http.Server) {
 	return func(srv *http.Server) {
 		// Try to make the server listen on the same host as the callback
 		if addr, err := f.CallbackAddr(); err == nil {
@@ -217,7 +215,7 @@ func configureCallbackServer(f *AuthorizationCodeFlowWithPKCE) func(srv *http.Se
 
 // serverShutdownContext wraps the response generator of the supplied flow to cancel the returned context.
 // This is effectively the code that shuts down the HTTP server once the OAuth callback is hit.
-func serverShutdownContext(f *AuthorizationCodeFlowWithPKCE) context.Context {
+func serverShutdownContext(f *oauth.AuthorizationCodeFlowWithPKCE) context.Context {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Wrap GenerateResponse so it cancels the context on success or server failure
