@@ -73,7 +73,7 @@ type AuthorizationServer struct {
 // Authorization contains information about remote server authorizations
 type Authorization struct {
 	// Credential is the information that must be presented to prove authorization
-	Credential Credential `json:"credential,omitempty"`
+	Credential Credential `json:"credential"`
 }
 
 // TokenCredential represents a token based credential
@@ -213,12 +213,14 @@ func (c *Credential) UnmarshalJSON(data []byte) error {
 func (tc *TokenCredential) MarshalJSON() ([]byte, error) {
 	// http://choly.ca/post/go-json-marshalling/
 	type TC TokenCredential
-	expiry := "0"
-	if !tc.Expiry.IsZero() {
+	var expiry string
+	if tc != nil && tc.Expiry.IsZero() {
+		expiry = "0"
+	} else if tc != nil {
 		expiry = tc.Expiry.UTC().Format(time.RFC3339)
 	}
 	return json.Marshal(&struct {
 		*TC
-		Expiry string `json:"expiry"`
+		Expiry string `json:"expiry,omitempty"`
 	}{TC: (*TC)(tc), Expiry: expiry})
 }
