@@ -38,9 +38,8 @@ func SaveToken(name string, t *oauth2.Token) Change {
 	return func(cfg *Config) error {
 		az := findAuthorization(cfg.Authorizations, name)
 		if az == nil {
-			naz := NamedAuthorization{Name: name}
-			az = &naz.Authorization
-			cfg.Authorizations = append(cfg.Authorizations, naz)
+			cfg.Authorizations = append(cfg.Authorizations, NamedAuthorization{Name: name})
+			az = &cfg.Authorizations[len(cfg.Authorizations)-1].Authorization
 		}
 		az.Credential.ClientCredential = nil
 		az.Credential.TokenCredential = &TokenCredential{
@@ -60,9 +59,8 @@ func ApplyCurrentContext(contextName, serverName, authorizationName, clusterName
 		// TODO Should this do a two-way merge (merge original in, then merge back to original) so it doesn't overwrite?
 		ctx := findContext(cfg.Contexts, contextName)
 		if ctx == nil {
-			nctx := NamedContext{Name: contextName}
-			ctx = &nctx.Context
-			cfg.Contexts = append(cfg.Contexts, nctx)
+			cfg.Contexts = append(cfg.Contexts, NamedContext{Name: contextName})
+			ctx = &cfg.Contexts[len(cfg.Contexts)-1].Context
 		}
 		ctx.Server = serverName
 		ctx.Authorization = authorizationName
