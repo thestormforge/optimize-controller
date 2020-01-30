@@ -135,6 +135,14 @@ func (f *AuthorizationCodeFlowWithPKCE) validateRequest(r *http.Request) (int, s
 		return http.StatusForbidden, "CSRF state mismatch"
 	}
 
+	// Check for errors
+	if errorCode := r.FormValue("error"); errorCode != "" {
+		if ed := r.FormValue("error_description"); ed != "" {
+			errorCode = ed
+		}
+		return http.StatusInternalServerError, errorCode
+	}
+
 	return http.StatusOK, ""
 }
 
