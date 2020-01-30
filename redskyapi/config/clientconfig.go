@@ -20,6 +20,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
+	"path"
+	"strings"
 
 	"github.com/redskyops/k8s-experiment/redskyapi/oauth"
 	"golang.org/x/oauth2"
@@ -87,6 +90,34 @@ func (cc *ClientConfig) Write() error {
 
 	cc.unpersisted = nil
 	return nil
+}
+
+// SystemNamespace returns the namespace where the Red Sky controller is/should be installed
+func (cc *ClientConfig) SystemNamespace() (string, error) {
+	_, _, _, ctrl, err := contextConfig(&cc.data, cc.data.CurrentContext)
+	if err != nil {
+		return "", err
+	}
+	return ctrl.Namespace, nil
+}
+
+// ExperimentsURL returns the path to the experiments API endpoint
+func (cc *ClientConfig) ExperimentsURL(p string) (*url.URL, error) {
+	svr, _, _, _, err := contextConfig(&cc.data, cc.data.CurrentContext)
+	if err != nil {
+		return nil, err
+	}
+
+	u, err := url.Parse(svr.RedSky.ExperimentsEndpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	// The configuration and the API should both have "/experiments"
+	p = strings.TrimPrefix(p, "/experiments")
+
+	u.Path = path.Join(u.Path, p)
+	return u, nil
 }
 
 // Authorize configures the supplied transport

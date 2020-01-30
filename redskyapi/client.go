@@ -21,13 +21,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"path"
-	"strings"
 	"time"
-
-	"github.com/redskyops/k8s-experiment/pkg/version"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/clientcredentials"
 )
 
 type Client interface {
@@ -35,66 +29,23 @@ type Client interface {
 	Do(context.Context, *http.Request) (*http.Response, []byte, error)
 }
 
-// ConfigureOAuth2 checks the supplied to configuration to see if the (possibly nil) transport needs to be wrapped to
-// perform authentication. The context is used for token management if necessary.
-func ConfigureOAuth2(cfg *Config, ctx context.Context, transport http.RoundTripper) (http.RoundTripper, error) {
+// NewClient returns a new client for accessing Red Sky APIs; the supplied context is used for authentication/authorization
+// requests and the supplied transport (which may be nil in the case of the default transport) is used for all requests made
+// to the API server.
+func NewClient(cfg Config, ctx context.Context, transport http.RoundTripper) (Client, error) {
+	var err error
 
-	// Client credential ("two-legged") token flow
-	if cfg.OAuth2.ClientID != "" && cfg.OAuth2.ClientSecret != "" {
-		cc := clientcredentials.Config{
-			ClientID:     cfg.OAuth2.ClientID,
-			ClientSecret: cfg.OAuth2.ClientSecret,
-			AuthStyle:    oauth2.AuthStyleInParams,
-		}
-
-		// Resolve the token URL against the endpoint address
-		endpoint, err := url.Parse(cfg.Address)
-		if err != nil {
-			return nil, err
-		}
-		endpoint.Path = strings.TrimRight(endpoint.Path, "/") + "/"
-		tokenURL, err := endpoint.Parse(cfg.OAuth2.TokenURL)
-		if err != nil {
-			return nil, err
-		}
-		cc.TokenURL = tokenURL.String()
-
-		return &oauth2.Transport{Source: cc.TokenSource(ctx), Base: transport}, nil
-	}
-
-	// Static token flow
-	if cfg.OAuth2.Token != "" {
-		sts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: cfg.OAuth2.Token})
-		return &oauth2.Transport{Source: sts, Base: transport}, nil
-	}
-
-	// No OAuth
-	return transport, nil
-}
-
-// GetAddress returns the URL representation of the address configuration parameter
-func GetAddress(cfg *Config) (*url.URL, error) {
-	u, err := url.Parse(cfg.Address)
-	if err != nil {
-		return nil, err
-	}
-	u.Path = strings.TrimRight(u.Path, "/") + "/"
-	return u, nil
-}
-
-func NewClient(cfg *Config, ctx context.Context, transport http.RoundTripper) (Client, error) {
 	hc := &httpClient{}
 	hc.client.Timeout = 10 * time.Second
 
-	// Parse the API endpoint address and force a trailing slash
-	var err error
-	if hc.endpoint, err = url.Parse(cfg.Address); err != nil {
+	// Configure the OAuth2 transport
+	hc.client.Transport, err = cfg.Authorize(ctx, transport)
+	if err != nil {
 		return nil, err
 	}
-	hc.endpoint.Path = strings.TrimRight(hc.endpoint.Path, "/") + "/"
 
-	// Configure the OAuth2 transport
-	hc.client.Transport, err = ConfigureOAuth2(cfg, ctx, transport)
+	// Make sure that we can ignore the error from ExperimentsURL
+	_, err = cfg.ExperimentsURL("")
 	if err != nil {
 		return nil, err
 	}
@@ -103,14 +54,13 @@ func NewClient(cfg *Config, ctx context.Context, transport http.RoundTripper) (C
 }
 
 type httpClient struct {
-	endpoint *url.URL
-	client   http.Client
+	config Config
+	client http.Client
 }
 
 func (c *httpClient) URL(ep string) *url.URL {
-	u := *c.endpoint
-	u.Path = path.Join(u.Path, ep)
-	return &u
+	u, _ := c.config.ExperimentsURL(ep)
+	return u
 }
 
 func (c *httpClient) Do(ctx context.Context, req *http.Request) (*http.Response, []byte, error) {
