@@ -22,8 +22,6 @@ import (
 	"math/rand"
 	"os"
 
-	"github.com/redskyops/k8s-experiment/pkg/version"
-	redskyclient "github.com/redskyops/k8s-experiment/redskyapi"
 	"github.com/redskyops/k8s-experiment/redskyctl/internal/commands"
 )
 
@@ -36,9 +34,6 @@ func main() {
 		panic(err)
 	}
 	rand.Seed(int64(binary.LittleEndian.Uint64(b[:])))
-
-	// Set the UA string for the API client
-	redskyclient.DefaultUserAgent = version.GetUserAgentString("redskyctl")
 
 	// TODO Determine which command to run by looking at the base name of $0
 	command := commands.NewDefaultRedskyctlCommand()

@@ -78,7 +78,6 @@ func main() {
 
 	// Establish the Red Sky API
 	setupLog.Info("Red Sky", "version", version.GetVersion(), "gitCommit", version.GitCommit)
-	redskyclient.DefaultUserAgent = version.GetUserAgentString("RedSkyManager")
 	redSkyAPI, err := newRedSkyAPI()
 	if err != nil {
 		setupLog.Error(err, "unable to create Red Sky API")
@@ -166,5 +165,5 @@ func newRedSkyAPI() (redskyapi.API, error) {
 	if err != nil {
 		return nil, err
 	}
-	return redskyapi.NewForConfig(cfg)
+	return redskyapi.NewForConfig(cfg, version.UserAgent("RedSkyManager", nil))
 }

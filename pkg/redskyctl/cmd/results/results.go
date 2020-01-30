@@ -39,7 +39,7 @@ const (
 type ResultsOptions struct {
 	ServerAddress string
 	DisplayURL    bool
-	BackendConfig *redskyclient.Config
+	BackendConfig redskyclient.Config
 
 	cmdutil.IOStreams
 }
@@ -138,14 +138,18 @@ func (o *ResultsOptions) handleUI(serveMux *http.ServeMux, prefix string) error 
 
 func (o *ResultsOptions) handleAPI(serveMux *http.ServeMux, prefix string) error {
 	// Configure a director to rewrite request URLs
-	address, err := redskyclient.GetAddress(o.BackendConfig)
+	// TODO This is probably going to double-up "/experiments/experiments/"
+	// The backend doesn't really support context roots so we may need to either change the UI to use "/v1"
+	// instead of "/api" (and change our proxy); or get more aggressive with our rewriting to keep "/api"
+	address, err := o.BackendConfig.ExperimentsURL("")
 	if err != nil {
 		return err
 	}
 	rp := &RewriteProxy{Address: *address}
 
 	// Configure a transport to provide OAuth2 tokens to the backend
-	transport, err := redskyclient.ConfigureOAuth2(o.BackendConfig, context.Background(), nil)
+	// TODO Set a UA round-tripper with both redskyctl and "rewrite proxy" as products?
+	transport, err := o.BackendConfig.Authorize(context.Background(), nil)
 	if err != nil {
 		return err
 	}

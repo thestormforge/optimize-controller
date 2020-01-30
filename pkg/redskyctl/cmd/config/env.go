@@ -21,7 +21,7 @@ import (
 	"sort"
 
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
-	redskyclient "github.com/redskyops/k8s-experiment/redskyapi"
+	"github.com/redskyops/k8s-experiment/redskyapi/config"
 	"github.com/spf13/cobra"
 )
 
@@ -61,49 +61,24 @@ func NewConfigEnvCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.
 }
 
 func (o *ConfigEnvOptions) Run() error {
-	// It would be nice if we could just access the bindings stored in Viper
-	cfg, err := redskyclient.DefaultConfig()
+	cfg := &config.ClientConfig{}
+	if err := cfg.Load(); err != nil {
+		return err
+	}
+
+	env, err := config.LegacyEnvMapping(cfg, o.Manager)
 	if err != nil {
 		return err
 	}
 
-	// Create an environment map, we will ignore empty strings later
-	env := make(map[string]string)
-	env["REDSKY_ADDRESS"] = cfg.Address
-	env["REDSKY_OAUTH2_CLIENT_ID"] = cfg.OAuth2.ClientID
-	env["REDSKY_OAUTH2_CLIENT_SECRET"] = cfg.OAuth2.ClientSecret
-
-	// No good way to detect defaults
-	if cfg.OAuth2.ClientID != "" || cfg.OAuth2.ClientSecret != "" {
-		env["REDSKY_OAUTH2_TOKEN_URL"] = cfg.OAuth2.TokenURL
-
-		// When we are not targeting the manager, resolve the full URL (e.g. so you can use it in cURL)
-		if !o.Manager {
-			if b, err := redskyclient.GetAddress(cfg); err == nil {
-				if r, err := b.Parse(cfg.OAuth2.TokenURL); err == nil {
-					env["REDSKY_OAUTH2_TOKEN_URL"] = r.String()
-				}
-			}
-		}
-	}
-
-	// Add manager specific environment variables
-	if o.Manager {
-		for _, v := range cfg.Manager.Environment {
-			env[v.Name] = v.Value
-		}
-	}
-
 	// Serialize the environment map to a ".env" format
 	var keys []string
-	for k, v := range env {
-		if v != "" {
-			keys = append(keys, k)
-		}
+	for k := range env {
+		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		_, _ = fmt.Fprintf(o.Out, "%s=%s\n", k, env[k])
+		_, _ = fmt.Fprintf(o.Out, "%s=%s\n", k, string(env[k]))
 	}
 
 	return nil

@@ -17,10 +17,8 @@ limitations under the License.
 package util
 
 import (
-	"context"
-	"fmt"
-
 	redskykube "github.com/redskyops/k8s-experiment/pkg/kubernetes"
+	"github.com/redskyops/k8s-experiment/pkg/version"
 	redskyclient "github.com/redskyops/k8s-experiment/redskyapi"
 	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/redsky/v1alpha1"
 	"k8s.io/client-go/kubernetes"
@@ -31,7 +29,7 @@ import (
 type Factory interface {
 	ToRawKubeConfigLoader() clientcmd.ClientConfig
 	ToRESTConfig() (*rest.Config, error)
-	ToClientConfig() (*redskyclient.Config, error)
+	ToClientConfig() (redskyclient.Config, error)
 
 	KubernetesClientSet() (*kubernetes.Clientset, error)
 	RedSkyClientSet() (*redskykube.Clientset, error)
@@ -63,7 +61,7 @@ func (f *factoryImpl) ToRESTConfig() (*rest.Config, error) {
 	return f.configFlags.ToRESTConfig()
 }
 
-func (f *factoryImpl) ToClientConfig() (*redskyclient.Config, error) {
+func (f *factoryImpl) ToClientConfig() (redskyclient.Config, error) {
 	return f.serverFlags.ToClientConfig()
 }
 
@@ -88,17 +86,9 @@ func (f *factoryImpl) RedSkyAPI() (redskyapi.API, error) {
 	if err != nil {
 		return nil, err
 	}
-	rsAPI, err := redskyapi.NewForConfig(c)
+	rsAPI, err := redskyapi.NewForConfig(c, version.UserAgent("redskyctl", nil))
 	if err != nil {
 		return nil, err
 	}
-
-	// Verify it at least has an address associated with it
-	if _, err := rsAPI.Options(context.Background()); err != nil {
-		if rserr, ok := err.(*redskyapi.Error); ok && rserr.Type == redskyapi.ErrConfigAddressMissing {
-			return nil, fmt.Errorf("the current configuration does not include the Red Sky API server address")
-		}
-	}
-
 	return rsAPI, nil
 }

@@ -22,7 +22,7 @@ import (
 	"fmt"
 
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
-	redskyclient "github.com/redskyops/k8s-experiment/redskyapi"
+	"github.com/redskyops/k8s-experiment/redskyapi/config"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -79,26 +79,18 @@ func (o *GenerateSecretOptions) Run() error {
 	secret.Namespace = o.Namespace
 	secret.Type = corev1.SecretTypeOpaque
 
-	// TODO This should login to the server and obtain a new secret; for now just copy from the default config
-	cfg, err := redskyclient.DefaultConfig()
+	cfg := &config.ClientConfig{}
+	if err := cfg.Load(); err != nil {
+		return err
+	}
+
+	env, err := config.LegacyEnvMapping(cfg, true)
 	if err != nil {
 		return err
 	}
-	secret.Data = make(map[string][]byte)
-	secret.Data["REDSKY_ADDRESS"] = []byte(cfg.Address)
-	secret.Data["REDSKY_OAUTH2_CLIENT_ID"] = []byte(cfg.OAuth2.ClientID)
-	secret.Data["REDSKY_OAUTH2_CLIENT_SECRET"] = []byte(cfg.OAuth2.ClientSecret)
-	secret.Data["REDSKY_OAUTH2_TOKEN_URL"] = []byte(cfg.OAuth2.TokenURL)
-	for _, v := range cfg.Manager.Environment {
-		secret.Data[v.Name] = []byte(v.Value)
-	}
 
-	// Remove empty values
-	for k, v := range secret.Data {
-		if string(v) == "" {
-			delete(secret.Data, k)
-		}
-	}
+	// TODO This is where we reach out to the server and generate new client credentials
+	secret.Data = env
 
 	// TODO ULTRA HACK. Update the name based on what the hash name should be; this is only exposed to callers in code...
 	o.Name, err = hashSecretName(secret)

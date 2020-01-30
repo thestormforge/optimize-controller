@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	endpointExperiment = "/api/experiments"
+	endpointExperiment = "/experiments"
 
 	relationSelf      = "self"
 	relationNext      = "next"
@@ -84,7 +84,6 @@ const (
 	ErrTrialUnavailable                 = "trial-unavailable"
 	ErrTrialNotFound                    = "trial-not-found"
 	ErrTrialAlreadyReported             = "trial-already-reported"
-	ErrConfigAddressMissing             = "config-address-missing"
 	ErrUnexpected                       = "unexpected"
 )
 
@@ -352,9 +351,9 @@ type API interface {
 }
 
 // NewForConfig returns a new API instance for the specified configuration
-func NewForConfig(cfg *redskyclient.Config) (API, error) {
-	// TODO We should be providing a transport, e.g. for retry-after
-	c, err := redskyclient.NewClient(cfg, context.Background(), nil)
+func NewForConfig(cfg redskyclient.Config, transport http.RoundTripper) (API, error) {
+	// TODO We should be wrapping transport, e.g. for our retry-after logic
+	c, err := redskyclient.NewClient(cfg, context.Background(), transport)
 	if err != nil {
 		return nil, err
 	}
@@ -367,12 +366,7 @@ type httpAPI struct {
 
 func (h *httpAPI) Options(ctx context.Context) (ServerMeta, error) {
 	sm := ServerMeta{}
-
-	// Check to see that we got an actual address before we try to use it
 	u := h.client.URL("/").String()
-	if u == "/" {
-		return sm, &Error{Type: ErrConfigAddressMissing, Message: "address is missing"}
-	}
 
 	req, err := http.NewRequest(http.MethodOptions, u, nil)
 	if err != nil {
