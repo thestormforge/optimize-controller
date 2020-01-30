@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/redskyops/k8s-experiment/redskyapi/oauth"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 )
@@ -123,6 +124,26 @@ func (cc *ClientConfig) Authorize(ctx context.Context, transport http.RoundTripp
 	}
 
 	return transport, nil
+}
+
+// NewAuthorization creates a new authorization code flow with PKCE using the current context
+func (cc *ClientConfig) NewAuthorization() (*oauth.AuthorizationCodeFlowWithPKCE, error) {
+	srv, _, _, _, err := contextConfig(&cc.data, cc.data.CurrentContext)
+	if err != nil {
+		return nil, err
+	}
+
+	az, err := oauth.NewAuthorizationCodeFlowWithPKCE()
+	if err != nil {
+		return nil, err
+	}
+
+	az.Audience = srv.Identifier
+	az.Endpoint.AuthURL = srv.Authorization.AuthorizationEndpoint
+	az.Endpoint.TokenURL = srv.Authorization.TokenEndpoint
+	az.Endpoint.AuthStyle = oauth2.AuthStyleInParams
+	return az, nil
+
 }
 
 // Merge combines the supplied data with what is already present in this client configuration; unlike Update, changes
