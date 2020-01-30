@@ -158,6 +158,26 @@ func (cc *ClientConfig) RegisterClient(ctx context.Context, client *registration
 	return c.Register(ctx, client)
 }
 
+// NewAuthorization creates a new authorization code flow with PKCE using the current context
+func (cc *ClientConfig) NewAuthorization() (*oauth.AuthorizationCodeFlowWithPKCE, error) {
+	srv, _, _, _, err := contextConfig(&cc.data, cc.data.CurrentContext)
+	if err != nil {
+		return nil, err
+	}
+
+	az, err := oauth.NewAuthorizationCodeFlowWithPKCE()
+	if err != nil {
+		return nil, err
+	}
+
+	az.Audience = srv.Identifier
+	az.Endpoint.AuthURL = srv.Authorization.AuthorizationEndpoint
+	az.Endpoint.TokenURL = srv.Authorization.TokenEndpoint
+	az.Endpoint.AuthStyle = oauth2.AuthStyleInParams
+	return az, nil
+
+}
+
 // Authorize configures the supplied transport
 func (cc *ClientConfig) Authorize(ctx context.Context, transport http.RoundTripper) (http.RoundTripper, error) {
 	// Get the token source and use it to wrap the transport
@@ -206,26 +226,6 @@ func (cc *ClientConfig) tokenSource(ctx context.Context) (oauth2.TokenSource, er
 	}
 
 	return nil, nil
-}
-
-// NewAuthorization creates a new authorization code flow with PKCE using the current context
-func (cc *ClientConfig) NewAuthorization() (*oauth.AuthorizationCodeFlowWithPKCE, error) {
-	srv, _, _, _, err := contextConfig(&cc.data, cc.data.CurrentContext)
-	if err != nil {
-		return nil, err
-	}
-
-	az, err := oauth.NewAuthorizationCodeFlowWithPKCE()
-	if err != nil {
-		return nil, err
-	}
-
-	az.Audience = srv.Identifier
-	az.Endpoint.AuthURL = srv.Authorization.AuthorizationEndpoint
-	az.Endpoint.TokenURL = srv.Authorization.TokenEndpoint
-	az.Endpoint.AuthStyle = oauth2.AuthStyleInParams
-	return az, nil
-
 }
 
 // Merge combines the supplied data with what is already present in this client configuration; unlike Update, changes
