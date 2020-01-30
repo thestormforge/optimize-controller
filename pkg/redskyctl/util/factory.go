@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	redskykube "github.com/redskyops/k8s-experiment/pkg/kubernetes"
+	"github.com/redskyops/k8s-experiment/pkg/version"
 	redskyclient "github.com/redskyops/k8s-experiment/redskyapi"
 	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/redsky/v1alpha1"
 	"k8s.io/client-go/kubernetes"
@@ -88,7 +89,7 @@ func (f *factoryImpl) RedSkyAPI() (redskyapi.API, error) {
 	if err != nil {
 		return nil, err
 	}
-	rsAPI, err := redskyapi.NewForConfig(c)
+	rsAPI, err := redskyapi.NewForConfig(c, version.UserAgent("redskyctl", nil))
 	if err != nil {
 		return nil, err
 	}

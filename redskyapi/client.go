@@ -82,10 +82,6 @@ func GetAddress(cfg *Config) (*url.URL, error) {
 	return u, nil
 }
 
-// TODO This should come from the externally configured round-tripper instead
-
-var DefaultUserAgent string
-
 func NewClient(cfg *Config, ctx context.Context, transport http.RoundTripper) (Client, error) {
 	hc := &httpClient{}
 	hc.client.Timeout = 10 * time.Second
@@ -103,19 +99,12 @@ func NewClient(cfg *Config, ctx context.Context, transport http.RoundTripper) (C
 		return nil, err
 	}
 
-	// Set the User-Agent string
-	hc.userAgent = DefaultUserAgent
-	if hc.userAgent == "" {
-		hc.userAgent = version.GetUserAgentString("RedSky")
-	}
-
 	return hc, nil
 }
 
 type httpClient struct {
-	endpoint  *url.URL
-	client    http.Client
-	userAgent string
+	endpoint *url.URL
+	client   http.Client
 }
 
 func (c *httpClient) URL(ep string) *url.URL {
@@ -125,10 +114,6 @@ func (c *httpClient) URL(ep string) *url.URL {
 }
 
 func (c *httpClient) Do(ctx context.Context, req *http.Request) (*http.Response, []byte, error) {
-	if c.userAgent != "" {
-		req.Header.Set("User-Agent", c.userAgent)
-	}
-
 	if ctx != nil {
 		req = req.WithContext(ctx)
 	}

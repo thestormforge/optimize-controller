@@ -352,9 +352,9 @@ type API interface {
 }
 
 // NewForConfig returns a new API instance for the specified configuration
-func NewForConfig(cfg *redskyclient.Config) (API, error) {
-	// TODO We should be providing a transport, e.g. for retry-after
-	c, err := redskyclient.NewClient(cfg, context.Background(), nil)
+func NewForConfig(cfg *redskyclient.Config, transport http.RoundTripper) (API, error) {
+	// TODO We should be wrapping transport, e.g. for our retry-after logic
+	c, err := redskyclient.NewClient(cfg, context.Background(), transport)
 	if err != nil {
 		return nil, err
 	}

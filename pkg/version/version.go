@@ -16,8 +16,6 @@ limitations under the License.
 
 package version
 
-import "strings"
-
 var (
 	Version       = "v1.4.0"
 	BuildMetadata = "unreleased"
@@ -29,8 +27,4 @@ func GetVersion() string {
 		return Version
 	}
 	return Version + "+" + BuildMetadata
-}
-
-func GetUserAgentString(product string) string {
-	return product + "/" + strings.TrimLeft(Version, "v")
 }
