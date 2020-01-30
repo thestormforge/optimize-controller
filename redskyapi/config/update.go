@@ -81,6 +81,24 @@ func SetProperty(name, value string) Change {
 		case "current-context":
 			cfg.CurrentContext = value
 			return nil
+		case "cluster":
+			if len(path) == 3 {
+				cstr := findCluster(cfg.Clusters, path[1])
+				if cstr == nil {
+					return fmt.Errorf("unknown cluster: %s", path[1])
+				}
+				switch path[2] {
+				case "context":
+					cstr.Context = value
+					return nil
+				case "bin":
+					cstr.Bin = value
+					return nil
+				case "controller":
+					cstr.Controller = value
+					return nil
+				}
+			}
 		case "controller":
 			if len(path) == 4 && path[2] == "env" {
 				mergeControllers(cfg, []NamedController{{
