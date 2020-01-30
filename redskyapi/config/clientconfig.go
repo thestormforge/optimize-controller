@@ -21,10 +21,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os/exec"
 	"path"
 	"strings"
 
 	"github.com/redskyops/k8s-experiment/redskyapi/oauth"
+	"github.com/redskyops/k8s-experiment/redskyapi/oauth/registration"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 )
@@ -120,8 +122,57 @@ func (cc *ClientConfig) ExperimentsURL(p string) (*url.URL, error) {
 	return u, nil
 }
 
+// Kubectl returns an executable command for running kubectl
+func (cc *ClientConfig) Kubectl(arg ...string) (*exec.Cmd, error) {
+	_, _, cstr, _, err := contextConfig(&cc.data, cc.data.CurrentContext)
+	if err != nil {
+		return nil, err
+	}
+
+	if cstr.Context != "" {
+		arg = append([]string{"--context", cstr.Context}, arg...)
+	}
+
+	return exec.Command(cstr.Bin, arg...), nil
+}
+
+// RegisterClient performs dynamic client registration
+func (cc *ClientConfig) RegisterClient(ctx context.Context, client *registration.ClientMetadata) (*registration.ClientInformationResponse, error) {
+	// We can't use the initial token because we don't know if we have a valid token, instead we need to authorize the context client
+	src, err := cc.tokenSource(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if src != nil {
+		ctx = context.WithValue(ctx, oauth2.HTTPClient, oauth2.NewClient(ctx, src))
+	}
+
+	// Get the current server configuration for the registration endpoint address
+	srv, _, _, _, err := contextConfig(&cc.data, cc.data.CurrentContext)
+	if err != nil {
+		return nil, err
+	}
+	c := registration.Config{
+		RegistrationURL: srv.Authorization.RegistrationEndpoint,
+	}
+	return c.Register(ctx, client)
+}
+
 // Authorize configures the supplied transport
 func (cc *ClientConfig) Authorize(ctx context.Context, transport http.RoundTripper) (http.RoundTripper, error) {
+	// Get the token source and use it to wrap the transport
+	src, err := cc.tokenSource(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if src != nil {
+		return &oauth2.Transport{Source: src, Base: transport}, nil
+	}
+	return transport, nil
+}
+
+func (cc *ClientConfig) tokenSource(ctx context.Context) (oauth2.TokenSource, error) {
+	// TODO We could make ClientConfig implement the TokenSource interface, but we need a way to handle the context
 	srv, az, _, _, err := contextConfig(&cc.data, cc.data.CurrentContext)
 	if err != nil {
 		return nil, err
@@ -134,7 +185,7 @@ func (cc *ClientConfig) Authorize(ctx context.Context, transport http.RoundTripp
 			TokenURL:     srv.Authorization.TokenEndpoint,
 			AuthStyle:    oauth2.AuthStyleInParams,
 		}
-		return &oauth2.Transport{Source: cc.TokenSource(ctx), Base: transport}, nil
+		return cc.TokenSource(ctx), nil
 	}
 
 	if az.Credential.TokenCredential != nil {
@@ -151,10 +202,10 @@ func (cc *ClientConfig) Authorize(ctx context.Context, transport http.RoundTripp
 			RefreshToken: az.Credential.RefreshToken,
 			Expiry:       az.Credential.Expiry,
 		}
-		return &oauth2.Transport{Source: c.TokenSource(ctx, t), Base: transport}, nil
+		return c.TokenSource(ctx, t), nil
 	}
 
-	return transport, nil
+	return nil, nil
 }
 
 // NewAuthorization creates a new authorization code flow with PKCE using the current context
