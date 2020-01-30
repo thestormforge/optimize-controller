@@ -39,6 +39,10 @@ func defaultLoader(cfg *ClientConfig) error {
 		cfg.data.Servers = append(cfg.data.Servers, NamedServer{Name: defaultServerName})
 	}
 
+	if len(cfg.data.Authorizations) == 0 {
+		cfg.data.Authorizations = append(cfg.data.Authorizations, NamedAuthorization{Name: defaultServerName})
+	}
+
 	if len(cfg.data.Clusters) == 0 {
 		cfg.data.Clusters = append(cfg.data.Clusters, NamedCluster{Name: defaultClusterName})
 	}

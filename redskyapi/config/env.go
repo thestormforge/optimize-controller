@@ -26,7 +26,8 @@ func envLoader(cfg *ClientConfig) error {
 		return err
 	}
 
-	mergeServer(srv, &Server{
+	// Build a server using environment variables, re-compute defaults and merge it in to overwrite
+	envSrv := &Server{
 		Identifier: os.Getenv("REDSKY_ADDRESS"),
 		RedSky: RedSkyServer{
 			ExperimentsEndpoint: "",
@@ -37,15 +38,20 @@ func envLoader(cfg *ClientConfig) error {
 			TokenEndpoint:         os.Getenv("REDSKY_OAUTH2_TOKEN_URL"),
 			RegistrationEndpoint:  "",
 		},
-	})
+	}
+	if err := defaultServer(envSrv); err != nil {
+		return err
+	}
+	mergeServer(srv, envSrv)
 
-	mergeAuthorization(az, &Authorization{
-		Credential: Credential{
-			ClientCredential: &ClientCredential{
-				ClientID:     os.Getenv("REDSKY_OAUTH2_CLIENT_ID"),
-				ClientSecret: os.Getenv("REDSKY_OAUTH2_CLIENT_SECRET"),
-			},
-		}})
+	// Only take a complete credential
+	cc := &ClientCredential{
+		ClientID:     os.Getenv("REDSKY_OAUTH2_CLIENT_ID"),
+		ClientSecret: os.Getenv("REDSKY_OAUTH2_CLIENT_SECRET"),
+	}
+	if cc.ClientID != "" && cc.ClientSecret != "" {
+		mergeAuthorization(az, &Authorization{Credential: Credential{ClientCredential: cc}})
+	}
 
 	return nil
 }

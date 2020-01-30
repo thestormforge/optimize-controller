@@ -50,9 +50,9 @@ type ClientConfig struct {
 // Load will populate the client configuration
 func (cc *ClientConfig) Load(extra ...Loader) error {
 	var loaders []Loader
-	loaders = append(loaders, fileLoader, migrationLoader, envLoader)
+	loaders = append(loaders, fileLoader, migrationLoader)
 	loaders = append(loaders, extra...)
-	loaders = append(loaders, defaultLoader) // Always do defaults last so it can fill in the gaps
+	loaders = append(loaders, defaultLoader, envLoader)
 	for i := range loaders {
 		if err := loaders[i](cc); err != nil {
 			return err
@@ -181,7 +181,6 @@ func (cc *ClientConfig) NewAuthorization() (*oauth.AuthorizationCodeFlowWithPKCE
 	az.Endpoint.TokenURL = srv.Authorization.TokenEndpoint
 	az.Endpoint.AuthStyle = oauth2.AuthStyleInParams
 	return az, nil
-
 }
 
 // Authorize configures the supplied transport
