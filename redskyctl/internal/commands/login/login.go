@@ -18,28 +18,27 @@ package login
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os/user"
+	"strings"
 	"time"
 
 	"github.com/pkg/browser"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
-	redskyclient "github.com/redskyops/k8s-experiment/redskyapi"
+	"github.com/redskyops/k8s-experiment/redskyapi/config"
 	"github.com/redskyops/k8s-experiment/redskyapi/oauth"
 	"github.com/spf13/cobra"
 	"golang.org/x/oauth2"
 )
 
+// TODO Configure these via LDFLAGS appropriate for dev/prod
 var (
-	// OAuthProfile controls with OAuth configuration to use
-	// TODO As a temporary hack, we actually use the callback server as an OAuth provider
-	OAuthProfile = "http://localhost:8085/"
+	// SuccessURL is the URL where users are redirected after a successful login
+	SuccessURL = "https://redskyops.dev/api/auth_success/"
 
-	// LoginSuccessURL is the URL where users are redirected after a successful login
-	LoginSuccessURL = "https://redskyops.dev/api/auth_success/"
+	// ClientID is the identifier for the Red Sky Control application
+	ClientID = ""
 )
 
 const (
@@ -51,7 +50,10 @@ const (
 type LoginOptions struct {
 	DisplayURL bool
 	Force      bool
+	Name       string
+	Server     string
 
+	cfg config.ClientConfig
 	cmdutil.IOStreams
 }
 
@@ -77,88 +79,97 @@ func NewLoginCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Comm
 	}
 
 	cmd.Flags().BoolVar(&o.DisplayURL, "url", false, "Display the URL instead of opening a browser.")
-	cmd.Flags().BoolVar(&o.Force, "force", false, "Overwrite existing configuration")
+	cmd.Flags().BoolVar(&o.Force, "force", false, "Overwrite existing configuration.")
+
+	cmd.Flags().StringVar(&o.Name, "name", "", "Name of the server configuration to authorize.")
+	cmd.Flags().StringVar(&o.Server, "server", "", "Override the Red Sky API server identifier.")
+
+	cmd.Flags().StringVar(&o.cfg.Filename, "redskyconfig", "", "Set the file used to store the Red Sky client configuration.")
 
 	return cmd
 }
 
-func (o *LoginOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []string) error {
+func (o *LoginOptions) Complete(cmdutil.Factory, *cobra.Command, []string) error {
+	if o.Name == "" {
+		o.Name = "default"
+		if o.Server != "" {
+			o.Name = strings.ToLower(o.Server)
+			o.Name = strings.TrimPrefix(o.Name, "http://")
+			o.Name = strings.TrimPrefix(o.Name, "https://")
+			o.Name = strings.ReplaceAll(o.Name, "/", "_")
+		}
+	}
+
 	return nil
 }
 
 func (o *LoginOptions) Run() error {
-	// Refuse to overwrite authentication unless forced
-	if !o.Force {
-		if config, err := redskyclient.DefaultConfig(); err == nil && (config.OAuth2.ClientID != "" || config.OAuth2.ClientSecret != "") {
-			return fmt.Errorf("refusing to overwrite existing configuration without --force")
-		}
+	// Load the exiting client configuration
+	if err := o.cfg.Load(o.loginConfig); err != nil {
+		return err
 	}
 
-	// Use the OAuth configuration to create a new authorization flow with PKCE
-	flow, err := oauth.NewAuthorizationCodeFlowWithPKCE()
+	// Create a new authorization code flow
+	az, err := o.cfg.NewAuthorization()
 	if err != nil {
 		return err
 	}
-	NewOAuthConfig(OAuthProfile, &flow.Config)
-	flow.RedirectURL = "http://localhost:8085/"
-	flow.Scopes = []string{"offline_access"}
+	az.HandleToken = o.takeOffline
+	az.GenerateResponse = o.generateCallbackResponse
+	az.ClientID = ClientID
+	az.Scopes = append(az.Scopes, "offline_access") // TODO Where or what do we want to do here?
+	az.RedirectURL = "http://localhost:8085/"
 
-	// Configure the flow to persist the access token for offline use and generate the appropriate callback responses
-	flow.Audience = "https://api.carbonrelay.dev/"
-	flow.HandleToken = o.takeOffline
-	flow.GenerateResponse = o.generateCallbackResponse
-
-	// TODO The flow for not launching a browser is actually somewhat different then just showing the URL:
-	// 1. We do not need a local webserver at all
-	// 2. We need to interactively prompt for the authorization code
-	// 3. The backend needs a special redirect URL that displays the authorization code in the browser instead of redirecting
-	// IS THIS AN AUTH0 "Device Flow" (e.g. a TV app authorization)
-
-	// TODO This is bogus until we get a real auth provider
-	ap := &authenticationProvider{}
+	// TODO Device code flow does not require server...
+	if o.DisplayURL {
+		//az.RedirectURL = "" // TODO This should be the device code URI
+	}
 
 	// Create a new server that will be shutdown when the authorization flow completes
-	server := cmdutil.NewContextServer(serverShutdownContext(flow), ap.handler(flow.Callback),
-		cmdutil.WithServerOptions(configureCallbackServer(flow)),
+	server := cmdutil.NewContextServer(serverShutdownContext(az), http.HandlerFunc(az.Callback),
+		cmdutil.WithServerOptions(configureCallbackServer(az)),
 		cmdutil.ShutdownOnInterrupt(func() { _, _ = fmt.Fprintln(o.Out) }),
 		cmdutil.HandleStart(func(string) error {
-			return o.openBrowser(flow.AuthCodeURLWithPKCE())
+			return o.openBrowser(az.AuthCodeURLWithPKCE())
 		}))
-
 	return server.ListenAndServe()
 }
 
-// takeOffline caches the access token for offline use
+// loginConfig applies the login configuration
+func (o *LoginOptions) loginConfig(cfg *config.ClientConfig) error {
+	if err := cfg.Update(o.requireForceIfNameExists); err != nil {
+		return err
+	}
+	if err := cfg.Update(config.SaveServer(o.Name, &config.Server{Identifier: o.Server})); err != nil {
+		return err
+	}
+	if err := cfg.Update(config.ApplyCurrentContext(o.Name, o.Name, o.Name, "")); err != nil {
+		return err
+	}
+	return nil
+}
+
+// requireForceIfNameExists is a configuration "change" that really just validates that there are no name conflicts
+func (o *LoginOptions) requireForceIfNameExists(cfg *config.Config) error {
+	if !o.Force {
+		// NOTE: We do not require --force for server name conflicts so you can log into an existing configuration
+		for i := range cfg.Authorizations {
+			if cfg.Authorizations[i].Name == o.Name {
+				return fmt.Errorf("refusing to update, use --force")
+			}
+		}
+	}
+	return nil
+}
+
+// takeOffline records the token in the configuration and write the configuration to disk
 func (o *LoginOptions) takeOffline(t *oauth2.Token) error {
-	// For now, the token is kind of a dummy.
-	if t.TokenType != "dummy" {
-		return fmt.Errorf("unexpected token type")
-	}
-
-	// The dummy access token is just the base64 encoded JSON with the client ID and secret
-	data, err := base64.URLEncoding.DecodeString(t.AccessToken)
-	if err != nil {
+	if err := o.cfg.Update(config.SaveToken(o.Name, t)); err != nil {
 		return err
 	}
-	accessToken := make(map[string]string)
-	if err := json.Unmarshal(data, &accessToken); err != nil {
+	if err := o.cfg.Write(); err != nil {
 		return err
 	}
-
-	// Load the Red Sky configuration to persist the changes
-	config, err := redskyclient.DefaultConfig()
-	if err != nil {
-		return err
-	}
-	_ = config.Set("oauth2.client_id", accessToken["redsky_client_id"])
-	_ = config.Set("oauth2.client_secret", accessToken["redsky_client_secret"])
-
-	// Write the configuration back to disk
-	err = config.Write()
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -166,7 +177,7 @@ func (o *LoginOptions) takeOffline(t *oauth2.Token) error {
 func (o *LoginOptions) generateCallbackResponse(w http.ResponseWriter, r *http.Request, message string, status int) {
 	// TODO Redirect to a troubleshooting page for internal server errors
 	if status == http.StatusOK {
-		http.Redirect(w, r, LoginSuccessURL, http.StatusSeeOther)
+		http.Redirect(w, r, SuccessURL, http.StatusSeeOther)
 		// TODO Print out something more informative
 		_, _ = fmt.Fprintln(o.Out, "You are now logged in.")
 	} else {
