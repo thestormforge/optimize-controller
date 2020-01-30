@@ -42,6 +42,8 @@ type Config interface {
 	// directly.
 	Authorize(ctx context.Context, transport http.RoundTripper) (http.RoundTripper, error)
 
+	// Marshal will write the data out
+	Marshal() ([]byte, error)
 }
 
 // DefaultConfig loads the mostly commonly used configuration

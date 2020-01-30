@@ -29,6 +29,7 @@ import (
 	"github.com/redskyops/k8s-experiment/redskyapi/oauth/registration"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
+	"sigs.k8s.io/yaml"
 )
 
 // Loader is used to initially populate a client configuration
@@ -92,6 +93,11 @@ func (cc *ClientConfig) Write() error {
 
 	cc.unpersisted = nil
 	return nil
+}
+
+// Marshal will write the data out
+func (cc *ClientConfig) Marshal() ([]byte, error) {
+	return yaml.Marshal(cc.data)
 }
 
 // SystemNamespace returns the namespace where the Red Sky controller is/should be installed

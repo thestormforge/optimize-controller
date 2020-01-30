@@ -20,7 +20,6 @@ import (
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	redskyclient "github.com/redskyops/k8s-experiment/redskyapi"
 	"github.com/spf13/cobra"
-	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -64,7 +63,7 @@ func (o *ConfigViewOptions) Run() error {
 		return err
 	}
 
-	output, err := yaml.Marshal(cfg)
+	output, err := cfg.Marshal()
 	if err != nil {
 		return err
 	}
