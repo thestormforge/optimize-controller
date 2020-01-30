@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os/exec"
 	"path"
 	"strings"
 
@@ -119,6 +120,20 @@ func (cc *ClientConfig) ExperimentsURL(p string) (*url.URL, error) {
 
 	u.Path = path.Join(u.Path, p)
 	return u, nil
+}
+
+// Kubectl returns an executable command for running kubectl
+func (cc *ClientConfig) Kubectl(arg ...string) (*exec.Cmd, error) {
+	_, _, cstr, _, err := contextConfig(&cc.data, cc.data.CurrentContext)
+	if err != nil {
+		return nil, err
+	}
+
+	if cstr.Context != "" {
+		arg = append([]string{"--context", cstr.Context}, arg...)
+	}
+
+	return exec.Command(cstr.Bin, arg...), nil
 }
 
 // RegisterClient performs dynamic client registration

@@ -17,12 +17,15 @@ limitations under the License.
 package generate
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/redskyops/k8s-experiment/redskyapi/config"
+	"github.com/redskyops/k8s-experiment/redskyapi/oauth/registration"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -33,11 +36,14 @@ const (
 )
 
 // TODO This should work like a kustomize secret generator for the extra env vars
+// TODO We should take annotations as input (here and on the the other generators)
 
 type GenerateSecretOptions struct {
-	Name      string
-	Namespace string
+	Name       string
+	Namespace  string
+	ClientName string
 
+	cfg config.ClientConfig
 	cmdutil.IOStreams
 }
 
@@ -70,6 +76,22 @@ func NewGenerateSecretCmd(ioStreams cmdutil.IOStreams) *cobra.Command {
 }
 
 func (o *GenerateSecretOptions) Complete() error {
+	if err := o.cfg.Load(); err != nil {
+		return err
+	}
+
+	if o.ClientName == "" {
+		kubectl, err := o.cfg.Kubectl("config", "view", "--minify", "--output", "jsonpath={.clusters[0].name}")
+		if err != nil {
+			return err
+		}
+		stdout, err := kubectl.Output()
+		if err != nil {
+			return err
+		}
+		o.ClientName = strings.TrimSpace(string(stdout))
+	}
+
 	return nil
 }
 
@@ -79,17 +101,24 @@ func (o *GenerateSecretOptions) Run() error {
 	secret.Namespace = o.Namespace
 	secret.Type = corev1.SecretTypeOpaque
 
-	cfg := &config.ClientConfig{}
-	if err := cfg.Load(); err != nil {
-		return err
-	}
-
-	env, err := config.LegacyEnvMapping(cfg, true)
+	env, err := config.LegacyEnvMapping(&o.cfg, true)
 	if err != nil {
 		return err
 	}
 
-	// TODO This is where we reach out to the server and generate new client credentials
+	info, err := o.cfg.RegisterClient(context.Background(), &registration.ClientMetadata{
+		ClientName:    o.ClientName,
+		GrantTypes:    []string{"client_credential"},
+		RedirectURIs:  []string{},
+		ResponseTypes: []string{},
+	})
+	if err != nil {
+		return err
+	}
+
+	env["REDSKY_OAUTH2_CLIENT_ID"] = []byte(info.ClientID)
+	env["REDSKY_OAUTH2_CLIENT_SECRET"] = []byte(info.ClientSecret)
+
 	secret.Data = env
 
 	// TODO ULTRA HACK. Update the name based on what the hash name should be; this is only exposed to callers in code...
