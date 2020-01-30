@@ -16,7 +16,14 @@ limitations under the License.
 
 package config
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+	"net/http"
+
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/clientcredentials"
+)
 
 // Loader is used to initially populate a client configuration
 type Loader func(cfg *ClientConfig) error
@@ -79,6 +86,43 @@ func (cc *ClientConfig) Write() error {
 
 	cc.unpersisted = nil
 	return nil
+}
+
+// Authorize configures the supplied transport
+func (cc *ClientConfig) Authorize(ctx context.Context, transport http.RoundTripper) (http.RoundTripper, error) {
+	srv, az, _, _, err := contextConfig(&cc.data, cc.data.CurrentContext)
+	if err != nil {
+		return nil, err
+	}
+
+	if az.Credential.ClientCredential != nil {
+		cc := clientcredentials.Config{
+			ClientID:     az.Credential.ClientID,
+			ClientSecret: az.Credential.ClientSecret,
+			TokenURL:     srv.Authorization.TokenEndpoint,
+			AuthStyle:    oauth2.AuthStyleInParams,
+		}
+		return &oauth2.Transport{Source: cc.TokenSource(ctx), Base: transport}, nil
+	}
+
+	if az.Credential.TokenCredential != nil {
+		c := &oauth2.Config{
+			Endpoint: oauth2.Endpoint{
+				AuthURL:   srv.Authorization.AuthorizationEndpoint,
+				TokenURL:  srv.Authorization.TokenEndpoint,
+				AuthStyle: oauth2.AuthStyleInParams,
+			},
+		}
+		t := &oauth2.Token{
+			AccessToken:  az.Credential.AccessToken,
+			TokenType:    az.Credential.TokenType,
+			RefreshToken: az.Credential.RefreshToken,
+			Expiry:       az.Credential.Expiry,
+		}
+		return &oauth2.Transport{Source: c.TokenSource(ctx, t), Base: transport}, nil
+	}
+
+	return transport, nil
 }
 
 // Merge combines the supplied data with what is already present in this client configuration; unlike Update, changes
