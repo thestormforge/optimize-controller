@@ -105,6 +105,7 @@ func defaultServer(srv *Server) error {
 		defaultString(&srv.Authorization.TokenEndpoint, "https://redskyops-dev.auth0.com/oauth/token")
 		defaultString(&srv.Authorization.RegistrationEndpoint, "https://api.carbonrelay.io/v1/accounts/clients/register")
 		defaultString(&srv.Authorization.DeviceAuthorizationEndpoint, "https://redskyops-dev.auth0.com/oauth/device/code")
+		defaultString(&srv.Authorization.JSONWebKeySetURI, "https://redskyops-dev.auth0.com/.well-known/jwks.json")
 		return nil
 	}
 
@@ -121,6 +122,8 @@ func defaultServer(srv *Server) error {
 	defaultString(&srv.Authorization.AuthorizationEndpoint, base+"/authorize")
 	defaultString(&srv.Authorization.TokenEndpoint, base+"/oauth/token")
 	defaultString(&srv.Authorization.RegistrationEndpoint, base+"/oauth/register")
+	defaultString(&srv.Authorization.DeviceAuthorizationEndpoint, base+"/oauth/device/code")
+	defaultString(&srv.Authorization.JSONWebKeySetURI, base+"/.well-known/jwks.json")
 	return nil
 }
 

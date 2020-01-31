@@ -70,6 +70,8 @@ type AuthorizationServer struct {
 	RegistrationEndpoint string `json:"registration_endpoint,omitempty"`
 	// DeviceAuthorizationEndpoint is the URL of the device flow authorization endpoint
 	DeviceAuthorizationEndpoint string `json:"device_authorization_endpoint,omitempty"`
+	// JSONWebKeySetURI is URL of the JSON Web Key Set
+	JSONWebKeySetURI string `json:"jwks_uri,omitempty"`
 }
 
 // Authorization contains information about remote server authorizations
