@@ -569,6 +569,8 @@ func (h *httpAPI) CreateTrial(ctx context.Context, u string, asm TrialAssignment
 	case http.StatusCreated:
 		l = resp.Header.Get("Location")
 		return l, nil
+	case http.StatusConflict:
+		return l, &Error{Type: ErrExperimentStopped}
 	case http.StatusUnprocessableEntity:
 		return l, &Error{Type: ErrTrialInvalid}
 	default:
