@@ -104,6 +104,7 @@ func defaultServer(srv *Server) error {
 		mergeString(&srv.Authorization.AuthorizationEndpoint, "https://login.carbonrelay.io/authorize")
 		mergeString(&srv.Authorization.TokenEndpoint, "https://login.carbonrelay.io/oauth/token")
 		mergeString(&srv.Authorization.RegistrationEndpoint, "https://api.carbonrelay.io/v1/accounts/clients/register")
+		mergeString(&srv.Authorization.DeviceAuthorizationEndpoint, "https://login.carbonrelay.io/oauth/device/code")
 		return nil
 	}
 

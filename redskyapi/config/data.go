@@ -68,6 +68,8 @@ type AuthorizationServer struct {
 	TokenEndpoint string `json:"token_endpoint,omitempty"`
 	// RegistrationEndpoint is the URL of the dynamic client registration endpoint
 	RegistrationEndpoint string `json:"registration_endpoint,omitempty"`
+	// DeviceAuthorizationEndpoint is the URL of the device flow authorization endpoint
+	DeviceAuthorizationEndpoint string `json:"device_authorization_endpoint,omitempty"`
 }
 
 // Authorization contains information about remote server authorizations
