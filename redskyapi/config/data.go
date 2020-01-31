@@ -226,3 +226,21 @@ func (tc *TokenCredential) MarshalJSON() ([]byte, error) {
 		Expiry string `json:"expiry,omitempty"`
 	}{TC: (*TC)(tc), Expiry: expiry})
 }
+
+// MarshalJSON omits empty structs
+func (srv *Server) MarshalJSON() ([]byte, error) {
+	type S Server
+	as := &srv.Authorization
+	if (AuthorizationServer{}) == srv.Authorization {
+		as = nil
+	}
+	rss := &srv.RedSky
+	if (RedSkyServer{}) == srv.RedSky {
+		rss = nil
+	}
+	return json.Marshal(&struct {
+		*S
+		Authorization *AuthorizationServer `json:"authorization,omitempty"`
+		RedSky        *RedSkyServer        `json:"redsky,omitempty"`
+	}{S: (*S)(srv), Authorization: as, RedSky: rss})
+}
