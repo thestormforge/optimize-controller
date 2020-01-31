@@ -103,11 +103,13 @@ func mergeContexts(data *Config, contexts []NamedContext) {
 // Merge elements
 
 func mergeServer(s1, s2 *Server) {
+	mergeString(&s1.Identifier, s2.Identifier)
 	mergeString(&s1.RedSky.AccountsEndpoint, s2.RedSky.AccountsEndpoint)
 	mergeString(&s1.RedSky.ExperimentsEndpoint, s2.RedSky.ExperimentsEndpoint)
 	mergeString(&s1.Authorization.AuthorizationEndpoint, s2.Authorization.AuthorizationEndpoint)
 	mergeString(&s1.Authorization.TokenEndpoint, s2.Authorization.TokenEndpoint)
 	mergeString(&s1.Authorization.RegistrationEndpoint, s2.Authorization.RegistrationEndpoint)
+	mergeString(&s1.Authorization.DeviceAuthorizationEndpoint, s2.Authorization.DeviceAuthorizationEndpoint)
 }
 
 func mergeAuthorization(a1, a2 *Authorization) {
