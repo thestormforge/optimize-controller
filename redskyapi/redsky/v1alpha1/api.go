@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	endpointExperiment = "/experiments"
+	endpointExperiment = "/experiments/"
 
 	relationSelf      = "self"
 	relationNext      = "next"
@@ -427,7 +427,7 @@ func (h *httpAPI) GetAllExperimentsByPage(ctx context.Context, u string) (Experi
 }
 
 func (h *httpAPI) GetExperimentByName(ctx context.Context, n ExperimentName) (Experiment, error) {
-	u := h.client.URL(endpointExperiment + "/" + url.PathEscape(n.Name()))
+	u := h.client.URL(endpointExperiment + url.PathEscape(n.Name()))
 	return h.GetExperiment(ctx, u.String())
 }
 
@@ -458,7 +458,7 @@ func (h *httpAPI) GetExperiment(ctx context.Context, u string) (Experiment, erro
 
 func (h *httpAPI) CreateExperiment(ctx context.Context, n ExperimentName, exp Experiment) (Experiment, error) {
 	e := Experiment{}
-	u := h.client.URL(endpointExperiment + "/" + url.PathEscape(n.Name()))
+	u := h.client.URL(endpointExperiment + url.PathEscape(n.Name()))
 	b, err := json.Marshal(exp)
 	if err != nil {
 		return e, err

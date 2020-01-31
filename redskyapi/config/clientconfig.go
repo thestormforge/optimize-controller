@@ -22,7 +22,6 @@ import (
 	"net/http"
 	"net/url"
 	"os/exec"
-	"path"
 	"strings"
 
 	"github.com/redskyops/k8s-experiment/redskyapi/oauth"
@@ -121,10 +120,11 @@ func (cc *ClientConfig) ExperimentsURL(p string) (*url.URL, error) {
 		return nil, err
 	}
 
-	// The configuration and the API should both have "/experiments"
-	p = strings.TrimPrefix(p, "/experiments")
+	// Path notes:
+	// 1. We can't use path.Join because it will strip trailing slashes
+	// 2. We don't know if the configured path has a "/"
+	u.Path = strings.TrimSuffix(u.Path, "/") + "/" + strings.TrimPrefix(p, "/experiments/")
 
-	u.Path = path.Join(u.Path, p)
 	return u, nil
 }
 
