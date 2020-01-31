@@ -27,7 +27,14 @@ import (
 // it is overwritten; other a new named server is created.
 func SaveServer(name string, srv *Server) Change {
 	return func(cfg *Config) error {
-		mergeServers(cfg, []NamedServer{{Name: name, Server: *srv}})
+		nsrv := NamedServer{Name: name, Server: *srv}
+
+		// Make sure we capture the current value of the default server identifier
+		if nsrv.Server.Identifier == "" {
+			nsrv.Server.Identifier = DefaultServerIdentifier
+		}
+
+		mergeServers(cfg, []NamedServer{nsrv})
 		return nil
 	}
 }
