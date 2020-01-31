@@ -35,7 +35,7 @@ type Client interface {
 func NewClient(cfg Config, ctx context.Context, transport http.RoundTripper) (Client, error) {
 	var err error
 
-	hc := &httpClient{}
+	hc := &httpClient{config: cfg}
 	hc.client.Timeout = 10 * time.Second
 
 	// Configure the OAuth2 transport
