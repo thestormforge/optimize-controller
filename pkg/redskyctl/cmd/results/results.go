@@ -93,6 +93,9 @@ func (o *ResultsOptions) Run() error {
 	if err := o.handleAPI(router, "/api/"); err != nil {
 		return err
 	}
+	if err := o.handleLiveness(router, "/health"); err != nil {
+		return err
+	}
 	ctx, err := o.handleShutdown(router, "/shutdown")
 	if err != nil {
 		return err
@@ -159,6 +162,15 @@ func (o *ResultsOptions) handleAPI(serveMux *http.ServeMux, prefix string) error
 		Director:       rp.Outgoing,
 		ModifyResponse: rp.Incoming,
 		Transport:      transport,
+	})
+	return nil
+}
+
+func (o *ResultsOptions) handleLiveness(serveMux *http.ServeMux, prefix string) error {
+	serveMux.HandleFunc(prefix, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		fmt.Fprint(w, "ok")
 	})
 	return nil
 }
