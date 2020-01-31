@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mdp/qrterminal/v3"
 	"github.com/pkg/browser"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/redskyops/k8s-experiment/redskyapi/config"
@@ -44,11 +45,33 @@ var (
 const (
 	loginLong    = `Log into your Red Sky account`
 	loginExample = ``
+
+	browserPrompt = `Opening your default browser to visit:
+
+	%s
+
+`
+	urlPrompt = `Go to the following link in your browser:
+
+	%s
+
+Enter verification code:
+
+		%s
+
+`
+	qrPrompt = `Your verification code is:
+
+		%s
+
+If you are having problems scanning, use your browser to visit: %s
+`
 )
 
 // LoginOptions is the configuration for logging in
 type LoginOptions struct {
 	DisplayURL bool
+	DisplayQR  bool
 	Force      bool
 	Name       string
 	Server     string
@@ -79,6 +102,7 @@ func NewLoginCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Comm
 	}
 
 	cmd.Flags().BoolVar(&o.DisplayURL, "url", false, "Display the URL instead of opening a browser.")
+	cmd.Flags().BoolVar(&o.DisplayQR, "qr", false, "Display a QR code instead of opening a browser.")
 	cmd.Flags().BoolVar(&o.Force, "force", false, "Overwrite existing configuration.")
 
 	cmd.Flags().StringVar(&o.Name, "name", "", "Name of the server configuration to authorize.")
@@ -109,6 +133,28 @@ func (o *LoginOptions) Run() error {
 		return err
 	}
 
+	// The user has requested we just show a URL
+	if o.DisplayURL || o.DisplayQR {
+		return o.runDeviceCodeFlow()
+	}
+
+	return o.runAuthorizationCodeFlow()
+}
+
+func (o *LoginOptions) runDeviceCodeFlow() error {
+	az, err := o.cfg.NewDeviceAuthorization()
+	if err != nil {
+		return err
+	}
+	az.HandleToken = o.takeOffline
+	az.GenerateResponse = o.generateValidatationRequest
+	az.ClientID = ClientID
+	az.Scopes = append(az.Scopes, "offline_access") // TODO Where or what do we want to do here?
+
+	return az.Authorize(context.Background())
+}
+
+func (o *LoginOptions) runAuthorizationCodeFlow() error {
 	// Create a new authorization code flow
 	az, err := o.cfg.NewAuthorization()
 	if err != nil {
@@ -119,11 +165,6 @@ func (o *LoginOptions) Run() error {
 	az.ClientID = ClientID
 	az.Scopes = append(az.Scopes, "offline_access") // TODO Where or what do we want to do here?
 	az.RedirectURL = "http://localhost:8085/"
-
-	// TODO Device code flow does not require server...
-	if o.DisplayURL {
-		//az.RedirectURL = "" // TODO This should be the device code URI
-	}
 
 	// Create a new server that will be shutdown when the authorization flow completes
 	server := cmdutil.NewContextServer(serverShutdownContext(az), http.HandlerFunc(az.Callback),
@@ -164,32 +205,49 @@ func (o *LoginOptions) requireForceIfNameExists(cfg *config.Config) error {
 
 // takeOffline records the token in the configuration and write the configuration to disk
 func (o *LoginOptions) takeOffline(t *oauth2.Token) error {
+	// TODO Verify token and extract user info?
+
 	if err := o.cfg.Update(config.SaveToken(o.Name, t)); err != nil {
 		return err
 	}
 	if err := o.cfg.Write(); err != nil {
 		return err
 	}
+
+	// TODO Print out something more informative e.g. "... as [xxx]."
+	_, _ = fmt.Fprintf(o.Out, "You are now logged in.\n")
+
 	return nil
 }
 
 // generateCallbackResponse generates an HTTP response for the OAuth callback
 func (o *LoginOptions) generateCallbackResponse(w http.ResponseWriter, r *http.Request, message string, status int) {
-	// TODO Redirect to a troubleshooting page for internal server errors
-	if status == http.StatusOK {
-		http.Redirect(w, r, SuccessURL, http.StatusSeeOther)
-		// TODO Print out something more informative
-		_, _ = fmt.Fprintln(o.Out, "You are now logged in.")
-	} else {
+	if status != http.StatusOK {
 		msg := message
 		if msg == "" {
 			msg = http.StatusText(status)
 		}
+		// TODO Redirect to a troubleshooting page for internal server errors
 		http.Error(w, message, status)
 		if isStatusTerminal(status) {
+			// TODO Print the actual error message out?
 			_, _ = fmt.Fprintln(o.Out, "An error occurred, please try again.")
 		}
 	}
+
+	// Redirect the user the successful login URL
+	http.Redirect(w, r, SuccessURL, http.StatusSeeOther)
+}
+
+// generateValidatationRequest generates a validation request to the command output stream
+func (o *LoginOptions) generateValidatationRequest(userCode, verificationURI, verificationURIComplete string) {
+	if o.DisplayQR {
+		qrterminal.Generate(verificationURIComplete, qrterminal.L, o.Out)
+		_, _ = fmt.Fprintf(o.Out, qrPrompt, userCode, verificationURI)
+		return
+	}
+
+	_, _ = fmt.Fprintf(o.Out, urlPrompt, verificationURI, userCode)
 }
 
 // openBrowser prints the supplied URL and possibly opens a web browser pointing to that URL
@@ -205,7 +263,7 @@ func (o *LoginOptions) openBrowser(loc string) error {
 		return nil
 	}
 
-	_, _ = fmt.Fprintf(o.Out, "Opening your default browser to visit:\n\n\t%s\n\n", loc)
+	_, _ = fmt.Fprintf(o.Out, browserPrompt, loc)
 	return browser.OpenURL(loc)
 }
 
