@@ -154,8 +154,16 @@ func mergeContext(c1, c2 *Context) {
 
 // Merge types
 
+// mergeString overwrites s1 with a non-empty value of s2
 func mergeString(s1 *string, s2 string) {
 	if s2 != "" {
+		*s1 = s2
+	}
+}
+
+// defaultString overwrites an empty s1 with the value of s2
+func defaultString(s1 *string, s2 string) {
+	if *s1 == "" {
 		*s1 = s2
 	}
 }

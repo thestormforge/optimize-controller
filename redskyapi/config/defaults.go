@@ -85,26 +85,26 @@ func defaultLoader(cfg *ClientConfig) error {
 
 	// TODO This is wrong if there are multiple objects, none of which have a default name
 	if len(cfg.data.Contexts) == 1 {
-		mergeString(&cfg.data.CurrentContext, cfg.data.Contexts[0].Name)
+		defaultString(&cfg.data.CurrentContext, cfg.data.Contexts[0].Name)
 	}
-	mergeString(&cfg.data.CurrentContext, defaultContextName)
+	defaultString(&cfg.data.CurrentContext, defaultContextName)
 
 	return nil
 }
 
 func defaultServer(srv *Server) error {
-	mergeString(&srv.Identifier, DefaultServerIdentifier)
+	defaultString(&srv.Identifier, DefaultServerIdentifier)
 
 	// TODO We should try discovery, e.g. fetch "{srv.Identifier without path}/.well-known/oauth-authorization-server[{srv.Identifier path}]
 
 	// Hard coded defaults for the default server
 	if srv.Identifier == DefaultServerIdentifier {
-		mergeString(&srv.RedSky.ExperimentsEndpoint, "https://api.carbonrelay.io/v1/experiments")
-		mergeString(&srv.RedSky.AccountsEndpoint, "https://api.carbonrelay.io/v1/accounts")
-		mergeString(&srv.Authorization.AuthorizationEndpoint, "https://login.carbonrelay.io/authorize")
-		mergeString(&srv.Authorization.TokenEndpoint, "https://login.carbonrelay.io/oauth/token")
-		mergeString(&srv.Authorization.RegistrationEndpoint, "https://api.carbonrelay.io/v1/accounts/clients/register")
-		mergeString(&srv.Authorization.DeviceAuthorizationEndpoint, "https://login.carbonrelay.io/oauth/device/code")
+		defaultString(&srv.RedSky.ExperimentsEndpoint, "https://api.carbonrelay.io/v1/experiments")
+		defaultString(&srv.RedSky.AccountsEndpoint, "https://api.carbonrelay.io/v1/accounts")
+		defaultString(&srv.Authorization.AuthorizationEndpoint, "https://redskyops-dev.auth0.com/authorize")
+		defaultString(&srv.Authorization.TokenEndpoint, "https://redskyops-dev.auth0.com/oauth/token")
+		defaultString(&srv.Authorization.RegistrationEndpoint, "https://api.carbonrelay.io/v1/accounts/clients/register")
+		defaultString(&srv.Authorization.DeviceAuthorizationEndpoint, "https://redskyops-dev.auth0.com/oauth/device/code")
 		return nil
 	}
 
@@ -116,43 +116,43 @@ func defaultServer(srv *Server) error {
 	u.Path = strings.TrimRight(u.Path, "/")
 	base := u.String()
 
-	mergeString(&srv.RedSky.ExperimentsEndpoint, base+"/v1/experiments")
-	mergeString(&srv.RedSky.AccountsEndpoint, base+"/v1/accounts")
-	mergeString(&srv.Authorization.AuthorizationEndpoint, base+"/authorize")
-	mergeString(&srv.Authorization.TokenEndpoint, base+"/oauth/token")
-	mergeString(&srv.Authorization.RegistrationEndpoint, base+"/oauth/register")
+	defaultString(&srv.RedSky.ExperimentsEndpoint, base+"/experiments")
+	defaultString(&srv.RedSky.AccountsEndpoint, base+"/accounts")
+	defaultString(&srv.Authorization.AuthorizationEndpoint, base+"/authorize")
+	defaultString(&srv.Authorization.TokenEndpoint, base+"/oauth/token")
+	defaultString(&srv.Authorization.RegistrationEndpoint, base+"/oauth/register")
 	return nil
 }
 
 func defaultCluster(cstr *Cluster, cfg *Config, defaultClusterName string) error {
 	if len(cfg.Clusters) == 1 {
-		mergeString(&cstr.Controller, cfg.Clusters[0].Name)
+		defaultString(&cstr.Controller, cfg.Clusters[0].Name)
 	}
 
-	mergeString(&cstr.Bin, "kubectl")
-	mergeString(&cstr.Controller, defaultClusterName)
+	defaultString(&cstr.Bin, "kubectl")
+	defaultString(&cstr.Controller, defaultClusterName)
 	return nil
 }
 
 func defaultController(ctrl *Controller) error {
-	mergeString(&ctrl.Namespace, "redsky-system")
+	defaultString(&ctrl.Namespace, "redsky-system")
 	return nil
 }
 
 func defaultContext(ctx *Context, cfg *Config, defaultServerName, defaultClusterName string) error {
 	if len(cfg.Servers) == 1 {
-		mergeString(&ctx.Server, cfg.Servers[0].Name)
+		defaultString(&ctx.Server, cfg.Servers[0].Name)
 	}
 	if len(cfg.Authorizations) == 1 {
-		mergeString(&ctx.Authorization, cfg.Authorizations[0].Name)
+		defaultString(&ctx.Authorization, cfg.Authorizations[0].Name)
 	}
 	if len(cfg.Clusters) == 1 {
-		mergeString(&ctx.Cluster, cfg.Clusters[0].Name)
+		defaultString(&ctx.Cluster, cfg.Clusters[0].Name)
 	}
 
-	mergeString(&ctx.Server, defaultServerName)
-	mergeString(&ctx.Authorization, defaultServerName)
-	mergeString(&ctx.Cluster, defaultClusterName)
+	defaultString(&ctx.Server, defaultServerName)
+	defaultString(&ctx.Authorization, defaultServerName)
+	defaultString(&ctx.Cluster, defaultClusterName)
 	return nil
 }
 
