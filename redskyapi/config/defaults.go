@@ -101,8 +101,8 @@ func defaultServer(srv *Server) error {
 
 	// Hard coded defaults for the default server
 	if srv.Identifier == DefaultServerIdentifier {
-		defaultString(&srv.RedSky.ExperimentsEndpoint, "https://api.carbonrelay.io/v1/experiments")
-		defaultString(&srv.RedSky.AccountsEndpoint, "https://api.carbonrelay.io/v1/accounts")
+		defaultString(&srv.RedSky.ExperimentsEndpoint, "https://api.carbonrelay.io/v1/experiments/")
+		defaultString(&srv.RedSky.AccountsEndpoint, "https://api.carbonrelay.io/v1/accounts/")
 		defaultString(&srv.Authorization.AuthorizationEndpoint, "https://redskyops-dev.auth0.com/authorize")
 		defaultString(&srv.Authorization.TokenEndpoint, "https://redskyops-dev.auth0.com/oauth/token")
 		defaultString(&srv.Authorization.RegistrationEndpoint, "https://api.carbonrelay.io/v1/accounts/clients/register")
@@ -119,8 +119,8 @@ func defaultServer(srv *Server) error {
 	u.Path = strings.TrimRight(u.Path, "/")
 	base := u.String()
 
-	defaultString(&srv.RedSky.ExperimentsEndpoint, base+"/experiments")
-	defaultString(&srv.RedSky.AccountsEndpoint, base+"/accounts")
+	defaultString(&srv.RedSky.ExperimentsEndpoint, base+"/experiments/")
+	defaultString(&srv.RedSky.AccountsEndpoint, base+"/accounts/")
 	defaultString(&srv.Authorization.AuthorizationEndpoint, base+"/authorize")
 	defaultString(&srv.Authorization.TokenEndpoint, base+"/oauth/token")
 	defaultString(&srv.Authorization.RegistrationEndpoint, base+"/oauth/register")
