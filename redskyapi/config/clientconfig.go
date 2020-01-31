@@ -183,6 +183,23 @@ func (cc *ClientConfig) NewAuthorization() (*oauth.AuthorizationCodeFlowWithPKCE
 	return az, nil
 }
 
+// NewDeviceAuthorization creates a new device authorization flow using the current context
+func (cc *ClientConfig) NewDeviceAuthorization() (*oauth.DeviceFlow, error) {
+	srv, _, _, _, err := contextConfig(&cc.data, cc.data.CurrentContext)
+	if err != nil {
+		return nil, err
+	}
+
+	return &oauth.DeviceFlow{
+		Config: clientcredentials.Config{
+			TokenURL:  srv.Authorization.TokenEndpoint,
+			AuthStyle: oauth2.AuthStyleInParams,
+		},
+		DeviceAuthorizationURL: srv.Authorization.DeviceAuthorizationEndpoint,
+		Audience:               srv.Identifier,
+	}, nil
+}
+
 // Authorize configures the supplied transport
 func (cc *ClientConfig) Authorize(ctx context.Context, transport http.RoundTripper) (http.RoundTripper, error) {
 	// Get the token source and use it to wrap the transport
