@@ -24,6 +24,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/redskyops/k8s-experiment/internal/oauth2/devicecode"
 	"github.com/redskyops/k8s-experiment/internal/oauth2/registration"
 	"github.com/redskyops/k8s-experiment/redskyapi/oauth"
 	"golang.org/x/oauth2"
@@ -184,13 +185,13 @@ func (cc *ClientConfig) NewAuthorization() (*oauth.AuthorizationCodeFlowWithPKCE
 }
 
 // NewDeviceAuthorization creates a new device authorization flow using the current context
-func (cc *ClientConfig) NewDeviceAuthorization() (*oauth.DeviceFlow, error) {
+func (cc *ClientConfig) NewDeviceAuthorization() (*devicecode.DeviceFlow, error) {
 	srv, _, _, _, err := contextConfig(&cc.data, cc.data.CurrentContext)
 	if err != nil {
 		return nil, err
 	}
 
-	return &oauth.DeviceFlow{
+	return &devicecode.DeviceFlow{
 		Config: clientcredentials.Config{
 			TokenURL:  srv.Authorization.TokenEndpoint,
 			AuthStyle: oauth2.AuthStyleInParams,
