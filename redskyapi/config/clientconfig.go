@@ -197,7 +197,7 @@ func (cc *ClientConfig) NewDeviceAuthorization() (*devicecode.DeviceFlow, error)
 			AuthStyle: oauth2.AuthStyleInParams,
 		},
 		DeviceAuthorizationURL: srv.Authorization.DeviceAuthorizationEndpoint,
-		Audience:               srv.Identifier,
+		EndpointParams:         map[string][]string{"audience": {srv.Identifier}},
 	}, nil
 }
 

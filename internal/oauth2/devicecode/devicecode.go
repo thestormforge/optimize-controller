@@ -45,8 +45,8 @@ type DeviceFlow struct {
 
 	// DeviceAuthorizationURL is the location of the device authorization endpoint
 	DeviceAuthorizationURL string
-	// Audience is the URI identifying the target API
-	Audience string
+	// EndpointParams specifies additional parameters for requests to the device authorization endpoint.
+	EndpointParams url.Values
 }
 
 type deviceAuthorizationResponse struct {
@@ -70,7 +70,6 @@ func (df *DeviceFlow) Token(ctx context.Context, prompt UserInstruction) (*oauth
 	// Get the device code
 	v := url.Values{
 		"client_id": {df.ClientID},
-		"audience":  {df.Audience}, // TODO Should audience come in via the endpoint parameters?
 	}
 	if len(df.Scopes) > 0 {
 		v.Set("scope", strings.Join(df.Scopes, " "))
