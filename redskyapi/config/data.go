@@ -105,6 +105,8 @@ type ClientCredential struct {
 
 // Cluster contains information about communicating with a Kubernetes cluster
 type Cluster struct {
+	// KubeConfig is the path to a kubeconfig file to use; leave blank to get the default file
+	KubeConfig string `json:"kubeconfig,omitempty"`
 	// Context is the kubeconfig context to use for the cluster; leave blank to get the current kubeconfig context
 	Context string `json:"context"`
 	// Bin is the path to the kubectl binary to use
