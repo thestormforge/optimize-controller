@@ -32,7 +32,6 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	"sigs.k8s.io/yaml"
 )
 
 var (
@@ -56,7 +55,7 @@ func main() {
 		} else if os.Args[1] == "config" {
 			if cfg, err := redskyclient.DefaultConfig(); err != nil {
 				os.Exit(1)
-			} else if output, err := yaml.Marshal(cfg); err != nil {
+			} else if output, err := cfg.Marshal(); err != nil {
 				os.Exit(1)
 			} else {
 				fmt.Printf(string(output))
