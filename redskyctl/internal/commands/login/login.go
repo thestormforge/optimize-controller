@@ -159,25 +159,25 @@ func (o *LoginOptions) runDeviceCodeFlow() error {
 
 func (o *LoginOptions) runAuthorizationCodeFlow() error {
 	// Create a new authorization code flow
-	az, err := o.cfg.NewAuthorization()
+	c, err := o.cfg.NewAuthorization()
 	if err != nil {
 		return err
 	}
-	az.ClientID = ClientID
-	az.Scopes = append(az.Scopes, "offline_access") // TODO Where or what do we want to do here?
-	az.RedirectURL = "http://localhost:8085/"
+	c.ClientID = ClientID
+	c.Scopes = append(c.Scopes, "offline_access") // TODO Where or what do we want to do here?
+	c.RedirectURL = "http://localhost:8085/"
 
 	// Create a context we can use to shutdown the server and the OAuth authorization code callback endpoint
 	var ctx context.Context
 	ctx, o.shutdown = context.WithCancel(context.Background())
-	handler := az.Callback(o.takeOffline, o.generateCallbackResponse)
+	handler := c.Callback(o.takeOffline, o.generateCallbackResponse)
 
 	// Create a new server with some extra configuration
 	server := cmdutil.NewContextServer(ctx, handler,
-		cmdutil.WithServerOptions(configureCallbackServer(az)),
+		cmdutil.WithServerOptions(configureCallbackServer(c)),
 		cmdutil.ShutdownOnInterrupt(func() { _, _ = fmt.Fprintln(o.Out) }),
 		cmdutil.HandleStart(func(string) error {
-			return o.openBrowser(az.AuthCodeURLWithPKCE())
+			return o.openBrowser(c.AuthCodeURLWithPKCE())
 		}))
 
 	// Start the server, this will block until someone calls 'o.shutdown' from above
@@ -282,10 +282,10 @@ func (o *LoginOptions) openBrowser(loc string) error {
 }
 
 // configureCallbackServer configures an HTTP server using the supplied callback redirect URL for the listen address
-func configureCallbackServer(f *authorizationcode.AuthorizationCodeFlowWithPKCE) func(srv *http.Server) {
+func configureCallbackServer(c *authorizationcode.Config) func(srv *http.Server) {
 	return func(srv *http.Server) {
 		// Try to make the server listen on the same host as the callback
-		if addr, err := f.CallbackAddr(); err == nil {
+		if addr, err := c.CallbackAddr(); err == nil {
 			srv.Addr = addr
 		}
 

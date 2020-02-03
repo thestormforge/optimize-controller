@@ -166,22 +166,22 @@ func (cc *ClientConfig) RegisterClient(ctx context.Context, client *registration
 }
 
 // NewAuthorization creates a new authorization code flow with PKCE using the current context
-func (cc *ClientConfig) NewAuthorization() (*authorizationcode.AuthorizationCodeFlowWithPKCE, error) {
+func (cc *ClientConfig) NewAuthorization() (*authorizationcode.Config, error) {
 	srv, _, _, _, err := contextConfig(&cc.data, cc.data.CurrentContext)
 	if err != nil {
 		return nil, err
 	}
 
-	az, err := authorizationcode.NewAuthorizationCodeFlowWithPKCE()
+	c, err := authorizationcode.NewAuthorizationCodeFlowWithPKCE()
 	if err != nil {
 		return nil, err
 	}
 
-	az.Endpoint.AuthURL = srv.Authorization.AuthorizationEndpoint
-	az.Endpoint.TokenURL = srv.Authorization.TokenEndpoint
-	az.Endpoint.AuthStyle = oauth2.AuthStyleInParams
-	az.EndpointParams = map[string][]string{"audience": {srv.Identifier}}
-	return az, nil
+	c.Endpoint.AuthURL = srv.Authorization.AuthorizationEndpoint
+	c.Endpoint.TokenURL = srv.Authorization.TokenEndpoint
+	c.Endpoint.AuthStyle = oauth2.AuthStyleInParams
+	c.EndpointParams = map[string][]string{"audience": {srv.Identifier}}
+	return c, nil
 }
 
 // NewDeviceAuthorization creates a new device authorization flow using the current context

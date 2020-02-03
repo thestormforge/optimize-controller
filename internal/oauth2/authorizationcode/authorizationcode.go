@@ -38,12 +38,12 @@ type ResponseFunc func(w http.ResponseWriter, r *http.Request, message string, c
 
 // NOTE: ResponseFunc includes the original request so implementations can call `http.Redirect` if necessary
 
-// AuthorizationCodeFlowWithPKCE implements an authorization code flow with proof key for code exchange.
-type AuthorizationCodeFlowWithPKCE struct {
+// Config implements an authorization code flow with proof key for code exchange.
+type Config struct {
 	// Config is the OAuth2 configuration to use for this authorization flow
 	oauth2.Config
 
-	// EndpointParams specifies additional parameters for requests to the token endpoint.
+	// EndpointParams specifies additional parameters for requests to the authorization endpoint.
 	EndpointParams url.Values
 
 	// state is a random value to prevent CSRF attacks
@@ -53,7 +53,7 @@ type AuthorizationCodeFlowWithPKCE struct {
 }
 
 // NewAuthorizationCodeFlowWithPKCE creates a new authorization flow using the supplied OAuth2 configuration.
-func NewAuthorizationCodeFlowWithPKCE() (*AuthorizationCodeFlowWithPKCE, error) {
+func NewAuthorizationCodeFlowWithPKCE() (*Config, error) {
 	// Generate a random state for CSRF
 	sb := make([]byte, 16)
 	if _, err := rand.Read(sb); err != nil {
@@ -68,33 +68,33 @@ func NewAuthorizationCodeFlowWithPKCE() (*AuthorizationCodeFlowWithPKCE, error) 
 	}
 	v := base64.RawURLEncoding.EncodeToString(vb)
 
-	return &AuthorizationCodeFlowWithPKCE{state: s, verifier: v}, nil
+	return &Config{state: s, verifier: v}, nil
 }
 
 // AuthCodeURLWithPKCE returns the browser URL for the user to start the authorization flow.
-func (f *AuthorizationCodeFlowWithPKCE) AuthCodeURLWithPKCE() string {
+func (c *Config) AuthCodeURLWithPKCE() string {
 	// Compute the code challenge
-	sum256 := sha256.Sum256([]byte(f.verifier))
+	sum256 := sha256.Sum256([]byte(c.verifier))
 	codeChallenge := oauth2.SetAuthURLParam("code_challenge", base64.RawURLEncoding.EncodeToString(sum256[:]))
 	codeChallengeMethod := oauth2.SetAuthURLParam("code_challenge_method", "S256")
 
 	// Add additional options
 	opts := []oauth2.AuthCodeOption{codeChallenge, codeChallengeMethod}
-	for k := range f.EndpointParams {
-		opts = append(opts, oauth2.SetAuthURLParam(k, f.EndpointParams.Get(k)))
+	for k := range c.EndpointParams {
+		opts = append(opts, oauth2.SetAuthURLParam(k, c.EndpointParams.Get(k)))
 	}
-	return f.AuthCodeURL(f.state, opts...)
+	return c.AuthCodeURL(c.state, opts...)
 }
 
 // ExchangeWithPKCE returns the access token for the authorization flow
-func (f *AuthorizationCodeFlowWithPKCE) ExchangeWithPKCE(ctx context.Context, code string) (*oauth2.Token, error) {
-	codeVerifier := oauth2.SetAuthURLParam("code_verifier", f.verifier)
-	return f.Exchange(ctx, code, codeVerifier)
+func (c *Config) ExchangeWithPKCE(ctx context.Context, code string) (*oauth2.Token, error) {
+	codeVerifier := oauth2.SetAuthURLParam("code_verifier", c.verifier)
+	return c.Exchange(ctx, code, codeVerifier)
 }
 
 // CallbackAddr returns the address of the callback server (i.e. the host of the OAuth redirect URL)
-func (f *AuthorizationCodeFlowWithPKCE) CallbackAddr() (string, error) {
-	u, err := url.Parse(f.RedirectURL)
+func (c *Config) CallbackAddr() (string, error) {
+	u, err := url.Parse(c.RedirectURL)
 	if err != nil {
 		return "", err
 	}
@@ -102,7 +102,7 @@ func (f *AuthorizationCodeFlowWithPKCE) CallbackAddr() (string, error) {
 }
 
 // Callback implements an HTTP handler for the target of the OAuth2 redirect URL.
-func (f *AuthorizationCodeFlowWithPKCE) Callback(handler Handler, response ResponseFunc) http.Handler {
+func (c *Config) Callback(handler Handler, response ResponseFunc) http.Handler {
 	if handler == nil {
 		handler = func(*oauth2.Token) error { return nil }
 	}
@@ -112,13 +112,13 @@ func (f *AuthorizationCodeFlowWithPKCE) Callback(handler Handler, response Respo
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Make sure this request matches the configuration
-		if status, txt := f.validateRequest(r); status != http.StatusOK {
+		if status, txt := c.validateRequest(r); status != http.StatusOK {
 			response(w, r, txt, status)
 			return
 		}
 
 		// Exchange the authorization code for an access token
-		token, err := f.ExchangeWithPKCE(context.TODO(), r.FormValue("code"))
+		token, err := c.ExchangeWithPKCE(context.TODO(), r.FormValue("code"))
 		if err != nil {
 			response(w, r, err.Error(), http.StatusInternalServerError)
 			return
@@ -135,9 +135,9 @@ func (f *AuthorizationCodeFlowWithPKCE) Callback(handler Handler, response Respo
 	})
 }
 
-func (f *AuthorizationCodeFlowWithPKCE) validateRequest(r *http.Request) (int, string) {
+func (c *Config) validateRequest(r *http.Request) (int, string) {
 	// Validate the request URL matches the configured redirect URL
-	u, err := url.Parse(f.RedirectURL)
+	u, err := url.Parse(c.RedirectURL)
 	if err != nil {
 		return http.StatusInternalServerError, err.Error()
 	}
@@ -151,7 +151,7 @@ func (f *AuthorizationCodeFlowWithPKCE) validateRequest(r *http.Request) (int, s
 	}
 
 	// Check the CSRF state
-	if f.state != r.FormValue("state") {
+	if c.state != r.FormValue("state") {
 		return http.StatusForbidden, "CSRF state mismatch"
 	}
 
