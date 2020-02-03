@@ -24,7 +24,7 @@ import (
 
 // NOTE: Configuration JSON names in and below Server and Authorization use snake_case for compatibility with OAuth 2.0 specifications
 
-// Config is the top level configuration structure for a Red Sky client
+// Config is the top level configuration structure for Red Sky
 type Config struct {
 	// Servers is a named list of server configurations
 	Servers []NamedServer `json:"servers,omitempty"`
@@ -219,6 +219,7 @@ func (c *Credential) UnmarshalJSON(data []byte) error {
 func (tc *TokenCredential) MarshalJSON() ([]byte, error) {
 	// http://choly.ca/post/go-json-marshalling/
 	type TC TokenCredential
+	var accessToken interface{} = tc.AccessToken
 	var expiry string
 	if tc != nil && tc.Expiry.IsZero() {
 		expiry = "0"
@@ -227,8 +228,9 @@ func (tc *TokenCredential) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&struct {
 		*TC
-		Expiry string `json:"expiry,omitempty"`
-	}{TC: (*TC)(tc), Expiry: expiry})
+		AccessToken interface{} `json:"access_token"`
+		Expiry      string      `json:"expiry,omitempty"`
+	}{TC: (*TC)(tc), AccessToken: accessToken, Expiry: expiry})
 }
 
 // MarshalJSON omits empty structs

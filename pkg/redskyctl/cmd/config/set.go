@@ -19,8 +19,8 @@ package config
 import (
 	"strings"
 
+	"github.com/redskyops/k8s-experiment/internal/config"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
-	"github.com/redskyops/k8s-experiment/redskyapi/config"
 	"github.com/spf13/cobra"
 )
 
@@ -78,7 +78,7 @@ func (o *ConfigSetOptions) Complete(args []string) error {
 }
 
 func (o *ConfigSetOptions) Run() error {
-	cfg := &config.ClientConfig{}
+	cfg := &config.RedSkyConfig{}
 
 	if err := cfg.Load(); err != nil {
 		return err

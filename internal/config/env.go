@@ -20,7 +20,7 @@ import "os"
 
 // NOTE: The environment loader is NOT backward compatible with the old environment variables
 
-func envLoader(cfg *ClientConfig) error {
+func envLoader(cfg *RedSkyConfig) error {
 	srv, az, _, _, err := contextConfig(&cfg.data, cfg.data.CurrentContext)
 	if err != nil {
 		return err
@@ -59,8 +59,8 @@ func envLoader(cfg *ClientConfig) error {
 }
 
 // LegacyEnvMapping produces a map of environment variables generated from a configuration
-func LegacyEnvMapping(cc *ClientConfig, includeController bool) (map[string][]byte, error) {
-	srv, az, _, ctrl, err := contextConfig(&cc.data, cc.data.CurrentContext)
+func LegacyEnvMapping(cfg *RedSkyConfig, includeController bool) (map[string][]byte, error) {
+	srv, az, _, ctrl, err := contextConfig(&cfg.data, cfg.data.CurrentContext)
 	if err != nil {
 		return nil, err
 	}

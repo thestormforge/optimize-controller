@@ -32,14 +32,14 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-// Loader is used to initially populate a client configuration
-type Loader func(cfg *ClientConfig) error
+// Loader is used to initially populate a Red Sky configuration
+type Loader func(cfg *RedSkyConfig) error
 
 // Change is used to apply a configuration change that should be persisted
 type Change func(cfg *Config) error
 
-// ClientConfig is the structure used to manage configuration data
-type ClientConfig struct {
+// RedSkyConfig is the structure used to manage configuration data
+type RedSkyConfig struct {
 	// Filename is the path to the configuration file; if left blank, it will be populated using XDG base directory conventions on the next Load
 	Filename string
 
@@ -48,13 +48,13 @@ type ClientConfig struct {
 }
 
 // Load will populate the client configuration
-func (cc *ClientConfig) Load(extra ...Loader) error {
+func (rsc *RedSkyConfig) Load(extra ...Loader) error {
 	var loaders []Loader
 	loaders = append(loaders, fileLoader, migrationLoader)
 	loaders = append(loaders, extra...)
 	loaders = append(loaders, defaultLoader, envLoader)
 	for i := range loaders {
-		if err := loaders[i](cc); err != nil {
+		if err := loaders[i](rsc); err != nil {
 			return err
 		}
 	}
@@ -62,47 +62,47 @@ func (cc *ClientConfig) Load(extra ...Loader) error {
 }
 
 // Update will make a change to the configuration data that should be persisted on the next call to Write
-func (cc *ClientConfig) Update(change Change) error {
-	if err := change(&cc.data); err != nil {
+func (rsc *RedSkyConfig) Update(change Change) error {
+	if err := change(&rsc.data); err != nil {
 		return err
 	}
-	cc.unpersisted = append(cc.unpersisted, change)
+	rsc.unpersisted = append(rsc.unpersisted, change)
 	return nil
 }
 
 // Write all unpersisted changes to disk
-func (cc *ClientConfig) Write() error {
-	if cc.Filename == "" || len(cc.unpersisted) == 0 {
+func (rsc *RedSkyConfig) Write() error {
+	if rsc.Filename == "" || len(rsc.unpersisted) == 0 {
 		return nil
 	}
 
 	f := file{}
-	if err := f.read(cc.Filename); err != nil {
+	if err := f.read(rsc.Filename); err != nil {
 		return err
 	}
 
-	for i := range cc.unpersisted {
-		if err := cc.unpersisted[i](&f.data); err != nil {
+	for i := range rsc.unpersisted {
+		if err := rsc.unpersisted[i](&f.data); err != nil {
 			return err
 		}
 	}
 
-	if err := f.write(cc.Filename); err != nil {
+	if err := f.write(rsc.Filename); err != nil {
 		return err
 	}
 
-	cc.unpersisted = nil
+	rsc.unpersisted = nil
 	return nil
 }
 
 // Marshal will write the data out
-func (cc *ClientConfig) Marshal() ([]byte, error) {
-	return yaml.Marshal(cc.data)
+func (rsc *RedSkyConfig) Marshal() ([]byte, error) {
+	return yaml.Marshal(rsc.data)
 }
 
 // SystemNamespace returns the namespace where the Red Sky controller is/should be installed
-func (cc *ClientConfig) SystemNamespace() (string, error) {
-	_, _, _, ctrl, err := contextConfig(&cc.data, cc.data.CurrentContext)
+func (rsc *RedSkyConfig) SystemNamespace() (string, error) {
+	_, _, _, ctrl, err := contextConfig(&rsc.data, rsc.data.CurrentContext)
 	if err != nil {
 		return "", err
 	}
@@ -110,8 +110,8 @@ func (cc *ClientConfig) SystemNamespace() (string, error) {
 }
 
 // ExperimentsURL returns the path to the experiments API endpoint
-func (cc *ClientConfig) ExperimentsURL(p string) (*url.URL, error) {
-	svr, _, _, _, err := contextConfig(&cc.data, cc.data.CurrentContext)
+func (rsc *RedSkyConfig) ExperimentsURL(p string) (*url.URL, error) {
+	svr, _, _, _, err := contextConfig(&rsc.data, rsc.data.CurrentContext)
 	if err != nil {
 		return nil, err
 	}
@@ -130,8 +130,8 @@ func (cc *ClientConfig) ExperimentsURL(p string) (*url.URL, error) {
 }
 
 // Kubectl returns an executable command for running kubectl
-func (cc *ClientConfig) Kubectl(arg ...string) (*exec.Cmd, error) {
-	_, _, cstr, _, err := contextConfig(&cc.data, cc.data.CurrentContext)
+func (rsc *RedSkyConfig) Kubectl(arg ...string) (*exec.Cmd, error) {
+	_, _, cstr, _, err := contextConfig(&rsc.data, rsc.data.CurrentContext)
 	if err != nil {
 		return nil, err
 	}
@@ -144,9 +144,9 @@ func (cc *ClientConfig) Kubectl(arg ...string) (*exec.Cmd, error) {
 }
 
 // RegisterClient performs dynamic client registration
-func (cc *ClientConfig) RegisterClient(ctx context.Context, client *registration.ClientMetadata) (*registration.ClientInformationResponse, error) {
+func (rsc *RedSkyConfig) RegisterClient(ctx context.Context, client *registration.ClientMetadata) (*registration.ClientInformationResponse, error) {
 	// We can't use the initial token because we don't know if we have a valid token, instead we need to authorize the context client
-	src, err := cc.tokenSource(ctx)
+	src, err := rsc.tokenSource(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +155,7 @@ func (cc *ClientConfig) RegisterClient(ctx context.Context, client *registration
 	}
 
 	// Get the current server configuration for the registration endpoint address
-	srv, _, _, _, err := contextConfig(&cc.data, cc.data.CurrentContext)
+	srv, _, _, _, err := contextConfig(&rsc.data, rsc.data.CurrentContext)
 	if err != nil {
 		return nil, err
 	}
@@ -166,8 +166,8 @@ func (cc *ClientConfig) RegisterClient(ctx context.Context, client *registration
 }
 
 // NewAuthorization creates a new authorization code flow with PKCE using the current context
-func (cc *ClientConfig) NewAuthorization() (*authorizationcode.Config, error) {
-	srv, _, _, _, err := contextConfig(&cc.data, cc.data.CurrentContext)
+func (rsc *RedSkyConfig) NewAuthorization() (*authorizationcode.Config, error) {
+	srv, _, _, _, err := contextConfig(&rsc.data, rsc.data.CurrentContext)
 	if err != nil {
 		return nil, err
 	}
@@ -185,8 +185,8 @@ func (cc *ClientConfig) NewAuthorization() (*authorizationcode.Config, error) {
 }
 
 // NewDeviceAuthorization creates a new device authorization flow using the current context
-func (cc *ClientConfig) NewDeviceAuthorization() (*devicecode.Config, error) {
-	srv, _, _, _, err := contextConfig(&cc.data, cc.data.CurrentContext)
+func (rsc *RedSkyConfig) NewDeviceAuthorization() (*devicecode.Config, error) {
+	srv, _, _, _, err := contextConfig(&rsc.data, rsc.data.CurrentContext)
 	if err != nil {
 		return nil, err
 	}
@@ -202,9 +202,9 @@ func (cc *ClientConfig) NewDeviceAuthorization() (*devicecode.Config, error) {
 }
 
 // Authorize configures the supplied transport
-func (cc *ClientConfig) Authorize(ctx context.Context, transport http.RoundTripper) (http.RoundTripper, error) {
+func (rsc *RedSkyConfig) Authorize(ctx context.Context, transport http.RoundTripper) (http.RoundTripper, error) {
 	// Get the token source and use it to wrap the transport
-	src, err := cc.tokenSource(ctx)
+	src, err := rsc.tokenSource(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -214,9 +214,9 @@ func (cc *ClientConfig) Authorize(ctx context.Context, transport http.RoundTripp
 	return transport, nil
 }
 
-func (cc *ClientConfig) tokenSource(ctx context.Context) (oauth2.TokenSource, error) {
-	// TODO We could make ClientConfig implement the TokenSource interface, but we need a way to handle the context
-	srv, az, _, _, err := contextConfig(&cc.data, cc.data.CurrentContext)
+func (rsc *RedSkyConfig) tokenSource(ctx context.Context) (oauth2.TokenSource, error) {
+	// TODO We could make RedSkyConfig implement the TokenSource interface, but we need a way to handle the context
+	srv, az, _, _, err := contextConfig(&rsc.data, rsc.data.CurrentContext)
 	if err != nil {
 		return nil, err
 	}
@@ -253,13 +253,13 @@ func (cc *ClientConfig) tokenSource(ctx context.Context) (oauth2.TokenSource, er
 
 // Merge combines the supplied data with what is already present in this client configuration; unlike Update, changes
 // will not be persisted on the next write
-func (cc *ClientConfig) Merge(data *Config) {
-	mergeServers(&cc.data, data.Servers)
-	mergeAuthorizations(&cc.data, data.Authorizations)
-	mergeClusters(&cc.data, data.Clusters)
-	mergeControllers(&cc.data, data.Controllers)
-	mergeContexts(&cc.data, data.Contexts)
-	mergeString(&cc.data.CurrentContext, data.CurrentContext)
+func (rsc *RedSkyConfig) Merge(data *Config) {
+	mergeServers(&rsc.data, data.Servers)
+	mergeAuthorizations(&rsc.data, data.Authorizations)
+	mergeClusters(&rsc.data, data.Clusters)
+	mergeControllers(&rsc.data, data.Controllers)
+	mergeContexts(&rsc.data, data.Contexts)
+	mergeString(&rsc.data.CurrentContext, data.CurrentContext)
 }
 
 // contextConfig returns all of the configurations objects for the named context
@@ -290,4 +290,38 @@ func contextConfig(data *Config, name string) (*Server, *Authorization, *Cluster
 	}
 
 	return srv, az, cstr, ctrl, nil
+}
+
+// Minify returns a copy of a configuration, retaining only the named objects
+func Minify(data *Config, serverName, authorizationName, clusterName, controllerName, contextName string) *Config {
+	minified := &Config{}
+	if srv := findServer(data.Servers, serverName); srv != nil {
+		minified.Servers = append(minified.Servers, NamedServer{Name: serverName, Server: *srv})
+	}
+	if az := findAuthorization(data.Authorizations, authorizationName); az != nil {
+		minified.Authorizations = append(minified.Authorizations, NamedAuthorization{Name: authorizationName, Authorization: *az})
+	}
+	if cstr := findCluster(data.Clusters, clusterName); cstr != nil {
+		minified.Clusters = append(minified.Clusters, NamedCluster{Name: clusterName, Cluster: *cstr})
+	}
+	if ctrl := findController(data.Controllers, controllerName); ctrl != nil {
+		minified.Controllers = append(minified.Controllers, NamedController{Name: controllerName, Controller: *ctrl})
+	}
+	if ctx := findContext(data.Contexts, contextName); ctx != nil {
+		minified.Contexts = append(minified.Contexts, NamedContext{Name: contextName, Context: *ctx})
+	}
+	return minified
+}
+
+// MinifyContext returns a minified configuration that includes the named context and all that it references
+func MinifyContext(data *Config, contextName string) *Config {
+	if ctx := findContext(data.Contexts, contextName); ctx != nil {
+		controllerName := ""
+		if cstr := findCluster(data.Clusters, ctx.Cluster); cstr != nil {
+			controllerName = cstr.Controller
+		}
+
+		return Minify(data, ctx.Server, ctx.Authorization, ctx.Cluster, controllerName, contextName)
+	}
+	return &Config{}
 }

@@ -37,10 +37,8 @@ const (
 	configFilename       = "redsky/config"
 )
 
-// TODO `func LoadFile(filename string, config *ClientConfig) error` ?
-
-// fileLoader uses the fileLoader to load a configuration
-func fileLoader(cfg *ClientConfig) error {
+// fileLoader loads a configuration from the currently configured filename
+func fileLoader(cfg *RedSkyConfig) error {
 	f := &file{}
 
 	// If we are using a configuration file, the filename _must_ be set
@@ -58,6 +56,7 @@ func fileLoader(cfg *ClientConfig) error {
 	return nil
 }
 
+// file represents the data of a configuration file
 type file struct {
 	data Config
 }

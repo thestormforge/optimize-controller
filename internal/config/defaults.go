@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-     http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -24,15 +24,16 @@ import (
 	"github.com/redskyops/k8s-experiment/internal/oauth2/discovery"
 )
 
-// The default loader must NEVER make changes via ClientConfig.Update or ClientConfig.unpersisted
+// The default loader must NEVER make changes via RedSkyConfig.Update or RedSkyConfig.unpersisted
 
 var (
 	// DefaultServerIdentifier is the default entrypoint to the remote application
 	DefaultServerIdentifier = "https://api.carbonrelay.io/v1/"
 )
 
-func defaultLoader(cfg *ClientConfig) error {
+func defaultLoader(cfg *RedSkyConfig) error {
 	defaultServerName := "default"
+	defaultAuthorizationName := defaultServerName
 	defaultClusterName := clusterName()
 	defaultControllerName := defaultClusterName
 	defaultContextName := "default"
@@ -42,7 +43,7 @@ func defaultLoader(cfg *ClientConfig) error {
 	}
 
 	if len(cfg.data.Authorizations) == 0 {
-		cfg.data.Authorizations = append(cfg.data.Authorizations, NamedAuthorization{Name: defaultServerName})
+		cfg.data.Authorizations = append(cfg.data.Authorizations, NamedAuthorization{Name: defaultAuthorizationName})
 	}
 
 	if len(cfg.data.Clusters) == 0 {

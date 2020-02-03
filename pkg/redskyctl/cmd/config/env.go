@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/redskyops/k8s-experiment/internal/config"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
-	"github.com/redskyops/k8s-experiment/redskyapi/config"
 	"github.com/spf13/cobra"
 )
 
@@ -61,7 +61,7 @@ func NewConfigEnvCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.
 }
 
 func (o *ConfigEnvOptions) Run() error {
-	cfg := &config.ClientConfig{}
+	cfg := &config.RedSkyConfig{}
 	if err := cfg.Load(); err != nil {
 		return err
 	}

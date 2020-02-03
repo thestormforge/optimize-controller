@@ -23,7 +23,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/redskyops/k8s-experiment/redskyapi/config"
+	"github.com/redskyops/k8s-experiment/internal/config"
 )
 
 // Config exposes the information for configuring a Red Sky Client
@@ -50,7 +50,7 @@ type Client interface {
 // TODO Get rid of this...
 // DefaultConfig loads the mostly commonly used configuration
 func DefaultConfig() (Config, error) {
-	cc := &config.ClientConfig{}
+	cc := &config.RedSkyConfig{}
 	if err := cc.Load(); err != nil {
 		return nil, err
 	}

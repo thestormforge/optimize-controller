@@ -26,9 +26,9 @@ import (
 
 	"github.com/mdp/qrterminal/v3"
 	"github.com/pkg/browser"
+	"github.com/redskyops/k8s-experiment/internal/config"
 	"github.com/redskyops/k8s-experiment/internal/oauth2/authorizationcode"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
-	"github.com/redskyops/k8s-experiment/redskyapi/config"
 	"github.com/spf13/cobra"
 	"golang.org/x/oauth2"
 )
@@ -76,7 +76,7 @@ type LoginOptions struct {
 	Name       string
 	Server     string
 
-	cfg      config.ClientConfig
+	cfg      config.RedSkyConfig
 	shutdown context.CancelFunc
 	cmdutil.IOStreams
 }
@@ -185,7 +185,7 @@ func (o *LoginOptions) runAuthorizationCodeFlow() error {
 }
 
 // loginConfig applies the login configuration
-func (o *LoginOptions) loginConfig(cfg *config.ClientConfig) error {
+func (o *LoginOptions) loginConfig(cfg *config.RedSkyConfig) error {
 	if err := cfg.Update(o.requireForceIfNameExists); err != nil {
 		return err
 	}

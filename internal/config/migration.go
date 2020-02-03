@@ -36,7 +36,7 @@ type legacyManager struct {
 }
 
 // migrationLoader will take the meaningful bits from a legacy config file and delete that file once the changes are persisted
-func migrationLoader(cfg *ClientConfig) error {
+func migrationLoader(cfg *RedSkyConfig) error {
 	name := clusterName()
 	filename := filepath.Join(os.Getenv("HOME"), ".redsky")
 
