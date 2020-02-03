@@ -36,10 +36,6 @@ type Config interface {
 	// configuration does not define any authorization details, the supplied transport may be returned
 	// directly.
 	Authorize(ctx context.Context, transport http.RoundTripper) (http.RoundTripper, error)
-
-	// Marshal will write the data out
-	Marshal() ([]byte, error)
-	// TODO This should be in the redskyctl configuration interface
 }
 
 // Client is used to handle interactions with the Red Sky API Server

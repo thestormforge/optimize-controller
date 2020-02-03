@@ -32,4 +32,7 @@ type Config interface {
 
 	// Kubectl returns an executable command for running kubectl
 	Kubectl(arg ...string) (*exec.Cmd, error)
+
+	// Marshal will write the data out
+	Marshal() ([]byte, error)
 }
