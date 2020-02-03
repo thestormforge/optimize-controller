@@ -43,8 +43,8 @@ type AuthorizationCodeFlowWithPKCE struct {
 	// Config is the OAuth2 configuration to use for this authorization flow
 	oauth2.Config
 
-	// Audience is the URI identifying the target API
-	Audience string
+	// EndpointParams specifies additional parameters for requests to the token endpoint.
+	EndpointParams url.Values
 
 	// state is a random value to prevent CSRF attacks
 	state string
@@ -73,11 +73,17 @@ func NewAuthorizationCodeFlowWithPKCE() (*AuthorizationCodeFlowWithPKCE, error) 
 
 // AuthCodeURLWithPKCE returns the browser URL for the user to start the authorization flow.
 func (f *AuthorizationCodeFlowWithPKCE) AuthCodeURLWithPKCE() string {
-	audience := oauth2.SetAuthURLParam("audience", f.Audience)
+	// Compute the code challenge
 	sum256 := sha256.Sum256([]byte(f.verifier))
 	codeChallenge := oauth2.SetAuthURLParam("code_challenge", base64.RawURLEncoding.EncodeToString(sum256[:]))
 	codeChallengeMethod := oauth2.SetAuthURLParam("code_challenge_method", "S256")
-	return f.AuthCodeURL(f.state, audience, codeChallenge, codeChallengeMethod)
+
+	// Add additional options
+	opts := []oauth2.AuthCodeOption{codeChallenge, codeChallengeMethod}
+	for k := range f.EndpointParams {
+		opts = append(opts, oauth2.SetAuthURLParam(k, f.EndpointParams.Get(k)))
+	}
+	return f.AuthCodeURL(f.state, opts...)
 }
 
 // ExchangeWithPKCE returns the access token for the authorization flow

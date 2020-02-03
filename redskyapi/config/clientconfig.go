@@ -177,10 +177,10 @@ func (cc *ClientConfig) NewAuthorization() (*authorizationcode.AuthorizationCode
 		return nil, err
 	}
 
-	az.Audience = srv.Identifier
 	az.Endpoint.AuthURL = srv.Authorization.AuthorizationEndpoint
 	az.Endpoint.TokenURL = srv.Authorization.TokenEndpoint
 	az.Endpoint.AuthStyle = oauth2.AuthStyleInParams
+	az.EndpointParams = map[string][]string{"audience": {srv.Identifier}}
 	return az, nil
 }
 
