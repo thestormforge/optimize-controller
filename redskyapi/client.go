@@ -22,8 +22,6 @@ import (
 	"net/http"
 	"net/url"
 	"time"
-
-	"github.com/redskyops/k8s-experiment/internal/config"
 )
 
 // Config exposes the information for configuring a Red Sky Client
@@ -42,19 +40,12 @@ type Config interface {
 	// TODO This should be in the redskyctl configuration interface
 }
 
+// Client is used to handle interactions with the Red Sky API Server
 type Client interface {
+	// URL returns the location of the specified endpoint
 	URL(endpoint string) *url.URL
+	// Do performs the interaction specified by the HTTP request
 	Do(context.Context, *http.Request) (*http.Response, []byte, error)
-}
-
-// TODO Get rid of this...
-// DefaultConfig loads the mostly commonly used configuration
-func DefaultConfig() (Config, error) {
-	cc := &config.RedSkyConfig{}
-	if err := cc.Load(); err != nil {
-		return nil, err
-	}
-	return cc, nil
 }
 
 // NewClient returns a new client for accessing Red Sky APIs; the supplied context is used for authentication/authorization

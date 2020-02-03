@@ -17,6 +17,7 @@ limitations under the License.
 package util
 
 import (
+	"github.com/redskyops/k8s-experiment/internal/config"
 	redskyclient "github.com/redskyops/k8s-experiment/redskyapi"
 	"github.com/spf13/pflag"
 )
@@ -33,5 +34,9 @@ func NewServerFlags() *ServerFlags {
 func (f *ServerFlags) AddFlags(*pflag.FlagSet) {}
 
 func (f *ServerFlags) ToClientConfig() (redskyclient.Config, error) {
-	return redskyclient.DefaultConfig()
+	cfg := &config.RedSkyConfig{}
+	if err := cfg.Load(); err != nil {
+		return nil, err
+	}
+	return cfg, nil
 }

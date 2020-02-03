@@ -17,8 +17,8 @@ limitations under the License.
 package config
 
 import (
+	"github.com/redskyops/k8s-experiment/internal/config"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
-	redskyclient "github.com/redskyops/k8s-experiment/redskyapi"
 	"github.com/spf13/cobra"
 )
 
@@ -58,8 +58,9 @@ func NewConfigViewCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra
 }
 
 func (o *ConfigViewOptions) Run() error {
-	cfg, err := redskyclient.DefaultConfig()
-	if err != nil {
+	cfg := &config.RedSkyConfig{}
+
+	if err := cfg.Load(); err != nil {
 		return err
 	}
 

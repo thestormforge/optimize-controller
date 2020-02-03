@@ -23,9 +23,9 @@ import (
 	"path/filepath"
 
 	"github.com/redskyops/k8s-experiment/controllers"
+	"github.com/redskyops/k8s-experiment/internal/config"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	"github.com/redskyops/k8s-experiment/pkg/version"
-	redskyclient "github.com/redskyops/k8s-experiment/redskyapi"
 	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/experiments/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -53,7 +53,8 @@ func main() {
 			fmt.Printf("%s version: %s\n", filepath.Base(os.Args[0]), version.GetVersion())
 			os.Exit(0)
 		} else if os.Args[1] == "config" {
-			if cfg, err := redskyclient.DefaultConfig(); err != nil {
+			cfg := &config.RedSkyConfig{}
+			if err := cfg.Load(); err != nil {
 				os.Exit(1)
 			} else if output, err := cfg.Marshal(); err != nil {
 				os.Exit(1)
@@ -160,8 +161,8 @@ func main() {
 
 // newRedSkyAPI reads the default configuration and attempt to create an API interface
 func newRedSkyAPI() (redskyapi.API, error) {
-	cfg, err := redskyclient.DefaultConfig()
-	if err != nil {
+	cfg := &config.RedSkyConfig{}
+	if err := cfg.Load(); err != nil {
 		return nil, err
 	}
 	return redskyapi.NewForConfig(cfg, version.UserAgent("RedSkyManager", nil))
