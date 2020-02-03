@@ -22,12 +22,14 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/redskyops/k8s-experiment/internal/config"
 )
 
 // Config exposes the information for configuring a Red Sky Client
 type Config interface {
-	// ExperimentsURL returns a URL to the experiments API
-	ExperimentsURL(path string) (*url.URL, error)
+	// URL returns the location of the specified endpoint
+	Endpoints() (config.Endpoints, error)
 
 	// Authorize returns a transport that applies the authorization defined by this configuration. The
 	// supplied context is used for any additional requests necessary to perform authentication. If this
@@ -54,7 +56,7 @@ type Client interface {
 func NewClient(cfg Config, ctx context.Context, transport http.RoundTripper) (Client, error) {
 	var err error
 
-	hc := &httpClient{config: cfg}
+	hc := &httpClient{}
 	hc.client.Timeout = 10 * time.Second
 
 	// Configure the OAuth2 transport
@@ -63,8 +65,8 @@ func NewClient(cfg Config, ctx context.Context, transport http.RoundTripper) (Cl
 		return nil, err
 	}
 
-	// Make sure that we can ignore the error from ExperimentsURL
-	_, err = cfg.ExperimentsURL("")
+	// Configure the API endpoints
+	hc.endpoints, err = cfg.Endpoints()
 	if err != nil {
 		return nil, err
 	}
@@ -73,13 +75,12 @@ func NewClient(cfg Config, ctx context.Context, transport http.RoundTripper) (Cl
 }
 
 type httpClient struct {
-	config Config
-	client http.Client
+	client    http.Client
+	endpoints config.Endpoints
 }
 
 func (c *httpClient) URL(ep string) *url.URL {
-	u, _ := c.config.ExperimentsURL(ep)
-	return u
+	return c.endpoints.Resolve(ep)
 }
 
 func (c *httpClient) Do(ctx context.Context, req *http.Request) (*http.Response, []byte, error) {

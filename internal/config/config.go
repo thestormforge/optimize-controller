@@ -38,6 +38,9 @@ type Loader func(cfg *RedSkyConfig) error
 // Change is used to apply a configuration change that should be persisted
 type Change func(cfg *Config) error
 
+// Endpoints exposes the Red Sky API server endpoint locations as a mapping of prefixes to base URLs
+type Endpoints map[string]*url.URL
+
 // RedSkyConfig is the structure used to manage configuration data
 type RedSkyConfig struct {
 	// Filename is the path to the configuration file; if left blank, it will be populated using XDG base directory conventions on the next Load
@@ -109,24 +112,43 @@ func (rsc *RedSkyConfig) SystemNamespace() (string, error) {
 	return ctrl.Namespace, nil
 }
 
-// ExperimentsURL returns the path to the experiments API endpoint
-func (rsc *RedSkyConfig) ExperimentsURL(p string) (*url.URL, error) {
-	svr, _, _, _, err := contextConfig(&rsc.data, rsc.data.CurrentContext)
+// EndpointLocations returns a resolver that can generate fully qualified endpoint URLs
+func (rsc *RedSkyConfig) Endpoints() (Endpoints, error) {
+	srv, _, _, _, err := contextConfig(&rsc.data, rsc.data.CurrentContext)
 	if err != nil {
 		return nil, err
 	}
 
-	u, err := url.Parse(svr.RedSky.ExperimentsEndpoint)
-	if err != nil {
-		return nil, err
+	add := func(ep Endpoints, prefix, endpoint string) error {
+		u, err := url.Parse(endpoint)
+		if err != nil {
+			return err
+		}
+		u.Path = strings.TrimSuffix(u.Path, "/") + "/"
+		ep[prefix] = u
+		return nil
 	}
 
-	// Path notes:
-	// 1. We can't use path.Join because it will strip trailing slashes
-	// 2. We don't know if the configured path has a "/"
-	u.Path = strings.TrimSuffix(u.Path, "/") + "/" + strings.TrimPrefix(p, "/experiments/")
+	ep := Endpoints(make(map[string]*url.URL, 2))
+	if err := add(ep, "/experiments/", srv.RedSky.ExperimentsEndpoint); err != nil {
+		return nil, err
+	}
+	if err := add(ep, "/accounts/", srv.RedSky.AccountsEndpoint); err != nil {
+		return nil, err
+	}
+	return ep, nil
+}
 
-	return u, nil
+// Resolve returns the fully qualified URL of the specified endpoint
+func (ep Endpoints) Resolve(endpoint string) *url.URL {
+	for k, v := range ep {
+		if strings.HasPrefix(endpoint, k) {
+			u := *v
+			u.Path = u.Path + strings.TrimPrefix(endpoint, k)
+			return &u
+		}
+	}
+	return nil
 }
 
 // Kubectl returns an executable command for running kubectl
