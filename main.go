@@ -26,7 +26,7 @@ import (
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	"github.com/redskyops/k8s-experiment/pkg/version"
 	redskyclient "github.com/redskyops/k8s-experiment/redskyapi"
-	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/redsky/v1alpha1"
+	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/experiments/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"

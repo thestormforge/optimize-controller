@@ -27,7 +27,7 @@ import (
 	"github.com/redskyops/k8s-experiment/internal/trial"
 	"github.com/redskyops/k8s-experiment/internal/validation"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
-	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/redsky/v1alpha1"
+	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/experiments/v1alpha1"
 	"golang.org/x/time/rate"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

@@ -21,7 +21,7 @@ import (
 
 	"github.com/redskyops/k8s-experiment/internal/controller"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
-	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/redsky/v1alpha1"
+	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/experiments/v1alpha1"
 	"github.com/spf13/cobra"
 )
 

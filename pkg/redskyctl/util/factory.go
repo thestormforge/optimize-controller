@@ -20,7 +20,7 @@ import (
 	redskykube "github.com/redskyops/k8s-experiment/pkg/kubernetes"
 	"github.com/redskyops/k8s-experiment/pkg/version"
 	redskyclient "github.com/redskyops/k8s-experiment/redskyapi"
-	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/redsky/v1alpha1"
+	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/experiments/v1alpha1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
