@@ -38,8 +38,8 @@ import (
 // UserInstruction is a function used to tell the end user how to complete the authorization.
 type UserInstruction func(userCode, verificationURI, verificationURIComplete string)
 
-// DeviceFlow describes a device authorization grant (also known as a "device flow").
-type DeviceFlow struct {
+// Config describes a device authorization grant (also known as a "device flow").
+type Config struct {
 	// Config is the OAuth2 configuration to use for this authorization flow
 	clientcredentials.Config
 
@@ -63,21 +63,23 @@ type errorResponse struct {
 	ErrorDescription string `json:"error_description,omitempty"`
 }
 
+// TODO Hide Client and TokenSource functions from the client credential configuration
+
 // Token uses the device flow to retrieve a token. This function will poll continuously until
 // the end user performs the verification or the device code issued by the authorization server
 // expires.
-func (df *DeviceFlow) Token(ctx context.Context, prompt UserInstruction) (*oauth2.Token, error) {
+func (c *Config) Token(ctx context.Context, prompt UserInstruction) (*oauth2.Token, error) {
 	// Get the device code
 	v := url.Values{
-		"client_id": {df.ClientID},
+		"client_id": {c.ClientID},
 	}
-	if len(df.Scopes) > 0 {
-		v.Set("scope", strings.Join(df.Scopes, " "))
+	if len(c.Scopes) > 0 {
+		v.Set("scope", strings.Join(c.Scopes, " "))
 	}
-	for k, p := range df.EndpointParams {
+	for k, p := range c.EndpointParams {
 		v[k] = p
 	}
-	req, err := newDeviceAuthorizationRequest(df.DeviceAuthorizationURL, v)
+	req, err := newDeviceAuthorizationRequest(c.DeviceAuthorizationURL, v)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +92,7 @@ func (df *DeviceFlow) Token(ctx context.Context, prompt UserInstruction) (*oauth
 	prompt(dar.UserCode, dar.VerificationURI, dar.VerificationURIComplete)
 
 	// Wait for the response to come back
-	t, err := requestToken(ctx, df.Config, dar.DeviceCode, time.Duration(dar.Interval)*time.Second)
+	t, err := requestToken(ctx, c.Config, dar.DeviceCode, time.Duration(dar.Interval)*time.Second)
 	if err != nil {
 		return nil, err
 	}

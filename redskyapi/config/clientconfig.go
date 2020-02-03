@@ -185,13 +185,13 @@ func (cc *ClientConfig) NewAuthorization() (*authorizationcode.AuthorizationCode
 }
 
 // NewDeviceAuthorization creates a new device authorization flow using the current context
-func (cc *ClientConfig) NewDeviceAuthorization() (*devicecode.DeviceFlow, error) {
+func (cc *ClientConfig) NewDeviceAuthorization() (*devicecode.Config, error) {
 	srv, _, _, _, err := contextConfig(&cc.data, cc.data.CurrentContext)
 	if err != nil {
 		return nil, err
 	}
 
-	return &devicecode.DeviceFlow{
+	return &devicecode.Config{
 		Config: clientcredentials.Config{
 			TokenURL:  srv.Authorization.TokenEndpoint,
 			AuthStyle: oauth2.AuthStyleInParams,
