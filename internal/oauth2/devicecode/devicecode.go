@@ -35,6 +35,9 @@ import (
 	"golang.org/x/oauth2/clientcredentials"
 )
 
+// UserInstruction is a function used to tell the end user how to complete the authorization.
+type UserInstruction func(userCode, verificationURI, verificationURIComplete string)
+
 // DeviceFlow describes a device authorization grant (also known as a "device flow").
 type DeviceFlow struct {
 	// Config is the OAuth2 configuration to use for this authorization flow
@@ -44,10 +47,6 @@ type DeviceFlow struct {
 	DeviceAuthorizationURL string
 	// Audience is the URI identifying the target API
 	Audience string
-	// HandleToken receives the access token from the authorization flow
-	HandleToken func(*oauth2.Token) error
-	// GenerateResponse is used to display the verification information to the user
-	GenerateResponse func(userCode, verificationURI, verificationURIComplete string)
 }
 
 type deviceAuthorizationResponse struct {
@@ -64,10 +63,10 @@ type errorResponse struct {
 	ErrorDescription string `json:"error_description,omitempty"`
 }
 
-// TODO Should this be `Token(context.Context, func(string,string,string)) (*Token, error)` instead?
-
-// Authorize uses the device flow to retrieve a token.
-func (df *DeviceFlow) Authorize(ctx context.Context) error {
+// Token uses the device flow to retrieve a token. This function will poll continuously until
+// the end user performs the verification or the device code issued by the authorization server
+// expires.
+func (df *DeviceFlow) Token(ctx context.Context, prompt UserInstruction) (*oauth2.Token, error) {
 	// Get the device code
 	v := url.Values{
 		"client_id": {df.ClientID},
@@ -81,24 +80,22 @@ func (df *DeviceFlow) Authorize(ctx context.Context) error {
 	}
 	req, err := newDeviceAuthorizationRequest(df.DeviceAuthorizationURL, v)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	dar, err := doDeviceAuthorizationRoundTrip(ctx, req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Request verification from the user
-	df.GenerateResponse(dar.UserCode, dar.VerificationURI, dar.VerificationURIComplete)
+	prompt(dar.UserCode, dar.VerificationURI, dar.VerificationURIComplete)
 
 	// Wait for the response to come back
 	t, err := requestToken(ctx, df.Config, dar.DeviceCode, time.Duration(dar.Interval)*time.Second)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	// Invoke the token handler
-	return df.HandleToken(t)
+	return t, nil
 }
 
 func newDeviceAuthorizationRequest(deviceAuthorizationURL string, v url.Values) (*http.Request, error) {

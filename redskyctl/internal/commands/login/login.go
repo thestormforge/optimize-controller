@@ -146,12 +146,14 @@ func (o *LoginOptions) runDeviceCodeFlow() error {
 	if err != nil {
 		return err
 	}
-	az.HandleToken = o.takeOffline
-	az.GenerateResponse = o.generateValidatationRequest
 	az.ClientID = ClientID
 	az.Scopes = append(az.Scopes, "offline_access") // TODO Where or what do we want to do here?
 
-	return az.Authorize(context.Background())
+	t, err := az.Token(context.Background(), o.generateValidatationRequest)
+	if err != nil {
+		return err
+	}
+	return o.takeOffline(t)
 }
 
 func (o *LoginOptions) runAuthorizationCodeFlow() error {
