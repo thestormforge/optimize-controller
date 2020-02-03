@@ -52,6 +52,14 @@ type Config struct {
 	verifier string
 }
 
+func (c *Config) setState(sb []byte) {
+	c.state = base64.RawURLEncoding.EncodeToString(sb)
+}
+
+func (c *Config) setVerifier(vb []byte) {
+	c.verifier = base64.RawURLEncoding.EncodeToString(vb)
+}
+
 // NewAuthorizationCodeFlowWithPKCE creates a new authorization flow using the supplied OAuth2 configuration.
 func NewAuthorizationCodeFlowWithPKCE() (*Config, error) {
 	// Generate a random state for CSRF
@@ -59,16 +67,17 @@ func NewAuthorizationCodeFlowWithPKCE() (*Config, error) {
 	if _, err := rand.Read(sb); err != nil {
 		return nil, err
 	}
-	s := base64.RawURLEncoding.EncodeToString(sb)
 
 	// Generate a random verifier
 	vb := make([]byte, 32)
 	if _, err := rand.Read(vb); err != nil {
 		return nil, err
 	}
-	v := base64.RawURLEncoding.EncodeToString(vb)
 
-	return &Config{state: s, verifier: v}, nil
+	c := &Config{}
+	c.setState(sb)
+	c.setVerifier(vb)
+	return c, nil
 }
 
 // AuthCodeURLWithPKCE returns the browser URL for the user to start the authorization flow.
