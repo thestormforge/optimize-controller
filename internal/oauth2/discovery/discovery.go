@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-package oauth
+package discovery
 
 import "net/url"
 

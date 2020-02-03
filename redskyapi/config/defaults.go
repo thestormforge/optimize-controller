@@ -21,7 +21,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/redskyops/k8s-experiment/redskyapi/oauth"
+	"github.com/redskyops/k8s-experiment/internal/oauth2/discovery"
 )
 
 // The default loader must NEVER make changes via ClientConfig.Update or ClientConfig.unpersisted
@@ -125,7 +125,7 @@ func defaultServer(srv *Server) error {
 	defaultString(&srv.Authorization.TokenEndpoint, base+"/oauth/token")
 	defaultString(&srv.Authorization.RegistrationEndpoint, base+"/oauth/register")
 	defaultString(&srv.Authorization.DeviceAuthorizationEndpoint, base+"/oauth/device/code")
-	defaultString(&srv.Authorization.JSONWebKeySetURI, oauth.WellKnownURI(srv.Identifier, "jwks.json"))
+	defaultString(&srv.Authorization.JSONWebKeySetURI, discovery.WellKnownURI(srv.Identifier, "jwks.json"))
 	return nil
 }
 
