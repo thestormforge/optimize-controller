@@ -14,10 +14,16 @@
  limitations under the License.
 */
 
+// Package discovery implements the OAuth 2.0 Authorization Server Metadata.
+//
+// See https://tools.ietf.org/html/rfc8414
 package discovery
 
 import "net/url"
 
+// WellKnownURI returns a ".well-known" location for the registered name.
+//
+// The registry of valid "name" values can be found at https://www.iana.org/assignments/well-known-uris/well-known-uris.xhtml
 func WellKnownURI(identifier, name string) string {
 	u, err := url.Parse(identifier)
 	if err != nil {

@@ -14,6 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package authorizationcode implements the OAuth 2.0 Authorization Code Grant with the PKCE extension.
+//
+// See https://tools.ietf.org/html/rfc7636
 package authorizationcode
 
 import (
@@ -64,7 +67,7 @@ func NewAuthorizationCodeFlowWithPKCE() (*AuthorizationCodeFlowWithPKCE, error) 
 	return &AuthorizationCodeFlowWithPKCE{state: s, verifier: v}, nil
 }
 
-// AuthCodeURL returns the browser URL for the user to start the authorization flow
+// AuthCodeURLWithPKCE returns the browser URL for the user to start the authorization flow
 func (f *AuthorizationCodeFlowWithPKCE) AuthCodeURLWithPKCE() string {
 	audience := oauth2.SetAuthURLParam("audience", f.Audience)
 	sum256 := sha256.Sum256([]byte(f.verifier))
@@ -73,7 +76,7 @@ func (f *AuthorizationCodeFlowWithPKCE) AuthCodeURLWithPKCE() string {
 	return f.AuthCodeURL(f.state, audience, codeChallenge, codeChallengeMethod)
 }
 
-// Exchange returns the access token for the authorization flow
+// ExchangeWithPKCE returns the access token for the authorization flow
 func (f *AuthorizationCodeFlowWithPKCE) ExchangeWithPKCE(ctx context.Context, code string) (*oauth2.Token, error) {
 	codeVerifier := oauth2.SetAuthURLParam("code_verifier", f.verifier)
 	return f.Exchange(ctx, code, codeVerifier)

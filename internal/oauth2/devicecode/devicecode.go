@@ -14,6 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package devicecode implements the OAuth 2.0 Device Authorization Grant.
+//
+// See https://tools.ietf.org/html/rfc8628
 package devicecode
 
 import (
@@ -32,6 +35,7 @@ import (
 	"golang.org/x/oauth2/clientcredentials"
 )
 
+// DeviceFlow describes a device authorization grant (also known as a "device flow").
 type DeviceFlow struct {
 	// Config is the OAuth2 configuration to use for this authorization flow
 	clientcredentials.Config
@@ -60,11 +64,14 @@ type errorResponse struct {
 	ErrorDescription string `json:"error_description,omitempty"`
 }
 
+// TODO Should this be `Token(context.Context, func(string,string,string)) (*Token, error)` instead?
+
+// Authorize uses the device flow to retrieve a token.
 func (df *DeviceFlow) Authorize(ctx context.Context) error {
 	// Get the device code
 	v := url.Values{
 		"client_id": {df.ClientID},
-		"audience":  {df.Audience},
+		"audience":  {df.Audience}, // TODO Should audience come in via the endpoint parameters?
 	}
 	if len(df.Scopes) > 0 {
 		v.Set("scope", strings.Join(df.Scopes, " "))
