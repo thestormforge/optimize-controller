@@ -26,9 +26,9 @@ import (
 
 	"github.com/mdp/qrterminal/v3"
 	"github.com/pkg/browser"
+	"github.com/redskyops/k8s-experiment/internal/oauth2/authorizationcode"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/redskyops/k8s-experiment/redskyapi/config"
-	"github.com/redskyops/k8s-experiment/redskyapi/oauth"
 	"github.com/spf13/cobra"
 	"golang.org/x/oauth2"
 )
@@ -268,7 +268,7 @@ func (o *LoginOptions) openBrowser(loc string) error {
 }
 
 // configureCallbackServer configures an HTTP server using the supplied callback redirect URL for the listen address
-func configureCallbackServer(f *oauth.AuthorizationCodeFlowWithPKCE) func(srv *http.Server) {
+func configureCallbackServer(f *authorizationcode.AuthorizationCodeFlowWithPKCE) func(srv *http.Server) {
 	return func(srv *http.Server) {
 		// Try to make the server listen on the same host as the callback
 		if addr, err := f.CallbackAddr(); err == nil {
@@ -284,7 +284,7 @@ func configureCallbackServer(f *oauth.AuthorizationCodeFlowWithPKCE) func(srv *h
 
 // serverShutdownContext wraps the response generator of the supplied flow to cancel the returned context.
 // This is effectively the code that shuts down the HTTP server once the OAuth callback is hit.
-func serverShutdownContext(f *oauth.AuthorizationCodeFlowWithPKCE) context.Context {
+func serverShutdownContext(f *authorizationcode.AuthorizationCodeFlowWithPKCE) context.Context {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Wrap GenerateResponse so it cancels the context on success or server failure

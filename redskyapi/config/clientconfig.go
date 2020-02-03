@@ -24,9 +24,9 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/redskyops/k8s-experiment/internal/oauth2/authorizationcode"
 	"github.com/redskyops/k8s-experiment/internal/oauth2/devicecode"
 	"github.com/redskyops/k8s-experiment/internal/oauth2/registration"
-	"github.com/redskyops/k8s-experiment/redskyapi/oauth"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 	"sigs.k8s.io/yaml"
@@ -166,13 +166,13 @@ func (cc *ClientConfig) RegisterClient(ctx context.Context, client *registration
 }
 
 // NewAuthorization creates a new authorization code flow with PKCE using the current context
-func (cc *ClientConfig) NewAuthorization() (*oauth.AuthorizationCodeFlowWithPKCE, error) {
+func (cc *ClientConfig) NewAuthorization() (*authorizationcode.AuthorizationCodeFlowWithPKCE, error) {
 	srv, _, _, _, err := contextConfig(&cc.data, cc.data.CurrentContext)
 	if err != nil {
 		return nil, err
 	}
 
-	az, err := oauth.NewAuthorizationCodeFlowWithPKCE()
+	az, err := authorizationcode.NewAuthorizationCodeFlowWithPKCE()
 	if err != nil {
 		return nil, err
 	}
