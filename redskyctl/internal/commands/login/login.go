@@ -76,7 +76,8 @@ type LoginOptions struct {
 	Name       string
 	Server     string
 
-	cfg config.ClientConfig
+	cfg      config.ClientConfig
+	shutdown context.CancelFunc
 	cmdutil.IOStreams
 }
 
@@ -162,19 +163,24 @@ func (o *LoginOptions) runAuthorizationCodeFlow() error {
 	if err != nil {
 		return err
 	}
-	az.HandleToken = o.takeOffline
-	az.GenerateResponse = o.generateCallbackResponse
 	az.ClientID = ClientID
 	az.Scopes = append(az.Scopes, "offline_access") // TODO Where or what do we want to do here?
 	az.RedirectURL = "http://localhost:8085/"
 
-	// Create a new server that will be shutdown when the authorization flow completes
-	server := cmdutil.NewContextServer(serverShutdownContext(az), http.HandlerFunc(az.Callback),
+	// Create a context we can use to shutdown the server and the OAuth authorization code callback endpoint
+	var ctx context.Context
+	ctx, o.shutdown = context.WithCancel(context.Background())
+	handler := az.Callback(o.takeOffline, o.generateCallbackResponse)
+
+	// Create a new server with some extra configuration
+	server := cmdutil.NewContextServer(ctx, handler,
 		cmdutil.WithServerOptions(configureCallbackServer(az)),
 		cmdutil.ShutdownOnInterrupt(func() { _, _ = fmt.Fprintln(o.Out) }),
 		cmdutil.HandleStart(func(string) error {
 			return o.openBrowser(az.AuthCodeURLWithPKCE())
 		}))
+
+	// Start the server, this will block until someone calls 'o.shutdown' from above
 	return server.ListenAndServe()
 }
 
@@ -224,21 +230,27 @@ func (o *LoginOptions) takeOffline(t *oauth2.Token) error {
 
 // generateCallbackResponse generates an HTTP response for the OAuth callback
 func (o *LoginOptions) generateCallbackResponse(w http.ResponseWriter, r *http.Request, message string, status int) {
-	if status != http.StatusOK {
+	switch status {
+	case http.StatusOK:
+		// Redirect the user to the successful login URL and shutdown the server
+		http.Redirect(w, r, SuccessURL, http.StatusSeeOther)
+		o.shutdown()
+	case http.StatusNotFound, http.StatusMethodNotAllowed:
+		// Ignorable error codes, e.g. browser requests for '/favicon.ico'
+		http.Error(w, http.StatusText(status), status)
+	default:
+		// TODO Redirect to a troubleshooting URL? Use the snake cased status text as the fragment (e.g. '...#internal-server-error')?
 		msg := message
 		if msg == "" {
 			msg = http.StatusText(status)
 		}
-		// TODO Redirect to a troubleshooting page for internal server errors
 		http.Error(w, message, status)
-		if isStatusTerminal(status) {
-			// TODO Print the actual error message out?
-			_, _ = fmt.Fprintln(o.Out, "An error occurred, please try again.")
-		}
-	}
 
-	// Redirect the user the successful login URL
-	http.Redirect(w, r, SuccessURL, http.StatusSeeOther)
+		// TODO Print the actual error message?
+		_, _ = fmt.Fprintf(o.Out, "An error occurred, please try again.\n")
+
+		o.shutdown()
+	}
 }
 
 // generateValidatationRequest generates a validation request to the command output stream
@@ -282,29 +294,4 @@ func configureCallbackServer(f *authorizationcode.AuthorizationCodeFlowWithPKCE)
 		srv.WriteTimeout = 10 * time.Second
 		srv.IdleTimeout = 15 * time.Second
 	}
-}
-
-// serverShutdownContext wraps the response generator of the supplied flow to cancel the returned context.
-// This is effectively the code that shuts down the HTTP server once the OAuth callback is hit.
-func serverShutdownContext(f *authorizationcode.AuthorizationCodeFlowWithPKCE) context.Context {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	// Wrap GenerateResponse so it cancels the context on success or server failure
-	genResp := f.GenerateResponse
-	f.GenerateResponse = func(w http.ResponseWriter, r *http.Request, message string, status int) {
-		if genResp != nil {
-			genResp(w, r, message, status)
-		}
-
-		if isStatusTerminal(status) {
-			cancel()
-		}
-	}
-
-	return ctx
-}
-
-// isStatusTerminal checks to see if the status indicates that it is time to shutdown the server
-func isStatusTerminal(status int) bool {
-	return status != http.StatusNotFound && status != http.StatusMethodNotAllowed
 }

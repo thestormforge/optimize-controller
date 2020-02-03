@@ -30,6 +30,14 @@ import (
 	"golang.org/x/oauth2"
 )
 
+// Handler is an asynchronous callback for receiving the token after a successful exchange.
+type Handler func(token *oauth2.Token) error
+
+// ResponseFunc is used to handle response generation from the HTTP callback server.
+type ResponseFunc func(w http.ResponseWriter, r *http.Request, message string, code int)
+
+// NOTE: ResponseFunc includes the original request so implementations can call `http.Redirect` if necessary
+
 // AuthorizationCodeFlowWithPKCE implements an authorization code flow with proof key for code exchange.
 type AuthorizationCodeFlowWithPKCE struct {
 	// Config is the OAuth2 configuration to use for this authorization flow
@@ -37,10 +45,6 @@ type AuthorizationCodeFlowWithPKCE struct {
 
 	// Audience is the URI identifying the target API
 	Audience string
-	// HandleToken receives the access token from the authorization flow
-	HandleToken func(*oauth2.Token) error
-	// GenerateResponse produces an HTTP response for the given status code
-	GenerateResponse func(w http.ResponseWriter, r *http.Request, message string, code int)
 
 	// state is a random value to prevent CSRF attacks
 	state string
@@ -48,7 +52,7 @@ type AuthorizationCodeFlowWithPKCE struct {
 	verifier string
 }
 
-// NewAuthorizationCodeFlowWithPKCE creates a new authorization flow using the supplied OAuth2 configuration
+// NewAuthorizationCodeFlowWithPKCE creates a new authorization flow using the supplied OAuth2 configuration.
 func NewAuthorizationCodeFlowWithPKCE() (*AuthorizationCodeFlowWithPKCE, error) {
 	// Generate a random state for CSRF
 	sb := make([]byte, 16)
@@ -67,7 +71,7 @@ func NewAuthorizationCodeFlowWithPKCE() (*AuthorizationCodeFlowWithPKCE, error) 
 	return &AuthorizationCodeFlowWithPKCE{state: s, verifier: v}, nil
 }
 
-// AuthCodeURLWithPKCE returns the browser URL for the user to start the authorization flow
+// AuthCodeURLWithPKCE returns the browser URL for the user to start the authorization flow.
 func (f *AuthorizationCodeFlowWithPKCE) AuthCodeURLWithPKCE() string {
 	audience := oauth2.SetAuthURLParam("audience", f.Audience)
 	sum256 := sha256.Sum256([]byte(f.verifier))
@@ -91,31 +95,38 @@ func (f *AuthorizationCodeFlowWithPKCE) CallbackAddr() (string, error) {
 	return u.Host, nil
 }
 
-// Callback implements an HTTP handler for the target of the OAuth2 redirect URL
-func (f *AuthorizationCodeFlowWithPKCE) Callback(w http.ResponseWriter, r *http.Request) {
-	// Make sure this request matches the configuration
-	if status, txt := f.validateRequest(r); status != http.StatusOK {
-		f.respond(w, r, txt, status)
-		return
+// Callback implements an HTTP handler for the target of the OAuth2 redirect URL.
+func (f *AuthorizationCodeFlowWithPKCE) Callback(handler Handler, response ResponseFunc) http.Handler {
+	if handler == nil {
+		handler = func(*oauth2.Token) error { return nil }
+	}
+	if response == nil {
+		response = func(w http.ResponseWriter, r *http.Request, message string, code int) { http.Error(w, message, code) }
 	}
 
-	// Exchange the authorization code for an access token
-	token, err := f.ExchangeWithPKCE(context.TODO(), r.FormValue("code"))
-	if err != nil {
-		f.respond(w, r, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Handle the token
-	if f.HandleToken != nil {
-		if err := f.HandleToken(token); err != nil {
-			f.respond(w, r, err.Error(), http.StatusInternalServerError)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Make sure this request matches the configuration
+		if status, txt := f.validateRequest(r); status != http.StatusOK {
+			response(w, r, txt, status)
 			return
 		}
-	}
 
-	// Report success
-	f.respond(w, r, "", http.StatusOK)
+		// Exchange the authorization code for an access token
+		token, err := f.ExchangeWithPKCE(context.TODO(), r.FormValue("code"))
+		if err != nil {
+			response(w, r, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// Handle the token
+		if err := handler(token); err != nil {
+			response(w, r, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// Report success
+		response(w, r, "", http.StatusOK)
+	})
 }
 
 func (f *AuthorizationCodeFlowWithPKCE) validateRequest(r *http.Request) (int, string) {
@@ -147,12 +158,4 @@ func (f *AuthorizationCodeFlowWithPKCE) validateRequest(r *http.Request) (int, s
 	}
 
 	return http.StatusOK, ""
-}
-
-func (f *AuthorizationCodeFlowWithPKCE) respond(w http.ResponseWriter, r *http.Request, message string, code int) {
-	if f.GenerateResponse != nil {
-		f.GenerateResponse(w, r, message, code)
-	} else {
-		http.Error(w, message, code)
-	}
 }
