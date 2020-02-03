@@ -144,10 +144,11 @@ func (o *ResultsOptions) handleAPI(serveMux *http.ServeMux, prefix string) error
 	// TODO This is probably going to double-up "/experiments/experiments/"
 	// The backend doesn't really support context roots so we may need to either change the UI to use "/v1"
 	// instead of "/api" (and change our proxy); or get more aggressive with our rewriting to keep "/api"
-	address, err := o.BackendConfig.ExperimentsURL("")
+	endpoints, err := o.BackendConfig.Endpoints()
 	if err != nil {
 		return err
 	}
+	address := endpoints.Resolve("/experiments/")
 	rp := &RewriteProxy{Address: *address}
 
 	// Configure a transport to provide OAuth2 tokens to the backend
