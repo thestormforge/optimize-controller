@@ -24,8 +24,8 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/redskyops/k8s-experiment/internal/oauth2/registration"
 	"github.com/redskyops/k8s-experiment/redskyapi/oauth"
-	"github.com/redskyops/k8s-experiment/redskyapi/oauth/registration"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 	"sigs.k8s.io/yaml"
