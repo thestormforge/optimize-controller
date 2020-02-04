@@ -216,3 +216,38 @@ func findContext(l []NamedContext, name string) *Context {
 	}
 	return nil
 }
+
+// Minification
+
+func minify(data *Config, serverName, authorizationName, clusterName, controllerName, contextName string) *Config {
+	minified := &Config{}
+	if srv := findServer(data.Servers, serverName); srv != nil {
+		minified.Servers = append(minified.Servers, NamedServer{Name: serverName, Server: *srv})
+	}
+	if az := findAuthorization(data.Authorizations, authorizationName); az != nil {
+		minified.Authorizations = append(minified.Authorizations, NamedAuthorization{Name: authorizationName, Authorization: *az})
+	}
+	if cstr := findCluster(data.Clusters, clusterName); cstr != nil {
+		minified.Clusters = append(minified.Clusters, NamedCluster{Name: clusterName, Cluster: *cstr})
+	}
+	if ctrl := findController(data.Controllers, controllerName); ctrl != nil {
+		minified.Controllers = append(minified.Controllers, NamedController{Name: controllerName, Controller: *ctrl})
+	}
+	if ctx := findContext(data.Contexts, contextName); ctx != nil {
+		minified.Contexts = append(minified.Contexts, NamedContext{Name: contextName, Context: *ctx})
+	}
+	minified.CurrentContext = contextName
+	return minified
+}
+
+func minifyContext(data *Config, contextName string) *Config {
+	if ctx := findContext(data.Contexts, contextName); ctx != nil {
+		controllerName := ""
+		if cstr := findCluster(data.Clusters, ctx.Cluster); cstr != nil {
+			controllerName = cstr.Controller
+		}
+
+		return minify(data, ctx.Server, ctx.Authorization, ctx.Cluster, controllerName, contextName)
+	}
+	return &Config{}
+}
