@@ -19,10 +19,9 @@ package commands
 import (
 	"os"
 
-	configuration "github.com/redskyops/k8s-experiment/internal/config"
+	"github.com/redskyops/k8s-experiment/internal/config"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/check"
-	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/config"
 	deleteCmd "github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/delete"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/generate"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/get"
@@ -32,6 +31,7 @@ import (
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/suggest"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/redskyops/k8s-experiment/redskyctl/internal/commander"
+	"github.com/redskyops/k8s-experiment/redskyctl/internal/commands/configuration"
 	"github.com/redskyops/k8s-experiment/redskyctl/internal/commands/docs"
 	"github.com/redskyops/k8s-experiment/redskyctl/internal/commands/login"
 	"github.com/spf13/cobra"
@@ -49,10 +49,11 @@ func NewRedskyctlCommand() *cobra.Command {
 	rootCmd.Run = rootCmd.HelpFunc()
 
 	// Create a global configuration
-	cfg := &configuration.RedSkyConfig{}
+	cfg := &config.RedSkyConfig{}
 	commander.ConfigGlobals(cfg, rootCmd)
 
 	// Add the sub-commands
+	rootCmd.AddCommand(configuration.NewCommand(&configuration.Options{Config: cfg}))
 	rootCmd.AddCommand(docs.NewCommand(&docs.Options{}))
 	rootCmd.AddCommand(login.NewCommand(&login.Options{Config: cfg}))
 
@@ -82,7 +83,6 @@ func addUnmigratedCommands(rootCmd *cobra.Command) {
 	rootCmd.AddCommand(setup.NewResetCommand(f, ioStreams))
 	rootCmd.AddCommand(setup.NewAuthorizeCommand(f, ioStreams))
 	rootCmd.AddCommand(kustomize.NewKustomizeCommand(f, ioStreams))
-	rootCmd.AddCommand(config.NewConfigCommand(f, ioStreams))
 	rootCmd.AddCommand(check.NewCheckCommand(f, ioStreams))
 	rootCmd.AddCommand(suggest.NewSuggestCommand(f, ioStreams))
 	rootCmd.AddCommand(generate.NewGenerateCommand(f, ioStreams))

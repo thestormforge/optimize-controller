@@ -14,57 +14,50 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package config
+package configuration
 
 import (
 	"github.com/redskyops/k8s-experiment/internal/config"
-	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
+	"github.com/redskyops/k8s-experiment/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
-)
-
-const (
-	viewLong    = `View the Red Sky Ops configuration file`
-	viewExample = ``
 )
 
 // TODO Like the version command, support dumping the default configuration from the manager
 // `kubectl exec -n redsky-system -c manager $(kubectl get pods -n redsky-system -o name) /manager config`
-// TODO Add a --helm-values option to output the configuration as a Helm values file
+// TODO Add an option to output a Helm values.yaml for our chart
+// TODO We should have a "decode token" option that decodes JWT tokens
 
-type ConfigViewOptions struct {
-	cmdutil.IOStreams
+// ViewOptions are the options for viewing a configuration file
+type ViewOptions struct {
+	// Config is the Red Sky Configuration to view
+	Config *config.RedSkyConfig
+	// IOStreams are used to access the standard process streams
+	commander.IOStreams
+
+	// TODO Minify?
+	// TODO Output format (e.g. json,yaml,env)? Templating?
 }
 
-func NewConfigViewOptions(ioStreams cmdutil.IOStreams) *ConfigViewOptions {
-	return &ConfigViewOptions{
-		IOStreams: ioStreams,
-	}
-}
-
-func NewConfigViewCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
-	o := NewConfigViewOptions(ioStreams)
-
+// NewViewCommand creates a new command for viewing the configuration
+func NewViewCommand(o *ViewOptions) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "view",
-		Short:   "View the configuration file",
-		Long:    viewLong,
-		Example: viewExample,
+		Use:   "view",
+		Short: "View the configuration file",
+		Long:  "View the Red Sky Ops configuration file",
+
+		PreRun: commander.StreamsPreRun(&o.IOStreams),
+
 		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(o.Run())
+			commander.CheckErr(cmd, o.Run())
 		},
 	}
 
 	return cmd
 }
 
-func (o *ConfigViewOptions) Run() error {
-	cfg := &config.RedSkyConfig{}
-
-	if err := cfg.Load(); err != nil {
-		return err
-	}
-
-	output, err := cfg.Marshal()
+// Run will output the configuration
+func (o *ViewOptions) Run() error {
+	output, err := o.Config.Marshal()
 	if err != nil {
 		return err
 	}
