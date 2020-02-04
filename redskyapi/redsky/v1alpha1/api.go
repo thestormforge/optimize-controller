@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	endpointExperiment = "/api/experiments"
+	endpointExperiment = "/v1/experiments"
 
 	relationSelf      = "self"
 	relationNext      = "next"
