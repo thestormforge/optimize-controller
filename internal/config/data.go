@@ -231,7 +231,7 @@ func (tc *TokenCredential) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&struct {
 		*TC
-		AccessToken interface{} `json:"access_token"`
+		AccessToken interface{} `json:"access_token,omitempty"`
 		Expiry      string      `json:"expiry,omitempty"`
 	}{TC: (*TC)(tc), AccessToken: accessToken, Expiry: expiry})
 }
