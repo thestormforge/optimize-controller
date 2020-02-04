@@ -4,7 +4,7 @@
 
 Red Sky Ops is a tool for experimenting with application configurations in Kubernetes. With Red Sky Ops installed on your cluster, you can run experiments that patch cluster state and measure the outcome via one or more metrics.
 
-When used with a Red Sky Ops API server, the Red Sky Ops Manager tunes your Kubernetes applications automatically. Without the enterprise server, `redskyctl` and the Red Sky Ops Manager can be used to manually experiment on your cluster, or integrated into existing automation workflows.
+When used with a Red Sky Ops Enterprise server, the Red Sky Ops Controller tunes your Kubernetes applications automatically. Without the Enterprise server, `redskyctl` and the Red Sky Ops Controller can be used to manually experiment on your cluster, or integrated into existing automation workflows.
 
 Although Red Sky Ops was developed to tune performance, it can run non-performance-related experiments on your application as well. This documentation describes the concepts and capabilities of Red Sky Ops generically, and typically includes performance-related examples for relevant concepts.
 

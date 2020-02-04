@@ -60,19 +60,21 @@ The `"datadog"` collection can be used to execute metric queries against the Dat
 In order to authenticate to the Datadog API, the `DATADOG_API_KEY` and `DATADOG_APP_KEY` environment variables must be set on the manager deployment. You can populate these environment variables during initialization by adding them to your configuration:
 
 ```sh
-redskyctl config set manager.env.DATADOG_API_KEY xxx-yyy-zzz
-redskyctl config set manager.env.DATADOG_APP_KEY xxx-yyy-zzz
+redskyctl config set controller.default.env.DATADOG_API_KEY xxx-yyy-zzz
+redskyctl config set controller.default.env.DATADOG_APP_KEY xxx-yyy-zzz
 ```
 
-Alternately you can manually edit your `~/.redsky` configuration file to include the following snippet:
+Alternately you can manually edit your `~/.config/redsky/config` configuration file to include the following snippet:
 
 ```yaml
-manager:
-  env:
-    - name: DATADOG_API_KEY
-      value: xxx-yyy-zzz
-    - name: DATADOG_APP_KEY
-      value: xxx-yyy-zzz
+controllers:
+  - name: default
+    controller:
+      env:
+        - name: DATADOG_API_KEY
+          value: xxx-yyy-zzz
+        - name: DATADOG_APP_KEY
+          value: xxx-yyy-zzz
 ```
 
 Datadog metrics are subject to further aggregation (in addition to the aggregation method of the query); this is similar to the [Query Value](https://docs.datadoghq.com/graphing/widgets/query_value/) widget. By default, the `avg` aggregator is used, however this can be overridden by setting the `scheme` field of the metric to any of the supported aggregator values (avg, last, max, min, sum).
