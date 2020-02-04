@@ -219,7 +219,10 @@ func (c *Credential) UnmarshalJSON(data []byte) error {
 func (tc *TokenCredential) MarshalJSON() ([]byte, error) {
 	// http://choly.ca/post/go-json-marshalling/
 	type TC TokenCredential
-	var accessToken interface{} = tc.AccessToken
+	var accessToken interface{}
+	if tc != nil {
+		accessToken = tc.AccessToken
+	}
 	var expiry string
 	if tc != nil && tc.Expiry.IsZero() {
 		expiry = "0"
