@@ -18,6 +18,7 @@ package config
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -29,7 +30,6 @@ import (
 	"github.com/redskyops/k8s-experiment/internal/oauth2/registration"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
-	"sigs.k8s.io/yaml"
 )
 
 // Loader is used to initially populate a Red Sky configuration
@@ -48,6 +48,11 @@ type RedSkyConfig struct {
 
 	data        Config
 	unpersisted []Change
+}
+
+// MarshalJSON ensures only the configuration data is marshalled
+func (rsc *RedSkyConfig) MarshalJSON() ([]byte, error) {
+	return json.Marshal(rsc.data)
 }
 
 // Load will populate the client configuration
@@ -96,11 +101,6 @@ func (rsc *RedSkyConfig) Write() error {
 
 	rsc.unpersisted = nil
 	return nil
-}
-
-// Marshal will write the data out
-func (rsc *RedSkyConfig) Marshal() ([]byte, error) {
-	return yaml.Marshal(rsc.data)
 }
 
 // SystemNamespace returns the namespace where the Red Sky controller is/should be installed
