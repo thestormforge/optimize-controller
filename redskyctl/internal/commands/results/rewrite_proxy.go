@@ -74,9 +74,7 @@ func (p *RewriteProxy) Incoming(response *http.Response) error {
 		return err
 	}
 
-	old := []byte(p.Address.String())
-	new := []byte(forwarded(&p.Address, response))
-	buf := bytes.NewBuffer(bytes.ReplaceAll(b, old, new))
+	buf := bytes.NewBuffer(bytes.ReplaceAll(b, []byte(p.Address.String()), []byte(forwarded(&p.Address, response))))
 	response.Body = ioutil.NopCloser(buf)
 	response.ContentLength = int64(buf.Len())
 	response.Header.Set("Content-Length", strconv.Itoa(buf.Len()))
