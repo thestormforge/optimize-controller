@@ -20,6 +20,7 @@ import (
 	"github.com/redskyops/k8s-experiment/internal/config"
 	"github.com/redskyops/k8s-experiment/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
+	"sigs.k8s.io/yaml"
 )
 
 // TODO Like the version command, support dumping the default configuration from the manager
@@ -57,7 +58,7 @@ func NewViewCommand(o *ViewOptions) *cobra.Command {
 
 // Run will output the configuration
 func (o *ViewOptions) Run() error {
-	output, err := o.Config.Marshal()
+	output, err := yaml.Marshal(o.Config)
 	if err != nil {
 		return err
 	}
