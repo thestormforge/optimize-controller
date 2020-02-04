@@ -24,7 +24,6 @@ import (
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/check"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/config"
 	deleteCmd "github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/delete"
-	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/docs"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/generate"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/get"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/kustomize"
@@ -33,6 +32,7 @@ import (
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/suggest"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/redskyops/k8s-experiment/redskyctl/internal/commander"
+	"github.com/redskyops/k8s-experiment/redskyctl/internal/commands/docs"
 	"github.com/redskyops/k8s-experiment/redskyctl/internal/commands/login"
 	"github.com/spf13/cobra"
 )
@@ -40,8 +40,9 @@ import (
 // NewRedskyctlCommand creates a new top-level redskyctl command
 func NewRedskyctlCommand() *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use:   "redskyctl",
-		Short: "Kubernetes Exploration",
+		Use:               "redskyctl",
+		Short:             "Kubernetes Exploration",
+		DisableAutoGenTag: true,
 	}
 
 	// By default just run the help
@@ -52,6 +53,7 @@ func NewRedskyctlCommand() *cobra.Command {
 	commander.ConfigGlobals(cfg, rootCmd)
 
 	// Add the sub-commands
+	rootCmd.AddCommand(docs.NewCommand(&docs.Options{}))
 	rootCmd.AddCommand(login.NewCommand(&login.Options{Config: cfg}))
 
 	// Compatibility mode: these commands need to be migrated to use the new style
@@ -75,7 +77,6 @@ func addUnmigratedCommands(rootCmd *cobra.Command) {
 	f := util.NewFactory(kubeConfigFlags, redskyConfigFlags)
 	ioStreams := util.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
 
-	rootCmd.AddCommand(docs.NewDocsCommand(ioStreams))
 	rootCmd.AddCommand(cmd.NewVersionCommand(f, ioStreams))
 	rootCmd.AddCommand(setup.NewInitCommand(f, ioStreams))
 	rootCmd.AddCommand(setup.NewResetCommand(f, ioStreams))
