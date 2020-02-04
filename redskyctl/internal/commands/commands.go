@@ -17,9 +17,9 @@ limitations under the License.
 package commands
 
 import (
-	"io"
 	"os"
 
+	configuration "github.com/redskyops/k8s-experiment/internal/config"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/check"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/config"
@@ -32,37 +32,51 @@ import (
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/setup"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/suggest"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
+	"github.com/redskyops/k8s-experiment/redskyctl/internal/commander"
 	"github.com/redskyops/k8s-experiment/redskyctl/internal/commands/login"
 	"github.com/spf13/cobra"
 )
 
-func NewDefaultRedskyctlCommand() *cobra.Command {
-	return NewRedskyctlCommand(os.Stdin, os.Stdout, os.Stderr)
-}
-
-func NewRedskyctlCommand(in io.Reader, out, err io.Writer) *cobra.Command {
+// NewRedskyctlCommand creates a new top-level redskyctl command
+func NewRedskyctlCommand() *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:   "redskyctl",
 		Short: "Kubernetes Exploration",
 	}
+
+	// By default just run the help
 	rootCmd.Run = rootCmd.HelpFunc()
 
-	flags := rootCmd.PersistentFlags()
+	// Create a global configuration
+	cfg := &configuration.RedSkyConfig{}
+	commander.ConfigGlobals(cfg, rootCmd)
 
+	// Add the sub-commands
+	rootCmd.AddCommand(login.NewCommand(&login.Options{Config: cfg}))
+
+	// Compatibility mode: these commands need to be migrated to use the new style
+	addUnmigratedCommands(rootCmd)
+
+	// TODO Add 'backup' and 'restore' maintenance commands ('maint' subcommands?)
+	// TODO We need helpers for doing a "dry run" on patches to make configuration easier
+	// TODO Add a "trial cleanup" command to run setup tasks (perhaps remove labels from standard setupJob)
+	// TODO Some kind of debug tool to evaluate metric queries
+	// TODO The "get" functionality needs to support templating so you can extract assignments for downstream use
+
+	return rootCmd
+}
+
+func addUnmigratedCommands(rootCmd *cobra.Command) {
+	flags := rootCmd.PersistentFlags()
 	kubeConfigFlags := util.NewConfigFlags()
 	kubeConfigFlags.AddFlags(flags)
-
 	redskyConfigFlags := util.NewServerFlags()
 	redskyConfigFlags.AddFlags(flags)
-
 	f := util.NewFactory(kubeConfigFlags, redskyConfigFlags)
-
-	ioStreams := util.IOStreams{In: in, Out: out, ErrOut: err}
+	ioStreams := util.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
 
 	rootCmd.AddCommand(docs.NewDocsCommand(ioStreams))
 	rootCmd.AddCommand(cmd.NewVersionCommand(f, ioStreams))
-
-	rootCmd.AddCommand(login.NewLoginCommand(f, ioStreams))
 	rootCmd.AddCommand(setup.NewInitCommand(f, ioStreams))
 	rootCmd.AddCommand(setup.NewResetCommand(f, ioStreams))
 	rootCmd.AddCommand(setup.NewAuthorizeCommand(f, ioStreams))
@@ -74,20 +88,4 @@ func NewRedskyctlCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 	rootCmd.AddCommand(get.NewGetCommand(f, ioStreams))
 	rootCmd.AddCommand(deleteCmd.NewDeleteCommand(f, ioStreams))
 	rootCmd.AddCommand(results.NewResultsCommand(f, ioStreams))
-
-	// TODO Add 'backup' and 'restore' maintenance commands ('maint' subcommands?)
-	// TODO We need helpers for doing a "dry run" on patches to make configuration easier
-	// TODO Add a "trial cleanup" command to run setup tasks (perhaps remove labels from standard setupJob)
-	// TODO Some kind of debug tool to evaluate metric queries
-	// TODO The "get" functionality needs to support templating so you can extract assignments for downstream use
-
-	return rootCmd
-}
-
-// NewDefaultCommand is used for creating commands from the standard NewXCommand functions
-func NewDefaultCommand(cmd func(f util.Factory, ioStreams util.IOStreams) *cobra.Command) *cobra.Command {
-	ioStreams := util.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
-	// TODO Make a dummy implementation that returns reasonable errors
-	var f util.Factory
-	return cmd(f, ioStreams)
 }

@@ -29,6 +29,7 @@ import (
 	"github.com/redskyops/k8s-experiment/internal/config"
 	"github.com/redskyops/k8s-experiment/internal/oauth2/authorizationcode"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
+	"github.com/redskyops/k8s-experiment/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
 	"golang.org/x/oauth2"
 )
@@ -43,9 +44,6 @@ var (
 )
 
 const (
-	loginLong    = `Log into your Red Sky account`
-	loginExample = ``
-
 	browserPrompt = `Opening your default browser to visit:
 
 	%s
@@ -68,53 +66,57 @@ If you are having problems scanning, use your browser to visit: %s
 `
 )
 
-// LoginOptions is the configuration for logging in
-type LoginOptions struct {
+// Options is the configuration for creating new authorization entries in a configuration
+type Options struct {
+	// Config is the Red Sky Configuration to modify
+	Config *config.RedSkyConfig
+	// IOStreams are used to access the standard process streams
+	commander.IOStreams
+
+	// Name is the key assigned to this login in the configuration
+	Name string
+	// Server overrides the default server identifier
+	Server string
+	// DisplayURL triggers a device authorization grant with a simple verification prompt
 	DisplayURL bool
-	DisplayQR  bool
-	Force      bool
-	Name       string
-	Server     string
+	// DisplayQR triggers a device authorization grant and uses a QR code for the verification prompt
+	DisplayQR bool
+	// Force allows an existing authorization to be overwritten
+	Force bool
 
-	cfg      config.RedSkyConfig
+	// shutdown is the context cancellation function used to shutdown the authorization code grant callback server
 	shutdown context.CancelFunc
-	cmdutil.IOStreams
 }
 
-// NewLoginOptions returns a new login options struct
-func NewLoginOptions(ioStreams cmdutil.IOStreams) *LoginOptions {
-	return &LoginOptions{
-		IOStreams: ioStreams,
-	}
-}
-
-func NewLoginCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
-	o := NewLoginOptions(ioStreams)
-
+// NewCommand creates a new command for executing a login
+func NewCommand(o *Options) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "login",
-		Short:   "Authenticate",
-		Long:    loginLong,
-		Example: loginExample,
+		Use:   "login",
+		Short: "Authenticate",
+		Long:  "Log into your Red Sky Account.",
+
+		PreRun: func(cmd *cobra.Command, args []string) {
+			commander.SetStreams(&o.IOStreams, cmd)
+			o.Complete()
+		},
+
 		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(o.Complete(f, cmd, args))
-			cmdutil.CheckErr(o.Run())
+			err := o.Run()
+			commander.CheckErr(cmd, err)
 		},
 	}
 
+	cmd.Flags().StringVar(&o.Name, "name", "", "Name of the server configuration to authorize.")
+	cmd.Flags().StringVar(&o.Server, "server", "", "Override the Red Sky API server identifier.")
 	cmd.Flags().BoolVar(&o.DisplayURL, "url", false, "Display the URL instead of opening a browser.")
 	cmd.Flags().BoolVar(&o.DisplayQR, "qr", false, "Display a QR code instead of opening a browser.")
 	cmd.Flags().BoolVar(&o.Force, "force", false, "Overwrite existing configuration.")
 
-	cmd.Flags().StringVar(&o.Name, "name", "", "Name of the server configuration to authorize.")
-	cmd.Flags().StringVar(&o.Server, "server", "", "Override the Red Sky API server identifier.")
-
-	cmd.Flags().StringVar(&o.cfg.Filename, "redskyconfig", "", "Set the file used to store the Red Sky client configuration.")
-
 	return cmd
 }
 
-func (o *LoginOptions) Complete(cmdutil.Factory, *cobra.Command, []string) error {
+// Complete fills in missing default values
+func (o *Options) Complete() {
 	if o.Name == "" {
 		o.Name = "default"
 		if o.Server != "" {
@@ -124,13 +126,20 @@ func (o *LoginOptions) Complete(cmdutil.Factory, *cobra.Command, []string) error
 			o.Name = strings.ReplaceAll(o.Name, "/", "_")
 		}
 	}
-
-	return nil
 }
 
-func (o *LoginOptions) Run() error {
-	// Load the exiting client configuration
-	if err := o.cfg.Load(o.loginConfig); err != nil {
+// Run executes the login
+func (o *Options) Run() error {
+	// Abuse "Update" to validate the configuration does not already have an authorization
+	if err := o.Config.Update(o.requireForceIfNameExists); err != nil {
+		return err
+	}
+
+	// Technically these updates could be done in `takeOffline` but it is better to fail early
+	if err := o.Config.Update(config.SaveServer(o.Name, &config.Server{Identifier: o.Server})); err != nil {
+		return err
+	}
+	if err := o.Config.Update(config.ApplyCurrentContext(o.Name, o.Name, o.Name, "")); err != nil {
 		return err
 	}
 
@@ -139,11 +148,12 @@ func (o *LoginOptions) Run() error {
 		return o.runDeviceCodeFlow()
 	}
 
+	// Perform authorization using the system web browser and a local web server
 	return o.runAuthorizationCodeFlow()
 }
 
-func (o *LoginOptions) runDeviceCodeFlow() error {
-	az, err := o.cfg.NewDeviceAuthorization()
+func (o *Options) runDeviceCodeFlow() error {
+	az, err := o.Config.NewDeviceAuthorization()
 	if err != nil {
 		return err
 	}
@@ -157,9 +167,9 @@ func (o *LoginOptions) runDeviceCodeFlow() error {
 	return o.takeOffline(t)
 }
 
-func (o *LoginOptions) runAuthorizationCodeFlow() error {
+func (o *Options) runAuthorizationCodeFlow() error {
 	// Create a new authorization code flow
-	c, err := o.cfg.NewAuthorization()
+	c, err := o.Config.NewAuthorization()
 	if err != nil {
 		return err
 	}
@@ -184,22 +194,8 @@ func (o *LoginOptions) runAuthorizationCodeFlow() error {
 	return server.ListenAndServe()
 }
 
-// loginConfig applies the login configuration
-func (o *LoginOptions) loginConfig(cfg *config.RedSkyConfig) error {
-	if err := cfg.Update(o.requireForceIfNameExists); err != nil {
-		return err
-	}
-	if err := cfg.Update(config.SaveServer(o.Name, &config.Server{Identifier: o.Server})); err != nil {
-		return err
-	}
-	if err := cfg.Update(config.ApplyCurrentContext(o.Name, o.Name, o.Name, "")); err != nil {
-		return err
-	}
-	return nil
-}
-
 // requireForceIfNameExists is a configuration "change" that really just validates that there are no name conflicts
-func (o *LoginOptions) requireForceIfNameExists(cfg *config.Config) error {
+func (o *Options) requireForceIfNameExists(cfg *config.Config) error {
 	if !o.Force {
 		// NOTE: We do not require --force for server name conflicts so you can log into an existing configuration
 		for i := range cfg.Authorizations {
@@ -212,13 +208,13 @@ func (o *LoginOptions) requireForceIfNameExists(cfg *config.Config) error {
 }
 
 // takeOffline records the token in the configuration and write the configuration to disk
-func (o *LoginOptions) takeOffline(t *oauth2.Token) error {
+func (o *Options) takeOffline(t *oauth2.Token) error {
 	// TODO Verify token and extract user info?
 
-	if err := o.cfg.Update(config.SaveToken(o.Name, t)); err != nil {
+	if err := o.Config.Update(config.SaveToken(o.Name, t)); err != nil {
 		return err
 	}
-	if err := o.cfg.Write(); err != nil {
+	if err := o.Config.Write(); err != nil {
 		return err
 	}
 
@@ -229,7 +225,7 @@ func (o *LoginOptions) takeOffline(t *oauth2.Token) error {
 }
 
 // generateCallbackResponse generates an HTTP response for the OAuth callback
-func (o *LoginOptions) generateCallbackResponse(w http.ResponseWriter, r *http.Request, message string, status int) {
+func (o *Options) generateCallbackResponse(w http.ResponseWriter, r *http.Request, message string, status int) {
 	switch status {
 	case http.StatusOK:
 		// Redirect the user to the successful login URL and shutdown the server
@@ -254,7 +250,7 @@ func (o *LoginOptions) generateCallbackResponse(w http.ResponseWriter, r *http.R
 }
 
 // generateValidatationRequest generates a validation request to the command output stream
-func (o *LoginOptions) generateValidatationRequest(userCode, verificationURI, verificationURIComplete string) {
+func (o *Options) generateValidatationRequest(userCode, verificationURI, verificationURIComplete string) {
 	if o.DisplayQR {
 		qrterminal.Generate(verificationURIComplete, qrterminal.L, o.Out)
 		_, _ = fmt.Fprintf(o.Out, qrPrompt, userCode, verificationURI)
@@ -265,7 +261,7 @@ func (o *LoginOptions) generateValidatationRequest(userCode, verificationURI, ve
 }
 
 // openBrowser prints the supplied URL and possibly opens a web browser pointing to that URL
-func (o *LoginOptions) openBrowser(loc string) error {
+func (o *Options) openBrowser(loc string) error {
 	u, err := user.Current()
 	if err != nil {
 		return err

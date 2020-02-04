@@ -36,7 +36,7 @@ func main() {
 	rand.Seed(int64(binary.LittleEndian.Uint64(b[:])))
 
 	// TODO Determine which command to run by looking at the base name of $0
-	command := commands.NewDefaultRedskyctlCommand()
+	command := commands.NewRedskyctlCommand()
 
 	// Run the command
 	if err := command.Execute(); err != nil {
