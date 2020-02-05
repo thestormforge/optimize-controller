@@ -66,9 +66,9 @@ func ApplyCurrentContext(contextName, serverName, authorizationName, clusterName
 			cfg.Contexts = append(cfg.Contexts, NamedContext{Name: contextName})
 			ctx = &cfg.Contexts[len(cfg.Contexts)-1].Context
 		}
-		ctx.Server = serverName
-		ctx.Authorization = authorizationName
-		ctx.Cluster = clusterName
+		mergeString(&ctx.Server, serverName)
+		mergeString(&ctx.Authorization, authorizationName)
+		mergeString(&ctx.Cluster, clusterName)
 		cfg.CurrentContext = contextName
 		return nil
 	}
