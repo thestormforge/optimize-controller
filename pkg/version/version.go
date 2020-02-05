@@ -14,17 +14,44 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package version is used to expose the current version information as populated
+// by the build process. With a default value of "unreleased" the `BuildMetadata`
+// indicates that `Version` will likely be used as _next_ Git tag. During a build
+// some or all of the variables my be overridden using the Go linker.
 package version
 
 var (
-	Version       = "v1.4.0"
+	// Version is a "v" prefixed Semver
+	Version = "v1.4.0"
+	// BuildMetadata is the Semver build metadata stored independent of the version string
 	BuildMetadata = "unreleased"
-	GitCommit     = ""
+	// GitCommit is a Git commit identifier
+	GitCommit = ""
 )
 
-func GetVersion() string {
-	if BuildMetadata == "" {
-		return Version
+// Info represents available version information
+type Info struct {
+	Version       string `json:"version"`
+	BuildMetadata string `json:"build"`
+	GitCommit     string `json:"gitCommit"`
+}
+
+// String returns the full Semver of the version information
+func (i *Info) String() string {
+	if i.Version == "" {
+		return "v0.0.0"
 	}
-	return Version + "+" + BuildMetadata
+	if i.BuildMetadata == "" {
+		return i.Version
+	}
+	return i.Version + "+" + i.BuildMetadata
+}
+
+// GetInfo returns the full version information
+func GetInfo() *Info {
+	return &Info{
+		Version:       Version,
+		BuildMetadata: BuildMetadata,
+		GitCommit:     GitCommit,
+	}
 }

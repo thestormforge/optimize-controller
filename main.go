@@ -17,10 +17,10 @@ limitations under the License.
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/redskyops/k8s-experiment/controllers"
 	"github.com/redskyops/k8s-experiment/internal/config"
@@ -32,7 +32,6 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	"sigs.k8s.io/yaml"
 )
 
 var (
@@ -48,19 +47,24 @@ func init() {
 }
 
 func main() {
-	// Make it possible to just print the version number and exit
+	// Make it possible to just print the version or configuration and exit
 	if len(os.Args) > 1 {
 		if os.Args[1] == "version" {
-			fmt.Printf("%s version: %s\n", filepath.Base(os.Args[0]), version.GetVersion())
-			os.Exit(0)
+			if output, err := json.Marshal(version.GetInfo()); err != nil {
+				os.Exit(1)
+			} else {
+				fmt.Println(string(output))
+				os.Exit(0)
+			}
 		} else if os.Args[1] == "config" {
+			// TODO Host live values from the in-memory configuration at `.../debug/config` instead of this
 			cfg := &config.RedSkyConfig{}
 			if err := cfg.Load(); err != nil {
 				os.Exit(1)
-			} else if output, err := yaml.Marshal(cfg); err != nil {
+			} else if output, err := json.Marshal(cfg); err != nil {
 				os.Exit(1)
 			} else {
-				fmt.Printf(string(output))
+				fmt.Println(string(output))
 				os.Exit(0)
 			}
 		}
@@ -78,7 +82,7 @@ func main() {
 	}))
 
 	// Establish the Red Sky API
-	setupLog.Info("Red Sky", "version", version.GetVersion(), "gitCommit", version.GitCommit)
+	setupLog.Info("Red Sky", "version", version.GetInfo(), "gitCommit", version.GitCommit)
 	redSkyAPI, err := newRedSkyAPI()
 	if err != nil {
 		setupLog.Error(err, "unable to create Red Sky API")

@@ -20,7 +20,6 @@ import (
 	"os"
 
 	"github.com/redskyops/k8s-experiment/internal/config"
-	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/check"
 	deleteCmd "github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/delete"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/generate"
@@ -34,6 +33,7 @@ import (
 	"github.com/redskyops/k8s-experiment/redskyctl/internal/commands/docs"
 	"github.com/redskyops/k8s-experiment/redskyctl/internal/commands/login"
 	"github.com/redskyops/k8s-experiment/redskyctl/internal/commands/results"
+	"github.com/redskyops/k8s-experiment/redskyctl/internal/commands/version"
 	"github.com/spf13/cobra"
 )
 
@@ -57,6 +57,7 @@ func NewRedskyctlCommand() *cobra.Command {
 	rootCmd.AddCommand(docs.NewCommand(&docs.Options{}))
 	rootCmd.AddCommand(login.NewCommand(&login.Options{Config: cfg}))
 	rootCmd.AddCommand(results.NewCommand(&results.Options{Config: cfg}))
+	rootCmd.AddCommand(version.NewCommand(&version.Options{Config: cfg}))
 
 	// Compatibility mode: these commands need to be migrated to use the new style
 	addUnmigratedCommands(rootCmd)
@@ -80,7 +81,6 @@ func addUnmigratedCommands(rootCmd *cobra.Command) {
 	f := util.NewFactory(kubeConfigFlags, redskyConfigFlags)
 	ioStreams := util.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
 
-	rootCmd.AddCommand(cmd.NewVersionCommand(f, ioStreams))
 	rootCmd.AddCommand(setup.NewInitCommand(f, ioStreams))
 	rootCmd.AddCommand(setup.NewResetCommand(f, ioStreams))
 	rootCmd.AddCommand(setup.NewAuthorizeCommand(f, ioStreams))
