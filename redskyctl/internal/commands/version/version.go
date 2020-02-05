@@ -45,6 +45,8 @@ const defaultTemplate = `{{range $key, $value := . }}{{$key}} version: {{$value}
 type Options struct {
 	// Config is the Red Sky Configuration
 	Config config.Config
+	// ExperimentsAPI is used to interact with the Red Sky Experiments API
+	ExperimentsAPI experimentsv1alpha1.API
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
 
@@ -65,6 +67,8 @@ func NewCommand(o *Options) *cobra.Command {
 			if o.Product == "" {
 				o.Product = cmd.Root().Name()
 			}
+			err := commander.SetExperimentsAPI(&o.ExperimentsAPI, o.Config, cmd)
+			commander.CheckErr(cmd, err)
 		},
 
 		Run: func(cmd *cobra.Command, args []string) {
@@ -142,14 +146,8 @@ func (o *Options) controllerVersion() (*version.Info, error) {
 
 // apiVersion gets the API server metadata via an HTTP OPTIONS request
 func (o *Options) apiVersion() (*version.Info, error) {
-	// Get an API
-	api, err := experimentsv1alpha1.NewForConfig(o.Config, version.UserAgent("redskyctl", nil))
-	if err != nil {
-		return nil, err
-	}
-
 	// Get the server metadata
-	sm, err := api.Options(context.Background())
+	sm, err := o.ExperimentsAPI.Options(context.Background())
 	if err != nil {
 		return nil, err
 	}

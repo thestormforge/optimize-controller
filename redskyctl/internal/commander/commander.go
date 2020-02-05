@@ -21,7 +21,10 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/redskyops/k8s-experiment/internal/config"
+	internalconfig "github.com/redskyops/k8s-experiment/internal/config"
+	"github.com/redskyops/k8s-experiment/pkg/version"
+	experimentsv1alpha1 "github.com/redskyops/k8s-experiment/redskyapi/experiments/v1alpha1"
+	"github.com/redskyops/k8s-experiment/redskyctl/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -53,8 +56,20 @@ func StreamsPreRun(streams *IOStreams) func(cmd *cobra.Command, args []string) {
 	}
 }
 
+// SetExperimentsAPI creates a new experiments API interface from the supplied configuration
+func SetExperimentsAPI(api *experimentsv1alpha1.API, cfg config.Config, cmd *cobra.Command) error {
+	// TODO What if cfg == nil? Right now it will panic...
+	ua := version.UserAgent(cmd.Root().Name(), nil)
+	ea, err := experimentsv1alpha1.NewForConfig(cfg, ua)
+	if err != nil {
+		return err
+	}
+	*api = ea
+	return nil
+}
+
 // ConfigGlobals sets up persistent globals for the supplied configuration
-func ConfigGlobals(cfg *config.RedSkyConfig, cmd *cobra.Command) {
+func ConfigGlobals(cfg *internalconfig.RedSkyConfig, cmd *cobra.Command) {
 	// Make sure we get the root to make these globals
 	root := cmd.Root()
 
@@ -76,7 +91,7 @@ type ConfigOptions struct {
 	// TODO Namespace
 }
 
-func (o *ConfigOptions) load(cfg *config.RedSkyConfig) func(cmd *cobra.Command, args []string) error {
+func (o *ConfigOptions) load(cfg *internalconfig.RedSkyConfig) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
 		// Override the configuration file path if necessary
 		if o.RedskyConfig != "" {
