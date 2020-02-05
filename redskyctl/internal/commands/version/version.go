@@ -23,11 +23,11 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/redskyops/k8s-experiment/internal/config"
 	"github.com/redskyops/k8s-experiment/internal/setup"
 	"github.com/redskyops/k8s-experiment/pkg/version"
 	experimentsv1alpha1 "github.com/redskyops/k8s-experiment/redskyapi/experiments/v1alpha1"
 	"github.com/redskyops/k8s-experiment/redskyctl/internal/commander"
+	"github.com/redskyops/k8s-experiment/redskyctl/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -44,7 +44,7 @@ const defaultTemplate = `{{range $key, $value := . }}{{$key}} version: {{$value}
 
 type Options struct {
 	// Config is the Red Sky Configuration
-	Config *config.RedSkyConfig
+	Config config.Config
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
 
@@ -65,8 +65,6 @@ func NewCommand(o *Options) *cobra.Command {
 			if o.Product == "" {
 				o.Product = cmd.Root().Name()
 			}
-			err := o.Complete()
-			commander.CheckErr(cmd, err)
 		},
 
 		Run: func(cmd *cobra.Command, args []string) {
@@ -80,10 +78,7 @@ func NewCommand(o *Options) *cobra.Command {
 	return cmd
 }
 
-func (o *Options) Complete() error {
-	return nil
-}
-
+// Run gets the version information
 func (o *Options) Run() error {
 	// The setup tools image name needs to be printed by itself
 	if o.ShowSetupToolsImage {
@@ -145,6 +140,7 @@ func (o *Options) controllerVersion() (*version.Info, error) {
 	return info, nil
 }
 
+// apiVersion gets the API server metadata via an HTTP OPTIONS request
 func (o *Options) apiVersion() (*version.Info, error) {
 	// Get an API
 	api, err := experimentsv1alpha1.NewForConfig(o.Config, version.UserAgent("redskyctl", nil))

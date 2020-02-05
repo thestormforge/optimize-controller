@@ -26,16 +26,16 @@ import (
 	"time"
 
 	"github.com/pkg/browser"
-	"github.com/redskyops/k8s-experiment/internal/config"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/redskyops/k8s-experiment/redskyctl/internal/commander"
+	"github.com/redskyops/k8s-experiment/redskyctl/internal/config"
 	"github.com/redskyops/redskyops-ui/ui"
 	"github.com/spf13/cobra"
 )
 
 type Options struct {
-	// Config is the Red Sky Configuration to modify
-	Config *config.RedSkyConfig
+	// Config is the Red Sky Configuration to proxy
+	Config config.Config
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
 
