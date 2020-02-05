@@ -366,7 +366,7 @@ type httpAPI struct {
 
 func (h *httpAPI) Options(ctx context.Context) (ServerMeta, error) {
 	sm := ServerMeta{}
-	u := h.client.URL("/").String()
+	u := h.client.URL(endpointExperiment).String()
 
 	req, err := http.NewRequest(http.MethodOptions, u, nil)
 	if err != nil {
