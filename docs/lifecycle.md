@@ -38,7 +38,7 @@ The trial resource includes a job template which will be used to schedule a new 
 
 ## Collect Metrics
 
-When the trial job completes, the metrics are collected according their type. The metric values are recorded on the trial resource. For Prometheus metrics, a check is made to ensure a final scrape has been performed before metric collection. Once all metrics have been collected the trial is marked as finished.
+When the trial job completes, the metrics are collected according to their type. The metric values are recorded on the trial resource. For Prometheus metrics, a check is made to ensure a final scrape has been performed before metric collection. Once all metrics have been collected the trial is marked as finished.
 
 ## Report Trial
 
