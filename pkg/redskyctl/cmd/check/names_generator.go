@@ -41,13 +41,15 @@ var (
 
 	right = [...]string{
 		"aimua",
-		"bower",
+		"ferrante",
 		"gustie",
 		"hochadel",
 		"idan",
+		"kolev",
 		"perol",
 		"platt",
 		"provo",
+		"rifai",
 		"sutherland",
 	}
 )

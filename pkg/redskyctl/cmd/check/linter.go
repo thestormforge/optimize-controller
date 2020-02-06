@@ -36,55 +36,62 @@ type Linter interface {
 
 // Lint is the general types of problems we can have
 type Lint interface {
+	// WithDescription returns this lint including the specified description
 	WithDescription(description string) Lint
-	Empty(thing string)
+	// Missing indicates that something should have been specified but wasn't
 	Missing(thing string)
+	// Invalid indicates that something was not properly set from a closed set of possible valid values
 	Invalid(thing string, was interface{}, allowed ...interface{})
+	// Failed indicates that processing something produced an error
 	Failed(thing string, err error)
 }
 
 // LintError is an indication that something is wrong
 type LintError struct {
-	Path        string
-	Severity    int // 0 = error, 1 = warning, 2+ nitpicking...
-	Message     string
+	// Path is the dotted notation path leading to where the lint was encountered
+	Path string
+	// Severity indicates how bad this is: 0 = error (you will have problems), 1 = warning (you might have problems), 2+ = nitpicking (you won't have problems)
+	Severity int
+	// Message is a brief indicator of what went wrong
+	Message string
+	// Description is a more detailed explanation, possibly including remediation
 	Description string
 }
 
 // TODO Expose some different formats
 // TODO Make LintError sortable?
 
+// Error allows an individual lint error to be used as an error
 func (e *LintError) Error() string {
 	return e.Message
 }
 
-type RootLinter struct {
+// AllTheLint is an entry point for collecting LintError instances.
+type AllTheLint struct {
 	Problems []LintError
 }
 
-func NewLinter() *RootLinter {
-	return &RootLinter{}
-}
-
-func (l *RootLinter) For(elem ...interface{}) Linter {
+// For returns a new linter at the specified path
+func (l *AllTheLint) For(elem ...interface{}) Linter {
 	ll := &lc{a: func(le LintError) { l.Problems = append(l.Problems, le) }}
 	return ll.pp(elem...)
 }
 
-// Linter Context
+// lc (Linter Context) is both the linter and the lint; it holds the intermediate
+// state necessary to construct a LintError.
 type lc struct {
+	// a (add) is invoked once a LintError is constructed
 	a func(LintError)
+	// p (path) is the current path string
 	p string
+	// s (severity) is the current severity
 	s int
+	// d (description) is the current description
 	d string
 }
 
 var _ Linter = &lc{}
 var _ Lint = &lc{}
-
-func (l *lc) Empty(thing string) {
-	l.aa("Missing %s", thing)
-}
 
 func (l *lc) Missing(thing string) {
 	l.aa("Missing %s", thing)
@@ -103,9 +110,13 @@ func (l *lc) WithDescription(d string) Lint  { l.d = d; return l }
 func (l *lc) Severity(s int) Lint            { return &lc{p: l.p, a: l.a, s: s} }
 func (l *lc) Error() Lint                    { return l.Severity(0) }
 func (l *lc) Warning() Lint                  { return l.Severity(1) }
+
+// aa (accumulate) uses the supplied message format and arguments to construct a LintError using the current state of this context
 func (l *lc) aa(msg string, a ...interface{}) {
 	l.a(LintError{Path: l.p, Severity: l.s, Message: fmt.Sprintf(msg, a...), Description: l.d})
 }
+
+// pp (path) adds the supplied elements to the current path of this context
 func (l *lc) pp(elem ...interface{}) *lc {
 	for _, e := range elem {
 		switch v := e.(type) {
