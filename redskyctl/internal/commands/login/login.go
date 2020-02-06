@@ -200,7 +200,10 @@ func (o *Options) requireForceIfNameExists(cfg *config.Config) error {
 		// NOTE: We do not require --force for server name conflicts so you can log into an existing configuration
 		for i := range cfg.Authorizations {
 			if cfg.Authorizations[i].Name == o.Name {
-				return fmt.Errorf("refusing to update, use --force")
+				az := &cfg.Authorizations[i].Authorization
+				if az.Credential.TokenCredential != nil || az.Credential.ClientCredential != nil {
+					return fmt.Errorf("refusing to update, use --force")
+				}
 			}
 		}
 	}
