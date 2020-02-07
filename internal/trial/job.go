@@ -63,6 +63,12 @@ func NewJob(t *redskyv1alpha1.Trial) *batchv1.Job {
 		job.Spec.BackoffLimit = new(int32)
 	}
 
+	// Expose the current assignments as environment variables to every container (except the default sleep container)
+	for i := range job.Spec.Template.Spec.Containers {
+		c := &job.Spec.Template.Spec.Containers[i]
+		c.Env = AppendAssignmentEnv(t, c.Env)
+	}
+
 	// Containers cannot be empty, inject a sleep by default
 	if len(job.Spec.Template.Spec.Containers) == 0 {
 		s := t.Spec.ApproximateRuntime

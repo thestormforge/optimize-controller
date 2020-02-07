@@ -17,6 +17,8 @@ limitations under the License.
 package trial
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
@@ -56,6 +58,15 @@ func IsActive(t *redskyv1alpha1.Trial) bool {
 	}
 
 	return false
+}
+
+// AppendAssignmentEnv appends an environment variable for each trial assignment
+func AppendAssignmentEnv(t *redskyv1alpha1.Trial, env []corev1.EnvVar) []corev1.EnvVar {
+	for _, a := range t.Spec.Assignments {
+		name := strings.ReplaceAll(strings.ToUpper(a.Name), ".", "_")
+		env = append(env, corev1.EnvVar{Name: name, Value: fmt.Sprintf("%d", a.Value)})
+	}
+	return env
 }
 
 // NeedsCleanup checks to see if a trial's TTL has expired
