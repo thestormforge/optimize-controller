@@ -20,9 +20,9 @@ import (
 	"encoding/base64"
 	"fmt"
 	"path"
-	"strings"
 
 	"github.com/redskyops/k8s-experiment/internal/template"
+	"github.com/redskyops/k8s-experiment/internal/trial"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -107,10 +107,7 @@ func NewJob(t *redskyv1alpha1.Trial, mode string) (*batchv1.Job, error) {
 		}
 
 		// Add the trial assignments to the environment
-		for _, a := range t.Spec.Assignments {
-			name := strings.ReplaceAll(strings.ToUpper(a.Name), ".", "_")
-			c.Env = append(c.Env, corev1.EnvVar{Name: name, Value: fmt.Sprintf("%d", a.Value)})
-		}
+		c.Env = trial.AppendAssignmentEnv(t, c.Env)
 
 		// Add the configured volume mounts
 		for _, vm := range task.VolumeMounts {

@@ -17,63 +17,51 @@ limitations under the License.
 package commands
 
 import (
-	"io"
 	"os"
 
-	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd"
+	"github.com/redskyops/k8s-experiment/internal/config"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/check"
-	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/config"
-	deleteCmd "github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/delete"
-	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/docs"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/generate"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/get"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/kustomize"
-	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/results"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/setup"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/suggest"
 	"github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
+	"github.com/redskyops/k8s-experiment/redskyctl/internal/commander"
+	"github.com/redskyops/k8s-experiment/redskyctl/internal/commands/configuration"
+	"github.com/redskyops/k8s-experiment/redskyctl/internal/commands/deletion"
+	"github.com/redskyops/k8s-experiment/redskyctl/internal/commands/docs"
 	"github.com/redskyops/k8s-experiment/redskyctl/internal/commands/login"
+	"github.com/redskyops/k8s-experiment/redskyctl/internal/commands/results"
+	"github.com/redskyops/k8s-experiment/redskyctl/internal/commands/version"
 	"github.com/spf13/cobra"
 )
 
-func NewDefaultRedskyctlCommand() *cobra.Command {
-	return NewRedskyctlCommand(os.Stdin, os.Stdout, os.Stderr)
-}
-
-func NewRedskyctlCommand(in io.Reader, out, err io.Writer) *cobra.Command {
+// NewRedskyctlCommand creates a new top-level redskyctl command
+func NewRedskyctlCommand() *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use:   "redskyctl",
-		Short: "Kubernetes Exploration",
+		Use:               "redskyctl",
+		Short:             "Kubernetes Exploration",
+		DisableAutoGenTag: true,
 	}
+
+	// By default just run the help
 	rootCmd.Run = rootCmd.HelpFunc()
 
-	flags := rootCmd.PersistentFlags()
+	// Create a global configuration
+	cfg := &config.RedSkyConfig{}
+	commander.ConfigGlobals(cfg, rootCmd)
 
-	kubeConfigFlags := util.NewConfigFlags()
-	kubeConfigFlags.AddFlags(flags)
+	// Add the sub-commands
+	rootCmd.AddCommand(configuration.NewCommand(&configuration.Options{Config: cfg}))
+	rootCmd.AddCommand(deletion.NewCommand(&deletion.Options{Config: cfg}))
+	rootCmd.AddCommand(docs.NewCommand(&docs.Options{}))
+	rootCmd.AddCommand(login.NewCommand(&login.Options{Config: cfg}))
+	rootCmd.AddCommand(results.NewCommand(&results.Options{Config: cfg}))
+	rootCmd.AddCommand(version.NewCommand(&version.Options{Config: cfg}))
 
-	redskyConfigFlags := util.NewServerFlags()
-	redskyConfigFlags.AddFlags(flags)
-
-	f := util.NewFactory(kubeConfigFlags, redskyConfigFlags)
-
-	ioStreams := util.IOStreams{In: in, Out: out, ErrOut: err}
-
-	rootCmd.AddCommand(docs.NewDocsCommand(ioStreams))
-	rootCmd.AddCommand(cmd.NewVersionCommand(f, ioStreams))
-
-	rootCmd.AddCommand(login.NewLoginCommand(f, ioStreams))
-	rootCmd.AddCommand(setup.NewInitCommand(f, ioStreams))
-	rootCmd.AddCommand(setup.NewResetCommand(f, ioStreams))
-	rootCmd.AddCommand(setup.NewAuthorizeCommand(f, ioStreams))
-	rootCmd.AddCommand(kustomize.NewKustomizeCommand(f, ioStreams))
-	rootCmd.AddCommand(config.NewConfigCommand(f, ioStreams))
-	rootCmd.AddCommand(check.NewCheckCommand(f, ioStreams))
-	rootCmd.AddCommand(suggest.NewSuggestCommand(f, ioStreams))
-	rootCmd.AddCommand(generate.NewGenerateCommand(f, ioStreams))
-	rootCmd.AddCommand(get.NewGetCommand(f, ioStreams))
-	rootCmd.AddCommand(deleteCmd.NewDeleteCommand(f, ioStreams))
-	rootCmd.AddCommand(results.NewResultsCommand(f, ioStreams))
+	// Compatibility mode: these commands need to be migrated to use the new style
+	addUnmigratedCommands(rootCmd)
 
 	// TODO Add 'backup' and 'restore' maintenance commands ('maint' subcommands?)
 	// TODO We need helpers for doing a "dry run" on patches to make configuration easier
@@ -84,10 +72,22 @@ func NewRedskyctlCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 	return rootCmd
 }
 
-// NewDefaultCommand is used for creating commands from the standard NewXCommand functions
-func NewDefaultCommand(cmd func(f util.Factory, ioStreams util.IOStreams) *cobra.Command) *cobra.Command {
+func addUnmigratedCommands(rootCmd *cobra.Command) {
+	flags := rootCmd.PersistentFlags()
+	kubeConfigFlags := util.NewConfigFlags()
+	kubeConfigFlags.Context = nil
+	kubeConfigFlags.AddFlags(flags)
+	redskyConfigFlags := util.NewServerFlags()
+	redskyConfigFlags.AddFlags(flags)
+	f := util.NewFactory(kubeConfigFlags, redskyConfigFlags)
 	ioStreams := util.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
-	// TODO Make a dummy implementation that returns reasonable errors
-	var f util.Factory
-	return cmd(f, ioStreams)
+
+	rootCmd.AddCommand(setup.NewInitCommand(f, ioStreams))
+	rootCmd.AddCommand(setup.NewResetCommand(f, ioStreams))
+	rootCmd.AddCommand(setup.NewAuthorizeCommand(f, ioStreams))
+	rootCmd.AddCommand(kustomize.NewKustomizeCommand(f, ioStreams))
+	rootCmd.AddCommand(check.NewCheckCommand(f, ioStreams))
+	rootCmd.AddCommand(suggest.NewSuggestCommand(f, ioStreams))
+	rootCmd.AddCommand(generate.NewGenerateCommand(f, ioStreams))
+	rootCmd.AddCommand(get.NewGetCommand(f, ioStreams))
 }

@@ -24,7 +24,7 @@ import (
 
 	"github.com/redskyops/k8s-experiment/internal/trial"
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
-	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/redsky/v1alpha1"
+	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/experiments/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )

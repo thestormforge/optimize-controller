@@ -17,12 +17,15 @@ limitations under the License.
 package generate
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"strings"
 
+	"github.com/redskyops/k8s-experiment/internal/config"
+	"github.com/redskyops/k8s-experiment/internal/oauth2/registration"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
-	redskyclient "github.com/redskyops/k8s-experiment/redskyapi"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -33,11 +36,14 @@ const (
 )
 
 // TODO This should work like a kustomize secret generator for the extra env vars
+// TODO We should take annotations as input (here and on the the other generators)
 
 type GenerateSecretOptions struct {
-	Name      string
-	Namespace string
+	Name       string
+	Namespace  string
+	ClientName string
 
+	cfg config.RedSkyConfig
 	cmdutil.IOStreams
 }
 
@@ -70,6 +76,22 @@ func NewGenerateSecretCmd(ioStreams cmdutil.IOStreams) *cobra.Command {
 }
 
 func (o *GenerateSecretOptions) Complete() error {
+	if err := o.cfg.Load(); err != nil {
+		return err
+	}
+
+	if o.ClientName == "" {
+		kubectl, err := o.cfg.Kubectl("config", "view", "--minify", "--output", "jsonpath={.clusters[0].name}")
+		if err != nil {
+			return err
+		}
+		stdout, err := kubectl.Output()
+		if err != nil {
+			return err
+		}
+		o.ClientName = strings.TrimSpace(string(stdout))
+	}
+
 	return nil
 }
 
@@ -79,26 +101,25 @@ func (o *GenerateSecretOptions) Run() error {
 	secret.Namespace = o.Namespace
 	secret.Type = corev1.SecretTypeOpaque
 
-	// TODO This should login to the server and obtain a new secret; for now just copy from the default config
-	cfg, err := redskyclient.DefaultConfig()
+	env, err := config.LegacyEnvMapping(&o.cfg, true)
 	if err != nil {
 		return err
 	}
-	secret.Data = make(map[string][]byte)
-	secret.Data["REDSKY_ADDRESS"] = []byte(cfg.Address)
-	secret.Data["REDSKY_OAUTH2_CLIENT_ID"] = []byte(cfg.OAuth2.ClientID)
-	secret.Data["REDSKY_OAUTH2_CLIENT_SECRET"] = []byte(cfg.OAuth2.ClientSecret)
-	secret.Data["REDSKY_OAUTH2_TOKEN_URL"] = []byte(cfg.OAuth2.TokenURL)
-	for _, v := range cfg.Manager.Environment {
-		secret.Data[v.Name] = []byte(v.Value)
+
+	info, err := o.cfg.RegisterClient(context.Background(), &registration.ClientMetadata{
+		ClientName:    o.ClientName,
+		GrantTypes:    []string{"client_credential"},
+		RedirectURIs:  []string{},
+		ResponseTypes: []string{},
+	})
+	if err != nil {
+		return err
 	}
 
-	// Remove empty values
-	for k, v := range secret.Data {
-		if string(v) == "" {
-			delete(secret.Data, k)
-		}
-	}
+	env["REDSKY_OAUTH2_CLIENT_ID"] = []byte(info.ClientID)
+	env["REDSKY_OAUTH2_CLIENT_SECRET"] = []byte(info.ClientSecret)
+
+	secret.Data = env
 
 	// TODO ULTRA HACK. Update the name based on what the hash name should be; this is only exposed to callers in code...
 	o.Name, err = hashSecretName(secret)

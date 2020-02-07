@@ -17,6 +17,8 @@ limitations under the License.
 package trial
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
@@ -56,6 +58,46 @@ func IsActive(t *redskyv1alpha1.Trial) bool {
 	}
 
 	return false
+}
+
+// IsTrialJobReference checks to see if the supplied reference likely points to the job of a trial. This is
+// used primarily to give special handling to patch operations so they can refer to trial job before it exists.
+func IsTrialJobReference(t *redskyv1alpha1.Trial, ref *corev1.ObjectReference) bool {
+	// Kind _must_ be job
+	if ref.Kind != "Job" {
+		return false
+	}
+
+	// Allow version to be omitted for compatibility with old job definitions
+	if ref.APIVersion != "" && ref.APIVersion != "batch/v1" {
+		return false
+	}
+
+	// Allow namespace to be omitted for trials that run in multiple namespaces
+	if ref.Namespace != "" && ref.Namespace != t.Namespace {
+		return false
+	}
+
+	// If the trial job template has name, it must match...
+	if t.Spec.Template.Name != "" && ref.Name != t.Spec.Template.Name {
+		return false
+	}
+
+	// ...otherwise the trial name must match by prefix
+	if t.Spec.Template.Name == "" && strings.HasPrefix(t.Name, ref.Name) {
+		return false
+	}
+
+	return true
+}
+
+// AppendAssignmentEnv appends an environment variable for each trial assignment
+func AppendAssignmentEnv(t *redskyv1alpha1.Trial, env []corev1.EnvVar) []corev1.EnvVar {
+	for _, a := range t.Spec.Assignments {
+		name := strings.ReplaceAll(strings.ToUpper(a.Name), ".", "_")
+		env = append(env, corev1.EnvVar{Name: name, Value: fmt.Sprintf("%d", a.Value)})
+	}
+	return env
 }
 
 // NeedsCleanup checks to see if a trial's TTL has expired

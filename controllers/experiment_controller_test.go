@@ -23,7 +23,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
-	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/redsky/v1alpha1"
+	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/experiments/v1alpha1"
 	"golang.org/x/net/context"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"

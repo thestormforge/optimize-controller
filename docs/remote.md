@@ -10,11 +10,10 @@ To authorize the Red Sky Manager running in your cluster, you must first prepare
 redskyctl login
 ```
 
-Alternatively, you can set the credentials manually:
+Alternatively, you can get a one-time use code to enter into a browser from another device:
 
 ```sh
-redskyctl config set oauth2.client_id XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.XXX.XXX.XXX
-redskyctl config set oauth2.client_secret XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+redskyctl login --url
 ```
 
 ## Applying Configuration
@@ -22,12 +21,12 @@ redskyctl config set oauth2.client_secret XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 To apply the Red Sky Ops configuration to the current cluster, first view your existing configuration to verify it is correct:
 
 ```sh
-redskyctl config
+redskyctl config view
 ```
 
-This will display the contents of your `~/.redsky` file plus any default values or environment variables that have been set.
+This will display the contents of your `~/.config/redsky/config` file plus any default values or environment variables that have been set.
 
-Your configuration is applied (either created or updated) to the cluster through the `redskyctl authorize` command. Additionally, the `redskyctl init` command will automatically perform authorization if your connection details are available. If your configuration was valid when you last ran `init`, there is no need to re-apply your configuration.
+Your configuration is applied (either created or updated) to the cluster through the `redskyctl authorize-cluster` command. Additionally, the `redskyctl init` command will automatically perform authorization if your connection details are available. If your configuration was valid when you last ran `init`, there is no need to re-apply your configuration.
 
 Once you have verified the configuration, you can ensure your Red Sky Manager deployment is up-to-date:
 

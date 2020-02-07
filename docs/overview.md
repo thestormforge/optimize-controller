@@ -4,13 +4,13 @@
 
 Red Sky Ops is composed of three parts:
 
-1. The Red Sky Ops Manager, which runs on your cluster,
+1. The Red Sky Ops Controller, which runs on your cluster,
 2. `redskyctl`, a CLI tool for interacting with the manager, and
 3. An optional server (available as an enterprise product) that automatically generates suggested configurations for your application.
 
-The Red Sky Ops Manager is a Kubernetes [operator](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/) written in Go. It is comprised of several Custom Resource Definitions (CRDs) and a Controller that runs in your cluster in a dedicated namespace. The CRDs allow you to create Experiment and Trial objects in your cluster. The controller manages those experiments and trials, and communicates with the Red Sky Ops Server if configured to do so. The manager can be installed on your cluster using `redskyctl init` (see [Installation](install.md)).
+The Red Sky Ops Controller is a Kubernetes [operator](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/) written in Go. It is comprised of several Custom Resource Definitions (CRDs) and a manager that runs in your cluster in a dedicated namespace. The CRDs allow you to create Experiment and Trial objects in your cluster. The controller manages those experiments and trials, and communicates with the Red Sky Ops Server if configured to do so. The manager can be installed on your cluster using `redskyctl init` (see [Installation](install.md)).
 
-The Red Sky Ops Tool `redskyctl` is a command-line tool for interacting with the manager. It can be used to install the manager, create trials by assigning parameters interactively, and more. It is meant to be used in combination with `kubectl`.
+The Red Sky Ops Tool `redskyctl` is a command-line tool for interacting with the controller. It can be used to install the manager, create trials by assigning parameters interactively, and more. It is meant to be used in combination with `kubectl`.
 
 If you are on a Red Sky Ops Enterprise plan, you can configure your cluster to connect to a Red Sky Ops Server. The server produces experiment suggestions automatically.
 

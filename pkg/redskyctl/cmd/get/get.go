@@ -22,7 +22,7 @@ import (
 
 	redskykube "github.com/redskyops/k8s-experiment/pkg/kubernetes"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
-	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/redsky/v1alpha1"
+	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/experiments/v1alpha1"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/util/jsonpath"
 )

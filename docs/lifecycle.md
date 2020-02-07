@@ -4,11 +4,11 @@ The experiment lifecycle consists largely of creating an experiment and iteratin
 
 ## Timeline
 
-An experiment and its trials run in several steps, coordinated by the Red Sky Ops Manager: _(click to view larger)_
+An experiment and its trials run in several steps, coordinated by the Red Sky Ops Controller: _(click to view larger)_
 
 [![Timeline](images/timeline.png)](images/timeline.png)
 
-Note: If the Manager is not configured to use a Red Sky Ops Server, you can suggest trial configurations manually using `redskyctl suggest`. The Experiment process then starts with the _Create Trial_ step instead of _Reconcile Experiment_.
+Note: If the Red Sky Ops Controller is not configured to use an API server, you can suggest trial configurations manually using `redskyctl suggest`. The Experiment process then starts with the _Create Trial_ step instead of _Reconcile Experiment_.
 
 (`redskyctl suggest` can still be used with a server configured, but the suggestion will be sent to the server to be queued.)
 

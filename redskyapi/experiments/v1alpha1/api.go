@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	endpointExperiment = "/v1/experiments"
+	endpointExperiment = "/experiments/"
 
 	relationSelf      = "self"
 	relationNext      = "next"
@@ -84,7 +84,6 @@ const (
 	ErrTrialUnavailable                 = "trial-unavailable"
 	ErrTrialNotFound                    = "trial-not-found"
 	ErrTrialAlreadyReported             = "trial-already-reported"
-	ErrConfigAddressMissing             = "config-address-missing"
 	ErrUnexpected                       = "unexpected"
 )
 
@@ -352,9 +351,9 @@ type API interface {
 }
 
 // NewForConfig returns a new API instance for the specified configuration
-func NewForConfig(cfg *redskyclient.Config) (API, error) {
-	// TODO We should be providing a transport, e.g. for retry-after
-	c, err := redskyclient.NewClient(cfg, context.Background(), nil)
+func NewForConfig(cfg redskyclient.Config, transport http.RoundTripper) (API, error) {
+	// TODO We should be wrapping transport, e.g. for our retry-after logic
+	c, err := redskyclient.NewClient(cfg, context.Background(), transport)
 	if err != nil {
 		return nil, err
 	}
@@ -367,12 +366,7 @@ type httpAPI struct {
 
 func (h *httpAPI) Options(ctx context.Context) (ServerMeta, error) {
 	sm := ServerMeta{}
-
-	// Check to see that we got an actual address before we try to use it
-	u := h.client.URL("/").String()
-	if u == "/" {
-		return sm, &Error{Type: ErrConfigAddressMissing, Message: "address is missing"}
-	}
+	u := h.client.URL(endpointExperiment).String()
 
 	req, err := http.NewRequest(http.MethodOptions, u, nil)
 	if err != nil {
@@ -433,7 +427,7 @@ func (h *httpAPI) GetAllExperimentsByPage(ctx context.Context, u string) (Experi
 }
 
 func (h *httpAPI) GetExperimentByName(ctx context.Context, n ExperimentName) (Experiment, error) {
-	u := h.client.URL(endpointExperiment + "/" + url.PathEscape(n.Name()))
+	u := h.client.URL(endpointExperiment + url.PathEscape(n.Name()))
 	return h.GetExperiment(ctx, u.String())
 }
 
@@ -464,7 +458,7 @@ func (h *httpAPI) GetExperiment(ctx context.Context, u string) (Experiment, erro
 
 func (h *httpAPI) CreateExperiment(ctx context.Context, n ExperimentName, exp Experiment) (Experiment, error) {
 	e := Experiment{}
-	u := h.client.URL(endpointExperiment + "/" + url.PathEscape(n.Name()))
+	u := h.client.URL(endpointExperiment + url.PathEscape(n.Name()))
 	b, err := json.Marshal(exp)
 	if err != nil {
 		return e, err
@@ -575,6 +569,8 @@ func (h *httpAPI) CreateTrial(ctx context.Context, u string, asm TrialAssignment
 	case http.StatusCreated:
 		l = resp.Header.Get("Location")
 		return l, nil
+	case http.StatusConflict:
+		return l, &Error{Type: ErrExperimentStopped}
 	case http.StatusUnprocessableEntity:
 		return l, &Error{Type: ErrTrialInvalid}
 	default:

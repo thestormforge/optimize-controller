@@ -1,6 +1,6 @@
 # Installing Red Sky Ops
 
-There are two parts to Red Sky Ops: the `redskyctl` tool and Red Sky Ops Manager (running in your cluster).
+There are two parts to Red Sky Ops: the `redskyctl` tool and Red Sky Ops Controller (running in your cluster).
 
 ## Installing the Red Sky Ops Tool
 
@@ -20,9 +20,9 @@ curl -s https://api.github.com/repos/redskyops/k8s-experiment/releases/latest |\
 sudo mv redskyctl /usr/local/bin/
 ```
 
-## Installing the Red Sky Ops Manager
+## Installing the Red Sky Ops Controller
 
-The Red Sky Ops Manager runs inside your Kubernetes cluster. It can be configured to talk to an Enterprise server for improved capabilities.
+The Red Sky Ops Controller runs inside your Kubernetes cluster. It can be configured to talk to a remote server for improved capabilities.
 
 ### Easy Install
 
@@ -46,37 +46,33 @@ helm install --namespace redsky-system --name redsky redsky/redskyops
 
 The latest release of the Helm chart may not reference the latest application version, use the `redskyTag` value to override the application version.
 
-### Helm Enterprise Install
-
-The `redskyops` Helm chart includes additional values to configure when using the Enterprise product, please contact your sales representative for the additional values to use when installing with Helm.
-
 ### RBAC Requirements
 
-Red Sky Ops uses Kubernetes jobs to implement trial runs along with custom resources describing the experiment and trial. The Red Sky Ops Manager needs full permission to manipulate these resources. Additionally, the Red Sky Ops manager must be able to list core pods, services, and namespaces.
+Red Sky Ops uses Kubernetes jobs to implement trial runs along with custom resources describing the experiment and trial. The Red Sky Ops Controller needs full permission to manipulate these resources. Additionally, the Red Sky Ops Controller must be able to list core pods, services, and namespaces.
 
-The exact role requirements for a specific version can be reproduced using Kustomize, for example to view the [roles for v1.2.3](https://github.com/redskyops/k8s-experiment/tree/v1.2.3/config/rbac):
+The exact role requirements for a specific version can be reproduced using Kustomize, for example to view the [roles for v1.3.1](https://github.com/redskyops/k8s-experiment/tree/v1.3.1/config/rbac):
 
 ```sh
-kustomize build github.com/redskyops/k8s-experiment//config/rbac/?ref=v1.2.3
+kustomize build github.com/redskyops/k8s-experiment//config/rbac/?ref=v1.3.1
 ```
 
 The `redskyctl init` command will attempt to run a container in the default namespace of current context from your Kubernetes configuration. The container being run generates the manifests required for installation (see "Advanced Installation" for more details). Running the container requires "create" permission for the core "pods" resource.
 
 ### Advanced Installation
 
-If you have specific security requirements or the default RBAC configuration for the easy install is too permissive for your environment, there are a number of ways to obtain the raw Red Sky Ops Manager manifests:
+If you have specific security requirements or the default RBAC configuration for the easy install is too permissive for your environment, there are a number of ways to obtain the raw Red Sky Ops Controller manifests:
 
 1. Using `redskyctl generate install` will print the raw manifests used during installation, however this still requires creating a Kubernetes pod.
 2. Using Docker to run the `setuptools` image directly. For example, `docker container run --rm $(redskyctl version --setuptools)` will produce the same output as `redskyctl generate install --bootstrap-role=false` without requiring a configured Kubernetes context.
 
-## Upgrading the Red Sky Ops Manager
+## Upgrading the Red Sky Ops Controller
 
-The preferred way to upgrade the Red Sky Ops Manager is to install the latest version of `redskyctl` locally and run `redskyctl init`. Use `redskyctl version` to check the current version numbers.
+The preferred way to upgrade the Red Sky Ops Controller is to install the latest version of `redskyctl` locally and run `redskyctl init`. Use `redskyctl version` to check the current version numbers.
 
 In some cases there may be incompatibilities between versions requiring an uninstall prior to the installation of the new version: please consult the release notes for the version you are installing.
 
-## Uninstalling the Red Sky Ops Manager
+## Uninstalling the Red Sky Ops Controller
 
-To remove the Red Sky Ops Manager completely from your cluster, run `redskyctl reset`.
+To remove the Red Sky Ops Controller completely from your cluster, run `redskyctl reset`.
 
 *IMPORTANT* Running the reset command will also remove all of the Red Sky Ops data. Ensure you have backed up any information in the cluster prior to running this command.

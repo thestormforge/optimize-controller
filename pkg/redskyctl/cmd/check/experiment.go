@@ -25,6 +25,9 @@ import (
 	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
+	batchv1 "k8s.io/api/batch/v1"
+	"k8s.io/api/batch/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/yaml"
@@ -83,28 +86,30 @@ func (o *CheckExperimentOptions) Run() error {
 		return err
 	}
 
-	// TODO Can we use the REST API to send a dry-run for validation?
-
-	// Unmarshal the experiment and check it
-	var problems []LintError
+	// Unmarshal the experiment
 	experiment := &redskyv1alpha1.Experiment{}
 	if err = yaml.Unmarshal(data, experiment); err != nil {
-		problems = []LintError{{Message: err.Error()}}
-	} else {
-		problems = CheckExperiment(experiment)
+		return err
 	}
+
+	// Check that everything looks right
+	linter := &AllTheLint{}
+	CheckExperiment(linter.For("experiment"), experiment)
 
 	// Share the results
 	// TODO Filter/sort?
-	for _, p := range problems {
-		_, _ = fmt.Fprintln(o.Out, p.Error())
+	for _, p := range linter.Problems {
+		_, _ = fmt.Fprintln(o.Out, p.Message)
 	}
 
 	return nil
 }
 
-func CheckExperiment(experiment *redskyv1alpha1.Experiment) []LintError {
-	lint := NewLinter()
+func CheckExperiment(lint Linter, experiment *redskyv1alpha1.Experiment) {
+
+	if !checkTypeMeta(lint.For("metadata"), &experiment.TypeMeta) {
+		return
+	}
 
 	checkParameters(lint.For("spec", "parameters"), experiment.Spec.Parameters)
 	checkMetrics(lint.For("spec", "metrics"), experiment.Spec.Metrics)
@@ -113,7 +118,23 @@ func CheckExperiment(experiment *redskyv1alpha1.Experiment) []LintError {
 
 	// TODO Some checks are higher level and need a combination of pieces: e.g. selector/template matching
 
-	return lint.Problems
+}
+
+func checkTypeMeta(lint Linter, typeMeta *metav1.TypeMeta) bool {
+	// TODO Should we have a "fatal" severity (i.e. -1) instead of trying to keep track of "ok"?
+	ok := true
+
+	if typeMeta.Kind != "Experiment" {
+		lint.For("metadata").Error().Invalid("kind", typeMeta.Kind, "Experiment")
+		ok = false
+	}
+
+	if typeMeta.APIVersion != redskyv1alpha1.GroupVersion.String() {
+		lint.For("metadata").Error().Invalid("apiVersion", typeMeta.APIVersion, redskyv1alpha1.GroupVersion.String())
+		ok = false
+	}
+
+	return ok
 }
 
 func checkParameters(lint Linter, parameters []redskyv1alpha1.Parameter) {
@@ -152,6 +173,13 @@ func checkMetric(lint Linter, metric *redskyv1alpha1.Metric) {
 
 	if metric.Type == redskyv1alpha1.MetricPrometheus && metric.Selector == nil {
 		lint.Error().Missing("selector for Prometheus metric")
+	}
+
+	if metric.Type == redskyv1alpha1.MetricJSONPath {
+		// TODO We need to render the template first
+		if !strings.Contains(metric.Query, "{") {
+			lint.Error().Invalid("query", metric.Query)
+		}
 	}
 
 	if metric.Scheme != "" && strings.ToLower(metric.Scheme) == "http" && strings.ToLower(metric.Scheme) != "https" {
@@ -200,7 +228,20 @@ func checkTrialTemplate(lint Linter, template *redskyv1alpha1.TrialTemplateSpec)
 }
 
 func checkTrial(lint Linter, trial *redskyv1alpha1.TrialSpec) {
+	if trial.Template != nil {
+		checkJobTemplate(lint.For("template"), trial.Template)
+	}
+}
 
+func checkJobTemplate(lint Linter, template *v1beta1.JobTemplateSpec) {
+	checkJob(lint.For("spec"), &template.Spec)
+}
+
+func checkJob(lint Linter, job *batchv1.JobSpec) {
+	if job.BackoffLimit != nil && *job.BackoffLimit != 0 {
+		// TODO Instead of "Invalid" can we have "Suggested"?
+		lint.Warning().Invalid("backoffLimit", *job.BackoffLimit, 0)
+	}
 }
 
 // Check if a kind is one of the known core types

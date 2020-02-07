@@ -17,41 +17,26 @@ limitations under the License.
 package util
 
 import (
+	"github.com/redskyops/k8s-experiment/internal/config"
 	redskyclient "github.com/redskyops/k8s-experiment/redskyapi"
 	"github.com/spf13/pflag"
 )
 
 // Red Sky server specific configuration flags
 
-const (
-	flagAddress = "address"
-)
-
 type ServerFlags struct {
-	Address *string
 }
 
 func NewServerFlags() *ServerFlags {
-	return &ServerFlags{
-		Address: stringptr(""),
-	}
+	return &ServerFlags{}
 }
 
-func (f *ServerFlags) AddFlags(flags *pflag.FlagSet) {
-	if f.Address != nil {
-		flags.StringVar(f.Address, flagAddress, *f.Address, "Absolute URL of the Red Sky API.")
-	}
-}
+func (f *ServerFlags) AddFlags(*pflag.FlagSet) {}
 
-func (f *ServerFlags) ToClientConfig() (*redskyclient.Config, error) {
-	clientConfig, err := redskyclient.DefaultConfig()
-	if err != nil {
+func (f *ServerFlags) ToClientConfig() (redskyclient.Config, error) {
+	cfg := &config.RedSkyConfig{}
+	if err := cfg.Load(); err != nil {
 		return nil, err
 	}
-
-	if f.Address != nil && *f.Address != "" {
-		clientConfig.Address = *f.Address
-	}
-
-	return clientConfig, nil
+	return cfg, nil
 }

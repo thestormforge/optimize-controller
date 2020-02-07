@@ -18,173 +18,253 @@ package login
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os/user"
+	"strings"
 	"time"
 
+	"github.com/mdp/qrterminal/v3"
 	"github.com/pkg/browser"
+	"github.com/redskyops/k8s-experiment/internal/config"
+	"github.com/redskyops/k8s-experiment/internal/oauth2/authorizationcode"
 	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
-	redskyclient "github.com/redskyops/k8s-experiment/redskyapi"
+	"github.com/redskyops/k8s-experiment/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
 	"golang.org/x/oauth2"
 )
 
+// TODO Configure these via LDFLAGS appropriate for dev/prod
 var (
-	// OAuthProfile controls with OAuth configuration to use
-	// TODO As a temporary hack, we actually use the callback server as an OAuth provider
-	OAuthProfile = "http://localhost:8085/"
+	// SuccessURL is the URL where users are redirected after a successful login
+	SuccessURL = "https://redskyops.dev/api/auth_success/"
 
-	// LoginSuccessURL is the URL where users are redirected after a successful login
-	LoginSuccessURL = "https://redskyops.dev/api/auth_success/"
+	// ClientID is the identifier for the Red Sky Control application
+	ClientID = ""
 )
 
 const (
-	loginLong    = `Log into your Red Sky account`
-	loginExample = ``
+	browserPrompt = `Opening your default browser to visit:
+
+	%s
+
+`
+	urlPrompt = `Go to the following link in your browser:
+
+	%s
+
+Enter verification code:
+
+		%s
+
+`
+	qrPrompt = `Your verification code is:
+
+		%s
+
+If you are having problems scanning, use your browser to visit: %s
+`
 )
 
-// LoginOptions is the configuration for logging in
-type LoginOptions struct {
+// Options is the configuration for creating new authorization entries in a configuration
+type Options struct {
+	// Config is the Red Sky Configuration to modify
+	Config *config.RedSkyConfig
+	// IOStreams are used to access the standard process streams
+	commander.IOStreams
+
+	// Name is the key assigned to this login in the configuration
+	Name string
+	// Server overrides the default server identifier
+	Server string
+	// DisplayURL triggers a device authorization grant with a simple verification prompt
 	DisplayURL bool
-	Force      bool
+	// DisplayQR triggers a device authorization grant and uses a QR code for the verification prompt
+	DisplayQR bool
+	// Force allows an existing authorization to be overwritten
+	Force bool
 
-	cmdutil.IOStreams
+	// shutdown is the context cancellation function used to shutdown the authorization code grant callback server
+	shutdown context.CancelFunc
 }
 
-// NewLoginOptions returns a new login options struct
-func NewLoginOptions(ioStreams cmdutil.IOStreams) *LoginOptions {
-	return &LoginOptions{
-		IOStreams: ioStreams,
-	}
-}
-
-func NewLoginCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
-	o := NewLoginOptions(ioStreams)
-
+// NewCommand creates a new command for executing a login
+func NewCommand(o *Options) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "login",
-		Short:   "Authenticate",
-		Long:    loginLong,
-		Example: loginExample,
+		Use:   "login",
+		Short: "Authenticate",
+		Long:  "Log into your Red Sky Account.",
+
+		PreRun: func(cmd *cobra.Command, args []string) {
+			commander.SetStreams(&o.IOStreams, cmd)
+			o.Complete()
+		},
+
 		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(o.Complete(f, cmd, args))
-			cmdutil.CheckErr(o.Run())
+			err := o.Run()
+			commander.CheckErr(cmd, err)
 		},
 	}
 
+	cmd.Flags().StringVar(&o.Name, "name", "", "Name of the server configuration to authorize.")
+	cmd.Flags().StringVar(&o.Server, "server", "", "Override the Red Sky API server identifier.")
 	cmd.Flags().BoolVar(&o.DisplayURL, "url", false, "Display the URL instead of opening a browser.")
-	cmd.Flags().BoolVar(&o.Force, "force", false, "Overwrite existing configuration")
+	cmd.Flags().BoolVar(&o.DisplayQR, "qr", false, "Display a QR code instead of opening a browser.")
+	cmd.Flags().BoolVar(&o.Force, "force", false, "Overwrite existing configuration.")
 
 	return cmd
 }
 
-func (o *LoginOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []string) error {
-	return nil
-}
-
-func (o *LoginOptions) Run() error {
-	// Refuse to overwrite authentication unless forced
-	if !o.Force {
-		if config, err := redskyclient.DefaultConfig(); err == nil && (config.OAuth2.ClientID != "" || config.OAuth2.ClientSecret != "") {
-			return fmt.Errorf("refusing to overwrite existing configuration without --force")
+// Complete fills in missing default values
+func (o *Options) Complete() {
+	if o.Name == "" {
+		o.Name = "default"
+		if o.Server != "" {
+			o.Name = strings.ToLower(o.Server)
+			o.Name = strings.TrimPrefix(o.Name, "http://")
+			o.Name = strings.TrimPrefix(o.Name, "https://")
+			o.Name = strings.ReplaceAll(o.Name, "/", "_")
 		}
 	}
+}
 
-	// Use the OAuth configuration to create a new authorization flow with PKCE
-	config := NewOAuthConfig(OAuthProfile)
-	if config == nil {
-		return fmt.Errorf("unknown OAuth profile: %s", OAuthProfile)
-	}
-	config.RedirectURL = "http://localhost:8085/"
-	config.Scopes = []string{"offline_access"}
-	flow, err := NewAuthorizationCodeFlowWithPKCE(config)
-	if err != nil {
+// Run executes the login
+func (o *Options) Run() error {
+	// Abuse "Update" to validate the configuration does not already have an authorization
+	if err := o.Config.Update(o.requireForceIfNameExists); err != nil {
 		return err
 	}
 
-	// Configure the flow to persist the access token for offline use and generate the appropriate callback responses
-	flow.Audience = "https://api.carbonrelay.dev/"
-	flow.HandleToken = o.takeOffline
-	flow.GenerateResponse = o.generateCallbackResponse
+	// Technically these updates could be done in `takeOffline` but it is better to fail early
+	if err := o.Config.Update(config.SaveServer(o.Name, &config.Server{Identifier: o.Server})); err != nil {
+		return err
+	}
+	if err := o.Config.Update(config.ApplyCurrentContext(o.Name, o.Name, o.Name, "")); err != nil {
+		return err
+	}
 
-	// TODO The flow for not launching a browser is actually somewhat different then just showing the URL:
-	// 1. We do not need a local webserver at all
-	// 2. We need to interactively prompt for the authorization code
-	// 3. The backend needs a special redirect URL that displays the authorization code in the browser instead of redirecting
-	// IS THIS AN AUTH0 "Device Flow" (e.g. a TV app authorization)
+	// The user has requested we just show a URL
+	if o.DisplayURL || o.DisplayQR {
+		return o.runDeviceCodeFlow()
+	}
 
-	// TODO This is bogus until we get a real auth provider
-	ap := &authenticationProvider{}
+	// Perform authorization using the system web browser and a local web server
+	return o.runAuthorizationCodeFlow()
+}
 
-	// Create a new server that will be shutdown when the authorization flow completes
-	server := cmdutil.NewContextServer(serverShutdownContext(flow), ap.handler(flow.Callback),
-		cmdutil.WithServerOptions(configureCallbackServer(flow)),
+func (o *Options) runDeviceCodeFlow() error {
+	az, err := o.Config.NewDeviceAuthorization()
+	if err != nil {
+		return err
+	}
+	az.ClientID = ClientID
+	az.Scopes = append(az.Scopes, "offline_access") // TODO Where or what do we want to do here?
+
+	t, err := az.Token(context.Background(), o.generateValidatationRequest)
+	if err != nil {
+		return err
+	}
+	return o.takeOffline(t)
+}
+
+func (o *Options) runAuthorizationCodeFlow() error {
+	// Create a new authorization code flow
+	c, err := o.Config.NewAuthorization()
+	if err != nil {
+		return err
+	}
+	c.ClientID = ClientID
+	c.Scopes = append(c.Scopes, "offline_access") // TODO Where or what do we want to do here?
+	c.RedirectURL = "http://localhost:8085/"
+
+	// Create a context we can use to shutdown the server and the OAuth authorization code callback endpoint
+	var ctx context.Context
+	ctx, o.shutdown = context.WithCancel(context.Background())
+	handler := c.Callback(o.takeOffline, o.generateCallbackResponse)
+
+	// Create a new server with some extra configuration
+	server := cmdutil.NewContextServer(ctx, handler,
+		cmdutil.WithServerOptions(configureCallbackServer(c)),
 		cmdutil.ShutdownOnInterrupt(func() { _, _ = fmt.Fprintln(o.Out) }),
 		cmdutil.HandleStart(func(string) error {
-			return o.openBrowser(flow.AuthCodeURL())
+			return o.openBrowser(c.AuthCodeURLWithPKCE())
 		}))
 
+	// Start the server, this will block until someone calls 'o.shutdown' from above
 	return server.ListenAndServe()
 }
 
-// takeOffline caches the access token for offline use
-func (o *LoginOptions) takeOffline(t *oauth2.Token) error {
-	// For now, the token is kind of a dummy.
-	if t.TokenType != "dummy" {
-		return fmt.Errorf("unexpected token type")
+// requireForceIfNameExists is a configuration "change" that really just validates that there are no name conflicts
+func (o *Options) requireForceIfNameExists(cfg *config.Config) error {
+	if !o.Force {
+		// NOTE: We do not require --force for server name conflicts so you can log into an existing configuration
+		for i := range cfg.Authorizations {
+			if cfg.Authorizations[i].Name == o.Name {
+				az := &cfg.Authorizations[i].Authorization
+				if az.Credential.TokenCredential != nil || az.Credential.ClientCredential != nil {
+					return fmt.Errorf("refusing to update, use --force")
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// takeOffline records the token in the configuration and write the configuration to disk
+func (o *Options) takeOffline(t *oauth2.Token) error {
+	// TODO Verify token and extract user info?
+
+	if err := o.Config.Update(config.SaveToken(o.Name, t)); err != nil {
+		return err
+	}
+	if err := o.Config.Write(); err != nil {
+		return err
 	}
 
-	// The dummy access token is just the base64 encoded JSON with the client ID and secret
-	data, err := base64.URLEncoding.DecodeString(t.AccessToken)
-	if err != nil {
-		return err
-	}
-	accessToken := make(map[string]string)
-	if err := json.Unmarshal(data, &accessToken); err != nil {
-		return err
-	}
-
-	// Load the Red Sky configuration to persist the changes
-	config, err := redskyclient.DefaultConfig()
-	if err != nil {
-		return err
-	}
-	_ = config.Set("oauth2.client_id", accessToken["redsky_client_id"])
-	_ = config.Set("oauth2.client_secret", accessToken["redsky_client_secret"])
-
-	// Write the configuration back to disk
-	err = config.Write()
-	if err != nil {
-		return err
-	}
+	// TODO Print out something more informative e.g. "... as [xxx]."
+	_, _ = fmt.Fprintf(o.Out, "You are now logged in.\n")
 
 	return nil
 }
 
 // generateCallbackResponse generates an HTTP response for the OAuth callback
-func (o *LoginOptions) generateCallbackResponse(w http.ResponseWriter, r *http.Request, message string, status int) {
-	// TODO Redirect to a troubleshooting page for internal server errors
-	if status == http.StatusOK {
-		http.Redirect(w, r, LoginSuccessURL, http.StatusSeeOther)
-		// TODO Print out something more informative
-		_, _ = fmt.Fprintln(o.Out, "You are now logged in.")
-	} else {
+func (o *Options) generateCallbackResponse(w http.ResponseWriter, r *http.Request, message string, status int) {
+	switch status {
+	case http.StatusOK:
+		// Redirect the user to the successful login URL and shutdown the server
+		http.Redirect(w, r, SuccessURL, http.StatusSeeOther)
+		o.shutdown()
+	case http.StatusNotFound, http.StatusMethodNotAllowed:
+		// Ignorable error codes, e.g. browser requests for '/favicon.ico'
+		http.Error(w, http.StatusText(status), status)
+	default:
+		// TODO Redirect to a troubleshooting URL? Use the snake cased status text as the fragment (e.g. '...#internal-server-error')?
 		msg := message
 		if msg == "" {
 			msg = http.StatusText(status)
 		}
 		http.Error(w, message, status)
-		if isStatusTerminal(status) {
-			_, _ = fmt.Fprintln(o.Out, "An error occurred, please try again.")
-		}
+
+		// TODO Print the actual error message?
+		_, _ = fmt.Fprintf(o.Out, "An error occurred, please try again.\n")
+
+		o.shutdown()
 	}
 }
 
+// generateValidatationRequest generates a validation request to the command output stream
+func (o *Options) generateValidatationRequest(userCode, verificationURI, verificationURIComplete string) {
+	if o.DisplayQR {
+		qrterminal.Generate(verificationURIComplete, qrterminal.L, o.Out)
+		_, _ = fmt.Fprintf(o.Out, qrPrompt, userCode, verificationURI)
+		return
+	}
+
+	_, _ = fmt.Fprintf(o.Out, urlPrompt, verificationURI, userCode)
+}
+
 // openBrowser prints the supplied URL and possibly opens a web browser pointing to that URL
-func (o *LoginOptions) openBrowser(loc string) error {
+func (o *Options) openBrowser(loc string) error {
 	u, err := user.Current()
 	if err != nil {
 		return err
@@ -196,15 +276,15 @@ func (o *LoginOptions) openBrowser(loc string) error {
 		return nil
 	}
 
-	_, _ = fmt.Fprintf(o.Out, "Opening your default browser to visit:\n\n\t%s\n\n", loc)
+	_, _ = fmt.Fprintf(o.Out, browserPrompt, loc)
 	return browser.OpenURL(loc)
 }
 
 // configureCallbackServer configures an HTTP server using the supplied callback redirect URL for the listen address
-func configureCallbackServer(f *AuthorizationCodeFlowWithPKCE) func(srv *http.Server) {
+func configureCallbackServer(c *authorizationcode.Config) func(srv *http.Server) {
 	return func(srv *http.Server) {
 		// Try to make the server listen on the same host as the callback
-		if addr, err := f.CallbackAddr(); err == nil {
+		if addr, err := c.CallbackAddr(); err == nil {
 			srv.Addr = addr
 		}
 
@@ -213,29 +293,4 @@ func configureCallbackServer(f *AuthorizationCodeFlowWithPKCE) func(srv *http.Se
 		srv.WriteTimeout = 10 * time.Second
 		srv.IdleTimeout = 15 * time.Second
 	}
-}
-
-// serverShutdownContext wraps the response generator of the supplied flow to cancel the returned context.
-// This is effectively the code that shuts down the HTTP server once the OAuth callback is hit.
-func serverShutdownContext(f *AuthorizationCodeFlowWithPKCE) context.Context {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	// Wrap GenerateResponse so it cancels the context on success or server failure
-	genResp := f.GenerateResponse
-	f.GenerateResponse = func(w http.ResponseWriter, r *http.Request, message string, status int) {
-		if genResp != nil {
-			genResp(w, r, message, status)
-		}
-
-		if isStatusTerminal(status) {
-			cancel()
-		}
-	}
-
-	return ctx
-}
-
-// isStatusTerminal checks to see if the status indicates that it is time to shutdown the server
-func isStatusTerminal(status int) bool {
-	return status != http.StatusNotFound && status != http.StatusMethodNotAllowed
 }
