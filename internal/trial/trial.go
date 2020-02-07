@@ -60,6 +60,37 @@ func IsActive(t *redskyv1alpha1.Trial) bool {
 	return false
 }
 
+// IsTrialJobReference checks to see if the supplied reference likely points to the job of a trial. This is
+// used primarily to give special handling to patch operations so they can refer to trial job before it exists.
+func IsTrialJobReference(t *redskyv1alpha1.Trial, ref *corev1.ObjectReference) bool {
+	// Kind _must_ be job
+	if ref.Kind != "Job" {
+		return false
+	}
+
+	// Allow version to be omitted for compatibility with old job definitions
+	if ref.APIVersion != "" && ref.APIVersion != "batch/v1" {
+		return false
+	}
+
+	// Allow namespace to be omitted for trials that run in multiple namespaces
+	if ref.Namespace != "" && ref.Namespace != t.Namespace {
+		return false
+	}
+
+	// If the trial job template has name, it must match...
+	if t.Spec.Template.Name != "" && ref.Name != t.Spec.Template.Name {
+		return false
+	}
+
+	// ...otherwise the trial name must match
+	if t.Spec.Template.Name == "" && ref.Name != t.Name {
+		return false
+	}
+
+	return true
+}
+
 // AppendAssignmentEnv appends an environment variable for each trial assignment
 func AppendAssignmentEnv(t *redskyv1alpha1.Trial, env []corev1.EnvVar) []corev1.EnvVar {
 	for _, a := range t.Spec.Assignments {

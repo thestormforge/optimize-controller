@@ -137,7 +137,7 @@ func (r *PatchReconciler) evaluatePatches(ctx context.Context, t *redskyv1alpha1
 			return &ctrl.Result{}, err
 		}
 
-		po, err := createPatchOperation(&p, data)
+		po, err := createPatchOperation(t, &p, data)
 		if err != nil {
 			return &ctrl.Result{}, err
 		}
@@ -197,17 +197,12 @@ func (r *PatchReconciler) applyPatches(ctx context.Context, t *redskyv1alpha1.Tr
 	return controller.RequeueConflict(err)
 }
 
-func createPatchOperation(p *redskyv1alpha1.PatchTemplate, data []byte) (*redskyv1alpha1.PatchOperation, error) {
+func createPatchOperation(t *redskyv1alpha1.Trial, p *redskyv1alpha1.PatchTemplate, data []byte) (*redskyv1alpha1.PatchOperation, error) {
 	// The default patch operation has 3 retries and triggers a stability check ("wait")
 	po := &redskyv1alpha1.PatchOperation{
 		Data:              data,
 		AttemptsRemaining: 3,
 		Wait:              true,
-	}
-
-	// If the patch is effectively null, we do not need to evaluate it
-	if len(po.Data) == 0 || string(po.Data) == "null" {
-		po.AttemptsRemaining = 0
 	}
 
 	// Determine the patch type
@@ -237,6 +232,20 @@ func createPatchOperation(p *redskyv1alpha1.PatchTemplate, data []byte) (*redsky
 			po.TargetRef.Name = m.Name
 			po.TargetRef.Namespace = m.Namespace
 		}
+	}
+
+	// If the patch is effectively null, we do not need to evaluate it
+	if len(po.Data) == 0 || string(po.Data) == "null" {
+		po.AttemptsRemaining = 0
+	}
+
+	// If the patch is for the trial job itself, it cannot be applied (since the job won't exist until well after patches are applied)
+	if trial.IsTrialJobReference(t, &po.TargetRef) {
+		if po.PatchType != types.StrategicMergePatchType {
+			return nil, fmt.Errorf("trial job patch must be a strategic merge patch")
+		}
+		po.AttemptsRemaining = 0
+		po.Wait = false
 	}
 
 	return po, nil

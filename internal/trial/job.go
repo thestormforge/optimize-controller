@@ -17,6 +17,7 @@ limitations under the License.
 package trial
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -25,6 +26,8 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 )
 
 // NewJob returns a new trial run job from the template on the trial
@@ -85,6 +88,22 @@ func NewJob(t *redskyv1alpha1.Trial) *batchv1.Job {
 				Command: []string{"/bin/sh"},
 				Args:    []string{"-c", fmt.Sprintf("echo 'Sleeping for %s...' && sleep %.0f && echo 'Done.'", s.Duration.String(), s.Seconds())},
 			},
+		}
+	}
+
+	// Check to see if there is patch for the (as of yet, non-existent) trial job
+	for i := range t.Spec.PatchOperations {
+		po := &t.Spec.PatchOperations[i]
+		if IsTrialJobReference(t, &po.TargetRef) && po.PatchType == types.StrategicMergePatchType {
+			// Ignore errors all the way down, only overwrite what we have if it all works
+			if original, err := json.Marshal(job); err == nil {
+				j := &batchv1.Job{}
+				if patched, err := strategicpatch.StrategicMergePatch(original, po.Data, j); err == nil {
+					if err := json.Unmarshal(patched, j); err == nil {
+						job = j
+					}
+				}
+			}
 		}
 	}
 
