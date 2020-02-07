@@ -83,8 +83,8 @@ func IsTrialJobReference(t *redskyv1alpha1.Trial, ref *corev1.ObjectReference) b
 		return false
 	}
 
-	// ...otherwise the trial name must match
-	if t.Spec.Template.Name == "" && ref.Name != t.Name {
+	// ...otherwise the trial name must match by prefix
+	if t.Spec.Template.Name == "" && strings.HasPrefix(t.Name, ref.Name) {
 		return false
 	}
 
