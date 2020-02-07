@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/go-logr/logr"
@@ -224,10 +225,19 @@ func createPatchOperation(p *redskyv1alpha1.PatchTemplate, data []byte) (*redsky
 	// Attempt to populate the target reference
 	if p.TargetRef != nil {
 		p.TargetRef.DeepCopyInto(&po.TargetRef)
+	} else if po.PatchType == types.StrategicMergePatchType {
+		type patchMetadata struct {
+			metav1.TypeMeta   `json:",inline"`
+			metav1.ObjectMeta `json:"metadata,omitempty"`
+		}
+		m := &patchMetadata{}
+		if err := json.Unmarshal(po.Data, m); err == nil {
+			po.TargetRef.APIVersion = m.APIVersion
+			po.TargetRef.Kind = m.Kind
+			po.TargetRef.Name = m.Name
+			po.TargetRef.Namespace = m.Namespace
+		}
 	}
-
-	// TODO Allow strategic merge patches to specify the target reference (only if p.TargetRef == nil ?)
-	// Need to unmarshal data into an ObjectMeta and extract the results into the reference, checking for conflicts
 
 	return po, nil
 }
