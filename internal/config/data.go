@@ -44,7 +44,7 @@ type Config struct {
 type Server struct {
 	// Identifier is a URI used to identify a common set of endpoints making up a Red Sky API Server. The identifier
 	// may be used to resolve ".well-known" locations, used as an authorization audience, or used as a common base URL
-	// when determining default endpoint addresses.
+	// when determining default endpoint addresses. The URL must not have any query or fragment components.
 	Identifier string `json:"identifier"`
 	// RedSky contains the Red Sky server metadata necessary to access this server
 	RedSky RedSkyServer `json:"redsky"`
@@ -62,10 +62,14 @@ type RedSkyServer struct {
 
 // AuthorizationServer is the authorization server metadata
 type AuthorizationServer struct {
+	// Issuer is the authorization server's identifier, it must be an "https" URL with no query or fragment
+	Issuer string `json:"issuer"`
 	// AuthorizationEndpoint is the URL of the authorization endpoint
 	AuthorizationEndpoint string `json:"authorization_endpoint,omitempty"`
 	// TokenEndpoint is the URL of the token endpoint
 	TokenEndpoint string `json:"token_endpoint,omitempty"`
+	// RevocationEndpoint is the URL of the revocation endpoint
+	RevocationEndpoint string `json:"revocation_endpoint,omitempty"`
 	// RegistrationEndpoint is the URL of the dynamic client registration endpoint
 	RegistrationEndpoint string `json:"registration_endpoint,omitempty"`
 	// DeviceAuthorizationEndpoint is the URL of the device flow authorization endpoint

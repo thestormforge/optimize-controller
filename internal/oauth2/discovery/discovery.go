@@ -19,7 +19,27 @@
 // See https://tools.ietf.org/html/rfc8414
 package discovery
 
-import "net/url"
+import (
+	"fmt"
+	"net/url"
+	"strings"
+)
+
+// IssuerURL returns the issuer URL with no trialing slash, an error is returned if the URL is not valid.
+func IssuerURL(issuer string) (string, error) {
+	u, err := url.Parse(issuer)
+	if err != nil {
+		return "", err
+	}
+	if u.RawQuery != "" {
+		return "", fmt.Errorf("query component is not allowed: %s", issuer)
+	}
+	if u.Fragment != "" {
+		return "", fmt.Errorf("fragment component is not allowed: %s", issuer)
+	}
+	u.Path = strings.TrimRight(u.Path, "/")
+	return u.String(), nil
+}
 
 // WellKnownURI returns a ".well-known" location for the registered name.
 //
