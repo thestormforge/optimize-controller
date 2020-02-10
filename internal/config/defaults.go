@@ -29,7 +29,7 @@ var (
 	// DefaultServerIdentifier is the default entrypoint to the remote application
 	DefaultServerIdentifier = "https://api.carbonrelay.io/v1/"
 	// DefaultAuthorizationIssuer is the default authorization server issuer
-	DefaultAuthorizationIssuer = "https://carbonrelay.auth0.com/"
+	DefaultAuthorizationIssuer = "https://auth.carbonrelay.io/"
 )
 
 func defaultLoader(cfg *RedSkyConfig) error {
@@ -108,12 +108,12 @@ func defaultServer(srv *Server) error {
 	if srv.Identifier == DefaultServerIdentifier {
 		defaultString(&srv.RedSky.ExperimentsEndpoint, "https://api.carbonrelay.io/v1/experiments/")
 		defaultString(&srv.RedSky.AccountsEndpoint, "https://api.carbonrelay.io/v1/accounts/")
-		defaultString(&srv.Authorization.AuthorizationEndpoint, "https://carbonrelay.auth0.com/authorize")
-		defaultString(&srv.Authorization.TokenEndpoint, "https://carbonrelay.auth0.com/oauth/token")
-		defaultString(&srv.Authorization.RevocationEndpoint, "https://carbonrelay.auth0.com/oauth/revoke")
+		defaultString(&srv.Authorization.AuthorizationEndpoint, "https://auth.carbonrelay.io/authorize")
+		defaultString(&srv.Authorization.TokenEndpoint, "https://auth.carbonrelay.io/oauth/token")
+		defaultString(&srv.Authorization.RevocationEndpoint, "https://auth.carbonrelay.io/oauth/revoke")
 		defaultString(&srv.Authorization.RegistrationEndpoint, "https://api.carbonrelay.io/v1/accounts/clients/register") // NOTE: Special case
-		defaultString(&srv.Authorization.DeviceAuthorizationEndpoint, "https://carbonrelay.auth0.com/oauth/device/code")
-		defaultString(&srv.Authorization.JSONWebKeySetURI, "https://carbonrelay.auth0.com/.well-known/jwks.json")
+		defaultString(&srv.Authorization.DeviceAuthorizationEndpoint, "https://auth.carbonrelay.io/oauth/device/code")
+		defaultString(&srv.Authorization.JSONWebKeySetURI, "https://auth.carbonrelay.io/.well-known/jwks.json")
 		return nil
 	}
 
