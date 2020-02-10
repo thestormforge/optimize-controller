@@ -104,17 +104,9 @@ func defaultServer(srv *Server) error {
 	// TODO We should try discovery, e.g. fetch "{srv.Identifier without path}/.well-known/oauth-authorization-server[{srv.Identifier path}]
 	// Discovery should _merge_ (not _default_)
 
-	// Hard coded defaults for the default server
+	// Special case, registration is actually done by the accounts API
 	if srv.Identifier == DefaultServerIdentifier {
-		defaultString(&srv.RedSky.ExperimentsEndpoint, "https://api.carbonrelay.io/v1/experiments/")
-		defaultString(&srv.RedSky.AccountsEndpoint, "https://api.carbonrelay.io/v1/accounts/")
-		defaultString(&srv.Authorization.AuthorizationEndpoint, "https://auth.carbonrelay.io/authorize")
-		defaultString(&srv.Authorization.TokenEndpoint, "https://auth.carbonrelay.io/oauth/token")
-		defaultString(&srv.Authorization.RevocationEndpoint, "https://auth.carbonrelay.io/oauth/revoke")
-		defaultString(&srv.Authorization.RegistrationEndpoint, "https://api.carbonrelay.io/v1/accounts/clients/register") // NOTE: Special case
-		defaultString(&srv.Authorization.DeviceAuthorizationEndpoint, "https://auth.carbonrelay.io/oauth/device/code")
-		defaultString(&srv.Authorization.JSONWebKeySetURI, "https://auth.carbonrelay.io/.well-known/jwks.json")
-		return nil
+		defaultString(&srv.Authorization.RegistrationEndpoint, "https://api.carbonrelay.io/v1/accounts/clients/register")
 	}
 
 	// Computed defaults for everyone else
