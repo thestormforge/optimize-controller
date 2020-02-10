@@ -116,12 +116,14 @@ func mergeServer(s1, s2 *Server) {
 func mergeAuthorization(a1, a2 *Authorization) {
 	// Do not merge credentials, just copy them wholesale if they are present
 	if a2.Credential.TokenCredential != nil && a2.Credential.AccessToken != "" {
-		*a1.Credential.TokenCredential = *a2.Credential.TokenCredential
 		a1.Credential.ClientCredential = nil
+		a1.Credential.TokenCredential = new(TokenCredential)
+		*a1.Credential.TokenCredential = *a2.Credential.TokenCredential
 	}
 	if a2.Credential.ClientCredential != nil && a2.Credential.ClientID != "" {
-		*a1.Credential.ClientCredential = *a2.Credential.ClientCredential
 		a1.Credential.TokenCredential = nil
+		a1.Credential.ClientCredential = new(ClientCredential)
+		*a1.Credential.ClientCredential = *a2.Credential.ClientCredential
 	}
 }
 
