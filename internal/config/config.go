@@ -60,7 +60,7 @@ func (rsc *RedSkyConfig) Load(extra ...Loader) error {
 	var loaders []Loader
 	loaders = append(loaders, fileLoader, migrationLoader)
 	loaders = append(loaders, extra...)
-	loaders = append(loaders, defaultLoader, envLoader)
+	loaders = append(loaders, envLoader, defaultLoader)
 	for i := range loaders {
 		if err := loaders[i](rsc); err != nil {
 			return err

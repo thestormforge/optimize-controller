@@ -18,49 +18,80 @@ package config
 
 import "os"
 
-// NOTE: The environment loader is NOT backward compatible with the old environment variables
-
 func envLoader(cfg *RedSkyConfig) error {
-	srv, az, _, _, err := contextConfig(&cfg.data)
-	if err != nil {
-		return err
-	}
-
-	// Build configuration objects based on the environment
-	envSrv := &Server{
-		Identifier: os.Getenv("REDSKY_ADDRESS"),
-		RedSky: RedSkyServer{
-			ExperimentsEndpoint: "",
-			AccountsEndpoint:    "",
-		},
-		Authorization: AuthorizationServer{
-			AuthorizationEndpoint: "",
-			TokenEndpoint:         os.Getenv("REDSKY_OAUTH2_TOKEN_URL"),
-			RegistrationEndpoint:  "",
-		},
-	}
-	envCredential := &ClientCredential{
-		ClientID:     os.Getenv("REDSKY_OAUTH2_CLIENT_ID"),
-		ClientSecret: os.Getenv("REDSKY_OAUTH2_CLIENT_SECRET"),
-	}
-
-	// If any values were set, overwrite the configuration
-	if envSrv.Identifier != "" {
-		if err := defaultServer(envSrv); err != nil {
-			return err
-		}
-		mergeServer(srv, envSrv)
-	}
-	if envCredential.ClientID != "" && envCredential.ClientSecret != "" {
-		mergeAuthorization(az, &Authorization{Credential: Credential{ClientCredential: envCredential}})
-	}
+	(&env{
+		serverIdentifier:          os.Getenv("REDSKY_SERVER_IDENTIFIER"),
+		serverIssuer:              os.Getenv("REDSKY_SERVER_ISSUER"),
+		authorizationClientID:     os.Getenv("REDSKY_AUTHORIZATION_CLIENT_ID"),
+		authorizationClientSecret: os.Getenv("REDSKY_AUTHORIZATION_CLIENT_SECRET"),
+	}).applyConfig(&cfg.data)
 
 	return nil
 }
 
+type env struct {
+	serverIdentifier          string
+	serverIssuer              string
+	authorizationClientID     string
+	authorizationClientSecret string
+}
+
+func (e *env) applyConfig(cfg *Config) {
+	// Find the current or only context
+	ctx := findContext(cfg.Contexts, cfg.CurrentContext)
+	if ctx == nil && len(cfg.Contexts) == 1 {
+		ctx = &cfg.Contexts[0].Context
+	}
+
+	// Determine the names for the server and authorization
+	serverName := "default"
+	authorizationName := ""
+	if ctx != nil {
+		mergeString(&serverName, ctx.Server)
+		mergeString(&authorizationName, ctx.Authorization)
+	}
+	defaultString(&authorizationName, serverName)
+
+	// Apply the environment configuration
+	if e.serverIdentifier != "" || e.serverIssuer != "" {
+		e.applyServer(cfg, serverName)
+	}
+	if e.authorizationClientID != "" && e.authorizationClientSecret != "" {
+		e.applyAuthorization(cfg, authorizationName)
+	}
+}
+
+func (e *env) applyServer(cfg *Config, name string) {
+	// Find or create the server
+	srv := findServer(cfg.Servers, name)
+	if srv == nil {
+		cfg.Servers = append(cfg.Servers, NamedServer{Name: name})
+		srv = &cfg.Servers[len(cfg.Servers)-1].Server
+	}
+
+	// Overwrite the API server identifier and authorization server issuer
+	mergeString(&srv.Identifier, e.serverIdentifier)
+	mergeString(&srv.Authorization.Issuer, e.serverIssuer)
+}
+
+func (e *env) applyAuthorization(cfg *Config, name string) {
+	// Find or create the authorization
+	az := findAuthorization(cfg.Authorizations, name)
+	if az == nil {
+		cfg.Authorizations = append(cfg.Authorizations, NamedAuthorization{Name: name})
+		az = &cfg.Authorizations[len(cfg.Authorizations)-1].Authorization
+	}
+
+	// Overwrite the authorization credential
+	mergeAuthorization(az, &Authorization{Credential: Credential{ClientCredential: &ClientCredential{
+		ClientID:     e.authorizationClientID,
+		ClientSecret: e.authorizationClientSecret,
+	}}})
+}
+
 // LegacyEnvMapping produces a map of environment variables generated from a configuration
 func LegacyEnvMapping(cfg *RedSkyConfig, includeController bool) (map[string][]byte, error) {
-	srv, az, _, ctrl, err := contextConfig(&cfg.data, cfg.data.CurrentContext)
+	srv, az, _, ctrl, err := contextConfig(&cfg.data)
 	if err != nil {
 		return nil, err
 	}
@@ -68,13 +99,13 @@ func LegacyEnvMapping(cfg *RedSkyConfig, includeController bool) (map[string][]b
 	env := make(map[string][]byte)
 
 	// Record the server information
-	env["REDSKY_ADDRESS"] = []byte(srv.Identifier)
-	env["REDSKY_OAUTH2_TOKEN_URL"] = []byte(srv.Authorization.TokenEndpoint)
+	env["REDSKY_SERVER_IDENTIFIER"] = []byte(srv.Identifier)
+	env["REDSKY_SERVER_ISSUER"] = []byte(srv.Authorization.Issuer)
 
 	// Record the authorization information
 	if az.Credential.ClientCredential != nil {
-		env["REDSKY_OAUTH2_CLIENT_ID"] = []byte(az.Credential.ClientID)
-		env["REDSKY_OAUTH2_CLIENT_SECRET"] = []byte(az.Credential.ClientSecret)
+		env["REDSKY_AUTHORIZATION_CLIENT_ID"] = []byte(az.Credential.ClientID)
+		env["REDSKY_AUTHORIZATION_CLIENT_SECRET"] = []byte(az.Credential.ClientSecret)
 	}
 
 	// Optionally record environment variables from the controller configuration
