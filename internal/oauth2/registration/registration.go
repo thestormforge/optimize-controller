@@ -29,6 +29,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"mime"
 	"net/http"
 
 	"golang.org/x/net/context/ctxhttp"
@@ -141,11 +142,14 @@ func doRegistrationRoundTrip(ctx context.Context, req *http.Request, src oauth2.
 	if err != nil {
 		return nil, fmt.Errorf("registration: cannot fetch client information: %v", err)
 	}
-	// TODO Check content type?
+
 	if code := r.StatusCode; code > 399 || code < 500 {
 		responseError := &ClientRegistrationErrorResponse{}
 		if err := json.Unmarshal(body, responseError); err != nil {
-			return nil, err
+			if t, _, err := mime.ParseMediaType(r.Header.Get("Content-Type")); err == nil && t != "application/json" {
+				return nil, fmt.Errorf("registration: invalid response body type; expected JSON, got: %s", t)
+			}
+			return nil, fmt.Errorf("registration: invalid response: %v", err)
 		}
 		if responseError.ErrorCode == "" {
 			return nil, fmt.Errorf("registration: server error response missing error")
