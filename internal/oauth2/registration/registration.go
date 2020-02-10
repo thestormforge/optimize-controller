@@ -143,7 +143,7 @@ func doRegistrationRoundTrip(ctx context.Context, req *http.Request, src oauth2.
 		return nil, fmt.Errorf("registration: cannot fetch client information: %v", err)
 	}
 
-	if code := r.StatusCode; code > 399 || code < 500 {
+	if code := r.StatusCode; code < 200 || code > 299 {
 		responseError := &ClientRegistrationErrorResponse{}
 		if err := json.Unmarshal(body, responseError); err != nil {
 			if t, _, err := mime.ParseMediaType(r.Header.Get("Content-Type")); err == nil && t != "application/json" {
