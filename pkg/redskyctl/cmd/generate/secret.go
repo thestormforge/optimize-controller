@@ -108,7 +108,7 @@ func (o *GenerateSecretOptions) Run() error {
 
 	info, err := o.cfg.RegisterClient(context.Background(), &registration.ClientMetadata{
 		ClientName:    o.ClientName,
-		GrantTypes:    []string{"client_credential"},
+		GrantTypes:    []string{"client_credentials"},
 		RedirectURIs:  []string{},
 		ResponseTypes: []string{},
 	})
