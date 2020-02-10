@@ -17,6 +17,7 @@ limitations under the License.
 package config
 
 import (
+	"net/url"
 	"os/exec"
 	"strings"
 
@@ -97,36 +98,39 @@ func defaultLoader(cfg *RedSkyConfig) error {
 }
 
 func defaultServer(srv *Server) error {
-	// We must have a default server identifier and issuer
+	// Validate the server identifier (used for API endpoints)
 	defaultString(&srv.Identifier, DefaultServerIdentifier)
-	defaultString(&srv.Authorization.Issuer, DefaultAuthorizationIssuer)
-
-	// TODO We should try discovery, e.g. fetch "{srv.Identifier without path}/.well-known/oauth-authorization-server[{srv.Identifier path}]
-	// Discovery should _merge_ (not _default_)
-
-	// Special case, registration is actually done by the accounts API
-	if srv.Identifier == DefaultServerIdentifier {
-		defaultString(&srv.Authorization.RegistrationEndpoint, "https://api.carbonrelay.io/v1/accounts/clients/register")
-	}
-
-	// Computed defaults for everyone else
 	api, err := discovery.IssuerURL(srv.Identifier)
 	if err != nil {
 		return err
 	}
+
+	// Validate the authorization server issuer (used for authorization endpoints)
+	defaultString(&srv.Authorization.Issuer, DefaultAuthorizationIssuer)
 	issuer, err := discovery.IssuerURL(srv.Authorization.Issuer)
 	if err != nil {
 		return err
 	}
+
+	// TODO We should try discovery, e.g. fetch `discovery.WellKnownURI(issuer, "oauth-authorization-server")` and _merge_ (not _default_ since the server reported values win)
 
 	defaultString(&srv.RedSky.ExperimentsEndpoint, api+"/experiments/")
 	defaultString(&srv.RedSky.AccountsEndpoint, api+"/accounts/")
 	defaultString(&srv.Authorization.AuthorizationEndpoint, issuer+"/authorize")
 	defaultString(&srv.Authorization.TokenEndpoint, issuer+"/oauth/token")
 	defaultString(&srv.Authorization.RevocationEndpoint, issuer+"/oauth/revoke")
-	defaultString(&srv.Authorization.RegistrationEndpoint, issuer+"/oauth/register")
+	// SEE SPECIAL CASE BELOW // defaultString(&srv.Authorization.RegistrationEndpoint, issuer+"/oauth/register")
 	defaultString(&srv.Authorization.DeviceAuthorizationEndpoint, issuer+"/oauth/device/code")
 	defaultString(&srv.Authorization.JSONWebKeySetURI, discovery.WellKnownURI(issuer, "jwks.json"))
+
+	// Special case for the registration service which is actually part of the accounts API
+	if u, err := url.Parse(srv.RedSky.AccountsEndpoint); err != nil {
+		defaultString(&srv.Authorization.RegistrationEndpoint, api+"/accounts/clients/register")
+	} else {
+		u.Path = strings.TrimRight(u.Path, "/") + "/clients/register"
+		defaultString(&srv.Authorization.RegistrationEndpoint, u.String())
+	}
+
 	return nil
 }
 
