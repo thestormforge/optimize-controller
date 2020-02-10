@@ -105,7 +105,7 @@ func (rsc *RedSkyConfig) Write() error {
 
 // SystemNamespace returns the namespace where the Red Sky controller is/should be installed
 func (rsc *RedSkyConfig) SystemNamespace() (string, error) {
-	_, _, _, ctrl, err := contextConfig(&rsc.data, rsc.data.CurrentContext)
+	_, _, _, ctrl, err := contextConfig(&rsc.data)
 	if err != nil {
 		return "", err
 	}
@@ -114,7 +114,7 @@ func (rsc *RedSkyConfig) SystemNamespace() (string, error) {
 
 // EndpointLocations returns a resolver that can generate fully qualified endpoint URLs
 func (rsc *RedSkyConfig) Endpoints() (Endpoints, error) {
-	srv, _, _, _, err := contextConfig(&rsc.data, rsc.data.CurrentContext)
+	srv, _, _, _, err := contextConfig(&rsc.data)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +153,7 @@ func (ep Endpoints) Resolve(endpoint string) *url.URL {
 
 // Kubectl returns an executable command for running kubectl
 func (rsc *RedSkyConfig) Kubectl(arg ...string) (*exec.Cmd, error) {
-	_, _, cstr, _, err := contextConfig(&rsc.data, rsc.data.CurrentContext)
+	_, _, cstr, _, err := contextConfig(&rsc.data)
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +177,7 @@ func (rsc *RedSkyConfig) RegisterClient(ctx context.Context, client *registratio
 	}
 
 	// Get the current server configuration for the registration endpoint address
-	srv, _, _, _, err := contextConfig(&rsc.data, rsc.data.CurrentContext)
+	srv, _, _, _, err := contextConfig(&rsc.data)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +189,7 @@ func (rsc *RedSkyConfig) RegisterClient(ctx context.Context, client *registratio
 
 // NewAuthorization creates a new authorization code flow with PKCE using the current context
 func (rsc *RedSkyConfig) NewAuthorization() (*authorizationcode.Config, error) {
-	srv, _, _, _, err := contextConfig(&rsc.data, rsc.data.CurrentContext)
+	srv, _, _, _, err := contextConfig(&rsc.data)
 	if err != nil {
 		return nil, err
 	}
@@ -208,7 +208,7 @@ func (rsc *RedSkyConfig) NewAuthorization() (*authorizationcode.Config, error) {
 
 // NewDeviceAuthorization creates a new device authorization flow using the current context
 func (rsc *RedSkyConfig) NewDeviceAuthorization() (*devicecode.Config, error) {
-	srv, _, _, _, err := contextConfig(&rsc.data, rsc.data.CurrentContext)
+	srv, _, _, _, err := contextConfig(&rsc.data)
 	if err != nil {
 		return nil, err
 	}
@@ -238,7 +238,7 @@ func (rsc *RedSkyConfig) Authorize(ctx context.Context, transport http.RoundTrip
 
 func (rsc *RedSkyConfig) tokenSource(ctx context.Context) (oauth2.TokenSource, error) {
 	// TODO We could make RedSkyConfig implement the TokenSource interface, but we need a way to handle the context
-	srv, az, _, _, err := contextConfig(&rsc.data, rsc.data.CurrentContext)
+	srv, az, _, _, err := contextConfig(&rsc.data)
 	if err != nil {
 		return nil, err
 	}
@@ -289,11 +289,13 @@ func (rsc *RedSkyConfig) Minify() *Config {
 	return minifyContext(&rsc.data, rsc.data.CurrentContext)
 }
 
-// contextConfig returns all of the configurations objects for the named context
-func contextConfig(data *Config, name string) (*Server, *Authorization, *Cluster, *Controller, error) {
-	ctx := findContext(data.Contexts, name)
+// contextConfig returns all of the configurations objects for the current context
+//
+// IMPORTANT: This can never be used in the implementation of a Loader because it may fail
+func contextConfig(data *Config) (*Server, *Authorization, *Cluster, *Controller, error) {
+	ctx := findContext(data.Contexts, data.CurrentContext)
 	if ctx == nil {
-		return nil, nil, nil, nil, fmt.Errorf("could not find context (%s)", name)
+		return nil, nil, nil, nil, fmt.Errorf("could not find context (%s)", data.CurrentContext)
 	}
 
 	srv := findServer(data.Servers, ctx.Server)

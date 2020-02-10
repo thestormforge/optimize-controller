@@ -21,7 +21,7 @@ import "os"
 // NOTE: The environment loader is NOT backward compatible with the old environment variables
 
 func envLoader(cfg *RedSkyConfig) error {
-	srv, az, _, _, err := contextConfig(&cfg.data, cfg.data.CurrentContext)
+	srv, az, _, _, err := contextConfig(&cfg.data)
 	if err != nil {
 		return err
 	}
