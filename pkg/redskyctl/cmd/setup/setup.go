@@ -73,6 +73,9 @@ func secret(namespace string, cmd *exec.Cmd) (string, error) {
 	if namespace != "" {
 		secretOpts.Namespace = namespace
 	}
+	if err := secretOpts.Complete(); err != nil {
+		return "", err
+	}
 
 	// Populate the buffer
 	if err := secretOpts.Run(); err != nil {
