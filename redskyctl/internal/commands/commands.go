@@ -33,6 +33,7 @@ import (
 	"github.com/redskyops/k8s-experiment/redskyctl/internal/commands/docs"
 	"github.com/redskyops/k8s-experiment/redskyctl/internal/commands/login"
 	"github.com/redskyops/k8s-experiment/redskyctl/internal/commands/results"
+	"github.com/redskyops/k8s-experiment/redskyctl/internal/commands/revoke"
 	"github.com/redskyops/k8s-experiment/redskyctl/internal/commands/version"
 	"github.com/spf13/cobra"
 )
@@ -58,6 +59,7 @@ func NewRedskyctlCommand() *cobra.Command {
 	rootCmd.AddCommand(docs.NewCommand(&docs.Options{}))
 	rootCmd.AddCommand(login.NewCommand(&login.Options{Config: cfg}))
 	rootCmd.AddCommand(results.NewCommand(&results.Options{Config: cfg}))
+	rootCmd.AddCommand(revoke.NewCommand(&revoke.Options{Config: cfg}))
 	rootCmd.AddCommand(version.NewCommand(&version.Options{Config: cfg}))
 
 	// Compatibility mode: these commands need to be migrated to use the new style
