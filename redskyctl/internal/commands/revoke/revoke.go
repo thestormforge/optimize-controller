@@ -64,85 +64,29 @@ func NewCommand(o *Options) *cobra.Command {
 
 // Run executes the revocation
 func (o *Options) Run() error {
-	return o.Config.Update(func(cfg *config.Config) error {
-		// Default the name to the current authorization
-		name := o.authorizationName(cfg)
+	ri, err := o.Config.RevocationInfo(o.Name)
+	if err != nil {
+		return err
+	}
 
-		// Find the authorization record and the corresponding revocation endpoint
-		i, endpoint, err := indexOfAuthorizationServer(cfg, name)
-		if err != nil {
+	if ri.Authorization.Credential.TokenCredential != nil {
+		if err := revokeToken(context.Background(), ri.RevocationURL, login.ClientID, ri.Authorization.Credential.RefreshToken); err != nil {
 			return err
 		}
-
-		// Revoke the credential
-		az := &cfg.Authorizations[i].Authorization
-		if az.Credential.TokenCredential != nil {
-			if err := revokeToken(context.Background(), endpoint, login.ClientID, az.Credential.RefreshToken); err != nil {
-				return err
-			}
-		}
-		if az.Credential.ClientCredential != nil {
-			_, _ = fmt.Fprintf(o.Out, "Unable to revoke client credential, removing reference from configuration")
-		}
-
-		// Remove the authorization record from the configuration
-		cfg.Authorizations = append(cfg.Authorizations[:i], cfg.Authorizations[i+1:]...)
-		return nil
-	})
-}
-
-// authorizationName returns the name of the authorization to revoke
-func (o *Options) authorizationName(cfg *config.Config) string {
-	if o.Name != "" {
-		return o.Name
 	}
-	for i := range cfg.Contexts {
-		if cfg.Contexts[i].Name == cfg.CurrentContext {
-			return cfg.Contexts[i].Context.Authorization
-		}
-	}
-	return "default"
-}
-
-// indexOfAuthorizationServer locates a named authorization record and the corresponding revocation endpoint
-func indexOfAuthorizationServer(cfg *config.Config, name string) (int, string, error) {
-	// First, make sure the authorization exists
-	az := -1
-	for i := range cfg.Authorizations {
-		if cfg.Authorizations[i].Name == name {
-			az = i
-			break
-		}
-	}
-	if az < 0 {
-		return -1, "", fmt.Errorf("authorization does not exist: %s", name)
+	if ri.Authorization.Credential.ClientCredential != nil {
+		_, _ = fmt.Fprintf(o.Out, "Unable to revoke client credential, removing reference from configuration")
 	}
 
-	// We must find a context that explicitly associates it with a server: WE DO NOT WANT TO BE SENDING TOKENS TO THE WRONG PLACE.
-	serverName := ""
-	for i := range cfg.Contexts {
-		if cfg.Contexts[i].Context.Authorization == name {
-			serverName = cfg.Contexts[i].Context.Server
-			break
-		}
-	}
-	if serverName == "" {
-		return -1, "", fmt.Errorf("unable to find server for named authorization (no context association): %s", name)
+	if err := o.Config.Update(ri.RemoveAuthorization()); err != nil {
+		return err
 	}
 
-	// Find the revocation endpoint for the named server
-	endpoint := ""
-	for i := range cfg.Servers {
-		if cfg.Servers[i].Name == serverName {
-			endpoint = cfg.Servers[i].Server.Authorization.RevocationEndpoint
-			break
-		}
-	}
-	if endpoint == "" {
-		return -1, "", fmt.Errorf("could not find server for authorization: %s", serverName)
+	if err := o.Config.Write(); err != nil {
+		return err
 	}
 
-	return az, endpoint, nil
+	return nil
 }
 
 // revokeToken sends a POST request to the revocation endpoint with the supplied client ID and refresh token

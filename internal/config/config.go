@@ -165,6 +165,64 @@ func (rsc *RedSkyConfig) Kubectl(arg ...string) (*exec.Cmd, error) {
 	return exec.Command(cstr.Bin, arg...), nil
 }
 
+// RevocationInformation contains the information necessary to revoke an authorization credential
+type RevocationInformation struct {
+	// RevocationURL is the URL of the authorization server's revocation endpoint
+	RevocationURL string
+	// Authorization is the credential that needs to be revoked
+	Authorization Authorization
+
+	// authorization name is used internally so revocation information can be a change
+	authorizationName string
+}
+
+// RemoveAuthorization returns a configuration change to remove the authorization associated with the revocation information
+func (ri *RevocationInformation) RemoveAuthorization() Change {
+	return func(cfg *Config) error {
+		for i := range cfg.Contexts {
+			if cfg.Contexts[i].Context.Authorization == ri.authorizationName {
+				cfg.Contexts[i].Context.Authorization = ""
+			}
+		}
+		for i := range cfg.Authorizations {
+			if cfg.Authorizations[i].Name == ri.authorizationName {
+				cfg.Authorizations = append(cfg.Authorizations[:i], cfg.Authorizations[i+1:]...)
+				return nil
+			}
+		}
+		return nil
+	}
+}
+
+// RevocationInfo returns the information necessary to revoke an authorization entry from the configuration
+func (rsc *RedSkyConfig) RevocationInfo(name string) (*RevocationInformation, error) {
+	var authorizationName, serverName string
+	for i := range rsc.data.Contexts {
+		// Allow a blank name for the authorization to revoke the current context authorization
+		if (name != "" && name == rsc.data.Contexts[i].Context.Authorization) ||
+			(name == "" && rsc.data.Contexts[i].Name == rsc.data.CurrentContext) {
+			authorizationName = rsc.data.Contexts[i].Context.Authorization
+			serverName = rsc.data.Contexts[i].Context.Server
+		}
+	}
+
+	az := findAuthorization(rsc.data.Authorizations, authorizationName)
+	if authorizationName == "" || az == nil {
+		return nil, fmt.Errorf("unknown authorization: %s", name)
+	}
+
+	srv := findServer(rsc.data.Servers, serverName)
+	if serverName == "" || srv == nil {
+		return nil, fmt.Errorf("unable to find server for authorization: %s", authorizationName)
+	}
+
+	return &RevocationInformation{
+		RevocationURL:     srv.Authorization.RevocationEndpoint,
+		Authorization:     *az,
+		authorizationName: authorizationName,
+	}, nil
+}
+
 // RegisterClient performs dynamic client registration
 func (rsc *RedSkyConfig) RegisterClient(ctx context.Context, client *registration.ClientMetadata) (*registration.ClientInformationResponse, error) {
 	// We can't use the initial token because we don't know if we have a valid token, instead we need to authorize the context client
