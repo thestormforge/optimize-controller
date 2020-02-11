@@ -23,7 +23,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/redskyops/k8s-experiment/internal/config"
+	"github.com/redskyops/redskyops-controller/internal/config"
 )
 
 // Config exposes the information for configuring a Red Sky Client

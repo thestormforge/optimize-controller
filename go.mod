@@ -1,4 +1,4 @@
-module github.com/redskyops/k8s-experiment
+module github.com/redskyops/redskyops-controller
 
 go 1.13
 

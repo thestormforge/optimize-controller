@@ -6,7 +6,7 @@ There are two parts to Red Sky Ops: the `redskyctl` tool and Red Sky Ops Control
 
 ### Binary Releases
 
-You can download binaries directly from the [releases page](https://github.com/redskyops/k8s-experiment/releases).
+You can download binaries directly from the [releases page](https://github.com/redskyops/redskyops-controller/releases).
 
 ### Using cURL
 
@@ -50,10 +50,10 @@ The latest release of the Helm chart may not reference the latest application ve
 
 Red Sky Ops uses Kubernetes jobs to implement trial runs along with custom resources describing the experiment and trial. The Red Sky Ops Controller needs full permission to manipulate these resources. Additionally, the Red Sky Ops Controller must be able to list core pods, services, and namespaces.
 
-The exact role requirements for a specific version can be reproduced using Kustomize, for example to view the [roles for v1.3.1](https://github.com/redskyops/k8s-experiment/tree/v1.3.1/config/rbac):
+The exact role requirements for a specific version can be reproduced using Kustomize, for example to view the [roles for v1.3.1](https://github.com/redskyops/redskyops-controller/tree/v1.3.1/config/rbac):
 
 ```sh
-kustomize build github.com/redskyops/k8s-experiment//config/rbac/?ref=v1.3.1
+kustomize build github.com/redskyops/redskyops-controller//config/rbac/?ref=v1.3.1
 ```
 
 The `redskyctl init` command will attempt to run a container in the default namespace of current context from your Kubernetes configuration. The container being run generates the manifests required for installation (see "Advanced Installation" for more details). Running the container requires "create" permission for the core "pods" resource.

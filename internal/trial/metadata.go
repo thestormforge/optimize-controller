@@ -19,7 +19,7 @@ package trial
 import (
 	"strings"
 
-	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
+	redskyv1alpha1 "github.com/redskyops/redskyops-controller/pkg/apis/redsky/v1alpha1"
 )
 
 // GetInitializer returns the initializers for the specified trial

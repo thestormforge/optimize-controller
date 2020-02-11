@@ -19,7 +19,7 @@ package fake
 import (
 	"context"
 
-	"github.com/redskyops/k8s-experiment/redskyapi/experiments/v1alpha1"
+	"github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 )
 
 var _ v1alpha1.API = &FakeAPI{}

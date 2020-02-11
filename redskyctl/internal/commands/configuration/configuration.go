@@ -17,7 +17,7 @@ limitations under the License.
 package configuration
 
 import (
-	"github.com/redskyops/k8s-experiment/internal/config"
+	"github.com/redskyops/redskyops-controller/internal/config"
 	"github.com/spf13/cobra"
 )
 

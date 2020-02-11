@@ -22,9 +22,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/redskyops/k8s-experiment/internal/server"
-	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
-	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/experiments/v1alpha1"
+	"github.com/redskyops/redskyops-controller/internal/server"
+	cmdutil "github.com/redskyops/redskyops-controller/pkg/redskyctl/util"
+	redskyapi "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"

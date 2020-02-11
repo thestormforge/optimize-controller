@@ -17,8 +17,8 @@ limitations under the License.
 package configuration
 
 import (
-	"github.com/redskyops/k8s-experiment/internal/config"
-	"github.com/redskyops/k8s-experiment/redskyctl/internal/commander"
+	"github.com/redskyops/redskyops-controller/internal/config"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
 	"sigs.k8s.io/yaml"
 )

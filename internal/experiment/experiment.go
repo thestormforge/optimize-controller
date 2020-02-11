@@ -17,9 +17,9 @@ limitations under the License.
 package experiment
 
 import (
-	"github.com/redskyops/k8s-experiment/internal/controller"
-	"github.com/redskyops/k8s-experiment/internal/trial"
-	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
+	"github.com/redskyops/redskyops-controller/internal/controller"
+	"github.com/redskyops/redskyops-controller/internal/trial"
+	redskyv1alpha1 "github.com/redskyops/redskyops-controller/pkg/apis/redsky/v1alpha1"
 )
 
 const (

@@ -6,7 +6,7 @@ You must have a Kubernetes cluster. Additionally, you will need a local configur
 
 A local install of [Kustomize](https://github.com/kubernetes-sigs/kustomize/releases) (v3.1.0+) is required to manage the objects in you cluster.
 
-Additionally, you will to initialize Red Sky Ops in your cluster. You can download a binary for your platform from the [releases page](https://github.com/redskyops/k8s-experiment/releases) and run `redskyctl init` (while connected to your cluster). For more details, see [the installation guide](install.md).
+Additionally, you will to initialize Red Sky Ops in your cluster. You can download a binary for your platform from the [releases page](https://github.com/redskyops/redskyops-controller/releases) and run `redskyctl init` (while connected to your cluster). For more details, see [the installation guide](install.md).
 
 ## Tutorial Resources
 

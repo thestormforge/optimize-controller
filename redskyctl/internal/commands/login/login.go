@@ -26,10 +26,10 @@ import (
 
 	"github.com/mdp/qrterminal/v3"
 	"github.com/pkg/browser"
-	"github.com/redskyops/k8s-experiment/internal/config"
-	"github.com/redskyops/k8s-experiment/internal/oauth2/authorizationcode"
-	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
-	"github.com/redskyops/k8s-experiment/redskyctl/internal/commander"
+	"github.com/redskyops/redskyops-controller/internal/config"
+	"github.com/redskyops/redskyops-controller/internal/oauth2/authorizationcode"
+	cmdutil "github.com/redskyops/redskyops-controller/pkg/redskyctl/util"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
 	"golang.org/x/oauth2"
 )

@@ -27,7 +27,7 @@ import (
 	"strings"
 	"time"
 
-	redskyclient "github.com/redskyops/k8s-experiment/redskyapi"
+	redskyclient "github.com/redskyops/redskyops-controller/redskyapi"
 )
 
 const (

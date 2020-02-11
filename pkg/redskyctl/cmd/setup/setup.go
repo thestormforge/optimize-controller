@@ -20,8 +20,8 @@ import (
 	"bytes"
 	"os/exec"
 
-	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/generate"
-	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
+	"github.com/redskyops/redskyops-controller/pkg/redskyctl/cmd/generate"
+	cmdutil "github.com/redskyops/redskyops-controller/pkg/redskyctl/util"
 )
 
 func install(kubectl *cmdutil.Kubectl, namespace string, cmd *exec.Cmd) error {

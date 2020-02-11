@@ -19,8 +19,8 @@ package generate
 import (
 	"io"
 
-	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
-	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
+	redskyv1alpha1 "github.com/redskyops/redskyops-controller/pkg/apis/redsky/v1alpha1"
+	cmdutil "github.com/redskyops/redskyops-controller/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"

@@ -21,7 +21,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/redskyops/k8s-experiment/redskyctl/internal/commander"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
 )

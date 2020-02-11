@@ -25,8 +25,8 @@ import (
 	"strconv"
 	"time"
 
-	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
-	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/experiments/v1alpha1"
+	cmdutil "github.com/redskyops/redskyops-controller/pkg/redskyctl/util"
+	redskyapi "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	"github.com/spf13/cobra"
 )
 

@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
-	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
+	redskyv1alpha1 "github.com/redskyops/redskyops-controller/pkg/apis/redsky/v1alpha1"
+	cmdutil "github.com/redskyops/redskyops-controller/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"

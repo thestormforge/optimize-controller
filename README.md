@@ -1,19 +1,19 @@
 # Red Sky Ops - Kubernetes Experiments
 
 [![CircleCI](https://circleci.com/gh/redskyops/k8s-experiment.svg?style=shield)](https://circleci.com/gh/redskyops/k8s-experiment)
-[![Go Report Card](https://goreportcard.com/badge/github.com/redskyops/k8s-experiment)](https://goreportcard.com/report/github.com/redskyops/k8s-experiment)
+[![Go Report Card](https://goreportcard.com/badge/github.com/redskyops/redskyops-controller)](https://goreportcard.com/report/github.com/redskyops/redskyops-controller)
 
 The Kubernetes Experiments project (k8s-experiment) supports the creation and execution of experiments used for the validation of configuration state through a series of trials.
 
 ## Installation
 
-Downloads of the Red Sky Ops Tool can be found on the [release page](https://github.com/redskyops/k8s-experiment/releases). Download the appropriate binary for your platform and add it to your PATH.
+Downloads of the Red Sky Ops Tool can be found on the [release page](https://github.com/redskyops/redskyops-controller/releases). Download the appropriate binary for your platform and add it to your PATH.
 
 To install the custom Kubernetes resources to you currently configured cluster, execute the `redskyctl init` command. To uninstall and remove all of the Red Sky Opts data, execute `redskyctl reset`.
 
 ## Getting Started
 
-See the [tutorials](https://github.com/redskyops/k8s-experiment/blob/master/docs/tutorial.md).
+See the [tutorials](https://github.com/redskyops/redskyops-controller/blob/master/docs/tutorial.md).
 
 An experiment modifies the state of the cluster using patches (e.g. strategic merge patches) represented as Go templates with parameter assignments for input. Metrics are typically collected using PromQL queries against an in-cluster Prometheus service. Optionally, setup tasks can be run before and after each trial: these tasks create or delete Kustomizations.
 
@@ -52,7 +52,7 @@ kubectl scale deployment redsky-controller-manager -n redsky-system--replicas 0
 make run
 ```
 
-You can also debug using existing images (e.g. the latest CI builds): configure your debugger to pass the following arguments to the Go tools: `-ldflags "-X github.com/redskyops/k8s-experiment/internal/setup.Image=gcr.io/redskyops/setuptools:canary -X github.com/redskyops/k8s-experiment/internal/setup.ImagePullPolicy=Always"`.
+You can also debug using existing images (e.g. the latest CI builds): configure your debugger to pass the following arguments to the Go tools: `-ldflags "-X github.com/redskyops/redskyops-controller/internal/setup.Image=gcr.io/redskyops/setuptools:canary -X github.com/redskyops/redskyops-controller/internal/setup.ImagePullPolicy=Always"`.
 
 Alternatively, if you would like to package the manager image and run it in minikube, build the Docker images directly to the minikube host:
 

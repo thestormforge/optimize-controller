@@ -21,9 +21,9 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/redskyops/k8s-experiment/internal/template"
-	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
-	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
+	"github.com/redskyops/redskyops-controller/internal/template"
+	redskyv1alpha1 "github.com/redskyops/redskyops-controller/pkg/apis/redsky/v1alpha1"
+	cmdutil "github.com/redskyops/redskyops-controller/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/api/batch/v1beta1"

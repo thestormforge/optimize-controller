@@ -16,14 +16,14 @@ endif
 
 # Collect version information
 ifdef VERSION
-    LDFLAGS += -X github.com/redskyops/k8s-experiment/pkg/version.Version=${VERSION}
+    LDFLAGS += -X github.com/redskyops/redskyops-controller/pkg/version.Version=${VERSION}
 endif
 ifneq ($(origin BUILD_METADATA), undefined)
-    LDFLAGS += -X github.com/redskyops/k8s-experiment/pkg/version.BuildMetadata=${BUILD_METADATA}
+    LDFLAGS += -X github.com/redskyops/redskyops-controller/pkg/version.BuildMetadata=${BUILD_METADATA}
 endif
-LDFLAGS += -X github.com/redskyops/k8s-experiment/pkg/version.GitCommit=$(shell git rev-parse HEAD)
-LDFLAGS += -X github.com/redskyops/k8s-experiment/internal/setup.Image=${SETUPTOOLS_IMG}
-LDFLAGS += -X github.com/redskyops/k8s-experiment/internal/setup.ImagePullPolicy=${PULL_POLICY}
+LDFLAGS += -X github.com/redskyops/redskyops-controller/pkg/version.GitCommit=$(shell git rev-parse HEAD)
+LDFLAGS += -X github.com/redskyops/redskyops-controller/internal/setup.Image=${SETUPTOOLS_IMG}
+LDFLAGS += -X github.com/redskyops/redskyops-controller/internal/setup.ImagePullPolicy=${PULL_POLICY}
 
 all: manager tool
 
@@ -104,7 +104,7 @@ endif
 
 # Generate client code
 generate-client:
-	client-gen --clientset-name kubernetes --input-base "" --input github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1 --output-base "../../.." --output-package github.com/redskyops/k8s-experiment/pkg --go-header-file hack/boilerplate.go.txt
+	client-gen --clientset-name kubernetes --input-base "" --input github.com/redskyops/redskyops-controller/pkg/apis/redsky/v1alpha1 --output-base "../../.." --output-package github.com/redskyops/redskyops-controller/pkg --go-header-file hack/boilerplate.go.txt
 
 # Generate CLI and API documentation
 generate-docs:

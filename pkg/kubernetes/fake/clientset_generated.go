@@ -19,9 +19,9 @@ limitations under the License.
 package fake
 
 import (
-	clientset "github.com/redskyops/k8s-experiment/pkg/kubernetes"
-	redskyopsv1alpha1 "github.com/redskyops/k8s-experiment/pkg/kubernetes/typed/redsky/v1alpha1"
-	fakeredskyopsv1alpha1 "github.com/redskyops/k8s-experiment/pkg/kubernetes/typed/redsky/v1alpha1/fake"
+	clientset "github.com/redskyops/redskyops-controller/pkg/kubernetes"
+	redskyopsv1alpha1 "github.com/redskyops/redskyops-controller/pkg/kubernetes/typed/redsky/v1alpha1"
+	fakeredskyopsv1alpha1 "github.com/redskyops/redskyops-controller/pkg/kubernetes/typed/redsky/v1alpha1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"

@@ -19,7 +19,7 @@ package config
 import (
 	"os/exec"
 
-	"github.com/redskyops/k8s-experiment/redskyapi"
+	"github.com/redskyops/redskyops-controller/redskyapi"
 )
 
 // Config provides read-only access to the Red Sky configuration for commands

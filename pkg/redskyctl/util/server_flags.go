@@ -17,8 +17,8 @@ limitations under the License.
 package util
 
 import (
-	"github.com/redskyops/k8s-experiment/internal/config"
-	redskyclient "github.com/redskyops/k8s-experiment/redskyapi"
+	"github.com/redskyops/redskyops-controller/internal/config"
+	redskyclient "github.com/redskyops/redskyops-controller/redskyapi"
 	"github.com/spf13/pflag"
 )
 

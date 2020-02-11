@@ -19,8 +19,8 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
-	"github.com/redskyops/k8s-experiment/pkg/kubernetes/scheme"
+	v1alpha1 "github.com/redskyops/redskyops-controller/pkg/apis/redsky/v1alpha1"
+	"github.com/redskyops/redskyops-controller/pkg/kubernetes/scheme"
 	rest "k8s.io/client-go/rest"
 )
 

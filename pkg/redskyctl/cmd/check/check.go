@@ -17,7 +17,7 @@ limitations under the License.
 package check
 
 import (
-	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
+	cmdutil "github.com/redskyops/redskyops-controller/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 )
 

@@ -21,10 +21,10 @@ import (
 	"os"
 	"os/exec"
 
-	internalconfig "github.com/redskyops/k8s-experiment/internal/config"
-	"github.com/redskyops/k8s-experiment/pkg/version"
-	experimentsv1alpha1 "github.com/redskyops/k8s-experiment/redskyapi/experiments/v1alpha1"
-	"github.com/redskyops/k8s-experiment/redskyctl/internal/config"
+	internalconfig "github.com/redskyops/redskyops-controller/internal/config"
+	"github.com/redskyops/redskyops-controller/pkg/version"
+	experimentsv1alpha1 "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/config"
 	"github.com/spf13/cobra"
 )
 

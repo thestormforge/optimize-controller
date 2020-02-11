@@ -1,5 +1,5 @@
 domain: redskyops.dev
-repo: github.com/redskyops/k8s-experiment
+repo: github.com/redskyops/redskyops-controller
 resources:
 - group: redskyops.dev
   version: v1alpha1

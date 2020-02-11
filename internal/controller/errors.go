@@ -17,7 +17,7 @@ limitations under the License.
 package controller
 
 import (
-	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/experiments/v1alpha1"
+	redskyapi "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 )
 

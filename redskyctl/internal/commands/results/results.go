@@ -26,9 +26,9 @@ import (
 	"time"
 
 	"github.com/pkg/browser"
-	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
-	"github.com/redskyops/k8s-experiment/redskyctl/internal/commander"
-	"github.com/redskyops/k8s-experiment/redskyctl/internal/config"
+	cmdutil "github.com/redskyops/redskyops-controller/pkg/redskyctl/util"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/config"
 	"github.com/redskyops/redskyops-ui/ui"
 	"github.com/spf13/cobra"
 )

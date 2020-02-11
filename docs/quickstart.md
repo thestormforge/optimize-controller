@@ -12,7 +12,7 @@ If you are planing to create the simple experiment from this guide, a [minikube]
 
 ## Install the Red Sky Ops Tool
 
-[Download](https://github.com/redskyops/k8s-experiment/releases) and install the `redskyctl` binary for your platform. You will need to rename the downloaded file and mark it as executable.
+[Download](https://github.com/redskyops/redskyops-controller/releases) and install the `redskyctl` binary for your platform. You will need to rename the downloaded file and mark it as executable.
 
 For more details, see [the installation guide](install.md).
 

@@ -25,9 +25,9 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/redskyops/k8s-experiment/internal/oauth2/authorizationcode"
-	"github.com/redskyops/k8s-experiment/internal/oauth2/devicecode"
-	"github.com/redskyops/k8s-experiment/internal/oauth2/registration"
+	"github.com/redskyops/redskyops-controller/internal/oauth2/authorizationcode"
+	"github.com/redskyops/redskyops-controller/internal/oauth2/devicecode"
+	"github.com/redskyops/redskyops-controller/internal/oauth2/registration"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 )

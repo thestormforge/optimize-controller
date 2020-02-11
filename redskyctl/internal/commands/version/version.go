@@ -23,11 +23,11 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/redskyops/k8s-experiment/internal/setup"
-	"github.com/redskyops/k8s-experiment/pkg/version"
-	experimentsv1alpha1 "github.com/redskyops/k8s-experiment/redskyapi/experiments/v1alpha1"
-	"github.com/redskyops/k8s-experiment/redskyctl/internal/commander"
-	"github.com/redskyops/k8s-experiment/redskyctl/internal/config"
+	"github.com/redskyops/redskyops-controller/internal/setup"
+	"github.com/redskyops/redskyops-controller/pkg/version"
+	experimentsv1alpha1 "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/config"
 	"github.com/spf13/cobra"
 )
 

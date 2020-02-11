@@ -21,7 +21,7 @@ package kubernetes
 import (
 	"fmt"
 
-	redskyopsv1alpha1 "github.com/redskyops/k8s-experiment/pkg/kubernetes/typed/redsky/v1alpha1"
+	redskyopsv1alpha1 "github.com/redskyops/redskyops-controller/pkg/kubernetes/typed/redsky/v1alpha1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"

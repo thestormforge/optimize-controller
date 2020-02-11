@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"reflect"
 
-	redskykube "github.com/redskyops/k8s-experiment/pkg/kubernetes"
-	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
-	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/experiments/v1alpha1"
+	redskykube "github.com/redskyops/redskyops-controller/pkg/kubernetes"
+	cmdutil "github.com/redskyops/redskyops-controller/pkg/redskyctl/util"
+	redskyapi "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/util/jsonpath"
 )

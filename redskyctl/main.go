@@ -22,7 +22,7 @@ import (
 	"math/rand"
 	"os"
 
-	"github.com/redskyops/k8s-experiment/redskyctl/internal/commands"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands"
 )
 
 func main() {

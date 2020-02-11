@@ -16,7 +16,7 @@ limitations under the License.
 
 package validation
 
-import redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
+import redskyv1alpha1 "github.com/redskyops/redskyops-controller/pkg/apis/redsky/v1alpha1"
 
 // AssignmentError is raised when trial assignments do not match the experiment parameter definitions
 type AssignmentError struct {

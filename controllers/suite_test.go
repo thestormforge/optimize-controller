@@ -25,9 +25,9 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/onsi/gomega/gexec"
-	redskyv1alpha1 "github.com/redskyops/k8s-experiment/pkg/apis/redsky/v1alpha1"
-	redskyapi "github.com/redskyops/k8s-experiment/redskyapi/experiments/v1alpha1"
-	"github.com/redskyops/k8s-experiment/redskyapi/experiments/v1alpha1/fake"
+	redskyv1alpha1 "github.com/redskyops/redskyops-controller/pkg/apis/redsky/v1alpha1"
+	redskyapi "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
+	"github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"

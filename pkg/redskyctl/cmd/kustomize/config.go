@@ -25,8 +25,8 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"github.com/redskyops/k8s-experiment/pkg/redskyctl/cmd/kustomize/consts"
-	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
+	"github.com/redskyops/redskyops-controller/pkg/redskyctl/cmd/kustomize/consts"
+	cmdutil "github.com/redskyops/redskyops-controller/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 )
 

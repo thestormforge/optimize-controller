@@ -23,9 +23,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/redskyops/k8s-experiment/internal/config"
-	"github.com/redskyops/k8s-experiment/internal/oauth2/registration"
-	cmdutil "github.com/redskyops/k8s-experiment/pkg/redskyctl/util"
+	"github.com/redskyops/redskyops-controller/internal/config"
+	"github.com/redskyops/redskyops-controller/internal/oauth2/registration"
+	cmdutil "github.com/redskyops/redskyops-controller/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 )

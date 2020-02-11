@@ -20,10 +20,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/redskyops/k8s-experiment/internal/controller"
-	experimentsv1alpha1 "github.com/redskyops/k8s-experiment/redskyapi/experiments/v1alpha1"
-	"github.com/redskyops/k8s-experiment/redskyctl/internal/commander"
-	"github.com/redskyops/k8s-experiment/redskyctl/internal/config"
+	"github.com/redskyops/redskyops-controller/internal/controller"
+	experimentsv1alpha1 "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/config"
 	"github.com/spf13/cobra"
 )
 
