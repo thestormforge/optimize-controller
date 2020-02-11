@@ -77,7 +77,7 @@ func (o *Options) Run() error {
 
 	// Create the router to match requests
 	router := http.NewServeMux()
-	if err := o.handleAPI(router, "/api/"); err != nil {
+	if err := o.handleAPI(router, "/v1/"); err != nil {
 		shutdown() // TODO Just defer shutdown instead? Should be a no-op in the success case...
 		return err
 	}
