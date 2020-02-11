@@ -243,7 +243,7 @@ func (o *Options) generateCallbackResponse(w http.ResponseWriter, r *http.Reques
 		if msg == "" {
 			msg = http.StatusText(status)
 		}
-		http.Error(w, message, status)
+		http.Error(w, msg, status)
 
 		// TODO Print the actual error message?
 		_, _ = fmt.Fprintf(o.Out, "An error occurred, please try again.\n")
