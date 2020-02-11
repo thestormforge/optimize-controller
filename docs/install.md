@@ -14,7 +14,7 @@ To download the latest release, select your platform (`linux` or `darwin`) and r
 
 ```sh
 os=linux # Or 'darwin'
-curl -s https://api.github.com/repos/redskyops/k8s-experiment/releases/latest |\
+curl -s https://api.github.com/repos/redskyops/redskyops-controller/releases/latest |\
   grep browser_download_url | grep -i ${os:-linux} | cut -d '"' -f 4 |\
   xargs curl -L | tar xz
 sudo mv redskyctl /usr/local/bin/

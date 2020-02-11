@@ -1,9 +1,9 @@
 # Red Sky Ops - Kubernetes Experiments
 
-[![CircleCI](https://circleci.com/gh/redskyops/k8s-experiment.svg?style=shield)](https://circleci.com/gh/redskyops/k8s-experiment)
+[![CircleCI](https://circleci.com/gh/redskyops/redskyops-controller.svg?style=shield)](https://circleci.com/gh/redskyops/redskyops-controller)
 [![Go Report Card](https://goreportcard.com/badge/github.com/redskyops/redskyops-controller)](https://goreportcard.com/report/github.com/redskyops/redskyops-controller)
 
-The Kubernetes Experiments project (k8s-experiment) supports the creation and execution of experiments used for the validation of configuration state through a series of trials.
+The Kubernetes Experiments project (redskyops-controller) supports the creation and execution of experiments used for the validation of configuration state through a series of trials.
 
 ## Installation
 
@@ -67,7 +67,7 @@ To package the manager and run it in a GKE cluster, you will need to push the im
 ```sh
 export PROJECT_ID=<GCP project ID where your cluster is running>
 export TAG=<something unique>
-export IMG=us.gcr.io/$PROJECT_ID/k8s-experiment:$TAG
+export IMG=us.gcr.io/$PROJECT_ID/redskyops-controller:$TAG
 export SETUPTOOLS_IMG=us.gcr.io/$PROJECT_ID/setuptools:$TAG
 make docker-build
 make docker-push
