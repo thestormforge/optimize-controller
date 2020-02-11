@@ -158,11 +158,17 @@ func (rsc *RedSkyConfig) Kubectl(arg ...string) (*exec.Cmd, error) {
 		return nil, err
 	}
 
-	if cstr.Context != "" {
-		arg = append([]string{"--context", cstr.Context}, arg...)
+	var globals []string
+
+	if cstr.KubeConfig != "" {
+		globals = append(globals, "--kubeconfig", cstr.KubeConfig)
 	}
 
-	return exec.Command(cstr.Bin, arg...), nil
+	if cstr.Context != "" {
+		globals = append(globals, "--context", cstr.Context)
+	}
+
+	return exec.Command(cstr.Bin, append(globals, arg...)...), nil
 }
 
 // RevocationInformation contains the information necessary to revoke an authorization credential
