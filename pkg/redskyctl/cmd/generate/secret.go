@@ -81,7 +81,7 @@ func (o *GenerateSecretOptions) Complete() error {
 	}
 
 	if o.ClientName == "" {
-		kubectl, err := o.cfg.Kubectl("config", "view", "--minify", "--output", "jsonpath={.clusters[0].name}")
+		kubectl, err := o.cfg.Kubectl(context.TODO(), "config", "view", "--minify", "--output", "jsonpath={.clusters[0].name}")
 		if err != nil {
 			return err
 		}

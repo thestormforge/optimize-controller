@@ -174,7 +174,7 @@ func (ep Endpoints) Resolve(endpoint string) *url.URL {
 }
 
 // Kubectl returns an executable command for running kubectl
-func (rsc *RedSkyConfig) Kubectl(arg ...string) (*exec.Cmd, error) {
+func (rsc *RedSkyConfig) Kubectl(ctx context.Context, arg ...string) (*exec.Cmd, error) {
 	cstr, err := CurrentCluster(rsc.Reader())
 	if err != nil {
 		return nil, err
@@ -190,8 +190,7 @@ func (rsc *RedSkyConfig) Kubectl(arg ...string) (*exec.Cmd, error) {
 		globals = append(globals, "--context", cstr.Context)
 	}
 
-	// TODO Use CommandContext and accept a context
-	return exec.Command(cstr.Bin, append(globals, arg...)...), nil
+	return exec.CommandContext(ctx, cstr.Bin, append(globals, arg...)...), nil
 }
 
 // RevocationInformation contains the information necessary to revoke an authorization credential

@@ -17,6 +17,7 @@ limitations under the License.
 package config
 
 import (
+	"context"
 	"os/exec"
 
 	"github.com/redskyops/redskyops-controller/redskyapi"
@@ -31,5 +32,5 @@ type Config interface {
 	SystemNamespace() (string, error)
 
 	// Kubectl returns an executable command for running kubectl
-	Kubectl(arg ...string) (*exec.Cmd, error)
+	Kubectl(ctx context.Context, arg ...string) (*exec.Cmd, error)
 }

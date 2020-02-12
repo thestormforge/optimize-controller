@@ -92,7 +92,7 @@ func (o *Options) version(ctx context.Context) error {
 		data[o.Product] = version.GetInfo()
 	}
 	// TODO Each of these should be done in go routines and time boxed
-	if v, err := o.controllerVersion(); err == nil && v != nil {
+	if v, err := o.controllerVersion(ctx); err == nil && v != nil {
 		data["controller"] = v
 	}
 	if v, err := o.apiVersion(ctx); err == nil && v != nil {
@@ -104,7 +104,7 @@ func (o *Options) version(ctx context.Context) error {
 }
 
 // controllerVersion looks for the controller pod and executes `/manager version` to extract the version information
-func (o *Options) controllerVersion() (*version.Info, error) {
+func (o *Options) controllerVersion(ctx context.Context) (*version.Info, error) {
 	// Get the namespace
 	ns, err := o.Config.SystemNamespace()
 	if err != nil {
@@ -112,7 +112,7 @@ func (o *Options) controllerVersion() (*version.Info, error) {
 	}
 
 	// Get the pod name
-	get, err := o.Config.Kubectl("--namespace", ns, "--request-timeout", "1s", "get", "pods", "--selector", "control-plane=controller-manager", "--output", "name")
+	get, err := o.Config.Kubectl(ctx, "--namespace", ns, "--request-timeout", "1s", "get", "pods", "--selector", "control-plane=controller-manager", "--output", "name")
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func (o *Options) controllerVersion() (*version.Info, error) {
 	podName := strings.TrimSpace(string(output)) // TODO Do we need make sure there was only one?
 
 	// Get the version JSON
-	exec, err := o.Config.Kubectl("--namespace", ns, "--request-timeout", "1s", "exec", "--container", "manager", podName, "/manager", "version")
+	exec, err := o.Config.Kubectl(ctx, "--namespace", ns, "--request-timeout", "1s", "exec", "--container", "manager", podName, "/manager", "version")
 	if err != nil {
 		return nil, err
 	}
