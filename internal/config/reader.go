@@ -89,7 +89,7 @@ type defaultReader struct {
 }
 
 func newNotFoundError(kind, name string) error {
-	return fmt.Errorf("%s not found: %s", kind, name)
+	return fmt.Errorf("config: %s '%s' not found", kind, name)
 }
 
 func (d *defaultReader) name(contextName string, f func(*Context) string) (string, error) {
@@ -100,7 +100,7 @@ func (d *defaultReader) name(contextName string, f func(*Context) string) (strin
 
 	name := f(ctx)
 	if name == "" {
-		return "", fmt.Errorf("name not set")
+		return "", fmt.Errorf("config: name not set")
 	}
 	return name, nil
 }
