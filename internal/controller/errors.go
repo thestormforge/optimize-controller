@@ -17,11 +17,7 @@ limitations under the License.
 package controller
 
 import (
-	"net/http"
-	"net/url"
-
 	redskyapi "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
-	"golang.org/x/oauth2"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 )
 
@@ -57,22 +53,4 @@ func IgnoreReportError(err error) error {
 		}
 	}
 	return err
-}
-
-// IsUnauthorized check to see if the error is an "unauthorized" error
-func IsUnauthorized(err error) bool {
-	if uerr, ok := err.(*url.Error); ok {
-		err = uerr.Unwrap()
-	}
-	if rerr, ok := err.(*oauth2.RetrieveError); ok {
-		if rerr.Response.StatusCode == http.StatusUnauthorized {
-			return true
-		}
-	}
-	if rserr, ok := err.(*redskyapi.Error); ok {
-		if rserr.Type == redskyapi.ErrUnauthorized {
-			return true
-		}
-	}
-	return false
 }

@@ -17,10 +17,10 @@ limitations under the License.
 package util
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 
+	redskyapi "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	"github.com/spf13/cobra"
 )
 
@@ -33,6 +33,12 @@ func CheckErr(cmd *cobra.Command, err error) {
 	// Handle forked process errors by propagating the exit status
 	if eerr, ok := err.(*exec.ExitError); ok && !eerr.Success() {
 		os.Exit(eerr.ExitCode())
+	}
+
+	// Handle unauthorized errors by suggesting `login`
+	if redskyapi.IsUnauthorized(err) {
+		cmd.PrintErrln("Error: unauthorized, try running 'redskyctl login'")
+		os.Exit(1)
 	}
 
 	// TODO With the exception of silence usage behavior and stdout vs. stderr, this is basically what Cobra already does with a RunE...

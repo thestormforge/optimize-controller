@@ -28,6 +28,7 @@ import (
 	"time"
 
 	redskyclient "github.com/redskyops/redskyops-controller/redskyapi"
+	"golang.org/x/oauth2"
 )
 
 const (
@@ -100,6 +101,25 @@ func (e *Error) Error() string {
 		return e.Message
 	}
 	return string(e.Type)
+}
+
+// IsUnauthorized check to see if the error is an "unauthorized" error
+func IsUnauthorized(err error) bool {
+	// OAuth errors (e.g. fetching tokens) will come out of `Do` and will be wrapped in url.Error
+	if uerr, ok := err.(*url.Error); ok {
+		err = uerr.Unwrap()
+	}
+	if rerr, ok := err.(*oauth2.RetrieveError); ok {
+		if rerr.Response.StatusCode == http.StatusUnauthorized {
+			return true
+		}
+	}
+	if rserr, ok := err.(*Error); ok {
+		if rserr.Type == ErrUnauthorized {
+			return true
+		}
+	}
+	return false
 }
 
 type ServerMeta struct {
@@ -364,8 +384,6 @@ func NewForConfig(cfg redskyclient.Config, transport http.RoundTripper) (API, er
 type httpAPI struct {
 	client redskyclient.Client
 }
-
-// NOTE: OAuth errors (e.g. fetching tokens) will come out of `Do`
 
 func (h *httpAPI) Options(ctx context.Context) (ServerMeta, error) {
 	sm := ServerMeta{}
