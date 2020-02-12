@@ -19,7 +19,9 @@ package config
 import (
 	"bufio"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 
 	yaml2 "k8s.io/apimachinery/pkg/util/yaml"
 )
@@ -37,8 +39,14 @@ type legacyManager struct {
 
 // migrationLoader will take the meaningful bits from a legacy config file and delete that file once the changes are persisted
 func migrationLoader(cfg *RedSkyConfig) error {
-	name := clusterName()
 	filename := filepath.Join(os.Getenv("HOME"), ".redsky")
+	name := "default"
+
+	// Use the current cluster name as the default name for controller
+	cmd := exec.Command("kubectl", "config", "view", "--minify", "--output", "jsonpath={.clusters[0].name}")
+	if stdout, err := cmd.Output(); err == nil {
+		name = strings.TrimSpace(string(stdout))
+	}
 
 	lc, err := loadLegacyConfigFile(filename)
 	if err != nil {

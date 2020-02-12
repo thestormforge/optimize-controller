@@ -101,7 +101,7 @@ func (o *GenerateSecretOptions) Run() error {
 	secret.Namespace = o.Namespace
 	secret.Type = corev1.SecretTypeOpaque
 
-	env, err := config.LegacyEnvMapping(&o.cfg, true)
+	env, err := config.EnvironmentMapping(o.cfg.Reader(), true)
 	if err != nil {
 		return err
 	}
