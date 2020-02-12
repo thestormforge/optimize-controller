@@ -24,7 +24,7 @@ import (
 )
 
 // SaveServer is a configuration change that persists the supplied server configuration. If the server exists,
-// it is overwritten; other a new named server is created.
+// it is overwritten; otherwise a new named server is created.
 func SaveServer(name string, srv *Server) Change {
 	return func(cfg *Config) error {
 		mergeServers(cfg, []NamedServer{{Name: name, Server: *srv}})
@@ -45,6 +45,7 @@ func SaveToken(name string, t *oauth2.Token) Change {
 			cfg.Authorizations = append(cfg.Authorizations, NamedAuthorization{Name: name})
 			az = &cfg.Authorizations[len(cfg.Authorizations)-1].Authorization
 		}
+
 		az.Credential.ClientCredential = nil
 		az.Credential.TokenCredential = &TokenCredential{
 			AccessToken:  t.AccessToken,
@@ -57,19 +58,19 @@ func SaveToken(name string, t *oauth2.Token) Change {
 }
 
 // ApplyCurrentContext is a configuration change that updates the values of a context and sets that context as the
-// current context. If the context exists, it is overwritten; otherwise a new named context is created.
+// current context. If the context exists, non-empty values will overwrite; otherwise a new named context is created.
 func ApplyCurrentContext(contextName, serverName, authorizationName, clusterName string) Change {
 	return func(cfg *Config) error {
-		// TODO Should this do a two-way merge (merge original in, then merge back to original) so it doesn't overwrite?
 		ctx := findContext(cfg.Contexts, contextName)
 		if ctx == nil {
 			cfg.Contexts = append(cfg.Contexts, NamedContext{Name: contextName})
 			ctx = &cfg.Contexts[len(cfg.Contexts)-1].Context
 		}
+
+		mergeString(&cfg.CurrentContext, contextName)
 		mergeString(&ctx.Server, serverName)
 		mergeString(&ctx.Authorization, authorizationName)
 		mergeString(&ctx.Cluster, clusterName)
-		cfg.CurrentContext = contextName
 		return nil
 	}
 }

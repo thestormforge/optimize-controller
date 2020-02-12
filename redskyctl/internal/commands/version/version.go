@@ -62,28 +62,23 @@ func NewCommand(o *Options) *cobra.Command {
 		Short: "Print the version information",
 		Long:  "Print the version information for Red Sky Ops components",
 
-		PreRun: func(cmd *cobra.Command, args []string) {
-			commander.SetStreams(&o.IOStreams, cmd)
+		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if o.Product == "" {
 				o.Product = cmd.Root().Name()
 			}
-			err := commander.SetExperimentsAPI(&o.ExperimentsAPI, o.Config, cmd)
-			commander.CheckErr(cmd, err)
+			commander.SetStreams(&o.IOStreams, cmd)
+			return commander.SetExperimentsAPI(&o.ExperimentsAPI, o.Config, cmd)
 		},
-
-		Run: func(cmd *cobra.Command, args []string) {
-			err := o.Run()
-			commander.CheckErr(cmd, err)
-		},
+		RunE: commander.WithContextE(o.version),
 	}
 
 	cmd.Flags().BoolVar(&o.ShowSetupToolsImage, "setuptools", false, "Print only the name of the setuptools image.")
 
+	commander.ExitOnError(cmd)
 	return cmd
 }
 
-// Run gets the version information
-func (o *Options) Run() error {
+func (o *Options) version(ctx context.Context) error {
 	// The setup tools image name needs to be printed by itself
 	if o.ShowSetupToolsImage {
 		_, _ = fmt.Fprintln(o.Out, setup.Image)
@@ -99,7 +94,7 @@ func (o *Options) Run() error {
 	if v, err := o.controllerVersion(); err == nil && v != nil {
 		data["controller"] = v
 	}
-	if v, err := o.apiVersion(); err == nil && v != nil {
+	if v, err := o.apiVersion(ctx); err == nil && v != nil {
 		data["api"] = v
 	}
 
@@ -145,9 +140,9 @@ func (o *Options) controllerVersion() (*version.Info, error) {
 }
 
 // apiVersion gets the API server metadata via an HTTP OPTIONS request
-func (o *Options) apiVersion() (*version.Info, error) {
+func (o *Options) apiVersion(ctx context.Context) (*version.Info, error) {
 	// Get the server metadata
-	sm, err := o.ExperimentsAPI.Options(context.Background())
+	sm, err := o.ExperimentsAPI.Options(ctx)
 	if err != nil {
 		return nil, err
 	}

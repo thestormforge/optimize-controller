@@ -46,20 +46,17 @@ func NewEnvCommand(o *EnvOptions) *cobra.Command {
 		Long:  "View the Red Sky Configuration file as environment variables",
 
 		PreRun: commander.StreamsPreRun(&o.IOStreams),
-
-		Run: func(cmd *cobra.Command, args []string) {
-			err := o.Run()
-			commander.CheckErr(cmd, err)
-		},
+		RunE:   commander.WithoutArgsE(o.env),
 	}
 
 	cmd.Flags().BoolVar(&o.IncludeController, "manager", false, "Generate the manager environment.")
 
+	commander.ExitOnError(cmd)
 	return cmd
 }
 
-func (o *EnvOptions) Run() error {
-	env, err := config.LegacyEnvMapping(o.Config, o.IncludeController)
+func (o *EnvOptions) env() error {
+	env, err := config.EnvironmentMapping(o.Config.Reader(), o.IncludeController)
 	if err != nil {
 		return err
 	}

@@ -17,7 +17,9 @@ limitations under the License.
 package commander
 
 import (
+	"context"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 
@@ -26,11 +28,15 @@ import (
 	experimentsv1alpha1 "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/config"
 	"github.com/spf13/cobra"
+	"golang.org/x/oauth2"
 )
 
 // TODO Terminal type for commands whose produce character level interactions (as opposed to byte level implied by the direct streams)
-// TODO Run helper that supplies a context for command execution
+// TODO Should we add methods like "IOStreams.OutOrStdout()" so we can use the zero IOStreams value?
+// TODO Have functionality for setting up IOStreams with os/exec
+// TODO Have functionality for setting up IOStreams with stdout, etc.
 // TODO Have the "open browser" functionality somewhere in here
+// TODO A post run clean up of the command? e.g. set SilenceUsage to true unless there are sub-commands
 
 // IOStreams allows individual commands access to standard process streams (or their overrides).
 type IOStreams struct {
@@ -73,60 +79,68 @@ func ConfigGlobals(cfg *internalconfig.RedSkyConfig, cmd *cobra.Command) {
 	// Make sure we get the root to make these globals
 	root := cmd.Root()
 
-	// Create the configuration options
-	cfgOpts := &ConfigOptions{}
-	root.PersistentFlags().StringVar(&cfgOpts.RedskyConfig, "redskyconfig", cfg.Filename, "Path to the redskyconfig file to use.")
-	root.PersistentFlags().StringVar(&cfgOpts.Context, "context", "", "The name of the redskyconfig context to use. NOT THE KUBE CONTEXT.")
+	// Create the configuration options on top of environment variable overrides
+	cfg.Overrides = internalconfig.NewEnvOverrides()
+	root.PersistentFlags().StringVar(&cfg.Filename, "redskyconfig", cfg.Filename, "Path to the redskyconfig file to use.")
+	root.PersistentFlags().StringVar(&cfg.Overrides.Context, "context", "", "The name of the redskyconfig context to use. NOT THE KUBE CONTEXT.")
 
 	// Set the persistent pre-run on the root, individual commands can bypass this by supplying their own persistent pre-run
-	root.PersistentPreRunE = cfgOpts.load(cfg)
+	root.PersistentPreRunE = func(cmd *cobra.Command, args []string) error { return cfg.Load() }
 }
 
-// ConfigOptions support overriding configuration settings
-type ConfigOptions struct {
-	// RedskyConfig overrides the path of the configuration file
-	RedskyConfig string
-	// Context overrides the current cluster context value
-	Context string
-	// TODO Namespace
-}
-
-func (o *ConfigOptions) load(cfg *internalconfig.RedSkyConfig) func(cmd *cobra.Command, args []string) error {
+// WithContextE wraps a function that accepts a context in one that accepts a command and argument slice. The background
+// context is used as the root context, however a child context with additional configuration may be supplied to the
+// to the wrapped function.
+func WithContextE(runE func(context.Context) error) func(*cobra.Command, []string) error {
 	return func(cmd *cobra.Command, args []string) error {
-		// Override the configuration file path if necessary
-		if o.RedskyConfig != "" {
-			cfg.Filename = o.RedskyConfig
-		}
-
-		// Load the configuration
-		if err := cfg.Load(); err != nil {
-			return err
-		}
-
-		// Construct the overrides from the current context, merging will be a no-op unless the overrides are non-zero
-		cc := cfg.Minify()
-		cc.CurrentContext = o.Context
-		cfg.Merge(cc)
-
-		return nil
+		ctx := context.Background()
+		ctx = context.WithValue(ctx, oauth2.HTTPClient, http.Client{Transport: version.UserAgent(cmd.Root().Name(), nil)})
+		return runE(ctx)
 	}
 }
 
-// CheckErr is lazy error handling at it's best
-func CheckErr(cmd *cobra.Command, err error) {
-	if err == nil {
-		return
-	}
-
-	// Handle forked process errors by propagating the exit status
-	if eerr, ok := err.(*exec.ExitError); ok && !eerr.Success() {
-		os.Exit(eerr.ExitCode())
-	}
-
-	// This error handling leaves a lot to be desired...
-	cmd.PrintErrln("Failed:", err.Error())
-	os.Exit(1)
+// WithoutArgsE wraps a no-argument function in one that accepts a command and argument slice
+func WithoutArgsE(runE func() error) func(*cobra.Command, []string) error {
+	return func(*cobra.Command, []string) error { return runE() }
 }
 
-// TODO It might be nicer to have something like `func DoRun(func(context.Context) error) func(*cobra.Command,[]string)`
-// TODO Or should we be using RunE and letting errors propagate out?
+// ExitOnError converts all the error returning run functions to non-error implementations that immediately exit
+func ExitOnError(cmd *cobra.Command) {
+	// Convert a RunE to a Run
+	wrapE := func(runE func(*cobra.Command, []string) error) func(*cobra.Command, []string) {
+		return func(cmd *cobra.Command, args []string) {
+			if err := runE(cmd, args); err != nil {
+				// Handle forked process errors by propagating the exit status
+				if eerr, ok := err.(*exec.ExitError); ok && !eerr.Success() {
+					os.Exit(eerr.ExitCode())
+				}
+
+				// TODO With the exception of silence usage behavior and stdout vs. stderr, this is basically what Cobra already does with a RunE...
+				cmd.PrintErrln("Error:", err.Error())
+				os.Exit(1)
+			}
+		}
+	}
+
+	// Wrap all of the RunE
+	if cmd.PersistentPreRunE != nil {
+		cmd.PersistentPreRun = wrapE(cmd.PersistentPreRunE)
+		cmd.PersistentPreRunE = nil
+	}
+	if cmd.PreRunE != nil {
+		cmd.PreRun = wrapE(cmd.PreRunE)
+		cmd.PreRunE = nil
+	}
+	if cmd.RunE != nil {
+		cmd.Run = wrapE(cmd.RunE)
+		cmd.RunE = nil
+	}
+	if cmd.PostRunE != nil {
+		cmd.PostRun = wrapE(cmd.PostRunE)
+		cmd.PostRunE = nil
+	}
+	if cmd.PersistentPostRunE != nil {
+		cmd.PersistentPostRun = wrapE(cmd.PersistentPostRunE)
+		cmd.PersistentPostRunE = nil
+	}
+}

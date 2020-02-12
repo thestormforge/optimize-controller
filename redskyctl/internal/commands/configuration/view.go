@@ -47,17 +47,14 @@ func NewViewCommand(o *ViewOptions) *cobra.Command {
 		Long:  "View the Red Sky Ops configuration file",
 
 		PreRun: commander.StreamsPreRun(&o.IOStreams),
-
-		Run: func(cmd *cobra.Command, args []string) {
-			commander.CheckErr(cmd, o.Run())
-		},
+		RunE:   commander.WithoutArgsE(o.view),
 	}
 
+	commander.ExitOnError(cmd)
 	return cmd
 }
 
-// Run will output the configuration
-func (o *ViewOptions) Run() error {
+func (o *ViewOptions) view() error {
 	output, err := yaml.Marshal(o.Config)
 	if err != nil {
 		return err

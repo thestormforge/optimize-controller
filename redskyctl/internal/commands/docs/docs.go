@@ -46,21 +46,18 @@ func NewCommand(o *Options) *cobra.Command {
 		Long:   "Generate documentation for Red Sky Ops",
 		Hidden: true,
 
-		Run: func(cmd *cobra.Command, args []string) {
-			err := o.Run(cmd)
-			commander.CheckErr(cmd, err)
-		},
+		RunE: func(cmd *cobra.Command, _ []string) error { return o.docs(cmd) },
 	}
 
 	cmd.Flags().StringVarP(&o.Directory, "directory", "d", "./", "Directory where documentation is written.")
 	cmd.Flags().StringVar(&o.DocType, "doc-type", "markdown", "Documentation type to write, one of: markdown|man|api.")
 	cmd.Flags().StringVar(&o.SourcePath, "source", "pkg/apis/redsky/v1alpha1", "Source path used to find API types.")
 
+	commander.ExitOnError(cmd)
 	return cmd
 }
 
-// Run executes the documentation generation
-func (o *Options) Run(cmd *cobra.Command) error {
+func (o *Options) docs(cmd *cobra.Command) error {
 	// Create the directory to write documentation into
 	if err := os.MkdirAll(o.Directory, 0777); err != nil {
 		return err

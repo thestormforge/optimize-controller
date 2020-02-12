@@ -45,6 +45,8 @@ type Endpoints map[string]*url.URL
 type RedSkyConfig struct {
 	// Filename is the path to the configuration file; if left blank, it will be populated using XDG base directory conventions on the next Load
 	Filename string
+	// Overrides to the standard configuration
+	Overrides *Overrides
 
 	data        Config
 	unpersisted []Change
@@ -60,7 +62,7 @@ func (rsc *RedSkyConfig) Load(extra ...Loader) error {
 	var loaders []Loader
 	loaders = append(loaders, fileLoader, migrationLoader)
 	loaders = append(loaders, extra...)
-	loaders = append(loaders, envLoader, defaultLoader)
+	loaders = append(loaders, defaultLoader)
 	for i := range loaders {
 		if err := loaders[i](rsc); err != nil {
 			return err
@@ -103,18 +105,38 @@ func (rsc *RedSkyConfig) Write() error {
 	return nil
 }
 
+// Merge combines the supplied data with what is already present in this client configuration; unlike Update, changes
+// will not be persisted on the next write
+func (rsc *RedSkyConfig) Merge(data *Config) {
+	mergeServers(&rsc.data, data.Servers)
+	mergeAuthorizations(&rsc.data, data.Authorizations)
+	mergeClusters(&rsc.data, data.Clusters)
+	mergeControllers(&rsc.data, data.Controllers)
+	mergeContexts(&rsc.data, data.Contexts)
+	mergeString(&rsc.data.CurrentContext, data.CurrentContext)
+}
+
+// Reader returns a configuration reader for accessing information from the configuration
+func (rsc *RedSkyConfig) Reader() Reader {
+	r := &defaultReader{cfg: &rsc.data}
+	if rsc.Overrides != nil {
+		return &overrideReader{overrides: rsc.Overrides, delegate: r}
+	}
+	return r
+}
+
 // SystemNamespace returns the namespace where the Red Sky controller is/should be installed
 func (rsc *RedSkyConfig) SystemNamespace() (string, error) {
-	_, _, _, ctrl, err := contextConfig(&rsc.data)
+	ctrl, err := CurrentController(rsc.Reader())
 	if err != nil {
-		return "", err
+		return "", nil
 	}
 	return ctrl.Namespace, nil
 }
 
 // EndpointLocations returns a resolver that can generate fully qualified endpoint URLs
 func (rsc *RedSkyConfig) Endpoints() (Endpoints, error) {
-	srv, _, _, _, err := contextConfig(&rsc.data)
+	srv, err := CurrentServer(rsc.Reader())
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +175,7 @@ func (ep Endpoints) Resolve(endpoint string) *url.URL {
 
 // Kubectl returns an executable command for running kubectl
 func (rsc *RedSkyConfig) Kubectl(arg ...string) (*exec.Cmd, error) {
-	_, _, cstr, _, err := contextConfig(&rsc.data)
+	cstr, err := CurrentCluster(rsc.Reader())
 	if err != nil {
 		return nil, err
 	}
@@ -168,6 +190,7 @@ func (rsc *RedSkyConfig) Kubectl(arg ...string) (*exec.Cmd, error) {
 		globals = append(globals, "--context", cstr.Context)
 	}
 
+	// TODO Use CommandContext and accept a context
 	return exec.Command(cstr.Bin, append(globals, arg...)...), nil
 }
 
@@ -241,7 +264,7 @@ func (rsc *RedSkyConfig) RegisterClient(ctx context.Context, client *registratio
 	}
 
 	// Get the current server configuration for the registration endpoint address
-	srv, _, _, _, err := contextConfig(&rsc.data)
+	srv, err := CurrentServer(rsc.Reader())
 	if err != nil {
 		return nil, err
 	}
@@ -253,7 +276,7 @@ func (rsc *RedSkyConfig) RegisterClient(ctx context.Context, client *registratio
 
 // NewAuthorization creates a new authorization code flow with PKCE using the current context
 func (rsc *RedSkyConfig) NewAuthorization() (*authorizationcode.Config, error) {
-	srv, _, _, _, err := contextConfig(&rsc.data)
+	srv, err := CurrentServer(rsc.Reader())
 	if err != nil {
 		return nil, err
 	}
@@ -272,7 +295,7 @@ func (rsc *RedSkyConfig) NewAuthorization() (*authorizationcode.Config, error) {
 
 // NewDeviceAuthorization creates a new device authorization flow using the current context
 func (rsc *RedSkyConfig) NewDeviceAuthorization() (*devicecode.Config, error) {
-	srv, _, _, _, err := contextConfig(&rsc.data)
+	srv, err := CurrentServer(rsc.Reader())
 	if err != nil {
 		return nil, err
 	}
@@ -302,7 +325,12 @@ func (rsc *RedSkyConfig) Authorize(ctx context.Context, transport http.RoundTrip
 
 func (rsc *RedSkyConfig) tokenSource(ctx context.Context) (oauth2.TokenSource, error) {
 	// TODO We could make RedSkyConfig implement the TokenSource interface, but we need a way to handle the context
-	srv, az, _, _, err := contextConfig(&rsc.data)
+	r := rsc.Reader()
+	srv, err := CurrentServer(r)
+	if err != nil {
+		return nil, err
+	}
+	az, err := CurrentAuthorization(r)
 	if err != nil {
 		return nil, err
 	}
@@ -335,52 +363,4 @@ func (rsc *RedSkyConfig) tokenSource(ctx context.Context) (oauth2.TokenSource, e
 	}
 
 	return nil, nil
-}
-
-// Merge combines the supplied data with what is already present in this client configuration; unlike Update, changes
-// will not be persisted on the next write
-func (rsc *RedSkyConfig) Merge(data *Config) {
-	mergeServers(&rsc.data, data.Servers)
-	mergeAuthorizations(&rsc.data, data.Authorizations)
-	mergeClusters(&rsc.data, data.Clusters)
-	mergeControllers(&rsc.data, data.Controllers)
-	mergeContexts(&rsc.data, data.Contexts)
-	mergeString(&rsc.data.CurrentContext, data.CurrentContext)
-}
-
-// Minify returns a copy of the configuration data including only objects from the current context
-func (rsc *RedSkyConfig) Minify() *Config {
-	return minifyContext(&rsc.data, rsc.data.CurrentContext)
-}
-
-// contextConfig returns all of the configurations objects for the current context
-//
-// IMPORTANT: This can never be used in the implementation of a Loader because it may fail
-func contextConfig(data *Config) (*Server, *Authorization, *Cluster, *Controller, error) {
-	ctx := findContext(data.Contexts, data.CurrentContext)
-	if ctx == nil {
-		return nil, nil, nil, nil, fmt.Errorf("could not find context (%s)", data.CurrentContext)
-	}
-
-	srv := findServer(data.Servers, ctx.Server)
-	if srv == nil {
-		return srv, nil, nil, nil, fmt.Errorf("cound not find server (%s)", ctx.Server)
-	}
-
-	az := findAuthorization(data.Authorizations, ctx.Authorization)
-	if az == nil {
-		return srv, az, nil, nil, fmt.Errorf("could not find authorization (%s)", ctx.Authorization)
-	}
-
-	cstr := findCluster(data.Clusters, ctx.Cluster)
-	if cstr == nil {
-		return srv, az, cstr, nil, fmt.Errorf("could not find cluster (%s)", ctx.Cluster)
-	}
-
-	ctrl := findController(data.Controllers, cstr.Controller)
-	if ctrl == nil {
-		return srv, az, cstr, ctrl, fmt.Errorf("could not find controller (%s)", cstr.Controller)
-	}
-
-	return srv, az, cstr, ctrl, nil
 }

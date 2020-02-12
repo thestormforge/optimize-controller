@@ -50,32 +50,30 @@ func NewCommand(o *Options) *cobra.Command {
 		Long:  "Log out of your Red Sky Account.",
 
 		PreRun: commander.StreamsPreRun(&o.IOStreams),
-
-		Run: func(cmd *cobra.Command, args []string) {
-			err := o.Run()
-			commander.CheckErr(cmd, err)
-		},
+		RunE:   commander.WithContextE(o.revoke),
 	}
 
 	cmd.Flags().StringVar(&o.Name, "name", "", "Name of the server configuration to de-authorize.")
 
+	commander.ExitOnError(cmd)
 	return cmd
 }
 
 // Run executes the revocation
-func (o *Options) Run() error {
+func (o *Options) revoke(ctx context.Context) error {
 	ri, err := o.Config.RevocationInfo(o.Name)
 	if err != nil {
 		return err
 	}
 
 	if ri.Authorization.Credential.TokenCredential != nil {
-		if err := revokeToken(context.Background(), ri.RevocationURL, login.ClientID, ri.Authorization.Credential.RefreshToken); err != nil {
+		if err := revokeToken(ctx, ri.RevocationURL, login.ClientID, ri.Authorization.Credential.RefreshToken); err != nil {
 			return err
 		}
 	}
 	if ri.Authorization.Credential.ClientCredential != nil {
 		_, _ = fmt.Fprintf(o.Out, "Unable to revoke client credential, removing reference from configuration")
+		// TODO If the client credential has registration information, we can try to delete it
 	}
 
 	if err := o.Config.Update(ri.RemoveAuthorization()); err != nil {

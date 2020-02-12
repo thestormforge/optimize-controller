@@ -46,13 +46,10 @@ func NewSetCommand(o *SetOptions) *cobra.Command {
 		PreRun: func(cmd *cobra.Command, args []string) {
 			o.Complete(args)
 		},
-
-		Run: func(cmd *cobra.Command, args []string) {
-			err := o.Run()
-			commander.CheckErr(cmd, err)
-		},
+		RunE: commander.WithoutArgsE(o.set),
 	}
 
+	commander.ExitOnError(cmd)
 	return cmd
 }
 
@@ -70,8 +67,7 @@ func (o *SetOptions) Complete(args []string) {
 	}
 }
 
-// Run executes the set property operation on the configuration
-func (o *SetOptions) Run() error {
+func (o *SetOptions) set() error {
 	if err := o.Config.Update(config.SetProperty(o.Key, o.Value)); err != nil {
 		return err
 	}

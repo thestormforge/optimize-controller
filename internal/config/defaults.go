@@ -17,6 +17,7 @@ limitations under the License.
 package config
 
 import (
+	"fmt"
 	"net/url"
 	"os/exec"
 	"strings"
@@ -29,97 +30,65 @@ import (
 var (
 	// DefaultServerIdentifier is the default entrypoint to the remote application
 	DefaultServerIdentifier = "https://api.carbonrelay.io/v1/"
-	// DefaultAuthorizationIssuer is the default authorization server issuer
-	DefaultAuthorizationIssuer = "https://auth.carbonrelay.io/"
 )
 
 func defaultLoader(cfg *RedSkyConfig) error {
-	defaultServerName := "default"
-	defaultAuthorizationName := defaultServerName
-	defaultClusterName := clusterName()
-	defaultControllerName := defaultClusterName
-	defaultContextName := "default"
+	// NOTE: Any errors reported here are effectively fatal errors for a program that needs configuration since they will
+	// not be able to load the configuration. Errors should be limited to unusable configurations.
 
-	if len(cfg.data.Servers) == 0 {
-		cfg.data.Servers = append(cfg.data.Servers, NamedServer{Name: defaultServerName})
+	d := &defaults{cfg: &cfg.data, clusterName: "default"}
+
+	// This constitutes a "bootstrap" invocation of "kubectl", we can't use the configuration because we are actually creating it
+	cmd := exec.Command("kubectl", "config", "view", "--minify", "--output", "jsonpath={.clusters[0].name}")
+	if stdout, err := cmd.Output(); err == nil {
+		d.clusterName = strings.TrimSpace(string(stdout))
 	}
 
-	if len(cfg.data.Authorizations) == 0 {
-		cfg.data.Authorizations = append(cfg.data.Authorizations, NamedAuthorization{Name: defaultAuthorizationName})
+	d.addDefaultObjects()
+	if err := d.applyServerDefaults(); err != nil {
+		return err
 	}
-
-	if len(cfg.data.Clusters) == 0 {
-		cfg.data.Clusters = append(cfg.data.Clusters, NamedCluster{Name: defaultClusterName})
-	}
-
-	if len(cfg.data.Controllers) == 0 {
-		cfg.data.Controllers = append(cfg.data.Controllers, NamedController{Name: defaultControllerName})
-	}
-
-	if len(cfg.data.Contexts) == 0 {
-		cfg.data.Contexts = append(cfg.data.Contexts, NamedContext{Name: defaultContextName})
-	}
-
-	for i := range cfg.data.Servers {
-		if err := defaultServer(&cfg.data.Servers[i].Server); err != nil {
-			return err
-		}
-	}
-
 	// No defaults for authorizations
-
-	for i := range cfg.data.Clusters {
-		// TODO This is wrong if there are multiple objects, none of which have a default name
-		if err := defaultCluster(&cfg.data.Clusters[i].Cluster, &cfg.data, defaultClusterName); err != nil {
-			return err
-		}
+	if err := d.applyClusterDefaults(); err != nil {
+		return err
 	}
-
-	for i := range cfg.data.Controllers {
-		if err := defaultController(&cfg.data.Controllers[i].Controller); err != nil {
-			return err
-		}
+	if err := d.applyControllerDefaults(); err != nil {
+		return err
 	}
-
-	for i := range cfg.data.Contexts {
-		// TODO This is wrong if there are multiple objects, none of which have a default name
-		if err := defaultContext(&cfg.data.Contexts[i].Context, &cfg.data, defaultServerName, defaultClusterName); err != nil {
-			return err
-		}
+	if err := d.applyContextDefaults(); err != nil {
+		return err
 	}
-
-	// TODO This is wrong if there are multiple objects, none of which have a default name
-	if len(cfg.data.Contexts) == 1 {
-		defaultString(&cfg.data.CurrentContext, cfg.data.Contexts[0].Name)
-	}
-	defaultString(&cfg.data.CurrentContext, defaultContextName)
-
 	return nil
 }
 
-func defaultServer(srv *Server) error {
-	// Validate the server identifier (used for API endpoints)
-	defaultString(&srv.Identifier, DefaultServerIdentifier)
+// defaultString overwrites an empty s1 with the value of s2
+func defaultString(s1 *string, s2 string) {
+	if *s1 == "" {
+		*s1 = s2
+	}
+}
+
+func defaultServerEndpoints(srv *Server) error {
+	// Determine the default base URLs
 	api, err := discovery.IssuerURL(srv.Identifier)
 	if err != nil {
 		return err
 	}
-
-	// Validate the authorization server issuer (used for authorization endpoints)
-	defaultString(&srv.Authorization.Issuer, DefaultAuthorizationIssuer)
 	issuer, err := discovery.IssuerURL(srv.Authorization.Issuer)
 	if err != nil {
 		return err
 	}
 
-	// TODO We should try discovery, e.g. fetch `discovery.WellKnownURI(issuer, "oauth-authorization-server")` and _merge_ (not _default_ since the server reported values win)
-
+	// Apply the Red Sky defaults
 	defaultString(&srv.RedSky.ExperimentsEndpoint, api+"/experiments/")
 	defaultString(&srv.RedSky.AccountsEndpoint, api+"/accounts/")
+
+	// Apply the authorization defaults
+	// TODO We should try discovery, e.g. fetch `discovery.WellKnownURI(issuer, "oauth-authorization-server")` and _merge_ (not _default_ since the server reported values win)
 	defaultString(&srv.Authorization.AuthorizationEndpoint, issuer+"/authorize")
 	defaultString(&srv.Authorization.TokenEndpoint, issuer+"/oauth/token")
 	defaultString(&srv.Authorization.RevocationEndpoint, issuer+"/oauth/revoke")
-	// SEE SPECIAL CASE BELOW // defaultString(&srv.Authorization.RegistrationEndpoint, issuer+"/oauth/register")
+	// defaultString(&srv.Authorization.RegistrationEndpoint, issuer+"/oauth/register")
 	defaultString(&srv.Authorization.DeviceAuthorizationEndpoint, issuer+"/oauth/device/code")
 	defaultString(&srv.Authorization.JSONWebKeySetURI, discovery.WellKnownURI(issuer, "jwks.json"))
 
@@ -134,45 +103,187 @@ func defaultServer(srv *Server) error {
 	return nil
 }
 
-func defaultCluster(cstr *Cluster, cfg *Config, defaultClusterName string) error {
-	if len(cfg.Clusters) == 1 {
-		defaultString(&cstr.Controller, cfg.Clusters[0].Name)
+type defaults struct {
+	cfg         *Config
+	clusterName string
+}
+
+func (d *defaults) addDefaultObjects() {
+	if len(d.cfg.Servers) == 0 {
+		d.cfg.Servers = append(d.cfg.Servers, NamedServer{Name: "default"})
 	}
 
-	defaultString(&cstr.Bin, "kubectl")
-	defaultString(&cstr.Controller, defaultClusterName)
+	if len(d.cfg.Authorizations) == 0 {
+		d.cfg.Authorizations = append(d.cfg.Authorizations, NamedAuthorization{Name: "default"})
+	}
+
+	if len(d.cfg.Clusters) == 0 {
+		d.cfg.Clusters = append(d.cfg.Clusters, NamedCluster{Name: d.clusterName})
+	}
+
+	if len(d.cfg.Controllers) == 0 {
+		d.cfg.Controllers = append(d.cfg.Controllers, NamedController{Name: d.clusterName})
+	}
+
+	if len(d.cfg.Contexts) == 0 {
+		d.cfg.Contexts = append(d.cfg.Contexts, NamedContext{Name: "default"})
+	}
+}
+
+func (d *defaults) applyServerDefaults() error {
+	for i := range d.cfg.Servers {
+		srv := &d.cfg.Servers[i].Server
+
+		defaultString(&srv.Identifier, DefaultServerIdentifier)
+		defaultString(&srv.Authorization.Issuer, "https://auth.carbonrelay.io/")
+
+		if err := defaultServerEndpoints(srv); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
-func defaultController(ctrl *Controller) error {
-	defaultString(&ctrl.Namespace, "redsky-system")
+func (d *defaults) applyClusterDefaults() error {
+	for i := range d.cfg.Clusters {
+		cstr := &d.cfg.Clusters[i].Cluster
+
+		defaultString(&cstr.Bin, "kubectl")
+
+		if err := d.defaultControllerName(&cstr.Controller, d.cfg.Clusters[i].Name); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
-func defaultContext(ctx *Context, cfg *Config, defaultServerName, defaultClusterName string) error {
-	if len(cfg.Servers) == 1 {
-		defaultString(&ctx.Server, cfg.Servers[0].Name)
-	}
-	if len(cfg.Authorizations) == 1 {
-		defaultString(&ctx.Authorization, cfg.Authorizations[0].Name)
-	}
-	if len(cfg.Clusters) == 1 {
-		defaultString(&ctx.Cluster, cfg.Clusters[0].Name)
-	}
+func (d *defaults) applyControllerDefaults() error {
+	for i := range d.cfg.Controllers {
+		ctrl := &d.cfg.Controllers[i].Controller
 
-	defaultString(&ctx.Server, defaultServerName)
-	defaultString(&ctx.Authorization, defaultServerName)
-	defaultString(&ctx.Cluster, defaultClusterName)
+		defaultString(&ctrl.Namespace, "redsky-system")
+	}
 	return nil
 }
 
-// clusterName returns the current cluster name from kubeconfig
-func clusterName() string {
-	// This constitutes a "bootstrap" invocation of "kubectl", we can't use the configuration because we are actually creating it
-	cmd := exec.Command("kubectl", "config", "view", "--minify", "--output", "jsonpath={.clusters[0].name}")
-	stdout, err := cmd.Output()
-	if err != nil {
-		return "default"
+func (d *defaults) applyContextDefaults() error {
+	for i := range d.cfg.Contexts {
+		ctx := &d.cfg.Contexts[i].Context
+		name := d.cfg.Contexts[i].Name
+
+		if err := d.defaultServerName(&ctx.Server, name); err != nil {
+			return err
+		}
+
+		if err := d.defaultAuthorizationName(&ctx.Authorization, name, ctx.Server); err != nil {
+			return err
+		}
+
+		if err := d.defaultClusterName(&ctx.Cluster, name); err != nil {
+			return err
+		}
 	}
-	return strings.TrimSpace(string(stdout))
+
+	if err := d.defaultContextName(&d.cfg.CurrentContext); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Default name functions attempt to resolve a default name
+
+func (d *defaults) defaultServerName(s *string, name string) error {
+	if findServer(d.cfg.Servers, name) != nil {
+		defaultString(s, name)
+		return nil
+	}
+	if len(d.cfg.Servers) == 1 {
+		defaultString(s, d.cfg.Servers[0].Name)
+		return nil
+	}
+	if findServer(d.cfg.Servers, "default") != nil {
+		defaultString(s, "default")
+		return nil
+	}
+	if *s != "" {
+		return nil
+	}
+	return fmt.Errorf("could not imply default server name for context: %s", name)
+}
+
+func (d *defaults) defaultAuthorizationName(s *string, name, server string) error {
+	if findAuthorization(d.cfg.Authorizations, name) != nil {
+		defaultString(s, name)
+		return nil
+	}
+	if findAuthorization(d.cfg.Authorizations, server) != nil {
+		defaultString(s, server)
+		return nil
+	}
+	if len(d.cfg.Authorizations) == 1 {
+		defaultString(s, d.cfg.Authorizations[0].Name)
+		return nil
+	}
+	if findAuthorization(d.cfg.Authorizations, "default") != nil {
+		defaultString(s, "default")
+		return nil
+	}
+	if *s != "" {
+		return nil
+	}
+	return fmt.Errorf("could not imply default authorization name for context: %s", name)
+}
+
+func (d *defaults) defaultClusterName(s *string, name string) error {
+	if findCluster(d.cfg.Clusters, name) != nil {
+		defaultString(s, name)
+		return nil
+	}
+	if len(d.cfg.Clusters) == 1 {
+		defaultString(s, d.cfg.Clusters[0].Name)
+		return nil
+	}
+	if findCluster(d.cfg.Clusters, d.clusterName) != nil {
+		defaultString(s, d.clusterName)
+		return nil
+	}
+	if *s != "" {
+		return nil
+	}
+	return fmt.Errorf("could not imply default cluster name for context: %s", name)
+}
+
+func (d *defaults) defaultControllerName(s *string, name string) error {
+	if findController(d.cfg.Controllers, name) != nil {
+		defaultString(s, name)
+		return nil
+	}
+	if len(d.cfg.Controllers) == 1 {
+		defaultString(s, d.cfg.Controllers[0].Name)
+		return nil
+	}
+	if findController(d.cfg.Controllers, d.clusterName) != nil {
+		defaultString(s, d.clusterName)
+		return nil
+	}
+	if *s != "" {
+		return nil
+	}
+	return fmt.Errorf("could not imply default controller name for cluster: %s", name)
+}
+
+func (d *defaults) defaultContextName(s *string) error {
+	if len(d.cfg.Contexts) == 1 {
+		defaultString(s, d.cfg.Contexts[0].Name)
+		return nil
+	}
+	if findContext(d.cfg.Contexts, "default") != nil {
+		defaultString(s, "default")
+		return nil
+	}
+	if *s != "" {
+		return nil
+	}
+	return fmt.Errorf("could not imply default current context")
 }

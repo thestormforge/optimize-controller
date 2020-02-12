@@ -16,7 +16,73 @@ limitations under the License.
 
 package config
 
-// This is all the merge/find logic
+// Merge types
+
+// mergeString overwrites s1 with a non-empty value of s2
+func mergeString(s1 *string, s2 string) {
+	if s2 != "" {
+		*s1 = s2
+	}
+}
+
+// Merge elements
+
+func mergeServer(s1, s2 *Server) {
+	mergeString(&s1.Identifier, s2.Identifier)
+	mergeString(&s1.RedSky.AccountsEndpoint, s2.RedSky.AccountsEndpoint)
+	mergeString(&s1.RedSky.ExperimentsEndpoint, s2.RedSky.ExperimentsEndpoint)
+	mergeString(&s1.Authorization.Issuer, s2.Authorization.Issuer)
+	mergeString(&s1.Authorization.AuthorizationEndpoint, s2.Authorization.AuthorizationEndpoint)
+	mergeString(&s1.Authorization.TokenEndpoint, s2.Authorization.TokenEndpoint)
+	mergeString(&s1.Authorization.RevocationEndpoint, s2.Authorization.RevocationEndpoint)
+	mergeString(&s1.Authorization.RegistrationEndpoint, s2.Authorization.RegistrationEndpoint)
+	mergeString(&s1.Authorization.DeviceAuthorizationEndpoint, s2.Authorization.DeviceAuthorizationEndpoint)
+	mergeString(&s1.Authorization.JSONWebKeySetURI, s2.Authorization.JSONWebKeySetURI)
+}
+
+func mergeAuthorization(a1, a2 *Authorization) {
+	// Do not merge credentials, just shallow copy them wholesale if they are present
+	if a2.Credential.TokenCredential != nil && a2.Credential.AccessToken != "" {
+		a1.Credential.ClientCredential = nil
+		a1.Credential.TokenCredential = new(TokenCredential)
+		*a1.Credential.TokenCredential = *a2.Credential.TokenCredential
+	}
+	if a2.Credential.ClientCredential != nil && a2.Credential.ClientID != "" {
+		a1.Credential.TokenCredential = nil
+		a1.Credential.ClientCredential = new(ClientCredential)
+		*a1.Credential.ClientCredential = *a2.Credential.ClientCredential
+	}
+}
+
+func mergeCluster(c1, c2 *Cluster) {
+	mergeString(&c1.KubeConfig, c2.KubeConfig)
+	mergeString(&c1.Context, c2.Context)
+	mergeString(&c1.Bin, c2.Bin)
+	mergeString(&c1.Controller, c2.Controller)
+}
+
+func mergeController(c1, c2 *Controller) {
+	mergeString(&c1.Namespace, c2.Namespace)
+	idx := make(map[string]string, len(c2.Env))
+	for i := range c2.Env {
+		idx[c2.Env[i].Name] = c2.Env[i].Value
+	}
+	for i := range c1.Env {
+		if v := idx[c1.Env[i].Name]; v != "" {
+			c1.Env[i].Value = v
+			delete(idx, c1.Env[i].Name)
+		}
+	}
+	for k, v := range idx {
+		c1.Env = append(c1.Env, ControllerEnvVar{Name: k, Value: v})
+	}
+}
+
+func mergeContext(c1, c2 *Context) {
+	mergeString(&c1.Server, c2.Server)
+	mergeString(&c1.Authorization, c2.Authorization)
+	mergeString(&c1.Cluster, c2.Cluster)
+}
 
 // Merge lists
 
@@ -100,78 +166,6 @@ func mergeContexts(data *Config, contexts []NamedContext) {
 	}
 }
 
-// Merge elements
-
-func mergeServer(s1, s2 *Server) {
-	mergeString(&s1.Identifier, s2.Identifier)
-	mergeString(&s1.RedSky.AccountsEndpoint, s2.RedSky.AccountsEndpoint)
-	mergeString(&s1.RedSky.ExperimentsEndpoint, s2.RedSky.ExperimentsEndpoint)
-	mergeString(&s1.Authorization.AuthorizationEndpoint, s2.Authorization.AuthorizationEndpoint)
-	mergeString(&s1.Authorization.TokenEndpoint, s2.Authorization.TokenEndpoint)
-	mergeString(&s1.Authorization.RegistrationEndpoint, s2.Authorization.RegistrationEndpoint)
-	mergeString(&s1.Authorization.DeviceAuthorizationEndpoint, s2.Authorization.DeviceAuthorizationEndpoint)
-	mergeString(&s1.Authorization.JSONWebKeySetURI, s2.Authorization.JSONWebKeySetURI)
-}
-
-func mergeAuthorization(a1, a2 *Authorization) {
-	// Do not merge credentials, just copy them wholesale if they are present
-	if a2.Credential.TokenCredential != nil && a2.Credential.AccessToken != "" {
-		a1.Credential.ClientCredential = nil
-		a1.Credential.TokenCredential = new(TokenCredential)
-		*a1.Credential.TokenCredential = *a2.Credential.TokenCredential
-	}
-	if a2.Credential.ClientCredential != nil && a2.Credential.ClientID != "" {
-		a1.Credential.TokenCredential = nil
-		a1.Credential.ClientCredential = new(ClientCredential)
-		*a1.Credential.ClientCredential = *a2.Credential.ClientCredential
-	}
-}
-
-func mergeCluster(c1, c2 *Cluster) {
-	mergeString(&c1.KubeConfig, c2.KubeConfig)
-	mergeString(&c1.Context, c2.Context)
-	mergeString(&c1.Bin, c2.Bin)
-	mergeString(&c1.Controller, c2.Controller)
-}
-
-func mergeController(c1, c2 *Controller) {
-	mergeString(&c1.Namespace, c2.Namespace)
-	idx := make(map[string]string, len(c2.Env))
-	for i := range c2.Env {
-		idx[c2.Env[i].Name] = c2.Env[i].Value
-	}
-	for i := range c1.Env {
-		if v := idx[c1.Env[i].Name]; v != "" {
-			c1.Env[i].Value = v
-			delete(idx, c1.Env[i].Name)
-		}
-	}
-	for k, v := range idx {
-		c1.Env = append(c1.Env, ControllerEnvVar{Name: k, Value: v})
-	}
-}
-func mergeContext(c1, c2 *Context) {
-	mergeString(&c1.Server, c2.Server)
-	mergeString(&c1.Authorization, c2.Authorization)
-	mergeString(&c1.Cluster, c2.Cluster)
-}
-
-// Merge types
-
-// mergeString overwrites s1 with a non-empty value of s2
-func mergeString(s1 *string, s2 string) {
-	if s2 != "" {
-		*s1 = s2
-	}
-}
-
-// defaultString overwrites an empty s1 with the value of s2
-func defaultString(s1 *string, s2 string) {
-	if *s1 == "" {
-		*s1 = s2
-	}
-}
-
 // Find elements
 
 func findServer(l []NamedServer, name string) *Server {
@@ -217,39 +211,4 @@ func findContext(l []NamedContext, name string) *Context {
 		}
 	}
 	return nil
-}
-
-// Minification
-
-func minify(data *Config, serverName, authorizationName, clusterName, controllerName, contextName string) *Config {
-	minified := &Config{}
-	if srv := findServer(data.Servers, serverName); srv != nil {
-		minified.Servers = append(minified.Servers, NamedServer{Name: serverName, Server: *srv})
-	}
-	if az := findAuthorization(data.Authorizations, authorizationName); az != nil {
-		minified.Authorizations = append(minified.Authorizations, NamedAuthorization{Name: authorizationName, Authorization: *az})
-	}
-	if cstr := findCluster(data.Clusters, clusterName); cstr != nil {
-		minified.Clusters = append(minified.Clusters, NamedCluster{Name: clusterName, Cluster: *cstr})
-	}
-	if ctrl := findController(data.Controllers, controllerName); ctrl != nil {
-		minified.Controllers = append(minified.Controllers, NamedController{Name: controllerName, Controller: *ctrl})
-	}
-	if ctx := findContext(data.Contexts, contextName); ctx != nil {
-		minified.Contexts = append(minified.Contexts, NamedContext{Name: contextName, Context: *ctx})
-	}
-	minified.CurrentContext = contextName
-	return minified
-}
-
-func minifyContext(data *Config, contextName string) *Config {
-	if ctx := findContext(data.Contexts, contextName); ctx != nil {
-		controllerName := ""
-		if cstr := findCluster(data.Clusters, ctx.Cluster); cstr != nil {
-			controllerName = cstr.Controller
-		}
-
-		return minify(data, ctx.Server, ctx.Authorization, ctx.Cluster, controllerName, contextName)
-	}
-	return &Config{}
 }

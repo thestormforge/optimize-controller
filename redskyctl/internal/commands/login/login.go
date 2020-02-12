@@ -99,11 +99,7 @@ func NewCommand(o *Options) *cobra.Command {
 			commander.SetStreams(&o.IOStreams, cmd)
 			o.Complete()
 		},
-
-		Run: func(cmd *cobra.Command, args []string) {
-			err := o.Run()
-			commander.CheckErr(cmd, err)
-		},
+		RunE: commander.WithContextE(o.login),
 	}
 
 	cmd.Flags().StringVar(&o.Name, "name", "", "Name of the server configuration to authorize.")
@@ -112,6 +108,7 @@ func NewCommand(o *Options) *cobra.Command {
 	cmd.Flags().BoolVar(&o.DisplayQR, "qr", false, "Display a QR code instead of opening a browser.")
 	cmd.Flags().BoolVar(&o.Force, "force", false, "Overwrite existing configuration.")
 
+	commander.ExitOnError(cmd)
 	return cmd
 }
 
@@ -128,8 +125,7 @@ func (o *Options) Complete() {
 	}
 }
 
-// Run executes the login
-func (o *Options) Run() error {
+func (o *Options) login(ctx context.Context) error {
 	// Abuse "Update" to validate the configuration does not already have an authorization
 	if err := o.Config.Update(o.requireForceIfNameExists); err != nil {
 		return err
@@ -271,7 +267,7 @@ func (o *Options) openBrowser(loc string) error {
 	}
 
 	// Do not open the browser for root
-	if o.DisplayURL || u.Uid == "0" {
+	if u.Uid == "0" {
 		_, _ = fmt.Fprintf(o.Out, "%s\n", loc)
 		return nil
 	}

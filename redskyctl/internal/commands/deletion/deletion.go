@@ -64,30 +64,25 @@ func NewCommand(o *Options) *cobra.Command {
 			return cobra.OnlyValidArgs(cmd, args[:1])
 		},
 
-		PreRun: func(cmd *cobra.Command, args []string) {
-			commander.SetStreams(&o.IOStreams, cmd)
+		PreRunE: func(cmd *cobra.Command, args []string) error {
 			o.Type = args[0]
 			o.Names = args[1:]
-			err := commander.SetExperimentsAPI(&o.ExperimentsAPI, o.Config, cmd)
-			commander.CheckErr(cmd, err)
+			commander.SetStreams(&o.IOStreams, cmd)
+			return commander.SetExperimentsAPI(&o.ExperimentsAPI, o.Config, cmd)
 		},
-
-		Run: func(cmd *cobra.Command, args []string) {
-			err := o.Run()
-			commander.CheckErr(cmd, err)
-		},
+		RunE: commander.WithContextE(o.delete),
 	}
 
+	commander.ExitOnError(cmd)
 	return cmd
 }
 
-// Run deletes the named resources
-func (o *Options) Run() error {
+func (o *Options) delete(ctx context.Context) error {
 	for _, name := range o.Names {
 		var err error
 		switch o.Type {
 		case TypeExperiment:
-			err = o.deleteExperiment(context.Background(), name)
+			err = o.deleteExperiment(ctx, name)
 		default:
 			return fmt.Errorf("unknown resource type: %s", o.Type)
 		}

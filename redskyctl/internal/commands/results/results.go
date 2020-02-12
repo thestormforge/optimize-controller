@@ -52,16 +52,13 @@ func NewCommand(o *Options) *cobra.Command {
 			commander.SetStreams(&o.IOStreams, cmd)
 			o.Complete()
 		},
-
-		Run: func(cmd *cobra.Command, args []string) {
-			err := o.Run()
-			commander.CheckErr(cmd, err)
-		},
+		RunE: commander.WithContextE(o.results),
 	}
 
 	cmd.Flags().StringVar(&o.ServerAddress, "address", "", "Address to listen on.")
 	cmd.Flags().BoolVar(&o.DisplayURL, "url", false, "Display the URL instead of opening a browser.")
 
+	commander.ExitOnError(cmd)
 	return cmd
 }
 
@@ -71,9 +68,9 @@ func (o *Options) Complete() {
 	}
 }
 
-func (o *Options) Run() error {
+func (o *Options) results(cliCtx context.Context) error {
 	// Create a context we can use to shutdown the server
-	ctx, shutdown := context.WithCancel(context.Background())
+	ctx, shutdown := context.WithCancel(cliCtx)
 
 	// Create the router to match requests
 	router := http.NewServeMux()

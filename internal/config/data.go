@@ -104,7 +104,10 @@ type ClientCredential struct {
 	ClientSecret string `json:"client_secret"`
 	// Scope is the space delimited list of allowable scopes for the client
 	Scope string `json:"scope"`
-	// TODO 'registration_client_uri' and 'registration_access_token'?
+	// RegistrationClientURI is the fully qualified URL of the client configuration endpoint
+	RegistrationClientURI string `json:"registration_client_uri,omitempty"`
+	// RegistrationAccessToken is the access token to be used for the client configuration endpoint
+	RegistrationAccessToken string `json:"registration_access_token,omitempty"`
 }
 
 // Cluster contains information about communicating with a Kubernetes cluster
