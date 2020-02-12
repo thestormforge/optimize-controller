@@ -84,6 +84,7 @@ const (
 	ErrTrialUnavailable                 = "trial-unavailable"
 	ErrTrialNotFound                    = "trial-not-found"
 	ErrTrialAlreadyReported             = "trial-already-reported"
+	ErrUnauthorized                     = "unauthorized"
 	ErrUnexpected                       = "unexpected"
 )
 
@@ -363,6 +364,8 @@ func NewForConfig(cfg redskyclient.Config, transport http.RoundTripper) (API, er
 type httpAPI struct {
 	client redskyclient.Client
 }
+
+// NOTE: OAuth errors (e.g. fetching tokens) will come out of `Do`
 
 func (h *httpAPI) Options(ctx context.Context) (ServerMeta, error) {
 	sm := ServerMeta{}
@@ -679,6 +682,7 @@ func unexpected(resp *http.Response, body []byte) error {
 
 	switch resp.StatusCode {
 	case http.StatusUnauthorized:
+		err.Type = ErrUnauthorized
 		if err.Message == "" {
 			err.Message = "unauthorized"
 		}

@@ -123,10 +123,11 @@ func (r *ServerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if _, err := r.RedSkyAPI.Options(context.Background()); err != nil {
-		// TODO We may need to ignore transient errors to prevent skipping setup in recoverable or "not ready" scenarios
-		// TODO We may need to look for specific errors to skip setup, i.e. "ErrConfigAddressMissing"
-		r.Log.Info("Red Sky API is unavailable, skipping setup", "message", err.Error())
-		return nil
+		// An unauthorized error means we will never be able to connect without changing the credentials and restarting
+		if controller.IsUnauthorized(err) {
+			r.Log.Info("Red Sky API is unavailable, skipping setup", "message", err.Error())
+			return nil
+		}
 	}
 
 	// Enforce a one trial per-second creation limit (no burst! that is the whole point)
