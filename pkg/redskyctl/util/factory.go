@@ -86,7 +86,7 @@ func (f *factoryImpl) RedSkyAPI() (redskyapi.API, error) {
 	if err != nil {
 		return nil, err
 	}
-	rsAPI, err := redskyapi.NewForConfig(c, version.UserAgent("redskyctl", nil))
+	rsAPI, err := redskyapi.NewForConfig(c, version.UserAgent("redskyctl", "", nil))
 	if err != nil {
 		return nil, err
 	}

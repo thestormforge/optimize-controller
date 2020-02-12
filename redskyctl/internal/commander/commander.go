@@ -65,8 +65,7 @@ func StreamsPreRun(streams *IOStreams) func(cmd *cobra.Command, args []string) {
 // SetExperimentsAPI creates a new experiments API interface from the supplied configuration
 func SetExperimentsAPI(api *experimentsv1alpha1.API, cfg config.Config, cmd *cobra.Command) error {
 	// TODO What if cfg == nil? Right now it will panic...
-	ua := version.UserAgent(cmd.Root().Name(), nil)
-	ea, err := experimentsv1alpha1.NewForConfig(cfg, ua)
+	ea, err := experimentsv1alpha1.NewForConfig(cfg, userAgent(cmd))
 	if err != nil {
 		return err
 	}
@@ -94,7 +93,7 @@ func ConfigGlobals(cfg *internalconfig.RedSkyConfig, cmd *cobra.Command) {
 func WithContextE(runE func(context.Context) error) func(*cobra.Command, []string) error {
 	return func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		ctx = context.WithValue(ctx, oauth2.HTTPClient, http.Client{Transport: version.UserAgent(cmd.Root().Name(), nil)})
+		ctx = context.WithValue(ctx, oauth2.HTTPClient, http.Client{Transport: userAgent(cmd)})
 		return runE(ctx)
 	}
 }
@@ -143,4 +142,10 @@ func ExitOnError(cmd *cobra.Command) {
 		cmd.PersistentPostRun = wrapE(cmd.PersistentPostRunE)
 		cmd.PersistentPostRunE = nil
 	}
+}
+
+func userAgent(cmd *cobra.Command) http.RoundTripper {
+	// TODO Get version number from cmd?
+	// TODO Include OS, etc. in comment?
+	return version.UserAgent(cmd.Root().Name(), "", nil)
 }

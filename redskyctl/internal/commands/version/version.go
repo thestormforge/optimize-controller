@@ -37,6 +37,7 @@ import (
 // TODO Add an "--output" to control format (json, yaml)
 // TODO Check GitHub for new releases
 // TODO We should have an option to print setup tools as JSON with the pull policy, e.g. `{"image":"...", "imagePullPolicy":"..."}`...
+// TODO Get the Kubernetes version from kubectl?
 
 // defaultTemplate is used to format the version information
 const defaultTemplate = `{{range $key, $value := . }}{{$key}} version: {{$value}}

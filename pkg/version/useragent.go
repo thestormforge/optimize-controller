@@ -23,9 +23,9 @@ import (
 
 // UserAgent wraps the (possibly nil) transport so that it will set the user agent
 // using the supplied product name and current version
-func UserAgent(product string, transport http.RoundTripper) http.RoundTripper {
+func UserAgent(product, comment string, transport http.RoundTripper) http.RoundTripper {
 	return &Transport{
-		UserAgent: userAgentString(product),
+		UserAgent: userAgentString(product, comment),
 		Base:      transport,
 	}
 }
@@ -49,7 +49,7 @@ func (t *Transport) userAgent() string {
 		return t.UserAgent
 	}
 	// TODO We probably don't want to be doing this every time...
-	return userAgentString("RedSky")
+	return userAgentString("RedSky", "")
 }
 
 func (t *Transport) base() http.RoundTripper {
@@ -59,10 +59,17 @@ func (t *Transport) base() http.RoundTripper {
 	return http.DefaultTransport
 }
 
-func userAgentString(product string) string {
+func userAgentString(product, comment string) string {
 	if product == "" {
 		return ""
 	}
 	// TODO Validate "product"
-	return product + "/" + strings.TrimLeft(Version, "v")
+
+	comment = strings.TrimSpace(comment)
+	if comment != "" {
+		comment = " (" + strings.TrimRight(strings.TrimLeft(comment, "("), ")") + ")"
+	}
+	// TODO Include build metadata in the comment?
+
+	return product + "/" + strings.TrimLeft(Version, "v") + comment
 }

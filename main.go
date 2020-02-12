@@ -170,5 +170,5 @@ func newRedSkyAPI() (redskyapi.API, error) {
 	if err := cfg.Load(); err != nil {
 		return nil, err
 	}
-	return redskyapi.NewForConfig(cfg, version.UserAgent("RedSkyManager", nil))
+	return redskyapi.NewForConfig(cfg, version.UserAgent("RedSkyController", "", nil))
 }
