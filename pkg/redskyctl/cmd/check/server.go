@@ -63,9 +63,9 @@ func NewServerCheckCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobr
 		Long:    checkServerLong,
 		Example: checkServerExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(o.Complete(f, cmd))
-			cmdutil.CheckErr(o.Validate())
-			cmdutil.CheckErr(o.Run())
+			cmdutil.CheckErr(cmd, o.Complete(f, cmd))
+			cmdutil.CheckErr(cmd, o.Validate())
+			cmdutil.CheckErr(cmd, o.Run())
 		},
 	}
 

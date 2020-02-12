@@ -20,10 +20,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+
+	"github.com/spf13/cobra"
 )
 
 // CheckErr ensures the supplied error is reported and handled correctly. Errors may be reported and/or may cause the process to exit.
-func CheckErr(err error) {
+func CheckErr(cmd *cobra.Command, err error) {
 	if err == nil {
 		return
 	}
@@ -33,8 +35,8 @@ func CheckErr(err error) {
 		os.Exit(eerr.ExitCode())
 	}
 
-	// This error handling leaves a lot to be desired...
-	_, _ = fmt.Fprintf(os.Stderr, "Failed: %s\n", err.Error())
+	// TODO With the exception of silence usage behavior and stdout vs. stderr, this is basically what Cobra already does with a RunE...
+	cmd.PrintErrln("Error:", err.Error())
 	os.Exit(1)
 }
 

@@ -57,8 +57,8 @@ func NewKustomizeConfigCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *
 		Long:    kustomizeConfigLong,
 		Example: kustomizeConfigExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(o.Complete(f, cmd, args))
-			cmdutil.CheckErr(o.Run())
+			cmdutil.CheckErr(cmd, o.Complete(f, cmd, args))
+			cmdutil.CheckErr(cmd, o.Run())
 		},
 	}
 

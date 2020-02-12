@@ -20,10 +20,9 @@ import (
 	"context"
 	"io"
 	"net/http"
-	"os"
-	"os/exec"
 
 	internalconfig "github.com/redskyops/redskyops-controller/internal/config"
+	cmdutil "github.com/redskyops/redskyops-controller/pkg/redskyctl/util"
 	"github.com/redskyops/redskyops-controller/pkg/version"
 	experimentsv1alpha1 "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/config"
@@ -108,16 +107,8 @@ func ExitOnError(cmd *cobra.Command) {
 	// Convert a RunE to a Run
 	wrapE := func(runE func(*cobra.Command, []string) error) func(*cobra.Command, []string) {
 		return func(cmd *cobra.Command, args []string) {
-			if err := runE(cmd, args); err != nil {
-				// Handle forked process errors by propagating the exit status
-				if eerr, ok := err.(*exec.ExitError); ok && !eerr.Success() {
-					os.Exit(eerr.ExitCode())
-				}
-
-				// TODO With the exception of silence usage behavior and stdout vs. stderr, this is basically what Cobra already does with a RunE...
-				cmd.PrintErrln("Error:", err.Error())
-				os.Exit(1)
-			}
+			// TODO Move the CheckErr implementation here once everything is migrated over
+			cmdutil.CheckErr(cmd, runE(cmd, args))
 		}
 	}
 

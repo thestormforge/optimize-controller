@@ -59,8 +59,8 @@ func NewCheckExperimentCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *
 		Long:    checkExperimentLong,
 		Example: checkExperimentExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(o.Complete(f, cmd))
-			cmdutil.CheckErr(o.Run())
+			cmdutil.CheckErr(cmd, o.Complete(f, cmd))
+			cmdutil.CheckErr(cmd, o.Run())
 		},
 	}
 

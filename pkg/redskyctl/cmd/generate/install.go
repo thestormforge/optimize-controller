@@ -55,8 +55,8 @@ func NewGenerateInstallCmd(ioStreams cmdutil.IOStreams) *cobra.Command {
 		Long:    generateInstallLong,
 		Example: generateInstallExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(o.Complete())
-			cmdutil.CheckErr(o.Run())
+			cmdutil.CheckErr(cmd, o.Complete())
+			cmdutil.CheckErr(cmd, o.Run())
 		},
 	}
 

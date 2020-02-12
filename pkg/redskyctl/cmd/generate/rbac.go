@@ -65,8 +65,8 @@ func NewGenerateRBACCommand(ioStreams cmdutil.IOStreams) *cobra.Command {
 		Long:    generateRBACLong,
 		Example: generateRBACExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(o.Complete())
-			cmdutil.CheckErr(o.Run())
+			cmdutil.CheckErr(cmd, o.Complete())
+			cmdutil.CheckErr(cmd, o.Run())
 		},
 	}
 

@@ -52,8 +52,8 @@ func NewResetCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Comm
 		Long:    resetLong,
 		Example: resetExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(o.Complete(f, cmd, args))
-			cmdutil.CheckErr(o.Run())
+			cmdutil.CheckErr(cmd, o.Complete(f, cmd, args))
+			cmdutil.CheckErr(cmd, o.Run())
 		},
 	}
 

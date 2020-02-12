@@ -58,8 +58,8 @@ func NewAuthorizeCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.
 		Long:    authorizeLong,
 		Example: authorizeExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(o.Complete(f, cmd, args))
-			cmdutil.CheckErr(o.Run())
+			cmdutil.CheckErr(cmd, o.Complete(f, cmd, args))
+			cmdutil.CheckErr(cmd, o.Run())
 		},
 	}
 

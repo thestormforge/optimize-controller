@@ -53,8 +53,8 @@ func NewGetTrialListCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cob
 		Example: getTrialListExample,
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(o.Complete(f, cmd, args, printFlags))
-			cmdutil.CheckErr(RunGetTrialList(o, meta))
+			cmdutil.CheckErr(cmd, o.Complete(f, cmd, args, printFlags))
+			cmdutil.CheckErr(cmd, RunGetTrialList(o, meta))
 		},
 	}
 

@@ -47,8 +47,8 @@ func NewGetExperimentListCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams)
 		Long:    getExperimentListLong,
 		Example: getExperimentListExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(o.Complete(f, cmd, args, printFlags))
-			cmdutil.CheckErr(RunGetExperimentList(o))
+			cmdutil.CheckErr(cmd, o.Complete(f, cmd, args, printFlags))
+			cmdutil.CheckErr(cmd, RunGetExperimentList(o))
 		},
 	}
 
