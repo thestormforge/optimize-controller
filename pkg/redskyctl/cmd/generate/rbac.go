@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"sort"
+	"strings"
 
 	redskyv1alpha1 "github.com/redskyops/redskyops-controller/pkg/apis/redsky/v1alpha1"
 	cmdutil "github.com/redskyops/redskyops-controller/pkg/redskyctl/util"
@@ -103,11 +104,7 @@ func (o *GenerateRBACOptions) Complete() error {
 func (o *GenerateRBACOptions) Run() error {
 	// Generate a cluster role
 	clusterRole := &rbacv1.ClusterRole{}
-	if o.Name != "" {
-		clusterRole.Name = o.Name
-	} else {
-		clusterRole.GenerateName = "redsky-patching-"
-	}
+	clusterRole.Name = o.Name
 	clusterRole.Labels = map[string]string{"redskyops.dev/aggregate-to-patching": "true"}
 
 	// Add additional rules
@@ -125,6 +122,11 @@ func (o *GenerateRBACOptions) Run() error {
 	experiment := &redskyv1alpha1.Experiment{}
 	if err := o.readExperiment(experiment); err != nil {
 		return err
+	}
+
+	// If we still need a name, use the experiment (generate name does not work on cluster roles)
+	if clusterRole.Name == "" {
+		clusterRole.Name = "redsky-patching-" + strings.ReplaceAll(strings.ToLower(experiment.Name), " ", "-")
 	}
 
 	// Add rules from the experiment
