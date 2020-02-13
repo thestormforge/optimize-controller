@@ -119,6 +119,10 @@ func IsUnauthorized(err error) bool {
 			return true
 		}
 	}
+	// TODO This is a hack to work around the way we generate errors during JWT validation
+	if err != nil && err.Error() == "no Bearer token" {
+		return true
+	}
 	return false
 }
 
@@ -395,7 +399,8 @@ func (h *httpAPI) Options(ctx context.Context) (ServerMeta, error) {
 	}
 
 	// We actually want to do OPTIONS for the whole server, now that the host:port has been captured, overwrite the RequestURL
-	req.URL.Opaque = "*"
+	// TODO Change this back to "*"
+	req.URL.Opaque = "/*"
 
 	resp, body, err := h.client.Do(ctx, req)
 	if err != nil {

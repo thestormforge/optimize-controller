@@ -17,6 +17,9 @@ limitations under the License.
 package util
 
 import (
+	"context"
+	"fmt"
+
 	redskykube "github.com/redskyops/redskyops-controller/pkg/kubernetes"
 	"github.com/redskyops/redskyops-controller/pkg/version"
 	redskyclient "github.com/redskyops/redskyops-controller/redskyapi"
@@ -90,5 +93,13 @@ func (f *factoryImpl) RedSkyAPI() (redskyapi.API, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Verify we do not get unauthorized
+	if _, err := rsAPI.Options(context.Background()); err != nil {
+		if redskyapi.IsUnauthorized(err) {
+			return nil, fmt.Errorf("the current configuration is not authorized to use the Red Sky API")
+		}
+	}
+
 	return rsAPI, nil
 }
