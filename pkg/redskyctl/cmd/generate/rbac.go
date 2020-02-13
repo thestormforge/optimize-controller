@@ -183,7 +183,9 @@ func findRules(experiment *redskyv1alpha1.Experiment, mapper meta.RESTMapper) ([
 		gvk := ref.GroupVersionKind()
 		m, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 		if err != nil {
-			return nil, err
+			// TODO If this is guessing wrong too often we may need to allow additional mappings in the configuration
+			m = &meta.RESTMapping{GroupVersionKind: gvk, Scope: meta.RESTScopeRoot}
+			m.Resource, _ = meta.UnsafeGuessKindToResource(gvk)
 		}
 
 		var names []string
