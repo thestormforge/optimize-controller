@@ -24,6 +24,7 @@ import (
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
@@ -64,6 +65,7 @@ func serialize(e interface{}, w io.Writer) error {
 	if err := scheme.Convert(e, u, runtime.InternalGroupVersioner); err != nil {
 		return err
 	}
+	u.SetCreationTimestamp(metav1.Time{})
 	if b, err := yaml.Marshal(u); err != nil {
 		return err
 	} else if _, err := w.Write(b); err != nil {
