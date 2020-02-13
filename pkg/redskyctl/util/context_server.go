@@ -23,6 +23,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -74,6 +75,27 @@ func ShutdownOnInterrupt(onInterrupt func()) ContextServerOption {
 			// Call the supplied interrupt handler and shutdown the server
 			if onInterrupt != nil {
 				onInterrupt()
+			}
+			cs.cancel()
+		}()
+	}
+}
+
+// ShutdownOnIdle shuts the server down when all connections have been idle for a specified duration
+func ShutdownOnIdle(idle time.Duration, onIdle func()) ContextServerOption {
+	return func(cs *ContextServer) {
+		it := &idleTracker{
+			active: make(map[net.Conn]bool),
+			idle:   idle,
+			timer:  time.NewTimer(idle),
+		}
+		cs.srv.ConnState = it.connState
+		go func() {
+			<-it.timer.C
+
+			// Call the supplied idle handler and shutdown the server
+			if onIdle != nil {
+				onIdle()
 			}
 			cs.cancel()
 		}()
@@ -155,6 +177,33 @@ func (cs *ContextServer) handleStartUp(loc *url.URL, done chan error) {
 				cs.cancel()
 				done <- err
 			}
+		}
+	}
+}
+
+// idleTracker monitors connection states checking to see if the server is idle, see https://stackoverflow.com/questions/56487495/
+type idleTracker struct {
+	mu     sync.Mutex
+	active map[net.Conn]bool
+	idle   time.Duration
+	timer  *time.Timer
+}
+
+func (t *idleTracker) connState(conn net.Conn, state http.ConnState) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	wasIdle := len(t.active) == 0
+	switch state {
+	case http.StateNew, http.StateActive, http.StateHijacked:
+		t.active[conn] = true
+		if wasIdle {
+			t.timer.Stop()
+		}
+	case http.StateIdle, http.StateClosed:
+		delete(t.active, conn)
+		if !wasIdle && len(t.active) == 0 {
+			t.timer.Reset(t.idle)
 		}
 	}
 }

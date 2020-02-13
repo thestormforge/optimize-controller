@@ -68,24 +68,20 @@ func (o *Options) Complete() {
 	}
 }
 
-func (o *Options) results(cliCtx context.Context) error {
-	// Create a context we can use to shutdown the server
-	ctx, shutdown := context.WithCancel(cliCtx)
-
+func (o *Options) results(ctx context.Context) error {
 	// Create the router to match requests
 	router := http.NewServeMux()
 	if err := o.handleAPI(router, "/v1/"); err != nil {
-		shutdown() // TODO Just defer shutdown instead? Should be a no-op in the success case...
 		return err
 	}
 	o.handleUI(router, "/ui/")
 	o.handleLiveness(router, "/health")
-	o.handleShutdown(router, "/shutdown", shutdown)
 
 	// Create the server
 	server := cmdutil.NewContextServer(ctx, router,
 		cmdutil.WithServerOptions(o.configureServer),
 		cmdutil.ShutdownOnInterrupt(func() { _, _ = fmt.Fprintln(o.Out) }),
+		cmdutil.ShutdownOnIdle(5*time.Second, func() { _, _ = fmt.Fprintln(o.Out) }),
 		cmdutil.HandleStart(o.openBrowser))
 
 	// Start the server, this will block until someone calls 'shutdown' from above
@@ -154,15 +150,5 @@ func (o *Options) handleLiveness(serveMux *http.ServeMux, prefix string) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		http.Error(w, "ok", http.StatusOK)
-	})
-}
-
-func (o *Options) handleShutdown(serveMux *http.ServeMux, prefix string, shutdown context.CancelFunc) {
-	serveMux.HandleFunc(prefix, func(w http.ResponseWriter, r *http.Request) {
-		// Invoking shutdown will bring down the server
-		shutdown()
-
-		// Print an extra newline to make up for the one we didn't print earlier
-		_, _ = fmt.Fprintln(o.Out)
 	})
 }
