@@ -26,7 +26,9 @@ import (
 // TODO Like the version command, support dumping the default configuration from the manager
 // `kubectl exec -n redsky-system -c manager $(kubectl get pods -n redsky-system -o name) /manager config`
 // TODO Add an option to output a Helm values.yaml for our chart
-// TODO We should have a "decode token" option that decodes JWT tokens
+// TODO Have a "--raw" flag to just dump the file
+// TODO Have a "--minify" flag to just show the effective values available through the Reader
+// TODO Output format (e.g. json,yaml,env)? Templating?
 
 // ViewOptions are the options for viewing a configuration file
 type ViewOptions struct {
@@ -34,9 +36,6 @@ type ViewOptions struct {
 	Config *config.RedSkyConfig
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
-
-	// TODO Minify?
-	// TODO Output format (e.g. json,yaml,env)? Templating?
 }
 
 // NewViewCommand creates a new command for viewing the configuration
@@ -49,6 +48,9 @@ func NewViewCommand(o *ViewOptions) *cobra.Command {
 		PreRun: commander.StreamsPreRun(&o.IOStreams),
 		RunE:   commander.WithoutArgsE(o.view),
 	}
+
+	cmd.Flags().BoolVar(&config.DecodeJWT, "decode-jwt", false, "Display JWT claims instead of raw token strings.")
+	_ = cmd.Flags().MarkHidden("decode-jwt")
 
 	commander.ExitOnError(cmd)
 	return cmd

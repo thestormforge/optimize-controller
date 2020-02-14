@@ -20,9 +20,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/dgrijalva/jwt-go"
 )
 
 // NOTE: Configuration JSON names in and below Server and Authorization use snake_case for compatibility with OAuth 2.0 specifications
+
+var (
+	// DecodeJWT can be temporarily set to true to make marshalling decode JWT without verification. This is not thread safe.
+	DecodeJWT bool
+)
 
 // Config is the top level configuration structure for Red Sky
 type Config struct {
@@ -229,6 +236,12 @@ func (tc *TokenCredential) MarshalJSON() ([]byte, error) {
 	var accessToken interface{}
 	if tc != nil {
 		accessToken = tc.AccessToken
+		if DecodeJWT {
+			c := jwt.MapClaims{}
+			if _, _, err := new(jwt.Parser).ParseUnverified(tc.AccessToken, c); err == nil {
+				accessToken = c
+			}
+		}
 	}
 	var expiry string
 	if tc != nil && tc.Expiry.IsZero() {
