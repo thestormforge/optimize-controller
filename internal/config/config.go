@@ -204,6 +204,11 @@ type RevocationInformation struct {
 	authorizationName string
 }
 
+// String returns a string representation of this revocation
+func (ri *RevocationInformation) String() string {
+	return ri.authorizationName
+}
+
 // RemoveAuthorization returns a configuration change to remove the authorization associated with the revocation information
 func (ri *RevocationInformation) RemoveAuthorization() Change {
 	return func(cfg *Config) error {
