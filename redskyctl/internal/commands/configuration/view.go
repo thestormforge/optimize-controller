@@ -17,6 +17,9 @@ limitations under the License.
 package configuration
 
 import (
+	"io"
+	"os"
+
 	"github.com/redskyops/redskyops-controller/internal/config"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
@@ -26,7 +29,6 @@ import (
 // TODO Like the version command, support dumping the default configuration from the manager
 // `kubectl exec -n redsky-system -c manager $(kubectl get pods -n redsky-system -o name) /manager config`
 // TODO Add an option to output a Helm values.yaml for our chart
-// TODO Have a "--raw" flag to just dump the file
 // TODO Have a "--minify" flag to just show the effective values available through the Reader
 // TODO Output format (e.g. json,yaml,env)? Templating?
 
@@ -36,6 +38,9 @@ type ViewOptions struct {
 	Config *config.RedSkyConfig
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
+
+	// FileOnly causes view to just dump the configuration file to out
+	FileOnly bool
 }
 
 // NewViewCommand creates a new command for viewing the configuration
@@ -49,6 +54,7 @@ func NewViewCommand(o *ViewOptions) *cobra.Command {
 		RunE:   commander.WithoutArgsE(o.view),
 	}
 
+	cmd.Flags().BoolVar(&o.FileOnly, "raw", false, "Display the raw configuration file without merging.")
 	cmd.Flags().BoolVar(&config.DecodeJWT, "decode-jwt", false, "Display JWT claims instead of raw token strings.")
 	_ = cmd.Flags().MarkHidden("decode-jwt")
 
@@ -57,11 +63,19 @@ func NewViewCommand(o *ViewOptions) *cobra.Command {
 }
 
 func (o *ViewOptions) view() error {
-	output, err := yaml.Marshal(o.Config)
-	if err != nil {
+	// Dump the raw config file bytes to the console
+	if o.FileOnly {
+		f, err := os.Open(o.Config.Filename)
+		if err == nil {
+			_, err = io.Copy(o.Out, f)
+		}
 		return err
 	}
 
-	_, err = o.Out.Write(output)
+	// Marshal the configuration as YAML and write it out
+	output, err := yaml.Marshal(o.Config)
+	if err == nil {
+		_, err = o.Out.Write(output)
+	}
 	return err
 }
