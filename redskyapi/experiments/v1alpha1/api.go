@@ -709,6 +709,11 @@ func unexpected(resp *http.Response, body []byte) error {
 		if err.Message == "" {
 			err.Message = "unauthorized"
 		}
+	case http.StatusPaymentRequired:
+		err.Type = ErrUnauthorized
+		if err.Message == "" {
+			err.Message = "account is not activated"
+		}
 	case http.StatusNotFound:
 		if resp.Request != nil && resp.Request.URL != nil {
 			err.Message = fmt.Sprintf("not found: %s", resp.Request.URL.String())
