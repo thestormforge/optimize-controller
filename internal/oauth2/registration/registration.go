@@ -55,6 +55,8 @@ type ClientMetadata struct {
 	ResponseTypes []string `json:"response_types"`
 	// ClientName is the human-readable string name of the client to be presented to the end-user during authorization.
 	ClientName string `json:"client_name"`
+	// Scope is the string containing a space-separated list of scope values that the client can use when requesting access tokens.
+	Scope string `json:"scope,omitempty"`
 }
 
 // ClientInformationResponse contains the client identifier as well as the client secret, if the client is confidential client.
