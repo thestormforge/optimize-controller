@@ -41,19 +41,15 @@ type Factory interface {
 
 var _ Factory = &factoryImpl{}
 
-func NewFactory(cf *ConfigFlags, sf *ServerFlags) Factory {
+func NewFactory(cf *ConfigFlags) Factory {
 	if cf == nil {
 		panic("attempt to create factory with nil config flags")
 	}
-	if sf == nil {
-		panic("attempt to create factory with nil server flags")
-	}
-	return &factoryImpl{configFlags: cf, serverFlags: sf}
+	return &factoryImpl{configFlags: cf}
 }
 
 type factoryImpl struct {
 	configFlags *ConfigFlags
-	serverFlags *ServerFlags
 }
 
 func (f *factoryImpl) ToRawKubeConfigLoader() clientcmd.ClientConfig {
@@ -65,7 +61,7 @@ func (f *factoryImpl) ToRESTConfig() (*rest.Config, error) {
 }
 
 func (f *factoryImpl) ToClientConfig() (redskyclient.Config, error) {
-	return f.serverFlags.ToClientConfig()
+	return f.configFlags.ToClientConfig()
 }
 
 func (f *factoryImpl) KubernetesClientSet() (*kubernetes.Clientset, error) {

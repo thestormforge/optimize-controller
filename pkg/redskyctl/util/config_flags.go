@@ -17,6 +17,8 @@ limitations under the License.
 package util
 
 import (
+	"github.com/redskyops/redskyops-controller/internal/config"
+	redskyclient "github.com/redskyops/redskyops-controller/redskyapi"
 	"github.com/spf13/pflag"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -27,38 +29,26 @@ import (
 
 // Kubernetes specific configuration flags
 
-// TODO Consider the real Kube cli-runtime?
-
 const (
 	flagKubeconfig = "kubeconfig"
-	flagContext    = "context"
 	flagNamespace  = "namespace"
 )
 
 type ConfigFlags struct {
-	KubeConfig *string
-	Context    *string
-	Namespace  *string
+	cfg *config.RedSkyConfig
 }
 
-func NewConfigFlags() *ConfigFlags {
+func NewConfigFlags(cfg *config.RedSkyConfig) *ConfigFlags {
 	return &ConfigFlags{
-		KubeConfig: stringptr(""),
-		Context:    stringptr(""),
-		Namespace:  stringptr(""),
+		cfg: cfg,
 	}
 }
 
 func (f *ConfigFlags) AddFlags(flags *pflag.FlagSet) {
-	if f.KubeConfig != nil {
-		flags.StringVar(f.KubeConfig, flagKubeconfig, *f.KubeConfig, "Path to the kubeconfig file to use for CLI requests.")
-	}
-	if f.Context != nil {
-		flags.StringVar(f.Context, flagContext, *f.Context, "The name of the kubeconfig context to use.")
-	}
-	if f.Namespace != nil {
-		flags.StringVarP(f.Namespace, flagNamespace, "n", *f.Namespace, "If present, the namespace scope for this CLI request.")
-	}
+	// NOTE: There is no override for the kubeconfig cluster because it conflicts with the Red Sky config concept of a cluster
+
+	flags.StringVar(&f.cfg.Overrides.KubeConfig, flagKubeconfig, "", "Path to the kubeconfig file to use for CLI requests.")
+	flags.StringVarP(&f.cfg.Overrides.Namespace, flagNamespace, "n", "", "If present, the namespace scope for this CLI request.")
 }
 
 func (f *ConfigFlags) ToRESTConfig() (*rest.Config, error) {
@@ -67,15 +57,17 @@ func (f *ConfigFlags) ToRESTConfig() (*rest.Config, error) {
 
 func (f *ConfigFlags) ToRawKubeConfigLoader() clientcmd.ClientConfig {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-	if f.KubeConfig != nil {
-		loadingRules.ExplicitPath = *f.KubeConfig
-	}
 	overrides := &clientcmd.ConfigOverrides{}
-	if f.Context != nil {
-		overrides.CurrentContext = *f.Context
+
+	if cstr, err := config.CurrentCluster(f.cfg.Reader()); err == nil {
+		loadingRules.ExplicitPath = cstr.KubeConfig
+		overrides.CurrentContext = cstr.Context
+		overrides.Context.Namespace = cstr.Namespace
 	}
-	if f.Namespace != nil {
-		overrides.Context.Namespace = *f.Namespace
-	}
+
 	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, overrides)
+}
+
+func (f *ConfigFlags) ToClientConfig() (redskyclient.Config, error) {
+	return f.cfg, nil
 }

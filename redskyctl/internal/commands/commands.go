@@ -63,7 +63,7 @@ func NewRedskyctlCommand() *cobra.Command {
 	rootCmd.AddCommand(version.NewCommand(&version.Options{Config: cfg}))
 
 	// Compatibility mode: these commands need to be migrated to use the new style
-	addUnmigratedCommands(rootCmd)
+	addUnmigratedCommands(rootCmd, cfg)
 
 	// TODO Add 'backup' and 'restore' maintenance commands ('maint' subcommands?)
 	// TODO We need helpers for doing a "dry run" on patches to make configuration easier
@@ -74,14 +74,11 @@ func NewRedskyctlCommand() *cobra.Command {
 	return rootCmd
 }
 
-func addUnmigratedCommands(rootCmd *cobra.Command) {
+func addUnmigratedCommands(rootCmd *cobra.Command, cfg *config.RedSkyConfig) {
 	flags := rootCmd.PersistentFlags()
-	kubeConfigFlags := util.NewConfigFlags()
-	kubeConfigFlags.Context = nil
-	kubeConfigFlags.AddFlags(flags)
-	redskyConfigFlags := util.NewServerFlags()
-	redskyConfigFlags.AddFlags(flags)
-	f := util.NewFactory(kubeConfigFlags, redskyConfigFlags)
+	configFlags := util.NewConfigFlags(cfg)
+	configFlags.AddFlags(flags)
+	f := util.NewFactory(configFlags)
 	ioStreams := util.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
 
 	rootCmd.AddCommand(setup.NewInitCommand(f, ioStreams))
