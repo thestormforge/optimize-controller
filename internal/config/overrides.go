@@ -20,14 +20,18 @@ package config
 type Overrides struct {
 	// Context overrides the current Red Sky context name (_not_ the KubeConfig context)
 	Context string
-	// Namespace overrides the current controller namespace
-	Namespace string
+	// SystemNamespace overrides the current controller namespace (_not_ the Kube namespace)
+	SystemNamespace string
 	// ServerIdentifier overrides the current server's identifier and Red Sky endpoints. Using this override, it is not possible to specify individual endpoint locations.
 	ServerIdentifier string
 	// ServerIssuer overrides the current server's authorization server issuer. Using this override, it is not possible to specify individual endpoint locations.
 	ServerIssuer string
 	// Credential overrides the current authorization
 	Credential ClientCredential
+	// KubeConfig overrides the current cluster's kubeconfig file
+	KubeConfig string
+	// Namespace overrides the current cluster's default namespace
+	Namespace string
 }
 
 var _ Reader = &overrideReader{}
@@ -84,7 +88,12 @@ func (o *overrideReader) ClusterName(contextName string) (string, error) {
 }
 
 func (o *overrideReader) Cluster(name string) (Cluster, error) {
-	return o.delegate.Cluster(name)
+	cstr, err := o.delegate.Cluster(name)
+	if err == nil {
+		mergeString(&cstr.KubeConfig, o.overrides.KubeConfig)
+		mergeString(&cstr.Namespace, o.overrides.Namespace)
+	}
+	return cstr, err
 }
 
 func (o *overrideReader) ControllerName(contextName string) (string, error) {
@@ -94,7 +103,7 @@ func (o *overrideReader) ControllerName(contextName string) (string, error) {
 func (o *overrideReader) Controller(name string) (Controller, error) {
 	ctrl, err := o.delegate.Controller(name)
 	if err == nil {
-		mergeString(&ctrl.Namespace, o.overrides.Namespace)
+		mergeString(&ctrl.Namespace, o.overrides.SystemNamespace)
 	}
 	return ctrl, err
 }

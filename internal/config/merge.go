@@ -57,6 +57,7 @@ func mergeAuthorization(a1, a2 *Authorization) {
 func mergeCluster(c1, c2 *Cluster) {
 	mergeString(&c1.KubeConfig, c2.KubeConfig)
 	mergeString(&c1.Context, c2.Context)
+	mergeString(&c1.Namespace, c2.Namespace)
 	mergeString(&c1.Bin, c2.Bin)
 	mergeString(&c1.Controller, c2.Controller)
 }

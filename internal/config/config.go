@@ -190,6 +190,10 @@ func (rsc *RedSkyConfig) Kubectl(ctx context.Context, arg ...string) (*exec.Cmd,
 		globals = append(globals, "--context", cstr.Context)
 	}
 
+	if cstr.Namespace != "" {
+		globals = append(globals, "--namespace", cstr.Namespace)
+	}
+
 	return exec.CommandContext(ctx, cstr.Bin, append(globals, arg...)...), nil
 }
 

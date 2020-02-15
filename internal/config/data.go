@@ -123,6 +123,8 @@ type Cluster struct {
 	KubeConfig string `json:"kubeconfig,omitempty"`
 	// Context is the kubeconfig context to use for the cluster; leave blank to get the current kubeconfig context
 	Context string `json:"context"`
+	// Namespace overrides the kubeconfig namespace to use for the cluster; leave blank to get the current kubeconfig namespace
+	Namespace string `json:"namespace"`
 	// Bin is the path to the kubectl binary to use
 	Bin string `json:"bin,omitempty"`
 	// Controller is the reference to a controller section to use when configuring this cluster
