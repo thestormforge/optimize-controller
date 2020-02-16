@@ -26,7 +26,6 @@ import (
 
 	"github.com/redskyops/redskyops-controller/internal/config"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/login"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context/ctxhttp"
 )
@@ -67,7 +66,7 @@ func (o *Options) revoke(ctx context.Context) error {
 	}
 
 	if ri.Authorization.Credential.TokenCredential != nil {
-		if err := revokeToken(ctx, ri.RevocationURL, login.ClientID, ri.Authorization.Credential.RefreshToken); err != nil {
+		if err := revokeToken(ctx, ri.RevocationURL, ri.ClientID, ri.Authorization.Credential.RefreshToken); err != nil {
 			return err
 		}
 		_, _ = fmt.Fprintf(o.Out, "Revoked credential '%s'.\n", ri)

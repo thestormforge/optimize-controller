@@ -38,6 +38,9 @@ type Loader func(cfg *RedSkyConfig) error
 // Change is used to apply a configuration change that should be persisted
 type Change func(cfg *Config) error
 
+// ClientIdentity is a mapping function that returns an OAuth 2.0 `client_id` given an authorization server issuer identifier
+type ClientIdentity func(string) string
+
 // Endpoints exposes the Red Sky API server endpoint locations as a mapping of prefixes to base URLs
 type Endpoints map[string]*url.URL
 
@@ -47,6 +50,8 @@ type RedSkyConfig struct {
 	Filename string
 	// Overrides to the standard configuration
 	Overrides *Overrides
+	// ClientIdentity is used to determine the OAuth 2.0 client identifier
+	ClientIdentity ClientIdentity
 
 	data        Config
 	unpersisted []Change
@@ -201,6 +206,8 @@ func (rsc *RedSkyConfig) Kubectl(ctx context.Context, arg ...string) (*exec.Cmd,
 type RevocationInformation struct {
 	// RevocationURL is the URL of the authorization server's revocation endpoint
 	RevocationURL string
+	// ClientID is the client identifier for the authorization
+	ClientID string
 	// Authorization is the credential that needs to be revoked
 	Authorization Authorization
 
@@ -255,6 +262,7 @@ func (rsc *RedSkyConfig) RevocationInfo(name string) (*RevocationInformation, er
 
 	return &RevocationInformation{
 		RevocationURL:     srv.Authorization.RevocationEndpoint,
+		ClientID:          rsc.clientID(srv),
 		Authorization:     *az,
 		authorizationName: authorizationName,
 	}, nil
@@ -294,6 +302,7 @@ func (rsc *RedSkyConfig) NewAuthorization() (*authorizationcode.Config, error) {
 		return nil, err
 	}
 
+	c.ClientID = rsc.clientID(&srv)
 	c.Endpoint.AuthURL = srv.Authorization.AuthorizationEndpoint
 	c.Endpoint.TokenURL = srv.Authorization.TokenEndpoint
 	c.Endpoint.AuthStyle = oauth2.AuthStyleInParams
@@ -310,6 +319,7 @@ func (rsc *RedSkyConfig) NewDeviceAuthorization() (*devicecode.Config, error) {
 
 	return &devicecode.Config{
 		Config: clientcredentials.Config{
+			ClientID:  rsc.clientID(&srv),
 			TokenURL:  srv.Authorization.TokenEndpoint,
 			AuthStyle: oauth2.AuthStyleInParams,
 		},
@@ -338,7 +348,11 @@ func (rsc *RedSkyConfig) tokenSource(ctx context.Context) (oauth2.TokenSource, e
 	if err != nil {
 		return nil, err
 	}
-	az, err := CurrentAuthorization(r)
+	azName, err := r.AuthorizationName(r.ContextName())
+	if err != nil {
+		return nil, err
+	}
+	az, err := r.Authorization(azName)
 	if err != nil {
 		return nil, err
 	}
@@ -355,6 +369,7 @@ func (rsc *RedSkyConfig) tokenSource(ctx context.Context) (oauth2.TokenSource, e
 
 	if az.Credential.TokenCredential != nil {
 		c := &oauth2.Config{
+			ClientID: rsc.clientID(&srv),
 			Endpoint: oauth2.Endpoint{
 				AuthURL:   srv.Authorization.AuthorizationEndpoint,
 				TokenURL:  srv.Authorization.TokenEndpoint,
@@ -367,8 +382,39 @@ func (rsc *RedSkyConfig) tokenSource(ctx context.Context) (oauth2.TokenSource, e
 			RefreshToken: az.Credential.RefreshToken,
 			Expiry:       az.Credential.Expiry,
 		}
-		return c.TokenSource(ctx, t), nil
+		return &updateTokenSource{
+			src: c.TokenSource(ctx, t),
+			cfg: rsc,
+			az:  azName,
+		}, nil
 	}
 
 	return nil, nil
+}
+
+func (rsc *RedSkyConfig) clientID(srv *Server) string {
+	if rsc.ClientIdentity != nil {
+		return rsc.ClientIdentity(srv.Authorization.Issuer)
+	}
+	return ""
+}
+
+type updateTokenSource struct {
+	src oauth2.TokenSource
+	cfg *RedSkyConfig
+	az  string
+}
+
+func (u *updateTokenSource) Token() (*oauth2.Token, error) {
+	t, err := u.src.Token()
+	if err != nil {
+		return nil, err
+	}
+	if az, err := u.cfg.Reader().Authorization(u.az); err == nil {
+		if az.Credential.TokenCredential != nil && az.Credential.AccessToken != t.AccessToken {
+			_ = u.cfg.Update(SaveToken(u.az, t))
+			_ = u.cfg.Write()
+		}
+	}
+	return t, nil
 }

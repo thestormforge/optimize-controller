@@ -53,6 +53,18 @@ func NewRedskyctlCommand() *cobra.Command {
 	cfg := &config.RedSkyConfig{}
 	commander.ConfigGlobals(cfg, rootCmd)
 
+	// Establish OAuth client identity
+	cfg.ClientIdentity = func(issuer string) string {
+		switch issuer {
+		case "https://auth.carbonrelay.io/":
+			return ""
+		case "https://carbonrelay-dev.auth0.com/":
+			return "fmbRPm2zoQJ64hb37CUJDJVmRLHhE04Y"
+		default:
+			return ""
+		}
+	}
+
 	// Add the sub-commands
 	rootCmd.AddCommand(configuration.NewCommand(&configuration.Options{Config: cfg}))
 	rootCmd.AddCommand(deletion.NewCommand(&deletion.Options{Config: cfg}))

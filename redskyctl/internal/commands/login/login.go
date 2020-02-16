@@ -38,9 +38,6 @@ import (
 var (
 	// SuccessURL is the URL where users are redirected after a successful login
 	SuccessURL = "https://redskyops.dev/api/auth_success/"
-
-	// ClientID is the identifier for the Red Sky Control application
-	ClientID = ""
 )
 
 const (
@@ -153,7 +150,6 @@ func (o *Options) runDeviceCodeFlow() error {
 	if err != nil {
 		return err
 	}
-	az.ClientID = ClientID
 	az.Scopes = append(az.Scopes, "offline_access") // TODO Where or what do we want to do here?
 
 	t, err := az.Token(context.Background(), o.generateValidatationRequest)
@@ -169,7 +165,6 @@ func (o *Options) runAuthorizationCodeFlow() error {
 	if err != nil {
 		return err
 	}
-	c.ClientID = ClientID
 	c.Scopes = append(c.Scopes, "offline_access") // TODO Where or what do we want to do here?
 	c.RedirectURL = "http://localhost:8085/"
 
