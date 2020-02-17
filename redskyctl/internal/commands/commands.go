@@ -18,6 +18,7 @@ package commands
 
 import (
 	"os"
+	"strings"
 
 	"github.com/redskyops/redskyops-controller/internal/config"
 	"github.com/redskyops/redskyops-controller/pkg/redskyctl/cmd/check"
@@ -54,16 +55,7 @@ func NewRedskyctlCommand() *cobra.Command {
 	commander.ConfigGlobals(cfg, rootCmd)
 
 	// Establish OAuth client identity
-	cfg.ClientIdentity = func(issuer string) string {
-		switch issuer {
-		case "https://auth.carbonrelay.io/":
-			return ""
-		case "https://carbonrelay-dev.auth0.com/":
-			return "fmbRPm2zoQJ64hb37CUJDJVmRLHhE04Y"
-		default:
-			return ""
-		}
-	}
+	cfg.ClientIdentity = authorizationIdentity
 
 	// Add the sub-commands
 	rootCmd.AddCommand(configuration.NewCommand(&configuration.Options{Config: cfg}))
@@ -101,4 +93,32 @@ func addUnmigratedCommands(rootCmd *cobra.Command, cfg *config.RedSkyConfig) {
 	rootCmd.AddCommand(suggest.NewSuggestCommand(f, ioStreams))
 	rootCmd.AddCommand(generate.NewGenerateCommand(f, ioStreams))
 	rootCmd.AddCommand(get.NewGetCommand(f, ioStreams))
+}
+
+// authorizationIdentity returns the client identifier to use for a given authorization server (identified by it's issuer URI)
+func authorizationIdentity(issuer string) string {
+	switch issuer {
+	case "https://auth.carbonrelay.io/":
+		return "" // TODO
+	case "https://carbonrelay-dev.auth0.com/":
+		return "fmbRPm2zoQJ64hb37CUJDJVmRLHhE04Y"
+	default:
+		// OAuth specifications warning against mix-ups, instead of using a fixed environment variable name, the name
+		// should be derived from the issuer: this helps ensure we do not send the client identifier to the wrong server.
+
+		// PRECONDITION: issuer identifiers must be https:// URIs with no query or fragment
+		prefix := strings.ReplaceAll(strings.TrimPrefix(issuer, "https://"), "//", "/")
+		prefix = strings.ReplaceAll(strings.TrimRight(prefix, "/"), "/", "//") + "/"
+		prefix = strings.Map(func(r rune) rune {
+			switch {
+			case r >= 'A' && r <= 'Z':
+				return r
+			case r == '.' || r == '/':
+				return '_'
+			}
+			return -1
+		}, strings.ToUpper(prefix))
+
+		return os.Getenv(prefix + "CLIENT_ID")
+	}
 }
