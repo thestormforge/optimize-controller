@@ -4,11 +4,7 @@ Work with the configuration file
 
 ### Synopsis
 
-Modify or view the Red Sky Ops configuration file
-
-```
-redskyctl config [flags]
-```
+Modify or view the Red Sky Configuration file
 
 ### Options
 
@@ -19,10 +15,10 @@ redskyctl config [flags]
 ### Options inherited from parent commands
 
 ```
-      --address string      Absolute URL of the Red Sky API.
-      --context string      The name of the kubeconfig context to use.
-      --kubeconfig string   Path to the kubeconfig file to use for CLI requests.
-  -n, --namespace string    If present, the namespace scope for this CLI request.
+      --context string        The name of the redskyconfig context to use. NOT THE KUBE CONTEXT.
+      --kubeconfig string     Path to the kubeconfig file to use for CLI requests.
+  -n, --namespace string      If present, the namespace scope for this CLI request.
+      --redskyconfig string   Path to the redskyconfig file to use.
 ```
 
 ### SEE ALSO

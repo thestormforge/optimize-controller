@@ -4,19 +4,10 @@ Modify the configuration file
 
 ### Synopsis
 
-Modify the Red Sky Ops configuration file
+Modify the Red Sky Configuration file
 
 ```
 redskyctl config set NAME [VALUE] [flags]
-```
-
-### Examples
-
-```
-Names are: address, oauth2.token, oauth2.token_url, oauth2.client_id, oauth2.client_secret
-
-# Set the remote server address
-redskyctl config set address http://example.carbonrelay.io
 ```
 
 ### Options
@@ -28,10 +19,10 @@ redskyctl config set address http://example.carbonrelay.io
 ### Options inherited from parent commands
 
 ```
-      --address string      Absolute URL of the Red Sky API.
-      --context string      The name of the kubeconfig context to use.
-      --kubeconfig string   Path to the kubeconfig file to use for CLI requests.
-  -n, --namespace string    If present, the namespace scope for this CLI request.
+      --context string        The name of the redskyconfig context to use. NOT THE KUBE CONTEXT.
+      --kubeconfig string     Path to the kubeconfig file to use for CLI requests.
+  -n, --namespace string      If present, the namespace scope for this CLI request.
+      --redskyconfig string   Path to the redskyconfig file to use.
 ```
 
 ### SEE ALSO

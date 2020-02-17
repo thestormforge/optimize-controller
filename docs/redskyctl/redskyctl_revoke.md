@@ -1,19 +1,20 @@
-## redskyctl generate install
+## redskyctl revoke
 
-Generate Red Sky Ops manifests
+Revoke an authorization
 
 ### Synopsis
 
-Generate installation manifests for Red Sky Ops
+Log out of your Red Sky Account.
 
 ```
-redskyctl generate install [flags]
+redskyctl revoke [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for install
+  -h, --help          help for revoke
+      --name string   Name of the server configuration to de-authorize.
 ```
 
 ### Options inherited from parent commands
@@ -27,5 +28,5 @@ redskyctl generate install [flags]
 
 ### SEE ALSO
 
-* [redskyctl generate](redskyctl_generate.md)	 - Generate Red Sky Ops objects
+* [redskyctl](redskyctl.md)	 - Kubernetes Exploration
 
