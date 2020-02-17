@@ -243,7 +243,7 @@ func createKubernetesSuggestion(namespace, name string, suggestions SuggestionSo
 		return err
 	}
 
-	trialNamespace, err := experiment.NextTrialNamespace(controllerClient, context.Background(), exp, trialList)
+	trialNamespace, err := experiment.NextTrialNamespace(context.Background(), controllerClient, exp, trialList)
 	if err != nil {
 		return err
 	}

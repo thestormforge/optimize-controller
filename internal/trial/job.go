@@ -66,7 +66,7 @@ func NewJob(t *redskyv1alpha1.Trial) *batchv1.Job {
 		job.Spec.BackoffLimit = new(int32)
 	}
 
-	// Expose the current assignments as environment variables to every container (except the default sleep container)
+	// Expose the current assignments as environment variables to every container (except the default sleep container added below)
 	for i := range job.Spec.Template.Spec.Containers {
 		c := &job.Spec.Template.Spec.Containers[i]
 		c.Env = AppendAssignmentEnv(t, c.Env)
@@ -74,38 +74,51 @@ func NewJob(t *redskyv1alpha1.Trial) *batchv1.Job {
 
 	// Containers cannot be empty, inject a sleep by default
 	if len(job.Spec.Template.Spec.Containers) == 0 {
-		s := t.Spec.ApproximateRuntime
-		if s == nil || s.Duration == 0 {
-			s = &metav1.Duration{Duration: 2 * time.Minute}
-		}
-		if t.Spec.StartTimeOffset != nil {
-			s = &metav1.Duration{Duration: s.Duration + t.Spec.StartTimeOffset.Duration}
-		}
-		job.Spec.Template.Spec.Containers = []corev1.Container{
-			{
-				Name:    "default-trial-run",
-				Image:   "busybox",
-				Command: []string{"/bin/sh"},
-				Args:    []string{"-c", fmt.Sprintf("echo 'Sleeping for %s...' && sleep %.0f && echo 'Done.'", s.Duration.String(), s.Seconds())},
-			},
-		}
+		addDefaultContainer(t, job)
 	}
 
 	// Check to see if there is patch for the (as of yet, non-existent) trial job
+	job = patchSelf(t, job)
+
+	return job
+}
+
+func addDefaultContainer(t *redskyv1alpha1.Trial, job *batchv1.Job) {
+	// Determine the sleep time
+	s := t.Spec.ApproximateRuntime
+	if s == nil || s.Duration == 0 {
+		s = &metav1.Duration{Duration: 2 * time.Minute}
+	}
+	if t.Spec.StartTimeOffset != nil {
+		s = &metav1.Duration{Duration: s.Duration + t.Spec.StartTimeOffset.Duration}
+	}
+
+	// Add a busybox container that just runs sleep
+	job.Spec.Template.Spec.Containers = []corev1.Container{
+		{
+			Name:    "default-trial-run",
+			Image:   "busybox",
+			Command: []string{"/bin/sh"},
+			Args:    []string{"-c", fmt.Sprintf("echo 'Sleeping for %s...' && sleep %.0f && echo 'Done.'", s.Duration.String(), s.Seconds())},
+		},
+	}
+}
+
+func patchSelf(t *redskyv1alpha1.Trial, job *batchv1.Job) *batchv1.Job {
+	// Look for patch operations that match this trial and apply them
 	for i := range t.Spec.PatchOperations {
 		po := &t.Spec.PatchOperations[i]
 		if IsTrialJobReference(t, &po.TargetRef) && po.PatchType == types.StrategicMergePatchType {
-			// Ignore errors all the way down, only overwrite what we have if it all works
+			// Ignore errors all the way down, only overwrite the job if everything is successful
 			if original, err := json.Marshal(job); err == nil {
 				j := &batchv1.Job{}
 				if patched, err := strategicpatch.StrategicMergePatch(original, po.Data, j); err == nil {
 					if err := json.Unmarshal(patched, j); err == nil {
-						job = j
+						return j
 					}
 				}
 			}
 		}
 	}
-
 	return job
 }

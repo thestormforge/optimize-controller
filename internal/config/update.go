@@ -86,21 +86,7 @@ func SetProperty(name, value string) Change {
 			return nil
 		case "cluster":
 			if len(path) == 3 {
-				cstr := findCluster(cfg.Clusters, path[1])
-				if cstr == nil {
-					return fmt.Errorf("unknown cluster: %s", path[1])
-				}
-				switch path[2] {
-				case "context":
-					cstr.Context = value
-					return nil
-				case "bin":
-					cstr.Bin = value
-					return nil
-				case "controller":
-					cstr.Controller = value
-					return nil
-				}
+				return setClusterProperty(cfg, path[1], path[2], value)
 			}
 		case "controller":
 			if len(path) == 4 && path[2] == "env" {
@@ -112,32 +98,56 @@ func SetProperty(name, value string) Change {
 			}
 		case "context":
 			if len(path) == 3 {
-				ctx := findContext(cfg.Contexts, path[1])
-				if ctx == nil {
-					return fmt.Errorf("unknown context: %s", path[1])
-				}
-				switch path[2] {
-				case "server":
-					if findServer(cfg.Servers, value) == nil {
-						return fmt.Errorf("unknown %s reference: %s", path[2], value)
-					}
-					ctx.Server = value
-					return nil
-				case "authorization":
-					if findAuthorization(cfg.Authorizations, value) == nil {
-						return fmt.Errorf("unknown %s reference: %s", path[2], value)
-					}
-					ctx.Authorization = value
-					return nil
-				case "cluster":
-					if findCluster(cfg.Clusters, value) == nil {
-						return fmt.Errorf("unknown %s reference: %s", path[2], value)
-					}
-					ctx.Cluster = value
-					return nil
-				}
+				return setContextProperty(cfg, path[1], path[2], value)
 			}
 		}
 		return fmt.Errorf("unknown config property: %s", name)
 	}
+}
+
+func setClusterProperty(cfg *Config, clusterName, name, value string) error {
+	cstr := findCluster(cfg.Clusters, clusterName)
+	if cstr == nil {
+		return fmt.Errorf("unknown cluster: %s", clusterName)
+	}
+
+	switch name {
+	case "context":
+		cstr.Context = value
+	case "bin":
+		cstr.Bin = value
+	case "controller":
+		cstr.Controller = value
+	default:
+		return fmt.Errorf("unknown config property: %s", name)
+	}
+	return nil
+}
+
+func setContextProperty(cfg *Config, contextName, name, value string) error {
+	ctx := findContext(cfg.Contexts, contextName)
+	if ctx == nil {
+		return fmt.Errorf("unknown context: %s", contextName)
+	}
+
+	switch name {
+	case "server":
+		if findServer(cfg.Servers, value) == nil {
+			return fmt.Errorf("unknown %s reference: %s", name, value)
+		}
+		ctx.Server = value
+	case "authorization":
+		if findAuthorization(cfg.Authorizations, value) == nil {
+			return fmt.Errorf("unknown %s reference: %s", name, value)
+		}
+		ctx.Authorization = value
+	case "cluster":
+		if findCluster(cfg.Clusters, value) == nil {
+			return fmt.Errorf("unknown %s reference: %s", name, value)
+		}
+		ctx.Cluster = value
+	default:
+		return fmt.Errorf("unknown config property: %s", name)
+	}
+	return nil
 }

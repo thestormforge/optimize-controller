@@ -48,27 +48,7 @@ func init() {
 
 func main() {
 	// Make it possible to just print the version or configuration and exit
-	if len(os.Args) > 1 {
-		if os.Args[1] == "version" {
-			if output, err := json.Marshal(version.GetInfo()); err != nil {
-				os.Exit(1)
-			} else {
-				fmt.Println(string(output))
-				os.Exit(0)
-			}
-		} else if os.Args[1] == "config" {
-			// TODO Host live values from the in-memory configuration at `.../debug/config` instead of this
-			cfg := &config.RedSkyConfig{}
-			if err := cfg.Load(); err != nil {
-				os.Exit(1)
-			} else if output, err := json.Marshal(cfg); err != nil {
-				os.Exit(1)
-			} else {
-				fmt.Println(string(output))
-				os.Exit(0)
-			}
-		}
-	}
+	handleDebugArgs()
 
 	var metricsAddr string
 	var enableLeaderElection bool
@@ -171,4 +151,29 @@ func newRedSkyAPI() (redskyapi.API, error) {
 		return nil, err
 	}
 	return redskyapi.NewForConfig(cfg, version.UserAgent("RedSkyController", "", nil))
+}
+
+// handleDebugArgs will make the process dump and exit if the first arg is either "version" or "config"
+func handleDebugArgs() {
+	if len(os.Args) > 1 {
+		if os.Args[1] == "version" {
+			if output, err := json.Marshal(version.GetInfo()); err != nil {
+				os.Exit(1)
+			} else {
+				fmt.Println(string(output))
+				os.Exit(0)
+			}
+		} else if os.Args[1] == "config" {
+			// TODO Host live values from the in-memory configuration at `.../debug/config` instead of this
+			cfg := &config.RedSkyConfig{}
+			if err := cfg.Load(); err != nil {
+				os.Exit(1)
+			} else if output, err := json.Marshal(cfg); err != nil {
+				os.Exit(1)
+			} else {
+				fmt.Println(string(output))
+				os.Exit(0)
+			}
+		}
+	}
 }

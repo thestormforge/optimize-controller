@@ -251,11 +251,7 @@ func generateBounds() *redskyapi.Bounds {
 }
 
 func generateMinimize() bool {
-	if rand.Intn(2) == 0 {
-		return false
-	} else {
-		return true
-	}
+	return rand.Intn(2) != 0
 }
 
 func generateValue() (float64, float64) {

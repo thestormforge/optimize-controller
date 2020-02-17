@@ -95,6 +95,6 @@ func (f *FakeAPI) ReportTrial(ctx context.Context, uri string, v v1alpha1.TrialV
 	panic("implement me")
 }
 
-func (h *FakeAPI) AbandonRunningTrial(ctx context.Context, u string) error {
+func (f *FakeAPI) AbandonRunningTrial(ctx context.Context, u string) error {
 	panic("implement me")
 }

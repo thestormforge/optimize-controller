@@ -49,7 +49,7 @@ type Client interface {
 // NewClient returns a new client for accessing Red Sky APIs; the supplied context is used for authentication/authorization
 // requests and the supplied transport (which may be nil in the case of the default transport) is used for all requests made
 // to the API server.
-func NewClient(cfg Config, ctx context.Context, transport http.RoundTripper) (Client, error) {
+func NewClient(ctx context.Context, cfg Config, transport http.RoundTripper) (Client, error) {
 	var err error
 
 	hc := &httpClient{}

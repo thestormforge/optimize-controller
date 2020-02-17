@@ -43,6 +43,7 @@ import (
 const defaultTemplate = `{{range $key, $value := . }}{{$key}} version: {{$value}}
 {{end}}`
 
+// Options is the configuration for reporting version information
 type Options struct {
 	// Config is the Red Sky Configuration
 	Config config.Config
@@ -57,6 +58,7 @@ type Options struct {
 	ShowSetupToolsImage bool
 }
 
+// NewCommand creates a new command for reporting version information
 func NewCommand(o *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "version",

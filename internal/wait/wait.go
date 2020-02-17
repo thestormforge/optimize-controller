@@ -41,10 +41,10 @@ func (e *StabilityError) Error() string {
 	if e.RetryAfter > 0 {
 		// This is more of an informational message then an error since the problem may resolve itself after the wait
 		return fmt.Sprintf("%s/%s is not ready: %s", e.TargetRef.Kind, e.TargetRef.Name, e.Reason)
-	} else {
-		// This is an error, the trial will record this message in the failure
-		return fmt.Sprintf("%s stability error for %s: %s", e.TargetRef.Kind, e.TargetRef.Name, e.Reason)
 	}
+
+	// This is an error, the trial will record this message in the failure
+	return fmt.Sprintf("%s stability error for %s: %s", e.TargetRef.Kind, e.TargetRef.Name, e.Reason)
 }
 
 // CheckPods inspects a pod list for stability

@@ -89,6 +89,7 @@ func (r *ServerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 		// Trials that have the server finalizer may need to be reported
 		if meta.HasFinalizer(t, server.Finalizer) {
+			// TODO Combine report and abandon into one function
 			if trial.IsFinished(t) {
 				if result, err := r.reportTrial(ctx, tlog, t); result != nil {
 					return *result, err
@@ -223,7 +224,7 @@ func (r *ServerReconciler) nextTrial(ctx context.Context, log logr.Logger, exp *
 	}
 
 	// Determine the namespace (if any) to use for the trial
-	namespace, err := experiment.NextTrialNamespace(r, ctx, exp, trialList)
+	namespace, err := experiment.NextTrialNamespace(ctx, r, exp, trialList)
 	if err != nil {
 		return &ctrl.Result{}, err
 	}

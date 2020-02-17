@@ -29,7 +29,7 @@ import (
 )
 
 // NextTrialNamespace searches for or creates a new namespace to run a new trial in, returning an empty string if no such namespace can be found
-func NextTrialNamespace(c client.Client, ctx context.Context, exp *redskyv1alpha1.Experiment, trialList *redskyv1alpha1.TrialList) (string, error) {
+func NextTrialNamespace(ctx context.Context, c client.Client, exp *redskyv1alpha1.Experiment, trialList *redskyv1alpha1.TrialList) (string, error) {
 	// Determine which namespaces have an active trial
 	activeNamespaces := make(map[string]bool, len(trialList.Items))
 	activeTrials := int32(0)
