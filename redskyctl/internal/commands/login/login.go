@@ -166,7 +166,7 @@ func (o *Options) runAuthorizationCodeFlow() error {
 		return err
 	}
 	c.Scopes = append(c.Scopes, "offline_access") // TODO Where or what do we want to do here?
-	c.RedirectURL = "http://localhost:8085/"
+	c.RedirectURL = "http://127.0.0.1:8085/"
 
 	// Create a context we can use to shutdown the server and the OAuth authorization code callback endpoint
 	var ctx context.Context
