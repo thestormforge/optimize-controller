@@ -99,7 +99,7 @@ func addUnmigratedCommands(rootCmd *cobra.Command, cfg *config.RedSkyConfig) {
 func authorizationIdentity(issuer string) string {
 	switch issuer {
 	case "https://auth.carbonrelay.io/":
-		return "" // TODO
+		return "pE3kMKdrMTdW4DOxQHesyAuFGNOWaEke"
 	case "https://carbonrelay-dev.auth0.com/":
 		return "fmbRPm2zoQJ64hb37CUJDJVmRLHhE04Y"
 	default:
