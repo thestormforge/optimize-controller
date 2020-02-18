@@ -4,12 +4,6 @@ metadata:
   name: redsky-system
 $patch: delete
 ---
-apiVersion: v1
-kind: Secret
-metadata:
-  name: redsky-manager
-$patch: delete
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
