@@ -116,8 +116,8 @@ func (o *GenerateSecretOptions) Run() error {
 		return err
 	}
 
-	env["REDSKY_OAUTH2_CLIENT_ID"] = []byte(info.ClientID)
-	env["REDSKY_OAUTH2_CLIENT_SECRET"] = []byte(info.ClientSecret)
+	env["REDSKY_AUTHORIZATION_CLIENT_ID"] = []byte(info.ClientID)
+	env["REDSKY_AUTHORIZATION_CLIENT_SECRET"] = []byte(info.ClientSecret)
 
 	secret.Data = env
 
