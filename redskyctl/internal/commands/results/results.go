@@ -29,7 +29,7 @@ import (
 	cmdutil "github.com/redskyops/redskyops-controller/pkg/redskyctl/util"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/config"
-	"github.com/redskyops/redskyops-ui/ui"
+	"github.com/redskyops/redskyops-ui/v2/ui"
 	"github.com/spf13/cobra"
 )
 
