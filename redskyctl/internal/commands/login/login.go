@@ -74,6 +74,8 @@ type Options struct {
 	Name string
 	// Server overrides the default server identifier
 	Server string
+	// Issuer overrides the default authorization server issuer
+	Issuer string
 	// DisplayURL triggers a device authorization grant with a simple verification prompt
 	DisplayURL bool
 	// DisplayQR triggers a device authorization grant and uses a QR code for the verification prompt
@@ -101,6 +103,7 @@ func NewCommand(o *Options) *cobra.Command {
 
 	cmd.Flags().StringVar(&o.Name, "name", "", "Name of the server configuration to authorize.")
 	cmd.Flags().StringVar(&o.Server, "server", "", "Override the Red Sky API server identifier.")
+	cmd.Flags().StringVar(&o.Issuer, "issuer", "", "Override the authorization server identifier.")
 	cmd.Flags().BoolVar(&o.DisplayURL, "url", false, "Display the URL instead of opening a browser.")
 	cmd.Flags().BoolVar(&o.DisplayQR, "qr", false, "Display a QR code instead of opening a browser.")
 	cmd.Flags().BoolVar(&o.Force, "force", false, "Overwrite existing configuration.")
@@ -129,7 +132,7 @@ func (o *Options) login(ctx context.Context) error {
 	}
 
 	// Technically these updates could be done in `takeOffline` but it is better to fail early
-	if err := o.Config.Update(config.SaveServer(o.Name, &config.Server{Identifier: o.Server})); err != nil {
+	if err := o.Config.Update(config.SaveServer(o.Name, &config.Server{Identifier: o.Server, Authorization: config.AuthorizationServer{Issuer: o.Issuer}})); err != nil {
 		return err
 	}
 	if err := o.Config.Update(config.ApplyCurrentContext(o.Name, o.Name, o.Name, "")); err != nil {
