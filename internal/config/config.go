@@ -355,10 +355,11 @@ func (rsc *RedSkyConfig) tokenSource(ctx context.Context) (oauth2.TokenSource, e
 
 	if az.Credential.ClientCredential != nil {
 		cc := clientcredentials.Config{
-			ClientID:     az.Credential.ClientID,
-			ClientSecret: az.Credential.ClientSecret,
-			TokenURL:     srv.Authorization.TokenEndpoint,
-			AuthStyle:    oauth2.AuthStyleInParams,
+			ClientID:       az.Credential.ClientID,
+			ClientSecret:   az.Credential.ClientSecret,
+			TokenURL:       srv.Authorization.TokenEndpoint,
+			EndpointParams: url.Values{"audience": []string{srv.Identifier}},
+			AuthStyle:      oauth2.AuthStyleInParams,
 		}
 		return cc.TokenSource(ctx), nil
 	}
