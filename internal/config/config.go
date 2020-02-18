@@ -49,7 +49,7 @@ type RedSkyConfig struct {
 	// Filename is the path to the configuration file; if left blank, it will be populated using XDG base directory conventions on the next Load
 	Filename string
 	// Overrides to the standard configuration
-	Overrides *Overrides
+	Overrides Overrides
 	// ClientIdentity is used to determine the OAuth 2.0 client identifier
 	ClientIdentity ClientIdentity
 
@@ -65,7 +65,7 @@ func (rsc *RedSkyConfig) MarshalJSON() ([]byte, error) {
 // Load will populate the client configuration
 func (rsc *RedSkyConfig) Load(extra ...Loader) error {
 	var loaders []Loader
-	loaders = append(loaders, fileLoader, migrationLoader)
+	loaders = append(loaders, fileLoader, envLoader, migrationLoader)
 	loaders = append(loaders, extra...)
 	loaders = append(loaders, defaultLoader)
 	for i := range loaders {
@@ -123,11 +123,7 @@ func (rsc *RedSkyConfig) Merge(data *Config) {
 
 // Reader returns a configuration reader for accessing information from the configuration
 func (rsc *RedSkyConfig) Reader() Reader {
-	r := &defaultReader{cfg: &rsc.data}
-	if rsc.Overrides != nil {
-		return &overrideReader{overrides: rsc.Overrides, delegate: r}
-	}
-	return r
+	return &overrideReader{overrides: &rsc.Overrides, delegate: &defaultReader{cfg: &rsc.data}}
 }
 
 // SystemNamespace returns the namespace where the Red Sky controller is/should be installed

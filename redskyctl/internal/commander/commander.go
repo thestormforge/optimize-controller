@@ -78,7 +78,6 @@ func ConfigGlobals(cfg *internalconfig.RedSkyConfig, cmd *cobra.Command) {
 	root := cmd.Root()
 
 	// Create the configuration options on top of environment variable overrides
-	cfg.Overrides = internalconfig.NewEnvOverrides()
 	root.PersistentFlags().StringVar(&cfg.Filename, "redskyconfig", cfg.Filename, "Path to the redskyconfig file to use.")
 	root.PersistentFlags().StringVar(&cfg.Overrides.Context, "context", "", "The name of the redskyconfig context to use. NOT THE KUBE CONTEXT.")
 

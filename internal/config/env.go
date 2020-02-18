@@ -18,16 +18,13 @@ package config
 
 import "os"
 
-// NewEnvOverrides returns a new collection of overrides based on the current environment
-func NewEnvOverrides() *Overrides {
-	return &Overrides{
-		ServerIdentifier: os.Getenv("REDSKY_SERVER_IDENTIFIER"),
-		ServerIssuer:     os.Getenv("REDSKY_SERVER_ISSUER"),
-		Credential: ClientCredential{
-			ClientID:     os.Getenv("REDSKY_AUTHORIZATION_CLIENT_ID"),
-			ClientSecret: os.Getenv("REDSKY_AUTHORIZATION_CLIENT_SECRET"),
-		},
-	}
+// envLoader adds environment variable overrides to the configuration
+func envLoader(cfg *RedSkyConfig) error {
+	defaultString(&cfg.Overrides.ServerIdentifier, os.Getenv("REDSKY_SERVER_IDENTIFIER"))
+	defaultString(&cfg.Overrides.ServerIssuer, os.Getenv("REDSKY_SERVER_ISSUER"))
+	defaultString(&cfg.Overrides.Credential.ClientID, os.Getenv("REDSKY_AUTHORIZATION_CLIENT_ID"))
+	defaultString(&cfg.Overrides.Credential.ClientSecret, os.Getenv("REDSKY_AUTHORIZATION_CLIENT_SECRET"))
+	return nil
 }
 
 // EnvironmentMapping returns an environment variable map from the specified configuration reader
