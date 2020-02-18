@@ -15,6 +15,7 @@ redskyctl login [flags]
 ```
       --force           Overwrite existing configuration.
   -h, --help            help for login
+      --issuer string   Override the authorization server identifier.
       --name string     Name of the server configuration to authorize.
       --qr              Display a QR code instead of opening a browser.
       --server string   Override the Red Sky API server identifier.
