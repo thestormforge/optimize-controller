@@ -1,18 +1,29 @@
-# Override the Red Sky manager image name and tag
+# redskyImage is the image name (without tag) of the Red Sky Controller
 redskyImage: "IMG"
+# redskyTag sets the tag (application version) of the Red Sky Controller (for a chart release, it is preferable to only vary the patch level of this semver)
 redskyTag: "TAG"
+# redskyImagePullPolicy is the pull policy to apply to the Red Sky Controller image
 redskyImagePullPolicy: "PULL_POLICY"
 
-# Configure the Red Sky server address
-address: ""
+# remoteServer is used to configure a Red Sky API remote server
+remoteServer:
+  # enabled determines if the controller configuration secret should be generated or not
+  enabled: false
 
-# Red Sky server client identifier and secret
-oauth2ClientID: ""
-oauth2ClientSecret: ""
+  # identifier is the server identifier of the Red Sky API
+  identifier: "https://api.carbonrelay.io/v1/"
+  # issuer is the identifier of the Red Sky API authorization server
+  issuer: "https://auth.carbonrelay.io/"
+  # clientID is the unique client identifier assigned to the controller
+  clientID: ""
+  # clientSecret is the secret used to authenticate the controller
+  clientSecret: ""
 
-# Override the Red Sky server token URL, this is not typically necessary
-oauth2TokenURL: ""
-
+# rbac allows for customization of the RBAC related resources
 rbac:
-  # Specifies whether RBAC resources should be created
+  # create specifies whether RBAC resources should be created
   create: true
+  # bootstrapPermissions specifies whether the default bootstrap permissions should be included (requires create to also be true)
+  bootstrapPermissions: true
+  # extraPermissions specifies whether the extra permissions should be included (requires bootstrapPermissions to also be true)
+  extraPermissions: false
