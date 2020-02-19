@@ -81,7 +81,7 @@ func (o *Options) delete(ctx context.Context) error {
 	for _, name := range o.Names {
 		var err error
 		switch o.Type {
-		case TypeExperiment:
+		case TypeExperiment, "exp":
 			err = o.deleteExperiment(ctx, name)
 		default:
 			return fmt.Errorf("unknown resource type: %s", o.Type)
