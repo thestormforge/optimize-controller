@@ -9,8 +9,6 @@ kind: Deployment
 metadata:
   name: controller-manager
   namespace: system
-  annotations:
-    checksum/config: SECRET_SHA256
 spec:
   selector:
     matchLabels:
@@ -20,6 +18,8 @@ spec:
       labels:
         app.kubernetes.io/version: VERSION
         app.kubernetes.io/instance: RELEASE_NAME
+      annotations:
+        redskyops.dev/secretHash: SECRET_SHA256
     spec:
       containers:
         - name: manager

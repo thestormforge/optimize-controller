@@ -27,7 +27,8 @@ templatizeDeployment() {
 templatizeRBAC() {
     sed 's/namespace: redsky-system/namespace: {{ .Release.Namespace | quote }}/g' | \
         sed 's/name: redsky-\(.*\)$/name: "{{ .Release.Name }}-\1"/g' | \
-        cat "$WORKSPACE/chart/rbac_header.txt" - "$WORKSPACE/chart/rbac_footer.txt"
+        sed '1i\{{- if .Values.rbac.create -}}' | \
+        sed '$a{{- end -}}'
 }
 
 # Post processing to add recommended labels
