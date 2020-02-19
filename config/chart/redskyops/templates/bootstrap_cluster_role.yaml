@@ -22,7 +22,7 @@ rules:
     verbs:
       - patch
       - get
-{{- if .Values.rbac.extraPermissions -}}
+{{ if .Values.rbac.extraPermissions }}
   - apiGroups:
       - ""
     resources:
