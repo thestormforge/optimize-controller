@@ -399,8 +399,7 @@ func (h *httpAPI) Options(ctx context.Context) (ServerMeta, error) {
 	}
 
 	// We actually want to do OPTIONS for the whole server, now that the host:port has been captured, overwrite the RequestURL
-	// TODO Change this back to "*"
-	req.URL.Opaque = "/*"
+	// TODO Change this back to `req.URL.Opaque = "*"`?
 
 	resp, body, err := h.client.Do(ctx, req)
 	if err != nil {
@@ -411,8 +410,8 @@ func (h *httpAPI) Options(ctx context.Context) (ServerMeta, error) {
 	case http.StatusNoContent:
 		sm.Unmarshal(resp.Header)
 		return sm, nil
-	case http.StatusNotFound:
-		// TODO Current behavior is to return 404 instead of 204
+	case http.StatusNotFound, http.StatusMethodNotAllowed:
+		// TODO Current behavior is to return 404 or 405 instead of 204
 		sm.Unmarshal(resp.Header)
 		return sm, nil
 	default:
