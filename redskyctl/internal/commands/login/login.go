@@ -94,11 +94,9 @@ func NewCommand(o *Options) *cobra.Command {
 		Short: "Authenticate",
 		Long:  "Log into your Red Sky Account.",
 
-		PreRun: func(cmd *cobra.Command, args []string) {
-			commander.SetStreams(&o.IOStreams, cmd)
-			o.Complete()
-		},
-		RunE: commander.WithContextE(o.login),
+		PersistentPreRunE: commander.WithoutArgsE(o.LoadConfig),
+		PreRun:            commander.StreamsPreRun(&o.IOStreams),
+		RunE:              commander.WithContextE(o.login),
 	}
 
 	cmd.Flags().StringVar(&o.Name, "name", "", "Name of the server configuration to authorize.")
@@ -112,8 +110,10 @@ func NewCommand(o *Options) *cobra.Command {
 	return cmd
 }
 
-// Complete fills in missing default values
-func (o *Options) Complete() {
+// LoadConfig is alternate configuration loader. This is a special case for the login command as it needs to inject
+// new information into the configuration at load time.
+func (o *Options) LoadConfig() error {
+	// Make sure the name is set *before* we start loading the configuration
 	if o.Name == "" {
 		o.Name = "default"
 		if o.Server != "" {
@@ -123,22 +123,28 @@ func (o *Options) Complete() {
 			o.Name = strings.ReplaceAll(o.Name, "/", "_")
 		}
 	}
+
+	return o.Config.Load(func(cfg *config.RedSkyConfig) error {
+		// Abuse "Update" to validate the configuration does not already have an authorization
+		if err := o.Config.Update(o.requireForceIfNameExists); err != nil {
+			return err
+		}
+
+		// We need to save the server in the loader so default values are loaded on top of them
+		if err := o.Config.Update(config.SaveServer(o.Name, &config.Server{Identifier: o.Server, Authorization: config.AuthorizationServer{Issuer: o.Issuer}})); err != nil {
+			return err
+		}
+
+		// We need change the current context here to ensure the value is correct when we try to read the configuration out later
+		if err := o.Config.Update(config.ApplyCurrentContext(o.Name, o.Name, o.Name, "")); err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
 
 func (o *Options) login(ctx context.Context) error {
-	// Abuse "Update" to validate the configuration does not already have an authorization
-	if err := o.Config.Update(o.requireForceIfNameExists); err != nil {
-		return err
-	}
-
-	// Technically these updates could be done in `takeOffline` but it is better to fail early
-	if err := o.Config.Update(config.SaveServer(o.Name, &config.Server{Identifier: o.Server, Authorization: config.AuthorizationServer{Issuer: o.Issuer}})); err != nil {
-		return err
-	}
-	if err := o.Config.Update(config.ApplyCurrentContext(o.Name, o.Name, o.Name, "")); err != nil {
-		return err
-	}
-
 	// The user has requested we just show a URL
 	if o.DisplayURL || o.DisplayQR {
 		return o.runDeviceCodeFlow()
