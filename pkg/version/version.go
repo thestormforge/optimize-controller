@@ -22,7 +22,7 @@ package version
 
 var (
 	// Version is a "v" prefixed Semver
-	Version = "v1.4.0"
+	Version = "v1.4.1"
 	// BuildMetadata is the Semver build metadata stored independent of the version string
 	BuildMetadata = "unreleased"
 	// GitCommit is a Git commit identifier
