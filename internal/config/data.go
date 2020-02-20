@@ -111,10 +111,6 @@ type ClientCredential struct {
 	ClientSecret string `json:"client_secret"`
 	// Scope is the space delimited list of allowable scopes for the client
 	Scope string `json:"scope"`
-	// RegistrationClientURI is the fully qualified URL of the client configuration endpoint
-	RegistrationClientURI string `json:"registration_client_uri,omitempty"`
-	// RegistrationAccessToken is the access token to be used for the client configuration endpoint
-	RegistrationAccessToken string `json:"registration_access_token,omitempty"`
 }
 
 // Cluster contains information about communicating with a Kubernetes cluster
@@ -135,9 +131,13 @@ type Cluster struct {
 type Controller struct {
 	// Namespace overrides the default namespace to use during configuration
 	Namespace string `json:"namespace,omitempty"`
+	// RegistrationClientURI is the fully qualified URL of the client configuration endpoint for the controller's client
+	RegistrationClientURI string `json:"registration_client_uri,omitempty"`
+	// RegistrationAccessToken is the access token to be used for the client configuration endpoint
+	RegistrationAccessToken string `json:"registration_access_token,omitempty"`
 	// Env defines additional environment variables to load into the controller during authorization
 	Env []ControllerEnvVar `json:"env,omitempty"`
-	// TODO controller extra permissions?
+	// TODO controller extra permissions? e.g. raw policy rules or even just types that need patch/get?
 }
 
 // ControllerEnvVar is used to specify additional environment variables for a controller during authorization

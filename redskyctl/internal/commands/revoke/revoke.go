@@ -72,12 +72,7 @@ func (o *Options) revoke(ctx context.Context) error {
 		_, _ = fmt.Fprintf(o.Out, "Revoked credential '%s'.\n", ri)
 	}
 	if ri.Authorization.Credential.ClientCredential != nil {
-		if ri.Authorization.Credential.RegistrationClientURI != "" {
-			// TODO Issue a delete to the URI using the access token
-			_, _ = fmt.Fprintf(o.Out, "Unable to delete managed client '%s', removing reference from configuration", ri)
-		} else {
-			_, _ = fmt.Fprintf(o.Out, "Unable to revoke client credential '%s', removing reference from configuration", ri)
-		}
+		_, _ = fmt.Fprintf(o.Out, "Unable to revoke client credential '%s', removing reference from configuration", ri)
 	}
 
 	if err := o.Config.Update(ri.RemoveAuthorization()); err != nil {

@@ -64,6 +64,8 @@ func mergeCluster(c1, c2 *Cluster) {
 
 func mergeController(c1, c2 *Controller) {
 	mergeString(&c1.Namespace, c2.Namespace)
+	mergeString(&c1.RegistrationClientURI, c2.RegistrationClientURI)
+	mergeString(&c1.RegistrationAccessToken, c2.RegistrationAccessToken)
 	idx := make(map[string]string, len(c2.Env))
 	for i := range c2.Env {
 		idx[c2.Env[i].Name] = c2.Env[i].Value
