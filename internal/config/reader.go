@@ -80,6 +80,58 @@ func CurrentController(r Reader) (Controller, error) {
 	return r.Controller(n)
 }
 
+// Minify creates a new configuration using only the data available through the reader
+func Minify(r Reader) (*Config, error) {
+	cfg := &Config{CurrentContext: r.ContextName()}
+	ctx, err := r.Context(cfg.CurrentContext)
+	if err != nil {
+		return nil, err
+	}
+	cfg.Contexts = append(cfg.Contexts, NamedContext{Name: cfg.CurrentContext, Context: ctx})
+
+	controllerName, err := r.ControllerName(cfg.CurrentContext)
+	if err != nil {
+		return nil, err
+	}
+	ctrl, err := r.Controller(controllerName)
+	if err != nil {
+		return nil, err
+	}
+	cfg.Controllers = append(cfg.Controllers, NamedController{Name: controllerName, Controller: ctrl})
+
+	clusterName, err := r.ClusterName(cfg.CurrentContext)
+	if err != nil {
+		return nil, err
+	}
+	cstr, err := r.Cluster(clusterName)
+	if err != nil {
+		return nil, err
+	}
+	cfg.Clusters = append(cfg.Clusters, NamedCluster{Name: clusterName, Cluster: cstr})
+
+	authorizationName, err := r.AuthorizationName(cfg.CurrentContext)
+	if err != nil {
+		return nil, err
+	}
+	az, err := r.Authorization(authorizationName)
+	if err != nil {
+		return nil, err
+	}
+	cfg.Authorizations = append(cfg.Authorizations, NamedAuthorization{Name: authorizationName, Authorization: az})
+
+	serverName, err := r.ServerName(cfg.CurrentContext)
+	if err != nil {
+		return nil, err
+	}
+	srv, err := r.Server(serverName)
+	if err != nil {
+		return nil, err
+	}
+	cfg.Servers = append(cfg.Servers, NamedServer{Name: serverName, Server: srv})
+
+	return cfg, nil
+}
+
 // TODO Instead of defaultReader, just have RedSkyConfig implement Reader?
 
 var _ Reader = &defaultReader{}

@@ -41,6 +41,8 @@ type ViewOptions struct {
 
 	// FileOnly causes view to just dump the configuration file to out
 	FileOnly bool
+	// Minify causes the configuration to be evaluated and reduced to only the current effective configuration
+	Minify bool
 }
 
 // NewViewCommand creates a new command for viewing the configuration
@@ -55,6 +57,7 @@ func NewViewCommand(o *ViewOptions) *cobra.Command {
 	}
 
 	cmd.Flags().BoolVar(&o.FileOnly, "raw", false, "Display the raw configuration file without merging.")
+	cmd.Flags().BoolVar(&o.Minify, "minify", false, "Reduce information to effective values.")
 	cmd.Flags().BoolVar(&config.DecodeJWT, "decode-jwt", false, "Display JWT claims instead of raw token strings.")
 	_ = cmd.Flags().MarkHidden("decode-jwt")
 
@@ -68,6 +71,19 @@ func (o *ViewOptions) view() error {
 		f, err := os.Open(o.Config.Filename)
 		if err == nil {
 			_, err = io.Copy(o.Out, f)
+		}
+		return err
+	}
+
+	// Reduce using the Reader
+	if o.Minify {
+		mini, err := config.Minify(o.Config.Reader())
+		if err != nil {
+			return err
+		}
+		output, err := yaml.Marshal(mini)
+		if err == nil {
+			_, err = o.Out.Write(output)
 		}
 		return err
 	}
