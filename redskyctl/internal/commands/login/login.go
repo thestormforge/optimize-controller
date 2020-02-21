@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os/user"
 	"strings"
 	"time"
@@ -110,18 +111,49 @@ func NewCommand(o *Options) *cobra.Command {
 	return cmd
 }
 
-// LoadConfig is alternate configuration loader. This is a special case for the login command as it needs to inject
-// new information into the configuration at load time.
-func (o *Options) LoadConfig() error {
-	// Make sure the name is set *before* we start loading the configuration
+// complete fills in the default values
+func (o *Options) complete() error {
+	// Make sure the name is not blank
 	if o.Name == "" {
 		o.Name = "default"
 		if o.Server != "" {
 			o.Name = strings.ToLower(o.Server)
 			o.Name = strings.TrimPrefix(o.Name, "http://")
 			o.Name = strings.TrimPrefix(o.Name, "https://")
+			o.Name = strings.Trim(o.Name, "/")
+			o.Name = strings.ReplaceAll(o.Name, ".", "_")
 			o.Name = strings.ReplaceAll(o.Name, "/", "_")
 		}
+	}
+
+	// If the server is not blank, make sure it is a URL
+	if o.Server != "" {
+		if u, err := url.Parse(o.Server); err != nil {
+			return fmt.Errorf("server must be a valid URL: %v", err)
+		} else if u.Scheme != "https" && u.Scheme != "http" {
+			return fmt.Errorf("server must be an 'https' URL")
+		} else if u.Path != "/v1/" {
+			_, _ = fmt.Fprintf(o.ErrOut, "Warning: Server URL does not have a path of '/v1/', Red Sky API endpoints may not resolve correctly")
+		}
+	}
+
+	// If the issuer is not blank, make sure it is a URL
+	if o.Issuer != "" {
+		if u, err := url.Parse(o.Issuer); err != nil {
+			return fmt.Errorf("issuer must be a valid URL: %v", err)
+		} else if u.Scheme != "https" && u.Scheme != "http" {
+			return fmt.Errorf("issuer must be an 'https' URL")
+		}
+	}
+
+	return nil
+}
+
+// LoadConfig is alternate configuration loader. This is a special case for the login command as it needs to inject
+// new information into the configuration at load time.
+func (o *Options) LoadConfig() error {
+	if err := o.complete(); err != nil {
+		return err
 	}
 
 	return o.Config.Load(func(cfg *config.RedSkyConfig) error {
