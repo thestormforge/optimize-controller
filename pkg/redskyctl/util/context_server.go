@@ -83,6 +83,9 @@ func ShutdownOnInterrupt(onInterrupt func()) ContextServerOption {
 
 // ShutdownOnIdle shuts the server down when all connections have been idle for a specified duration
 func ShutdownOnIdle(idle time.Duration, onIdle func()) ContextServerOption {
+	if idle == 0 {
+		return func(*ContextServer) {}
+	}
 	return func(cs *ContextServer) {
 		it := &idleTracker{
 			active: make(map[net.Conn]bool),

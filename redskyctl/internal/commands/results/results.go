@@ -33,16 +33,22 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// Options is the configuration for displaying the results UI
 type Options struct {
 	// Config is the Red Sky Configuration to proxy
 	Config config.Config
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
 
+	// ServerAddress is the address to listen on (defaults to an ephemeral port)
 	ServerAddress string
-	DisplayURL    bool
+	// DisplayURL just prints the URL instead of opening the default browser
+	DisplayURL bool
+	// IdleTimeout is the time between heartbeats to the "/health" endpoint required to keep the server up (defaults to 5 seconds)
+	IdleTimeout time.Duration
 }
 
+// NewCommand creates a new command for displaying the results UI
 func NewCommand(o *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "results",
@@ -57,6 +63,8 @@ func NewCommand(o *Options) *cobra.Command {
 
 	cmd.Flags().StringVar(&o.ServerAddress, "address", "", "Address to listen on.")
 	cmd.Flags().BoolVar(&o.DisplayURL, "url", false, "Display the URL instead of opening a browser.")
+	cmd.Flags().DurationVar(&o.IdleTimeout, "idle-timeout", 5*time.Second, "Set the heartbeat interval (0 to ignore heartbeats).")
+	_ = cmd.Flags().MarkHidden("idle-timeout")
 
 	commander.ExitOnError(cmd)
 	return cmd
