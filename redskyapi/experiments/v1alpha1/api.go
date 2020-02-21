@@ -156,15 +156,6 @@ func (n experimentName) String() string {
 	return n.name
 }
 
-type Optimization struct {
-	// The estimated number of trial runs to perform for an experiment.
-	ExperimentBudget int32 `json:"experimentBudget,omitempty"`
-	// The total number of concurrent trial runs supported for an experiment.
-	ParallelTrials int32 `json:"parallelTrials,omitempty"`
-	// The total number of random trials used to start an experiment.
-	BurnIn int32 `json:"burnIn,omitempty"`
-}
-
 type Metric struct {
 	// The name of the metric.
 	Name string `json:"name"`
@@ -225,7 +216,7 @@ type Experiment struct {
 	// The display name of the experiment. Do not use for generating URLs!
 	DisplayName string `json:"displayName,omitempty"`
 	// Controls how the optimizer will generate trials.
-	Optimization Optimization `json:"optimization,omitempty"`
+	Optimization map[string]string `json:"optimization,omitempty"`
 	// The metrics been optimized in the experiment.
 	Metrics []Metric `json:"metrics"`
 	// The search space of the experiment.

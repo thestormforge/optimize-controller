@@ -22,6 +22,14 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+// Optimization is a configuration setting for the optimizer
+type Optimization struct {
+	// Name is the name of the optimization configuration to set
+	Name string `json:"name"`
+	// Value is string representation of the optimization configuration
+	Value string `json:"value"`
+}
+
 // Parameter represents the domain of a single component of the experiment search space
 type Parameter struct {
 	// The name of the parameter
@@ -115,12 +123,8 @@ type TrialTemplateSpec struct {
 type ExperimentSpec struct {
 	// Replicas is the number of trials to execute concurrently, defaults to 1
 	Replicas *int32 `json:"replicas,omitempty"`
-	// Parallelism is the total number of expected replicas across all clusters, defaults to the replica count
-	Parallelism *int32 `json:"parallelism,omitempty"`
-	// Burn-in is the number of trials using random suggestions at the start of an experiment
-	BurnIn *int32 `json:"burnIn,omitempty"`
-	// Budget is the maximum number of trials to run for an experiment across all clusters
-	Budget *int32 `json:"budget,omitempty"`
+	// Optimization defines additional configuration for the optimization
+	Optimization []Optimization `json:"optimization,omitempty"`
 	// Parameters defines the search space for the experiment
 	Parameters []Parameter `json:"parameters,omitempty"`
 	// Metrics defines the outcomes for the experiment

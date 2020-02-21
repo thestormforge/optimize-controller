@@ -43,15 +43,9 @@ func FromCluster(in *redskyv1alpha1.Experiment) (redskyapi.ExperimentName, *reds
 	out.ExperimentMeta.Self = in.Annotations[redskyv1alpha1.AnnotationExperimentURL]
 	out.ExperimentMeta.NextTrial = in.Annotations[redskyv1alpha1.AnnotationNextTrialURL]
 
-	out.Optimization = redskyapi.Optimization{}
-	if in.Spec.Parallelism != nil {
-		out.Optimization.ParallelTrials = *in.Spec.Parallelism
-	}
-	if in.Spec.BurnIn != nil {
-		out.Optimization.BurnIn = *in.Spec.BurnIn
-	}
-	if in.Spec.Budget != nil {
-		out.Optimization.ExperimentBudget = *in.Spec.Budget
+	out.Optimization = make(map[string]string, len(in.Spec.Optimization))
+	for _, o := range in.Spec.Optimization {
+		out.Optimization[o.Name] = o.Value
 	}
 
 	out.Parameters = nil
@@ -92,16 +86,9 @@ func ToCluster(exp *redskyv1alpha1.Experiment, ee *redskyapi.Experiment) {
 	exp.GetAnnotations()[redskyv1alpha1.AnnotationExperimentURL] = ee.Self
 	exp.GetAnnotations()[redskyv1alpha1.AnnotationNextTrialURL] = ee.NextTrial
 
-	if exp.Replicas() > ee.Optimization.ParallelTrials && ee.Optimization.ParallelTrials > 0 {
-		exp.Spec.Replicas = &ee.Optimization.ParallelTrials
-	}
-
-	if exp.Spec.Budget == nil && ee.Optimization.ExperimentBudget > 0 {
-		exp.Spec.Budget = &ee.Optimization.ExperimentBudget
-	}
-
-	if exp.Spec.BurnIn == nil && ee.Optimization.BurnIn > 0 {
-		exp.Spec.BurnIn = &ee.Optimization.BurnIn
+	exp.Spec.Optimization = nil
+	for n, v := range ee.Optimization {
+		exp.Spec.Optimization = append(exp.Spec.Optimization, redskyv1alpha1.Optimization{Name: n, Value: v})
 	}
 
 	controllerutil.AddFinalizer(exp, Finalizer)

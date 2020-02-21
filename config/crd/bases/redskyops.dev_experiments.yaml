@@ -41,16 +41,6 @@ spec:
         spec:
           description: Specification of the desired behavior for an experiment
           properties:
-            budget:
-              description: Budget is the maximum number of trials to run for an experiment
-                across all clusters
-              format: int32
-              type: integer
-            burnIn:
-              description: Burn-in is the number of trials using random suggestions
-                at the start of an experiment
-              format: int32
-              type: integer
             metrics:
               description: Metrics defines the outcomes for the experiment
               items:
@@ -206,11 +196,24 @@ spec:
                       type: array
                   type: object
               type: object
-            parallelism:
-              description: Parallelism is the total number of expected replicas across
-                all clusters, defaults to the replica count
-              format: int32
-              type: integer
+            optimization:
+              description: Optimization defines additional configuration for the optimization
+              items:
+                description: Optimization is a configuration setting for the optimizer
+                properties:
+                  name:
+                    description: Name is the name of the optimization configuration
+                      to set
+                    type: string
+                  value:
+                    description: Value is string representation of the optimization
+                      configuration
+                    type: string
+                required:
+                - name
+                - value
+                type: object
+              type: array
             parameters:
               description: Parameters defines the search space for the experiment
               items:
