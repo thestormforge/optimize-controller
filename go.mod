@@ -14,6 +14,7 @@ require (
 	github.com/gophercloud/gophercloud v0.2.0 // indirect
 	github.com/huandu/xstrings v1.2.0 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
+	github.com/lestrrat-go/jwx v0.9.1
 	github.com/mdp/qrterminal/v3 v3.0.0
 	github.com/onsi/ginkgo v1.10.1
 	github.com/onsi/gomega v1.7.0

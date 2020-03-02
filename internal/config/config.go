@@ -20,14 +20,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os/exec"
 	"strings"
 
+	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/redskyops/redskyops-controller/internal/oauth2/authorizationcode"
 	"github.com/redskyops/redskyops-controller/internal/oauth2/devicecode"
 	"github.com/redskyops/redskyops-controller/internal/oauth2/registration"
+	"golang.org/x/net/context/ctxhttp"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 )
@@ -387,6 +391,52 @@ func (rsc *RedSkyConfig) tokenSource(ctx context.Context) (oauth2.TokenSource, e
 	}
 
 	return nil, nil
+}
+
+// PublicKey attempts to fetch a public key with the specified identifier from the JWKS of the current server
+func (rsc *RedSkyConfig) PublicKey(ctx context.Context, keyID interface{}) (interface{}, error) {
+	// Make sure the key identifier is a string
+	kid, ok := keyID.(string)
+	if !ok {
+		return nil, fmt.Errorf("expected string key identifier")
+	}
+
+	// Get the server configuration for the JWKS URL
+	srv, err := CurrentServer(rsc.Reader())
+	if err != nil {
+		return nil, err
+	}
+
+	// Use the OAuth HTTP client to fetch the JWKS
+	req, err := http.NewRequest(http.MethodGet, srv.Authorization.JSONWebKeySetURI, nil)
+	if err != nil {
+		return nil, err
+	}
+	r, err := ctxhttp.Do(ctx, oauth2.NewClient(ctx, nil), req)
+	if err != nil {
+		return nil, err
+	}
+	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 1<<20))
+	_ = r.Body.Close()
+	if err != nil {
+		return nil, fmt.Errorf("jwks: cannot fetch key set: %v", err)
+	}
+	if code := r.StatusCode; code < 200 || code > 299 {
+		return nil, fmt.Errorf("jwks: cannot fetch key set: %v", code)
+	}
+
+	// Decode the JWKS and try to locate a key
+	set, err := jwk.ParseBytes(body)
+	if err != nil {
+		return nil, err
+	}
+	keys := set.LookupKeyID(kid)
+	for i := range keys {
+		if key, err := keys[i].Materialize(); err == nil {
+			return key, nil
+		}
+	}
+	return nil, fmt.Errorf("jwks: unable to find key: %v", keyID)
 }
 
 func (rsc *RedSkyConfig) clientID(srv *Server) string {
