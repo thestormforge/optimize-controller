@@ -49,7 +49,3 @@ func CheckErr(cmd *cobra.Command, err error) {
 	cmd.PrintErrln("Error:", err.Error())
 	os.Exit(1)
 }
-
-func stringptr(val string) *string {
-	return &val
-}

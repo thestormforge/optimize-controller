@@ -23,15 +23,14 @@ import (
 	"github.com/redskyops/redskyops-controller/internal/config"
 	"github.com/redskyops/redskyops-controller/pkg/redskyctl/cmd/check"
 	"github.com/redskyops/redskyops-controller/pkg/redskyctl/cmd/generate"
-	"github.com/redskyops/redskyops-controller/pkg/redskyctl/cmd/get"
 	"github.com/redskyops/redskyops-controller/pkg/redskyctl/cmd/kustomize"
 	"github.com/redskyops/redskyops-controller/pkg/redskyctl/cmd/setup"
 	"github.com/redskyops/redskyops-controller/pkg/redskyctl/cmd/suggest"
 	"github.com/redskyops/redskyops-controller/pkg/redskyctl/util"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/configuration"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/deletion"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/docs"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/experiments"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/login"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/results"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/revoke"
@@ -59,7 +58,8 @@ func NewRedskyctlCommand() *cobra.Command {
 
 	// Add the sub-commands
 	rootCmd.AddCommand(configuration.NewCommand(&configuration.Options{Config: cfg}))
-	rootCmd.AddCommand(deletion.NewCommand(&deletion.Options{Config: cfg}))
+	rootCmd.AddCommand(experiments.NewDeleteCommand(&experiments.DeleteOptions{Options: experiments.Options{Config: cfg}}))
+	rootCmd.AddCommand(experiments.NewGetCommand(&experiments.GetOptions{Options: experiments.Options{Config: cfg}}))
 	rootCmd.AddCommand(docs.NewCommand(&docs.Options{}))
 	rootCmd.AddCommand(login.NewCommand(&login.Options{Config: cfg}))
 	rootCmd.AddCommand(results.NewCommand(&results.Options{Config: cfg}))
@@ -92,7 +92,6 @@ func addUnmigratedCommands(rootCmd *cobra.Command, cfg *config.RedSkyConfig) {
 	rootCmd.AddCommand(check.NewCheckCommand(f, ioStreams))
 	rootCmd.AddCommand(suggest.NewSuggestCommand(f, ioStreams))
 	rootCmd.AddCommand(generate.NewGenerateCommand(f, ioStreams))
-	rootCmd.AddCommand(get.NewGetCommand(f, ioStreams))
 }
 
 // authorizationIdentity returns the client identifier to use for a given authorization server (identified by it's issuer URI)

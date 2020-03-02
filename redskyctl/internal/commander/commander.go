@@ -72,6 +72,15 @@ func SetExperimentsAPI(api *experimentsv1alpha1.API, cfg config.Config, cmd *cob
 	return nil
 }
 
+// SetPrinter assigns the resource printer during the pre-run of the supplied command
+func SetPrinter(meta TableMeta, printer *ResourcePrinter, cmd *cobra.Command) {
+	pf := &printFlags{Meta: meta}
+	pf.addFlags(cmd)
+	AddPreRunE(cmd, func(command *cobra.Command, strings []string) error {
+		return pf.toPrinter(printer)
+	})
+}
+
 // ConfigGlobals sets up persistent globals for the supplied configuration
 func ConfigGlobals(cfg *internalconfig.RedSkyConfig, cmd *cobra.Command) {
 	// Make sure we get the root to make these globals
@@ -99,6 +108,35 @@ func WithContextE(runE func(context.Context) error) func(*cobra.Command, []strin
 // WithoutArgsE wraps a no-argument function in one that accepts a command and argument slice
 func WithoutArgsE(runE func() error) func(*cobra.Command, []string) error {
 	return func(*cobra.Command, []string) error { return runE() }
+}
+
+// AddPreRunE adds an error returning pre-run function to the supplied command, existing pre-run actions will run AFTER
+// the supplied function, and only if the supplied pre-run function does not return an error
+func AddPreRunE(cmd *cobra.Command, preRunE func(*cobra.Command, []string) error) {
+	// Nothing set yet, just add it
+	if cmd.PreRunE == nil && cmd.PreRun == nil {
+		cmd.PreRunE = preRunE
+		return
+	}
+
+	// Capture the existing function
+	oldPreRunE := cmd.PreRunE
+	oldPreRun := cmd.PreRun
+
+	// Redefine the pre-run
+	cmd.PreRun = nil
+	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
+		if err := preRunE(cmd, args); err != nil {
+			return err
+		}
+		if oldPreRunE != nil {
+			return oldPreRunE(cmd, args)
+		}
+		if oldPreRun != nil {
+			oldPreRun(cmd, args)
+		}
+		return nil
+	}
 }
 
 // ExitOnError converts all the error returning run functions to non-error implementations that immediately exit
