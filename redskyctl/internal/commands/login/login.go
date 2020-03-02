@@ -25,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/mdp/qrterminal/v3"
 	"github.com/pkg/browser"
 	"github.com/redskyops/redskyops-controller/internal/config"
@@ -177,6 +178,8 @@ func (o *Options) LoadConfig() error {
 }
 
 func (o *Options) login(ctx context.Context) error {
+	// TODO Why are we not using the supplied context?
+
 	// The user has requested we just show a URL
 	if o.DisplayURL || o.DisplayQR {
 		return o.runDeviceCodeFlow()
@@ -244,7 +247,16 @@ func (o *Options) requireForceIfNameExists(cfg *config.Config) error {
 
 // takeOffline records the token in the configuration and write the configuration to disk
 func (o *Options) takeOffline(t *oauth2.Token) error {
-	// TODO Verify token and extract user info?
+	// Normally clients should consider the access token as opaque, however if the user does not have a namespace
+	// there is nothing we can do with the access token (except get "not activated" errors) so we should at least check
+	getKey := func(t *jwt.Token) (interface{}, error) { return o.Config.PublicKey(context.TODO(), t.Header["kid"]) }
+	if token, err := new(jwt.Parser).Parse(t.AccessToken, getKey); err == nil {
+		if c, ok := token.Claims.(jwt.MapClaims); ok {
+			if ns := c["https://carbonrelay.com/claims/namespace"]; ns == "default" || ns == "" {
+				return fmt.Errorf("account is not activated")
+			}
+		}
+	}
 
 	if err := o.Config.Update(config.SaveToken(o.Name, t)); err != nil {
 		return err
@@ -253,7 +265,7 @@ func (o *Options) takeOffline(t *oauth2.Token) error {
 		return err
 	}
 
-	// TODO Print out something more informative e.g. "... as [xxx]."
+	// TODO Print out something more informative e.g. "... as [xxx]." (we would need "openid" and "email" scopes to get an ID token)
 	_, _ = fmt.Fprintf(o.Out, "You are now logged in.\n")
 
 	return nil
