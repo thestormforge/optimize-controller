@@ -40,6 +40,9 @@ import (
 var (
 	// SuccessURL is the URL where users are redirected after a successful login
 	SuccessURL = "https://redskyops.dev/api/auth_success/"
+
+	// NotActivatedURL is the URL where users are redirected if they do not have a valid namespace claim in their access token
+	NotActivatedURL = "https://redskyops.dev/api/auth_not_activated/"
 )
 
 const (
@@ -272,7 +275,7 @@ func (o *Options) takeOffline(t *oauth2.Token) error {
 }
 
 // generateCallbackResponse generates an HTTP response for the OAuth callback
-func (o *Options) generateCallbackResponse(w http.ResponseWriter, r *http.Request, message string, status int) {
+func (o *Options) generateCallbackResponse(w http.ResponseWriter, r *http.Request, status int, err error) {
 	switch status {
 	case http.StatusOK:
 		// Redirect the user to the successful login URL and shutdown the server
@@ -282,8 +285,19 @@ func (o *Options) generateCallbackResponse(w http.ResponseWriter, r *http.Reques
 		// Ignorable error codes, e.g. browser requests for '/favicon.ico'
 		http.Error(w, http.StatusText(status), status)
 	default:
+		// TODO Better detection of this error
+		if status == http.StatusInternalServerError && err != nil && err.Error() == "account is not activated" {
+			http.Redirect(w, r, NotActivatedURL, http.StatusSeeOther)
+			_, _ = fmt.Fprintf(o.Out, "Your account is not activated.\n")
+			o.shutdown()
+			return
+		}
+
 		// TODO Redirect to a troubleshooting URL? Use the snake cased status text as the fragment (e.g. '...#internal-server-error')?
-		msg := message
+		msg := ""
+		if err != nil {
+			msg = err.Error()
+		}
 		if msg == "" {
 			msg = http.StatusText(status)
 		}
