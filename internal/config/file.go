@@ -17,7 +17,7 @@ limitations under the License.
 package config
 
 import (
-	"bufio"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -71,7 +71,7 @@ func (l *file) read(filename string) error {
 		return err
 	}
 
-	if err = yaml2.NewYAMLOrJSONDecoder(bufio.NewReader(f), 4096).Decode(&l.data); err != nil {
+	if err = yaml2.NewYAMLOrJSONDecoder(f, 4096).Decode(&l.data); err != nil && err != io.EOF {
 		return err
 	}
 	if err = f.Close(); err != nil {
