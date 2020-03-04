@@ -85,6 +85,7 @@ kustomize edit add label "app.kubernetes.io/name:redskyops"
 kustomize edit set namespace "redsky-system"
 kustomize edit set nameprefix "redsky-"
 
+# TODO Have an option to include the ServiceMonitor?
 
 # Build the templates for the chart
 cd "$WORKSPACE"
@@ -100,7 +101,7 @@ fi
 
 
 # Package everything together using Helm
-helm package --save=false --version "$CHART_VERSION" "$WORKSPACE/chart/redskyops" > /dev/null
+helm package --version "${CHART_VERSION}" "$WORKSPACE/chart/redskyops" > /dev/null
 
 
 # Output the chart in the expected format
