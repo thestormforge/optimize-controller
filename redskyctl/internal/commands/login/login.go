@@ -111,6 +111,9 @@ func NewCommand(o *Options) *cobra.Command {
 	cmd.Flags().BoolVar(&o.DisplayQR, "qr", false, "Display a QR code instead of opening a browser.")
 	cmd.Flags().BoolVar(&o.Force, "force", false, "Overwrite existing configuration.")
 
+	_ = cmd.Flags().MarkHidden("server")
+	_ = cmd.Flags().MarkHidden("issuer")
+
 	commander.ExitOnError(cmd)
 	return cmd
 }

@@ -13,8 +13,9 @@ redskyctl config view [flags]
 ### Options
 
 ```
-  -h, --help   help for view
-      --raw    Display the raw configuration file without merging.
+  -h, --help     help for view
+      --minify   Reduce information to effective values.
+      --raw      Display the raw configuration file without merging.
 ```
 
 ### Options inherited from parent commands
