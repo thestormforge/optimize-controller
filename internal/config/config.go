@@ -36,6 +36,9 @@ import (
 	"golang.org/x/oauth2/clientcredentials"
 )
 
+// audience is the logical identifier of the Red Sky API
+const audience = "https://api.carbonrelay.io/v1/"
+
 // Loader is used to initially populate a Red Sky configuration
 type Loader func(cfg *RedSkyConfig) error
 
@@ -306,7 +309,7 @@ func (rsc *RedSkyConfig) NewAuthorization() (*authorizationcode.Config, error) {
 	c.Endpoint.AuthURL = srv.Authorization.AuthorizationEndpoint
 	c.Endpoint.TokenURL = srv.Authorization.TokenEndpoint
 	c.Endpoint.AuthStyle = oauth2.AuthStyleInParams
-	c.EndpointParams = map[string][]string{"audience": {srv.Identifier}}
+	c.EndpointParams = map[string][]string{"audience": {audience}}
 	return c, nil
 }
 
@@ -324,7 +327,7 @@ func (rsc *RedSkyConfig) NewDeviceAuthorization() (*devicecode.Config, error) {
 			AuthStyle: oauth2.AuthStyleInParams,
 		},
 		DeviceAuthorizationURL: srv.Authorization.DeviceAuthorizationEndpoint,
-		EndpointParams:         map[string][]string{"audience": {srv.Identifier}},
+		EndpointParams:         map[string][]string{"audience": {audience}},
 	}, nil
 }
 
@@ -362,7 +365,7 @@ func (rsc *RedSkyConfig) tokenSource(ctx context.Context) (oauth2.TokenSource, e
 			ClientID:       az.Credential.ClientID,
 			ClientSecret:   az.Credential.ClientSecret,
 			TokenURL:       srv.Authorization.TokenEndpoint,
-			EndpointParams: url.Values{"audience": []string{srv.Identifier}},
+			EndpointParams: url.Values{"audience": []string{audience}},
 			AuthStyle:      oauth2.AuthStyleInParams,
 		}
 		return cc.TokenSource(ctx), nil
