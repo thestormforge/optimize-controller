@@ -25,7 +25,6 @@ import (
 	"github.com/redskyops/redskyops-controller/pkg/redskyctl/cmd/generate"
 	"github.com/redskyops/redskyops-controller/pkg/redskyctl/cmd/kustomize"
 	"github.com/redskyops/redskyops-controller/pkg/redskyctl/cmd/setup"
-	"github.com/redskyops/redskyops-controller/pkg/redskyctl/cmd/suggest"
 	"github.com/redskyops/redskyops-controller/pkg/redskyctl/util"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/configuration"
@@ -60,6 +59,7 @@ func NewRedskyctlCommand() *cobra.Command {
 	rootCmd.AddCommand(configuration.NewCommand(&configuration.Options{Config: cfg}))
 	rootCmd.AddCommand(experiments.NewDeleteCommand(&experiments.DeleteOptions{Options: experiments.Options{Config: cfg}}))
 	rootCmd.AddCommand(experiments.NewGetCommand(&experiments.GetOptions{Options: experiments.Options{Config: cfg}}))
+	rootCmd.AddCommand(experiments.NewSuggestCommand(&experiments.SuggestOptions{Options: experiments.Options{Config: cfg}}))
 	rootCmd.AddCommand(docs.NewCommand(&docs.Options{}))
 	rootCmd.AddCommand(login.NewCommand(&login.Options{Config: cfg}))
 	rootCmd.AddCommand(results.NewCommand(&results.Options{Config: cfg}))
@@ -90,7 +90,6 @@ func addUnmigratedCommands(rootCmd *cobra.Command, cfg *config.RedSkyConfig) {
 	rootCmd.AddCommand(setup.NewAuthorizeCommand(f, ioStreams))
 	rootCmd.AddCommand(kustomize.NewKustomizeCommand(f, ioStreams))
 	rootCmd.AddCommand(check.NewCheckCommand(f, ioStreams))
-	rootCmd.AddCommand(suggest.NewSuggestCommand(f, ioStreams))
 	rootCmd.AddCommand(generate.NewGenerateCommand(f, ioStreams))
 }
 
