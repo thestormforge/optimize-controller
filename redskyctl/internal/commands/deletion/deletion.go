@@ -93,7 +93,7 @@ func (o *Options) delete(ctx context.Context) error {
 			}
 			return err
 		}
-		_, _ = fmt.Fprintf(o.Out, `%s "%s" deleted\n`, o.Type, name)
+		_, _ = fmt.Fprintf(o.Out, "%s \"%s\" deleted\n", o.Type, name)
 	}
 	return nil
 }

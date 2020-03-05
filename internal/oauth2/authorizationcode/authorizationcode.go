@@ -24,6 +24,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"fmt"
 	"net/http"
 	"net/url"
 
@@ -34,7 +35,7 @@ import (
 type Handler func(token *oauth2.Token) error
 
 // ResponseFunc is used to handle response generation from the HTTP callback server.
-type ResponseFunc func(w http.ResponseWriter, r *http.Request, message string, code int)
+type ResponseFunc func(w http.ResponseWriter, r *http.Request, code int, err error)
 
 // NOTE: ResponseFunc includes the original request so implementations can call `http.Redirect` if necessary
 
@@ -116,52 +117,58 @@ func (c *Config) Callback(handler Handler, response ResponseFunc) http.Handler {
 		handler = func(*oauth2.Token) error { return nil }
 	}
 	if response == nil {
-		response = func(w http.ResponseWriter, r *http.Request, message string, code int) { http.Error(w, message, code) }
+		response = func(w http.ResponseWriter, r *http.Request, code int, err error) {
+			message := ""
+			if err != nil {
+				message = err.Error()
+			}
+			http.Error(w, message, code)
+		}
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Make sure this request matches the configuration
-		if status, txt := c.validateRequest(r); status != http.StatusOK {
-			response(w, r, txt, status)
+		if status, err := c.validateRequest(r); status != http.StatusOK {
+			response(w, r, status, err)
 			return
 		}
 
 		// Exchange the authorization code for an access token
 		token, err := c.ExchangeWithPKCE(context.TODO(), r.FormValue("code"))
 		if err != nil {
-			response(w, r, err.Error(), http.StatusInternalServerError)
+			response(w, r, http.StatusInternalServerError, err)
 			return
 		}
 
 		// Handle the token
 		if err := handler(token); err != nil {
-			response(w, r, err.Error(), http.StatusInternalServerError)
+			response(w, r, http.StatusInternalServerError, err)
 			return
 		}
 
 		// Report success
-		response(w, r, "", http.StatusOK)
+		response(w, r, http.StatusOK, nil)
 	})
 }
 
-func (c *Config) validateRequest(r *http.Request) (int, string) {
+func (c *Config) validateRequest(r *http.Request) (int, error) {
 	// Validate the request URL matches the configured redirect URL
 	u, err := url.Parse(c.RedirectURL)
 	if err != nil {
-		return http.StatusInternalServerError, err.Error()
+		return http.StatusInternalServerError, err
 	}
 	if r.URL.Path != u.Path { // TODO Equality check on the whole URL?
-		return http.StatusNotFound, ""
+		return http.StatusNotFound, nil
 	}
 
 	// If the path is correct, we only support the GET method
 	if r.Method != http.MethodGet {
-		return http.StatusMethodNotAllowed, ""
+		return http.StatusMethodNotAllowed, nil
 	}
 
 	// Check the CSRF state
 	if c.state != r.FormValue("state") {
-		return http.StatusForbidden, "CSRF state mismatch"
+		return http.StatusForbidden, fmt.Errorf("CSRF state mismatch")
 	}
 
 	// Check for errors
@@ -169,8 +176,8 @@ func (c *Config) validateRequest(r *http.Request) (int, string) {
 		if ed := r.FormValue("error_description"); ed != "" {
 			errorCode = ed
 		}
-		return http.StatusInternalServerError, errorCode
+		return http.StatusInternalServerError, fmt.Errorf("%s", errorCode)
 	}
 
-	return http.StatusOK, ""
+	return http.StatusOK, nil
 }

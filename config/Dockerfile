@@ -1,8 +1,8 @@
 FROM alpine:latest
 
-ENV HELM_VERSION="v2.16.3" \
-    HELM_URL="https://get.helm.sh/helm-v2.16.3-linux-amd64.tar.gz" \
-    HELM_SHA256="9678eb726d6870e8eded204190357a0f494ed9d1803781b4bb80dde6427b086e"
+ENV HELM_VERSION="v3.1.0" \
+    HELM_URL="https://get.helm.sh/helm-v3.1.0-linux-amd64.tar.gz" \
+    HELM_SHA256="f0fd9fe2b0e09dc9ed190239fce892a468cbb0a2a8fffb9fe846f893c8fd09de"
 
 ENV KUBECTL_VERSION="v1.14.10" \
     KUBECTL_URL="https://storage.googleapis.com/kubernetes-release/release/v1.14.10/bin/linux/amd64/kubectl" \
@@ -12,9 +12,9 @@ ENV KUSTOMIZE_VERSION="v3.5.4" \
     KUSTOMIZE_URL="https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv3.5.3/kustomize_v3.5.3_linux_amd64.tar.gz" \
     KUSTOMIZE_SHA256="5cdeb2af81090ad428e3a94b39779b3e477e2bc946be1fe28714d1ca28502f6a"
 
-ENV KONJURE_VERSION="v0.1.2" \
-    KONJURE_URL="https://github.com/carbonrelay/konjure/releases/download/v0.1.2/konjure-linux-amd64.tar.gz" \
-    KONJURE_SHA256="0403e1d2ceea88e8f95d794e9e6516995f36dbc8a829ddb33245cc989870277f"
+ENV KONJURE_VERSION="v0.2.0" \
+    KONJURE_URL="https://github.com/carbonrelay/konjure/releases/download/v0.2.0/konjure-linux-amd64.tar.gz" \
+    KONJURE_SHA256="a9812e1a29d7dca2afc3606d860c5e2f5674da6c678ca8707f9378de547f69fa"
 
 RUN apk --no-cache add curl && \
     curl -L "$HELM_URL" | tar xz -C /usr/local/bin --exclude '*/*[^helm]' --strip-components=1 && \
@@ -40,6 +40,9 @@ RUN cd /workspace/manager && kustomize edit set image controller=${IMG} && \
 
 USER setup:setup
 RUN konjure kustomize init
+
+# Add Helm stable until May 13, 2020
+RUN helm repo add stable https://kubernetes-charts.storage.googleapis.com
 
 WORKDIR "/workspace/base"
 ENTRYPOINT ["/workspace/docker-entrypoint.sh"]

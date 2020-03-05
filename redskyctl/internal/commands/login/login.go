@@ -25,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/mdp/qrterminal/v3"
 	"github.com/pkg/browser"
 	"github.com/redskyops/redskyops-controller/internal/config"
@@ -39,6 +40,9 @@ import (
 var (
 	// SuccessURL is the URL where users are redirected after a successful login
 	SuccessURL = "https://redskyops.dev/api/auth_success/"
+
+	// NotActivatedURL is the URL where users are redirected if they do not have a valid namespace claim in their access token
+	NotActivatedURL = "https://redskyops.dev/api/auth_not_activated/"
 )
 
 const (
@@ -106,6 +110,9 @@ func NewCommand(o *Options) *cobra.Command {
 	cmd.Flags().BoolVar(&o.DisplayURL, "url", false, "Display the URL instead of opening a browser.")
 	cmd.Flags().BoolVar(&o.DisplayQR, "qr", false, "Display a QR code instead of opening a browser.")
 	cmd.Flags().BoolVar(&o.Force, "force", false, "Overwrite existing configuration.")
+
+	_ = cmd.Flags().MarkHidden("server")
+	_ = cmd.Flags().MarkHidden("issuer")
 
 	commander.ExitOnError(cmd)
 	return cmd
@@ -177,6 +184,8 @@ func (o *Options) LoadConfig() error {
 }
 
 func (o *Options) login(ctx context.Context) error {
+	// TODO Why are we not using the supplied context?
+
 	// The user has requested we just show a URL
 	if o.DisplayURL || o.DisplayQR {
 		return o.runDeviceCodeFlow()
@@ -244,7 +253,16 @@ func (o *Options) requireForceIfNameExists(cfg *config.Config) error {
 
 // takeOffline records the token in the configuration and write the configuration to disk
 func (o *Options) takeOffline(t *oauth2.Token) error {
-	// TODO Verify token and extract user info?
+	// Normally clients should consider the access token as opaque, however if the user does not have a namespace
+	// there is nothing we can do with the access token (except get "not activated" errors) so we should at least check
+	getKey := func(t *jwt.Token) (interface{}, error) { return o.Config.PublicKey(context.TODO(), t.Header["kid"]) }
+	if token, err := new(jwt.Parser).Parse(t.AccessToken, getKey); err == nil {
+		if c, ok := token.Claims.(jwt.MapClaims); ok {
+			if ns := c["https://carbonrelay.com/claims/namespace"]; ns == "default" || ns == "" {
+				return fmt.Errorf("account is not activated")
+			}
+		}
+	}
 
 	if err := o.Config.Update(config.SaveToken(o.Name, t)); err != nil {
 		return err
@@ -253,14 +271,14 @@ func (o *Options) takeOffline(t *oauth2.Token) error {
 		return err
 	}
 
-	// TODO Print out something more informative e.g. "... as [xxx]."
+	// TODO Print out something more informative e.g. "... as [xxx]." (we would need "openid" and "email" scopes to get an ID token)
 	_, _ = fmt.Fprintf(o.Out, "You are now logged in.\n")
 
 	return nil
 }
 
 // generateCallbackResponse generates an HTTP response for the OAuth callback
-func (o *Options) generateCallbackResponse(w http.ResponseWriter, r *http.Request, message string, status int) {
+func (o *Options) generateCallbackResponse(w http.ResponseWriter, r *http.Request, status int, err error) {
 	switch status {
 	case http.StatusOK:
 		// Redirect the user to the successful login URL and shutdown the server
@@ -270,8 +288,19 @@ func (o *Options) generateCallbackResponse(w http.ResponseWriter, r *http.Reques
 		// Ignorable error codes, e.g. browser requests for '/favicon.ico'
 		http.Error(w, http.StatusText(status), status)
 	default:
+		// TODO Better detection of this error
+		if status == http.StatusInternalServerError && err != nil && err.Error() == "account is not activated" {
+			http.Redirect(w, r, NotActivatedURL, http.StatusSeeOther)
+			_, _ = fmt.Fprintf(o.Out, "Your account is not activated.\n")
+			o.shutdown()
+			return
+		}
+
 		// TODO Redirect to a troubleshooting URL? Use the snake cased status text as the fragment (e.g. '...#internal-server-error')?
-		msg := message
+		msg := ""
+		if err != nil {
+			msg = err.Error()
+		}
 		if msg == "" {
 			msg = http.StatusText(status)
 		}
