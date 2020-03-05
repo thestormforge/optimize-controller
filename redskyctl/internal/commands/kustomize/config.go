@@ -16,8 +16,6 @@ limitations under the License.
 
 package kustomize
 
-// TODO `redskyctl kustomize config -k x` adds config to a kustomization (root or file, honoring -f also)
-
 import (
 	"fmt"
 	"io/ioutil"
@@ -25,41 +23,29 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"github.com/redskyops/redskyops-controller/pkg/redskyctl/cmd/kustomize/consts"
-	cmdutil "github.com/redskyops/redskyops-controller/pkg/redskyctl/util"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/kustomize/consts"
 	"github.com/spf13/cobra"
 )
 
-const (
-	kustomizeConfigLong    = `Configure Kustomize transformers for Red Sky types`
-	kustomizeConfigExample = ``
-)
+// ConfigOptions are the options for configuring a Kustomization
+type ConfigOptions struct {
+	// IOStreams are used to access the standard process streams
+	commander.IOStreams
 
-type KustomizeConfigOptions struct {
 	Kustomize string
 	Filename  string
-
-	cmdutil.IOStreams
 }
 
-func NewKustomizeConfigOptions(ioStreams cmdutil.IOStreams) *KustomizeConfigOptions {
-	return &KustomizeConfigOptions{
-		IOStreams: ioStreams,
-	}
-}
-
-func NewKustomizeConfigCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
-	o := NewKustomizeConfigOptions(ioStreams)
-
+// NewConfigCommand creates a new command for configuring a Kustomization
+func NewConfigCommand(o *ConfigOptions) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "config",
-		Short:   "Configure Kustomize transformers",
-		Long:    kustomizeConfigLong,
-		Example: kustomizeConfigExample,
-		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(cmd, o.Complete(f, cmd, args))
-			cmdutil.CheckErr(cmd, o.Run())
-		},
+		Use:   "config",
+		Short: "Configure Kustomize transformers",
+		Long:  "Configure Kustomize transformers for Red Sky types",
+
+		PreRun: commander.StreamsPreRun(&o.IOStreams),
+		RunE:   commander.WithoutArgsE(o.config),
 	}
 
 	cmd.Flags().StringVarP(&o.Kustomize, "kustomize", "k", o.Kustomize, "Kustomize `root` to update")
@@ -68,7 +54,8 @@ func NewKustomizeConfigCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *
 	return cmd
 }
 
-func (o *KustomizeConfigOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []string) error {
+func (o *ConfigOptions) config() error {
+	// If a Kustomization root is specified, normalize the file paths
 	if o.Kustomize != "" {
 		// Adjust the value to point at the kustomization file
 		var err error
@@ -94,10 +81,6 @@ func (o *KustomizeConfigOptions) Complete(f cmdutil.Factory, cmd *cobra.Command,
 		}
 	}
 
-	return nil
-}
-
-func (o *KustomizeConfigOptions) Run() error {
 	// If there is no file name, just dump to the output stream
 	if o.Filename == "" {
 		_, err := o.Out.Write(consts.GetRedSkyFieldSpecs())

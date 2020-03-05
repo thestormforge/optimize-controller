@@ -23,13 +23,13 @@ import (
 	"github.com/redskyops/redskyops-controller/internal/config"
 	"github.com/redskyops/redskyops-controller/pkg/redskyctl/cmd/check"
 	"github.com/redskyops/redskyops-controller/pkg/redskyctl/cmd/generate"
-	"github.com/redskyops/redskyops-controller/pkg/redskyctl/cmd/kustomize"
 	"github.com/redskyops/redskyops-controller/pkg/redskyctl/cmd/setup"
 	"github.com/redskyops/redskyops-controller/pkg/redskyctl/util"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/configuration"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/docs"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/experiments"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/kustomize"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/login"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/results"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/revoke"
@@ -57,10 +57,11 @@ func NewRedskyctlCommand() *cobra.Command {
 
 	// Add the sub-commands
 	rootCmd.AddCommand(configuration.NewCommand(&configuration.Options{Config: cfg}))
+	rootCmd.AddCommand(docs.NewCommand(&docs.Options{}))
 	rootCmd.AddCommand(experiments.NewDeleteCommand(&experiments.DeleteOptions{Options: experiments.Options{Config: cfg}}))
 	rootCmd.AddCommand(experiments.NewGetCommand(&experiments.GetOptions{Options: experiments.Options{Config: cfg}}))
 	rootCmd.AddCommand(experiments.NewSuggestCommand(&experiments.SuggestOptions{Options: experiments.Options{Config: cfg}}))
-	rootCmd.AddCommand(docs.NewCommand(&docs.Options{}))
+	rootCmd.AddCommand(kustomize.NewCommand())
 	rootCmd.AddCommand(login.NewCommand(&login.Options{Config: cfg}))
 	rootCmd.AddCommand(results.NewCommand(&results.Options{Config: cfg}))
 	rootCmd.AddCommand(revoke.NewCommand(&revoke.Options{Config: cfg}))

@@ -17,24 +17,18 @@ limitations under the License.
 package kustomize
 
 import (
-	cmdutil "github.com/redskyops/redskyops-controller/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 )
 
-const (
-	kustomizeLong    = `Kustomize integrations for Red Sky Ops`
-	kustomizeExample = ``
-)
-
-func NewKustomizeCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
+// NewCommand returns a new Kustomization integration command
+func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "kustomize",
-		Short:   "Kustomize integrations",
-		Long:    kustomizeLong,
-		Example: kustomizeExample,
+		Use:   "kustomize",
+		Short: "Kustomize integrations",
+		Long:  "Kustomize integrations for Red Sky Ops",
 	}
 
-	cmd.AddCommand(NewKustomizeConfigCommand(f, ioStreams))
+	cmd.AddCommand(NewConfigCommand(&ConfigOptions{}))
 
 	return cmd
 }
