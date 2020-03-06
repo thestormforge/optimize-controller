@@ -17,28 +17,29 @@ limitations under the License.
 package check
 
 import (
+	"github.com/redskyops/redskyops-controller/internal/config"
 	cmdutil "github.com/redskyops/redskyops-controller/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 )
 
-const (
-	checkLong    = `Run a consistency check on Red Sky Ops components`
-	checkExample = ``
-)
+// Options includes the configuration for the subcommands
+type Options struct {
+	// Config is the Red Sky Configuration
+	Config *config.RedSkyConfig
+}
 
-func NewCheckCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
+// NewCommand creates a new command for checking components
+func NewCommand(o *Options) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "check",
-		Short:   "Run a consistency check",
-		Long:    checkLong,
-		Example: checkExample,
+		Use:   "check",
+		Short: "Run a consistency check",
+		Long:  "Run a consistency check on Red Sky Ops components",
 	}
-	cmd.Run = cmd.HelpFunc()
 
-	cmd.AddCommand(NewCheckExperimentCommand(f, ioStreams))
-	cmd.AddCommand(NewServerCheckCommand(f, ioStreams))
+	cmd.AddCommand(NewExperimentCommand(&ExperimentOptions{Config: o.Config}))
+	cmd.AddCommand(NewServerCommand(&ServerOptions{Config: o.Config}))
 
-	// TODO Add a manager check?
+	// TODO Add a controller check?
 
 	return cmd
 }

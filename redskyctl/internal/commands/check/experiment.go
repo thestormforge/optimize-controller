@@ -23,7 +23,7 @@ import (
 
 	"github.com/redskyops/redskyops-controller/internal/template"
 	redskyv1alpha1 "github.com/redskyops/redskyops-controller/pkg/apis/redsky/v1alpha1"
-	cmdutil "github.com/redskyops/redskyops-controller/pkg/redskyctl/util"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/api/batch/v1beta1"
@@ -33,35 +33,23 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-const (
-	checkExperimentLong    = `Check an experiment manifest`
-	checkExperimentExample = ``
-)
+// ExperimentOptions are the options for checking an experiment manifest
+type ExperimentOptions struct {
+	// IOStreams are used to access the standard process streams
+	commander.IOStreams
 
-type CheckExperimentOptions struct {
 	Filename string
-
-	cmdutil.IOStreams
 }
 
-func NewCheckExperimentOptions(ioStreams cmdutil.IOStreams) *CheckExperimentOptions {
-	return &CheckExperimentOptions{
-		IOStreams: ioStreams,
-	}
-}
-
-func NewCheckExperimentCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
-	o := NewCheckExperimentOptions(ioStreams)
-
+// NewExperimentCommand creates a new command for checking an experiment manifest
+func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "experiment",
-		Short:   "Check an experiment",
-		Long:    checkExperimentLong,
-		Example: checkExperimentExample,
-		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(cmd, o.Complete(f, cmd))
-			cmdutil.CheckErr(cmd, o.Run())
-		},
+		Use:   "experiment",
+		Short: "Check an experiment",
+		Long:  "Check an experiment manifest",
+
+		PreRun: commander.StreamsPreRun(&o.IOStreams),
+		RunE:   commander.WithoutArgsE(o.checkExperiment),
 	}
 
 	cmd.Flags().StringVarP(&o.Filename, "filename", "f", "", "File that contains the experiment to check.")
@@ -69,11 +57,7 @@ func NewCheckExperimentCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *
 	return cmd
 }
 
-func (o *CheckExperimentOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) error {
-	return nil
-}
-
-func (o *CheckExperimentOptions) Run() error {
+func (o *ExperimentOptions) checkExperiment() error {
 	// Read the entire input
 	var data []byte
 	var err error

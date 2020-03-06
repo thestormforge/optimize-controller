@@ -54,8 +54,8 @@ var (
 	}
 )
 
-// GetRandomName returns a randomly generated name, if the number of retries is greater then 0 a small random number is also produced
-func GetRandomName(retry int) string {
+// getRandomName returns a randomly generated name, if the number of retries is greater then 0 a small random number is also produced
+func getRandomName(retry int) string {
 	name := fmt.Sprintf("%s_%s", left[rand.Intn(len(left))], right[rand.Intn(len(right))])
 
 	if retry > 0 {
@@ -105,11 +105,11 @@ var (
 	}
 )
 
-func GetRandomParameter() string {
+func getRandomParameter() string {
 	return paramsA[rand.Intn(len(paramsA))] + paramsB[rand.Intn(len(paramsB))] + paramsC[rand.Intn(len(paramsC))]
 }
 
-func GetRandomMetric() string {
+func getRandomMetric() string {
 	return metrics[rand.Intn(len(metrics))]
 }
 

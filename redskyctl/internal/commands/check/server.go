@@ -25,48 +25,44 @@ import (
 	"strconv"
 	"time"
 
-	cmdutil "github.com/redskyops/redskyops-controller/pkg/redskyctl/util"
-	redskyapi "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
+	"github.com/redskyops/redskyops-controller/internal/config"
+	experimentsv1alpha1 "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
 )
 
-const (
-	checkServerLong    = `Check the Red Sky Ops server`
-	checkServerExample = ``
-)
+// ServerOptions are the options for checking a Red Sky API server
+type ServerOptions struct {
+	// Config is the Red Sky Configuration for connecting to the API server
+	Config *config.RedSkyConfig
+	// ExperimentsAPI is used to interact with the Red Sky Experiments API
+	ExperimentsAPI experimentsv1alpha1.API
+	// IOStreams are used to access the standard process streams
+	commander.IOStreams
 
-type CheckServerOptions struct {
 	Name           string
 	ParameterCount int
 	MetricCount    int
 	AllowInvalid   bool
 	ReportFailure  bool
 	DryRun         bool
-
-	RedSkyAPI redskyapi.API
-
-	cmdutil.IOStreams
 }
 
-func NewCheckServerOptions(ioStreams cmdutil.IOStreams) *CheckServerOptions {
-	return &CheckServerOptions{
-		IOStreams: ioStreams,
-	}
-}
-
-func NewServerCheckCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobra.Command {
-	o := NewCheckServerOptions(ioStreams)
-
+// NewServerCommand creates a new command for checking the Red Sky API server
+func NewServerCommand(o *ServerOptions) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "server",
-		Short:   "Check the server",
-		Long:    checkServerLong,
-		Example: checkServerExample,
-		Run: func(cmd *cobra.Command, args []string) {
-			cmdutil.CheckErr(cmd, o.Complete(f, cmd))
-			cmdutil.CheckErr(cmd, o.Validate())
-			cmdutil.CheckErr(cmd, o.Run())
+		Use:   "server",
+		Short: "Check the server",
+		Long:  "Check the Red Sky Ops server",
+
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			if err := o.Complete(); err != nil {
+				return err
+			}
+			commander.SetStreams(&o.IOStreams, cmd)
+			return commander.SetExperimentsAPI(&o.ExperimentsAPI, o.Config, cmd)
 		},
+		RunE: commander.WithoutArgsE(o.checkServer),
 	}
 
 	cmd.Flags().IntVar(&o.ParameterCount, "parameters", o.ParameterCount, "Specify the number of experiment parameters to generate (1 - 20).")
@@ -78,8 +74,8 @@ func NewServerCheckCommand(f cmdutil.Factory, ioStreams cmdutil.IOStreams) *cobr
 	return cmd
 }
 
-func (o *CheckServerOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) error {
-	// Randomly assign parameter and metric counts if they are not provided
+// Complete assigns parameter and metric counts if they are not provided
+func (o *ServerOptions) Complete() error {
 	if o.ParameterCount == 0 {
 		o.ParameterCount = rand.Intn(5) + 1
 	}
@@ -87,18 +83,6 @@ func (o *CheckServerOptions) Complete(f cmdutil.Factory, cmd *cobra.Command) err
 		o.MetricCount = 1
 	}
 
-	if !o.DryRun {
-		var err error
-		o.RedSkyAPI, err = f.RedSkyAPI()
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (o *CheckServerOptions) Validate() error {
 	if !o.AllowInvalid {
 		if o.ParameterCount < 1 || o.ParameterCount > 20 {
 			return fmt.Errorf("invalid parameter count: %d (should be [1,20])", o.ParameterCount)
@@ -110,8 +94,10 @@ func (o *CheckServerOptions) Validate() error {
 	return nil
 }
 
-func (o *CheckServerOptions) Run() error {
+func (o *ServerOptions) checkServer() error {
 	var err error
+
+	// TODO This should rely on random generation of a Kube experiment and the conversion of that to an API experiment
 
 	// Generate an experiment
 	n := o.Name
@@ -123,16 +109,16 @@ func (o *CheckServerOptions) Run() error {
 	}
 
 	// Create the experiment
-	var exp redskyapi.Experiment
+	var exp experimentsv1alpha1.Experiment
 	if n != "" {
-		exp, err = o.RedSkyAPI.CreateExperiment(context.TODO(), redskyapi.NewExperimentName(n), *e)
+		exp, err = o.ExperimentsAPI.CreateExperiment(context.TODO(), experimentsv1alpha1.NewExperimentName(n), *e)
 	} else {
 		// If we are generating the name randomly, account for a small number of conflicts
 		for i := 0; i < 10; i++ {
-			n = GetRandomName(i)
-			exp, err = o.RedSkyAPI.CreateExperiment(context.TODO(), redskyapi.NewExperimentName(n), *e)
+			n = getRandomName(i)
+			exp, err = o.ExperimentsAPI.CreateExperiment(context.TODO(), experimentsv1alpha1.NewExperimentName(n), *e)
 			if err != nil {
-				if aerr, ok := err.(*redskyapi.Error); ok && aerr.Type == redskyapi.ErrExperimentNameConflict {
+				if aerr, ok := err.(*experimentsv1alpha1.Error); ok && aerr.Type == experimentsv1alpha1.ErrExperimentNameConflict {
 					continue
 				}
 			}
@@ -143,7 +129,7 @@ func (o *CheckServerOptions) Run() error {
 		return err
 	}
 	defer func() {
-		_ = o.RedSkyAPI.DeleteExperiment(context.TODO(), exp.Self)
+		_ = o.ExperimentsAPI.DeleteExperiment(context.TODO(), exp.Self)
 	}()
 
 	// Validate the experiment
@@ -152,10 +138,10 @@ func (o *CheckServerOptions) Run() error {
 	}
 
 	// Get the next trial assignments
-	var t redskyapi.TrialAssignments
+	var t experimentsv1alpha1.TrialAssignments
 	for i := 0; i < 5; i++ {
-		t, err = o.RedSkyAPI.NextTrial(context.TODO(), exp.NextTrial)
-		if aerr, ok := err.(*redskyapi.Error); ok && aerr.Type == redskyapi.ErrTrialUnavailable {
+		t, err = o.ExperimentsAPI.NextTrial(context.TODO(), exp.NextTrial)
+		if aerr, ok := err.(*experimentsv1alpha1.Error); ok && aerr.Type == experimentsv1alpha1.ErrTrialUnavailable {
 			time.Sleep(aerr.RetryAfter)
 			continue
 		}
@@ -172,7 +158,7 @@ func (o *CheckServerOptions) Run() error {
 
 	// Report a trial observation back
 	v := generateObservation(o, &exp)
-	err = o.RedSkyAPI.ReportTrial(context.TODO(), t.ReportTrial, *v)
+	err = o.ExperimentsAPI.ReportTrial(context.TODO(), t.ReportTrial, *v)
 	if err != nil {
 		return err
 	}
@@ -183,9 +169,9 @@ func (o *CheckServerOptions) Run() error {
 
 // Serialize the experiment as JSON
 // TODO We use JSON instead of YAML here only so we can pipe it to jq, make that configurable?
-func doDryRun(out io.Writer, name string, experiment *redskyapi.Experiment) error {
+func doDryRun(out io.Writer, name string, experiment *experimentsv1alpha1.Experiment) error {
 	if name == "" {
-		name = GetRandomName(0)
+		name = getRandomName(0)
 	}
 	experiment.DisplayName = name
 	b, err := json.MarshalIndent(experiment, "", "    ")
@@ -197,24 +183,24 @@ func doDryRun(out io.Writer, name string, experiment *redskyapi.Experiment) erro
 }
 
 // Generates an experiment
-func generateExperiment(o *CheckServerOptions) *redskyapi.Experiment {
-	e := &redskyapi.Experiment{}
+func generateExperiment(o *ServerOptions) *experimentsv1alpha1.Experiment {
+	e := &experimentsv1alpha1.Experiment{}
 
 	// TODO Optimization?
 
 	used := make(map[string]bool, o.ParameterCount+o.MetricCount)
 
 	for i := 0; i < o.ParameterCount; i++ {
-		e.Parameters = append(e.Parameters, redskyapi.Parameter{
-			Name:   getUnique(used, GetRandomParameter),
-			Type:   redskyapi.ParameterTypeInteger,
+		e.Parameters = append(e.Parameters, experimentsv1alpha1.Parameter{
+			Name:   getUnique(used, getRandomParameter),
+			Type:   experimentsv1alpha1.ParameterTypeInteger,
 			Bounds: *generateBounds(),
 		})
 	}
 
 	for i := 0; i < o.MetricCount; i++ {
-		e.Metrics = append(e.Metrics, redskyapi.Metric{
-			Name:     getUnique(used, GetRandomMetric),
+		e.Metrics = append(e.Metrics, experimentsv1alpha1.Metric{
+			Name:     getUnique(used, getRandomMetric),
 			Minimize: generateMinimize(),
 		})
 	}
@@ -222,13 +208,13 @@ func generateExperiment(o *CheckServerOptions) *redskyapi.Experiment {
 	return e
 }
 
-func generateObservation(o *CheckServerOptions, exp *redskyapi.Experiment) *redskyapi.TrialValues {
-	vals := &redskyapi.TrialValues{}
+func generateObservation(o *ServerOptions, exp *experimentsv1alpha1.Experiment) *experimentsv1alpha1.TrialValues {
+	vals := &experimentsv1alpha1.TrialValues{}
 	if o.ReportFailure {
 		vals.Failed = true
 	} else {
 		for _, m := range exp.Metrics {
-			v := redskyapi.Value{MetricName: m.Name}
+			v := experimentsv1alpha1.Value{MetricName: m.Name}
 			v.Value, v.Error = generateValue()
 			vals.Values = append(vals.Values, v)
 		}
@@ -236,7 +222,7 @@ func generateObservation(o *CheckServerOptions, exp *redskyapi.Experiment) *reds
 	return vals
 }
 
-func generateBounds() *redskyapi.Bounds {
+func generateBounds() *experimentsv1alpha1.Bounds {
 	var min, max int
 	for min == max {
 		min, max = rand.Intn(100), rand.Intn(4000)
@@ -244,7 +230,7 @@ func generateBounds() *redskyapi.Bounds {
 	if min > max {
 		min, max = max, min
 	}
-	return &redskyapi.Bounds{
+	return &experimentsv1alpha1.Bounds{
 		Min: json.Number(strconv.Itoa(min)),
 		Max: json.Number(strconv.Itoa(max)),
 	}
@@ -260,7 +246,7 @@ func generateValue() (float64, float64) {
 	return rand.Float64(), 0
 }
 
-func checkExperiment(name string, original, created *redskyapi.Experiment) error {
+func checkExperiment(name string, original, created *experimentsv1alpha1.Experiment) error {
 	if created.Self == "" {
 		return fmt.Errorf("server did not return a self link")
 	}
@@ -276,7 +262,7 @@ func checkExperiment(name string, original, created *redskyapi.Experiment) error
 	if len(created.Parameters) != len(original.Parameters) {
 		return fmt.Errorf("server returned a different number of parameters: %d (expected %d)", len(created.Parameters), len(original.Parameters))
 	}
-	params := make(map[string]*redskyapi.Parameter, len(original.Parameters))
+	params := make(map[string]*experimentsv1alpha1.Parameter, len(original.Parameters))
 	for i := range original.Parameters {
 		params[original.Parameters[i].Name] = &original.Parameters[i]
 	}
@@ -293,7 +279,7 @@ func checkExperiment(name string, original, created *redskyapi.Experiment) error
 	if len(created.Metrics) != len(original.Metrics) {
 		return fmt.Errorf("server returned a different number of metrics: %d (expected %d)", len(created.Metrics), len(original.Metrics))
 	}
-	metrics := make(map[string]*redskyapi.Metric, len(original.Metrics))
+	metrics := make(map[string]*experimentsv1alpha1.Metric, len(original.Metrics))
 	for i := range original.Metrics {
 		metrics[original.Metrics[i].Name] = &original.Metrics[i]
 	}
@@ -310,7 +296,7 @@ func checkExperiment(name string, original, created *redskyapi.Experiment) error
 	return nil
 }
 
-func checkTrialAssignments(exp *redskyapi.Experiment, t *redskyapi.TrialAssignments) error {
+func checkTrialAssignments(exp *experimentsv1alpha1.Experiment, t *experimentsv1alpha1.TrialAssignments) error {
 	if t.ReportTrial == "" {
 		return fmt.Errorf("server did not return a report trial link")
 	}
@@ -318,7 +304,7 @@ func checkTrialAssignments(exp *redskyapi.Experiment, t *redskyapi.TrialAssignme
 	if len(t.Assignments) != len(exp.Parameters) {
 		return fmt.Errorf("server returned a different number of parameters: %d (expected %d)", len(t.Assignments), len(exp.Parameters))
 	}
-	params := make(map[string]*redskyapi.Parameter, len(exp.Parameters))
+	params := make(map[string]*experimentsv1alpha1.Parameter, len(exp.Parameters))
 	for i := range exp.Parameters {
 		params[exp.Parameters[i].Name] = &exp.Parameters[i]
 	}
