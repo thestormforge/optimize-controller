@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package util
+package commander
 
 import (
 	"context"
@@ -37,8 +37,10 @@ type ContextServer struct {
 	startUp func(string) error
 }
 
+// ContextServerOption is an option that can be applied to a context server
 type ContextServerOption func(*ContextServer)
 
+// NewContextServer creates a new context server bound to the lifecycle of the supplied context
 func NewContextServer(ctx context.Context, handler http.Handler, options ...ContextServerOption) *ContextServer {
 	cs := &ContextServer{}
 
@@ -56,7 +58,7 @@ func NewContextServer(ctx context.Context, handler http.Handler, options ...Cont
 	return cs
 }
 
-// WithServerOptions exposes the
+// WithServerOptions exposes the underlying HTTP server for configuration
 func WithServerOptions(serverOptions func(*http.Server)) ContextServerOption {
 	return func(cs *ContextServer) {
 		serverOptions(cs.srv)

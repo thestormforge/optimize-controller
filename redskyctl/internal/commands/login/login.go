@@ -29,7 +29,6 @@ import (
 	"github.com/pkg/browser"
 	"github.com/redskyops/redskyops-controller/internal/config"
 	"github.com/redskyops/redskyops-controller/internal/oauth2/authorizationcode"
-	cmdutil "github.com/redskyops/redskyops-controller/pkg/redskyctl/util"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
 	"golang.org/x/oauth2"
@@ -215,10 +214,10 @@ func (o *Options) runAuthorizationCodeFlow() error {
 	handler := c.Callback(o.takeOffline, o.generateCallbackResponse)
 
 	// Create a new server with some extra configuration
-	server := cmdutil.NewContextServer(ctx, handler,
-		cmdutil.WithServerOptions(configureCallbackServer(c)),
-		cmdutil.ShutdownOnInterrupt(func() { _, _ = fmt.Fprintln(o.Out) }),
-		cmdutil.HandleStart(func(string) error {
+	server := commander.NewContextServer(ctx, handler,
+		commander.WithServerOptions(configureCallbackServer(c)),
+		commander.ShutdownOnInterrupt(func() { _, _ = fmt.Fprintln(o.Out) }),
+		commander.HandleStart(func(string) error {
 			return o.openBrowser(c.AuthCodeURLWithPKCE())
 		}))
 
