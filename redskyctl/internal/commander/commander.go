@@ -76,8 +76,22 @@ func SetExperimentsAPI(api *experimentsv1alpha1.API, cfg config.Config, cmd *cob
 func SetPrinter(meta TableMeta, printer *ResourcePrinter, cmd *cobra.Command) {
 	pf := &printFlags{Meta: meta}
 	pf.addFlags(cmd)
-	AddPreRunE(cmd, func(command *cobra.Command, strings []string) error {
-		return pf.toPrinter(printer)
+	AddPreRunE(cmd, func(cmd *cobra.Command, args []string) error {
+		return pf.toPrinter(cmd, printer)
+	})
+}
+
+// SetKubePrinter assigns a client-go enabled resource printer during the pre-run of the supplied command
+func SetKubePrinter(printer *ResourcePrinter, cmd *cobra.Command) {
+	kp := &kubePrinter{}
+	pf := &printFlags{Meta: kp, OutputFormat: "yaml"}
+	pf.addFlags(cmd)
+	AddPreRunE(cmd, func(cmd *cobra.Command, args []string) error {
+		if err := pf.toPrinter(cmd, &kp.printer); err != nil {
+			return err
+		}
+		*printer = kp
+		return nil
 	})
 }
 

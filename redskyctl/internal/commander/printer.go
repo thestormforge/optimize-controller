@@ -23,10 +23,17 @@ import (
 	"sort"
 	"strings"
 	"text/tabwriter"
-
-	"github.com/spf13/cobra"
+	"time"
 
 	"encoding/json"
+
+	redskyv1alpha1 "github.com/redskyops/redskyops-controller/pkg/apis/redsky/v1alpha1"
+	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 
 	"sigs.k8s.io/yaml"
 )
@@ -79,8 +86,10 @@ type printFlags struct {
 }
 
 // allowedFormats returns the list of output formats which are currently available
-func (f *printFlags) allowedFormats() []string {
+func (f *printFlags) allowedFormats(cmd *cobra.Command) []string {
 	var allowed []string
+
+	// TODO Add support for cmd annotations to enable/disable specific formats (e.g. enable CSV should be special)
 
 	// These formats can be produced for pretty much anything
 	allowed = append(allowed, "json")
@@ -98,22 +107,25 @@ func (f *printFlags) allowedFormats() []string {
 
 // addFlags adds command line flags for configuring the printer
 func (f *printFlags) addFlags(cmd *cobra.Command) {
-	cmd.Flags().StringVarP(&f.OutputFormat, "output", "o", f.OutputFormat, fmt.Sprintf("Output format. One of: %s", strings.Join(f.allowedFormats(), "|")))
+	cmd.Flags().StringVarP(&f.OutputFormat, "output", "o", f.OutputFormat, fmt.Sprintf("Output format. One of: %s", strings.Join(f.allowedFormats(cmd), "|")))
 
 	cmd.Flags().BoolVar(&f.NoHeader, "no-headers", f.NoHeader, "Don't print headers.")
 	cmd.Flags().BoolVar(&f.ShowLabels, "show-labels", f.ShowLabels, "When printing, show all labels as the last column.")
 }
 
 // toPrinter generates a new printer
-func (f *printFlags) toPrinter(printer *ResourcePrinter) error {
+func (f *printFlags) toPrinter(cmd *cobra.Command, printer *ResourcePrinter) error {
 	outputFormat := strings.ToLower(f.OutputFormat)
+	allowedFormats := f.allowedFormats(cmd)
+	// TODO Check outputFormat vs allowedFormats
+
 	if outputFormat == "json" || outputFormat == "yaml" {
 		*printer = &marshalPrinter{format: outputFormat}
 		return nil
 	}
 
 	if f.Meta == nil {
-		return NoPrinterError{OutputFormat: f.OutputFormat, AllowedFormats: f.allowedFormats()}
+		return NoPrinterError{OutputFormat: f.OutputFormat, AllowedFormats: allowedFormats}
 	}
 
 	switch outputFormat {
@@ -127,7 +139,7 @@ func (f *printFlags) toPrinter(printer *ResourcePrinter) error {
 		*printer = &csvPrinter{meta: f.Meta, headers: !f.NoHeader}
 		return nil
 	}
-	return NoPrinterError{OutputFormat: f.OutputFormat, AllowedFormats: f.allowedFormats()}
+	return NoPrinterError{OutputFormat: f.OutputFormat, AllowedFormats: allowedFormats}
 }
 
 // marshalPrinter is a printer that generates output using some type of generic encoding (e.g. JSON)
@@ -280,4 +292,106 @@ func (p *csvPrinter) PrintObj(obj interface{}, w io.Writer) error {
 
 	cw.Flush()
 	return cw.Error()
+}
+
+// kubePrinter handles both metadata extraction and printing of objects registered to an API Machinery scheme
+type kubePrinter struct {
+	printer ResourcePrinter
+}
+
+// ExtractList returns a slice of the items from a Kube list object
+func (k kubePrinter) ExtractList(obj interface{}) ([]interface{}, error) {
+	// Must be a runtime object
+	o, ok := obj.(runtime.Object)
+	if !ok {
+		return nil, fmt.Errorf("expected runtime.Object")
+	}
+
+	// If it's not a list, just wrap the single element
+	if !meta.IsListType(o) {
+		return []interface{}{o}, nil
+	}
+
+	// Extract the actual "items"
+	l, err := meta.ExtractList(o)
+	if err != nil {
+		return nil, err
+	}
+
+	// Change type
+	ll := make([]interface{}, len(l))
+	for i := range l {
+		ll[i] = l[i]
+	}
+	return ll, nil
+}
+
+// Columns just returns a fixed set of columns
+func (k kubePrinter) Columns(obj interface{}, outputFormat string) []string {
+	// TODO Can we inspect the object reflectively for print columns?
+	return []string{"name", "age"}
+}
+
+// ExtractValue attempts to extract common columns from a Kube runtime object
+func (k kubePrinter) ExtractValue(obj interface{}, column string) (string, error) {
+	o, ok := obj.(runtime.Object)
+	if !ok {
+		return "", fmt.Errorf("expected runtime.Object")
+	}
+
+	switch column {
+	case "name":
+		acc, err := meta.Accessor(o)
+		if err != nil {
+			return "", err
+		}
+		return acc.GetName(), nil
+
+	case "namespace":
+		acc, err := meta.Accessor(o)
+		if err != nil {
+			return "", err
+		}
+		return acc.GetNamespace(), nil
+
+	case "age":
+		acc, err := meta.Accessor(o)
+		if err != nil {
+			return "", err
+		}
+		return time.Since(acc.GetCreationTimestamp().Time).Round(time.Second).String(), nil
+
+	case "labels":
+		acc, err := meta.Accessor(o)
+		if err != nil {
+			return "", err
+		}
+		var l []string
+		for k, v := range acc.GetLabels() {
+			l = append(l, fmt.Sprintf("%s=%s", k, v))
+		}
+		return strings.Join(l, ","), nil
+	}
+
+	return "", fmt.Errorf("unable to extract: %s", column)
+}
+
+// Header formats all headers in upper case
+func (k kubePrinter) Header(outputFormat string, column string) string {
+	return strings.ToUpper(column)
+}
+
+// PrintObj converts the Kube runtime object to an unstructured object for marshalling
+func (k kubePrinter) PrintObj(obj interface{}, w io.Writer) error {
+	// As a special case, deal with runtime.Object, it's type metadata, and it's silly creation timestamp
+	scheme := runtime.NewScheme()
+	_ = clientgoscheme.AddToScheme(scheme)
+	_ = redskyv1alpha1.AddToScheme(scheme)
+	u := &unstructured.Unstructured{}
+	// TODO Is the InternalGroupVersioner going to cause issues based on the version of client-go we use?
+	if err := scheme.Convert(obj, u, runtime.InternalGroupVersioner); err == nil {
+		u.SetCreationTimestamp(metav1.Time{})
+		obj = u
+	}
+	return k.printer.PrintObj(obj, w)
 }
