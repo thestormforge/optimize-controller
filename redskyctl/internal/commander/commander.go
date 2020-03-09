@@ -20,6 +20,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"os/exec"
 
 	internalconfig "github.com/redskyops/redskyops-controller/internal/config"
 	cmdutil "github.com/redskyops/redskyops-controller/pkg/redskyctl/util"
@@ -184,6 +185,54 @@ func ExitOnError(cmd *cobra.Command) {
 		cmd.PersistentPostRun = wrapE(cmd.PersistentPostRunE)
 		cmd.PersistentPostRunE = nil
 	}
+}
+
+// RunPipe runs a Cobra command and pipes the output into an OS command; the supplied streams are applied to pipeline
+// and an (optional) filter can be used between the two commands. This function will block until the OS command exits.
+func RunPipe(streams IOStreams, source func() (*cobra.Command, error), sink func() (*exec.Cmd, error), filter func(w io.Writer) io.Writer) error {
+	// Provide a default filter
+	if filter == nil {
+		filter = func(w io.Writer) io.Writer { return w }
+	}
+
+	// Create the source
+	sourceCmd, err := source()
+	if err != nil {
+		return err
+	}
+	sourceCmd.SetIn(streams.In)
+	sourceCmd.SetErr(streams.ErrOut)
+
+	// Create the sink
+	sinkCmd, err := sink()
+	if err != nil {
+		return err
+	}
+	sinkCmd.Stdout = streams.Out
+	sinkCmd.Stderr = streams.ErrOut
+
+	// Connect the two
+	out, err := sinkCmd.StdinPipe()
+	if err != nil {
+		return err
+	}
+	sourceCmd.SetOut(filter(out))
+
+	// Start the sink asynchronously to receive output
+	if err := sinkCmd.Start(); err != nil {
+		return err
+	}
+
+	// Run the source and close the pipe when it is done
+	sourceCmd.SetArgs([]string{})
+	err = sourceCmd.Execute()
+	_ = out.Close()
+	if err != nil {
+		return err
+	}
+
+	// Wait for the sink to finish processing what we sent it
+	return sinkCmd.Wait()
 }
 
 func userAgent(cmd *cobra.Command) http.RoundTripper {
