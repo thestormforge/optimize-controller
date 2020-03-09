@@ -54,6 +54,7 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 
 	cmd.Flags().StringVarP(&o.Filename, "filename", "f", "", "File that contains the experiment to check.")
 
+	commander.ExitOnError(cmd)
 	return cmd
 }
 

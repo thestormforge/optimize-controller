@@ -18,7 +18,6 @@ package check
 
 import (
 	"github.com/redskyops/redskyops-controller/internal/config"
-	cmdutil "github.com/redskyops/redskyops-controller/pkg/redskyctl/util"
 	"github.com/spf13/cobra"
 )
 
@@ -36,7 +35,7 @@ func NewCommand(o *Options) *cobra.Command {
 		Long:  "Run a consistency check on Red Sky Ops components",
 	}
 
-	cmd.AddCommand(NewExperimentCommand(&ExperimentOptions{Config: o.Config}))
+	cmd.AddCommand(NewExperimentCommand(&ExperimentOptions{}))
 	cmd.AddCommand(NewServerCommand(&ServerOptions{Config: o.Config}))
 
 	// TODO Add a controller check?

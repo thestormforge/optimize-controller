@@ -51,6 +51,7 @@ func NewConfigCommand(o *ConfigOptions) *cobra.Command {
 	cmd.Flags().StringVarP(&o.Kustomize, "kustomize", "k", o.Kustomize, "Kustomize `root` to update")
 	cmd.Flags().StringVarP(&o.Filename, "filename", "f", o.Filename, "`file` to write the configuration to (relative to the Kustomize root, if specified)")
 
+	commander.ExitOnError(cmd)
 	return cmd
 }
 

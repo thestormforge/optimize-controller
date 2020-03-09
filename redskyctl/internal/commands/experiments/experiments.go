@@ -42,11 +42,6 @@ const (
 	TypeTrial = "trial"
 )
 
-type experimentResource struct {
-	Name    string
-	Aliases []string
-}
-
 // TypeAndNameArgs binds the "TYPE NAME..." arguments to a command
 func TypeAndNameArgs(cmd *cobra.Command, opts *Options) {
 	// Change the usage string to indicate what arguments are expected

@@ -61,6 +61,7 @@ func NewSuggestCommand(o *SuggestOptions) *cobra.Command {
 	cmd.Flags().BoolVar(&o.AllowInteractive, "interactive", false, "Allow interactive prompts for unspecified parameter assignments.")
 	cmd.Flags().StringVar(&o.DefaultBehavior, "default", "", "Select the behavior for default values; one of: none|min|max|rand.")
 
+	commander.ExitOnError(cmd)
 	return cmd
 }
 
