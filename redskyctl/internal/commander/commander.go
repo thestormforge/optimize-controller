@@ -235,6 +235,21 @@ func RunPipe(streams IOStreams, source func() (*cobra.Command, error), sink func
 	return sinkCmd.Wait()
 }
 
+// Run runs an OS command; the supplied streams are inherited by the forked process
+func Run(streams IOStreams, cmd func() (*exec.Cmd, error)) error {
+	// Create the command
+	cmdCmd, err := cmd()
+	if err != nil {
+		return err
+	}
+	cmdCmd.Stdin = streams.In
+	cmdCmd.Stdout = streams.Out
+	cmdCmd.Stderr = streams.ErrOut
+
+	// Run it
+	return cmdCmd.Run()
+}
+
 func userAgent(cmd *cobra.Command) http.RoundTripper {
 	// TODO Get version number from cmd?
 	// TODO Include OS, etc. in comment?
