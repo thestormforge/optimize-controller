@@ -34,6 +34,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/duration"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 
 	"sigs.k8s.io/yaml"
@@ -416,7 +417,11 @@ func (k kubePrinter) ExtractValue(obj interface{}, column string) (string, error
 		if err != nil {
 			return "", err
 		}
-		return time.Since(acc.GetCreationTimestamp().Time).Round(time.Second).String(), nil
+		timestamp := acc.GetCreationTimestamp()
+		if timestamp.IsZero() {
+			return "<unknown>", nil
+		}
+		return duration.HumanDuration(time.Since(timestamp.Time)), nil
 
 	case "labels":
 		acc, err := meta.Accessor(o)

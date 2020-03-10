@@ -172,7 +172,7 @@ func (m *experimentsMeta) ExtractValue(obj interface{}, column string) (string, 
 			}
 			return strconv.FormatInt(o.Number, 10), nil
 		case "status":
-			return string(o.Status), nil
+			return strings.Title(string(o.Status)), nil
 		default:
 			// This could be a name pattern (e.g. parameter assignment or metric value)
 			if pn := strings.TrimPrefix(column, "parameter_"); pn != column {
