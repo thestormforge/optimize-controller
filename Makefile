@@ -102,10 +102,6 @@ else
 CONTROLLER_GEN=$(shell which controller-gen)
 endif
 
-# Generate client code
-generate-client:
-	client-gen --clientset-name kubernetes --input-base "" --input github.com/redskyops/redskyops-controller/pkg/apis/redsky/v1alpha1 --output-base "../../.." --output-package github.com/redskyops/redskyops-controller/pkg --go-header-file hack/boilerplate.go.txt
-
 # Generate CLI and API documentation
 generate-docs:
 	go run -ldflags '$(LDFLAGS)' redskyctl/main.go docs --directory docs/redskyctl
