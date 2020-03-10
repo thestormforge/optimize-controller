@@ -134,13 +134,10 @@ func newPrintFlags(meta TableMeta, config map[string]string) *printFlags {
 		allowedFormats[i] = strings.ToLower(strings.TrimSpace(allowedFormats[i]))
 	}
 	if len(allowedFormats) == 0 {
-		allowedFormats = []string{"json", "yaml", "name", "wide", "csv"}
+		allowedFormats = []string{"json", "yaml", "name", "wide", "csv", ""}
 	}
 
 	for _, allowedFormat := range allowedFormats {
-		if allowedFormat == "" {
-			continue
-		}
 		if requiresMeta(allowedFormat) && pf.meta == nil {
 			continue
 		}
@@ -164,7 +161,8 @@ func newPrintFlags(meta TableMeta, config map[string]string) *printFlags {
 func (f *printFlags) addFlags(cmd *cobra.Command) {
 	// We only need an output flag if there is a choice
 	if len(f.allowedFormats) > 1 {
-		cmd.Flags().StringVarP(&f.outputFormat, "output", "o", f.outputFormat, fmt.Sprintf("Output `format`. One of: %s", strings.Join(f.allowedFormats, "|")))
+		allowed := strings.Trim(strings.ReplaceAll(strings.Join(f.allowedFormats, "|"), "||", "|"), "|")
+		cmd.Flags().StringVarP(&f.outputFormat, "output", "o", f.outputFormat, fmt.Sprintf("Output `format`. One of: %s", allowed))
 	}
 
 	// These flags only work with formats that require metadata, make sure we have at least one
