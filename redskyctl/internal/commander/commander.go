@@ -18,12 +18,13 @@ package commander
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"os/exec"
 
 	internalconfig "github.com/redskyops/redskyops-controller/internal/config"
-	cmdutil "github.com/redskyops/redskyops-controller/pkg/redskyctl/util"
 	"github.com/redskyops/redskyops-controller/pkg/version"
 	experimentsv1alpha1 "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/config"
@@ -85,7 +86,7 @@ func SetPrinter(meta TableMeta, printer *ResourcePrinter, cmd *cobra.Command) {
 // SetKubePrinter assigns a client-go enabled resource printer during the pre-run of the supplied command
 func SetKubePrinter(printer *ResourcePrinter, cmd *cobra.Command) {
 	kp := &kubePrinter{}
-	pf := &printFlags{Meta: kp, OutputFormat: "yaml"}
+	pf := &printFlags{Meta: kp, OutputFormat: "yaml"} // TODO The default output format should come from a cmd annotation
 	pf.addFlags(cmd)
 	AddPreRunE(cmd, func(cmd *cobra.Command, args []string) error {
 		if err := pf.toPrinter(cmd, &kp.printer); err != nil {
@@ -161,8 +162,28 @@ func ExitOnError(cmd *cobra.Command) {
 	// Convert a RunE to a Run
 	wrapE := func(runE func(*cobra.Command, []string) error) func(*cobra.Command, []string) {
 		return func(cmd *cobra.Command, args []string) {
-			// TODO Move the CheckErr implementation here once everything is migrated over
-			cmdutil.CheckErr(cmd, runE(cmd, args))
+			err := runE(cmd, args)
+			if err == nil {
+				return
+			}
+
+			// Handle forked process errors by propagating the exit status
+			if eerr, ok := err.(*exec.ExitError); ok && !eerr.Success() {
+				os.Exit(eerr.ExitCode())
+			}
+
+			// Handle unauthorized errors by suggesting `login`
+			if experimentsv1alpha1.IsUnauthorized(err) {
+				msg := "unauthorized"
+				if _, ok := err.(*experimentsv1alpha1.Error); ok {
+					msg = err.Error()
+				}
+				err = fmt.Errorf("%s, try running 'redskyctl login'", msg)
+			}
+
+			// TODO With the exception of silence usage behavior and stdout vs. stderr, this is basically what Cobra already does with a RunE...
+			cmd.PrintErrln("Error:", err.Error())
+			os.Exit(1)
 		}
 	}
 
