@@ -4,16 +4,22 @@ Display a Red Sky resource
 
 ### Synopsis
 
-Display one or many Red Sky resources
+Get Red Sky resources from the remote server
 
 ```
-redskyctl get [flags]
+redskyctl get TYPE NAME... [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for get
+      --chunk-size int       Fetch large lists in chunks rather then all at once. (default 500)
+  -h, --help                 help for get
+      --no-headers           Don't print headers.
+  -o, --output format        Output format. One of: json|yaml|name|wide|csv
+  -l, --selector query       Selector (label query) to filter on.
+      --show-labels          When printing, show all labels as the last column.
+      --sort-by expression   Sort list types using this JSONPath expression.
 ```
 
 ### Options inherited from parent commands
@@ -28,6 +34,4 @@ redskyctl get [flags]
 ### SEE ALSO
 
 * [redskyctl](redskyctl.md)	 - Kubernetes Exploration
-* [redskyctl get experiments](redskyctl_get_experiments.md)	 - Display a list of experiments
-* [redskyctl get trials](redskyctl_get_trials.md)	 - Display a list of trial for an experiment
 

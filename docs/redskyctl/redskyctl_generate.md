@@ -6,10 +6,6 @@ Generate Red Sky Ops objects
 
 Generate Red Sky Ops object manifests
 
-```
-redskyctl generate [flags]
-```
-
 ### Options
 
 ```
@@ -28,6 +24,7 @@ redskyctl generate [flags]
 ### SEE ALSO
 
 * [redskyctl](redskyctl.md)	 - Kubernetes Exploration
+* [redskyctl generate bootstrap-cluster-role](redskyctl_generate_bootstrap-cluster-role.md)	 - Generate Red Sky Ops permissions
 * [redskyctl generate install](redskyctl_generate_install.md)	 - Generate Red Sky Ops manifests
 * [redskyctl generate rbac](redskyctl_generate_rbac.md)	 - Generate experiment roles
 * [redskyctl generate secret](redskyctl_generate_secret.md)	 - Generate Red Sky Ops authorization

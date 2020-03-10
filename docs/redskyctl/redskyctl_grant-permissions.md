@@ -1,15 +1,21 @@
-## redskyctl check
+## redskyctl grant-permissions
 
-Run a consistency check
+Grant permissions
 
 ### Synopsis
 
-Run a consistency check on Red Sky Ops components
+Grant the Red Sky Controller permissions
+
+```
+redskyctl grant-permissions [flags]
+```
 
 ### Options
 
 ```
-  -h, --help   help for check
+      --create-trial-namespace   Include trial namespace creation permissions.
+  -h, --help                     help for grant-permissions
+      --skip-default             Skip default permissions.
 ```
 
 ### Options inherited from parent commands
@@ -24,6 +30,4 @@ Run a consistency check on Red Sky Ops components
 ### SEE ALSO
 
 * [redskyctl](redskyctl.md)	 - Kubernetes Exploration
-* [redskyctl check experiment](redskyctl_check_experiment.md)	 - Check an experiment
-* [redskyctl check server](redskyctl_check_server.md)	 - Check the server
 

@@ -1,23 +1,22 @@
-## redskyctl generate rbac
+## redskyctl generate bootstrap-cluster-role
 
-Generate experiment roles
+Generate Red Sky Ops permissions
 
 ### Synopsis
 
-Generate RBAC manifests from an experiment manifest
+Generate RBAC for Red Sky Ops
 
 ```
-redskyctl generate rbac [flags]
+redskyctl generate bootstrap-cluster-role [flags]
 ```
 
 ### Options
 
 ```
-  -f, --filename string    File that contains the experiment to extract roles from.
-  -h, --help               help for rbac
-      --include-names      Include resource names in the generated role.
-  -o, --output format      Output format. One of: json|yaml (default "yaml")
-      --role-name string   Name of the cluster role to generate (default is to use a generated name).
+      --create-trial-namespace   Include trial namespace creation permissions.
+  -h, --help                     help for bootstrap-cluster-role
+  -o, --output format            Output format. One of: json|yaml (default "yaml")
+      --skip-default             Skip default permissions.
 ```
 
 ### Options inherited from parent commands
