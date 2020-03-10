@@ -21,18 +21,18 @@ import (
 	"strings"
 
 	"github.com/redskyops/redskyops-controller/internal/config"
-	"github.com/redskyops/redskyops-controller/pkg/redskyctl/cmd/check"
-	"github.com/redskyops/redskyops-controller/pkg/redskyctl/cmd/generate"
-	"github.com/redskyops/redskyops-controller/pkg/redskyctl/cmd/get"
-	"github.com/redskyops/redskyops-controller/pkg/redskyctl/cmd/kustomize"
-	"github.com/redskyops/redskyops-controller/pkg/redskyctl/cmd/setup"
-	"github.com/redskyops/redskyops-controller/pkg/redskyctl/cmd/suggest"
-	"github.com/redskyops/redskyops-controller/pkg/redskyctl/util"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/configuration"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/deletion"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/authorize_cluster"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/check"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/configure"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/docs"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/experiments"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/generate"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/grant_permissions"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/initialize"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/kustomize"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/login"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/reset"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/results"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/revoke"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/version"
@@ -58,16 +58,22 @@ func NewRedskyctlCommand() *cobra.Command {
 	cfg.ClientIdentity = authorizationIdentity
 
 	// Add the sub-commands
-	rootCmd.AddCommand(configuration.NewCommand(&configuration.Options{Config: cfg}))
-	rootCmd.AddCommand(deletion.NewCommand(&deletion.Options{Config: cfg}))
+	rootCmd.AddCommand(authorize_cluster.NewCommand(&authorize_cluster.Options{GeneratorOptions: authorize_cluster.GeneratorOptions{Config: cfg}}))
+	rootCmd.AddCommand(check.NewCommand(&check.Options{Config: cfg}))
+	rootCmd.AddCommand(configure.NewCommand(&configure.Options{Config: cfg}))
 	rootCmd.AddCommand(docs.NewCommand(&docs.Options{}))
+	rootCmd.AddCommand(experiments.NewDeleteCommand(&experiments.DeleteOptions{Options: experiments.Options{Config: cfg}}))
+	rootCmd.AddCommand(experiments.NewGetCommand(&experiments.GetOptions{Options: experiments.Options{Config: cfg}, ChunkSize: 500}))
+	rootCmd.AddCommand(experiments.NewSuggestCommand(&experiments.SuggestOptions{Options: experiments.Options{Config: cfg}}))
+	rootCmd.AddCommand(generate.NewCommand(&generate.Options{Config: cfg}))
+	rootCmd.AddCommand(grant_permissions.NewCommand(&grant_permissions.Options{GeneratorOptions: grant_permissions.GeneratorOptions{Config: cfg}}))
+	rootCmd.AddCommand(initialize.NewCommand(&initialize.Options{GeneratorOptions: initialize.GeneratorOptions{Config: cfg}, IncludeBootstrapRole: true}))
+	rootCmd.AddCommand(kustomize.NewCommand())
 	rootCmd.AddCommand(login.NewCommand(&login.Options{Config: cfg}))
+	rootCmd.AddCommand(reset.NewCommand(&reset.Options{Config: cfg}))
 	rootCmd.AddCommand(results.NewCommand(&results.Options{Config: cfg}))
 	rootCmd.AddCommand(revoke.NewCommand(&revoke.Options{Config: cfg}))
 	rootCmd.AddCommand(version.NewCommand(&version.Options{Config: cfg}))
-
-	// Compatibility mode: these commands need to be migrated to use the new style
-	addUnmigratedCommands(rootCmd, cfg)
 
 	// TODO Add 'backup' and 'restore' maintenance commands ('maint' subcommands?)
 	// TODO We need helpers for doing a "dry run" on patches to make configuration easier
@@ -76,23 +82,6 @@ func NewRedskyctlCommand() *cobra.Command {
 	// TODO The "get" functionality needs to support templating so you can extract assignments for downstream use
 
 	return rootCmd
-}
-
-func addUnmigratedCommands(rootCmd *cobra.Command, cfg *config.RedSkyConfig) {
-	flags := rootCmd.PersistentFlags()
-	configFlags := util.NewConfigFlags(cfg)
-	configFlags.AddFlags(flags)
-	f := util.NewFactory(configFlags)
-	ioStreams := util.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
-
-	rootCmd.AddCommand(setup.NewInitCommand(f, ioStreams))
-	rootCmd.AddCommand(setup.NewResetCommand(f, ioStreams))
-	rootCmd.AddCommand(setup.NewAuthorizeCommand(f, ioStreams))
-	rootCmd.AddCommand(kustomize.NewKustomizeCommand(f, ioStreams))
-	rootCmd.AddCommand(check.NewCheckCommand(f, ioStreams))
-	rootCmd.AddCommand(suggest.NewSuggestCommand(f, ioStreams))
-	rootCmd.AddCommand(generate.NewGenerateCommand(f, ioStreams))
-	rootCmd.AddCommand(get.NewGetCommand(f, ioStreams))
 }
 
 // authorizationIdentity returns the client identifier to use for a given authorization server (identified by it's issuer URI)

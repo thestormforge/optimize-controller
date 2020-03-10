@@ -18,11 +18,13 @@ package commander
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"os/exec"
 
 	internalconfig "github.com/redskyops/redskyops-controller/internal/config"
-	cmdutil "github.com/redskyops/redskyops-controller/pkg/redskyctl/util"
 	"github.com/redskyops/redskyops-controller/pkg/version"
 	experimentsv1alpha1 "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/config"
@@ -72,6 +74,29 @@ func SetExperimentsAPI(api *experimentsv1alpha1.API, cfg config.Config, cmd *cob
 	return nil
 }
 
+// SetPrinter assigns the resource printer during the pre-run of the supplied command
+func SetPrinter(meta TableMeta, printer *ResourcePrinter, cmd *cobra.Command) {
+	pf := newPrintFlags(meta, cmd.Annotations)
+	pf.addFlags(cmd)
+	AddPreRunE(cmd, func(*cobra.Command, []string) error {
+		return pf.toPrinter(printer)
+	})
+}
+
+// SetKubePrinter assigns a client-go enabled resource printer during the pre-run of the supplied command
+func SetKubePrinter(printer *ResourcePrinter, cmd *cobra.Command) {
+	kp := &kubePrinter{}
+	pf := newPrintFlags(kp, cmd.Annotations)
+	pf.addFlags(cmd)
+	AddPreRunE(cmd, func(*cobra.Command, []string) error {
+		if err := pf.toPrinter(&kp.printer); err != nil {
+			return err
+		}
+		*printer = kp
+		return nil
+	})
+}
+
 // ConfigGlobals sets up persistent globals for the supplied configuration
 func ConfigGlobals(cfg *internalconfig.RedSkyConfig, cmd *cobra.Command) {
 	// Make sure we get the root to make these globals
@@ -80,6 +105,8 @@ func ConfigGlobals(cfg *internalconfig.RedSkyConfig, cmd *cobra.Command) {
 	// Create the configuration options on top of environment variable overrides
 	root.PersistentFlags().StringVar(&cfg.Filename, "redskyconfig", cfg.Filename, "Path to the redskyconfig file to use.")
 	root.PersistentFlags().StringVar(&cfg.Overrides.Context, "context", "", "The name of the redskyconfig context to use. NOT THE KUBE CONTEXT.")
+	root.PersistentFlags().StringVar(&cfg.Overrides.KubeConfig, "kubeconfig", "", "Path to the kubeconfig file to use for CLI requests.")
+	root.PersistentFlags().StringVarP(&cfg.Overrides.Namespace, "namespace", "n", "", "If present, the namespace scope for this CLI request.")
 
 	// Set the persistent pre-run on the root, individual commands can bypass this by supplying their own persistent pre-run
 	root.PersistentPreRunE = func(cmd *cobra.Command, args []string) error { return cfg.Load() }
@@ -101,13 +128,62 @@ func WithoutArgsE(runE func() error) func(*cobra.Command, []string) error {
 	return func(*cobra.Command, []string) error { return runE() }
 }
 
+// AddPreRunE adds an error returning pre-run function to the supplied command, existing pre-run actions will run AFTER
+// the supplied function, and only if the supplied pre-run function does not return an error
+func AddPreRunE(cmd *cobra.Command, preRunE func(*cobra.Command, []string) error) {
+	// Nothing set yet, just add it
+	if cmd.PreRunE == nil && cmd.PreRun == nil {
+		cmd.PreRunE = preRunE
+		return
+	}
+
+	// Capture the existing function
+	oldPreRunE := cmd.PreRunE
+	oldPreRun := cmd.PreRun
+
+	// Redefine the pre-run
+	cmd.PreRun = nil
+	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
+		if err := preRunE(cmd, args); err != nil {
+			return err
+		}
+		if oldPreRunE != nil {
+			return oldPreRunE(cmd, args)
+		}
+		if oldPreRun != nil {
+			oldPreRun(cmd, args)
+		}
+		return nil
+	}
+}
+
 // ExitOnError converts all the error returning run functions to non-error implementations that immediately exit
 func ExitOnError(cmd *cobra.Command) {
 	// Convert a RunE to a Run
 	wrapE := func(runE func(*cobra.Command, []string) error) func(*cobra.Command, []string) {
 		return func(cmd *cobra.Command, args []string) {
-			// TODO Move the CheckErr implementation here once everything is migrated over
-			cmdutil.CheckErr(cmd, runE(cmd, args))
+			err := runE(cmd, args)
+			if err == nil {
+				return
+			}
+
+			// Handle forked process errors by propagating the exit status
+			if eerr, ok := err.(*exec.ExitError); ok && !eerr.Success() {
+				os.Exit(eerr.ExitCode())
+			}
+
+			// Handle unauthorized errors by suggesting `login`
+			if experimentsv1alpha1.IsUnauthorized(err) {
+				msg := "unauthorized"
+				if _, ok := err.(*experimentsv1alpha1.Error); ok {
+					msg = err.Error()
+				}
+				err = fmt.Errorf("%s, try running 'redskyctl login'", msg)
+			}
+
+			// TODO With the exception of silence usage behavior and stdout vs. stderr, this is basically what Cobra already does with a RunE...
+			cmd.PrintErrln("Error:", err.Error())
+			os.Exit(1)
 		}
 	}
 
@@ -132,6 +208,69 @@ func ExitOnError(cmd *cobra.Command) {
 		cmd.PersistentPostRun = wrapE(cmd.PersistentPostRunE)
 		cmd.PersistentPostRunE = nil
 	}
+}
+
+// RunPipe runs a Cobra command and pipes the output into an OS command; the supplied streams are applied to pipeline
+// and an (optional) filter can be used between the two commands. This function will block until the OS command exits.
+func RunPipe(streams IOStreams, source func() (*cobra.Command, error), sink func() (*exec.Cmd, error), filter func(w io.Writer) io.Writer) error {
+	// Provide a default filter
+	if filter == nil {
+		filter = func(w io.Writer) io.Writer { return w }
+	}
+
+	// Create the source
+	sourceCmd, err := source()
+	if err != nil {
+		return err
+	}
+	sourceCmd.SetIn(streams.In)
+	sourceCmd.SetErr(streams.ErrOut)
+
+	// Create the sink
+	sinkCmd, err := sink()
+	if err != nil {
+		return err
+	}
+	sinkCmd.Stdout = streams.Out
+	sinkCmd.Stderr = streams.ErrOut
+
+	// Connect the two
+	out, err := sinkCmd.StdinPipe()
+	if err != nil {
+		return err
+	}
+	sourceCmd.SetOut(filter(out))
+
+	// Start the sink asynchronously to receive output
+	if err := sinkCmd.Start(); err != nil {
+		return err
+	}
+
+	// Run the source and close the pipe when it is done
+	sourceCmd.SetArgs([]string{})
+	err = sourceCmd.Execute()
+	_ = out.Close()
+	if err != nil {
+		return err
+	}
+
+	// Wait for the sink to finish processing what we sent it
+	return sinkCmd.Wait()
+}
+
+// Run runs an OS command; the supplied streams are inherited by the forked process
+func Run(streams IOStreams, cmd func() (*exec.Cmd, error)) error {
+	// Create the command
+	cmdCmd, err := cmd()
+	if err != nil {
+		return err
+	}
+	cmdCmd.Stdin = streams.In
+	cmdCmd.Stdout = streams.Out
+	cmdCmd.Stderr = streams.ErrOut
+
+	// Run it
+	return cmdCmd.Run()
 }
 
 func userAgent(cmd *cobra.Command) http.RoundTripper {
