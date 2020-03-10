@@ -42,7 +42,7 @@ type GeneratorOptions struct {
 // NewGeneratorCommand creates a command for generating the controller role definitions
 func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "grant-permissions-role",
+		Use:   "bootstrap-cluster-role",
 		Short: "Generate Red Sky Ops permissions",
 		Long:  "Generate RBAC for Red Sky Ops",
 

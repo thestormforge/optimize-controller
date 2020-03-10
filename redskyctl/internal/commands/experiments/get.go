@@ -42,7 +42,7 @@ type GetOptions struct {
 func NewGetCommand(o *GetOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get",
-		Short: "Get a Red Sky resource",
+		Short: "Display a Red Sky resource",
 		Long:  "Get Red Sky resources from the remote server",
 
 		PreRunE: func(cmd *cobra.Command, args []string) error {

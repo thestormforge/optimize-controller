@@ -52,7 +52,7 @@ type GeneratorOptions struct {
 // NewGeneratorCommand creates a command for generating the cluster authorization secret
 func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "authorize-cluster-secret",
+		Use:   "secret",
 		Short: "Generate Red Sky Ops authorization",
 		Long:  "Generate authorization secret for Red Sky Ops",
 
