@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strconv"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -36,6 +37,19 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 
 	"sigs.k8s.io/yaml"
+)
+
+const (
+	// PrinterAllowedFormats is the configuration key for
+	PrinterAllowedFormats = "allowedFormats"
+	// PrinterOutputFormat is the configuration key for setting the initial output format
+	PrinterOutputFormat = "outputFormat"
+	// PrinterColumns is the configuration key for setting the initial column list
+	PrinterColumns = "columns"
+	// PrinterNoHeader is the configuration key for setting the initial suppress header flag
+	PrinterNoHeader = "noHeader"
+	// PrinterShowLabels is the configuration key for setting the initial show labels flag
+	PrinterShowLabels = "showLabels"
 )
 
 // ResourcePrinter formats an object to a byte stream
@@ -71,86 +85,131 @@ func (e NoPrinterError) Error() string {
 	return fmt.Sprintf("no printer for %s, allowed formats are: %s", e.OutputFormat, strings.Join(e.AllowedFormats, ","))
 }
 
-// printFlags are the options for creating a printer
-type printFlags struct {
-	// OutputFormat determines what type of printer should be created
-	OutputFormat string
-	// Meta is an optional inspector required for some formats
-	Meta TableMeta
-	// Columns overrides the default column list for supported formats
-	Columns []string
-	// NoHeader suppresses the headers for supported formats
-	NoHeader bool
-	// ShowLabels includes labels in supported formats
-	ShowLabels bool
+// requiresMeta returns true for the formats that require a TableMeta
+func requiresMeta(outputFormat string) bool {
+	switch outputFormat {
+	case "name", "wide", "csv", "":
+		return true
+	}
+	return false
 }
 
-// allowedFormats returns the list of output formats which are currently available
-func (f *printFlags) allowedFormats(cmd *cobra.Command) []string {
-	var allowed []string
+// printFlags are the options for creating a printer
+type printFlags struct {
+	// allowedFormats are the possible formats
+	allowedFormats []string
+	// outputFormat determines what type of printer should be created
+	outputFormat string
+	// meta is an optional inspector required for some formats
+	meta TableMeta
+	// columns overrides the default column list for supported formats
+	columns []string
+	// noHeader suppresses the headers for supported formats
+	noHeader bool
+	// showLabels includes labels in supported formats
+	showLabels bool
+}
 
-	// TODO Add support for cmd annotations to enable/disable specific formats (e.g. enable CSV should be special)
+// printFlagsFieldSep checks for the field separator when parsing configuration values
+func printFlagsFieldSep(c rune) bool { return c == ',' }
 
-	// These formats can be produced for pretty much anything
-	allowed = append(allowed, "json")
-	allowed = append(allowed, "yaml")
+// newPrintFlags returns a new print flags instance with settings parsed from a map of name/value configuration pairs
+func newPrintFlags(meta TableMeta, config map[string]string) *printFlags {
+	pf := &printFlags{meta: meta}
 
-	// These formats all require the metadata
-	if f.Meta != nil {
-		allowed = append(allowed, "name")
-		allowed = append(allowed, "wide")
-		allowed = append(allowed, "csv")
+	// Split the column list
+	pf.columns = strings.FieldsFunc(config[PrinterColumns], printFlagsFieldSep)
+	for i := range pf.columns {
+		pf.columns[i] = strings.TrimSpace(pf.columns[i])
 	}
 
-	return allowed
+	// Parse boolean flags (ignore failures and leave false)
+	pf.noHeader, _ = strconv.ParseBool(config[PrinterNoHeader])
+	pf.showLabels, _ = strconv.ParseBool(config[PrinterShowLabels])
+
+	// Compute the list of allowed printer formats
+	outputFormat := strings.ToLower(config[PrinterOutputFormat])
+	allowedFormats := strings.FieldsFunc(config[PrinterAllowedFormats], printFlagsFieldSep)
+	for i := range allowedFormats {
+		allowedFormats[i] = strings.ToLower(strings.TrimSpace(allowedFormats[i]))
+	}
+	if len(allowedFormats) == 0 {
+		allowedFormats = []string{"json", "yaml", "name", "wide", "csv"}
+	}
+
+	for _, allowedFormat := range allowedFormats {
+		if allowedFormat == "" {
+			continue
+		}
+		if requiresMeta(allowedFormat) && pf.meta == nil {
+			continue
+		}
+		pf.allowedFormats = append(pf.allowedFormats, allowedFormat)
+
+		// Only set the output format if it is allowed
+		if outputFormat == allowedFormat {
+			pf.outputFormat = allowedFormat
+		}
+	}
+
+	// Override the output format if there is no choice
+	if len(pf.allowedFormats) == 1 {
+		pf.outputFormat = pf.allowedFormats[0]
+	}
+
+	return pf
 }
 
 // addFlags adds command line flags for configuring the printer
 func (f *printFlags) addFlags(cmd *cobra.Command) {
-	cmd.Flags().StringVarP(&f.OutputFormat, "output", "o", f.OutputFormat, fmt.Sprintf("Output format. One of: %s", strings.Join(f.allowedFormats(cmd), "|")))
+	// We only need an output flag if there is a choice
+	if len(f.allowedFormats) > 1 {
+		cmd.Flags().StringVarP(&f.outputFormat, "output", "o", f.outputFormat, fmt.Sprintf("Output `format`. One of: %s", strings.Join(f.allowedFormats, "|")))
+	}
 
-	cmd.Flags().BoolVar(&f.NoHeader, "no-headers", f.NoHeader, "Don't print headers.")
-	cmd.Flags().BoolVar(&f.ShowLabels, "show-labels", f.ShowLabels, "When printing, show all labels as the last column.")
+	// These flags only work with formats that require metadata, make sure we have at least one
+	for _, allowedFormat := range f.allowedFormats {
+		if requiresMeta(allowedFormat) {
+			cmd.Flags().BoolVar(&f.noHeader, "no-headers", f.noHeader, "Don't print headers.")
+			cmd.Flags().BoolVar(&f.showLabels, "show-labels", f.showLabels, "When printing, show all labels as the last column.")
+			break
+		}
+	}
 }
 
 // toPrinter generates a new printer
-func (f *printFlags) toPrinter(cmd *cobra.Command, printer *ResourcePrinter) error {
-	outputFormat := strings.ToLower(f.OutputFormat)
-	allowedFormats := f.allowedFormats(cmd)
-	// TODO Check outputFormat vs allowedFormats
-
-	if outputFormat == "json" || outputFormat == "yaml" {
-		*printer = &marshalPrinter{format: outputFormat}
-		return nil
+func (f *printFlags) toPrinter(printer *ResourcePrinter) error {
+	outputFormat := strings.ToLower(f.outputFormat)
+	for _, allowedFormat := range f.allowedFormats {
+		if outputFormat == allowedFormat {
+			switch outputFormat {
+			case "json", "yaml":
+				*printer = &marshalPrinter{outputFormat: outputFormat}
+				return nil
+			case "wide", "":
+				*printer = &tablePrinter{meta: f.meta, columns: f.columns, headers: !f.noHeader, showLabels: f.showLabels}
+				return nil
+			case "name":
+				*printer = &tablePrinter{meta: f.meta, columns: []string{"name"}, outputFormat: outputFormat, showLabels: f.showLabels}
+				return nil
+			case "csv":
+				*printer = &csvPrinter{meta: f.meta, headers: !f.noHeader}
+				return nil
+			}
+		}
 	}
-
-	if f.Meta == nil {
-		return NoPrinterError{OutputFormat: f.OutputFormat, AllowedFormats: allowedFormats}
-	}
-
-	switch outputFormat {
-	case "", "wide":
-		*printer = &tablePrinter{meta: f.Meta, columns: f.Columns, headers: !f.NoHeader, labels: f.ShowLabels}
-		return nil
-	case "name":
-		*printer = &tablePrinter{meta: f.Meta, columns: []string{"name"}, outputFormat: "name", labels: f.ShowLabels}
-		return nil
-	case "csv":
-		*printer = &csvPrinter{meta: f.Meta, headers: !f.NoHeader}
-		return nil
-	}
-	return NoPrinterError{OutputFormat: f.OutputFormat, AllowedFormats: allowedFormats}
+	return NoPrinterError{OutputFormat: f.outputFormat, AllowedFormats: f.allowedFormats}
 }
 
 // marshalPrinter is a printer that generates output using some type of generic encoding (e.g. JSON)
 type marshalPrinter struct {
-	// Format is the name of the marshaller to use, JSON will be used if it is unrecognized
-	format string
+	// outputFormat is the name of the marshaller to use, JSON will be used if it is unrecognized
+	outputFormat string
 }
 
 // PrintObj will marshal the supplied object
 func (p *marshalPrinter) PrintObj(obj interface{}, w io.Writer) error {
-	if strings.ToLower(p.format) == "yaml" {
+	if strings.ToLower(p.outputFormat) == "yaml" {
 		output, err := yaml.Marshal(obj)
 		if err != nil {
 			return err
@@ -174,8 +233,8 @@ type tablePrinter struct {
 	columns []string
 	// headers determines if the header row should be included
 	headers bool
-	// labels determines if the "labels" column should be included
-	labels bool
+	// showLabels determines if the "labels" column should be included
+	showLabels bool
 	// outputFormat is the format this printer is generating (used to alter defaults)
 	outputFormat string
 }
@@ -199,7 +258,7 @@ func (p *tablePrinter) PrintObj(obj interface{}, w io.Writer) error {
 	}
 
 	// Add labels if requested
-	if p.labels {
+	if p.showLabels {
 		columns = append(columns, "labels")
 	}
 

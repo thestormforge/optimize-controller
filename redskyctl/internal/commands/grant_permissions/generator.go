@@ -46,6 +46,11 @@ func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 		Short: "Generate Red Sky Ops permissions",
 		Long:  "Generate RBAC for Red Sky Ops",
 
+		Annotations: map[string]string{
+			commander.PrinterAllowedFormats: "json,yaml",
+			commander.PrinterOutputFormat:   "yaml",
+		},
+
 		PreRun: commander.StreamsPreRun(&o.IOStreams),
 		RunE:   commander.WithoutArgsE(o.generate),
 	}

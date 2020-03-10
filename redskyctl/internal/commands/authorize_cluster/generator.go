@@ -56,6 +56,11 @@ func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 		Short: "Generate Red Sky Ops authorization",
 		Long:  "Generate authorization secret for Red Sky Ops",
 
+		Annotations: map[string]string{
+			commander.PrinterAllowedFormats: "json,yaml",
+			commander.PrinterOutputFormat:   "yaml",
+		},
+
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			commander.SetStreams(&o.IOStreams, cmd)
 			return commander.WithContextE(o.complete)(cmd, args)

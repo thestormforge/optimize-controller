@@ -55,6 +55,11 @@ func NewRBACCommand(o *RBACOptions) *cobra.Command {
 		Short: "Generate experiment roles",
 		Long:  "Generate RBAC manifests from an experiment manifest",
 
+		Annotations: map[string]string{
+			commander.PrinterAllowedFormats: "json,yaml",
+			commander.PrinterOutputFormat:   "yaml",
+		},
+
 		PreRun: func(cmd *cobra.Command, args []string) {
 			commander.SetStreams(&o.IOStreams, cmd)
 			o.Complete()
