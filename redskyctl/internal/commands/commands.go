@@ -24,7 +24,7 @@ import (
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/authorize_cluster"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/check"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/configuration"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/configure"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/docs"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/experiments"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/generate"
@@ -60,7 +60,7 @@ func NewRedskyctlCommand() *cobra.Command {
 	// Add the sub-commands
 	rootCmd.AddCommand(authorize_cluster.NewCommand(&authorize_cluster.Options{GeneratorOptions: authorize_cluster.GeneratorOptions{Config: cfg}}))
 	rootCmd.AddCommand(check.NewCommand(&check.Options{Config: cfg}))
-	rootCmd.AddCommand(configuration.NewCommand(&configuration.Options{Config: cfg}))
+	rootCmd.AddCommand(configure.NewCommand(&configure.Options{Config: cfg}))
 	rootCmd.AddCommand(docs.NewCommand(&docs.Options{}))
 	rootCmd.AddCommand(experiments.NewDeleteCommand(&experiments.DeleteOptions{Options: experiments.Options{Config: cfg}}))
 	rootCmd.AddCommand(experiments.NewGetCommand(&experiments.GetOptions{Options: experiments.Options{Config: cfg}}))
