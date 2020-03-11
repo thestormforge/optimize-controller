@@ -24,8 +24,8 @@ import (
 
 	"github.com/redskyops/redskyops-controller/controllers"
 	"github.com/redskyops/redskyops-controller/internal/config"
+	"github.com/redskyops/redskyops-controller/internal/version"
 	redskyv1alpha1 "github.com/redskyops/redskyops-controller/pkg/apis/redsky/v1alpha1"
-	"github.com/redskyops/redskyops-controller/pkg/version"
 	redskyapi "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"

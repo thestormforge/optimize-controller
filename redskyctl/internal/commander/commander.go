@@ -25,7 +25,7 @@ import (
 	"os/exec"
 
 	internalconfig "github.com/redskyops/redskyops-controller/internal/config"
-	"github.com/redskyops/redskyops-controller/pkg/version"
+	"github.com/redskyops/redskyops-controller/internal/version"
 	experimentsv1alpha1 "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/config"
 	"github.com/spf13/cobra"

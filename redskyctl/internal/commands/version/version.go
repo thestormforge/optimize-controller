@@ -24,7 +24,7 @@ import (
 	"text/template"
 
 	"github.com/redskyops/redskyops-controller/internal/setup"
-	"github.com/redskyops/redskyops-controller/pkg/version"
+	"github.com/redskyops/redskyops-controller/internal/version"
 	experimentsv1alpha1 "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/config"

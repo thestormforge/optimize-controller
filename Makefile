@@ -16,12 +16,12 @@ endif
 
 # Collect version information
 ifdef VERSION
-    LDFLAGS += -X github.com/redskyops/redskyops-controller/pkg/version.Version=${VERSION}
+    LDFLAGS += -X github.com/redskyops/redskyops-controller/internal/version.Version=${VERSION}
 endif
 ifneq ($(origin BUILD_METADATA), undefined)
-    LDFLAGS += -X github.com/redskyops/redskyops-controller/pkg/version.BuildMetadata=${BUILD_METADATA}
+    LDFLAGS += -X github.com/redskyops/redskyops-controller/internal/version.BuildMetadata=${BUILD_METADATA}
 endif
-LDFLAGS += -X github.com/redskyops/redskyops-controller/pkg/version.GitCommit=$(shell git rev-parse HEAD)
+LDFLAGS += -X github.com/redskyops/redskyops-controller/internal/version.GitCommit=$(shell git rev-parse HEAD)
 LDFLAGS += -X github.com/redskyops/redskyops-controller/internal/setup.Image=${SETUPTOOLS_IMG}
 LDFLAGS += -X github.com/redskyops/redskyops-controller/internal/setup.ImagePullPolicy=${PULL_POLICY}
 
