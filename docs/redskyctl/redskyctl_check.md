@@ -6,10 +6,6 @@ Run a consistency check
 
 Run a consistency check on Red Sky Ops components
 
-```
-redskyctl check [flags]
-```
-
 ### Options
 
 ```

@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/pkg/browser"
-	cmdutil "github.com/redskyops/redskyops-controller/pkg/redskyctl/util"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/config"
 	"github.com/redskyops/redskyops-ui/v2/ui"
@@ -86,11 +85,11 @@ func (o *Options) results(ctx context.Context) error {
 	o.handleLiveness(router, "/health")
 
 	// Create the server
-	server := cmdutil.NewContextServer(ctx, router,
-		cmdutil.WithServerOptions(o.configureServer),
-		cmdutil.ShutdownOnInterrupt(func() { _, _ = fmt.Fprintln(o.Out) }),
-		cmdutil.ShutdownOnIdle(5*time.Second, func() { _, _ = fmt.Fprintln(o.Out) }),
-		cmdutil.HandleStart(o.openBrowser))
+	server := commander.NewContextServer(ctx, router,
+		commander.WithServerOptions(o.configureServer),
+		commander.ShutdownOnInterrupt(func() { _, _ = fmt.Fprintln(o.Out) }),
+		commander.ShutdownOnIdle(5*time.Second, func() { _, _ = fmt.Fprintln(o.Out) }),
+		commander.HandleStart(o.openBrowser))
 
 	// Start the server, this will block until someone calls 'shutdown' from above
 	return server.ListenAndServe()

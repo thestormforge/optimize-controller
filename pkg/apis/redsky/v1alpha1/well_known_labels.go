@@ -19,26 +19,26 @@ package v1alpha1
 // Experiment labels and annotations
 
 const (
-	// Annotation that contains the URL of the experiment on the remote server
+	// AnnotationExperimentURL is the URL of the experiment on the remote server
 	AnnotationExperimentURL = "redskyops.dev/experiment-url"
-	// Annotation that contains the URL used to obtain the next trial suggestion
+	// AnnotationNextTrialURL is the URL used to obtain the next trial suggestion
 	AnnotationNextTrialURL = "redskyops.dev/next-trial-url"
-	// Annotation that contains the URL used to report trial observations
+	// AnnotationReportTrialURL is the URL used to report trial observations
 	AnnotationReportTrialURL = "redskyops.dev/report-trial-url"
 
-	// Label that contains the name of the experiment associated with an object
+	// LabelExperiment is the name of the experiment associated with an object
 	LabelExperiment = "redskyops.dev/experiment"
 )
 
 // Trial labels and annotations
 
 const (
-	// Annotation that contains a comma-delimited list of initializing processes. Similar to a "finalizer", the trial
+	// AnnotationInitializer is a comma-delimited list of initializing processes. Similar to a "finalizer", the trial
 	// will not start executing until the initializer is empty.
 	AnnotationInitializer = "redskyops.dev/initializer"
 
-	// Label that contains the name of the trial associated with an object
+	// LabelTrial contains the name of the trial associated with an object
 	LabelTrial = "redskyops.dev/trial"
-	// Label that contains the role in trial execution
+	// LabelTrialRole contains the role in trial execution
 	LabelTrialRole = "redskyops.dev/trial-role"
 )

@@ -20,7 +20,7 @@ function defineEnvvar {
     echo "export $1=\"$2\"" >> "$BASH_ENV"
 }
 
-KUBEBUILDER_VERSION=2.2.0
+KUBEBUILDER_VERSION=2.3.0
 GHR_VERSION=0.13.0
 
 echo "Using environment variables from bootstrap script"
@@ -29,7 +29,7 @@ if [[ -n "${CIRCLE_TAG:-}" ]]; then
     defineEnvvar BUILD_METADATA ""
     DOCKER_TAG="${CIRCLE_TAG#v}"
 else
-    defineEnvvar VERSION "$(sed -n 's/[[:blank:]]Version[[:blank:]]*=[[:blank:]]*"\(.*\)"/\1/p' pkg/version/version.go)"
+    defineEnvvar VERSION "$(sed -n 's/[[:blank:]]Version[[:blank:]]*=[[:blank:]]*"\(.*\)"/\1/p' internal/version/version.go)"
     defineEnvvar BUILD_METADATA "build.${CIRCLE_BUILD_NUM}"
     DOCKER_TAG="${CIRCLE_SHA1:0:8}.${CIRCLE_BUILD_NUM}"
 fi

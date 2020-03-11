@@ -16,12 +16,12 @@ endif
 
 # Collect version information
 ifdef VERSION
-    LDFLAGS += -X github.com/redskyops/redskyops-controller/pkg/version.Version=${VERSION}
+    LDFLAGS += -X github.com/redskyops/redskyops-controller/internal/version.Version=${VERSION}
 endif
 ifneq ($(origin BUILD_METADATA), undefined)
-    LDFLAGS += -X github.com/redskyops/redskyops-controller/pkg/version.BuildMetadata=${BUILD_METADATA}
+    LDFLAGS += -X github.com/redskyops/redskyops-controller/internal/version.BuildMetadata=${BUILD_METADATA}
 endif
-LDFLAGS += -X github.com/redskyops/redskyops-controller/pkg/version.GitCommit=$(shell git rev-parse HEAD)
+LDFLAGS += -X github.com/redskyops/redskyops-controller/internal/version.GitCommit=$(shell git rev-parse HEAD)
 LDFLAGS += -X github.com/redskyops/redskyops-controller/internal/setup.Image=${SETUPTOOLS_IMG}
 LDFLAGS += -X github.com/redskyops/redskyops-controller/internal/setup.ImagePullPolicy=${PULL_POLICY}
 
@@ -71,7 +71,7 @@ vet:
 
 # Generate code
 generate: controller-gen
-	$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths="./..."
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 # Build the docker images
 docker-build:
@@ -102,11 +102,8 @@ else
 CONTROLLER_GEN=$(shell which controller-gen)
 endif
 
-# Generate client code
-generate-client:
-	client-gen --clientset-name kubernetes --input-base "" --input github.com/redskyops/redskyops-controller/pkg/apis/redsky/v1alpha1 --output-base "../../.." --output-package github.com/redskyops/redskyops-controller/pkg --go-header-file hack/boilerplate.go.txt
-
 # Generate CLI and API documentation
 generate-docs:
+	rm -rf docs/redskyctl docs/api
 	go run -ldflags '$(LDFLAGS)' redskyctl/main.go docs --directory docs/redskyctl
 	go run -ldflags '$(LDFLAGS)' redskyctl/main.go docs --directory docs/api --doc-type api

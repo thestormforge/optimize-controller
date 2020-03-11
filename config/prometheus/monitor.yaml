@@ -16,4 +16,5 @@ spec:
       tlsConfig:
         insecureSkipVerify: true
   selector:
-    control-plane: controller-manager
+    matchLabels:
+      control-plane: controller-manager

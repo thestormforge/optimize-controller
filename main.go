@@ -24,9 +24,8 @@ import (
 
 	"github.com/redskyops/redskyops-controller/controllers"
 	"github.com/redskyops/redskyops-controller/internal/config"
+	"github.com/redskyops/redskyops-controller/internal/version"
 	redskyv1alpha1 "github.com/redskyops/redskyops-controller/pkg/apis/redsky/v1alpha1"
-	"github.com/redskyops/redskyops-controller/pkg/version"
-	redskyapi "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -61,14 +60,6 @@ func main() {
 		o.Development = false
 	}))
 
-	// Establish the Red Sky API
-	setupLog.Info("Red Sky", "version", version.GetInfo(), "gitCommit", version.GitCommit)
-	redSkyAPI, err := newRedSkyAPI()
-	if err != nil {
-		setupLog.Error(err, "unable to create Red Sky API")
-		os.Exit(1)
-	}
-
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             scheme,
 		MetricsBindAddress: metricsAddr,
@@ -87,10 +78,9 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&controllers.ServerReconciler{
-		Client:    mgr.GetClient(),
-		Log:       ctrl.Log.WithName("controllers").WithName("Server"),
-		Scheme:    mgr.GetScheme(),
-		RedSkyAPI: redSkyAPI,
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("Server"),
+		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Server")
 		os.Exit(1)
@@ -142,15 +132,6 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
-}
-
-// newRedSkyAPI reads the default configuration and attempt to create an API interface
-func newRedSkyAPI() (redskyapi.API, error) {
-	cfg := &config.RedSkyConfig{}
-	if err := cfg.Load(); err != nil {
-		return nil, err
-	}
-	return redskyapi.NewForConfig(cfg, version.UserAgent("RedSkyController", "", nil))
 }
 
 // handleDebugArgs will make the process dump and exit if the first arg is either "version" or "config"

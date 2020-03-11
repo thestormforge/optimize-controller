@@ -69,6 +69,7 @@ export PROJECT_ID=<GCP project ID where your cluster is running>
 export TAG=<something unique>
 export IMG=us.gcr.io/$PROJECT_ID/redskyops-controller:$TAG
 export SETUPTOOLS_IMG=us.gcr.io/$PROJECT_ID/setuptools:$TAG
+export REDSKYCTL_IMG=us.gcr.io/$PROJECT_ID/redskyctl:$TAG
 make docker-build
 make docker-push
 make deploy

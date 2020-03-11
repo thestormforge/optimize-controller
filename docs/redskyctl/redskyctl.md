@@ -28,6 +28,7 @@ redskyctl [flags]
 * [redskyctl delete](redskyctl_delete.md)	 - Delete a Red Sky resource
 * [redskyctl generate](redskyctl_generate.md)	 - Generate Red Sky Ops objects
 * [redskyctl get](redskyctl_get.md)	 - Display a Red Sky resource
+* [redskyctl grant-permissions](redskyctl_grant-permissions.md)	 - Grant permissions
 * [redskyctl init](redskyctl_init.md)	 - Install to a cluster
 * [redskyctl kustomize](redskyctl_kustomize.md)	 - Kustomize integrations
 * [redskyctl login](redskyctl_login.md)	 - Authenticate

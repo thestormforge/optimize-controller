@@ -174,7 +174,7 @@ type NamedAuthorization struct {
 	Authorization Authorization `json:"authorization"`
 }
 
-// NamedContext associates a name to cluster configuration
+// NamedCluster associates a name to cluster configuration
 type NamedCluster struct {
 	// Name is the referencable name for the cluster
 	Name string `json:"name"`

@@ -22,7 +22,7 @@ import (
 	redskyv1alpha1 "github.com/redskyops/redskyops-controller/pkg/apis/redsky/v1alpha1"
 )
 
-// GetInitializer returns the initializers for the specified trial
+// GetInitializers returns the initializers for the specified trial
 func GetInitializers(t *redskyv1alpha1.Trial) []string {
 	var initializers []string
 	for _, e := range strings.Split(t.GetAnnotations()[redskyv1alpha1.AnnotationInitializer], ",") {

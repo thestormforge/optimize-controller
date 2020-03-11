@@ -142,7 +142,7 @@ func (rsc *RedSkyConfig) SystemNamespace() (string, error) {
 	return ctrl.Namespace, nil
 }
 
-// EndpointLocations returns a resolver that can generate fully qualified endpoint URLs
+// Endpoints returns a resolver that can generate fully qualified endpoint URLs
 func (rsc *RedSkyConfig) Endpoints() (Endpoints, error) {
 	srv, err := CurrentServer(rsc.Reader())
 	if err != nil {
@@ -191,18 +191,29 @@ func (rsc *RedSkyConfig) Kubectl(ctx context.Context, arg ...string) (*exec.Cmd,
 	var globals []string
 
 	if cstr.KubeConfig != "" {
-		globals = append(globals, "--kubeconfig", cstr.KubeConfig)
+		globals = appendIfNotPresent(globals, arg, "--kubeconfig", cstr.KubeConfig)
 	}
 
 	if cstr.Context != "" {
-		globals = append(globals, "--context", cstr.Context)
+		globals = appendIfNotPresent(globals, arg, "--context", cstr.Context)
 	}
 
 	if cstr.Namespace != "" {
-		globals = append(globals, "--namespace", cstr.Namespace)
+		globals = appendIfNotPresent(globals, arg, "--namespace", cstr.Namespace)
 	}
 
 	return exec.CommandContext(ctx, cstr.Bin, append(globals, arg...)...), nil
+}
+
+// appendIfNotPresent is meant to allow args coming to override globals rather then relying on unspecified behavior
+func appendIfNotPresent(s []string, arg []string, flag, value string) []string {
+	// This won't catch things like a global --namespace and a -n arg
+	for i := range arg {
+		if arg[i] == flag {
+			return s
+		}
+	}
+	return append(s, flag, value)
 }
 
 // RevocationInformation contains the information necessary to revoke an authorization credential

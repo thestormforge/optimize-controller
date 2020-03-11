@@ -26,23 +26,24 @@ import (
 )
 
 var (
-	// ReconcileConflictErrors is a prometheus counter metrics which holds the total
+	// ReconcileConflictErrors is a Prometheus counter metric which holds the total
 	// number of conflict errors from the Reconciler
 	ReconcileConflictErrors = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "controller_runtime_reconcile_conflict_errors_total",
 		Help: "Total number of reconciliation conflict errors per controller",
 	}, []string{"controller"})
-	ReconcileCacheMisses = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "controller_runtime_read_back_misses_total",
-		Help: "Total number of times reading back a create trial misses",
-	})
 
 	// TODO Experiment is an unbounded label, that might be problematic
 
+	// ExperimentTrials is a Prometheus gauge metric which holds the total number
+	// of trials for an experiment (trial counts can go down when they are cleaned up)
 	ExperimentTrials = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "redsky_experiment_trials_total",
 		Help: "Total number of trials present for an experiment",
 	}, []string{"experiment"})
+
+	// ExperimentActiveTrials is a Prometheus gauge metric which holds the total number
+	// of active trials for an experiment
 	ExperimentActiveTrials = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "redsky_experiment_active_trials_total",
 		Help: "Total number of active trials present for an experiment",
@@ -52,7 +53,6 @@ var (
 func init() {
 	metrics.Registry.MustRegister(
 		ReconcileConflictErrors,
-		ReconcileCacheMisses,
 		ExperimentTrials,
 		ExperimentActiveTrials,
 	)
