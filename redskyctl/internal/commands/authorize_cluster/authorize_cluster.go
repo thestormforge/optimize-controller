@@ -85,7 +85,11 @@ func (o *Options) patchDeployment(ctx context.Context, secretHash string) error 
 		return err
 	}
 
-	return commander.Run(o.IOStreams, func() (cmd *exec.Cmd, err error) {
-		return o.Config.Kubectl(ctx, "patch", "deployment", name, "--namespace", ctrl.Namespace, "--patch", patch)
-	})
+	kubectlPatch, err := o.Config.Kubectl(ctx, "patch", "deployment", name, "--namespace", ctrl.Namespace, "--patch", patch)
+	if err != nil {
+		return err
+	}
+	kubectlPatch.Stdout = o.Out
+	kubectlPatch.Stderr = o.ErrOut
+	return kubectlPatch.Run()
 }

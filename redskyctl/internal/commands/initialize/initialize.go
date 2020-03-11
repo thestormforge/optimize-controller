@@ -18,13 +18,16 @@ package initialize
 
 import (
 	"context"
-	"os/exec"
+	"fmt"
+	"io"
 
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/authorize_cluster"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/grant_permissions"
 	"github.com/spf13/cobra"
 )
+
+// TODO We should be passing in labels/annotations to apply from here (e.g. managed-by redskyctl comes from here)
 
 // Options is the configuration for initialization
 type Options struct {
@@ -53,43 +56,95 @@ func NewCommand(o *Options) *cobra.Command {
 }
 
 func (o *Options) initialize(ctx context.Context) error {
-	// TODO We should be passing in labels/annotations to apply from here (e.g. managed-by redskyctl comes from here)
-
+	// Fork `kubectl apply` and get a pipe to write manifests to
 	// TODO Handle upgrades with "--prune", "--selector", "app.kubernetes.io/name=redskyops,app.kubernetes.io/managed-by=%s"
-	kubectlApply := func() (*exec.Cmd, error) { return o.Config.Kubectl(ctx, "apply", "-f", "-") }
-
-	// Generate the main installation manifests
-	initializeGenerator := func() (*cobra.Command, error) {
-		return NewGeneratorCommand(&o.GeneratorOptions), nil
+	kubectlApply, err := o.Config.Kubectl(ctx, "apply", "-f", "-")
+	if err != nil {
+		return err
 	}
-	if err := commander.RunPipe(o.IOStreams, initializeGenerator, kubectlApply, nil); err != nil {
+	kubectlApply.Stdout = o.Out
+	kubectlApply.Stderr = o.ErrOut
+	w, err := kubectlApply.StdinPipe()
+	if err != nil {
+		return err
+	}
+	if err := kubectlApply.Start(); err != nil {
 		return err
 	}
 
-	// Generate the permission manifests
-	grantPermissionsOptions := grant_permissions.GeneratorOptions{
+	// Generate all of the manifests
+	// TODO How should we synchronize this? How should we check the close error?
+	errChan := make(chan error)
+	go func() {
+		err := o.generateManifests(w)
+		if err != nil {
+			errChan <- err
+		}
+
+		// Close the stream (tells kubectl there are no more resources to apply) and the error channel (so we can wait on kubectl)
+		_ = w.Close()
+		close(errChan)
+	}()
+	for err := range errChan {
+		if err != nil {
+			return err
+		}
+	}
+
+	// Wait for everything to be applied
+	return kubectlApply.Wait()
+}
+
+// generateManifests writes all of the initialization manifests to the supplied writer
+func (o *Options) generateManifests(out io.Writer) error {
+	if err := o.generateInstall(out); err != nil {
+		return err
+	}
+	if err := o.generateBootstrapRole(out); err != nil {
+		return err
+	}
+	if err := o.generateSecret(out); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (o *Options) generateInstall(out io.Writer) error {
+	opts := &o.GeneratorOptions
+	cmd := NewGeneratorCommand(opts)
+	return o.executeCommand(cmd, out)
+}
+
+func (o *Options) generateBootstrapRole(out io.Writer) error {
+	opts := &grant_permissions.GeneratorOptions{
 		Config:                o.Config,
 		SkipDefault:           !o.IncludeBootstrapRole,
 		CreateTrialNamespaces: o.IncludeExtraPermissions,
 	}
-	grantPermissionGenerator := func() (*cobra.Command, error) {
-		return grant_permissions.NewGeneratorCommand(&grantPermissionsOptions), nil
-	}
-	if err := commander.RunPipe(o.IOStreams, grantPermissionGenerator, kubectlApply, nil); err != nil {
-		return err
-	}
+	cmd := grant_permissions.NewGeneratorCommand(opts)
+	return o.executeCommand(cmd, out)
+}
 
-	// Generate the authorization manifests
-	authorizeClusterOptions := authorize_cluster.GeneratorOptions{
+func (o *Options) generateSecret(out io.Writer) error {
+	opts := &authorize_cluster.GeneratorOptions{
 		Config: o.Config,
 	}
-	authorizeClusterGenerator := func() (*cobra.Command, error) {
-		return authorize_cluster.NewGeneratorCommand(&authorizeClusterOptions), nil
-	}
-	if err := commander.RunPipe(o.IOStreams, authorizeClusterGenerator, kubectlApply, nil); err != nil {
-		// TODO Ignore errors stemming from not having logged in yet
+	cmd := authorize_cluster.NewGeneratorCommand(opts)
+	// TODO Ignore errors if we aren't logged in yet? Or just skip execution all together?
+	return o.executeCommand(cmd, out)
+}
+
+// executeCommand runs the supplied command, send output to the writer
+func (o *Options) executeCommand(cmd *cobra.Command, out io.Writer) error {
+	// Prepare the command and execute it
+	cmd.SetArgs([]string{})
+	cmd.SetOut(out)
+	cmd.SetErr(o.ErrOut)
+	if err := cmd.Execute(); err != nil {
 		return err
 	}
 
+	// Since we are dumping the output of multiple generators into a single stream, insert a YAML document separator
+	_, _ = fmt.Fprintln(out, "---")
 	return nil
 }

@@ -18,7 +18,6 @@ package initialize
 
 import (
 	"context"
-	"os/exec"
 
 	"github.com/redskyops/redskyops-controller/internal/config"
 	"github.com/redskyops/redskyops-controller/internal/setup"
@@ -87,7 +86,11 @@ func (o *GeneratorOptions) generate(ctx context.Context) error {
 
 	// Run the command straight through to the configured output stream
 	// TODO How do we filter out the warning about not being able to attach?
-	return commander.Run(o.IOStreams, func() (cmd *exec.Cmd, err error) {
-		return o.Config.Kubectl(ctx, args...)
-	})
+	kubectlRun, err := o.Config.Kubectl(ctx, args...)
+	if err != nil {
+		return err
+	}
+	kubectlRun.Stdout = o.Out
+	kubectlRun.Stderr = o.ErrOut
+	return kubectlRun.Run()
 }

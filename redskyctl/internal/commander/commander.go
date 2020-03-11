@@ -213,17 +213,12 @@ func ExitOnError(cmd *cobra.Command) {
 // RunPipe runs a Cobra command and pipes the output into an OS command; the supplied streams are applied to pipeline
 // and an (optional) filter can be used between the two commands. This function will block until the OS command exits.
 func RunPipe(streams IOStreams, source func() (*cobra.Command, error), sink func() (*exec.Cmd, error), filter func(w io.Writer) io.Writer) error {
-	// Provide a default filter
-	if filter == nil {
-		filter = func(w io.Writer) io.Writer { return w }
-	}
-
 	// Create the source
 	sourceCmd, err := source()
 	if err != nil {
 		return err
 	}
-	sourceCmd.SetIn(streams.In)
+	sourceCmd.SetArgs([]string{})
 	sourceCmd.SetErr(streams.ErrOut)
 
 	// Create the sink
@@ -239,38 +234,33 @@ func RunPipe(streams IOStreams, source func() (*cobra.Command, error), sink func
 	if err != nil {
 		return err
 	}
-	sourceCmd.SetOut(filter(out))
+	if filter != nil {
+		sourceCmd.SetOut(filter(out))
+	} else {
+		sourceCmd.SetOut(out)
+	}
 
-	// Start the sink asynchronously to receive output
+	// Start the sink asynchronously so it can receive output
 	if err := sinkCmd.Start(); err != nil {
 		return err
 	}
 
 	// Run the source and close the pipe when it is done
-	sourceCmd.SetArgs([]string{})
-	err = sourceCmd.Execute()
-	_ = out.Close()
-	if err != nil {
-		return err
+	// TODO How should we synchronize this? This is different from what is done in init/reset
+	errChan := make(chan error, 2)
+	go func() {
+		errChan <- sourceCmd.Execute()
+		errChan <- out.Close()
+		close(errChan)
+	}()
+	for err := range errChan {
+		if err != nil {
+			return err
+		}
 	}
 
-	// Wait for the sink to finish processing what we sent it
+	// Wait for the sink to finish processing the output
 	return sinkCmd.Wait()
-}
-
-// Run runs an OS command; the supplied streams are inherited by the forked process
-func Run(streams IOStreams, cmd func() (*exec.Cmd, error)) error {
-	// Create the command
-	cmdCmd, err := cmd()
-	if err != nil {
-		return err
-	}
-	cmdCmd.Stdin = streams.In
-	cmdCmd.Stdout = streams.Out
-	cmdCmd.Stderr = streams.ErrOut
-
-	// Run it
-	return cmdCmd.Run()
 }
 
 func userAgent(cmd *cobra.Command) http.RoundTripper {

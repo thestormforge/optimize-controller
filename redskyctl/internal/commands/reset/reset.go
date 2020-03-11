@@ -18,7 +18,8 @@ package reset
 
 import (
 	"context"
-	"os/exec"
+	"fmt"
+	"io"
 
 	"github.com/redskyops/redskyops-controller/internal/config"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
@@ -50,40 +51,93 @@ func NewCommand(o *Options) *cobra.Command {
 }
 
 func (o *Options) reset(ctx context.Context) error {
-	kubectlDelete := func() (*exec.Cmd, error) { return o.Config.Kubectl(ctx, "delete", "--ignore-not-found", "-f", "-") }
-
 	// Delete the CRDs first to avoid issues with the controller being deleted before it can remove the finalizers
-	kubectlDeleteCRD := func() (cmd *exec.Cmd, err error) {
-		return o.Config.Kubectl(ctx, "delete", "--ignore-not-found", "crd",
-			"trials.redskyops.dev",
-			"experiments.redskyops.dev",
-		)
+	deleteCRD, err := o.Config.Kubectl(ctx, "delete", "--ignore-not-found", "crd", "trials.redskyops.dev", "experiments.redskyops.dev")
+	if err != nil {
+		return err
 	}
-	if err := commander.Run(o.IOStreams, kubectlDeleteCRD); err != nil {
+	deleteCRD.Stdout = o.Out
+	deleteCRD.Stderr = o.ErrOut
+	if err := deleteCRD.Run(); err != nil {
 		return err
 	}
 
-	// Delete the permission manifests
-	grantPermissionsOptions := grant_permissions.GeneratorOptions{
+	// Fork `kubectl delete` and get a pipe to write manifests to
+	kubectlDelete, err := o.Config.Kubectl(ctx, "delete", "--ignore-not-found", "-f", "-")
+	if err != nil {
+		return err
+	}
+	kubectlDelete.Stdout = o.Out
+	kubectlDelete.Stderr = o.ErrOut
+	w, err := kubectlDelete.StdinPipe()
+	if err != nil {
+		return err
+	}
+	if err := kubectlDelete.Start(); err != nil {
+		return err
+	}
+
+	// Generate all of the manifests
+	// TODO How should we synchronize this? How should we check the close error?
+	errChan := make(chan error)
+	go func() {
+		err := o.generateManifests(w)
+		if err != nil {
+			errChan <- err
+		}
+
+		// Close the stream (tells kubectl there are no more resources to apply) and the error channel (so we can wait on kubectl)
+		_ = w.Close()
+		close(errChan)
+	}()
+	for err := range errChan {
+		if err != nil {
+			return err
+		}
+	}
+
+	// Wait for everything to be deleted
+	return kubectlDelete.Wait()
+}
+
+// generateManifests writes all of the initialization manifests to the supplied writer
+func (o *Options) generateManifests(out io.Writer) error {
+	if err := o.generateInstall(out); err != nil {
+		return err
+	}
+	if err := o.generateBootstrapRole(out); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (o *Options) generateInstall(out io.Writer) error {
+	opts := &initialize.GeneratorOptions{
 		Config: o.Config,
 	}
-	grantPermissionGenerator := func() (*cobra.Command, error) {
-		return grant_permissions.NewGeneratorCommand(&grantPermissionsOptions), nil
-	}
-	if err := commander.RunPipe(o.IOStreams, grantPermissionGenerator, kubectlDelete, nil); err != nil {
-		return err
-	}
+	cmd := initialize.NewGeneratorCommand(opts)
+	return o.executeCommand(cmd, out)
+}
 
-	// Delete the main installation manifests
-	initializeOptions := initialize.GeneratorOptions{
+func (o *Options) generateBootstrapRole(out io.Writer) error {
+	opts := &grant_permissions.GeneratorOptions{
 		Config: o.Config,
 	}
-	initializeGenerator := func() (*cobra.Command, error) {
-		return initialize.NewGeneratorCommand(&initializeOptions), nil
-	}
-	if err := commander.RunPipe(o.IOStreams, initializeGenerator, kubectlDelete, nil); err != nil {
+	cmd := grant_permissions.NewGeneratorCommand(opts)
+	return o.executeCommand(cmd, out)
+}
+
+// executeCommand runs the supplied command, send output to the writer
+func (o *Options) executeCommand(cmd *cobra.Command, out io.Writer) error {
+	// Prepare the command and execute it
+	cmd.SetArgs([]string{})
+	cmd.SetOut(out)
+	cmd.SetErr(o.ErrOut)
+	if err := cmd.Execute(); err != nil {
 		return err
 	}
 
+	// Since we are dumping the output of multiple generators into a single stream, insert a YAML document separator
+	_, _ = fmt.Fprintln(out, "---")
 	return nil
 }
