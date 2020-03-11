@@ -123,22 +123,20 @@ func (o *GeneratorOptions) generate(ctx context.Context) error {
 	// TODO If we see a record of the same name in the local config, fetch it instead of registering it!
 	// We MUST do the recording before we can support output methods other then full serializations...
 
-	if false {
-		// Register the client with the authorization server
-		info, err := o.Config.RegisterClient(ctx, &registration.ClientMetadata{
-			ClientName:    o.ClientName,
-			GrantTypes:    []string{"client_credentials"},
-			RedirectURIs:  []string{},
-			ResponseTypes: []string{},
-		})
-		if err != nil {
-			return err
-		}
-
-		// Overwrite the client credentials in the secret
-		secret.Data["REDSKY_AUTHORIZATION_CLIENT_ID"] = []byte(info.ClientID)
-		secret.Data["REDSKY_AUTHORIZATION_CLIENT_SECRET"] = []byte(info.ClientSecret)
+	// Register the client with the authorization server
+	info, err := o.Config.RegisterClient(ctx, &registration.ClientMetadata{
+		ClientName:    o.ClientName,
+		GrantTypes:    []string{"client_credentials"},
+		RedirectURIs:  []string{},
+		ResponseTypes: []string{},
+	})
+	if err != nil {
+		return err
 	}
+
+	// Overwrite the client credentials in the secret
+	secret.Data["REDSKY_AUTHORIZATION_CLIENT_ID"] = []byte(info.ClientID)
+	secret.Data["REDSKY_AUTHORIZATION_CLIENT_SECRET"] = []byte(info.ClientSecret)
 
 	return o.Printer.PrintObj(secret, o.Out)
 }
