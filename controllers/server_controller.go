@@ -125,24 +125,24 @@ func (r *ServerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 }
 
 func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	// Create a new Red Sky API
-	cfg := &config.RedSkyConfig{}
-	if err := cfg.Load(); err != nil {
-		return err
-	}
-	api, err := redskyapi.NewForConfig(cfg, version.UserAgent("RedSkyController", "", nil))
-	if err != nil {
-		return err
-	}
+	if r.RedSkyAPI == nil {
+		// Create a new Red Sky API
+		cfg := &config.RedSkyConfig{}
+		if err := cfg.Load(); err != nil {
+			return err
+		}
+		api, err := redskyapi.NewForConfig(cfg, version.UserAgent("RedSkyController", "", nil))
+		if err != nil {
+			return err
+		}
 
-	// An unauthorized error means we will never be able to connect without changing the credentials and restarting
-	if _, err := r.RedSkyAPI.Options(context.Background()); redskyapi.IsUnauthorized(err) {
-		r.Log.Info("Red Sky API is unavailable, skipping setup", "message", err.Error())
-		return nil
+		// An unauthorized error means we will never be able to connect without changing the credentials and restarting
+		if _, err := r.RedSkyAPI.Options(context.Background()); redskyapi.IsUnauthorized(err) {
+			r.Log.Info("Red Sky API is unavailable, skipping setup", "message", err.Error())
+			return nil
+		}
+		r.RedSkyAPI = api
 	}
-
-	// Assume the API connection is usable (or will be)
-	r.RedSkyAPI = api
 
 	// Enforce a one trial per-second creation limit (no burst! that is the whole point)
 	r.trialCreation = rate.NewLimiter(1, 1)
