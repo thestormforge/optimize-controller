@@ -28,7 +28,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// ResetOptions is the configuration for suggesting assignments
+// Options is the configuration for suggesting assignments
 type Options struct {
 	// Config is the Red Sky Configuration used to generate the controller manifests for reset
 	Config *config.RedSkyConfig

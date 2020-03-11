@@ -142,7 +142,7 @@ func (rsc *RedSkyConfig) SystemNamespace() (string, error) {
 	return ctrl.Namespace, nil
 }
 
-// EndpointLocations returns a resolver that can generate fully qualified endpoint URLs
+// Endpoints returns a resolver that can generate fully qualified endpoint URLs
 func (rsc *RedSkyConfig) Endpoints() (Endpoints, error) {
 	srv, err := CurrentServer(rsc.Reader())
 	if err != nil {

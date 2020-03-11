@@ -79,7 +79,7 @@ func (o *ExperimentOptions) checkExperiment() error {
 
 	// Check that everything looks right
 	linter := &AllTheLint{}
-	CheckExperiment(linter.For("experiment"), experiment)
+	checkExperiment(linter.For("experiment"), experiment)
 
 	// Share the results
 	// TODO Filter/sort?
@@ -90,7 +90,7 @@ func (o *ExperimentOptions) checkExperiment() error {
 	return nil
 }
 
-func CheckExperiment(lint Linter, experiment *redskyv1alpha1.Experiment) {
+func checkExperiment(lint Linter, experiment *redskyv1alpha1.Experiment) {
 
 	if !checkTypeMeta(lint.For("metadata"), &experiment.TypeMeta) {
 		return

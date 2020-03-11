@@ -134,7 +134,7 @@ func (o *ServerOptions) checkServer() error {
 	}()
 
 	// Validate the experiment
-	if err = checkExperiment(n, e, &exp); err != nil {
+	if err = checkServerExperiment(n, e, &exp); err != nil {
 		return err
 	}
 
@@ -247,7 +247,7 @@ func generateValue() (float64, float64) {
 	return rand.Float64(), 0
 }
 
-func checkExperiment(name string, original, created *experimentsv1alpha1.Experiment) error {
+func checkServerExperiment(name string, original, created *experimentsv1alpha1.Experiment) error {
 	if created.Self == "" {
 		return fmt.Errorf("server did not return a self link")
 	}
