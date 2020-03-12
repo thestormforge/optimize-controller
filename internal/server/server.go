@@ -48,7 +48,7 @@ func FromCluster(in *redskyv1alpha1.Experiment) (redskyapi.ExperimentName, *reds
 		out.Optimization = append(out.Optimization, redskyapi.Optimization{
 			Name:  o.Name,
 			Value: o.Value,
-		}
+		})
 	}
 
 	out.Parameters = nil
@@ -90,8 +90,11 @@ func ToCluster(exp *redskyv1alpha1.Experiment, ee *redskyapi.Experiment) {
 	exp.GetAnnotations()[redskyv1alpha1.AnnotationNextTrialURL] = ee.NextTrial
 
 	exp.Spec.Optimization = nil
-	for n, v := range ee.Optimization {
-		exp.Spec.Optimization = append(exp.Spec.Optimization, redskyv1alpha1.Optimization{Name: n, Value: v})
+	for i := range ee.Optimization {
+		exp.Spec.Optimization = append(exp.Spec.Optimization, redskyv1alpha1.Optimization{
+			Name:  ee.Optimization[i].Name,
+			Value: ee.Optimization[i].Value,
+		})
 	}
 
 	controllerutil.AddFinalizer(exp, Finalizer)
