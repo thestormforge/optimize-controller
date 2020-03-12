@@ -137,7 +137,7 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		}
 
 		// An unauthorized error means we will never be able to connect without changing the credentials and restarting
-		if _, err := r.RedSkyAPI.Options(context.Background()); redskyapi.IsUnauthorized(err) {
+		if _, err := api.Options(context.Background()); redskyapi.IsUnauthorized(err) {
 			r.Log.Info("Red Sky API is unavailable, skipping setup", "message", err.Error())
 			return nil
 		}
