@@ -109,6 +109,11 @@ func (o *ServerOptions) checkServer() error {
 		return doDryRun(o.Out, n, e)
 	}
 
+	// Check that we can get server metadata
+	if _, err := o.ExperimentsAPI.Options(context.TODO()); err != nil {
+		return err
+	}
+
 	// Create the experiment
 	var exp experimentsv1alpha1.Experiment
 	if n != "" {

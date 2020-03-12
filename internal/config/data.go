@@ -232,30 +232,34 @@ func (c *Credential) UnmarshalJSON(data []byte) error {
 }
 
 // MarshalJSON ensures token expiry is persisted in UTC
-func (tc *TokenCredential) MarshalJSON() ([]byte, error) {
-	// http://choly.ca/post/go-json-marshalling/
-	type TC TokenCredential
-	var accessToken interface{}
-	if tc != nil {
-		accessToken = tc.AccessToken
+func (c *Credential) MarshalJSON() ([]byte, error) {
+	if c.TokenCredential != nil {
+		// Override the access token with the decoded JWT claims
+		accessToken := interface{}(c.TokenCredential.AccessToken)
 		if DecodeJWT {
-			c := jwt.MapClaims{}
-			if _, _, err := new(jwt.Parser).ParseUnverified(tc.AccessToken, c); err == nil {
-				accessToken = c
+			mc := jwt.MapClaims{}
+			if _, _, err := new(jwt.Parser).ParseUnverified(c.TokenCredential.AccessToken, mc); err == nil {
+				accessToken = mc
 			}
 		}
+
+		// Override the expiry with the UTC formatted time or "0"
+		expiry := "0"
+		if !c.TokenCredential.Expiry.IsZero() {
+			expiry = c.TokenCredential.Expiry.UTC().Format(time.RFC3339)
+		}
+
+		// http://choly.ca/post/go-json-marshalling/
+		type TC TokenCredential
+		return json.Marshal(&struct {
+			*TC
+			AccessToken interface{} `json:"access_token,omitempty"`
+			Expiry      string      `json:"expiry,omitempty"`
+		}{TC: (*TC)(c.TokenCredential), AccessToken: accessToken, Expiry: expiry})
+	} else if c.ClientCredential != nil {
+		return json.Marshal(c.ClientCredential)
 	}
-	var expiry string
-	if tc != nil && tc.Expiry.IsZero() {
-		expiry = "0"
-	} else if tc != nil {
-		expiry = tc.Expiry.UTC().Format(time.RFC3339)
-	}
-	return json.Marshal(&struct {
-		*TC
-		AccessToken interface{} `json:"access_token,omitempty"`
-		Expiry      string      `json:"expiry,omitempty"`
-	}{TC: (*TC)(tc), AccessToken: accessToken, Expiry: expiry})
+	return nil, nil
 }
 
 // MarshalJSON omits empty structs

@@ -56,6 +56,8 @@ type Options struct {
 	Product string
 	// ShowSetupToolsImage toggles the setup tools image information
 	ShowSetupToolsImage bool
+	// Debug enables error logging
+	Debug bool
 }
 
 // NewCommand creates a new command for reporting version information
@@ -76,6 +78,7 @@ func NewCommand(o *Options) *cobra.Command {
 	}
 
 	cmd.Flags().BoolVar(&o.ShowSetupToolsImage, "setuptools", false, "Print only the name of the setuptools image.")
+	cmd.Flags().BoolVar(&o.Debug, "debug", o.Debug, "Display debugging information.")
 
 	commander.ExitOnError(cmd)
 	return cmd
@@ -94,10 +97,18 @@ func (o *Options) version(ctx context.Context) error {
 		data[o.Product] = version.GetInfo()
 	}
 	// TODO Each of these should be done in go routines and time boxed
-	if v, err := o.controllerVersion(ctx); err == nil && v != nil {
+	if v, err := o.controllerVersion(ctx); err != nil {
+		if o.Debug {
+			_, _ = fmt.Fprintln(o.ErrOut, "controller:", err.Error())
+		}
+	} else if v != nil {
 		data["controller"] = v
 	}
-	if v, err := o.apiVersion(ctx); err == nil && v != nil {
+	if v, err := o.apiVersion(ctx); err != nil {
+		if o.Debug {
+			_, _ = fmt.Fprintln(o.ErrOut, "api:", err.Error())
+		}
+	} else if v != nil {
 		data["api"] = v
 	}
 

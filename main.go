@@ -149,12 +149,17 @@ func handleDebugArgs() {
 			cfg := &config.RedSkyConfig{}
 			if err := cfg.Load(); err != nil {
 				os.Exit(1)
-			} else if output, err := json.Marshal(cfg); err != nil {
-				os.Exit(1)
-			} else {
-				fmt.Println(string(output))
-				os.Exit(0)
 			}
+			minified, err := config.Minify(cfg.Reader())
+			if err != nil {
+				os.Exit(1)
+			}
+			output, err := json.Marshal(minified)
+			if err != nil {
+				os.Exit(1)
+			}
+			fmt.Println(string(output))
+			os.Exit(0)
 		}
 	}
 }
