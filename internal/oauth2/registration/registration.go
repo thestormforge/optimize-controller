@@ -116,7 +116,26 @@ func (c *Config) Register(ctx context.Context, client *ClientMetadata) (*ClientI
 	return info, nil
 }
 
-// TODO Read, Update and Delete functions for RFC 7592
+// Read fetches back the client information from a registration client URI
+func Read(ctx context.Context, clientURI, accessToken string) (*ClientInformationResponse, error) {
+	req, err := newReadRequest(clientURI)
+	if err != nil {
+		return nil, err
+	}
+
+	var src oauth2.TokenSource
+	if accessToken != "" {
+		src = oauth2.StaticTokenSource(&oauth2.Token{AccessToken: accessToken})
+	}
+
+	info, err := doReadRoundTrip(ctx, req, src)
+	if err != nil {
+		return nil, err
+	}
+	return info, nil
+}
+
+// TODO Update and Delete functions for RFC 7592
 
 func newRegistrationRequest(registrationURL string, client *ClientMetadata) (*http.Request, error) {
 	// TODO This should accept a `map[string]interface{}`
@@ -125,11 +144,20 @@ func newRegistrationRequest(registrationURL string, client *ClientMetadata) (*ht
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", registrationURL, bytes.NewReader(b))
+	req, err := http.NewRequest(http.MethodPost, registrationURL, bytes.NewReader(b))
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	return req, nil
+}
+
+func newReadRequest(registrationClientURI string) (*http.Request, error) {
+	req, err := http.NewRequest(http.MethodGet, registrationClientURI, nil)
+	if err != nil {
+		return nil, err
+	}
 	req.Header.Set("Accept", "application/json")
 	return req, nil
 }
@@ -168,6 +196,30 @@ func doRegistrationRoundTrip(ctx context.Context, req *http.Request, src oauth2.
 	}
 	if info.ClientID == "" {
 		return nil, fmt.Errorf("registration: server response missing client_id")
+	}
+	return info, nil
+}
+
+func doReadRoundTrip(ctx context.Context, req *http.Request, src oauth2.TokenSource) (*ClientInformationResponse, error) {
+	r, err := ctxhttp.Do(ctx, oauth2.NewClient(ctx, src), req)
+	if err != nil {
+		return nil, err
+	}
+	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 1<<20))
+	_ = r.Body.Close()
+	if err != nil {
+		return nil, fmt.Errorf("registration: cannot fetch client information: %v", err)
+	}
+
+	if code := r.StatusCode; code < 200 || code > 299 {
+		responseError := &ClientRegistrationErrorResponse{}
+		_ = json.Unmarshal(body, responseError)
+		return nil, responseError
+	}
+
+	info := &ClientInformationResponse{}
+	if err := json.Unmarshal(body, info); err != nil {
+		return nil, err
 	}
 	return info, nil
 }

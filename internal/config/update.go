@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/redskyops/redskyops-controller/internal/oauth2/registration"
 	"golang.org/x/oauth2"
 )
 
@@ -53,6 +54,21 @@ func SaveToken(name string, t *oauth2.Token) Change {
 			RefreshToken: t.RefreshToken,
 			Expiry:       t.Expiry,
 		}
+		return nil
+	}
+}
+
+// SaveClientRegistration stores the supplied registration response to the named controller (creating it if it does not exist)
+func SaveClientRegistration(name string, info *registration.ClientInformationResponse) Change {
+	return func(cfg *Config) error {
+		ctrl := findController(cfg.Controllers, name)
+		if ctrl == nil {
+			cfg.Controllers = append(cfg.Controllers, NamedController{Name: name})
+			ctrl = &cfg.Controllers[len(cfg.Controllers)-1].Controller
+		}
+
+		mergeString(&ctrl.RegistrationClientURI, info.RegistrationClientURI)
+		mergeString(&ctrl.RegistrationAccessToken, info.RegistrationAccessToken)
 		return nil
 	}
 }
