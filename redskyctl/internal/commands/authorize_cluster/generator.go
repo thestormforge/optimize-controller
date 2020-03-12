@@ -18,6 +18,7 @@ package authorize_cluster
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/redskyops/redskyops-controller/internal/config"
@@ -98,14 +99,21 @@ func (o *GeneratorOptions) complete(ctx context.Context) error {
 
 func (o *GeneratorOptions) generate(ctx context.Context) error {
 	// Read the initial information from the configuration
-	r := o.Config.Reader()
-	ctrl, err := config.CurrentController(r)
+	controllerName, ctrl, data, err := o.readConfig()
 	if err != nil {
 		return err
 	}
-	data, err := config.EnvironmentMapping(r, true)
+
+	// Get the client information (either read or register)
+	info, err := o.clientInfo(ctx, ctrl)
 	if err != nil {
 		return err
+	}
+
+	// Save any changes we made to the configuration (even if we didn't register, the access token might have rolled)
+	_ = o.Config.Update(config.SaveClientRegistration(controllerName, info))
+	if err := o.Config.Write(); err != nil {
+		_, _ = fmt.Fprintln(o.ErrOut, "Could not update configuration with controller registration information")
 	}
 
 	// Create a new secret object
@@ -118,25 +126,45 @@ func (o *GeneratorOptions) generate(ctx context.Context) error {
 		Type: corev1.SecretTypeOpaque,
 	}
 
-	// TODO Block registration if the authorization has a default namespace claim?
-	// TODO Record the client information in the local configuration for management at a later time
-	// TODO If we see a record of the same name in the local config, fetch it instead of registering it!
-	// We MUST do the recording before we can support output methods other then full serializations...
-
-	// Register the client with the authorization server
-	info, err := o.Config.RegisterClient(ctx, &registration.ClientMetadata{
-		ClientName:    o.ClientName,
-		GrantTypes:    []string{"client_credentials"},
-		RedirectURIs:  []string{},
-		ResponseTypes: []string{},
-	})
-	if err != nil {
-		return err
-	}
-
 	// Overwrite the client credentials in the secret
 	secret.Data["REDSKY_AUTHORIZATION_CLIENT_ID"] = []byte(info.ClientID)
 	secret.Data["REDSKY_AUTHORIZATION_CLIENT_SECRET"] = []byte(info.ClientSecret)
 
 	return o.Printer.PrintObj(secret, o.Out)
+}
+
+func (o *GeneratorOptions) readConfig() (string, *config.Controller, map[string][]byte, error) {
+	// Read the initial information from the configuration
+	r := o.Config.Reader()
+	controllerName, err := r.ControllerName(r.ContextName())
+	if err != nil {
+		return "", nil, nil, err
+	}
+	ctrl, err := r.Controller(controllerName)
+	if err != nil {
+		return "", nil, nil, err
+	}
+	data, err := config.EnvironmentMapping(r, true)
+	if err != nil {
+		return "", nil, nil, err
+	}
+	return controllerName, &ctrl, data, nil
+}
+
+func (o *GeneratorOptions) clientInfo(ctx context.Context, ctrl *config.Controller) (*registration.ClientInformationResponse, error) {
+	// Try to read an existing client (ignore errors and just re-register)
+	if ctrl.RegistrationClientURI != "" {
+		if info, err := registration.Read(ctx, ctrl.RegistrationClientURI, ctrl.RegistrationAccessToken); err == nil {
+			return info, nil
+		}
+	}
+
+	// Register a new client
+	client := &registration.ClientMetadata{
+		ClientName:    o.ClientName,
+		GrantTypes:    []string{"client_credentials"},
+		RedirectURIs:  []string{},
+		ResponseTypes: []string{},
+	}
+	return o.Config.RegisterClient(ctx, client)
 }

@@ -67,6 +67,8 @@ type RedSkyServer struct {
 	AccountsEndpoint string `json:"accounts_endpoint,omitempty"`
 }
 
+// NOTE: AuthorizationServer is defined by https://tools.ietf.org/html/rfc8414 do not add non-standard fields!
+
 // AuthorizationServer is the authorization server metadata
 type AuthorizationServer struct {
 	// Issuer is the authorization server's identifier, it must be an "https" URL with no query or fragment
