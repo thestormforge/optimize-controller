@@ -43,9 +43,12 @@ func FromCluster(in *redskyv1alpha1.Experiment) (redskyapi.ExperimentName, *reds
 	out.ExperimentMeta.Self = in.Annotations[redskyv1alpha1.AnnotationExperimentURL]
 	out.ExperimentMeta.NextTrial = in.Annotations[redskyv1alpha1.AnnotationNextTrialURL]
 
-	out.Optimization = make(map[string]string, len(in.Spec.Optimization))
+	out.Optimization = nil
 	for _, o := range in.Spec.Optimization {
-		out.Optimization[o.Name] = o.Value
+		out.Optimization = append(out.Optimization, redskyapi.Optimization{
+			Name:  o.Name,
+			Value: o.Value,
+		}
 	}
 
 	out.Parameters = nil

@@ -156,6 +156,13 @@ func (n experimentName) String() string {
 	return n.name
 }
 
+type Optimization struct {
+	// The name of the optimization parameter.
+	Name string `json:"name"`
+	// The value of the optimization parameter.
+	Value string `json:"value"`
+}
+
 type Metric struct {
 	// The name of the metric.
 	Name string `json:"name"`
@@ -216,7 +223,7 @@ type Experiment struct {
 	// The display name of the experiment. Do not use for generating URLs!
 	DisplayName string `json:"displayName,omitempty"`
 	// Controls how the optimizer will generate trials.
-	Optimization map[string]string `json:"optimization,omitempty"`
+	Optimization []Optimization `json:"optimization,omitempty"`
 	// The metrics been optimized in the experiment.
 	Metrics []Metric `json:"metrics"`
 	// The search space of the experiment.
