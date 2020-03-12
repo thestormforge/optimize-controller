@@ -261,7 +261,7 @@ func (c *Credential) MarshalJSON() ([]byte, error) {
 	} else if c.ClientCredential != nil {
 		return json.Marshal(c.ClientCredential)
 	}
-	return nil, nil
+	return []byte("{}"), nil
 }
 
 // MarshalJSON omits empty structs
