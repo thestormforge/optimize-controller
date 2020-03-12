@@ -29,6 +29,21 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// patchFormat is used to patch the deployment with the secret information
+const patchFormat = `
+spec:
+  metadata:
+    annotations:
+      "redskyops.dev/secretHash": "%s"
+  template:
+    spec:
+      containers:
+      - name: manager
+        envFrom:
+        - secretRef:
+            name: "%s"
+`
+
 // Options are the configuration options for authorizing a cluster
 type Options struct {
 	GeneratorOptions
@@ -74,11 +89,9 @@ func (o *Options) authorizeCluster(ctx context.Context) error {
 // patchDeployment patches the Red Sky Controller deployment to reflect the state of the secret; any changes to the
 // will cause the controller to be re-deployed.
 func (o *Options) patchDeployment(ctx context.Context, secretHash string) error {
-	// TODO In theory we wouldn't need this if we switched to file based configuration in the cluster and had a watch on the file to pick up changes...
-
 	// TODO What about the controller deployment name? It could be different, e.g. for a Helm deploy
 	name := "redsky-controller-manager"
-	patch := fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"redskyops.dev/secretHash":"%s"}}}}}`, secretHash)
+	patch := fmt.Sprintf(patchFormat, secretHash, o.Name)
 
 	ctrl, err := config.CurrentController(o.Config.Reader())
 	if err != nil {
