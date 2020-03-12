@@ -407,11 +407,11 @@ func (h *httpAPI) Options(ctx context.Context) (ServerMeta, error) {
 	}
 
 	switch resp.StatusCode {
-	case http.StatusNoContent:
+	case http.StatusOK, http.StatusNoContent:
 		sm.Unmarshal(resp.Header)
 		return sm, nil
 	case http.StatusNotFound, http.StatusMethodNotAllowed:
-		// TODO Current behavior is to return 404 or 405 instead of 204
+		// TODO Current behavior is to return 404 or 405 instead of 204 (or 200?)
 		sm.Unmarshal(resp.Header)
 		return sm, nil
 	default:
