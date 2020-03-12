@@ -118,7 +118,7 @@ func ConfigGlobals(cfg *internalconfig.RedSkyConfig, cmd *cobra.Command) {
 func WithContextE(runE func(context.Context) error) func(*cobra.Command, []string) error {
 	return func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		ctx = context.WithValue(ctx, oauth2.HTTPClient, http.Client{Transport: userAgent(cmd)})
+		ctx = context.WithValue(ctx, oauth2.HTTPClient, &http.Client{Transport: userAgent(cmd)})
 		return runE(ctx)
 	}
 }
