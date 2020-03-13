@@ -140,4 +140,5 @@ spec:
         envFrom:
         - secretRef:
             name: "%s"
+            optional: false
 `

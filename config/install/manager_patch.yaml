@@ -20,3 +20,7 @@ spec:
           runAsNonRoot: true
           readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false
+        envFrom:
+        - secretRef:
+            name: redsky-manager
+            optional: true
