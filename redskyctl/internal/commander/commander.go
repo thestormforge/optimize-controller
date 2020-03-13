@@ -182,7 +182,7 @@ func ExitOnError(cmd *cobra.Command) {
 			}
 
 			// TODO With the exception of silence usage behavior and stdout vs. stderr, this is basically what Cobra already does with a RunE...
-			cmd.PrintErrln("Error:", err.Error())
+			cmd.PrintErr("Error: ", err.Error(), "\n")
 			os.Exit(1)
 		}
 	}
