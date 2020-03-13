@@ -112,9 +112,9 @@ func (o *Options) generateBootstrapRole(out io.Writer) error {
 }
 
 func (o *Options) generateSecret(out io.Writer) error {
-	// TODO Ignore errors if we aren't logged in yet? Or just skip execution all together?
 	opts := &authorize_cluster.GeneratorOptions{
-		Config: o.Config,
+		Config:            o.Config,
+		AllowUnauthorized: true,
 	}
 	cmd := authorize_cluster.NewGeneratorCommand(opts)
 	cmd.SetArgs([]string{})

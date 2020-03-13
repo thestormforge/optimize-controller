@@ -23,6 +23,7 @@ import (
 
 	"github.com/redskyops/redskyops-controller/internal/config"
 	"github.com/redskyops/redskyops-controller/internal/oauth2/registration"
+	redskyapi "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -48,6 +49,8 @@ type GeneratorOptions struct {
 	Name string
 	// ClientName is the name of the client to register with the authorization server
 	ClientName string
+	// AllowUnauthorized generates a secret with no authorization information
+	AllowUnauthorized bool
 }
 
 // NewGeneratorCommand creates a command for generating the cluster authorization secret
@@ -69,11 +72,16 @@ func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 		RunE: commander.WithContextE(o.generate),
 	}
 
-	// TODO Allow name and client name to be configurable?
+	o.addFlags(cmd)
 
 	commander.SetKubePrinter(&o.Printer, cmd)
 	commander.ExitOnError(cmd)
 	return cmd
+}
+
+func (o *GeneratorOptions) addFlags(cmd *cobra.Command) {
+	// TODO Allow name and client name to be configurable?
+	cmd.Flags().BoolVar(&o.AllowUnauthorized, "allow-unauthorized", o.AllowUnauthorized, "Generate a secret without authorization, if necessary.")
 }
 
 // complete fills in the default values for the generator configuration
@@ -106,14 +114,17 @@ func (o *GeneratorOptions) generate(ctx context.Context) error {
 
 	// Get the client information (either read or register)
 	info, err := o.clientInfo(ctx, ctrl)
-	if err != nil {
+	if o.AllowUnauthorized && redskyapi.IsUnauthorized(err) {
+		// Ignore the error (but do not save the changes)
+		info = &registration.ClientInformationResponse{}
+	} else if err != nil {
 		return err
-	}
-
-	// Save any changes we made to the configuration (even if we didn't register, the access token might have rolled)
-	_ = o.Config.Update(config.SaveClientRegistration(controllerName, info))
-	if err := o.Config.Write(); err != nil {
-		_, _ = fmt.Fprintln(o.ErrOut, "Could not update configuration with controller registration information")
+	} else {
+		// Save any changes we made to the configuration (even if we didn't register, the access token might have rolled)
+		_ = o.Config.Update(config.SaveClientRegistration(controllerName, info))
+		if err := o.Config.Write(); err != nil {
+			_, _ = fmt.Fprintln(o.ErrOut, "Could not update configuration with controller registration information")
+		}
 	}
 
 	// Create a new secret object

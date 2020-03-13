@@ -44,7 +44,7 @@ func NewCommand(o *Options) *cobra.Command {
 		RunE:   commander.WithContextE(o.authorizeCluster),
 	}
 
-	// TODO This is an argument for having "add flags" function that takes the command and the options struct...
+	o.addFlags(cmd)
 
 	commander.ExitOnError(cmd)
 	return cmd
@@ -109,7 +109,7 @@ func (o *Options) generateSecret(out io.Writer, secretName, secretHash *string) 
 // patchDeployment patches the Red Sky Controller deployment to reflect the state of the secret; any changes to the
 // will cause the controller to be re-deployed.
 func (o *Options) patchDeployment(ctx context.Context, secretName, secretHash string) error {
-	// TODO What about the controller deployment name? It could be different, e.g. for a Helm deploy
+	// TODO Deployment name should come from config (it could be different, e.g. for a Helm installation)
 	name := "redsky-controller-manager"
 	patch := fmt.Sprintf(patchFormat, secretHash, secretName)
 	ctrl, err := config.CurrentController(o.Config.Reader())
