@@ -80,8 +80,10 @@ func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 }
 
 func (o *GeneratorOptions) addFlags(cmd *cobra.Command) {
-	// TODO Allow name and client name to be configurable?
+	// TODO Allow name to be configurable?
+	cmd.Flags().StringVar(&o.ClientName, "client-name", o.ClientName, "Client name to use for registration.")
 	cmd.Flags().BoolVar(&o.AllowUnauthorized, "allow-unauthorized", o.AllowUnauthorized, "Generate a secret without authorization, if necessary.")
+	_ = cmd.Flags().MarkHidden("allow-unauthorized")
 }
 
 // complete fills in the default values for the generator configuration
@@ -90,6 +92,7 @@ func (o *GeneratorOptions) complete(ctx context.Context) error {
 		o.Name = "redsky-manager"
 	}
 
+	// TODO Should this be part of `NewGeneratorCommand` (before addFlags) so the default can appear in the help output?
 	if o.ClientName == "" {
 		kubectl, err := o.Config.Kubectl(ctx, "config", "view", "--minify", "--output", "jsonpath={.clusters[0].name}")
 		if err != nil {
