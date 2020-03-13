@@ -16,9 +16,9 @@ WORKSPACE=${WORKSPACE:-/workspace}
 templatizeDeployment() {
     sed '/namespace: redsky-system/d' | \
         sed 's/SECRET_SHA256/{{ include (print $.Template.BasePath "\/secret.yaml") . | sha256sum }}/g' | \
-        sed 's/RELEASE_NAME/{{ .Release.Name | quote }}/g' | \
-        sed 's/VERSION/{{ .Chart.AppVersion | quote }}/g' | \
-        sed 's/IMG:TAG/{{ .Values.redskyImage }}:{{ .Values.redskyTag }}/g' | \
+        sed 's/RELEASE_NAME/"{{ .Release.Name }}"/g' | \
+        sed 's/VERSION/"{{ .Chart.AppVersion }}"/g' | \
+        sed 's/IMG:TAG/"{{ .Values.redskyImage }}:{{ .Values.redskyTag }}"/g' | \
         sed 's/PULL_POLICY/{{ .Values.redskyImagePullPolicy }}/g' | \
         sed 's/name: redsky-\(.*\)$/name: "{{ .Release.Name }}-\1"/g'
 }
@@ -38,7 +38,7 @@ label() {
     sed '/creationTimestamp: null/d' | \
     sed '/^  labels:$/,/^    app\.kubernetes\.io\/name: redskyops$/c\
   labels:\
-    app.kubernetes.io/name: "redskyops"\
+    app.kubernetes.io/name: redskyops\
     app.kubernetes.io/version: "{{ .Chart.AppVersion }}"\
     app.kubernetes.io/instance: "{{ .Release.Name }}"\
     app.kubernetes.io/managed-by: "{{ .Release.Service }}"\
