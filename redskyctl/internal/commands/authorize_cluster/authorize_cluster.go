@@ -22,27 +22,11 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"os/exec"
 
 	"github.com/redskyops/redskyops-controller/internal/config"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
 )
-
-// patchFormat is used to patch the deployment with the secret information
-const patchFormat = `
-spec:
-  metadata:
-    annotations:
-      "redskyops.dev/secretHash": "%s"
-  template:
-    spec:
-      containers:
-      - name: manager
-        envFrom:
-        - secretRef:
-            name: "%s"
-`
 
 // Options are the configuration options for authorizing a cluster
 type Options struct {
@@ -67,37 +51,73 @@ func NewCommand(o *Options) *cobra.Command {
 }
 
 func (o *Options) authorizeCluster(ctx context.Context) error {
-	// Capture a hash of the secret manifest as a way to force re-deployment of the manager
-	h := sha256.New()
+	// Fork `kubectl apply` and get a pipe to write manifests to
+	kubectlApply, err := o.Config.Kubectl(ctx, "apply", "-f", "-")
+	if err != nil {
+		return err
+	}
+	kubectlApply.Stdout = o.Out
+	kubectlApply.Stderr = o.ErrOut
+	w, err := kubectlApply.StdinPipe()
+	if err != nil {
+		return err
+	}
 
-	// Pipe the generator output into `kubectl apply`
-	generator := func() (*cobra.Command, error) { return NewGeneratorCommand(&o.GeneratorOptions), nil }
-	apply := func() (*exec.Cmd, error) { return o.Config.Kubectl(ctx, "apply", "-f", "-") }
-	sha256sum := func(w io.Writer) io.Writer { return io.MultiWriter(h, w) }
-	if err := commander.RunPipe(o.IOStreams, generator, apply, sha256sum); err != nil {
+	// Generate the secret manifest (populating the name/hash of the secret as a side effect)
+	var secretName, secretHash string
+	go func() {
+		// NOTE: Ignore errors and rely on logging to stderr
+		defer func() { _ = w.Close() }()
+		if err := o.generateSecret(w, &secretName, &secretHash); err != nil {
+			return
+		}
+	}()
+
+	// Apply the secret manifest (after this returns, the name/hash should be safely populated)
+	if err := kubectlApply.Run(); err != nil {
 		return err
 	}
 
 	// Patch the controller deployment using the hash of the secret
-	if err := o.patchDeployment(ctx, hex.EncodeToString(h.Sum(nil))); err != nil {
+	if err := o.patchDeployment(ctx, secretName, secretHash); err != nil {
 		return err
 	}
 
 	return nil
 }
 
+// generateSecret produces an authorization configuration secret, as a side effect the name and hash of
+// the generated secret are used to populate the supplied string pointers
+func (o *Options) generateSecret(out io.Writer, secretName, secretHash *string) error {
+	h := sha256.New()
+
+	opts := o.GeneratorOptions
+	cmd := NewGeneratorCommand(&opts)
+	cmd.SetArgs([]string{})
+	cmd.SetOut(io.MultiWriter(h, out))
+	cmd.SetErr(o.ErrOut)
+	if err := cmd.Execute(); err != nil {
+		return err
+	}
+
+	// Record the name and SHA-256 hash of the secret that was generated
+	*secretName = opts.Name
+	*secretHash = hex.EncodeToString(h.Sum(nil))
+	return nil
+}
+
 // patchDeployment patches the Red Sky Controller deployment to reflect the state of the secret; any changes to the
 // will cause the controller to be re-deployed.
-func (o *Options) patchDeployment(ctx context.Context, secretHash string) error {
+func (o *Options) patchDeployment(ctx context.Context, secretName, secretHash string) error {
 	// TODO What about the controller deployment name? It could be different, e.g. for a Helm deploy
 	name := "redsky-controller-manager"
-	patch := fmt.Sprintf(patchFormat, secretHash, o.Name)
-
+	patch := fmt.Sprintf(patchFormat, secretHash, secretName)
 	ctrl, err := config.CurrentController(o.Config.Reader())
 	if err != nil {
 		return err
 	}
 
+	// Execute the patch
 	kubectlPatch, err := o.Config.Kubectl(ctx, "patch", "deployment", name, "--namespace", ctrl.Namespace, "--patch", patch)
 	if err != nil {
 		return err
@@ -106,3 +126,18 @@ func (o *Options) patchDeployment(ctx context.Context, secretHash string) error 
 	kubectlPatch.Stderr = o.ErrOut
 	return kubectlPatch.Run()
 }
+
+// patchFormat is used to patch the deployment with the secret information
+const patchFormat = `
+spec:
+  metadata:
+    annotations:
+      "redskyops.dev/secretHash": "%s"
+  template:
+    spec:
+      containers:
+      - name: manager
+        envFrom:
+        - secretRef:
+            name: "%s"
+`

@@ -210,59 +210,6 @@ func ExitOnError(cmd *cobra.Command) {
 	}
 }
 
-// RunPipe runs a Cobra command and pipes the output into an OS command; the supplied streams are applied to pipeline
-// and an (optional) filter can be used between the two commands. This function will block until the OS command exits.
-func RunPipe(streams IOStreams, source func() (*cobra.Command, error), sink func() (*exec.Cmd, error), filter func(w io.Writer) io.Writer) error {
-	// Create the source
-	sourceCmd, err := source()
-	if err != nil {
-		return err
-	}
-	sourceCmd.SetArgs([]string{})
-	sourceCmd.SetErr(streams.ErrOut)
-
-	// Create the sink
-	sinkCmd, err := sink()
-	if err != nil {
-		return err
-	}
-	sinkCmd.Stdout = streams.Out
-	sinkCmd.Stderr = streams.ErrOut
-
-	// Connect the two
-	out, err := sinkCmd.StdinPipe()
-	if err != nil {
-		return err
-	}
-	if filter != nil {
-		sourceCmd.SetOut(filter(out))
-	} else {
-		sourceCmd.SetOut(out)
-	}
-
-	// Start the sink asynchronously so it can receive output
-	if err := sinkCmd.Start(); err != nil {
-		return err
-	}
-
-	// Run the source and close the pipe when it is done
-	// TODO How should we synchronize this? This is different from what is done in init/reset
-	errChan := make(chan error, 2)
-	go func() {
-		errChan <- sourceCmd.Execute()
-		errChan <- out.Close()
-		close(errChan)
-	}()
-	for err := range errChan {
-		if err != nil {
-			return err
-		}
-	}
-
-	// Wait for the sink to finish processing the output
-	return sinkCmd.Wait()
-}
-
 func userAgent(cmd *cobra.Command) http.RoundTripper {
 	// TODO Get version number from cmd?
 	// TODO Include OS, etc. in comment?

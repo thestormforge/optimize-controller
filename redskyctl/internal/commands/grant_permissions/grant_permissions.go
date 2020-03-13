@@ -18,7 +18,7 @@ package grant_permissions
 
 import (
 	"context"
-	"os/exec"
+	"io"
 
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
@@ -47,8 +47,35 @@ func NewCommand(o *Options) *cobra.Command {
 }
 
 func (o *Options) grantPermissions(ctx context.Context) error {
-	// Pipe the generator output into `kubectl apply`
-	generator := func() (*cobra.Command, error) { return NewGeneratorCommand(&o.GeneratorOptions), nil }
-	apply := func() (*exec.Cmd, error) { return o.Config.Kubectl(ctx, "apply", "-f", "-") }
-	return commander.RunPipe(o.IOStreams, generator, apply, nil)
+	// Fork `kubectl apply` and get a pipe to write manifests to
+	kubectlApply, err := o.Config.Kubectl(ctx, "apply", "-f", "-")
+	if err != nil {
+		return err
+	}
+	kubectlApply.Stdout = o.Out
+	kubectlApply.Stderr = o.ErrOut
+	w, err := kubectlApply.StdinPipe()
+	if err != nil {
+		return err
+	}
+
+	// Generate all of the manifests
+	go func() {
+		defer func() { _ = w.Close() }()
+		if err := o.generateBootstrapRole(w); err != nil {
+			return
+		}
+	}()
+
+	// Wait for everything to be applied
+	return kubectlApply.Run()
+}
+
+func (o *Options) generateBootstrapRole(out io.Writer) error {
+	opts := o.GeneratorOptions
+	cmd := NewGeneratorCommand(&opts)
+	cmd.SetArgs([]string{})
+	cmd.SetOut(out)
+	cmd.SetErr(o.ErrOut)
+	return cmd.Execute()
 }
