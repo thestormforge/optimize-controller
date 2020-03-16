@@ -51,6 +51,8 @@ const (
 	PrinterNoHeader = "noHeader"
 	// PrinterShowLabels is the configuration key for setting the initial show labels flag
 	PrinterShowLabels = "showLabels"
+	// PrinterHideStatus
+	PrinterHideStatus = "hideStatus"
 )
 
 // ResourcePrinter formats an object to a byte stream
@@ -117,6 +119,11 @@ func printFlagsFieldSep(c rune) bool { return c == ',' }
 // newPrintFlags returns a new print flags instance with settings parsed from a map of name/value configuration pairs
 func newPrintFlags(meta TableMeta, config map[string]string) *printFlags {
 	pf := &printFlags{meta: meta}
+
+	// Hide status of Kube objects
+	if kp, ok := meta.(*kubePrinter); ok {
+		kp.hideStatus, _ = strconv.ParseBool(config[PrinterHideStatus])
+	}
 
 	// Split the column list
 	pf.columns = strings.FieldsFunc(config[PrinterColumns], printFlagsFieldSep)
@@ -354,11 +361,12 @@ func (p *csvPrinter) PrintObj(obj interface{}, w io.Writer) error {
 
 // kubePrinter handles both metadata extraction and printing of objects registered to an API Machinery scheme
 type kubePrinter struct {
-	printer ResourcePrinter
+	printer    ResourcePrinter
+	hideStatus bool
 }
 
 // ExtractList returns a slice of the items from a Kube list object
-func (k kubePrinter) ExtractList(obj interface{}) ([]interface{}, error) {
+func (k *kubePrinter) ExtractList(obj interface{}) ([]interface{}, error) {
 	// Must be a runtime object
 	o, ok := obj.(runtime.Object)
 	if !ok {
@@ -385,13 +393,13 @@ func (k kubePrinter) ExtractList(obj interface{}) ([]interface{}, error) {
 }
 
 // Columns just returns a fixed set of columns
-func (k kubePrinter) Columns(obj interface{}, outputFormat string) []string {
+func (k *kubePrinter) Columns(obj interface{}, outputFormat string) []string {
 	// TODO Can we inspect the object reflectively for print columns?
 	return []string{"name", "age"}
 }
 
 // ExtractValue attempts to extract common columns from a Kube runtime object
-func (k kubePrinter) ExtractValue(obj interface{}, column string) (string, error) {
+func (k *kubePrinter) ExtractValue(obj interface{}, column string) (string, error) {
 	o, ok := obj.(runtime.Object)
 	if !ok {
 		return "", fmt.Errorf("expected runtime.Object")
@@ -439,12 +447,12 @@ func (k kubePrinter) ExtractValue(obj interface{}, column string) (string, error
 }
 
 // Header formats all headers in upper case
-func (k kubePrinter) Header(outputFormat string, column string) string {
+func (k *kubePrinter) Header(outputFormat string, column string) string {
 	return strings.ToUpper(column)
 }
 
 // PrintObj converts the Kube runtime object to an unstructured object for marshalling
-func (k kubePrinter) PrintObj(obj interface{}, w io.Writer) error {
+func (k *kubePrinter) PrintObj(obj interface{}, w io.Writer) error {
 	// As a special case, deal with runtime.Object, it's type metadata, and it's silly creation timestamp
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
@@ -453,6 +461,10 @@ func (k kubePrinter) PrintObj(obj interface{}, w io.Writer) error {
 	// TODO Is the InternalGroupVersioner going to cause issues based on the version of client-go we use?
 	if err := scheme.Convert(obj, u, runtime.InternalGroupVersioner); err == nil {
 		u.SetCreationTimestamp(metav1.Time{})
+		if k.hideStatus {
+			delete(u.UnstructuredContent(), "status")
+		}
+
 		obj = u
 	}
 	return k.printer.PrintObj(obj, w)
