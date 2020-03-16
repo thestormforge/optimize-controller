@@ -71,18 +71,27 @@ func (o *SuggestOptions) suggest(ctx context.Context) error {
 		return err
 	}
 
-	ta := experimentsv1alpha1.TrialAssignments{}
+	ta, err := o.SuggestAssignments(&exp)
+	if err != nil {
+		return err
+	}
+
+	_, err = o.ExperimentsAPI.CreateTrial(ctx, exp.Trials, *ta)
+	return err
+}
+
+// SuggestAssignments creates new assignments object based on the parameters of the supplied experiment
+func (o *SuggestOptions) SuggestAssignments(exp *experimentsv1alpha1.Experiment) (*experimentsv1alpha1.TrialAssignments, error) {
+	ta := &experimentsv1alpha1.TrialAssignments{}
 	for i := range exp.Parameters {
 		p := &exp.Parameters[i]
 		v, err := o.assign(p)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		ta.Assignments = append(ta.Assignments, experimentsv1alpha1.Assignment{ParameterName: p.Name, Value: v})
 	}
-
-	_, err = o.ExperimentsAPI.CreateTrial(ctx, exp.Trials, ta)
-	return err
+	return ta, nil
 }
 
 func (o *SuggestOptions) assign(p *experimentsv1alpha1.Parameter) (json.Number, error) {
