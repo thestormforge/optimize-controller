@@ -31,7 +31,6 @@ import (
 	redskyv1alpha1 "github.com/redskyops/redskyops-controller/pkg/apis/redsky/v1alpha1"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/duration"
@@ -460,7 +459,7 @@ func (k *kubePrinter) PrintObj(obj interface{}, w io.Writer) error {
 	u := &unstructured.Unstructured{}
 	// TODO Is the InternalGroupVersioner going to cause issues based on the version of client-go we use?
 	if err := scheme.Convert(obj, u, runtime.InternalGroupVersioner); err == nil {
-		u.SetCreationTimestamp(metav1.Time{})
+		removeCreationTimestamp(u.UnstructuredContent())
 		if k.hideStatus {
 			delete(u.UnstructuredContent(), "status")
 		}
@@ -468,4 +467,22 @@ func (k *kubePrinter) PrintObj(obj interface{}, w io.Writer) error {
 		obj = u
 	}
 	return k.printer.PrintObj(obj, w)
+}
+
+// removeCreationTimestamp recursively searches for creation timestamps and removes them
+func removeCreationTimestamp(m map[string]interface{}) {
+	// Remove the creation timestamp at the current level
+	delete(m, "creationTimestamp")
+
+	// Look for maps to recurse down
+	for k, v := range m {
+		if mm, ok := v.(map[string]interface{}); ok {
+			removeCreationTimestamp(mm)
+
+			// If the creation timestamp was the only property, remove the whole map
+			if len(mm) == 0 {
+				delete(m, k)
+			}
+		}
+	}
 }
