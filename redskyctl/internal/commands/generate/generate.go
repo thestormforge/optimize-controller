@@ -17,11 +17,17 @@ limitations under the License.
 package generate
 
 import (
+	"fmt"
+	"io"
+	"io/ioutil"
+
 	"github.com/redskyops/redskyops-controller/internal/config"
+	redskyv1alpha1 "github.com/redskyops/redskyops-controller/pkg/apis/redsky/v1alpha1"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/authorize_cluster"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/grant_permissions"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/initialize"
 	"github.com/spf13/cobra"
+	"sigs.k8s.io/yaml"
 )
 
 // Options includes the configuration for the subcommands
@@ -39,6 +45,7 @@ func NewCommand(o *Options) *cobra.Command {
 	}
 
 	cmd.AddCommand(NewRBACCommand(&RBACOptions{}))
+	cmd.AddCommand(NewTrialCommand(&TrialOptions{}))
 
 	// Also include plumbing generators used by other commands
 	cmd.AddCommand(authorize_cluster.NewGeneratorCommand(&authorize_cluster.GeneratorOptions{Config: o.Config}))
@@ -46,4 +53,34 @@ func NewCommand(o *Options) *cobra.Command {
 	cmd.AddCommand(initialize.NewGeneratorCommand(&initialize.GeneratorOptions{Config: o.Config}))
 
 	return cmd
+}
+
+// TODO This should read all of the experiments from a stream of documents and return a list
+
+// readExperiment unmarshals experiment data
+func readExperiment(filename string, defaultReader io.Reader, experiment *redskyv1alpha1.Experiment) error {
+	if filename == "" {
+		return nil
+	}
+
+	var data []byte
+	var err error
+	if filename == "-" {
+		data, err = ioutil.ReadAll(defaultReader)
+	} else {
+		data, err = ioutil.ReadFile(filename)
+	}
+	if err != nil {
+		return err
+	}
+
+	// TODO Split on "---\n" ?
+
+	if err = yaml.Unmarshal(data, experiment); err != nil {
+		return err
+	}
+	if experiment.GroupVersionKind().GroupVersion() != redskyv1alpha1.GroupVersion || experiment.Kind != "Experiment" {
+		return fmt.Errorf("expected experiment, got: %s", experiment.GroupVersionKind())
+	}
+	return nil
 }

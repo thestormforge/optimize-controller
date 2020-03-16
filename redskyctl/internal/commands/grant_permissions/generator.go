@@ -106,7 +106,6 @@ func (o *GeneratorOptions) generate() error {
 
 	// Do not generate an empty cluster role
 	if len(clusterRole.Rules) == 0 {
-		// TODO Println("---")?
 		return nil
 	}
 

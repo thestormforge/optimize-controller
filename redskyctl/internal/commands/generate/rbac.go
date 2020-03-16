@@ -17,8 +17,6 @@ limitations under the License.
 package generate
 
 import (
-	"fmt"
-	"io/ioutil"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -30,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
-	"sigs.k8s.io/yaml"
 )
 
 // TODO Determine if this should be exposed as a Kustomize plugin also
@@ -94,18 +91,20 @@ func (o *RBACOptions) generate() error {
 		},
 	}
 
-	// TODO This should read all of the experiments from a stream of documents (in which case the default name should come from the filename)
-
 	// Read the experiment
+	// TODO When "readExperiment" returns multiple results, we still just generate a single cluster role
 	experiment := &redskyv1alpha1.Experiment{}
-	if err := o.readExperiment(experiment); err != nil {
+	if err := readExperiment(o.Filename, o.In, experiment); err != nil {
 		return err
 	}
 
 	// Come up with a default name if necessary
 	if clusterRole.Name == "" {
-		if experiment.Name != "" {
+		if experiment.Name != "" { // TODO Only take the experiment name if it is the only one `&& len(experiments) == 1`
 			clusterRole.Name = "redsky-patching-" + strings.ReplaceAll(strings.ToLower(experiment.Name), " ", "-")
+		} else if o.Filename == "-" {
+			// TODO This needs some type of uniqueness
+			clusterRole.Name = "redsky-patching-stdin"
 		} else if o.Filename != "" {
 			// TODO This needs more clean up
 			clusterRole.Name = "redsky-patching-" + strings.ToLower(filepath.Base(o.Filename))
@@ -126,36 +125,10 @@ func (o *RBACOptions) generate() error {
 
 	// Do not generate an empty cluster role
 	if len(clusterRole.Rules) == 0 {
-		// TODO Println("---")?
 		return nil
 	}
 
 	return o.Printer.PrintObj(clusterRole, o.Out)
-}
-
-// readExperiment unmarshals experiment data based on the current options
-func (o *RBACOptions) readExperiment(experiment *redskyv1alpha1.Experiment) error {
-	if o.Filename == "" {
-		return nil
-	}
-
-	var data []byte
-	var err error
-	if o.Filename == "-" {
-		data, err = ioutil.ReadAll(o.In)
-	} else {
-		data, err = ioutil.ReadFile(o.Filename)
-	}
-	if err != nil {
-		return err
-	}
-	if err = yaml.Unmarshal(data, experiment); err != nil {
-		return err
-	}
-	if experiment.GroupVersionKind().GroupVersion() != redskyv1alpha1.GroupVersion || experiment.Kind != "Experiment" {
-		return fmt.Errorf("expected experiment, got: %s", experiment.GroupVersionKind())
-	}
-	return nil
 }
 
 // findRules finds the patch targets from an experiment
