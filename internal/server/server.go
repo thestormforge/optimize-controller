@@ -112,7 +112,7 @@ func ToClusterTrial(t *redskyv1alpha1.Trial, suggestion *redskyapi.TrialAssignme
 	t.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL] = suggestion.ReportTrial
 
 	// Try to make the cluster trial names match what is on the server
-	if t.Name == "" && t.GenerateName != "" {
+	if t.Name == "" && t.GenerateName != "" && suggestion.ReportTrial != "" {
 		name := path.Base(suggestion.ReportTrial)
 		if num, err := strconv.ParseInt(name, 10, 64); err == nil {
 			t.Name = fmt.Sprintf("%s%03d", t.GenerateName, num)
