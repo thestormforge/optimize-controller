@@ -50,7 +50,7 @@ var (
 		redskyv1alpha1.TrialSetupCreated,
 		redskyv1alpha1.TrialSetupDeleted,
 		redskyv1alpha1.TrialPatched,
-		redskyv1alpha1.TrialStable,
+		redskyv1alpha1.TrialReady,
 		redskyv1alpha1.TrialObserved,
 		redskyv1alpha1.TrialComplete,
 		redskyv1alpha1.TrialFailed,
@@ -132,7 +132,7 @@ func summarize(t *redskyv1alpha1.Trial) string {
 				phase = patching
 			}
 
-		case redskyv1alpha1.TrialStable:
+		case redskyv1alpha1.TrialReady:
 			switch c.Status {
 			case corev1.ConditionTrue:
 				if t.Status.StartTime != nil {

@@ -85,6 +85,12 @@ type Metric struct {
 	Path string `json:"path,omitempty"`
 }
 
+// PatchReadinessGate contains a reference to a condition
+type PatchReadinessGate struct {
+	// ConditionType refers to a condition in the patched target's condition list
+	ConditionType string `json:"conditionType"`
+}
+
 // PatchTemplate defines a target resource and a patch template to apply
 type PatchTemplate struct {
 	// The patch type, one of: json|merge|strategic, default: strategic
@@ -93,6 +99,13 @@ type PatchTemplate struct {
 	Patch string `json:"patch"`
 	// Direct reference to the object the patch should be applied to.
 	TargetRef *corev1.ObjectReference `json:"targetRef,omitempty"`
+	// ReadinessGates will be evaluated for patch target readiness. A patch target is ready if all conditions specified
+	// in the readiness gates have a status equal to "True". If no readiness gates are specified, some target types may
+	// have default gates assigned to them. Some condition checks may result in errors, e.g. a condition type of "Ready"
+	// is not allowed for a ConfigMap. Condition types starting with "redskyops.dev/" may not appear in the patched
+	// target's condition list, but are still evaluated against the resource's state.
+	// TODO omitempty is temporary for backwards compatibility, it should be removed
+	ReadinessGates []PatchReadinessGate `json:"readinessGates,omitempty"`
 }
 
 // NamespaceTemplateSpec is used as a template for creating new namespaces

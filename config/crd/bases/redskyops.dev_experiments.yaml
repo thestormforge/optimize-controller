@@ -243,6 +243,28 @@ spec:
                   patch:
                     description: A Go Template that evaluates to valid patch.
                     type: string
+                  readinessGates:
+                    description: ReadinessGates will be evaluated for patch target
+                      readiness. A patch target is ready if all conditions specified
+                      in the readiness gates have a status equal to "True". If no
+                      readiness gates are specified, some target types may have default
+                      gates assigned to them. Some condition checks may result in
+                      errors, e.g. a condition type of "Ready" is not allowed for
+                      a ConfigMap. Condition types starting with "redskyops.dev/"
+                      may not appear in the patched target's condition list, but are
+                      still evaluated against the resource's state. TODO omitempty
+                      is temporary for backwards compatibility, it should be removed
+                    items:
+                      description: PatchReadinessGate contains a reference to a condition
+                      properties:
+                        conditionType:
+                          description: ConditionType refers to a condition in the
+                            patched target's condition list
+                          type: string
+                      required:
+                      - conditionType
+                      type: object
+                    type: array
                   targetRef:
                     description: Direct reference to the object the patch should be
                       applied to.
@@ -474,13 +496,239 @@ spec:
                                 description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
                                 type: string
                             type: object
-                          wait:
-                            description: Wait for the patched object to stabilize
-                            type: boolean
                         required:
                         - data
                         - patchType
                         - targetRef
+                        type: object
+                      type: array
+                    readinessChecks:
+                      description: ReadinessChecks are the all of the objects whose
+                        conditions need to be inspected for this trial
+                      items:
+                        description: ReadinessCheck represents a check to determine
+                          when the patched application is "ready" and it is safe to
+                          start the trial run job
+                        properties:
+                          attemptsRemaining:
+                            description: AttemptsRemaining is the number of failed
+                              attempts to allow before marking the entire trial as
+                              failed, will be automatically set to zero if the check
+                              has been successfully evaluated
+                            format: int32
+                            type: integer
+                          conditionTypes:
+                            description: ConditionTypes are the status conditions
+                              that must be "True"; in addition to conditions that
+                              appear in the status of the target object, additional
+                              special conditions starting with "redskyops.dev/" can
+                              be tested
+                            items:
+                              type: string
+                            type: array
+                          initialDelaySeconds:
+                            description: InitialDelaySeconds is the approximate number
+                              of seconds after all of the patches have been applied
+                              to start evaluating this check
+                            format: int32
+                            type: integer
+                          lastCheckTime:
+                            description: LastCheckTime is the timestamp of the last
+                              evaluation attempt
+                            format: date-time
+                            type: string
+                          periodSeconds:
+                            description: PeriodSeconds is the approximate amount of
+                              time in between evaluation attempts of this check
+                            format: int32
+                            type: integer
+                          selector:
+                            description: Selector may be used to trigger a search
+                              for multiple related objects to search; this may have
+                              RBAC implications, in particular "list" permissions
+                              are required
+                            properties:
+                              matchExpressions:
+                                description: matchExpressions is a list of label selector
+                                  requirements. The requirements are ANDed.
+                                items:
+                                  description: A label selector requirement is a selector
+                                    that contains values, a key, and an operator that
+                                    relates the key and values.
+                                  properties:
+                                    key:
+                                      description: key is the label key that the selector
+                                        applies to.
+                                      type: string
+                                    operator:
+                                      description: operator represents a key's relationship
+                                        to a set of values. Valid operators are In,
+                                        NotIn, Exists and DoesNotExist.
+                                      type: string
+                                    values:
+                                      description: values is an array of string values.
+                                        If the operator is In or NotIn, the values
+                                        array must be non-empty. If the operator is
+                                        Exists or DoesNotExist, the values array must
+                                        be empty. This array is replaced during a
+                                        strategic merge patch.
+                                      items:
+                                        type: string
+                                      type: array
+                                  required:
+                                  - key
+                                  - operator
+                                  type: object
+                                type: array
+                              matchLabels:
+                                additionalProperties:
+                                  type: string
+                                description: matchLabels is a map of {key,value} pairs.
+                                  A single {key,value} in the matchLabels map is equivalent
+                                  to an element of matchExpressions, whose key field
+                                  is "key", the operator is "In", and the values array
+                                  contains only "value". The requirements are ANDed.
+                                type: object
+                            type: object
+                          targetRef:
+                            description: TargetRef is the reference to the object
+                              to test the readiness of
+                            properties:
+                              apiVersion:
+                                description: API version of the referent.
+                                type: string
+                              fieldPath:
+                                description: 'If referring to a piece of an object
+                                  instead of an entire object, this string should
+                                  contain a valid JSON/Go field access statement,
+                                  such as desiredState.manifest.containers[2]. For
+                                  example, if the object reference is to a container
+                                  within a pod, this would take on a value like: "spec.containers{name}"
+                                  (where "name" refers to the name of the container
+                                  that triggered the event) or if no container name
+                                  is specified "spec.containers[2]" (container with
+                                  index 2 in this pod). This syntax is chosen only
+                                  to have some well-defined way of referencing a part
+                                  of an object. TODO: this design is not final and
+                                  this field is subject to change in the future.'
+                                type: string
+                              kind:
+                                description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                                type: string
+                              name:
+                                description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                                type: string
+                              namespace:
+                                description: 'Namespace of the referent. More info:
+                                  https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
+                                type: string
+                              resourceVersion:
+                                description: 'Specific resourceVersion to which this
+                                  reference is made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
+                                type: string
+                              uid:
+                                description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
+                                type: string
+                            type: object
+                        required:
+                        - conditionTypes
+                        - targetRef
+                        type: object
+                      type: array
+                    readinessGates:
+                      description: The readiness gates to check before running the
+                        trial job
+                      items:
+                        description: TrialReadinessGate represents a readiness check
+                          on one or more objects that must pass after patches have
+                          been applied, but before the trial run job can start
+                        properties:
+                          apiGroup:
+                            description: APIGroup is the group for the resource being
+                              referenced. If APIGroup is not specified, the specified
+                              Kind must be in the core API group. For any other third-party
+                              types, APIGroup is required.
+                            type: string
+                          conditionTypes:
+                            description: ConditionTypes are the status conditions
+                              that must be "True"
+                            items:
+                              type: string
+                            type: array
+                          failureThreshold:
+                            description: FailureThreshold is number of times that
+                              any of the specified ready conditions may be "False";
+                              defaults to 3, minimum value is 1
+                            format: int32
+                            type: integer
+                          initialDelaySeconds:
+                            description: InitialDelaySeconds is the approximate number
+                              of seconds after all of the patches have been applied
+                              to start evaluating this check
+                            format: int32
+                            type: integer
+                          kind:
+                            description: Kind is the type of resource being referenced
+                            type: string
+                          name:
+                            description: Name is the name of resource being referenced
+                            type: string
+                          periodSeconds:
+                            description: PeriodSeconds is the approximate amount of
+                              time in between evaluation attempts of this check; defaults
+                              to 10 seconds, minimum value is 1 second
+                            format: int32
+                            type: integer
+                          selector:
+                            description: Selector matches the resources whose condition
+                              must be checked, mutually exclusive with "Name"
+                            properties:
+                              matchExpressions:
+                                description: matchExpressions is a list of label selector
+                                  requirements. The requirements are ANDed.
+                                items:
+                                  description: A label selector requirement is a selector
+                                    that contains values, a key, and an operator that
+                                    relates the key and values.
+                                  properties:
+                                    key:
+                                      description: key is the label key that the selector
+                                        applies to.
+                                      type: string
+                                    operator:
+                                      description: operator represents a key's relationship
+                                        to a set of values. Valid operators are In,
+                                        NotIn, Exists and DoesNotExist.
+                                      type: string
+                                    values:
+                                      description: values is an array of string values.
+                                        If the operator is In or NotIn, the values
+                                        array must be non-empty. If the operator is
+                                        Exists or DoesNotExist, the values array must
+                                        be empty. This array is replaced during a
+                                        strategic merge patch.
+                                      items:
+                                        type: string
+                                      type: array
+                                  required:
+                                  - key
+                                  - operator
+                                  type: object
+                                type: array
+                              matchLabels:
+                                additionalProperties:
+                                  type: string
+                                description: matchLabels is a map of {key,value} pairs.
+                                  A single {key,value} in the matchLabels map is equivalent
+                                  to an element of matchExpressions, whose key field
+                                  is "key", the operator is "In", and the values array
+                                  contains only "value". The requirements are ANDed.
+                                type: object
+                            type: object
+                        required:
+                        - conditionTypes
+                        - kind
+                        - name
                         type: object
                       type: array
                     selector:

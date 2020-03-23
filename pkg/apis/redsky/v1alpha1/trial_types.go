@@ -25,6 +25,26 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+// TrialReadinessGate represents a readiness check on one or more objects that must pass after patches
+// have been applied, but before the trial run job can start
+type TrialReadinessGate struct {
+	// TypedLocalObjectReference specifies a single resource or a resource type to select
+	corev1.TypedLocalObjectReference `json:",inline"`
+	// Selector matches the resources whose condition must be checked, mutually exclusive with "Name"
+	Selector *metav1.LabelSelector `json:"selector,omitempty"`
+	// ConditionTypes are the status conditions that must be "True"
+	ConditionTypes []string `json:"conditionTypes"`
+	// InitialDelaySeconds is the approximate number of seconds after all of the patches have been applied to start
+	// evaluating this check
+	InitialDelaySeconds int32 `json:"initialDelaySeconds,omitempty"`
+	// PeriodSeconds is the approximate amount of time in between evaluation attempts of this check;
+	// defaults to 10 seconds, minimum value is 1 second
+	PeriodSeconds int32 `json:"periodSeconds,omitempty"`
+	// FailureThreshold is number of times that any of the specified ready conditions may be "False";
+	// defaults to 3, minimum value is 1
+	FailureThreshold int32 `json:"failureThreshold,omitempty"`
+}
+
 // HelmValue represents a value in a Helm template
 type HelmValue struct {
 	// The name of Helm value as passed to one of the set options
@@ -100,8 +120,29 @@ type PatchOperation struct {
 	// The number of remaining attempts to apply the patch, will be automatically set
 	// to zero if the patch is successfully applied
 	AttemptsRemaining int `json:"attemptsRemaining,omitempty"`
-	// Wait for the patched object to stabilize
-	Wait bool `json:"wait,omitempty"`
+}
+
+// ReadinessCheck represents a check to determine when the patched application is "ready" and it is
+// safe to start the trial run job
+type ReadinessCheck struct {
+	// TargetRef is the reference to the object to test the readiness of
+	TargetRef corev1.ObjectReference `json:"targetRef"`
+	// Selector may be used to trigger a search for multiple related objects to search; this may have RBAC implications,
+	// in particular "list" permissions are required
+	Selector *metav1.LabelSelector `json:"selector,omitempty"`
+	// ConditionTypes are the status conditions that must be "True"; in addition to conditions that appear in the
+	// status of the target object, additional special conditions starting with "redskyops.dev/" can be tested
+	ConditionTypes []string `json:"conditionTypes"`
+	// InitialDelaySeconds is the approximate number of seconds after all of the patches have been applied to start
+	// evaluating this check
+	InitialDelaySeconds int32 `json:"initialDelaySeconds,omitempty"`
+	// PeriodSeconds is the approximate amount of time in between evaluation attempts of this check
+	PeriodSeconds int32 `json:"periodSeconds,omitempty"`
+	// AttemptsRemaining is the number of failed attempts to allow before marking the entire trial as failed, will be
+	// automatically set to zero if the check has been successfully evaluated
+	AttemptsRemaining int32 `json:"attemptsRemaining,omitempty"`
+	// LastCheckTime is the timestamp of the last evaluation attempt
+	LastCheckTime *metav1.Time `json:"lastCheckTime,omitempty"`
 }
 
 // Assignment represents an individual name/value pair. Assignment names must correspond to parameter
@@ -143,7 +184,7 @@ const (
 	// Condition that indicates patches have been applied for a trial
 	TrialPatched TrialConditionType = "redskyops.dev/trial-patched"
 	// Condition that indicates a trail has stabilized after patches
-	TrialStable TrialConditionType = "redskyops.dev/trial-stable"
+	TrialReady TrialConditionType = "redskyops.dev/trial-ready"
 	// Condition that indicates a trial has had metrics collected
 	TrialObserved TrialConditionType = "redskyops.dev/trial-observed"
 )
@@ -183,11 +224,15 @@ type TrialSpec struct {
 	TTLSecondsAfterFinished *int32 `json:"ttlSecondsAfterFinished,omitempty"`
 	// The minimum number of seconds before an attempt should be made to clean up a failed trial, defaults to TTLSecondsAfterFinished
 	TTLSecondsAfterFailure *int32 `json:"ttlSecondsAfterFailure,omitempty"`
+	// The readiness gates to check before running the trial job
+	ReadinessGates []TrialReadinessGate `json:"readinessGates,omitempty"`
 
 	// Values are the collected metrics at the end of the trial run
 	Values []Value `json:"values,omitempty"`
 	// PatchOperations are the patches from the experiment evaluated in the context of this trial
 	PatchOperations []PatchOperation `json:"patchOperations,omitempty"`
+	// ReadinessChecks are the all of the objects whose conditions need to be inspected for this trial
+	ReadinessChecks []ReadinessCheck `json:"readinessChecks,omitempty"`
 
 	// Setup tasks that must run before the trial starts (and possibly after it ends)
 	SetupTasks []SetupTask `json:"setupTasks,omitempty"`
