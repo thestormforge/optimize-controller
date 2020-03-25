@@ -170,10 +170,15 @@ func (r *ReadinessChecker) podReady(ctx context.Context, obj *unstructured.Unstr
 
 	// Iterate over the pods looking for their ready state
 	for i := range list.Items {
+		rc := &corev1.PodCondition{Status: corev1.ConditionUnknown}
 		for _, c := range list.Items[i].Status.Conditions {
-			if c.Type == corev1.PodReady && c.Status != corev1.ConditionTrue {
-				return c.Message, c.Status, nil
+			if c.Type == corev1.PodReady {
+				rc = &c
+				break
 			}
+		}
+		if rc.Status != corev1.ConditionTrue {
+			return rc.Message, rc.Status, nil
 		}
 	}
 
