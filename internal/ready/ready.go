@@ -19,13 +19,13 @@ package ready
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/scale/scheme/extensionsv1beta1"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
@@ -35,23 +35,18 @@ import (
 const (
 	// ConditionTypeAlwaysTrue is a special condition type whose status is always "True"
 	ConditionTypeAlwaysTrue = "redskyops.dev/always-true"
-	// ConditionTypeRolloutStatus is a special condition type whose status is determined using the equivalent of a
-	// `kubectl rollout status` call on the target object
-	ConditionTypeRolloutStatus = "redskyops.dev/rollout-status"
 	// ConditionTypePodReady is a special condition type whose status is determined by fetching the pods associated
-	// with the target object and checking that they all have a condition type of "Ready" with a status of "True";
-	// depending on your version of Kubernetes, you should prefer just checking "Ready" on the target object instead
+	// with the target object and checking that they all have a condition type of "Ready" with a status of "True".
 	ConditionTypePodReady = "redskyops.dev/pod-ready"
+	// ConditionTypeRolloutStatus is a special condition type whose status is determined using the equivalent of a
+	// `kubectl rollout status` call on the target object. This condition will return "True" when evaluated against
+	// an object whose "update strategy" is not "RollingUpdate"; use the "app ready" check to perform a rollout
+	// status that falls back to a pod readiness check in cases where the rollout status cannot be determined.
+	ConditionTypeRolloutStatus = "redskyops.dev/rollout-status"
+	// ConditionTypeAppReady is a special condition type that combines the efficiency of the rollout status check,
+	// the compatibility of the pod ready check.
+	ConditionTypeAppReady = "redskyops.dev/app-ready"
 )
-
-// AllowRolloutStatus checks to see the rollout status condition is supported for the referenced type
-func AllowRolloutStatus(k schema.ObjectKind) bool {
-	// Make a dummy unstructured object just to test if it would work or not
-	u := &unstructured.Unstructured{}
-	u.SetGroupVersionKind(k.GroupVersionKind())
-	_, err := podSelector(u)
-	return err == nil
-}
 
 // ReadinessChecker is used to check the conditions of runtime objects
 type ReadinessChecker struct {
@@ -72,21 +67,34 @@ func (r *ReadinessChecker) CheckConditions(ctx context.Context, obj *unstructure
 		switch c {
 		case ConditionTypeAlwaysTrue:
 			msg, s, err = "", corev1.ConditionTrue, nil
-		case ConditionTypeRolloutStatus:
-			msg, s, err = r.rolloutStatus(ctx, obj)
 		case ConditionTypePodReady:
 			msg, s, err = r.podReady(ctx, obj)
+		case ConditionTypeRolloutStatus:
+			msg, s, err = r.rolloutStatus(obj)
+		case ConditionTypeAppReady:
+			msg, s, err = r.appReady(ctx, obj)
 		default:
 			msg, s, err = r.unstructuredConditionStatus(obj, c)
 		}
 
-		// Stop the loop if something isn't ready or encountered an error
-		if s != corev1.ConditionTrue || err != nil {
+		// Hard stop
+		if err != nil {
 			return msg, false, err
 		}
-	}
 
-	// All the conditions must have been true
+		// Continue checking conditions
+		if s == corev1.ConditionTrue {
+			continue
+		}
+
+		// Make sure it's not a hard fail
+		if m, err := r.podFailed(ctx, obj); err != nil {
+			return m, false, err
+		}
+
+		// Stop checking as soon as a condition is not "True"
+		return msg, false, nil
+	}
 	return "", true, nil
 }
 
@@ -121,8 +129,22 @@ func (r *ReadinessChecker) unstructuredConditionStatus(obj *unstructured.Unstruc
 	return "", corev1.ConditionUnknown, nil
 }
 
+// appReady performs a rollout status check and falls back to a pod ready check
+func (r *ReadinessChecker) appReady(ctx context.Context, obj *unstructured.Unstructured) (string, corev1.ConditionStatus, error) {
+	// Get the kubectl status viewer for the object; ignore errors if we do not recognize the kind
+	if sv, err := polymorphichelpers.StatusViewerFor(obj.GetObjectKind().GroupVersionKind().GroupKind()); err == nil {
+		// This code returns `ok && err != nil` if the object isn't supported, we want to do a pod ready check in that case
+		if msg, ok, err := sv.Status(obj, 0); ok && err == nil {
+			return strings.TrimSpace(msg), corev1.ConditionTrue, nil
+		}
+	}
+
+	// Fall back to the pod ready check
+	return r.podReady(ctx, obj)
+}
+
 // rolloutStatus uses the kubectl implementation of rollout status to get the status of an object
-func (r *ReadinessChecker) rolloutStatus(ctx context.Context, obj *unstructured.Unstructured) (string, corev1.ConditionStatus, error) {
+func (r *ReadinessChecker) rolloutStatus(obj *unstructured.Unstructured) (string, corev1.ConditionStatus, error) {
 	// Get the kubectl status viewer for the object
 	sv, err := polymorphichelpers.StatusViewerFor(obj.GetObjectKind().GroupVersionKind().GroupKind())
 	if err != nil {
@@ -131,30 +153,18 @@ func (r *ReadinessChecker) rolloutStatus(ctx context.Context, obj *unstructured.
 
 	// Evaluate the status
 	msg, ok, err := sv.Status(obj, 0)
-
-	// Check OK first since it can be true even if the error is not nil
+	msg = strings.TrimSpace(msg)
 	if ok {
-		// TODO This is a legacy behavior, we should stop doing it and just require that "pod-ready" also be added as a condition
-		if err != nil {
-			return r.podReady(ctx, obj)
-		}
 		return msg, corev1.ConditionTrue, nil
 	}
-
 	return msg, corev1.ConditionFalse, err
 }
 
 // podReady attempts to locate the pods associated with the specified object and
 func (r *ReadinessChecker) podReady(ctx context.Context, obj *unstructured.Unstructured) (string, corev1.ConditionStatus, error) {
-	// Get the pod selector
-	sel, err := podSelector(obj)
+	// Get the list of pods for the object
+	list, err := r.listPods(ctx, obj)
 	if err != nil {
-		return "", corev1.ConditionFalse, err
-	}
-
-	// Get the list of pods
-	list := &corev1.PodList{}
-	if err := r.Reader.List(ctx, list, client.InNamespace(obj.GetNamespace()), client.MatchingLabelsSelector{Selector: sel}); err != nil {
 		return "", corev1.ConditionFalse, err
 	}
 
@@ -171,7 +181,67 @@ func (r *ReadinessChecker) podReady(ctx context.Context, obj *unstructured.Unstr
 	return "", corev1.ConditionTrue, nil
 }
 
-// podSelector returns the label selector for pods "owned" by the specified object
+// podFailed looks for pods that are obviously in a failed state and are unlikely to recover
+func (r *ReadinessChecker) podFailed(ctx context.Context, obj *unstructured.Unstructured) (string, error) {
+	// Get the list of pods for the object
+	list, err := r.listPods(ctx, obj)
+	if err != nil {
+		return "", err
+	}
+
+	// Iterate over the pods looking for failures
+	for i := range list.Items {
+		p := &list.Items[i]
+		for _, c := range p.Status.Conditions {
+			// Check for unschedulable pods
+			if c.Type == corev1.PodScheduled && c.Status == corev1.ConditionFalse && c.Reason == corev1.PodReasonUnschedulable {
+				return c.Message, fmt.Errorf("%s", c.Reason)
+			}
+
+			// Check the container status
+			var cs []corev1.ContainerStatus
+			cs = append(cs, p.Status.InitContainerStatuses...)
+			cs = append(cs, p.Status.ContainerStatuses...)
+			for _, cc := range cs {
+				if !cc.Ready {
+					switch {
+					case cc.State.Waiting != nil:
+						if cc.RestartCount > 0 && cc.State.Waiting.Reason == "CrashLoopBackOff" {
+							return cc.State.Waiting.Message, fmt.Errorf("%s", cc.State.Waiting.Reason)
+						}
+
+					case cc.State.Terminated != nil:
+						if p.Spec.RestartPolicy == corev1.RestartPolicyNever && cc.RestartCount == 0 && cc.State.Terminated.Reason == "Error" {
+							return cc.State.Terminated.Message, fmt.Errorf("%s", cc.State.Terminated.Reason)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// There are no recognizably failed pods
+	return "", nil
+}
+
+// listPods returns the pods "owned" by the supplied unstructured object
+func (r *ReadinessChecker) listPods(ctx context.Context, obj *unstructured.Unstructured) (*corev1.PodList, error) {
+	// Get the pod selector
+	sel, err := podSelector(obj)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the list of pods
+	list := &corev1.PodList{}
+	if sel != nil {
+		err = r.Reader.List(ctx, list, client.InNamespace(obj.GetNamespace()), client.MatchingLabelsSelector{Selector: sel})
+	}
+	return list, err
+}
+
+// podSelector returns the label selector for pods "owned" by the specified object; returns nil if the selector could
+// not be determined for the supplied object.
 func podSelector(obj *unstructured.Unstructured) (labels.Selector, error) {
 	// TODO Instead of a label selector would we ever want to return a generic client.ListOption; e.g. a field selector?
 	var ls *metav1.LabelSelector
@@ -206,7 +276,8 @@ func podSelector(obj *unstructured.Unstructured) (labels.Selector, error) {
 		ls = sts.Spec.Selector
 
 	default:
-		return nil, fmt.Errorf("no pod selection has been implemented for %v", kind)
+		// Return a nil selector (which is not the same as leaving `ls == nil`)
+		return nil, nil
 	}
 
 	return metav1.LabelSelectorAsSelector(ls)

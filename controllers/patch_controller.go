@@ -286,23 +286,25 @@ func (r *PatchReconciler) createPatchOperation(t *redskyv1alpha1.Trial, p *redsk
 
 // createReadinessCheck creates a readiness check for a patch operation
 func (r *PatchReconciler) createReadinessCheck(p *redskyv1alpha1.PatchTemplate, ref *corev1.ObjectReference) (*redskyv1alpha1.ReadinessCheck, error) {
+	// NOTE: There is a cardinality mismatch between the `PatchReadinessGate` type and the `ReadinessCheck` type in
+	// regard to condition types. We purposely do not expose user facing configuration for these checks (users can
+	// skip patch readiness checks and specify them manually for fine grained control).
 	rc := &redskyv1alpha1.ReadinessCheck{
-		TargetRef:           *ref,
-		InitialDelaySeconds: 1,
-		AttemptsRemaining:   1,
+		TargetRef:         *ref,
+		PeriodSeconds:     5,
+		AttemptsRemaining: 36, // ...targeting a 3 minute max for applications to come back after a patch
 	}
-
-	// NOTE: For simplicity of the model we do not expose attempts remaining, if needed, just add them to the trial (template) directly
-	// Also note the cardinality mismatch between the `PatchReadinessGate` type and the `ReadinessCheck` type in regard to condition types.
 
 	// Add configured and default readiness conditions
 	for i := range p.ReadinessGates {
 		rc.ConditionTypes = append(rc.ConditionTypes, p.ReadinessGates[i].ConditionType)
 	}
 
-	// TODO The check for nil vs len==0 is intentional here for backwards compatibility; we should deprecate that behavior and stop supplying defaults
-	if p.ReadinessGates == nil && ready.AllowRolloutStatus(ref) {
-		rc.ConditionTypes = append(rc.ConditionTypes, ready.ConditionTypeRolloutStatus)
+	// Check for a "legacy" patch that has no explicit (not even empty) readiness gates and apply settings consistent
+	// with earlier versions of the product (we should re-visit this)
+	if p.ReadinessGates == nil {
+		rc.ConditionTypes = append(rc.ConditionTypes, ready.ConditionTypeAppReady)
+		rc.InitialDelaySeconds = 1
 	}
 
 	// If there are no conditions to check, we do not need to add a readiness check
