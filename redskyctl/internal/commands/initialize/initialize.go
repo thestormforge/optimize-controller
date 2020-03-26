@@ -17,6 +17,7 @@ limitations under the License.
 package initialize
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -72,17 +73,21 @@ func (o *Options) initialize(ctx context.Context) error {
 	// Generate all of the manifests (with YAML document delimiters)
 	go func() {
 		defer func() { _ = w.Close() }()
-		if err := o.generateInstall(w); err != nil {
+		// Buffer the manifests so we only send the entire group to kubectl; otherwise the time delay generating
+		// the secret may result in the controller pods being created before the secret exists.
+		buf := bufio.NewWriterSize(w, 2<<18)
+		if err := o.generateInstall(buf); err != nil {
 			return
 		}
-		_, _ = fmt.Fprintln(w, "---")
-		if err := o.generateBootstrapRole(w); err != nil {
+		_, _ = fmt.Fprintln(buf, "---")
+		if err := o.generateBootstrapRole(buf); err != nil {
 			return
 		}
-		_, _ = fmt.Fprintln(w, "---")
-		if err := o.generateSecret(w); err != nil {
+		_, _ = fmt.Fprintln(buf, "---")
+		if err := o.generateSecret(buf); err != nil {
 			return
 		}
+		_ = buf.Flush()
 	}()
 
 	// Wait for everything to be applied
