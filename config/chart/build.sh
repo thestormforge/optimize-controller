@@ -94,9 +94,11 @@ kustomize build rbac | templatizeRBAC | label > "$WORKSPACE/chart/redskyops/temp
 kustomize build chart | templatizeDeployment | label > "$WORKSPACE/chart/redskyops/templates/deployment.yaml"
 
 
-# Remove icon reference from Rancher chart
+# Remove icon reference from Rancher chart, Rancher specific files from everything else
 if [ "$CHART_FORMAT" = "rancher" ] ; then
     sed -i 's|^icon: .*/icon.png$|icon: file://../icon.png|' "$WORKSPACE/chart/redskyops/Chart.yaml"
+else
+    rm "$WORKSPACE/chart/redskyops/app-readme.md" "$WORKSPACE/chart/redskyops/questions.yml"
 fi
 
 
