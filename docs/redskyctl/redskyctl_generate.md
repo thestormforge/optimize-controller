@@ -28,4 +28,5 @@ Generate Red Sky Ops object manifests
 * [redskyctl generate install](redskyctl_generate_install.md)	 - Generate Red Sky Ops manifests
 * [redskyctl generate rbac](redskyctl_generate_rbac.md)	 - Generate experiment roles
 * [redskyctl generate secret](redskyctl_generate_secret.md)	 - Generate Red Sky Ops authorization
+* [redskyctl generate trial](redskyctl_generate_trial.md)	 - Generate experiment trials
 

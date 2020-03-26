@@ -13,8 +13,9 @@ redskyctl generate secret [flags]
 ### Options
 
 ```
-  -h, --help            help for secret
-  -o, --output format   Output format. One of: json|yaml (default "yaml")
+      --client-name string   Client name to use for registration.
+  -h, --help                 help for secret
+  -o, --output format        Output format. One of: json|yaml (default "yaml")
 ```
 
 ### Options inherited from parent commands

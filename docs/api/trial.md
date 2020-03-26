@@ -11,10 +11,12 @@
 * [HelmValuesFromSource](#helmvaluesfromsource)
 * [ParameterSelector](#parameterselector)
 * [PatchOperation](#patchoperation)
+* [ReadinessCheck](#readinesscheck)
 * [SetupTask](#setuptask)
 * [Trial](#trial)
 * [TrialCondition](#trialcondition)
 * [TrialList](#triallist)
+* [TrialReadinessGate](#trialreadinessgate)
 * [TrialSpec](#trialspec)
 * [TrialStatus](#trialstatus)
 * [Value](#value)
@@ -25,8 +27,8 @@ Assignment represents an individual name/value pair. Assignment names must corre
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| `name` | Parameter name being assigned | _string_ | true |
-| `value` | The value of the assignment | _int64_ | true |
+| `name` | Name of the parameter being assigned | _string_ | true |
+| `value` | Value of the assignment | _int64_ | true |
 
 [Back to TOC](#table-of-contents)
 
@@ -93,7 +95,22 @@ PatchOperation represents a patch used to prepare the cluster for a trial run, i
 | `patchType` | The patch content type, must be a type supported by the Kubernetes API server | _types.PatchType_ | true |
 | `data` | The raw data representing the patch to be applied | _[]byte_ | true |
 | `attemptsRemaining` | The number of remaining attempts to apply the patch, will be automatically set to zero if the patch is successfully applied | _int_ | false |
-| `wait` | Wait for the patched object to stabilize | _bool_ | false |
+
+[Back to TOC](#table-of-contents)
+
+## ReadinessCheck
+
+ReadinessCheck represents a check to determine when the patched application is "ready" and it is safe to start the trial run job
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| `targetRef` | TargetRef is the reference to the object to test the readiness of | _[ObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#objectreference-v1-core)_ | true |
+| `selector` | Selector may be used to trigger a search for multiple related objects to search; this may have RBAC implications, in particular "list" permissions are required | _*[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#labelselector-v1-meta)_ | false |
+| `conditionTypes` | ConditionTypes are the status conditions that must be "True"; in addition to conditions that appear in the status of the target object, additional special conditions starting with "redskyops.dev/" can be tested | _[]string_ | true |
+| `initialDelaySeconds` | InitialDelaySeconds is the approximate number of seconds after all of the patches have been applied to start evaluating this check | _int32_ | false |
+| `periodSeconds` | PeriodSeconds is the approximate amount of time in between evaluation attempts of this check | _int32_ | false |
+| `attemptsRemaining` | AttemptsRemaining is the number of failed attempts to allow before marking the entire trial as failed, will be automatically set to zero if the check has been successfully evaluated | _int32_ | false |
+| `lastCheckTime` | LastCheckTime is the timestamp of the last evaluation attempt | _*[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#time-v1-meta)_ | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -153,6 +170,20 @@ TrialList contains a list of Trial
 
 [Back to TOC](#table-of-contents)
 
+## TrialReadinessGate
+
+TrialReadinessGate represents a readiness check on one or more objects that must pass after patches have been applied, but before the trial run job can start
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| `selector` | Selector matches the resources whose condition must be checked, mutually exclusive with "Name" | _*[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#labelselector-v1-meta)_ | false |
+| `conditionTypes` | ConditionTypes are the status conditions that must be "True" | _[]string_ | true |
+| `initialDelaySeconds` | InitialDelaySeconds is the approximate number of seconds after all of the patches have been applied to start evaluating this check | _int32_ | false |
+| `periodSeconds` | PeriodSeconds is the approximate amount of time in between evaluation attempts of this check; defaults to 10 seconds, minimum value is 1 second | _int32_ | false |
+| `failureThreshold` | FailureThreshold is number of times that any of the specified ready conditions may be "False"; defaults to 3, minimum value is 1 | _int32_ | false |
+
+[Back to TOC](#table-of-contents)
+
 ## TrialSpec
 
 TrialSpec defines the desired state of Trial
@@ -167,8 +198,10 @@ TrialSpec defines the desired state of Trial
 | `approximateRuntime` | The approximate amount of time the trial run should execute (not inclusive of the start time offset) | _*metav1.Duration_ | false |
 | `ttlSecondsAfterFinished` | The minimum number of seconds before an attempt should be made to clean up the trial, if unset or negative no attempt is made to clean up the trial | _*int32_ | false |
 | `ttlSecondsAfterFailure` | The minimum number of seconds before an attempt should be made to clean up a failed trial, defaults to TTLSecondsAfterFinished | _*int32_ | false |
-| `values` | Values are the collected metrics at the end of the trial run | _[][Value](#value)_ | false |
+| `readinessGates` | The readiness gates to check before running the trial job | _[][TrialReadinessGate](#trialreadinessgate)_ | false |
 | `patchOperations` | PatchOperations are the patches from the experiment evaluated in the context of this trial | _[][PatchOperation](#patchoperation)_ | false |
+| `readinessChecks` | ReadinessChecks are the all of the objects whose conditions need to be inspected for this trial | _[][ReadinessCheck](#readinesscheck)_ | false |
+| `values` | Values are the collected metrics at the end of the trial run | _[][Value](#value)_ | false |
 | `setupTasks` | Setup tasks that must run before the trial starts (and possibly after it ends) | _[][SetupTask](#setuptask)_ | false |
 | `setupVolumes` | Volumes to make available to setup tasks, typically ConfigMap backed volumes | _[][Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#volume-v1-core)_ | false |
 | `setupServiceAccountName` | Service account name for running setup tasks, needs enough permissions to add and remove software | _string_ | false |

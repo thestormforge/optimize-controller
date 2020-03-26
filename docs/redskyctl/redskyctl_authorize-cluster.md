@@ -13,7 +13,8 @@ redskyctl authorize-cluster [flags]
 ### Options
 
 ```
-  -h, --help   help for authorize-cluster
+      --client-name string   Client name to use for registration.
+  -h, --help                 help for authorize-cluster
 ```
 
 ### Options inherited from parent commands

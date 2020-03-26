@@ -13,6 +13,7 @@ redskyctl version [flags]
 ### Options
 
 ```
+      --debug        Display debugging information.
   -h, --help         help for version
       --setuptools   Print only the name of the setuptools image.
 ```
