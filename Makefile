@@ -5,7 +5,7 @@ REDSKYCTL_IMG ?= redskyctl:latest
 SETUPTOOLS_IMG ?= setuptools:latest
 PULL_POLICY ?= IfNotPresent
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
-CRD_OPTIONS ?= "crd:trivialVersions=true,maxDescLen=200"
+CRD_OPTIONS ?= "crd:trivialVersions=true,maxDescLen=0"
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
