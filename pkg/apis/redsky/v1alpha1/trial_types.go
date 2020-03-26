@@ -25,6 +25,15 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+// Assignment represents an individual name/value pair. Assignment names must correspond to parameter
+// names on the associated experiment.
+type Assignment struct {
+	// Name of the parameter being assigned
+	Name string `json:"name"`
+	// Value of the assignment
+	Value int64 `json:"value"`
+}
+
 // TrialReadinessGate represents a readiness check on one or more objects that must pass after patches
 // have been applied, but before the trial run job can start
 type TrialReadinessGate struct {
@@ -145,15 +154,6 @@ type ReadinessCheck struct {
 	LastCheckTime *metav1.Time `json:"lastCheckTime,omitempty"`
 }
 
-// Assignment represents an individual name/value pair. Assignment names must correspond to parameter
-// names on the associated experiment.
-type Assignment struct {
-	// Parameter name being assigned
-	Name string `json:"name"`
-	// The value of the assignment
-	Value int64 `json:"value"`
-}
-
 // Value represents an observed metric value after a trial run has completed successfully. Value names
 // must correspond to metric names on the associated experiment.
 type Value struct {
@@ -227,12 +227,12 @@ type TrialSpec struct {
 	// The readiness gates to check before running the trial job
 	ReadinessGates []TrialReadinessGate `json:"readinessGates,omitempty"`
 
-	// Values are the collected metrics at the end of the trial run
-	Values []Value `json:"values,omitempty"`
 	// PatchOperations are the patches from the experiment evaluated in the context of this trial
 	PatchOperations []PatchOperation `json:"patchOperations,omitempty"`
 	// ReadinessChecks are the all of the objects whose conditions need to be inspected for this trial
 	ReadinessChecks []ReadinessCheck `json:"readinessChecks,omitempty"`
+	// Values are the collected metrics at the end of the trial run
+	Values []Value `json:"values,omitempty"`
 
 	// Setup tasks that must run before the trial starts (and possibly after it ends)
 	SetupTasks []SetupTask `json:"setupTasks,omitempty"`
