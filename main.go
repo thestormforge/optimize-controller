@@ -60,6 +60,9 @@ func main() {
 		o.Development = false
 	}))
 
+	v := version.GetInfo()
+	setupLog.Info("Red Sky Ops Controller", "version", v.String(), "gitCommit", v.GitCommit)
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             scheme,
 		MetricsBindAddress: metricsAddr,
