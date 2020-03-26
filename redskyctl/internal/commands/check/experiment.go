@@ -54,6 +54,8 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 
 	cmd.Flags().StringVarP(&o.Filename, "filename", "f", "", "File that contains the experiment to check.")
 
+	_ = cmd.MarkFlagFilename("filename", "yml", "yaml")
+
 	commander.ExitOnError(cmd)
 	return cmd
 }

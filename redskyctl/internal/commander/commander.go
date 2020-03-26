@@ -108,6 +108,9 @@ func ConfigGlobals(cfg *internalconfig.RedSkyConfig, cmd *cobra.Command) {
 	root.PersistentFlags().StringVar(&cfg.Overrides.KubeConfig, "kubeconfig", "", "Path to the kubeconfig file to use for CLI requests.")
 	root.PersistentFlags().StringVarP(&cfg.Overrides.Namespace, "namespace", "n", "", "If present, the namespace scope for this CLI request.")
 
+	_ = root.MarkFlagFilename("redskyconfig")
+	_ = root.MarkFlagFilename("kubeconfig")
+
 	// Set the persistent pre-run on the root, individual commands can bypass this by supplying their own persistent pre-run
 	root.PersistentPreRunE = func(cmd *cobra.Command, args []string) error { return cfg.Load() }
 }

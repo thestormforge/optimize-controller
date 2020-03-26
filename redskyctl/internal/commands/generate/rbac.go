@@ -69,6 +69,8 @@ func NewRBACCommand(o *RBACOptions) *cobra.Command {
 	cmd.Flags().StringVar(&o.Name, "role-name", o.Name, "Name of the cluster role to generate (default is to use a generated name).")
 	cmd.Flags().BoolVar(&o.IncludeNames, "include-names", o.IncludeNames, "Include resource names in the generated role.")
 
+	_ = cmd.MarkFlagFilename("filename", "yml", "yaml")
+
 	commander.SetKubePrinter(&o.Printer, cmd)
 	commander.ExitOnError(cmd)
 	return cmd

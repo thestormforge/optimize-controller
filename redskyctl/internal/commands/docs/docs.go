@@ -53,6 +53,9 @@ func NewCommand(o *Options) *cobra.Command {
 	cmd.Flags().StringVar(&o.DocType, "doc-type", "markdown", "Documentation type to write, one of: markdown|man|api.")
 	cmd.Flags().StringVar(&o.SourcePath, "source", "pkg/apis/redsky/v1alpha1", "Source path used to find API types.")
 
+	_ = cmd.MarkFlagDirname("directory")
+	_ = cmd.MarkFlagDirname("source")
+
 	commander.ExitOnError(cmd)
 	return cmd
 }

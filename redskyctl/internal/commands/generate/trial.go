@@ -54,6 +54,8 @@ func NewTrialCommand(o *TrialOptions) *cobra.Command {
 	cmd.Flags().BoolVar(&o.AllowInteractive, "interactive", o.AllowInteractive, "Allow interactive prompts for unspecified parameter assignments.")
 	cmd.Flags().StringVar(&o.DefaultBehavior, "default", "", "Select the behavior for default values; one of: none|min|max|rand.")
 
+	_ = cmd.MarkFlagFilename("filename", "yml", "yaml")
+
 	commander.SetKubePrinter(&o.Printer, cmd)
 	commander.ExitOnError(cmd)
 	return cmd
