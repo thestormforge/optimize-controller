@@ -156,12 +156,9 @@ func (o *RBACOptions) findRules(exp *redskyv1alpha1.Experiment) ([]*rbacv1.Polic
 
 	// Readiness gates will be converted to readiness checks; therefore we need the same check on non-empty names
 	for i := range exp.Spec.Template.Spec.ReadinessGates {
-		tlref := &exp.Spec.Template.Spec.ReadinessGates[i].TypedLocalObjectReference
-		if tlref.Name == "" {
-			ref := &corev1.ObjectReference{Kind: tlref.Kind, Name: tlref.Name}
-			if tlref.APIGroup != nil {
-				ref.APIVersion = *tlref.APIGroup // TODO Is this correct?
-			}
+		r := &exp.Spec.Template.Spec.ReadinessGates[i]
+		if r.Name == "" {
+			ref := &corev1.ObjectReference{Kind: r.Kind, APIVersion: r.APIVersion}
 			rules = append(rules, o.newPolicyRule(ref, "list"))
 		}
 	}

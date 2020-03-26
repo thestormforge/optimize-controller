@@ -176,6 +176,9 @@ TrialReadinessGate represents a readiness check on one or more objects that must
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
+| `kind` | Kind of the readiness target | _string_ | false |
+| `name` | Name of the readiness target, mutually exclusive with "Selector" | _string_ | false |
+| `apiVersion` | APIVersion of the readiness target | _string_ | false |
 | `selector` | Selector matches the resources whose condition must be checked, mutually exclusive with "Name" | _*[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#labelselector-v1-meta)_ | false |
 | `conditionTypes` | ConditionTypes are the status conditions that must be "True" | _[]string_ | true |
 | `initialDelaySeconds` | InitialDelaySeconds is the approximate number of seconds after all of the patches have been applied to start evaluating this check | _int32_ | false |
