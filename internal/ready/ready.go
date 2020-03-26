@@ -66,7 +66,7 @@ func (r *ReadinessChecker) CheckConditions(ctx context.Context, obj *unstructure
 		// Handle special condition types here
 		switch c {
 		case ConditionTypeAlwaysTrue:
-			msg, s, err = "", corev1.ConditionTrue, nil
+			msg, s, err = r.alwaysTrue(obj)
 		case ConditionTypePodReady:
 			msg, s, err = r.podReady(ctx, obj)
 		case ConditionTypeRolloutStatus:
@@ -96,6 +96,12 @@ func (r *ReadinessChecker) CheckConditions(ctx context.Context, obj *unstructure
 		return msg, false, nil
 	}
 	return "", true, nil
+}
+
+// alwaysTrue does not actually check any status and just returns true
+func (r *ReadinessChecker) alwaysTrue(obj *unstructured.Unstructured) (string, corev1.ConditionStatus, error) {
+	_ = obj.GroupVersionKind() // Just to be consistent with everyone else
+	return "", corev1.ConditionTrue, nil
 }
 
 // unstructuredConditionStatus inspects unstructured contents for the status of a condition
