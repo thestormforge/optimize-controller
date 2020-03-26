@@ -88,7 +88,7 @@ func (o *Options) results(ctx context.Context) error {
 	server := commander.NewContextServer(ctx, router,
 		commander.WithServerOptions(o.configureServer),
 		commander.ShutdownOnInterrupt(func() { _, _ = fmt.Fprintln(o.Out) }),
-		commander.ShutdownOnIdle(5*time.Second, func() { _, _ = fmt.Fprintln(o.Out) }),
+		commander.ShutdownOnIdle(o.IdleTimeout, func() { _, _ = fmt.Fprintln(o.Out) }),
 		commander.HandleStart(o.openBrowser))
 
 	// Start the server, this will block until someone calls 'shutdown' from above
