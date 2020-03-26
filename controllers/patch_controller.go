@@ -23,6 +23,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/redskyops/redskyops-controller/internal/controller"
+	"github.com/redskyops/redskyops-controller/internal/ready"
 	"github.com/redskyops/redskyops-controller/internal/template"
 	"github.com/redskyops/redskyops-controller/internal/trial"
 	"github.com/redskyops/redskyops-controller/internal/validation"
@@ -46,6 +47,11 @@ type PatchReconciler struct {
 // +kubebuilder:rbac:groups=redskyops.dev,resources=experiments,verbs=get;list;watch
 // +kubebuilder:rbac:groups=redskyops.dev,resources=trials,verbs=get;list;watch;update
 
+// Reconcile inspects a trial to see if patches need to be applied. The "trial patched" status condition
+// is used to control what actions need to be taken. If the status is "unknown" then the experiment is fetched
+// and the patch templates will be rendered into the list of patch operations on the trial; once the patches
+// are evaluated the status will be "false". If the status is "false" then patch operations will be applied
+// to the cluster; once all the patches are applied the status will be "true".
 func (r *PatchReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	now := metav1.Now()
@@ -55,7 +61,7 @@ func (r *PatchReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, controller.IgnoreNotFound(err)
 	}
 
-	if result, err := r.evaluatePatches(ctx, t, &now); result != nil {
+	if result, err := r.evaluatePatchOperations(ctx, t, &now); result != nil {
 		return *result, err
 	}
 
@@ -66,6 +72,7 @@ func (r *PatchReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	return ctrl.Result{}, nil
 }
 
+// SetupWithManager registers a new patch reconciler with the supplied manager
 func (r *PatchReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named("patch").
@@ -73,6 +80,7 @@ func (r *PatchReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
+// ignoreTrial determines which trial objects can be ignored by this reconciler
 func (r *PatchReconciler) ignoreTrial(t *redskyv1alpha1.Trial) bool {
 	// Ignore deleted trials
 	if !t.DeletionTimestamp.IsZero() {
@@ -84,7 +92,7 @@ func (r *PatchReconciler) ignoreTrial(t *redskyv1alpha1.Trial) bool {
 		return true
 	}
 
-	// Ignore trials that have an initializer
+	// Ignore uninitialized trials
 	if t.HasInitializer() {
 		return true
 	}
@@ -95,26 +103,19 @@ func (r *PatchReconciler) ignoreTrial(t *redskyv1alpha1.Trial) bool {
 		return true
 	}
 
-	// Do not ignore trials that have pending patches
-	for i := range t.Spec.PatchOperations {
-		if t.Spec.PatchOperations[i].AttemptsRemaining > 0 {
-			return false
-		}
+	// Ignore patched trials
+	if trial.CheckCondition(&t.Status, redskyv1alpha1.TrialPatched, corev1.ConditionTrue) {
+		return true
 	}
 
-	// Do not ignore trials if we haven't finished processing them
-	if !trial.CheckCondition(&t.Status, redskyv1alpha1.TrialPatched, corev1.ConditionTrue) {
-		return false
-	}
-
-	// Ignore everything else
-	return true
+	// Reconcile everything else
+	return false
 }
 
-// evaluatePatches will render the patch templates from the experiment using the trial assignments to create "patch operations" on the trial
-func (r *PatchReconciler) evaluatePatches(ctx context.Context, t *redskyv1alpha1.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
-	// TODO This check precludes manual additions of PatchOperations
-	if len(t.Spec.PatchOperations) > 0 {
+// evaluatePatchOperations will render the patch templates from the experiment using the trial assignments to create "patch operations" on the trial
+func (r *PatchReconciler) evaluatePatchOperations(ctx context.Context, t *redskyv1alpha1.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
+	// Only evaluate patches if the "patched" status is "unknown"
+	if !trial.CheckCondition(&t.Status, redskyv1alpha1.TrialPatched, corev1.ConditionUnknown) {
 		return nil, nil
 	}
 
@@ -129,39 +130,52 @@ func (r *PatchReconciler) evaluatePatches(ctx context.Context, t *redskyv1alpha1
 		return &ctrl.Result{}, err
 	}
 
+	// Readiness checks from patches should always be applied first
+	readinessChecks := t.Spec.ReadinessChecks
+	t.Spec.ReadinessChecks = nil
+
 	// Evaluate the patches
 	te := template.New()
-	for _, p := range exp.Spec.Patches {
-		data, err := te.RenderPatch(&p, t)
+	for i := range exp.Spec.Patches {
+		p := &exp.Spec.Patches[i]
+
+		// Render the patch template
+		ref, data, err := r.renderTemplate(te, t, p)
 		if err != nil {
 			return &ctrl.Result{}, err
 		}
 
-		po, err := createPatchOperation(t, &p, data)
-		if err != nil {
+		// Add a patch operation if necessary
+		if po, err := r.createPatchOperation(t, p, ref, data); err != nil {
 			return &ctrl.Result{}, err
+		} else if po != nil {
+			t.Spec.PatchOperations = append(t.Spec.PatchOperations, *po)
 		}
 
-		// Default the namespace to the trial namespace
-		if po.TargetRef.Namespace == "" {
-			po.TargetRef.Namespace = t.Namespace
+		// Add a readiness check if necessary
+		if rc, err := r.createReadinessCheck(p, ref); err != nil {
+			return &ctrl.Result{}, err
+		} else if rc != nil {
+			t.Spec.ReadinessChecks = append(t.Spec.ReadinessChecks, *rc)
 		}
-
-		t.Spec.PatchOperations = append(t.Spec.PatchOperations, *po)
 	}
 
-	// Update the status to indicate that we will be patching
-	if len(t.Spec.PatchOperations) > 0 {
-		trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialPatched, corev1.ConditionUnknown, "", "", probeTime)
-		err := r.Update(ctx, t)
-		return controller.RequeueConflict(err)
-	}
+	// Add back any pre-existing readiness checks
+	t.Spec.ReadinessChecks = append(t.Spec.ReadinessChecks, readinessChecks...)
 
-	return nil, nil
+	// Update the status to indicate that patches are evaluated
+	trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialPatched, corev1.ConditionFalse, "", "", probeTime)
+	err := r.Update(ctx, t)
+	return controller.RequeueConflict(err)
 }
 
 // applyPatches will actually patch the objects from the patch operations
 func (r *PatchReconciler) applyPatches(ctx context.Context, t *redskyv1alpha1.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
+	// Only apply patches if the "patched" status is "false"
+	if !trial.CheckCondition(&t.Status, redskyv1alpha1.TrialPatched, corev1.ConditionFalse) {
+		return nil, nil
+	}
+
 	// Iterate over the patches, looking for remaining attempts
 	for i := range t.Spec.PatchOperations {
 		p := &t.Spec.PatchOperations[i]
@@ -171,11 +185,11 @@ func (r *PatchReconciler) applyPatches(ctx context.Context, t *redskyv1alpha1.Tr
 
 		// Construct a patch on an unstructured object
 		// RBAC: We assume that we have "patch" permission from a customer defined role so we do not limit what types we can patch
-		u := unstructured.Unstructured{}
+		u := &unstructured.Unstructured{}
 		u.SetName(p.TargetRef.Name)
 		u.SetNamespace(p.TargetRef.Namespace)
 		u.SetGroupVersionKind(p.TargetRef.GroupVersionKind())
-		if err := r.Patch(ctx, &u, client.ConstantPatch(p.PatchType, p.Data)); err != nil {
+		if err := r.Patch(ctx, u, client.RawPatch(p.PatchType, p.Data)); err != nil {
 			p.AttemptsRemaining = p.AttemptsRemaining - 1
 			if p.AttemptsRemaining == 0 {
 				// There are no remaining patch attempts remaining, fail the trial
@@ -185,8 +199,7 @@ func (r *PatchReconciler) applyPatches(ctx context.Context, t *redskyv1alpha1.Tr
 			p.AttemptsRemaining = 0
 		}
 
-		// We have started applying patches (success or fail), transition into a false status
-		trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialPatched, corev1.ConditionFalse, "", "", probeTime)
+		// Update the patch operation status
 		err := r.Update(ctx, t)
 		return controller.RequeueConflict(err)
 	}
@@ -197,12 +210,55 @@ func (r *PatchReconciler) applyPatches(ctx context.Context, t *redskyv1alpha1.Tr
 	return controller.RequeueConflict(err)
 }
 
-func createPatchOperation(t *redskyv1alpha1.Trial, p *redskyv1alpha1.PatchTemplate, data []byte) (*redskyv1alpha1.PatchOperation, error) {
-	// The default patch operation has 3 retries and triggers a stability check ("wait")
+// renderTemplate determines the patch target and renders the patch template
+func (r *PatchReconciler) renderTemplate(te *template.Engine, t *redskyv1alpha1.Trial, p *redskyv1alpha1.PatchTemplate) (*corev1.ObjectReference, []byte, error) {
+	// Render the actual patch data
+	data, err := te.RenderPatch(p, t)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Determine the reference, possibly extracting it from the rendered data
+	ref := &corev1.ObjectReference{}
+	if p.TargetRef != nil {
+		p.TargetRef.DeepCopyInto(ref)
+	} else if p.Type == redskyv1alpha1.PatchStrategic || p.Type == "" {
+		m := &struct {
+			metav1.TypeMeta   `json:",inline"`
+			metav1.ObjectMeta `json:"metadata,omitempty"`
+		}{}
+		if err := json.Unmarshal(data, m); err == nil {
+			ref.APIVersion = m.APIVersion
+			ref.Kind = m.Kind
+			ref.Name = m.Name
+			ref.Namespace = m.Namespace
+		}
+	}
+
+	// Default the namespace to the trial namespace
+	if ref.Namespace == "" {
+		ref.Namespace = t.Namespace
+	}
+
+	// Validate the reference
+	if ref.Name == "" || ref.Kind == "" {
+		return nil, nil, fmt.Errorf("invalid patch reference")
+	}
+
+	return ref, data, nil
+}
+
+// createPatchOperation creates a new patch operation from a patch template and it's (fully rendered) patch data
+func (r *PatchReconciler) createPatchOperation(t *redskyv1alpha1.Trial, p *redskyv1alpha1.PatchTemplate, ref *corev1.ObjectReference, data []byte) (*redskyv1alpha1.PatchOperation, error) {
 	po := &redskyv1alpha1.PatchOperation{
+		TargetRef:         *ref,
 		Data:              data,
 		AttemptsRemaining: 3,
-		Wait:              true,
+	}
+
+	// If the patch is effectively null, we do not need to evaluate it
+	if len(po.Data) == 0 || string(po.Data) == "null" {
+		return nil, nil
 	}
 
 	// Determine the patch type
@@ -217,36 +273,43 @@ func createPatchOperation(t *redskyv1alpha1.Trial, p *redskyv1alpha1.PatchTempla
 		return nil, fmt.Errorf("unknown patch type: %s", p.Type)
 	}
 
-	// Attempt to populate the target reference
-	if p.TargetRef != nil {
-		p.TargetRef.DeepCopyInto(&po.TargetRef)
-	} else if po.PatchType == types.StrategicMergePatchType {
-		type patchMetadata struct {
-			metav1.TypeMeta   `json:",inline"`
-			metav1.ObjectMeta `json:"metadata,omitempty"`
-		}
-		m := &patchMetadata{}
-		if err := json.Unmarshal(po.Data, m); err == nil {
-			po.TargetRef.APIVersion = m.APIVersion
-			po.TargetRef.Kind = m.Kind
-			po.TargetRef.Name = m.Name
-			po.TargetRef.Namespace = m.Namespace
-		}
-	}
-
-	// If the patch is effectively null, we do not need to evaluate it
-	if len(po.Data) == 0 || string(po.Data) == "null" {
-		po.AttemptsRemaining = 0
-	}
-
 	// If the patch is for the trial job itself, it cannot be applied (since the job won't exist until well after patches are applied)
 	if trial.IsTrialJobReference(t, &po.TargetRef) {
+		po.AttemptsRemaining = 0
 		if po.PatchType != types.StrategicMergePatchType {
 			return nil, fmt.Errorf("trial job patch must be a strategic merge patch")
 		}
-		po.AttemptsRemaining = 0
-		po.Wait = false
 	}
 
 	return po, nil
+}
+
+// createReadinessCheck creates a readiness check for a patch operation
+func (r *PatchReconciler) createReadinessCheck(p *redskyv1alpha1.PatchTemplate, ref *corev1.ObjectReference) (*redskyv1alpha1.ReadinessCheck, error) {
+	// NOTE: There is a cardinality mismatch between the `PatchReadinessGate` type and the `ReadinessCheck` type in
+	// regard to condition types. We purposely do not expose user facing configuration for these checks (users can
+	// skip patch readiness checks and specify them manually for fine grained control).
+	rc := &redskyv1alpha1.ReadinessCheck{
+		TargetRef:         *ref,
+		PeriodSeconds:     5,
+		AttemptsRemaining: 36, // ...targeting a 3 minute max for applications to come back after a patch
+	}
+
+	// Add configured and default readiness conditions
+	for i := range p.ReadinessGates {
+		rc.ConditionTypes = append(rc.ConditionTypes, p.ReadinessGates[i].ConditionType)
+	}
+
+	// Check for a "legacy" patch that has no explicit (not even empty) readiness gates and apply settings consistent
+	// with earlier versions of the product (we should re-visit this)
+	if p.ReadinessGates == nil {
+		rc.ConditionTypes = append(rc.ConditionTypes, ready.ConditionTypeAppReady)
+		rc.InitialDelaySeconds = 1
+	}
+
+	// If there are no conditions to check, we do not need to add a readiness check
+	if len(rc.ConditionTypes) == 0 {
+		return nil, nil
+	}
+	return rc, nil
 }

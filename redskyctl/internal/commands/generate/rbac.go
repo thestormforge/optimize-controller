@@ -24,6 +24,7 @@ import (
 	redskyv1alpha1 "github.com/redskyops/redskyops-controller/pkg/apis/redsky/v1alpha1"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -132,36 +133,66 @@ func (o *RBACOptions) generate() error {
 }
 
 // findRules finds the patch targets from an experiment
-func (o *RBACOptions) findRules(experiment *redskyv1alpha1.Experiment) ([]*rbacv1.PolicyRule, error) {
+func (o *RBACOptions) findRules(exp *redskyv1alpha1.Experiment) ([]*rbacv1.PolicyRule, error) {
 	var rules []*rbacv1.PolicyRule
-	for i := range experiment.Spec.Patches {
-		// TODO This needs to use patch_controller.go `createPatchOperation` and then work off the patch operation
-		ref := experiment.Spec.Patches[i].TargetRef
-		if ref == nil {
-			continue
-		}
 
-		gvk := ref.GroupVersionKind()
-		m, err := o.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
-		if err != nil {
-			// TODO If this is guessing wrong too often we may need to allow additional mappings in the configuration
-			m = &meta.RESTMapping{GroupVersionKind: gvk, Scope: meta.RESTScopeRoot}
-			m.Resource, _ = meta.UnsafeGuessKindToResource(gvk)
+	// Patches require "get" and "patch" permissions
+	for i := range exp.Spec.Patches {
+		// TODO This needs to use patch_controller.go `renderTemplate` to get the correct reference (e.g. SMP may have the ref in the payload)
+		// NOTE: Technically we can not get the target reference without an actual trial; in most cases a dummy trial should work
+		ref := exp.Spec.Patches[i].TargetRef
+		if ref != nil {
+			rules = append(rules, o.newPolicyRule(ref, "get", "patch"))
 		}
-
-		var names []string
-		if o.IncludeNames && ref.Name != "" {
-			names = []string{ref.Name}
-		}
-
-		rules = append(rules, &rbacv1.PolicyRule{
-			Verbs:         []string{"get", "patch"},
-			APIGroups:     []string{m.Resource.Group},
-			Resources:     []string{m.Resource.Resource},
-			ResourceNames: names,
-		})
 	}
+
+	// Readiness checks with no name require "list" permissions
+	for i := range exp.Spec.Template.Spec.ReadinessChecks {
+		ref := &exp.Spec.Template.Spec.ReadinessChecks[i].TargetRef
+		if ref.Name == "" {
+			rules = append(rules, o.newPolicyRule(ref, "list"))
+		}
+	}
+
+	// Readiness gates will be converted to readiness checks; therefore we need the same check on non-empty names
+	for i := range exp.Spec.Template.Spec.ReadinessGates {
+		tlref := &exp.Spec.Template.Spec.ReadinessGates[i].TypedLocalObjectReference
+		if tlref.Name == "" {
+			ref := &corev1.ObjectReference{Kind: tlref.Kind, Name: tlref.Name}
+			if tlref.APIGroup != nil {
+				ref.APIVersion = *tlref.APIGroup // TODO Is this correct?
+			}
+			rules = append(rules, o.newPolicyRule(ref, "list"))
+		}
+	}
+
 	return rules, nil
+}
+
+// newPolicyRule creates a new policy rule for the specified object reference and list of verbs
+func (o *RBACOptions) newPolicyRule(ref *corev1.ObjectReference, verbs ...string) *rbacv1.PolicyRule {
+	// Start with the requested verbs
+	r := &rbacv1.PolicyRule{
+		Verbs: verbs,
+	}
+
+	// Get the mapping from GVK to GVR
+	gvk := ref.GroupVersionKind()
+	m, err := o.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+	if err != nil {
+		// TODO If this is guessing wrong too often we may need to allow additional mappings in the configuration
+		m = &meta.RESTMapping{GroupVersionKind: gvk, Scope: meta.RESTScopeRoot}
+		m.Resource, _ = meta.UnsafeGuessKindToResource(gvk)
+	}
+	r.APIGroups = []string{m.Resource.Group}
+	r.Resources = []string{m.Resource.Resource}
+
+	// Include the resource name if requested and available
+	if o.IncludeNames && ref.Name != "" {
+		r.ResourceNames = []string{ref.Name}
+	}
+
+	return r
 }
 
 // mergeRule attempts to combine the supplied rule with an existing compatible rule, failing that the rules are return with a new rule appended

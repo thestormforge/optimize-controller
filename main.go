@@ -101,6 +101,14 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Patch")
 		os.Exit(1)
 	}
+	if err = (&controllers.ReadyReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("Ready"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Ready")
+		os.Exit(1)
+	}
 	if err = (&controllers.TrialJobReconciler{
 		Client: mgr.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("Trial"),
@@ -115,14 +123,6 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Metric")
-		os.Exit(1)
-	}
-	if err = (&controllers.WaitReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Wait"),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Wait")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

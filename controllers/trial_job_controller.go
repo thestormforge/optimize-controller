@@ -18,9 +18,6 @@ package controllers
 
 import (
 	"context"
-	"os"
-	"strconv"
-	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/redskyops/redskyops-controller/internal/controller"
@@ -69,22 +66,6 @@ func (r *TrialJobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	// Create a new job if necessary
 	if len(jobList.Items) == 0 {
-		// TODO Remove this once we have more flexible configuration of the wait controller
-		if jobStartDelay, err := strconv.ParseInt(os.Getenv("REDSKY_JOB_START_DELAY"), 10, 64); err == nil {
-			for _, c := range t.Status.Conditions {
-				if c.Type == redskyv1alpha1.TrialStable {
-					if c.Status == corev1.ConditionFalse {
-						// If the condition hasn't transitioned yet, use the full delay
-						return ctrl.Result{RequeueAfter: time.Duration(jobStartDelay) * time.Second}, nil
-					}
-					startTime := c.LastTransitionTime.Add(time.Duration(jobStartDelay) * time.Second)
-					if startTime.After(now.Time) {
-						return ctrl.Result{RequeueAfter: startTime.Sub(now.Time)}, nil
-					}
-				}
-			}
-		}
-
 		if result, err := r.createJob(ctx, t); result != nil {
 			return *result, err
 		}
@@ -112,29 +93,17 @@ func (r *TrialJobReconciler) ignoreTrial(t *redskyv1alpha1.Trial) bool {
 		return true
 	}
 
+	// Ignore trials that are not ready yet
+	if !trial.CheckCondition(&t.Status, redskyv1alpha1.TrialReady, corev1.ConditionTrue) {
+		return true
+	}
+
 	// Ignore trials that already have a start and completion time
 	if t.Status.StartTime != nil && t.Status.CompletionTime != nil {
 		return true
 	}
 
-	// Ignore trials that have an initializer
-	if t.HasInitializer() {
-		return true
-	}
-
-	// Ignore trials whose patches have not been evaluated yet
-	// NOTE: If "trial patched" is not unknown, then `len(t.Spec.PatchOperations) == 0` means the experiment had no patches
-	if trial.CheckCondition(&t.Status, redskyv1alpha1.TrialPatched, corev1.ConditionUnknown) {
-		return true
-	}
-
-	// Ignore trials that have not stabilized
-	for i := range t.Spec.PatchOperations {
-		if t.Spec.PatchOperations[i].Wait {
-			return true
-		}
-	}
-
+	// Reconcile everything else
 	return false
 }
 
