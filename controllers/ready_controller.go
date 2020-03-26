@@ -30,7 +30,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -122,8 +121,10 @@ func (r *ReadyReconciler) evaluateReadinessChecks(ctx context.Context, t *redsky
 		c := &t.Spec.ReadinessGates[i]
 		rc := redskyv1alpha1.ReadinessCheck{
 			TargetRef: corev1.ObjectReference{
-				Namespace: t.Namespace,
-				Name:      c.Name,
+				Kind:       c.Kind,
+				Namespace:  t.Namespace,
+				Name:       c.Name,
+				APIVersion: c.APIVersion,
 			},
 			Selector:            c.Selector,
 			ConditionTypes:      c.ConditionTypes,
@@ -143,14 +144,6 @@ func (r *ReadyReconciler) evaluateReadinessChecks(ctx context.Context, t *redsky
 		} else if rc.AttemptsRemaining < 0 {
 			rc.AttemptsRemaining = 1
 		}
-
-		// Set the GVK on the reference
-		// TODO This can't be the right way to do this...
-		apiVersion := ""
-		if c.APIGroup != nil {
-			apiVersion = *c.APIGroup
-		}
-		rc.TargetRef.SetGroupVersionKind(schema.FromAPIVersionAndKind(apiVersion, c.Kind))
 
 		t.Spec.ReadinessChecks = append(t.Spec.ReadinessChecks, rc)
 	}

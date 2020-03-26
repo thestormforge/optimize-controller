@@ -112,7 +112,6 @@ type PatchTemplate struct {
 	// have default gates assigned to them. Some condition checks may result in errors, e.g. a condition type of "Ready"
 	// is not allowed for a ConfigMap. Condition types starting with "redskyops.dev/" may not appear in the patched
 	// target's condition list, but are still evaluated against the resource's state.
-	// TODO omitempty is temporary for backwards compatibility, it should be removed
 	ReadinessGates []PatchReadinessGate `json:"readinessGates,omitempty"`
 }
 

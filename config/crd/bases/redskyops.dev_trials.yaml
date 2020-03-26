@@ -172,7 +172,7 @@ spec:
             readinessGates:
               items:
                 properties:
-                  apiGroup:
+                  apiVersion:
                     type: string
                   conditionTypes:
                     items:
@@ -216,8 +216,6 @@ spec:
                     type: object
                 required:
                 - conditionTypes
-                - kind
-                - name
                 type: object
               type: array
             selector:

@@ -37,8 +37,12 @@ type Assignment struct {
 // TrialReadinessGate represents a readiness check on one or more objects that must pass after patches
 // have been applied, but before the trial run job can start
 type TrialReadinessGate struct {
-	// TypedLocalObjectReference specifies a single resource or a resource type to select
-	corev1.TypedLocalObjectReference `json:",inline"`
+	// Kind of the readiness target
+	Kind string `json:"kind,omitempty"`
+	// Name of the readiness target, mutually exclusive with "Selector"
+	Name string `json:"name,omitempty"`
+	// APIVersion of the readiness target
+	APIVersion string `json:"apiVersion,omitempty"`
 	// Selector matches the resources whose condition must be checked, mutually exclusive with "Name"
 	Selector *metav1.LabelSelector `json:"selector,omitempty"`
 	// ConditionTypes are the status conditions that must be "True"
