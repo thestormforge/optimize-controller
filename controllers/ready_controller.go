@@ -204,6 +204,11 @@ func (r *ReadyReconciler) checkReadiness(ctx context.Context, t *redskyv1alpha1.
 func (r *ReadyReconciler) getCheckTargets(ctx context.Context, rc *redskyv1alpha1.ReadinessCheck) (*unstructured.UnstructuredList, error) {
 	ul := &unstructured.UnstructuredList{}
 
+	// If there is no kind on the target reference, we can't actually fetch anything
+	if rc.TargetRef.Kind == "" {
+		return ul, nil
+	}
+
 	// If there is no name on the target reference, search for matching objects instead
 	if rc.TargetRef.Name == "" {
 		ul.SetGroupVersionKind(rc.TargetRef.GroupVersionKind())
@@ -288,6 +293,11 @@ func (rc *readinessChecker) check(ctx context.Context, c *redskyv1alpha1.Readine
 		if !ok || err != nil {
 			break
 		}
+	}
+
+	// If a check is missing it's kind, just mark it as completed
+	if c.TargetRef.Kind == "" {
+		ok = true
 	}
 
 	// Check is done, it is either ok or had a hard failure
