@@ -27,32 +27,29 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestReadinessChecker_CheckConditions(t *testing.T) {
-	g := NewWithT(t)
-	rc := &ReadinessChecker{}
-
-	ctx := context.TODO()
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
 
-	var u *unstructured.Unstructured
-	var msg string
-	var ok bool
-	var err error
+	t.Run("always-true", withReadinessChecker(scheme,
+		func(g *WithT, rc *ReadinessChecker, u *unstructured.Unstructured) {
+			msg, ok, err := rc.CheckConditions(context.TODO(), u, []string{ConditionTypeAlwaysTrue})
+			g.Expect(err).ShouldNot(HaveOccurred())
+			g.Expect(ok).To(BeTrue())
+			g.Expect(msg).To(BeEmpty())
+		},
+	))
 
-	// As long as the object is not nil, we should get true
-	u = &unstructured.Unstructured{}
-	msg, ok, err = rc.CheckConditions(ctx, u, []string{ConditionTypeAlwaysTrue})
-	g.Expect(err).ShouldNot(HaveOccurred())
-	g.Expect(ok).To(BeTrue())
-	g.Expect(msg).To(BeEmpty())
-
-	// Create a stateful set and pod for testing
-	rc.Reader, u = testObjects(t, scheme,
+	t.Run("pod-ready", withReadinessChecker(scheme,
+		func(g *WithT, rc *ReadinessChecker, u *unstructured.Unstructured) {
+			msg, ok, err := rc.CheckConditions(context.TODO(), u, []string{ConditionTypePodReady})
+			g.Expect(err).ShouldNot(HaveOccurred())
+			g.Expect(ok).To(BeFalse())
+			g.Expect(msg).To(BeEmpty())
+		},
 		&appsv1.StatefulSet{
 			Spec: appsv1.StatefulSetSpec{
 				Selector: &metav1.LabelSelector{
@@ -69,14 +66,13 @@ func TestReadinessChecker_CheckConditions(t *testing.T) {
 				}},
 			},
 		},
-	)
-	msg, ok, err = rc.CheckConditions(ctx, u, []string{ConditionTypePodReady})
-	g.Expect(err).ShouldNot(HaveOccurred())
-	g.Expect(ok).To(BeTrue())
-	g.Expect(msg).To(BeEmpty())
+	))
 
-	// Create a deployment and pod for testing
-	rc.Reader, u = testObjects(t, scheme,
+	t.Run("unschedulable", withReadinessChecker(scheme,
+		func(g *WithT, rc *ReadinessChecker, u *unstructured.Unstructured) {
+			_, _, err := rc.CheckConditions(context.TODO(), u, []string{ConditionTypePodReady})
+			g.Expect(err).Should(MatchError(corev1.PodReasonUnschedulable))
+		},
 		&appsv1.Deployment{
 			Spec: appsv1.DeploymentSpec{
 				Selector: &metav1.LabelSelector{
@@ -94,25 +90,21 @@ func TestReadinessChecker_CheckConditions(t *testing.T) {
 				}},
 			},
 		},
-	)
-	msg, ok, err = rc.CheckConditions(ctx, u, []string{ConditionTypePodReady})
-	g.Expect(err).Should(MatchError(corev1.PodReasonUnschedulable))
+	))
 }
 
-// testObjects returns the first object converted to an unstructured object and a client reader for the remaining objects
-func testObjects(t *testing.T, scheme *runtime.Scheme, objs ...runtime.Object) (client.Reader, *unstructured.Unstructured) {
-	var u *unstructured.Unstructured
-	var initObjs []runtime.Object
-	for i := range objs {
-		if u != nil {
-			initObjs = append(initObjs, objs[i])
-		} else {
-			u = &unstructured.Unstructured{}
-			if err := scheme.Convert(objs[i], u, nil); err != nil {
+// withReadinessChecker wraps a ReadinessChecker test function; the first object will be converted to an unstructured
+// object for use as the target object, the remaining objects will be available through the checker's reader
+func withReadinessChecker(scheme *runtime.Scheme, f func(*WithT, *ReadinessChecker, *unstructured.Unstructured), objs ...runtime.Object) func(*testing.T) {
+	return func(t *testing.T) {
+		u := &unstructured.Unstructured{}
+		if len(objs) > 0 {
+			if err := scheme.Convert(objs[0], u, nil); err != nil {
 				t.Fatalf("Could not convert to unstructured: %v", err)
-				return nil, nil
 			}
+			objs = objs[1:]
 		}
+		reader := fake.NewFakeClientWithScheme(scheme, objs...)
+		f(NewWithT(t), &ReadinessChecker{Reader: reader}, u)
 	}
-	return fake.NewFakeClientWithScheme(scheme, initObjs...), u
 }
