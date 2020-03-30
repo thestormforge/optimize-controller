@@ -35,6 +35,7 @@ func NewCommand(o *Options) *cobra.Command {
 		Long:  "Run a consistency check on Red Sky Ops components",
 	}
 
+	cmd.AddCommand(NewConfigCommand(&ConfigOptions{Config: o.Config}))
 	cmd.AddCommand(NewExperimentCommand(&ExperimentOptions{}))
 	cmd.AddCommand(NewServerCommand(&ServerOptions{Config: o.Config}))
 
