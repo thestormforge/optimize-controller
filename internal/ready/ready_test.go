@@ -47,7 +47,7 @@ func TestReadinessChecker_CheckConditions(t *testing.T) {
 		func(g *WithT, rc *ReadinessChecker, u *unstructured.Unstructured) {
 			msg, ok, err := rc.CheckConditions(context.TODO(), u, []string{ConditionTypePodReady})
 			g.Expect(err).ShouldNot(HaveOccurred())
-			g.Expect(ok).To(BeFalse())
+			g.Expect(ok).To(BeTrue())
 			g.Expect(msg).To(BeEmpty())
 		},
 		&appsv1.StatefulSet{
