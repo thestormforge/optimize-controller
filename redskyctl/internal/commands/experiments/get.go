@@ -64,6 +64,10 @@ func NewGetCommand(o *GetOptions) *cobra.Command {
 
 func (o *GetOptions) get(ctx context.Context) error {
 	switch o.GetType() {
+	case TypeExperiment:
+		if err := o.getExperiment(ctx); err != nil {
+			return err
+		}
 	case TypeExperimentList:
 		if err := o.getExperimentList(ctx); err != nil {
 			return err
@@ -80,7 +84,35 @@ func (o *GetOptions) get(ctx context.Context) error {
 	return nil
 }
 
+func (o *GetOptions) getExperiment(ctx context.Context) error {
+	// Create a list to hold the experiments
+	l := &experimentsv1alpha1.ExperimentList{}
+	for _, n := range o.Names {
+		exp, err := o.ExperimentsAPI.GetExperimentByName(ctx, experimentsv1alpha1.NewExperimentName(n))
+		if err != nil {
+			return err
+		}
+		l.Experiments = append(l.Experiments, experimentsv1alpha1.ExperimentItem{Experiment: exp})
+	}
+
+	// If this was a request for a single object, just print it out (e.g. don't produce a JSON list for a single element)
+	if len(o.Names) == 1 && len(l.Experiments) == 1 {
+		return o.Printer.PrintObj(&l.Experiments[0], o.Out)
+	}
+
+	if err := o.filterAndSortExperiments(l); err != nil {
+		return err
+	}
+
+	return o.Printer.PrintObj(&l, o.Out)
+}
+
 func (o *GetOptions) getExperimentList(ctx context.Context) error {
+	if len(o.Names) > 0 {
+		// TODO Is there a better place to enforce this?
+		return fmt.Errorf("cannot specify names with experiment list")
+	}
+
 	// Get all the experiments one page at a time
 	l, err := o.ExperimentsAPI.GetAllExperiments(ctx, &experimentsv1alpha1.ExperimentListQuery{Limit: o.ChunkSize})
 	if err != nil {
@@ -95,6 +127,14 @@ func (o *GetOptions) getExperimentList(ctx context.Context) error {
 		l.Experiments = append(l.Experiments, n.Experiments...)
 	}
 
+	if err := o.filterAndSortExperiments(&l); err != nil {
+		return err
+	}
+
+	return o.Printer.PrintObj(&l, o.Out)
+}
+
+func (o *GetOptions) filterAndSortExperiments(l *experimentsv1alpha1.ExperimentList) error {
 	// Experiments do not have labels so anything but the empty selector will just nil out the list
 	if sel, err := labels.Parse(o.Selector); err != nil {
 		return err
@@ -107,7 +147,7 @@ func (o *GetOptions) getExperimentList(ctx context.Context) error {
 		sort.Slice(l.Experiments, sortByField(o.SortBy, func(i int) interface{} { return sortableExperimentData(&l.Experiments[i]) }))
 	}
 
-	return o.Printer.PrintObj(&l, o.Out)
+	return nil
 }
 
 func (o *GetOptions) getTrialList(ctx context.Context, name string) error {

@@ -138,23 +138,44 @@ func (m *experimentsMeta) ExtractList(obj interface{}) ([]interface{}, error) {
 	return nil, nil
 }
 
-func (m *experimentsMeta) Columns(obj interface{}, outputFormat string) []string {
-	if _, ok := obj.(*experimentsv1alpha1.TrialList); ok {
+func (m *experimentsMeta) Columns(obj interface{}, outputFormat string, showLabels bool) []string {
+	columns := []string{"name"}
+
+	if tl, ok := obj.(*experimentsv1alpha1.TrialList); ok {
 		if outputFormat == "csv" {
+			columns = []string{"experiment", "number", "status"}
+
+			// CSV column names should correspond to the parameter and metric names
 			if exp, ok := m.base.(*experimentsv1alpha1.Experiment); ok {
-				var columns []string
 				for i := range exp.Parameters {
 					columns = append(columns, "parameter_"+exp.Parameters[i].Name)
 				}
 				for i := range exp.Metrics {
 					columns = append(columns, "metric_"+exp.Metrics[i].Name)
 				}
-				return columns
+			}
+
+			// CSV labels need to be split out into individual columns
+			if showLabels {
+				labels := make(map[string]bool)
+				for i := range tl.Trials {
+					for k := range tl.Trials[i].Labels {
+						labels[k] = true
+					}
+				}
+				for k := range labels {
+					columns = append(columns, "label_"+k)
+				}
+			}
+		} else {
+			columns = append(columns, "Status") // Title case the value
+			if showLabels {
+				columns = append(columns, "labels")
 			}
 		}
-		return []string{"name", "status"}
 	}
-	return []string{"name"}
+
+	return columns
 }
 
 func (m *experimentsMeta) ExtractValue(obj interface{}, column string) (string, error) {
@@ -166,22 +187,36 @@ func (m *experimentsMeta) ExtractValue(obj interface{}, column string) (string, 
 		}
 	case *experimentsv1alpha1.TrialItem:
 		switch column {
+		case "experiment":
+			if exp, ok := m.base.(*experimentsv1alpha1.Experiment); ok {
+				return exp.DisplayName, nil
+			}
+			return "", nil
 		case "name":
 			if exp, ok := m.base.(*experimentsv1alpha1.Experiment); ok {
 				return fmt.Sprintf("%s-%d", exp.DisplayName, o.Number), nil
 			}
 			return strconv.FormatInt(o.Number, 10), nil
+		case "number":
+			return strconv.FormatInt(o.Number, 10), nil
 		case "status":
+			return string(o.Status), nil
+		case "Status":
 			return strings.Title(string(o.Status)), nil
+		case "labels":
+			var labels []string
+			for k, v := range o.Labels {
+				labels = append(labels, fmt.Sprintf("%s=%s", k, v))
+			}
+			return strings.Join(labels, ","), nil
 		default:
-			// This could be a name pattern (e.g. parameter assignment or metric value)
+			// This could be a name pattern (e.g. parameter assignment, metric value, label)
 			if pn := strings.TrimPrefix(column, "parameter_"); pn != column {
 				for i := range o.Assignments {
 					if pn == o.Assignments[i].ParameterName {
 						return o.Assignments[i].Value.String(), nil
 					}
 				}
-				return "", fmt.Errorf("no assignment for %s", pn)
 			}
 			if mn := strings.TrimPrefix(column, "metric_"); mn != column {
 				for i := range o.Values {
@@ -189,6 +224,14 @@ func (m *experimentsMeta) ExtractValue(obj interface{}, column string) (string, 
 						return strconv.FormatFloat(o.Values[i].Value, 'f', -1, 64), nil
 					}
 				}
+			}
+			if ln := strings.TrimPrefix(column, "label_"); ln != column {
+				for k, v := range o.Labels {
+					if ln == k {
+						return v, nil
+					}
+				}
+				return "", nil // Do not fail for missing labels, just leave it blank
 			}
 		}
 	}

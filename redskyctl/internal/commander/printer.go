@@ -66,7 +66,7 @@ type TableMeta interface {
 	// should include a single element slice from the input object if it does not represent a list
 	ExtractList(obj interface{}) ([]interface{}, error)
 	// Columns returns the default list of columns to render for a given object (in some cases this may be overridden by the user)
-	Columns(obj interface{}, outputFormat string) []string
+	Columns(obj interface{}, outputFormat string, showLabels bool) []string
 	// ExtractValue returns the column string value for a given object from the extract list result
 	ExtractValue(obj interface{}, column string) (string, error)
 	// Header returns the header value to use for a column
@@ -198,7 +198,7 @@ func (f *printFlags) toPrinter(printer *ResourcePrinter) error {
 				*printer = &tablePrinter{meta: f.meta, columns: []string{"name"}, outputFormat: outputFormat, showLabels: f.showLabels}
 				return nil
 			case "csv":
-				*printer = &csvPrinter{meta: f.meta, headers: !f.noHeader}
+				*printer = &csvPrinter{meta: f.meta, headers: !f.noHeader, showLabels: f.showLabels}
 				return nil
 			}
 		}
@@ -259,12 +259,8 @@ func (p *tablePrinter) PrintObj(obj interface{}, w io.Writer) error {
 	// Ensure we have a list of column names
 	columns := p.columns
 	if len(columns) == 0 {
-		columns = p.meta.Columns(obj, p.outputFormat)
-	}
-
-	// Add labels if requested
-	if p.showLabels {
-		columns = append(columns, "labels")
+		// TODO This means showLabels is ignored when using custom columns, consider passing user requested columns
+		columns = p.meta.Columns(obj, p.outputFormat, p.showLabels)
 	}
 
 	// Allocate a tab writer and a row buffer
@@ -315,6 +311,8 @@ type csvPrinter struct {
 	meta TableMeta
 	// headers determines if the header row should be included
 	headers bool
+	// showLabels determines if a column should be included for each distinct label
+	showLabels bool
 }
 
 // PrintObj generates the CSV data
@@ -326,7 +324,7 @@ func (p *csvPrinter) PrintObj(obj interface{}, w io.Writer) error {
 	}
 
 	// Ensure we have a list of column names
-	columns := p.meta.Columns(obj, "csv")
+	columns := p.meta.Columns(obj, "csv", p.showLabels)
 
 	// Allocate a CSV writer and a record buffer
 	cw := csv.NewWriter(w)
@@ -392,9 +390,13 @@ func (k *kubePrinter) ExtractList(obj interface{}) ([]interface{}, error) {
 }
 
 // Columns just returns a fixed set of columns
-func (k *kubePrinter) Columns(obj interface{}, outputFormat string) []string {
+func (k *kubePrinter) Columns(obj interface{}, outputFormat string, showLabels bool) []string {
 	// TODO Can we inspect the object reflectively for print columns?
-	return []string{"name", "age"}
+	columns := []string{"name", "age"}
+	if showLabels {
+		columns = append(columns, "labels")
+	}
+	return columns
 }
 
 // ExtractValue attempts to extract common columns from a Kube runtime object
