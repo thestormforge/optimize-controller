@@ -20,7 +20,6 @@ function defineEnvvar {
     echo "export $1=\"$2\"" >> "$BASH_ENV"
 }
 
-KUBEBUILDER_VERSION=2.3.0
 GHR_VERSION=0.13.0
 
 echo "Using environment variables from bootstrap script"
@@ -37,14 +36,6 @@ defineEnvvar SETUPTOOLS_IMG "gcr.io/${GOOGLE_PROJECT_ID}/setuptools:${DOCKER_TAG
 defineEnvvar REDSKYCTL_IMG "gcr.io/${GOOGLE_PROJECT_ID}/redskyctl:${DOCKER_TAG}"
 defineEnvvar IMG "gcr.io/${GOOGLE_PROJECT_ID}/${CIRCLE_PROJECT_REPONAME}:${DOCKER_TAG}"
 defineEnvvar PULL_POLICY "Always"
-echo
-
-
-echo "Installing Kubebuilder"
-curl -LOs https://github.com/kubernetes-sigs/kubebuilder/releases/download/v${KUBEBUILDER_VERSION}/kubebuilder_${KUBEBUILDER_VERSION}_linux_amd64.tar.gz
-tar -zxvf kubebuilder_${KUBEBUILDER_VERSION}_linux_amd64.tar.gz
-sudo mv kubebuilder_${KUBEBUILDER_VERSION}_linux_amd64 /usr/local/kubebuilder
-PATH=$PATH:/usr/local/kubebuilder/bin
 echo
 
 

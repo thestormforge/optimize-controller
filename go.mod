@@ -15,7 +15,6 @@ require (
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/lestrrat-go/jwx v0.9.1
 	github.com/mdp/qrterminal/v3 v3.0.0
-	github.com/onsi/ginkgo v1.11.0
 	github.com/onsi/gomega v1.8.1
 	github.com/pkg/browser v0.0.0-20180916011732-0a3d74bf9ce4
 	github.com/prometheus/client_golang v1.0.0
