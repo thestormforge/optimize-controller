@@ -224,6 +224,9 @@ func (m *experimentsMeta) ExtractValue(obj interface{}, column string) (string, 
 						return strconv.FormatFloat(o.Values[i].Value, 'f', -1, 64), nil
 					}
 				}
+				if o.Status != experimentsv1alpha1.TrialCompleted {
+					return "", nil // Do not fail for missing metrics unless the trial complete
+				}
 			}
 			if ln := strings.TrimPrefix(column, "label_"); ln != column {
 				for k, v := range o.Labels {
