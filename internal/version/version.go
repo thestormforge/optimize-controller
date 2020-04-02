@@ -20,11 +20,13 @@ limitations under the License.
 // some or all of the variables my be overridden using the Go linker.
 package version
 
+import "strings"
+
 var (
-	// Version is a "v" prefixed Semver
-	Version = "v1.5.0"
+	// Version is a "v" prefixed Semver, including pre-release information if applicable
+	Version = "v0.0.0-source"
 	// BuildMetadata is the Semver build metadata stored independent of the version string
-	BuildMetadata = "unreleased"
+	BuildMetadata = ""
 	// GitCommit is a Git commit identifier
 	GitCommit = ""
 )
@@ -38,13 +40,16 @@ type Info struct {
 
 // String returns the full Semver of the version information
 func (i *Info) String() string {
+	// For pre-release versions, include the build metadata
+	if strings.Contains(i.Version, "-") && i.BuildMetadata != "" {
+		return i.Version + "+" + i.BuildMetadata
+	}
+
+	// If the version was overwritten to be empty, return the default version instead
 	if i.Version == "" {
-		return "v0.0.0"
+		return "v0.0.0-source"
 	}
-	if i.BuildMetadata == "" {
-		return i.Version
-	}
-	return i.Version + "+" + i.BuildMetadata
+	return i.Version
 }
 
 // GetInfo returns the full version information

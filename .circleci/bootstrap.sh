@@ -20,18 +20,17 @@ function defineEnvvar {
     echo "export $1=\"$2\"" >> "$BASH_ENV"
 }
 
-GHR_VERSION=0.13.0
+GORELEASER_VERSION=0.131.0
 
 echo "Using environment variables from bootstrap script"
 if [[ -n "${CIRCLE_TAG:-}" ]]; then
     defineEnvvar VERSION "${CIRCLE_TAG}"
-    defineEnvvar BUILD_METADATA ""
     DOCKER_TAG="${CIRCLE_TAG#v}"
 else
-    defineEnvvar VERSION "$(sed -n 's/[[:blank:]]Version[[:blank:]]*=[[:blank:]]*"\(.*\)"/\1/p' internal/version/version.go)"
-    defineEnvvar BUILD_METADATA "build.${CIRCLE_BUILD_NUM}"
     DOCKER_TAG="${CIRCLE_SHA1:0:8}.${CIRCLE_BUILD_NUM}"
 fi
+defineEnvvar BUILD_METADATA "build.${CIRCLE_BUILD_NUM}"
+defineEnvvar GIT_COMMIT "${CIRCLE_SHA1}"
 defineEnvvar SETUPTOOLS_IMG "gcr.io/${GOOGLE_PROJECT_ID}/setuptools:${DOCKER_TAG}"
 defineEnvvar REDSKYCTL_IMG "gcr.io/${GOOGLE_PROJECT_ID}/redskyctl:${DOCKER_TAG}"
 defineEnvvar IMG "gcr.io/${GOOGLE_PROJECT_ID}/${CIRCLE_PROJECT_REPONAME}:${DOCKER_TAG}"
@@ -39,10 +38,11 @@ defineEnvvar PULL_POLICY "Always"
 echo
 
 
-echo "Installing ghr"
-curl -LOs https://github.com/tcnksm/ghr/releases/download/v${GHR_VERSION}/ghr_v${GHR_VERSION}_linux_amd64.tar.gz
-tar -zxf ghr_v${GHR_VERSION}_linux_amd64.tar.gz --exclude '*/*[^ghr]' --strip-components=1
-sudo mv ghr /usr/local/bin/
+echo "Installing GoReleaser"
+curl -LOs https://github.com/goreleaser/goreleaser/releases/download/v${GORELEASER_VERSION}/goreleaser_Linux_x86_64.tar.gz
+tar -xf goreleaser_Linux_x86_64.tar.gz goreleaser
+sudo mv goreleaser /usr/local/bin/
+goreleaser --version
 echo
 
 

@@ -20,18 +20,21 @@ jobs:
             gcloud --quiet config set compute/zone ${GOOGLE_COMPUTE_ZONE}
             gcloud --quiet auth configure-docker
       - run:
-          name: Run tests
-          command: make test
+          name: Build controller
+          command: |
+            make docker-build
+            make docker-push
       - run:
           name: Build tool
-          command: make tool
-      - run:
-          name: Build Docker images
-          command: make docker-build
-      - run:
-          name: Push Docker images
           command: |
-            make docker-push
+            if [[ -n "${CIRCLE_TAG:-}" ]]; then
+              goreleaser release --rm-dist --release-notes .circleci/RELEASE_TEMPLATE.md
+            else
+              goreleaser release --rm-dist --snapshot
+            fi
+      - run:
+          name: Tag Docker images
+          command: |
             DOCKER_TAG=${CIRCLE_TAG:+latest}
             DOCKER_TAG=${DOCKER_TAG:-canary}
             docker tag "${IMG}" "${IMG%%:*}:${DOCKER_TAG}"
@@ -40,12 +43,6 @@ jobs:
             docker push "${REDSKYCTL_IMG%%:*}:${DOCKER_TAG}"
             docker tag "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:${DOCKER_TAG}"
             docker push "${SETUPTOOLS_IMG%%:*}:${DOCKER_TAG}"
-      - run:
-          name: Prepare artifacts
-          command: |
-            mkdir dist
-            for f in bin/* ; do tar --create --file "dist/$(basename $f).tar.gz" --gzip --transform 's,-.*,,;s,.*/,,' "$f" ; done
-            sha256sum dist/* | tee dist/checksums.txt
       - store_artifacts:
           path: dist/redskyctl-darwin-amd64.tar.gz
           destination: redskyctl-darwin-amd64.tar.gz
@@ -55,14 +52,6 @@ jobs:
       - store_artifacts:
           path: dist/checksums.txt
           destination: checksums.txt
-      - run:
-          name: Create release
-          command: |
-            if [[ -n "${CIRCLE_TAG:-}" ]]; then
-              ghr -draft -body "$(cat .circleci/RELEASE_TEMPLATE.md)" -name "${CIRCLE_TAG}" "${CIRCLE_TAG}" dist
-            else
-              echo "Skipping, no tag to release"
-            fi
       - save_cache:
           key: go-mod-v1-{{ checksum "go.sum" }}
           paths:
