@@ -17,6 +17,10 @@ limitations under the License.
 package controller
 
 import (
+	"path"
+	"runtime"
+	"strings"
+
 	redskyapi "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -38,11 +42,43 @@ func RequeueIfUnavailable(err error) (*ctrl.Result, error) {
 
 // RequeueConflict will return a new result and the supplied error, adjusted for Kubernetes conflict errors
 func RequeueConflict(err error) (*ctrl.Result, error) {
+	return requeueConflictForFrameStack(err, getFrames())
+}
+
+func requeueConflictForFrameStack(err error, fs frameStack) (*ctrl.Result, error) {
 	result := &ctrl.Result{}
 	if apierrs.IsConflict(err) {
-		ReconcileConflictErrors.WithLabelValues(guessController()).Inc()
+		controllerName := guessController(fs)
+		ReconcileConflictErrors.WithLabelValues(controllerName).Inc()
 		result.Requeue = true
 		err = nil
 	}
 	return result, err
+}
+
+// guessController dumps stack to try and guess what the controller name should be
+func guessController(frames frameStack) string {
+	for {
+		frame, more := frames.Next()
+		if path.Base(path.Dir(frame.File)) == "controllers" {
+			p := strings.SplitN(path.Base(frame.File), "_", 2)
+			return p[0]
+		}
+		if !more {
+			break
+		}
+	}
+	return "controller"
+}
+
+type frameStack interface {
+	Next() (runtime.Frame, bool)
+}
+
+func getFrames() frameStack {
+	pc := make([]uintptr, 3)
+	if n := runtime.Callers(3, pc); n > 0 {
+		return runtime.CallersFrames(pc[:n])
+	}
+	return nil
 }

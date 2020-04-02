@@ -17,10 +17,6 @@ limitations under the License.
 package controller
 
 import (
-	"path"
-	"runtime"
-	"strings"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
@@ -56,25 +52,4 @@ func init() {
 		ExperimentTrials,
 		ExperimentActiveTrials,
 	)
-}
-
-// guessController dumps stack to try and guess what the controller name should be
-func guessController() string {
-	pc := make([]uintptr, 3)
-	n := runtime.Callers(3, pc)
-	if n > 0 {
-		frames := runtime.CallersFrames(pc[:n])
-		for {
-			frame, more := frames.Next()
-			if path.Base(path.Dir(frame.File)) == "controllers" {
-				p := strings.SplitN(path.Base(frame.File), "_", 2)
-				return p[0]
-			}
-
-			if !more {
-				break
-			}
-		}
-	}
-	return "controller"
 }
