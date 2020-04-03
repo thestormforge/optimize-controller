@@ -75,7 +75,9 @@ workflows:
           context: redskyops
           filters:
             branches:
-              only: master
+              only:
+                - master
+                - change/gh-actions
   release-build:
     jobs:
       - build:
