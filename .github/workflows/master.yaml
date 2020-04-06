@@ -8,7 +8,7 @@ jobs:
     name: Build and Deploy
     runs-on: ubuntu-latest
     env:
-      BUILD_METADATA: build.${{ github.run_id }}
+      BUILD_METADATA: build.${{ github.run_number }}
       GIT_COMMIT: ${{ github.sha }}
     steps:
       - name: Check out code
@@ -17,6 +17,13 @@ jobs:
         uses: actions/setup-go@v1
         with:
           go-version: '1.13.4'
+      - name: Cache Go Modules
+        uses: actions/cache@v1
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
       - name: Set up Google Cloud Platform
         uses: GoogleCloudPlatform/github-actions/setup-gcloud@0.1.2
         with:
@@ -30,7 +37,7 @@ jobs:
             TAG=${GITHUB_REF##*/v}
             DOCKER_TAG=latest
           else
-            TAG=${GITHUB_SHA:0:8}.${GITHUB_RUN_ID}
+            TAG=${GITHUB_SHA:0:8}.${GITHUB_RUN_NUMBER}
             DOCKER_TAG=canary
           fi
           echo "::set-env name=IMG::gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/redskyops-controller:${TAG}"
@@ -43,11 +50,10 @@ jobs:
         run: |
           make docker-build
           make docker-push
-          hack/changelog.sh > '~changelog.txt'
       - name: Build tool
         uses: goreleaser/goreleaser-action@v1
         with:
-          args: release --rm-dist --release-notes '~changelog.txt'
+          args: release --rm-dist --release-notes hack/changelog.md.txt
         env:
           GITHUB_TOKEN: ${{ secrets.BMASTERS_TOKEN }}
       - name: Tag Docker images
