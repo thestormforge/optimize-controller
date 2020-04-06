@@ -8,8 +8,8 @@ jobs:
     name: Build and Deploy
     runs-on: ubuntu-latest
     env:
-      BUILD_METADATA: build.${{ GITHUB_RUN_ID }}
-      GIT_COMMIT: ${{ GITHUB_SHA }}
+      BUILD_METADATA: build.${{ github.run_id }}
+      GIT_COMMIT: ${{ github.sha }}
     steps:
       - name: Check out code
         uses: actions/checkout@v2
