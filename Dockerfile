@@ -1,9 +1,6 @@
 # Build the manager binary
 FROM golang:1.13 as builder
 
-# Get arguments
-ARG LDFLAGS=""
-
 WORKDIR /workspace
 # Copy the Go Modules manifests
 COPY go.mod go.mod
@@ -20,6 +17,7 @@ COPY pkg/ pkg/
 COPY redskyapi/ redskyapi/
 
 # Build
+ARG LDFLAGS=""
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -ldflags "${LDFLAGS}" -a -o manager main.go
 
 # Use distroless as minimal base image to package the manager binary

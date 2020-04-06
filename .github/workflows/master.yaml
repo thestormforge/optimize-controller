@@ -43,11 +43,11 @@ jobs:
         run: |
           make docker-build
           make docker-push
-          hack/changelog.sh > bin/changelog.txt
+          hack/changelog.sh > '~changelog.txt'
       - name: Build tool
         uses: goreleaser/goreleaser-action@v1
         with:
-          args: release --rm-dist --release-notes bin/changelog.txt
+          args: release --rm-dist --release-notes '~changelog.txt'
         env:
           GITHUB_TOKEN: ${{ secrets.BMASTERS_TOKEN }}
       - name: Tag Docker images
