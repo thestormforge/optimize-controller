@@ -8,9 +8,9 @@ An experiment and its trials run in several steps, coordinated by the Red Sky Op
 
 [![Timeline](images/timeline.png)](images/timeline.png)
 
-Note: If the Red Sky Ops Controller is not configured to use an API server, you can suggest trial configurations manually using `redskyctl suggest`. The Experiment process then starts with the _Create Trial_ step instead of _Reconcile Experiment_.
+Note: If the Red Sky Ops Controller is not configured to use an API server, you can generate trial configurations manually using `redskyctl generate trial`. The Experiment process then starts with the _Create Trial_ step instead of _Reconcile Experiment_.
 
-(`redskyctl suggest` can still be used with a server configured, but the suggestion will be sent to the server to be queued.)
+(`redskyctl suggest` can be used with a server configured, but the suggestion will be sent to the server to be queued.)
 
 ## Experiment Creation
 

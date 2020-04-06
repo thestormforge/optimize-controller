@@ -49,7 +49,7 @@ $ kustomize build github.com/redskyops/redskyops-recipes//tutorial | kubectl app
 When configured to use the Enterprise solution, trials will be created automatically. You may interactively suggest trial assignments to start a trial run as well:
 
 ```sh
-$ redskyctl suggest --interactive elk
+$ redskyctl generate trial --interactive -f <(kubectl get experiment elk -o yaml) | kubectl apply -f -
 ```
 
 ## Monitoring the Experiment
@@ -64,15 +64,16 @@ The trial object will also own several (one to three) job objects depending on t
 
 ## Collecting Experiment Output
 
-Once an experiment is underway and some trials have completed, you can get the trial results in `yaml`, `json` or `csv` output using
+Once an experiment is underway and some trials have completed, you can get the trial results using `kubectl`:
+
 ```sh
-redskyctl get trials < EXPERIMENT NAME> -o <OUTPUT TYPE>
+kubectl get trials -l redskyops.dev/experiment=elk
 ```
 
 
 ## Re-running the Experiment
 
-Once a trial run is complete, you can run additional trials using `redskyctl suggest` (again, this done automatically when using the Enterprise solution).
+Once a trial run is complete, you can run additional trials using `redskyctl generate trial` (again, this done automatically when using the Enterprise solution).
 
 The tutorial experiment is not configured to isolate trials to individual namespaces: attempting to run a trial for the tutorial experiment while another tutorial experiment trial is in progress will cause conflicts and lead to inconsistent states.
 

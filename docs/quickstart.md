@@ -39,7 +39,7 @@ With your experiment created, you can be begin running trials by suggesting para
 To interactively create a new trial for the example experiment, run:
 
 ```sh
-$ redskyctl suggest --interactive simple
+$ redskyctl generate trial --interactive -f <(kubectl get experiment simple -o yaml) | kubectl apply -f -
 ```
 
 You will be prompted to enter a value for each parameter in the experiment and a new trial will be created. You can monitor the progress using `kubectl`:
