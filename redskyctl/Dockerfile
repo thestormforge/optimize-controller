@@ -1,18 +1,3 @@
-# The layers upto downloading dependencies should exactly match the manager build
-FROM golang:1.13 as builder
-ARG LDFLAGS=""
-WORKDIR /workspace
-COPY go.mod go.mod
-COPY go.sum go.sum
-RUN go mod download
-
-COPY internal/ internal/
-COPY pkg/ pkg/
-COPY redskyapi/ redskyapi/
-COPY redskyctl/ redskyctl/
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -ldflags "${LDFLAGS}" -a -o redskyctl redskyctl/main.go
-
-
 FROM alpine:latest
 
 ENV KUBECTL_VERSION="v1.14.10" \
@@ -25,7 +10,7 @@ RUN apk add --no-cache ca-certificates && \
     chmod +x /usr/local/bin/kubectl && \
     apk del .build-deps
 
-COPY --from=builder /workspace/redskyctl /usr/local/bin/
+COPY /redskyctl /usr/local/bin/
 
 ENTRYPOINT ["redskyctl"]
 CMD ["--help"]

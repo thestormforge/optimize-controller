@@ -15,13 +15,14 @@ GOBIN=$(shell go env GOBIN)
 endif
 
 # Collect version information
-ifdef VERSION
-    LDFLAGS += -X github.com/redskyops/redskyops-controller/internal/version.Version=${VERSION}
-endif
-ifneq ($(origin BUILD_METADATA), undefined)
-    LDFLAGS += -X github.com/redskyops/redskyops-controller/internal/version.BuildMetadata=${BUILD_METADATA}
-endif
-LDFLAGS += -X github.com/redskyops/redskyops-controller/internal/version.GitCommit=$(shell git rev-parse HEAD)
+VERSION ?= $(shell git ls-remote --tags origin 'v*' | tail -1 | awk -F/ '{ print $$3 }')-next
+BUILD_METADATA ?=
+GIT_COMMIT ?= $(shell git rev-parse HEAD)
+
+# Define linker flags
+LDFLAGS += -X github.com/redskyops/redskyops-controller/internal/version.Version=${VERSION}
+LDFLAGS += -X github.com/redskyops/redskyops-controller/internal/version.BuildMetadata=${BUILD_METADATA}
+LDFLAGS += -X github.com/redskyops/redskyops-controller/internal/version.GitCommit=${GIT_COMMIT}
 LDFLAGS += -X github.com/redskyops/redskyops-controller/internal/setup.Image=${SETUPTOOLS_IMG}
 LDFLAGS += -X github.com/redskyops/redskyops-controller/internal/setup.ImagePullPolicy=${PULL_POLICY}
 
@@ -35,10 +36,10 @@ test: generate fmt vet manifests
 manager: generate fmt vet
 	go build -ldflags '$(LDFLAGS)' -o bin/manager main.go
 
-# Build tool binary for all supported platforms
-tool: generate fmt vet
-	GOOS=darwin GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o bin/redskyctl-darwin-amd64 redskyctl/main.go
-	GOOS=linux GOARCH=amd64 go build -ldflags '$(LDFLAGS)' -o bin/redskyctl-linux-amd64 redskyctl/main.go
+# Build tool binary using GoReleaser in a local dev environment (in CI we just invoke GoReleaser directly)
+tool:
+	BUILD_METADATA=${BUILD_METADATA} SETUPTOOLS_IMG=${SETUPTOOLS_IMG} PULL_POLICY=${PULL_POLICY} REDSKYCTL_IMG=${REDSKYCTL_IMG} \
+	goreleaser release --snapshot --rm-dist
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate fmt vet manifests
@@ -74,15 +75,13 @@ generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 # Build the docker images
-docker-build:
-	docker build . -t ${IMG} --build-arg LDFLAGS='$(LDFLAGS)'
-	docker build . -f Dockerfile.redskyctl -t ${REDSKYCTL_IMG} --build-arg LDFLAGS='$(LDFLAGS)'
-	docker build config -t ${SETUPTOOLS_IMG} --build-arg IMG='$(IMG)' --build-arg PULL_POLICY='$(PULL_POLICY)' --build-arg VERSION='$(VERSION)'
+docker-build: test
+	docker build . -t ${IMG} --build-arg LDFLAGS='${LDFLAGS}'
+	docker build config -t ${SETUPTOOLS_IMG} --build-arg IMG='${IMG}' --build-arg PULL_POLICY='${PULL_POLICY}' --build-arg VERSION='${VERSION}'
 
 # Push the docker images
 docker-push:
 	docker push ${IMG}
-	docker push ${REDSKYCTL_IMG}
 	docker push ${SETUPTOOLS_IMG}
 
 # find or download controller-gen

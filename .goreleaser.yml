@@ -1,0 +1,31 @@
+project_name: redskyctl
+before:
+  hooks:
+    - go mod download
+builds:
+  - dir: redskyctl
+    env:
+      - CGO_ENABLED=0
+    goarch:
+      - amd64
+    ldflags:
+      - '-s -w'
+      - '-X github.com/redskyops/redskyops-controller/internal/version.Version=v{{ .Version }}'
+      - '-X github.com/redskyops/redskyops-controller/internal/version.GitCommit={{ .FullCommit }}'
+      - '-X github.com/redskyops/redskyops-controller/internal/version.BuildMetadata={{ .Env.BUILD_METADATA }}'
+      - '-X github.com/redskyops/redskyops-controller/internal/setup.Image={{ .Env.SETUPTOOLS_IMG }}'
+      - '-X github.com/redskyops/redskyops-controller/internal/setup.ImagePullPolicy={{ .Env.PULL_POLICY }}'
+checksum:
+  name_template: "checksums.txt"
+snapshot:
+  name_template: '{{ replace .Tag "v" "" }}-next'
+release:
+  draft: true
+archives:
+  - name_template: '{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}'
+    files:
+      - none*
+dockers:
+  - image_templates:
+      - '{{ .Env.REDSKYCTL_IMG }}'
+    dockerfile: redskyctl/Dockerfile
