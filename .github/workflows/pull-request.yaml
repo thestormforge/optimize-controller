@@ -1,6 +1,6 @@
-name: Main workflow
+name: Pull Request workflow
 on:
-  push:
+  pull_request:
     branches:
       - master
 jobs:
@@ -8,7 +8,7 @@ jobs:
     name: Build and Deploy
     runs-on: ubuntu-latest
     env:
-      BUILD_METADATA: build.${{ GITHUB_RUN_ID }}
+      BUILD_METADATA: pr.${{ GITHUB_ACTOR }}.${{ GITHUB_RUN_ID }}
       GIT_COMMIT: ${{ GITHUB_SHA }}
     steps:
       - name: Check out code
@@ -25,19 +25,11 @@ jobs:
           project_id: ${{ secrets.GOOGLE_PROJECT_ID }}
       - name: Bootstrap
         run: |
-          if [ -z "${GITHUB_REF/refs\/tags\/*/}" ]; then
-            echo "::set-env name=VERSION::${GITHUB_REF##*/}"
-            TAG=${GITHUB_REF##*/v}
-            DOCKER_TAG=latest
-          else
-            TAG=${GITHUB_SHA:0:8}.${GITHUB_RUN_ID}
-            DOCKER_TAG=canary
-          fi
+          TAG=${GITHUB_SHA:0:8}.${GITHUB_RUN_ID}
           echo "::set-env name=IMG::gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/redskyops-controller:${TAG}"
           echo "::set-env name=REDSKYCTL_IMG::gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/redskyctl:${TAG}"
           echo "::set-env name=SETUPTOOLS_IMG::gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/setuptools:${TAG}"
           echo "::set-env name=PULL_POLICY::Always"
-          echo "::set-env name=DOCKER_TAG::${DOCKER_TAG}"
           gcloud --quiet auth configure-docker
       - name: Build controller
         run: |
@@ -46,17 +38,7 @@ jobs:
       - name: Build tool
         uses: goreleaser/goreleaser-action@v1
         with:
-          args: release --rm-dist --release-notes <(./hack/changelog.sh)
-        env:
-          GITHUB_TOKEN: ${{ secrets.BMASTERS_TOKEN }}
-      - name: Tag Docker images
-        run: |
-          docker tag "${IMG}" "${IMG%%:*}:${DOCKER_TAG}"
-          docker push "${IMG%%:*}:${DOCKER_TAG}"
-          docker tag "${REDSKYCTL_IMG}" "${REDSKYCTL_IMG%%:*}:${DOCKER_TAG}"
-          docker push "${REDSKYCTL_IMG%%:*}:${DOCKER_TAG}"
-          docker tag "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:${DOCKER_TAG}"
-          docker push "${SETUPTOOLS_IMG%%:*}:${DOCKER_TAG}"
+          args: release --rm-dist
       - name: Clean up dist
         run: 'rm dist/config.yaml dist/*.tar.gz'
       - name: Upload artifacts
