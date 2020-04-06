@@ -46,7 +46,7 @@ jobs:
       - name: Build tool
         uses: goreleaser/goreleaser-action@v1
         with:
-          args: release --rm-dist --release-notes <(./hack/changelog.sh)
+          args: release --rm-dist --release-notes <(hack/changelog.sh)
         env:
           GITHUB_TOKEN: ${{ secrets.BMASTERS_TOKEN }}
       - name: Tag Docker images

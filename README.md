@@ -1,6 +1,6 @@
 # Red Sky Ops - Kubernetes Experiments
 
-[![CircleCI](https://circleci.com/gh/redskyops/redskyops-controller.svg?style=shield)](https://circleci.com/gh/redskyops/redskyops-controller)
+![Main workflow](https://github.com/redskyops/redskyops-controller/workflows/Main%20workflow/badge.svg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/redskyops/redskyops-controller)](https://goreportcard.com/report/github.com/redskyops/redskyops-controller)
 
 The Kubernetes Experiments project (redskyops-controller) supports the creation and execution of experiments used for the validation of configuration state through a series of trials.
