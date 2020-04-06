@@ -39,10 +39,13 @@ jobs:
         uses: goreleaser/goreleaser-action@v1
         with:
           args: release --rm-dist
-      - name: Clean up dist
-        run: 'rm dist/config.yaml dist/*.tar.gz'
-      - name: Upload artifacts
+      - name: Upload macOS binary
         uses: actions/upload-artifact@v1
         with:
-          name: dist
-          path: dist
+          name: redskyctl_darwin_amd64
+          path: dist/redskyctl_darwin_amd64
+      - name: Upload Linux binary
+        uses: actions/upload-artifact@v1
+        with:
+          name: redskyctl_linux_amd64
+          path: dist/redskyctl_linux_amd64
