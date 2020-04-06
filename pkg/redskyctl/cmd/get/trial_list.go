@@ -141,10 +141,10 @@ func getKubernetesTrialList(o *GetOptions, meta *trialTableMeta) (*redskyapi.Tri
 	} else {
 		for i := range tl.Items {
 			t := redskyapi.TrialItem{TrialValues: *server.FromClusterTrial(&tl.Items[i])}
-			for i := range tl.Items[i].Spec.Assignments {
+			for j := range tl.Items[i].Spec.Assignments {
 				t.TrialAssignments.Assignments = append(t.TrialAssignments.Assignments, redskyapi.Assignment{
-					ParameterName: tl.Items[i].Spec.Assignments[i].Name,
-					Value:         json.Number(strconv.FormatInt(tl.Items[i].Spec.Assignments[i].Value, 10)),
+					ParameterName: tl.Items[i].Spec.Assignments[j].Name,
+					Value:         json.Number(strconv.FormatInt(tl.Items[i].Spec.Assignments[j].Value, 10)),
 				})
 			}
 
