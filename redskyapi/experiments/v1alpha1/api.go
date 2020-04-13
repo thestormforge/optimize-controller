@@ -204,7 +204,7 @@ type Constraint struct {
 	// Optional name for constraint.
 	Name string `json:"name,omitempty"`
 
-	ConstraintType  string `json:"constraintType"`
+	ConstraintType  ConstraintType `json:"constraintType"`
 	SumConstraint   `json:",inline"`
 	OrderConstraint `json:",inline"`
 }
