@@ -194,7 +194,7 @@ func (m *experimentsMeta) ExtractValue(obj interface{}, column string) (string, 
 			return "", nil
 		case "name":
 			if exp, ok := m.base.(*experimentsv1alpha1.Experiment); ok {
-				return fmt.Sprintf("%s-%d", exp.DisplayName, o.Number), nil
+				return fmt.Sprintf("%s-%03d", exp.DisplayName, o.Number), nil
 			}
 			return strconv.FormatInt(o.Number, 10), nil
 		case "number":
