@@ -52,9 +52,8 @@ func FromCluster(in *redskyv1alpha1.Experiment) (redskyapi.ExperimentName, *reds
 	}
 
 	out.Parameters = nil
-	out.Constraints = nil
 	for _, p := range in.Spec.Parameters {
-		// This is a special case for testing
+		// This is a special case to omit parameters client side
 		if p.Min == p.Max {
 			continue
 		}
@@ -67,24 +66,41 @@ func FromCluster(in *redskyv1alpha1.Experiment) (redskyapi.ExperimentName, *reds
 				Max: json.Number(strconv.FormatInt(p.Max, 10)),
 			},
 		})
+	}
 
-		if p.LowerParameter != "" {
+	out.Constraints = nil
+	for _, c := range in.Spec.Constraints {
+		switch {
+		case c.Order != nil:
 			out.Constraints = append(out.Constraints, redskyapi.Constraint{
+				Name:           c.Name,
 				ConstraintType: redskyapi.ConstraintOrder,
 				OrderConstraint: redskyapi.OrderConstraint{
-					LowerParameter: p.LowerParameter,
-					UpperParameter: p.Name,
+					LowerParameter: c.Order.LowerParameter,
+					UpperParameter: c.Order.UpperParameter,
 				},
 			})
-		}
+		case c.Sum != nil:
+			sc := redskyapi.SumConstraint{
+				IsUpperBound: c.Sum.IsUpperBound,
+				Bound:        float64(c.Sum.Bound.MilliValue()) / 1000,
+			}
+			for _, p := range c.Sum.Parameters {
+				// This is a special case to omit parameters client side
+				if p.Weight.IsZero() {
+					continue
+				}
 
-		if p.UpperParameter != "" {
+				sc.Parameters = append(sc.Parameters, redskyapi.SumConstraintParameter{
+					Name:   p.Name,
+					Weight: float64(p.Weight.MilliValue()) / 1000,
+				})
+			}
+
 			out.Constraints = append(out.Constraints, redskyapi.Constraint{
-				ConstraintType: redskyapi.ConstraintOrder,
-				OrderConstraint: redskyapi.OrderConstraint{
-					LowerParameter: p.Name,
-					UpperParameter: p.UpperParameter,
-				},
+				Name:           c.Name,
+				ConstraintType: redskyapi.ConstraintSum,
+				SumConstraint:  sc,
 			})
 		}
 	}

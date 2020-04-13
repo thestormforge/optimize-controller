@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -38,10 +39,42 @@ type Parameter struct {
 	Min int64 `json:"min,omitempty"`
 	// The inclusive maximum value of the parameter
 	Max int64 `json:"max,omitempty"`
-	// The name of a parameter that defines the upper bound for this parameter
-	UpperParameter string `json:"upperParameter,omitempty"`
-	// The name of a parameter that defines the lower bound for this parameter
-	LowerParameter string `json:"lowerParameter,omitempty"`
+}
+
+// Constraint represents a constraint to the domain of the parameters
+type Constraint struct {
+	// The optional name of the constraint
+	Name string `json:"name,omitempty"`
+	// The ordering constraint to impose
+	Order *OrderConstraint `json:"order,omitempty"`
+	// The sum constraint to impose
+	Sum *SumConstraint `json:"sum,omitempty"`
+}
+
+// OrderConstraint defines a constraint between the ordering of two parameters in the experiment
+type OrderConstraint struct {
+	// LowerParameter is the name of the parameter that must be the smaller of two parameters
+	LowerParameter string `json:"lowerParameter"`
+	// UpperParameter is the name of the parameter that must be the larger of two parameters
+	UpperParameter string `json:"upperParameter"`
+}
+
+// SumConstraintParameter is a weighted parameter specification in a sum constraint
+type SumConstraintParameter struct {
+	// Name of the parameter
+	Name string `json:"name"`
+	// Weight of the parameter
+	Weight resource.Quantity `json:"weight"`
+}
+
+// SumConstraint defines a constraint between the sum of a collection of parameters
+type SumConstraint struct {
+	// Bound for the sum of the listed parameters
+	Bound resource.Quantity `json:"bound"`
+	// IsUpperBound determines if the bound values is an upper or lower bound on the sum
+	IsUpperBound bool `json:"isUpperBound,omitempty"`
+	// Parameters that should be summed
+	Parameters []SumConstraintParameter `json:"parameters"`
 }
 
 // PatchType represents the allowable types of patches
@@ -143,6 +176,8 @@ type ExperimentSpec struct {
 	Optimization []Optimization `json:"optimization,omitempty"`
 	// Parameters defines the search space for the experiment
 	Parameters []Parameter `json:"parameters,omitempty"`
+	// Constraints defines restrictions on the parameter domain for the experiment
+	Constraints []Constraint `json:"constraints,omitempty"`
 	// Metrics defines the outcomes for the experiment
 	Metrics []Metric `json:"metrics,omitempty"`
 	// Patches is a sequence of templates written against the experiment parameters that will be used to put the

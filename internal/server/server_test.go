@@ -27,6 +27,7 @@ import (
 	redskyapi "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -124,47 +125,73 @@ func TestFromCluster(t *testing.T) {
 			desc: "orderConstraints",
 			in: &redskyv1alpha1.Experiment{
 				Spec: redskyv1alpha1.ExperimentSpec{
-					Parameters: []redskyv1alpha1.Parameter{
-						{Name: "one", Min: 111, Max: 222, LowerParameter: "two"},
-						{Name: "two", Min: 1111, Max: 2222, UpperParameter: "three"},
-						{Name: "three", Min: 11111, Max: 22222, LowerParameter: "one", UpperParameter: "two"},
+					Constraints: []redskyv1alpha1.Constraint{
+						{
+							Name: "one-two",
+							Order: &redskyv1alpha1.OrderConstraint{
+								LowerParameter: "one",
+								UpperParameter: "two",
+							},
+						},
 					},
 				},
 			},
 			out: &redskyapi.Experiment{
-				Parameters: []redskyapi.Parameter{
-					{
-						Type:   redskyapi.ParameterTypeInteger,
-						Name:   "one",
-						Bounds: redskyapi.Bounds{Min: "111", Max: "222"},
-					},
-					{
-						Type:   redskyapi.ParameterTypeInteger,
-						Name:   "two",
-						Bounds: redskyapi.Bounds{Min: "1111", Max: "2222"},
-					},
-					{
-						Type:   redskyapi.ParameterTypeInteger,
-						Name:   "three",
-						Bounds: redskyapi.Bounds{Min: "11111", Max: "22222"},
-					},
-				},
 				Constraints: []redskyapi.Constraint{
 					{
 						ConstraintType:  redskyapi.ConstraintOrder,
-						OrderConstraint: redskyapi.OrderConstraint{LowerParameter: "two", UpperParameter: "one"},
+						Name:            "one-two",
+						OrderConstraint: redskyapi.OrderConstraint{LowerParameter: "one", UpperParameter: "two"},
 					},
-					{
-						ConstraintType:  redskyapi.ConstraintOrder,
-						OrderConstraint: redskyapi.OrderConstraint{LowerParameter: "two", UpperParameter: "three"},
+				},
+			},
+		},
+		{
+			desc: "sumConstraints",
+			in: &redskyv1alpha1.Experiment{
+				Spec: redskyv1alpha1.ExperimentSpec{
+					Constraints: []redskyv1alpha1.Constraint{
+						{
+							Name: "one-two",
+							Sum: &redskyv1alpha1.SumConstraint{
+								Bound: resource.MustParse("1"),
+								Parameters: []redskyv1alpha1.SumConstraintParameter{
+									{
+										Name:   "one",
+										Weight: resource.MustParse("-1.0"),
+									},
+									{
+										Name:   "two",
+										Weight: resource.MustParse("1"),
+									},
+									{
+										Name:   "three",
+										Weight: resource.MustParse("3.5"),
+									},
+									{
+										Name:   "four",
+										Weight: resource.MustParse("5000m"),
+									},
+								},
+							},
+						},
 					},
+				},
+			},
+			out: &redskyapi.Experiment{
+				Constraints: []redskyapi.Constraint{
 					{
-						ConstraintType:  redskyapi.ConstraintOrder,
-						OrderConstraint: redskyapi.OrderConstraint{LowerParameter: "one", UpperParameter: "three"},
-					},
-					{
-						ConstraintType:  redskyapi.ConstraintOrder,
-						OrderConstraint: redskyapi.OrderConstraint{LowerParameter: "three", UpperParameter: "two"},
+						Name:           "one-two",
+						ConstraintType: redskyapi.ConstraintSum,
+						SumConstraint: redskyapi.SumConstraint{
+							Bound: 1,
+							Parameters: []redskyapi.SumConstraintParameter{
+								{Name: "one", Weight: -1.0},
+								{Name: "two", Weight: 1.0},
+								{Name: "three", Weight: 3.5},
+								{Name: "four", Weight: 5.0},
+							},
+						},
 					},
 				},
 			},

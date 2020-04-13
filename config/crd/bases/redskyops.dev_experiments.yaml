@@ -32,6 +32,45 @@ spec:
           type: object
         spec:
           properties:
+            constraints:
+              items:
+                properties:
+                  name:
+                    type: string
+                  order:
+                    properties:
+                      lowerParameter:
+                        type: string
+                      upperParameter:
+                        type: string
+                    required:
+                    - lowerParameter
+                    - upperParameter
+                    type: object
+                  sum:
+                    properties:
+                      bound:
+                        type: string
+                      isUpperBound:
+                        type: boolean
+                      parameters:
+                        items:
+                          properties:
+                            name:
+                              type: string
+                            weight:
+                              type: string
+                          required:
+                          - name
+                          - weight
+                          type: object
+                        type: array
+                    required:
+                    - bound
+                    - parameters
+                    type: object
+                type: object
+              type: array
             metrics:
               items:
                 properties:
@@ -131,8 +170,6 @@ spec:
             parameters:
               items:
                 properties:
-                  lowerParameter:
-                    type: string
                   max:
                     format: int64
                     type: integer
@@ -140,8 +177,6 @@ spec:
                     format: int64
                     type: integer
                   name:
-                    type: string
-                  upperParameter:
                     type: string
                 required:
                 - name
