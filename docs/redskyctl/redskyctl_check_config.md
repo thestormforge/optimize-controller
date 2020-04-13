@@ -1,15 +1,19 @@
-## redskyctl check
+## redskyctl check config
 
-Run a consistency check
+Check the configuration
 
 ### Synopsis
 
-Run a consistency check on Red Sky Ops components
+Check the Red Sky Configuration
+
+```
+redskyctl check config [flags]
+```
 
 ### Options
 
 ```
-  -h, --help   help for check
+  -h, --help   help for config
 ```
 
 ### Options inherited from parent commands
@@ -23,8 +27,5 @@ Run a consistency check on Red Sky Ops components
 
 ### SEE ALSO
 
-* [redskyctl](redskyctl.md)	 - Kubernetes Exploration
-* [redskyctl check config](redskyctl_check_config.md)	 - Check the configuration
-* [redskyctl check experiment](redskyctl_check_experiment.md)	 - Check an experiment
-* [redskyctl check server](redskyctl_check_server.md)	 - Check the server
+* [redskyctl check](redskyctl_check.md)	 - Run a consistency check
 
