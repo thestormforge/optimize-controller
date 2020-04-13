@@ -38,6 +38,10 @@ type Parameter struct {
 	Min int64 `json:"min,omitempty"`
 	// The inclusive maximum value of the parameter
 	Max int64 `json:"max,omitempty"`
+	// The name of a parameter that defines the upper bound for this parameter
+	UpperParameter string `json:"upperParameter,omitempty"`
+	// The name of a parameter that defines the lower bound for this parameter
+	LowerParameter string `json:"lowerParameter,omitempty"`
 }
 
 // PatchType represents the allowable types of patches

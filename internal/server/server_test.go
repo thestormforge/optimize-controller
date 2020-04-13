@@ -121,6 +121,55 @@ func TestFromCluster(t *testing.T) {
 			},
 		},
 		{
+			desc: "orderConstraints",
+			in: &redskyv1alpha1.Experiment{
+				Spec: redskyv1alpha1.ExperimentSpec{
+					Parameters: []redskyv1alpha1.Parameter{
+						{Name: "one", Min: 111, Max: 222, LowerParameter: "two"},
+						{Name: "two", Min: 1111, Max: 2222, UpperParameter: "three"},
+						{Name: "three", Min: 11111, Max: 22222, LowerParameter: "one", UpperParameter: "two"},
+					},
+				},
+			},
+			out: &redskyapi.Experiment{
+				Parameters: []redskyapi.Parameter{
+					{
+						Type:   redskyapi.ParameterTypeInteger,
+						Name:   "one",
+						Bounds: redskyapi.Bounds{Min: "111", Max: "222"},
+					},
+					{
+						Type:   redskyapi.ParameterTypeInteger,
+						Name:   "two",
+						Bounds: redskyapi.Bounds{Min: "1111", Max: "2222"},
+					},
+					{
+						Type:   redskyapi.ParameterTypeInteger,
+						Name:   "three",
+						Bounds: redskyapi.Bounds{Min: "11111", Max: "22222"},
+					},
+				},
+				Constraints: []redskyapi.Constraint{
+					{
+						ConstraintType:  redskyapi.ConstraintOrder,
+						OrderConstraint: redskyapi.OrderConstraint{LowerParameter: "two", UpperParameter: "one"},
+					},
+					{
+						ConstraintType:  redskyapi.ConstraintOrder,
+						OrderConstraint: redskyapi.OrderConstraint{LowerParameter: "two", UpperParameter: "three"},
+					},
+					{
+						ConstraintType:  redskyapi.ConstraintOrder,
+						OrderConstraint: redskyapi.OrderConstraint{LowerParameter: "one", UpperParameter: "three"},
+					},
+					{
+						ConstraintType:  redskyapi.ConstraintOrder,
+						OrderConstraint: redskyapi.OrderConstraint{LowerParameter: "three", UpperParameter: "two"},
+					},
+				},
+			},
+		},
+		{
 			desc: "metrics",
 			in: &redskyv1alpha1.Experiment{
 				Spec: redskyv1alpha1.ExperimentSpec{

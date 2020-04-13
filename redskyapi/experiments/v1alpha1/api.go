@@ -170,6 +170,13 @@ type Metric struct {
 	Minimize bool `json:"minimize,omitempty"`
 }
 
+type ConstraintType string
+
+const (
+	ConstraintSum   ConstraintType = "sum"
+	ConstraintOrder                = "order"
+)
+
 type SumConstraintParameter struct {
 	// Name of parameter to be used in constraint.
 	Name string `json:"name"`

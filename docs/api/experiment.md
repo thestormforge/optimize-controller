@@ -117,6 +117,8 @@ Parameter represents the domain of a single component of the experiment search s
 | `name` | The name of the parameter | _string_ | true |
 | `min` | The inclusive minimum value of the parameter | _int64_ | false |
 | `max` | The inclusive maximum value of the parameter | _int64_ | false |
+| `upperParameter` | The name of a parameter that defines the upper bound for this parameter | _string_ | false |
+| `lowerParameter` | The name of a parameter that defines the lower bound for this parameter | _string_ | false |
 
 [Back to TOC](#table-of-contents)
 

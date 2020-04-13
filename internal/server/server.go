@@ -52,6 +52,7 @@ func FromCluster(in *redskyv1alpha1.Experiment) (redskyapi.ExperimentName, *reds
 	}
 
 	out.Parameters = nil
+	out.Constraints = nil
 	for _, p := range in.Spec.Parameters {
 		// This is a special case for testing
 		if p.Min == p.Max {
@@ -66,6 +67,26 @@ func FromCluster(in *redskyv1alpha1.Experiment) (redskyapi.ExperimentName, *reds
 				Max: json.Number(strconv.FormatInt(p.Max, 10)),
 			},
 		})
+
+		if p.LowerParameter != "" {
+			out.Constraints = append(out.Constraints, redskyapi.Constraint{
+				ConstraintType: redskyapi.ConstraintOrder,
+				OrderConstraint: redskyapi.OrderConstraint{
+					LowerParameter: p.LowerParameter,
+					UpperParameter: p.Name,
+				},
+			})
+		}
+
+		if p.UpperParameter != "" {
+			out.Constraints = append(out.Constraints, redskyapi.Constraint{
+				ConstraintType: redskyapi.ConstraintOrder,
+				OrderConstraint: redskyapi.OrderConstraint{
+					LowerParameter: p.Name,
+					UpperParameter: p.UpperParameter,
+				},
+			})
+		}
 	}
 
 	out.Metrics = nil

@@ -131,6 +131,8 @@ spec:
             parameters:
               items:
                 properties:
+                  lowerParameter:
+                    type: string
                   max:
                     format: int64
                     type: integer
@@ -138,6 +140,8 @@ spec:
                     format: int64
                     type: integer
                   name:
+                    type: string
+                  upperParameter:
                     type: string
                 required:
                 - name
