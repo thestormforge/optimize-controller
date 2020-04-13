@@ -251,7 +251,12 @@ func (m *experimentsMeta) Header(outputFormat string, column string) string {
 // sortByField sorts using a JSONPath expression
 func sortByField(sortBy string, item func(int) interface{}) func(int, int) bool {
 	// TODO We always wrap the items in maps now, can we simplify?
-	field := sortBy // TODO Make "{}" and leading "." optional
+	field := sortBy // Roughly the same as RelaxedJSONPathExpression
+	if strings.HasPrefix(field, "{") && strings.HasSuffix(field, "}") {
+		field = strings.TrimPrefix(strings.TrimSuffix(field, "}"), "{")
+	}
+	field = strings.TrimPrefix(field, ".")
+	field = fmt.Sprintf("{.%s}", field)
 
 	parser := jsonpath.New("sorting").AllowMissingKeys(true)
 	if err := parser.Parse(field); err != nil {
