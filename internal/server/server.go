@@ -83,7 +83,7 @@ func FromCluster(in *redskyv1alpha1.Experiment) (redskyapi.ExperimentName, *reds
 		case c.Sum != nil:
 			sc := redskyapi.SumConstraint{
 				IsUpperBound: c.Sum.IsUpperBound,
-				Bound:        float64(c.Sum.Bound.MilliValue()) / 1000,
+				Bound:        float64(c.Sum.Bound.Value()),
 			}
 			for _, p := range c.Sum.Parameters {
 				// This is a special case to omit parameters client side
@@ -93,7 +93,7 @@ func FromCluster(in *redskyv1alpha1.Experiment) (redskyapi.ExperimentName, *reds
 
 				sc.Parameters = append(sc.Parameters, redskyapi.SumConstraintParameter{
 					Name:   p.Name,
-					Weight: float64(p.Weight.MilliValue()) / 1000,
+					Weight: float64(p.Weight.Value()),
 				})
 			}
 
