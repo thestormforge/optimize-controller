@@ -194,7 +194,7 @@ func (m *experimentsMeta) ExtractValue(obj interface{}, column string) (string, 
 			return "", nil
 		case "name":
 			if exp, ok := m.base.(*experimentsv1alpha1.Experiment); ok {
-				return fmt.Sprintf("%s-%d", exp.DisplayName, o.Number), nil
+				return fmt.Sprintf("%s-%03d", exp.DisplayName, o.Number), nil
 			}
 			return strconv.FormatInt(o.Number, 10), nil
 		case "number":
@@ -251,7 +251,12 @@ func (m *experimentsMeta) Header(outputFormat string, column string) string {
 // sortByField sorts using a JSONPath expression
 func sortByField(sortBy string, item func(int) interface{}) func(int, int) bool {
 	// TODO We always wrap the items in maps now, can we simplify?
-	field := sortBy // TODO Make "{}" and leading "." optional
+	field := sortBy // Roughly the same as RelaxedJSONPathExpression
+	if strings.HasPrefix(field, "{") && strings.HasSuffix(field, "}") {
+		field = strings.TrimPrefix(strings.TrimSuffix(field, "}"), "{")
+	}
+	field = strings.TrimPrefix(field, ".")
+	field = fmt.Sprintf("{.%s}", field)
 
 	parser := jsonpath.New("sorting").AllowMissingKeys(true)
 	if err := parser.Parse(field); err != nil {
@@ -259,18 +264,17 @@ func sortByField(sortBy string, item func(int) interface{}) func(int, int) bool 
 	}
 
 	return func(i, j int) bool {
-		var iField, jField reflect.Value
-		if r, err := parser.FindResults(item(i)); err != nil || len(r) == 0 || len(r[0]) == 0 {
+		ir, err := parser.FindResults(item(i))
+		if err != nil || len(ir) == 0 || len(ir[0]) == 0 {
 			return true
-		} else {
-			iField = r[0][0]
 		}
-		if r, err := parser.FindResults(item(j)); err != nil || len(r) == 0 || len(r[0]) == 0 {
+
+		jr, err := parser.FindResults(item(j))
+		if err != nil || len(jr) == 0 || len(jr[0]) == 0 {
 			return false
-		} else {
-			jField = r[0][0]
 		}
-		less, _ := isLess(iField, jField)
+
+		less, _ := isLess(ir[0][0], jr[0][0])
 		return less
 	}
 }

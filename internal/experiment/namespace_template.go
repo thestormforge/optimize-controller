@@ -76,7 +76,7 @@ func NextTrialNamespace(ctx context.Context, c client.Client, exp *redskyv1alpha
 
 	// If we could not find a namespace, we may be able to create it
 	if exp.Spec.NamespaceTemplate != nil {
-		return createNamespaceFromTemplate(c, ctx, exp)
+		return createNamespaceFromTemplate(ctx, c, exp)
 	}
 
 	// No namespace is available
@@ -93,7 +93,7 @@ func ignorePermissions(err error) error {
 	return err
 }
 
-func createNamespaceFromTemplate(c client.Client, ctx context.Context, exp *redskyv1alpha1.Experiment) (string, error) {
+func createNamespaceFromTemplate(ctx context.Context, c client.Client, exp *redskyv1alpha1.Experiment) (string, error) {
 	// Use the template to populate a new namespace
 	n := &corev1.Namespace{}
 	exp.Spec.NamespaceTemplate.ObjectMeta.DeepCopyInto(&n.ObjectMeta)

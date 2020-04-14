@@ -139,7 +139,6 @@ type Controller struct {
 	RegistrationAccessToken string `json:"registration_access_token,omitempty"`
 	// Env defines additional environment variables to load into the controller during authorization
 	Env []ControllerEnvVar `json:"env,omitempty"`
-	// TODO controller extra permissions? e.g. raw policy rules or even just types that need patch/get?
 }
 
 // ControllerEnvVar is used to specify additional environment variables for a controller during authorization

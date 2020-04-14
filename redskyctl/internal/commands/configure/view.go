@@ -29,7 +29,6 @@ import (
 // TODO Like the version command, support dumping the default configuration from the manager
 // `kubectl exec -n redsky-system -c manager $(kubectl get pods -n redsky-system -o name) /manager config`
 // TODO Add an option to output a Helm values.yaml for our chart
-// TODO Have a "--minify" flag to just show the effective values available through the Reader
 // TODO Output format (e.g. json,yaml,env)? Templating?
 
 // ViewOptions are the options for viewing a configuration file

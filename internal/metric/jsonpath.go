@@ -92,11 +92,11 @@ func captureOneJSONPathMetric(url, name, query string) (float64, float64, error)
 		case reflect.Float64:
 			return v.Float(), 0, nil
 		case reflect.String:
-			if v, err := strconv.ParseFloat(v.String(), 64); err != nil {
+			v, err := strconv.ParseFloat(v.String(), 64)
+			if err != nil {
 				return 0, 0, err
-			} else {
-				return v, 0, nil
 			}
+			return v, 0, nil
 		default:
 			return 0, 0, fmt.Errorf("could not convert match to a floating point number")
 		}
