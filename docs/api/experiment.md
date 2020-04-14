@@ -4,6 +4,7 @@
 
 
 ## Table of Contents
+* [Constraint](#constraint)
 * [Experiment](#experiment)
 * [ExperimentList](#experimentlist)
 * [ExperimentSpec](#experimentspec)
@@ -11,10 +12,25 @@
 * [Metric](#metric)
 * [NamespaceTemplateSpec](#namespacetemplatespec)
 * [Optimization](#optimization)
+* [OrderConstraint](#orderconstraint)
 * [Parameter](#parameter)
 * [PatchReadinessGate](#patchreadinessgate)
 * [PatchTemplate](#patchtemplate)
+* [SumConstraint](#sumconstraint)
+* [SumConstraintParameter](#sumconstraintparameter)
 * [TrialTemplateSpec](#trialtemplatespec)
+
+## Constraint
+
+Constraint represents a constraint to the domain of the parameters
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| `name` | The optional name of the constraint | _string_ | false |
+| `order` | The ordering constraint to impose | _*[OrderConstraint](#orderconstraint)_ | false |
+| `sum` | The sum constraint to impose | _*[SumConstraint](#sumconstraint)_ | false |
+
+[Back to TOC](#table-of-contents)
 
 ## Experiment
 
@@ -48,6 +64,7 @@ ExperimentSpec defines the desired state of Experiment
 | `replicas` | Replicas is the number of trials to execute concurrently, defaults to 1 | _*int32_ | false |
 | `optimization` | Optimization defines additional configuration for the optimization | _[][Optimization](#optimization)_ | false |
 | `parameters` | Parameters defines the search space for the experiment | _[][Parameter](#parameter)_ | false |
+| `constraints` | Constraints defines restrictions on the parameter domain for the experiment | _[][Constraint](#constraint)_ | false |
 | `metrics` | Metrics defines the outcomes for the experiment | _[][Metric](#metric)_ | false |
 | `patches` | Patches is a sequence of templates written against the experiment parameters that will be used to put the cluster into the desired state | _[][PatchTemplate](#patchtemplate)_ | false |
 | `namespaceSelector` | NamespaceSelector is used to locate existing namespaces for trials | _*[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#labelselector-v1-meta)_ | false |
@@ -108,6 +125,17 @@ Optimization is a configuration setting for the optimizer
 
 [Back to TOC](#table-of-contents)
 
+## OrderConstraint
+
+OrderConstraint defines a constraint between the ordering of two parameters in the experiment
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| `lowerParameter` | LowerParameter is the name of the parameter that must be the smaller of two parameters | _string_ | true |
+| `upperParameter` | UpperParameter is the name of the parameter that must be the larger of two parameters | _string_ | true |
+
+[Back to TOC](#table-of-contents)
+
 ## Parameter
 
 Parameter represents the domain of a single component of the experiment search space
@@ -140,6 +168,29 @@ PatchTemplate defines a target resource and a patch template to apply
 | `patch` | A Go Template that evaluates to valid patch. | _string_ | true |
 | `targetRef` | Direct reference to the object the patch should be applied to. | _*[ObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#objectreference-v1-core)_ | false |
 | `readinessGates` | ReadinessGates will be evaluated for patch target readiness. A patch target is ready if all conditions specified in the readiness gates have a status equal to "True". If no readiness gates are specified, some target types may have default gates assigned to them. Some condition checks may result in errors, e.g. a condition type of "Ready" is not allowed for a ConfigMap. Condition types starting with "redskyops.dev/" may not appear in the patched target's condition list, but are still evaluated against the resource's state. | _[][PatchReadinessGate](#patchreadinessgate)_ | false |
+
+[Back to TOC](#table-of-contents)
+
+## SumConstraint
+
+SumConstraint defines a constraint between the sum of a collection of parameters
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| `bound` | Bound for the sum of the listed parameters | _resource.Quantity_ | true |
+| `isUpperBound` | IsUpperBound determines if the bound values is an upper or lower bound on the sum | _bool_ | false |
+| `parameters` | Parameters that should be summed | _[][SumConstraintParameter](#sumconstraintparameter)_ | true |
+
+[Back to TOC](#table-of-contents)
+
+## SumConstraintParameter
+
+SumConstraintParameter is a weighted parameter specification in a sum constraint
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| `name` | Name of the parameter | _string_ | true |
+| `weight` | Weight of the parameter | _resource.Quantity_ | true |
 
 [Back to TOC](#table-of-contents)
 

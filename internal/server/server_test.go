@@ -27,6 +27,7 @@ import (
 	redskyapi "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -115,6 +116,81 @@ func TestFromCluster(t *testing.T) {
 						Bounds: redskyapi.Bounds{
 							Min: json.Number(strconv.FormatInt(11111, 10)),
 							Max: json.Number(strconv.FormatInt(22222, 10)),
+						},
+					},
+				},
+			},
+		},
+		{
+			desc: "orderConstraints",
+			in: &redskyv1alpha1.Experiment{
+				Spec: redskyv1alpha1.ExperimentSpec{
+					Constraints: []redskyv1alpha1.Constraint{
+						{
+							Name: "one-two",
+							Order: &redskyv1alpha1.OrderConstraint{
+								LowerParameter: "one",
+								UpperParameter: "two",
+							},
+						},
+					},
+				},
+			},
+			out: &redskyapi.Experiment{
+				Constraints: []redskyapi.Constraint{
+					{
+						ConstraintType:  redskyapi.ConstraintOrder,
+						Name:            "one-two",
+						OrderConstraint: redskyapi.OrderConstraint{LowerParameter: "one", UpperParameter: "two"},
+					},
+				},
+			},
+		},
+		{
+			desc: "sumConstraints",
+			in: &redskyv1alpha1.Experiment{
+				Spec: redskyv1alpha1.ExperimentSpec{
+					Constraints: []redskyv1alpha1.Constraint{
+						{
+							Name: "one-two",
+							Sum: &redskyv1alpha1.SumConstraint{
+								Bound: resource.MustParse("1"),
+								Parameters: []redskyv1alpha1.SumConstraintParameter{
+									{
+										Name:   "one",
+										Weight: resource.MustParse("-1.0"),
+									},
+									{
+										Name:   "two",
+										Weight: resource.MustParse("1"),
+									},
+									{
+										Name:   "three",
+										Weight: resource.MustParse("3.5"),
+									},
+									{
+										Name:   "four",
+										Weight: resource.MustParse("5000m"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			out: &redskyapi.Experiment{
+				Constraints: []redskyapi.Constraint{
+					{
+						Name:           "one-two",
+						ConstraintType: redskyapi.ConstraintSum,
+						SumConstraint: redskyapi.SumConstraint{
+							Bound: 1,
+							Parameters: []redskyapi.SumConstraintParameter{
+								{Name: "one", Weight: -1.0},
+								{Name: "two", Weight: 1.0},
+								{Name: "three", Weight: 3.5},
+								{Name: "four", Weight: 5.0},
+							},
 						},
 					},
 				},

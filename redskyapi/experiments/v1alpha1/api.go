@@ -170,6 +170,45 @@ type Metric struct {
 	Minimize bool `json:"minimize,omitempty"`
 }
 
+type ConstraintType string
+
+const (
+	ConstraintSum   ConstraintType = "sum"
+	ConstraintOrder                = "order"
+)
+
+type SumConstraintParameter struct {
+	// Name of parameter to be used in constraint.
+	Name string `json:"name"`
+	// Weight for parameter in constraint.
+	Weight float64 `json:"weight"`
+}
+
+type SumConstraint struct {
+	// Flag indicating if bound is upper or lower bound.
+	IsUpperBound bool `json:"isUpperBound,omitempty"`
+	// Bound for inequality constraint.
+	Bound float64 `json:"bound"`
+	// Parameters and weights for constraint.
+	Parameters []SumConstraintParameter `json:"parameters"`
+}
+
+type OrderConstraint struct {
+	// Name of lower parameter.
+	LowerParameter string `json:"lowerParameter"`
+	// Name of upper parameter.
+	UpperParameter string `json:"upperParameter"`
+}
+
+type Constraint struct {
+	// Optional name for constraint.
+	Name string `json:"name,omitempty"`
+
+	ConstraintType  ConstraintType `json:"constraintType"`
+	SumConstraint   `json:",inline"`
+	OrderConstraint `json:",inline"`
+}
+
 type ParameterType string
 
 const (
@@ -226,6 +265,8 @@ type Experiment struct {
 	Optimization []Optimization `json:"optimization,omitempty"`
 	// The metrics been optimized in the experiment.
 	Metrics []Metric `json:"metrics"`
+	// Constraints for the experiment.
+	Constraints []Constraint `json:"constraints,omitempty"`
 	// The search space of the experiment.
 	Parameters []Parameter `json:"parameters"`
 }
@@ -337,7 +378,10 @@ type TrialItem struct {
 }
 
 type TrialListQuery struct {
+	// Comma separated list of statuses to fetch.
 	Status []TrialStatus
+	// Comma separated list of label value pairs to match on.
+	LabelSelector []string
 }
 
 func (p *TrialListQuery) Encode() string {
@@ -357,6 +401,11 @@ type TrialList struct {
 	Trials []TrialItem `json:"trials"`
 }
 
+type TrialLabels struct {
+	// New labels for this trial.
+	Labels map[string]string `json:"labels"`
+}
+
 // API provides bindings for the supported endpoints
 type API interface {
 	Options(context.Context) (ServerMeta, error)
@@ -371,6 +420,7 @@ type API interface {
 	NextTrial(context.Context, string) (TrialAssignments, error)
 	ReportTrial(context.Context, string, TrialValues) error
 	AbandonRunningTrial(context.Context, string) error
+	LabelTrial(context.Context, string, TrialLabels) error
 }
 
 // NewForConfig returns a new API instance for the specified configuration
@@ -685,6 +735,35 @@ func (h *httpAPI) AbandonRunningTrial(ctx context.Context, u string) error {
 		return nil
 	case http.StatusNotFound:
 		return &Error{Type: ErrTrialNotFound}
+	default:
+		return unexpected(resp, body)
+	}
+}
+
+func (h *httpAPI) LabelTrial(ctx context.Context, u string, lbl TrialLabels) error {
+	b, err := json.Marshal(lbl)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, u, bytes.NewBuffer(b))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, body, err := h.client.Do(ctx, req)
+	if err != nil {
+		return err
+	}
+
+	switch resp.StatusCode {
+	case http.StatusCreated:
+		return nil
+	case http.StatusNotFound:
+		return &Error{Type: ErrTrialNotFound}
+	case http.StatusUnprocessableEntity:
+		return &Error{Type: ErrTrialInvalid}
 	default:
 		return unexpected(resp, body)
 	}
