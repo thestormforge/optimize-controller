@@ -264,18 +264,17 @@ func sortByField(sortBy string, item func(int) interface{}) func(int, int) bool 
 	}
 
 	return func(i, j int) bool {
-		var iField, jField reflect.Value
-		if r, err := parser.FindResults(item(i)); err != nil || len(r) == 0 || len(r[0]) == 0 {
+		ir, err := parser.FindResults(item(i))
+		if err != nil || len(ir) == 0 || len(ir[0]) == 0 {
 			return true
-		} else {
-			iField = r[0][0]
 		}
-		if r, err := parser.FindResults(item(j)); err != nil || len(r) == 0 || len(r[0]) == 0 {
+
+		jr, err := parser.FindResults(item(j))
+		if err != nil || len(jr) == 0 || len(jr[0]) == 0 {
 			return false
-		} else {
-			jField = r[0][0]
 		}
-		less, _ := isLess(iField, jField)
+
+		less, _ := isLess(ir[0][0], jr[0][0])
 		return less
 	}
 }

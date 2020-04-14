@@ -63,9 +63,8 @@ func (f *FakeAPI) GetExperimentByName(ctx context.Context, n v1alpha1.Experiment
 func (f *FakeAPI) GetExperiment(ctx context.Context, uri string) (v1alpha1.Experiment, error) {
 	if e, ok := f.experiments[uri]; ok {
 		return e, nil
-	} else {
-		return v1alpha1.Experiment{}, &v1alpha1.Error{Type: v1alpha1.ErrExperimentNotFound}
 	}
+	return v1alpha1.Experiment{}, &v1alpha1.Error{Type: v1alpha1.ErrExperimentNotFound}
 }
 
 func (f *FakeAPI) CreateExperiment(ctx context.Context, n v1alpha1.ExperimentName, e v1alpha1.Experiment) (v1alpha1.Experiment, error) {

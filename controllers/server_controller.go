@@ -160,7 +160,7 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // createFilter ignores the experiment create event to allow the experiment status to stabilize more naturally
 type createFilter struct{}
 
-func (*createFilter) Create(e event.CreateEvent) bool { return false }
+func (*createFilter) Create(event.CreateEvent) bool   { return false }
 func (*createFilter) Delete(event.DeleteEvent) bool   { return true }
 func (*createFilter) Update(event.UpdateEvent) bool   { return true }
 func (*createFilter) Generic(event.GenericEvent) bool { return true }
