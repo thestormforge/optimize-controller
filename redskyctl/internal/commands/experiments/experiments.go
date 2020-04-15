@@ -87,7 +87,7 @@ func (n *name) experimentName() experimentsv1alpha1.ExperimentName {
 }
 
 // numberSuffixPattern matches the trailing digits, for example the number on the end of a trial name
-var numberSuffixPattern = regexp.MustCompile("(.*?)(?:/([[:digit:]]+))?$")
+var numberSuffixPattern = regexp.MustCompile("(.*?)(?:[\\/\\-]([[:digit:]]+))?$")
 
 // parseNames parses a list of arguments into structured names
 func parseNames(args []string) ([]name, error) {
@@ -101,16 +101,18 @@ func parseNames(args []string) ([]name, error) {
 		}
 
 		p := strings.SplitN(n.Name, "/", 2)
-		nt, err := normalizeType(p[0])
-		if err != nil {
-			return nil, err
-		}
-		if len(p) > 1 {
-			n.Type = nt
-			n.Name = p[1]
-		} else if t == "" {
-			t = nt
-			continue
+		if len(p) > 1 || t == "" {
+			nt, err := normalizeType(p[0])
+			if err != nil {
+				return nil, err
+			}
+			if len(p) > 1 {
+				n.Type = nt
+				n.Name = p[1]
+			} else if t == "" {
+				t = nt
+				continue
+			}
 		}
 		names = append(names, n)
 	}
@@ -119,7 +121,7 @@ func parseNames(args []string) ([]name, error) {
 		if t == "" {
 			return nil, fmt.Errorf("required resource not specified")
 		}
-		names = append(names, name{Type: t})
+		names = append(names, name{Type: t, Number: -1})
 	}
 
 	return names, nil
