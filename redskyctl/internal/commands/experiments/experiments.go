@@ -157,6 +157,7 @@ func (v *verbPrinter) PrintObj(obj interface{}, w io.Writer) error {
 // experimentsMeta is the metadata extraction necessary for printing Red Sky Experiments API objects
 type experimentsMeta struct{}
 
+// ExtractList returns the items from an API list object
 func (m *experimentsMeta) ExtractList(obj interface{}) ([]interface{}, error) {
 	if o, ok := obj.(*experimentsv1alpha1.ExperimentList); ok {
 		list := make([]interface{}, len(o.Experiments))
@@ -165,6 +166,7 @@ func (m *experimentsMeta) ExtractList(obj interface{}) ([]interface{}, error) {
 		}
 		return list, nil
 	}
+
 	if o, ok := obj.(*experimentsv1alpha1.TrialList); ok {
 		list := make([]interface{}, len(o.Trials))
 		for i := range o.Trials {
@@ -172,12 +174,15 @@ func (m *experimentsMeta) ExtractList(obj interface{}) ([]interface{}, error) {
 		}
 		return list, nil
 	}
+
 	if obj != nil {
 		return []interface{}{obj}, nil
 	}
+
 	return nil, nil
 }
 
+// Columns returns the column names to use
 func (m *experimentsMeta) Columns(obj interface{}, outputFormat string, showLabels bool) []string {
 	// Special case for trial list CSV to include everything as columns
 	if tl, ok := obj.(*experimentsv1alpha1.TrialList); ok && outputFormat == "csv" {
@@ -229,6 +234,7 @@ func (m *experimentsMeta) Columns(obj interface{}, outputFormat string, showLabe
 	return columns
 }
 
+// ExtractValue returns a cell value
 func (m *experimentsMeta) ExtractValue(obj interface{}, column string) (string, error) {
 	switch o := obj.(type) {
 	case *experimentsv1alpha1.ExperimentItem:
@@ -296,6 +302,7 @@ func (m *experimentsMeta) ExtractValue(obj interface{}, column string) (string, 
 	return "", fmt.Errorf("unable to get value for column %s", column)
 }
 
+// Header returns the header name to use for a column
 func (m *experimentsMeta) Header(outputFormat string, column string) string {
 	if strings.ToLower(outputFormat) == "csv" {
 		return column

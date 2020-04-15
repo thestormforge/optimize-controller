@@ -31,6 +31,7 @@ redskyctl [flags]
 * [redskyctl grant-permissions](redskyctl_grant-permissions.md)	 - Grant permissions
 * [redskyctl init](redskyctl_init.md)	 - Install to a cluster
 * [redskyctl kustomize](redskyctl_kustomize.md)	 - Kustomize integrations
+* [redskyctl label](redskyctl_label.md)	 - Label a Red Sky resource
 * [redskyctl login](redskyctl_login.md)	 - Authenticate
 * [redskyctl reset](redskyctl_reset.md)	 - Uninstall from a cluster
 * [redskyctl results](redskyctl_results.md)	 - Serve a visualization of the results
