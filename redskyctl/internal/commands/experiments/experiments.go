@@ -179,40 +179,51 @@ func (m *experimentsMeta) ExtractList(obj interface{}) ([]interface{}, error) {
 }
 
 func (m *experimentsMeta) Columns(obj interface{}, outputFormat string, showLabels bool) []string {
-	columns := []string{"name"}
+	// Special case for trial list CSV to include everything as columns
+	if tl, ok := obj.(*experimentsv1alpha1.TrialList); ok && outputFormat == "csv" {
+		columns := []string{"experiment", "number", "status"}
 
-	if tl, ok := obj.(*experimentsv1alpha1.TrialList); ok {
-		if outputFormat == "csv" {
-			columns = []string{"experiment", "number", "status"}
-
-			// CSV column names should correspond to the parameter and metric names
-			if tl.Experiment != nil {
-				for i := range tl.Experiment.Parameters {
-					columns = append(columns, "parameter_"+tl.Experiment.Parameters[i].Name)
-				}
-				for i := range tl.Experiment.Metrics {
-					columns = append(columns, "metric_"+tl.Experiment.Metrics[i].Name)
-				}
+		// CSV column names should correspond to the parameter and metric names
+		if tl.Experiment != nil {
+			for i := range tl.Experiment.Parameters {
+				columns = append(columns, "parameter_"+tl.Experiment.Parameters[i].Name)
 			}
-
-			// CSV labels need to be split out into individual columns
-			if showLabels {
-				labels := make(map[string]bool)
-				for i := range tl.Trials {
-					for k := range tl.Trials[i].Labels {
-						labels[k] = true
-					}
-				}
-				for k := range labels {
-					columns = append(columns, "label_"+k)
-				}
-			}
-		} else {
-			columns = append(columns, "Status") // Title case the value
-			if showLabels {
-				columns = append(columns, "labels")
+			for i := range tl.Experiment.Metrics {
+				columns = append(columns, "metric_"+tl.Experiment.Metrics[i].Name)
 			}
 		}
+
+		// CSV labels need to be split out into individual columns
+		if showLabels {
+			labels := make(map[string]bool)
+			for i := range tl.Trials {
+				for k := range tl.Trials[i].Labels {
+					labels[k] = true
+				}
+			}
+			for k := range labels {
+				columns = append(columns, "label_"+k)
+			}
+		}
+
+		return columns
+	}
+
+	// Columns are less complex in other cases
+	columns := []string{"name"}
+	switch obj.(type) {
+
+	case *experimentsv1alpha1.TrialList, *experimentsv1alpha1.TrialItem:
+		columns = append(columns, "Status") // Title case the value
+
+	case *experimentsv1alpha1.ExperimentList, *experimentsv1alpha1.ExperimentItem:
+		if outputFormat == "wide" {
+			columns = append(columns, "observations")
+		}
+	}
+
+	if showLabels {
+		columns = append(columns, "labels")
 	}
 
 	return columns
@@ -224,6 +235,10 @@ func (m *experimentsMeta) ExtractValue(obj interface{}, column string) (string, 
 		switch column {
 		case "name":
 			return o.DisplayName, nil
+		case "observations":
+			return strconv.FormatInt(o.Observations, 10), nil
+		case "labels":
+			return "", nil // Experiments do not have labels, we still want to show an empty column
 		}
 	case *experimentsv1alpha1.TrialItem:
 		switch column {

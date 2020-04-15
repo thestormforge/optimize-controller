@@ -182,6 +182,11 @@ func (o *GetOptions) getTrials(ctx context.Context, numbers map[experimentsv1alp
 		}
 	}
 
+	// If this was a request for a single object, just print it out (e.g. don't produce a JSON list for a single element)
+	if len(numbers) == 1 && len(l.Trials) == 1 { // TODO Also should check the length of the map value...
+		return o.Printer.PrintObj(&l.Trials[0], o.Out)
+	}
+
 	if err := o.filterAndSortTrials(l); err != nil {
 		return err
 	}
@@ -236,8 +241,9 @@ func (o *GetOptions) filterAndSortExperiments(l *experimentsv1alpha1.ExperimentL
 
 // sortableExperimentData slightly modifies the schema of the experiment item to make it easier to specify sort orders
 func sortableExperimentData(item *experimentsv1alpha1.ExperimentItem) map[string]interface{} {
-	d := make(map[string]interface{}, 1)
+	d := make(map[string]interface{}, 2)
 	d["name"] = item.DisplayName
+	d["observations"] = item.Observations
 	return d
 }
 

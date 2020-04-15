@@ -262,6 +262,8 @@ type Experiment struct {
 
 	// The display name of the experiment. Do not use for generating URLs!
 	DisplayName string `json:"displayName,omitempty"`
+	// The number of observations made for this experiment.
+	Observations int64 `json:"observations,omitempty"`
 	// Controls how the optimizer will generate trials.
 	Optimization []Optimization `json:"optimization,omitempty"`
 	// The metrics been optimized in the experiment.
