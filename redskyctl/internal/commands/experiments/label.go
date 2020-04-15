@@ -98,25 +98,31 @@ func (o *LabelOptions) labelTrial(ctx context.Context, numbers map[experimentsv1
 			return err
 		}
 
-		// TODO Check `exp.Trials != ""`
-		tl, err := o.ExperimentsAPI.GetAllTrials(ctx, exp.Trials, nil)
+		// Note that you can only label completed trials
+		q := &experimentsv1alpha1.TrialListQuery{Status: []experimentsv1alpha1.TrialStatus{experimentsv1alpha1.TrialCompleted}}
+		tl, err := o.ExperimentsAPI.GetAllTrials(ctx, exp.Trials, q)
 		if err != nil {
 			return err
 		}
 
+		var labeled int
 		for i := range tl.Trials {
 			if hasTrialNumber(&tl.Trials[i], nums) {
 				t := tl.Trials[i]
 				t.Experiment = &exp
 
-				// TODO Check `t.TrialLabels != ""`
 				if err := o.ExperimentsAPI.LabelTrial(ctx, t.TrialLabels, experimentsv1alpha1.TrialLabels{Labels: o.Labels}); err != nil {
 					return err
 				}
 				if err := o.Printer.PrintObj(&t, o.Out); err != nil {
 					return err
 				}
+				labeled++
 			}
+		}
+
+		if len(nums) != labeled {
+			return fmt.Errorf("unable to label some trials (only \"completed\" trials can be labeled)")
 		}
 	}
 	return nil
