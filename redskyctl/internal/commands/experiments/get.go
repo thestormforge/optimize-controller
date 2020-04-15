@@ -259,15 +259,6 @@ func (o *GetOptions) filterAndSortTrials(l *experimentsv1alpha1.TrialList) error
 	return nil
 }
 
-func hasTrialNumber(t *experimentsv1alpha1.TrialItem, nums []int64) bool {
-	for _, n := range nums {
-		if t.Number == n {
-			return true
-		}
-	}
-	return false
-}
-
 // sortableTrialData slightly modifies the schema of the trial item to make it easier to specify sort orders
 func sortableTrialData(item *experimentsv1alpha1.TrialItem) map[string]interface{} {
 	assignments := make(map[string]int64, len(item.Assignments))

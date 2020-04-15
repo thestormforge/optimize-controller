@@ -71,6 +71,16 @@ func (o *Options) setNames(args []string) error {
 	return err
 }
 
+// hasTrialNumber checks to see if a trail's number is in the supplied list
+func hasTrialNumber(t *experimentsv1alpha1.TrialItem, nums []int64) bool {
+	for _, n := range nums {
+		if t.Number == n || n < 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // name is construct for identifying an object in the Experiments API
 type name struct {
 	// Type is the normalized type name being named
@@ -139,7 +149,7 @@ func (v *verbPrinter) PrintObj(obj interface{}, w io.Writer) error {
 	case *experimentsv1alpha1.TrialItem:
 		_, _ = fmt.Fprintf(w, "trial \"%s-%03d\" %s\n", o.Experiment.DisplayName, o.Number, v.verb)
 	default:
-		return fmt.Errorf("%v %s", obj, v.verb)
+		return fmt.Errorf("could not print \"%s\" for: %T", v.verb, obj)
 	}
 	return nil
 }
