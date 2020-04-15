@@ -34,6 +34,7 @@ type GetOptions struct {
 	ChunkSize int
 	SortBy    string
 	Selector  string
+	All       bool
 }
 
 // NewGetCommand creates a new get command
@@ -56,6 +57,7 @@ func NewGetCommand(o *GetOptions) *cobra.Command {
 	cmd.Flags().IntVar(&o.ChunkSize, "chunk-size", o.ChunkSize, "Fetch large lists in chunks rather then all at once.")
 	cmd.Flags().StringVarP(&o.Selector, "selector", "l", o.Selector, "Selector (label `query`) to filter on.")
 	cmd.Flags().StringVar(&o.SortBy, "sort-by", o.SortBy, "Sort list types using this JSONPath `expression`.")
+	cmd.Flags().BoolVarP(&o.All, "all", "A", false, "Include all resources.")
 
 	commander.SetPrinter(&experimentsMeta{}, &o.Printer, cmd)
 	commander.ExitOnError(cmd)
@@ -83,6 +85,9 @@ func (o *GetOptions) get(ctx context.Context) error {
 			if n.Number < 0 {
 				q := &experimentsv1alpha1.TrialListQuery{
 					Status: []experimentsv1alpha1.TrialStatus{experimentsv1alpha1.TrialActive, experimentsv1alpha1.TrialCompleted, experimentsv1alpha1.TrialFailed},
+				}
+				if o.All {
+					q.Status = append(q.Status, experimentsv1alpha1.TrialStaged)
 				}
 				return o.getTrialList(ctx, n.experimentName(), q)
 			} else {
