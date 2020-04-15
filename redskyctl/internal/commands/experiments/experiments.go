@@ -18,62 +18,36 @@ package experiments
 
 import (
 	"fmt"
+	"io"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 
 	experimentsv1alpha1 "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/config"
-	"github.com/spf13/cobra"
 	"k8s.io/client-go/util/jsonpath"
 )
 
+type resourceType string
+
 const (
-	// TypeExperimentList is the type argument to use for lists of experiments
-	TypeExperimentList = "experiments"
-	// TypeExperiment is the type argument to use for experiments
-	TypeExperiment = "experiment"
-	// TypeExperimentAliases is a comma separated list of aliases for experiment
-	TypeExperimentAliases = "exp"
-	// TypeTrialList is the type argument to use for lists of trials
-	TypeTrialList = "trials"
-	// TypeTrial is the type argument to use for trials
-	TypeTrial = "trial"
+	// typeExperiment is the type argument to use for experiments
+	typeExperiment resourceType = "experiment"
+	// typeTrial is the type argument to use for trials
+	typeTrial = "trial"
 )
 
-// TypeAndNameArgs binds the "TYPE NAME..." arguments to a command
-func TypeAndNameArgs(cmd *cobra.Command, opts *Options) {
-	// Change the usage string to indicate what arguments are expected
-	cmd.Use = cmd.Use + " TYPE NAME..."
-
-	cmd.ValidArgs = append(cmd.ValidArgs, TypeExperimentList, TypeExperiment)
-	cmd.ArgAliases = append(cmd.ArgAliases, strings.Split(TypeExperimentAliases, ",")...)
-
-	cmd.ValidArgs = append(cmd.ValidArgs, TypeTrialList, TypeTrial)
-
-	// Setup argument validation
-	cmd.Args = func(cmd *cobra.Command, args []string) error {
-		// Require at least one argument (the type)
-		if err := cobra.MinimumNArgs(1)(cmd, args); err != nil {
-			return err
-		}
-
-		// First check the aliases, if it's not found, fall back to the standard "only valid args"
-		for _, aa := range cmd.ArgAliases {
-			if aa == args[0] {
-				return nil
-			}
-		}
-		return cobra.OnlyValidArgs(cmd, args[:1])
+// normalizeType returns a consistent value based on a user entered type
+func normalizeType(t string) (resourceType, error) {
+	switch strings.ToLower(t) {
+	case "experiment", "experiments", "exp":
+		return typeExperiment, nil
+	case "trial", "trials", "tr":
+		return typeTrial, nil
 	}
-
-	// Override the pre-run to capture the arguments into the supplied options instance
-	commander.AddPreRunE(cmd, func(_ *cobra.Command, args []string) error {
-		opts.Type = args[0]
-		opts.Names = args[1:]
-		return nil
-	})
+	return "", fmt.Errorf("unknown resource type \"%s\"", t)
 }
 
 // Options are the common options for interacting with the Red Sky Experiments API
@@ -87,29 +61,68 @@ type Options struct {
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
 
-	// Type of resource to work with
-	Type string
 	// Names of the resources to work with
-	Names []string
+	Names []name
 }
 
-// GetType returns the type, after expanding any aliases
-func (o *Options) GetType() string {
-	t := o.Type
+func (o *Options) setNames(args []string) error {
+	var err error
+	o.Names, err = parseNames(args)
+	return err
+}
 
-	// Expand experiment aliases
-	for _, alias := range strings.Split(TypeExperimentAliases, ",") {
-		if t == alias {
-			t = TypeExperiment
+// name is construct for identifying an object in the Experiments API
+type name struct {
+	// Type is the normalized type name being named
+	Type resourceType
+	// Name is the actual name (minus the type and number if present)
+	Name string
+	// Number is the number suffix found on the name
+	Number int64
+}
+
+// experimentName returns the name as a typed experiment name
+func (n *name) experimentName() experimentsv1alpha1.ExperimentName {
+	return experimentsv1alpha1.NewExperimentName(n.Name)
+}
+
+// numberSuffixPattern matches the trailing digits, for example the number on the end of a trial name
+var numberSuffixPattern = regexp.MustCompile("(.*?)(?:/([[:digit:]]+))?$")
+
+// parseNames parses a list of arguments into structured names
+func parseNames(args []string) ([]name, error) {
+	var t resourceType
+	names := make([]name, 0, len(args))
+	for _, arg := range args {
+		n := name{Type: t, Name: arg, Number: -1}
+		if sm := numberSuffixPattern.FindStringSubmatch(n.Name); sm != nil && sm[2] != "" {
+			n.Number, _ = strconv.ParseInt(sm[2], 10, 64)
+			n.Name = sm[1]
 		}
+
+		p := strings.SplitN(n.Name, "/", 2)
+		nt, err := normalizeType(p[0])
+		if err != nil {
+			return nil, err
+		}
+		if len(p) > 1 {
+			n.Type = nt
+			n.Name = p[1]
+		} else if t == "" {
+			t = nt
+			continue
+		}
+		names = append(names, n)
 	}
 
-	// Dummy pluralize
-	if len(o.Names) == 0 {
-		t = strings.TrimSuffix(t, "s") + "s"
+	if len(names) == 0 {
+		if t == "" {
+			return nil, fmt.Errorf("required resource not specified")
+		}
+		names = append(names, name{Type: t})
 	}
 
-	return t
+	return names, nil
 }
 
 // verbPrinter
