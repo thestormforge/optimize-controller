@@ -34,8 +34,6 @@ type GetOptions struct {
 	ChunkSize int
 	SortBy    string
 	Selector  string
-
-	meta experimentsMeta
 }
 
 // NewGetCommand creates a new get command
@@ -57,7 +55,7 @@ func NewGetCommand(o *GetOptions) *cobra.Command {
 	cmd.Flags().StringVar(&o.SortBy, "sort-by", o.SortBy, "Sort list types using this JSONPath `expression`.")
 
 	TypeAndNameArgs(cmd, &o.Options)
-	commander.SetPrinter(&o.meta, &o.Printer, cmd)
+	commander.SetPrinter(&experimentsMeta{}, &o.Printer, cmd)
 	commander.ExitOnError(cmd)
 	return cmd
 }
@@ -156,9 +154,6 @@ func (o *GetOptions) getTrialList(ctx context.Context, name string) error {
 	if err != nil {
 		return err
 	}
-
-	// Store the experiment in metadata
-	o.meta.base = &exp
 
 	// Fetch the trial data
 	q := &experimentsv1alpha1.TrialListQuery{Status: []experimentsv1alpha1.TrialStatus{

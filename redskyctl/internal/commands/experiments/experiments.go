@@ -113,9 +113,7 @@ func (o *Options) GetType() string {
 }
 
 // experimentsMeta is the metadata extraction necessary for printing Red Sky Experiments API objects
-type experimentsMeta struct {
-	base interface{}
-}
+type experimentsMeta struct{}
 
 func (m *experimentsMeta) ExtractList(obj interface{}) ([]interface{}, error) {
 	if o, ok := obj.(*experimentsv1alpha1.ExperimentList); ok {
@@ -146,12 +144,12 @@ func (m *experimentsMeta) Columns(obj interface{}, outputFormat string, showLabe
 			columns = []string{"experiment", "number", "status"}
 
 			// CSV column names should correspond to the parameter and metric names
-			if exp, ok := m.base.(*experimentsv1alpha1.Experiment); ok {
-				for i := range exp.Parameters {
-					columns = append(columns, "parameter_"+exp.Parameters[i].Name)
+			if tl.Experiment != nil {
+				for i := range tl.Experiment.Parameters {
+					columns = append(columns, "parameter_"+tl.Experiment.Parameters[i].Name)
 				}
-				for i := range exp.Metrics {
-					columns = append(columns, "metric_"+exp.Metrics[i].Name)
+				for i := range tl.Experiment.Metrics {
+					columns = append(columns, "metric_"+tl.Experiment.Metrics[i].Name)
 				}
 			}
 
@@ -188,13 +186,13 @@ func (m *experimentsMeta) ExtractValue(obj interface{}, column string) (string, 
 	case *experimentsv1alpha1.TrialItem:
 		switch column {
 		case "experiment":
-			if exp, ok := m.base.(*experimentsv1alpha1.Experiment); ok {
-				return exp.DisplayName, nil
+			if o.Experiment != nil {
+				return o.Experiment.DisplayName, nil
 			}
 			return "", nil
 		case "name":
-			if exp, ok := m.base.(*experimentsv1alpha1.Experiment); ok {
-				return fmt.Sprintf("%s-%03d", exp.DisplayName, o.Number), nil
+			if o.Experiment != nil {
+				return fmt.Sprintf("%s-%03d", o.Experiment.DisplayName, o.Number), nil
 			}
 			return strconv.FormatInt(o.Number, 10), nil
 		case "number":

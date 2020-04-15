@@ -385,6 +385,10 @@ type TrialItem struct {
 
 	// The metadata for an individual trial.
 	Metadata Metadata `json:"_metadata,omitempty"`
+
+	// Experiment is a reference back to the experiment this trial item is associated with. This field is never
+	// populated by the API, but may be useful for consumers to maintain a connection between resources.
+	Experiment *Experiment `json:"-"`
 }
 
 type TrialListQuery struct {
@@ -409,6 +413,10 @@ func (p *TrialListQuery) Encode() string {
 type TrialList struct {
 	// The list of trials.
 	Trials []TrialItem `json:"trials"`
+
+	// Experiment is a reference back to the experiment this trial item is associated with. This field is never
+	// populated by the API, but may be useful for consumers to maintain a connection between resources.
+	Experiment *Experiment `json:"-"`
 }
 
 type TrialLabels struct {
