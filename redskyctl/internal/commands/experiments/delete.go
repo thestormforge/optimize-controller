@@ -49,6 +49,7 @@ func NewDeleteCommand(o *DeleteOptions) *cobra.Command {
 	}
 
 	TypeAndNameArgs(cmd, &o.Options)
+	o.Printer = &verbPrinter{verb: "deleted"}
 	commander.ExitOnError(cmd)
 	return cmd
 }
@@ -85,7 +86,5 @@ func (o *DeleteOptions) deleteExperiment(ctx context.Context, name string) error
 		return err
 	}
 
-	// TODO We should make this go through the ResourcePrinter
-	_, _ = fmt.Fprintf(o.Out, "experiment \"%s\" deleted\n", name)
-	return nil
+	return o.Printer.PrintObj(&exp, o.Out)
 }

@@ -112,6 +112,23 @@ func (o *Options) GetType() string {
 	return t
 }
 
+// verbPrinter
+type verbPrinter struct {
+	verb string
+}
+
+func (v *verbPrinter) PrintObj(obj interface{}, w io.Writer) error {
+	switch o := obj.(type) {
+	case *experimentsv1alpha1.Experiment:
+		_, _ = fmt.Fprintf(w, "experiment \"%s\" %s\n", o.DisplayName, v.verb)
+	case *experimentsv1alpha1.TrialItem:
+		_, _ = fmt.Fprintf(w, "trial \"%s-%03d\" %s\n", o.Experiment.DisplayName, o.Number, v.verb)
+	default:
+		return fmt.Errorf("%v %s", obj, v.verb)
+	}
+	return nil
+}
+
 // experimentsMeta is the metadata extraction necessary for printing Red Sky Experiments API objects
 type experimentsMeta struct{}
 
