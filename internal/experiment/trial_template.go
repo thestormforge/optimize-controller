@@ -17,6 +17,9 @@ limitations under the License.
 package experiment
 
 import (
+	"fmt"
+	"math/rand"
+
 	redskyv1alpha1 "github.com/redskyops/redskyops-controller/pkg/apis/redsky/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,7 +55,11 @@ func PopulateTrialFromTemplate(exp *redskyv1alpha1.Experiment, t *redskyv1alpha1
 
 	// Default trial name is the experiment name with a random suffix
 	if t.Name == "" && t.GenerateName == "" {
-		t.GenerateName = exp.Name + "-"
+		b := make([]byte, 3)
+		rand.Read(b)
+		name := fmt.Sprintf("%s-%x", exp.Name, b)
+		t.GenerateName = name
+		t.Name = name
 	}
 
 	// Default trial namespace only if the experiment is not configured to find or create a namespace to run in
