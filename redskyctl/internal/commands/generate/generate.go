@@ -60,7 +60,7 @@ func NewCommand(o *Options) *cobra.Command {
 // readExperiment unmarshals experiment data
 func readExperiment(filename string, defaultReader io.Reader, experiment *redskyv1alpha1.Experiment) error {
 	if filename == "" {
-		return nil
+		return fmt.Errorf("missing experiment filename")
 	}
 
 	var data []byte
