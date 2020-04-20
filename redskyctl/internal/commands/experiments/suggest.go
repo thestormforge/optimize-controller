@@ -178,7 +178,7 @@ func checkValue(p *experimentsv1alpha1.Parameter, n json.Number) (json.Number, e
 			return "0", err
 		}
 		if v < min || v > max {
-			return "0", fmt.Errorf("")
+			return "0", fmt.Errorf("value is not within experiment bounds [%d-%d]: %d", min, max, v)
 		}
 	case experimentsv1alpha1.ParameterTypeDouble:
 		min, max, err := floatBounds(&p.Bounds)
@@ -190,7 +190,7 @@ func checkValue(p *experimentsv1alpha1.Parameter, n json.Number) (json.Number, e
 			return "0.0", err
 		}
 		if v < min || v > max {
-			return "0.0", fmt.Errorf("")
+			return "0.0", fmt.Errorf("value is not within experiment bounds [%f-%f]: %f", min, max, v)
 		}
 	}
 	return n, nil
