@@ -49,7 +49,7 @@ $ kustomize build github.com/redskyops/redskyops-recipes//tutorial | kubectl app
 When configured to use the Enterprise solution, trials will be created automatically. You may interactively suggest trial assignments to start a trial run as well:
 
 ```sh
-$ redskyctl generate trial --interactive -f <(kubectl get experiment elk -o yaml) | kubectl apply -f -
+$ redskyctl generate trial --interactive -f <(kubectl get experiment elk -o yaml) | kubectl create -f -
 ```
 
 ## Monitoring the Experiment

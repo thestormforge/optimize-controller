@@ -84,7 +84,7 @@ func (o *TrialOptions) generate() error {
 	experiment.PopulateTrialFromTemplate(exp, t)
 	server.ToClusterTrial(t, sug)
 
-	// TODO Explicitly complete "generateName" and clear it out?
+	// NOTE: Leaving the trial name empty and generateName non-empty means that you MUST use `kubectl create` and not `apply`
 
 	// Clear out some values we do not need
 	t.Finalizers = nil
