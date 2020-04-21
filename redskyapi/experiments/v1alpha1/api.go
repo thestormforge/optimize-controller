@@ -34,12 +34,13 @@ import (
 const (
 	endpointExperiment = "/experiments/"
 
-	relationSelf      = "self"
-	relationNext      = "next"
-	relationPrev      = "prev"
-	relationPrevious  = "previous"
-	relationTrials    = "https://carbonrelay.com/rel/trials"
-	relationNextTrial = "https://carbonrelay.com/rel/nextTrial"
+	relationSelf        = "self"
+	relationNext        = "next"
+	relationPrev        = "prev"
+	relationPrevious    = "previous"
+	relationTrials      = "https://carbonrelay.com/rel/trials"
+	relationNextTrial   = "https://carbonrelay.com/rel/nextTrial"
+	relationTrialLabels = "https://carbonrelay.com/rel/trialLabels"
 )
 
 // Meta is used to collect resource metadata from the response
@@ -261,6 +262,8 @@ type Experiment struct {
 
 	// The display name of the experiment. Do not use for generating URLs!
 	DisplayName string `json:"displayName,omitempty"`
+	// The number of observations made for this experiment.
+	Observations int64 `json:"observations,omitempty"`
 	// Controls how the optimizer will generate trials.
 	Optimization []Optimization `json:"optimization,omitempty"`
 	// The metrics been optimized in the experiment.
@@ -319,11 +322,17 @@ type ExperimentList struct {
 
 type TrialMeta struct {
 	ReportTrial string `json:"-"`
+	TrialLabels string `json:"-"`
 }
 
 func (m *TrialMeta) SetLocation(location string) { m.ReportTrial = location }
 func (m *TrialMeta) SetLastModified(time.Time)   {}
-func (m *TrialMeta) SetLink(string, string)      {}
+func (m *TrialMeta) SetLink(rel, link string) {
+	switch rel {
+	case relationTrialLabels:
+		m.TrialLabels = link
+	}
+}
 
 type Assignment struct {
 	// The name of the parameter in the experiment the assignment corresponds to.
@@ -375,6 +384,13 @@ type TrialItem struct {
 	Number int64 `json:"number"`
 	// Labels for this trial.
 	Labels map[string]string `json:"labels,omitempty"`
+
+	// The metadata for an individual trial.
+	Metadata Metadata `json:"_metadata,omitempty"`
+
+	// Experiment is a reference back to the experiment this trial item is associated with. This field is never
+	// populated by the API, but may be useful for consumers to maintain a connection between resources.
+	Experiment *Experiment `json:"-"`
 }
 
 type TrialListQuery struct {
@@ -399,6 +415,10 @@ func (p *TrialListQuery) Encode() string {
 type TrialList struct {
 	// The list of trials.
 	Trials []TrialItem `json:"trials"`
+
+	// Experiment is a reference back to the experiment this trial item is associated with. This field is never
+	// populated by the API, but may be useful for consumers to maintain a connection between resources.
+	Experiment *Experiment `json:"-"`
 }
 
 type TrialLabels struct {
@@ -614,6 +634,9 @@ func (h *httpAPI) GetAllTrials(ctx context.Context, u string, q *TrialListQuery)
 	switch resp.StatusCode {
 	case http.StatusOK:
 		err = json.Unmarshal(body, &lst)
+		for i := range lst.Trials {
+			metaUnmarshal(http.Header(lst.Trials[i].Metadata), &lst.Trials[i].TrialAssignments.TrialMeta)
+		}
 		return lst, err
 	default:
 		return lst, unexpected(resp, body)

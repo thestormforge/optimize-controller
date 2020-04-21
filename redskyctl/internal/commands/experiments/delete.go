@@ -37,32 +37,39 @@ type DeleteOptions struct {
 // NewDeleteCommand creates a new deletion command
 func NewDeleteCommand(o *DeleteOptions) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete",
+		Use:   "delete (TYPE NAME | TYPE/NAME ...)",
 		Short: "Delete a Red Sky resource",
 		Long:  "Delete Red Sky resources from the remote server",
 
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			commander.SetStreams(&o.IOStreams, cmd)
-			return commander.SetExperimentsAPI(&o.ExperimentsAPI, o.Config, cmd)
+			if err := commander.SetExperimentsAPI(&o.ExperimentsAPI, o.Config, cmd); err != nil {
+				return err
+			}
+			return o.setNames(args)
 		},
 		RunE: commander.WithContextE(o.delete),
 	}
 
-	TypeAndNameArgs(cmd, &o.Options)
+	o.Printer = &verbPrinter{verb: "deleted"}
 	commander.ExitOnError(cmd)
 	return cmd
 }
 
 func (o *DeleteOptions) delete(ctx context.Context) error {
-	switch o.GetType() {
-	case TypeExperiment:
-		for _, name := range o.Names {
-			if err := o.deleteExperiment(ctx, name); o.ignoreDeleteError(err) != nil {
+	for _, n := range o.Names {
+		if n.Name == "" {
+			return fmt.Errorf("name is required for delete")
+		}
+
+		switch n.Type {
+		case typeExperiment:
+			if err := o.deleteExperiment(ctx, n.experimentName()); o.ignoreDeleteError(err) != nil {
 				return err
 			}
+		default:
+			return fmt.Errorf("cannot delete \"%s\"", n.Type)
 		}
-	default:
-		return fmt.Errorf("cannot delete %s", o.GetType())
 	}
 	return nil
 }
@@ -75,8 +82,8 @@ func (o *DeleteOptions) ignoreDeleteError(err error) error {
 	return err
 }
 
-func (o *DeleteOptions) deleteExperiment(ctx context.Context, name string) error {
-	exp, err := o.ExperimentsAPI.GetExperimentByName(ctx, experimentsv1alpha1.NewExperimentName(name))
+func (o *DeleteOptions) deleteExperiment(ctx context.Context, name experimentsv1alpha1.ExperimentName) error {
+	exp, err := o.ExperimentsAPI.GetExperimentByName(ctx, name)
 	if err != nil {
 		return err
 	}
@@ -85,7 +92,5 @@ func (o *DeleteOptions) deleteExperiment(ctx context.Context, name string) error
 		return err
 	}
 
-	// TODO We should make this go through the ResourcePrinter
-	_, _ = fmt.Fprintf(o.Out, "experiment \"%s\" deleted\n", name)
-	return nil
+	return o.Printer.PrintObj(&exp, o.Out)
 }

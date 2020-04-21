@@ -1,19 +1,19 @@
-## redskyctl delete
+## redskyctl label
 
-Delete a Red Sky resource
+Label a Red Sky resource
 
 ### Synopsis
 
-Delete Red Sky resources from the remote server
+Label Red Sky resources on the remote server
 
 ```
-redskyctl delete (TYPE NAME | TYPE/NAME ...) [flags]
+redskyctl label (TYPE NAME | TYPE/NAME ...) KEY_1=VAL_1 ... KEY_N=VAL_N [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for delete
+  -h, --help   help for label
 ```
 
 ### Options inherited from parent commands

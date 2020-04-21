@@ -50,7 +50,7 @@ func NewSuggestCommand(o *SuggestOptions) *cobra.Command {
 		Args: cobra.ExactArgs(1),
 
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			o.Options.Names = args
+			o.Names = []name{{Type: typeExperiment, Name: args[0]}}
 			commander.SetStreams(&o.IOStreams, cmd)
 			return commander.SetExperimentsAPI(&o.ExperimentsAPI, o.Config, cmd)
 		},
@@ -66,7 +66,7 @@ func NewSuggestCommand(o *SuggestOptions) *cobra.Command {
 }
 
 func (o *SuggestOptions) suggest(ctx context.Context) error {
-	exp, err := o.ExperimentsAPI.GetExperimentByName(ctx, experimentsv1alpha1.NewExperimentName(o.Names[0]))
+	exp, err := o.ExperimentsAPI.GetExperimentByName(ctx, o.Names[0].experimentName())
 	if err != nil {
 		return err
 	}

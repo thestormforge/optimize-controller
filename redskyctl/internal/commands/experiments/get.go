@@ -34,20 +34,22 @@ type GetOptions struct {
 	ChunkSize int
 	SortBy    string
 	Selector  string
-
-	meta experimentsMeta
+	All       bool
 }
 
 // NewGetCommand creates a new get command
 func NewGetCommand(o *GetOptions) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
+		Use:   "get (TYPE NAME | TYPE/NAME ...)",
 		Short: "Display a Red Sky resource",
 		Long:  "Get Red Sky resources from the remote server",
 
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			commander.SetStreams(&o.IOStreams, cmd)
-			return commander.SetExperimentsAPI(&o.ExperimentsAPI, o.Config, cmd)
+			if err := commander.SetExperimentsAPI(&o.ExperimentsAPI, o.Config, cmd); err != nil {
+				return err
+			}
+			return o.setNames(args)
 		},
 		RunE: commander.WithContextE(o.get),
 	}
@@ -55,40 +57,65 @@ func NewGetCommand(o *GetOptions) *cobra.Command {
 	cmd.Flags().IntVar(&o.ChunkSize, "chunk-size", o.ChunkSize, "Fetch large lists in chunks rather then all at once.")
 	cmd.Flags().StringVarP(&o.Selector, "selector", "l", o.Selector, "Selector (label `query`) to filter on.")
 	cmd.Flags().StringVar(&o.SortBy, "sort-by", o.SortBy, "Sort list types using this JSONPath `expression`.")
+	cmd.Flags().BoolVarP(&o.All, "all", "A", false, "Include all resources.")
 
-	TypeAndNameArgs(cmd, &o.Options)
-	commander.SetPrinter(&o.meta, &o.Printer, cmd)
+	commander.SetPrinter(&experimentsMeta{}, &o.Printer, cmd)
 	commander.ExitOnError(cmd)
 	return cmd
 }
 
 func (o *GetOptions) get(ctx context.Context) error {
-	switch o.GetType() {
-	case TypeExperiment:
-		if err := o.getExperiment(ctx); err != nil {
-			return err
-		}
-	case TypeExperimentList:
-		if err := o.getExperimentList(ctx); err != nil {
-			return err
-		}
-	case TypeTrialList:
-		for _, name := range o.Names {
-			if err := o.getTrialList(ctx, name); err != nil {
-				return err
+	e := make([]experimentsv1alpha1.ExperimentName, 0, len(o.Names))
+	t := make(map[experimentsv1alpha1.ExperimentName][]int64)
+
+	for _, n := range o.Names {
+		switch n.Type {
+
+		case typeExperiment:
+			if n.Name != "" {
+				e = append(e, n.experimentName())
+			} else {
+				q := &experimentsv1alpha1.ExperimentListQuery{
+					Limit: o.ChunkSize,
+				}
+				return o.getExperimentList(ctx, q)
 			}
+
+		case typeTrial:
+			if n.Number < 0 {
+				q := &experimentsv1alpha1.TrialListQuery{
+					Status: []experimentsv1alpha1.TrialStatus{experimentsv1alpha1.TrialActive, experimentsv1alpha1.TrialCompleted, experimentsv1alpha1.TrialFailed},
+				}
+				if o.All {
+					q.Status = append(q.Status, experimentsv1alpha1.TrialStaged)
+				}
+				return o.getTrialList(ctx, n.experimentName(), q)
+			} else {
+				key := n.experimentName()
+				t[key] = append(t[key], n.Number)
+			}
+
+		default:
+			return fmt.Errorf("cannot get %s", n.Type)
 		}
-	default:
-		return fmt.Errorf("cannot get %s", o.GetType())
 	}
+
+	if len(e) > 0 {
+		return o.getExperiments(ctx, e)
+	}
+
+	if len(t) > 0 {
+		return o.getTrials(ctx, t)
+	}
+
 	return nil
 }
 
-func (o *GetOptions) getExperiment(ctx context.Context) error {
+func (o *GetOptions) getExperiments(ctx context.Context, names []experimentsv1alpha1.ExperimentName) error {
 	// Create a list to hold the experiments
 	l := &experimentsv1alpha1.ExperimentList{}
-	for _, n := range o.Names {
-		exp, err := o.ExperimentsAPI.GetExperimentByName(ctx, experimentsv1alpha1.NewExperimentName(n))
+	for _, n := range names {
+		exp, err := o.ExperimentsAPI.GetExperimentByName(ctx, n)
 		if err != nil {
 			return err
 		}
@@ -96,7 +123,7 @@ func (o *GetOptions) getExperiment(ctx context.Context) error {
 	}
 
 	// If this was a request for a single object, just print it out (e.g. don't produce a JSON list for a single element)
-	if len(o.Names) == 1 && len(l.Experiments) == 1 {
+	if len(names) == 1 && len(l.Experiments) == 1 {
 		return o.Printer.PrintObj(&l.Experiments[0], o.Out)
 	}
 
@@ -104,30 +131,92 @@ func (o *GetOptions) getExperiment(ctx context.Context) error {
 		return err
 	}
 
-	return o.Printer.PrintObj(&l, o.Out)
+	return o.Printer.PrintObj(l, o.Out)
 }
 
-func (o *GetOptions) getExperimentList(ctx context.Context) error {
-	if len(o.Names) > 0 {
-		// TODO Is there a better place to enforce this?
-		return fmt.Errorf("cannot specify names with experiment list")
-	}
-
+func (o *GetOptions) getExperimentList(ctx context.Context, q *experimentsv1alpha1.ExperimentListQuery) error {
 	// Get all the experiments one page at a time
-	l, err := o.ExperimentsAPI.GetAllExperiments(ctx, &experimentsv1alpha1.ExperimentListQuery{Limit: o.ChunkSize})
+	l, err := o.ExperimentsAPI.GetAllExperiments(ctx, q)
 	if err != nil {
 		return err
 	}
 
-	n := l
-	for n.Next != "" {
-		if n, err = o.ExperimentsAPI.GetAllExperimentsByPage(ctx, n.Next); err != nil {
+	for l.Next != "" {
+		n, err := o.ExperimentsAPI.GetAllExperimentsByPage(ctx, l.Next)
+		if err != nil {
 			return err
 		}
+		l.Next = n.Next
 		l.Experiments = append(l.Experiments, n.Experiments...)
 	}
 
 	if err := o.filterAndSortExperiments(&l); err != nil {
+		return err
+	}
+
+	return o.Printer.PrintObj(&l, o.Out)
+}
+
+func (o *GetOptions) getTrials(ctx context.Context, numbers map[experimentsv1alpha1.ExperimentName][]int64) error {
+	l := &experimentsv1alpha1.TrialList{}
+
+	for n, nums := range numbers {
+		// Get the experiment
+		exp, err := o.ExperimentsAPI.GetExperimentByName(ctx, n)
+		if err != nil {
+			return err
+		}
+
+		// Get the trials
+		tl, err := o.ExperimentsAPI.GetAllTrials(ctx, exp.Trials, nil)
+		if err != nil {
+			return err
+		}
+
+		for i := range tl.Trials {
+			if hasTrialNumber(&tl.Trials[i], nums) {
+				t := tl.Trials[i]
+				t.Experiment = &exp
+				l.Trials = append(l.Trials, t)
+			}
+		}
+	}
+
+	// If this was a request for a single object, just print it out (e.g. don't produce a JSON list for a single element)
+	if len(numbers) == 1 && len(l.Trials) == 1 { // TODO Also should check the length of the map value...
+		return o.Printer.PrintObj(&l.Trials[0], o.Out)
+	}
+
+	if err := o.filterAndSortTrials(l); err != nil {
+		return err
+	}
+
+	return o.Printer.PrintObj(l, o.Out)
+}
+
+func (o *GetOptions) getTrialList(ctx context.Context, name experimentsv1alpha1.ExperimentName, q *experimentsv1alpha1.TrialListQuery) error {
+	// Get the experiment
+	exp, err := o.ExperimentsAPI.GetExperimentByName(ctx, name)
+	if err != nil {
+		return err
+	}
+
+	// Fetch the trial data
+	var l experimentsv1alpha1.TrialList
+	if exp.Trials != "" {
+		l, err = o.ExperimentsAPI.GetAllTrials(ctx, exp.Trials, q)
+		if err != nil {
+			return err
+		}
+
+		// Store a back reference to the experiment on the list and every item in it
+		l.Experiment = &exp
+		for i := range l.Trials {
+			l.Trials[i].Experiment = &exp
+		}
+	}
+
+	if err := o.filterAndSortTrials(&l); err != nil {
 		return err
 	}
 
@@ -150,30 +239,15 @@ func (o *GetOptions) filterAndSortExperiments(l *experimentsv1alpha1.ExperimentL
 	return nil
 }
 
-func (o *GetOptions) getTrialList(ctx context.Context, name string) error {
-	// Get the experiment
-	exp, err := o.ExperimentsAPI.GetExperimentByName(context.TODO(), experimentsv1alpha1.NewExperimentName(name))
-	if err != nil {
-		return err
-	}
+// sortableExperimentData slightly modifies the schema of the experiment item to make it easier to specify sort orders
+func sortableExperimentData(item *experimentsv1alpha1.ExperimentItem) map[string]interface{} {
+	d := make(map[string]interface{}, 2)
+	d["name"] = item.DisplayName
+	d["observations"] = item.Observations
+	return d
+}
 
-	// Store the experiment in metadata
-	o.meta.base = &exp
-
-	// Fetch the trial data
-	q := &experimentsv1alpha1.TrialListQuery{Status: []experimentsv1alpha1.TrialStatus{
-		experimentsv1alpha1.TrialActive,
-		experimentsv1alpha1.TrialCompleted,
-		experimentsv1alpha1.TrialFailed,
-	}}
-	var l experimentsv1alpha1.TrialList
-	if exp.Trials != "" {
-		l, err = o.ExperimentsAPI.GetAllTrials(ctx, exp.Trials, q)
-		if err != nil {
-			return err
-		}
-	}
-
+func (o *GetOptions) filterAndSortTrials(l *experimentsv1alpha1.TrialList) error {
 	// Filter the trial list using Kubernetes label selectors
 	if sel, err := labels.Parse(o.Selector); err != nil {
 		return err
@@ -193,14 +267,7 @@ func (o *GetOptions) getTrialList(ctx context.Context, name string) error {
 		sort.Slice(l.Trials, sortByField(o.SortBy, func(i int) interface{} { return sortableTrialData(&l.Trials[i]) }))
 	}
 
-	return o.Printer.PrintObj(&l, o.Out)
-}
-
-// sortableExperimentData slightly modifies the schema of the experiment item to make it easier to specify sort orders
-func sortableExperimentData(item *experimentsv1alpha1.ExperimentItem) map[string]interface{} {
-	d := make(map[string]interface{}, 1)
-	d["name"] = item.DisplayName
-	return d
+	return nil
 }
 
 // sortableTrialData slightly modifies the schema of the trial item to make it easier to specify sort orders

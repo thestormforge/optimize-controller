@@ -191,11 +191,19 @@ func (f *printFlags) toPrinter(printer *ResourcePrinter) error {
 			case "json", "yaml":
 				*printer = &marshalPrinter{outputFormat: outputFormat}
 				return nil
-			case "wide", "":
-				*printer = &tablePrinter{meta: f.meta, columns: f.columns, headers: !f.noHeader, showLabels: f.showLabels}
-				return nil
-			case "name":
-				*printer = &tablePrinter{meta: f.meta, columns: []string{"name"}, outputFormat: outputFormat, showLabels: f.showLabels}
+			case "wide", "name", "":
+				p := &tablePrinter{
+					meta:         f.meta,
+					columns:      f.columns,
+					headers:      !f.noHeader,
+					showLabels:   f.showLabels,
+					outputFormat: outputFormat,
+				}
+				if outputFormat == "name" {
+					p.columns = []string{"name"}
+					p.headers = false
+				}
+				*printer = p
 				return nil
 			case "csv":
 				*printer = &csvPrinter{meta: f.meta, headers: !f.noHeader, showLabels: f.showLabels}

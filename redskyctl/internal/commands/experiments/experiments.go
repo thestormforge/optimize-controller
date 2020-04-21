@@ -18,62 +18,36 @@ package experiments
 
 import (
 	"fmt"
+	"io"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 
 	experimentsv1alpha1 "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/config"
-	"github.com/spf13/cobra"
 	"k8s.io/client-go/util/jsonpath"
 )
 
+type resourceType string
+
 const (
-	// TypeExperimentList is the type argument to use for lists of experiments
-	TypeExperimentList = "experiments"
-	// TypeExperiment is the type argument to use for experiments
-	TypeExperiment = "experiment"
-	// TypeExperimentAliases is a comma separated list of aliases for experiment
-	TypeExperimentAliases = "exp"
-	// TypeTrialList is the type argument to use for lists of trials
-	TypeTrialList = "trials"
-	// TypeTrial is the type argument to use for trials
-	TypeTrial = "trial"
+	// typeExperiment is the type argument to use for experiments
+	typeExperiment resourceType = "experiment"
+	// typeTrial is the type argument to use for trials
+	typeTrial = "trial"
 )
 
-// TypeAndNameArgs binds the "TYPE NAME..." arguments to a command
-func TypeAndNameArgs(cmd *cobra.Command, opts *Options) {
-	// Change the usage string to indicate what arguments are expected
-	cmd.Use = cmd.Use + " TYPE NAME..."
-
-	cmd.ValidArgs = append(cmd.ValidArgs, TypeExperimentList, TypeExperiment)
-	cmd.ArgAliases = append(cmd.ArgAliases, strings.Split(TypeExperimentAliases, ",")...)
-
-	cmd.ValidArgs = append(cmd.ValidArgs, TypeTrialList, TypeTrial)
-
-	// Setup argument validation
-	cmd.Args = func(cmd *cobra.Command, args []string) error {
-		// Require at least one argument (the type)
-		if err := cobra.MinimumNArgs(1)(cmd, args); err != nil {
-			return err
-		}
-
-		// First check the aliases, if it's not found, fall back to the standard "only valid args"
-		for _, aa := range cmd.ArgAliases {
-			if aa == args[0] {
-				return nil
-			}
-		}
-		return cobra.OnlyValidArgs(cmd, args[:1])
+// normalizeType returns a consistent value based on a user entered type
+func normalizeType(t string) (resourceType, error) {
+	switch strings.ToLower(t) {
+	case "experiment", "experiments", "exp":
+		return typeExperiment, nil
+	case "trial", "trials", "tr":
+		return typeTrial, nil
 	}
-
-	// Override the pre-run to capture the arguments into the supplied options instance
-	commander.AddPreRunE(cmd, func(_ *cobra.Command, args []string) error {
-		opts.Type = args[0]
-		opts.Names = args[1:]
-		return nil
-	})
+	return "", fmt.Errorf("unknown resource type \"%s\"", t)
 }
 
 // Options are the common options for interacting with the Red Sky Experiments API
@@ -87,36 +61,103 @@ type Options struct {
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
 
-	// Type of resource to work with
-	Type string
 	// Names of the resources to work with
-	Names []string
+	Names []name
 }
 
-// GetType returns the type, after expanding any aliases
-func (o *Options) GetType() string {
-	t := o.Type
+func (o *Options) setNames(args []string) error {
+	var err error
+	o.Names, err = parseNames(args)
+	return err
+}
 
-	// Expand experiment aliases
-	for _, alias := range strings.Split(TypeExperimentAliases, ",") {
-		if t == alias {
-			t = TypeExperiment
+// hasTrialNumber checks to see if a trail's number is in the supplied list
+func hasTrialNumber(t *experimentsv1alpha1.TrialItem, nums []int64) bool {
+	for _, n := range nums {
+		if t.Number == n || n < 0 {
+			return true
 		}
 	}
+	return false
+}
 
-	// Dummy pluralize
-	if len(o.Names) == 0 {
-		t = strings.TrimSuffix(t, "s") + "s"
+// name is construct for identifying an object in the Experiments API
+type name struct {
+	// Type is the normalized type name being named
+	Type resourceType
+	// Name is the actual name (minus the type and number if present)
+	Name string
+	// Number is the number suffix found on the name
+	Number int64
+}
+
+// experimentName returns the name as a typed experiment name
+func (n *name) experimentName() experimentsv1alpha1.ExperimentName {
+	return experimentsv1alpha1.NewExperimentName(n.Name)
+}
+
+// numberSuffixPattern matches the trailing digits, for example the number on the end of a trial name
+var numberSuffixPattern = regexp.MustCompile("(.*?)(?:[\\/\\-]([[:digit:]]+))?$")
+
+// parseNames parses a list of arguments into structured names
+func parseNames(args []string) ([]name, error) {
+	var t resourceType
+	names := make([]name, 0, len(args))
+	for _, arg := range args {
+		n := name{Type: t, Name: arg, Number: -1}
+		if sm := numberSuffixPattern.FindStringSubmatch(n.Name); sm != nil && sm[2] != "" {
+			n.Number, _ = strconv.ParseInt(sm[2], 10, 64)
+			n.Name = sm[1]
+		}
+
+		p := strings.SplitN(n.Name, "/", 2)
+		if len(p) > 1 || t == "" {
+			nt, err := normalizeType(p[0])
+			if err != nil {
+				return nil, err
+			}
+			if len(p) > 1 {
+				n.Type = nt
+				n.Name = p[1]
+			} else if t == "" {
+				t = nt
+				continue
+			}
+		}
+		names = append(names, n)
 	}
 
-	return t
+	if len(names) == 0 {
+		if t == "" {
+			return nil, fmt.Errorf("required resource not specified")
+		}
+		names = append(names, name{Type: t, Number: -1})
+	}
+
+	return names, nil
+}
+
+// verbPrinter
+type verbPrinter struct {
+	verb string
+}
+
+func (v *verbPrinter) PrintObj(obj interface{}, w io.Writer) error {
+	switch o := obj.(type) {
+	case *experimentsv1alpha1.Experiment:
+		_, _ = fmt.Fprintf(w, "experiment \"%s\" %s\n", o.DisplayName, v.verb)
+	case *experimentsv1alpha1.TrialItem:
+		_, _ = fmt.Fprintf(w, "trial \"%s-%03d\" %s\n", o.Experiment.DisplayName, o.Number, v.verb)
+	default:
+		return fmt.Errorf("could not print \"%s\" for: %T", v.verb, obj)
+	}
+	return nil
 }
 
 // experimentsMeta is the metadata extraction necessary for printing Red Sky Experiments API objects
-type experimentsMeta struct {
-	base interface{}
-}
+type experimentsMeta struct{}
 
+// ExtractList returns the items from an API list object
 func (m *experimentsMeta) ExtractList(obj interface{}) ([]interface{}, error) {
 	if o, ok := obj.(*experimentsv1alpha1.ExperimentList); ok {
 		list := make([]interface{}, len(o.Experiments))
@@ -125,6 +166,7 @@ func (m *experimentsMeta) ExtractList(obj interface{}) ([]interface{}, error) {
 		}
 		return list, nil
 	}
+
 	if o, ok := obj.(*experimentsv1alpha1.TrialList); ok {
 		list := make([]interface{}, len(o.Trials))
 		for i := range o.Trials {
@@ -132,69 +174,88 @@ func (m *experimentsMeta) ExtractList(obj interface{}) ([]interface{}, error) {
 		}
 		return list, nil
 	}
+
 	if obj != nil {
 		return []interface{}{obj}, nil
 	}
+
 	return nil, nil
 }
 
+// Columns returns the column names to use
 func (m *experimentsMeta) Columns(obj interface{}, outputFormat string, showLabels bool) []string {
-	columns := []string{"name"}
+	// Special case for trial list CSV to include everything as columns
+	if tl, ok := obj.(*experimentsv1alpha1.TrialList); ok && outputFormat == "csv" {
+		columns := []string{"experiment", "number", "status"}
 
-	if tl, ok := obj.(*experimentsv1alpha1.TrialList); ok {
-		if outputFormat == "csv" {
-			columns = []string{"experiment", "number", "status"}
-
-			// CSV column names should correspond to the parameter and metric names
-			if exp, ok := m.base.(*experimentsv1alpha1.Experiment); ok {
-				for i := range exp.Parameters {
-					columns = append(columns, "parameter_"+exp.Parameters[i].Name)
-				}
-				for i := range exp.Metrics {
-					columns = append(columns, "metric_"+exp.Metrics[i].Name)
-				}
+		// CSV column names should correspond to the parameter and metric names
+		if tl.Experiment != nil {
+			for i := range tl.Experiment.Parameters {
+				columns = append(columns, "parameter_"+tl.Experiment.Parameters[i].Name)
 			}
-
-			// CSV labels need to be split out into individual columns
-			if showLabels {
-				labels := make(map[string]bool)
-				for i := range tl.Trials {
-					for k := range tl.Trials[i].Labels {
-						labels[k] = true
-					}
-				}
-				for k := range labels {
-					columns = append(columns, "label_"+k)
-				}
-			}
-		} else {
-			columns = append(columns, "Status") // Title case the value
-			if showLabels {
-				columns = append(columns, "labels")
+			for i := range tl.Experiment.Metrics {
+				columns = append(columns, "metric_"+tl.Experiment.Metrics[i].Name)
 			}
 		}
+
+		// CSV labels need to be split out into individual columns
+		if showLabels {
+			labels := make(map[string]bool)
+			for i := range tl.Trials {
+				for k := range tl.Trials[i].Labels {
+					labels[k] = true
+				}
+			}
+			for k := range labels {
+				columns = append(columns, "label_"+k)
+			}
+		}
+
+		return columns
+	}
+
+	// Columns are less complex in other cases
+	columns := []string{"name"}
+	switch obj.(type) {
+
+	case *experimentsv1alpha1.TrialList, *experimentsv1alpha1.TrialItem:
+		columns = append(columns, "Status") // Title case the value
+
+	case *experimentsv1alpha1.ExperimentList, *experimentsv1alpha1.ExperimentItem:
+		if outputFormat == "wide" {
+			columns = append(columns, "observations")
+		}
+	}
+
+	if showLabels {
+		columns = append(columns, "labels")
 	}
 
 	return columns
 }
 
+// ExtractValue returns a cell value
 func (m *experimentsMeta) ExtractValue(obj interface{}, column string) (string, error) {
 	switch o := obj.(type) {
 	case *experimentsv1alpha1.ExperimentItem:
 		switch column {
 		case "name":
 			return o.DisplayName, nil
+		case "observations":
+			return strconv.FormatInt(o.Observations, 10), nil
+		case "labels":
+			return "", nil // Experiments do not have labels, we still want to show an empty column
 		}
 	case *experimentsv1alpha1.TrialItem:
 		switch column {
 		case "experiment":
-			if exp, ok := m.base.(*experimentsv1alpha1.Experiment); ok {
-				return exp.DisplayName, nil
+			if o.Experiment != nil {
+				return o.Experiment.DisplayName, nil
 			}
 			return "", nil
 		case "name":
-			if exp, ok := m.base.(*experimentsv1alpha1.Experiment); ok {
-				return fmt.Sprintf("%s-%03d", exp.DisplayName, o.Number), nil
+			if o.Experiment != nil {
+				return fmt.Sprintf("%s-%03d", o.Experiment.DisplayName, o.Number), nil
 			}
 			return strconv.FormatInt(o.Number, 10), nil
 		case "number":
@@ -241,6 +302,7 @@ func (m *experimentsMeta) ExtractValue(obj interface{}, column string) (string, 
 	return "", fmt.Errorf("unable to get value for column %s", column)
 }
 
+// Header returns the header name to use for a column
 func (m *experimentsMeta) Header(outputFormat string, column string) string {
 	if strings.ToLower(outputFormat) == "csv" {
 		return column

@@ -7,12 +7,13 @@ Display a Red Sky resource
 Get Red Sky resources from the remote server
 
 ```
-redskyctl get TYPE NAME... [flags]
+redskyctl get (TYPE NAME | TYPE/NAME ...) [flags]
 ```
 
 ### Options
 
 ```
+  -A, --all                  Include all resources.
       --chunk-size int       Fetch large lists in chunks rather then all at once. (default 500)
   -h, --help                 help for get
       --no-headers           Don't print headers.
