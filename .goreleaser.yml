@@ -39,3 +39,5 @@ brews:
       email: butch@carbonrelay.com
     homepage: "https://redskyops.dev/"
     description: Kubernetes Exploration
+signs:
+  - artifacts: checksum

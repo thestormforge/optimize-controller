@@ -54,6 +54,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v1
         with:
           args: release --rm-dist --release-notes hack/changelog.md.txt
+          key: ${{ secrets.BMASTERS_PRIVATE_KEY }}
         env:
           GITHUB_TOKEN: ${{ secrets.BMASTERS_TOKEN }}
       - name: Tag Docker images
