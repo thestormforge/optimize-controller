@@ -23,6 +23,9 @@ release:
   draft: true
 archives:
   - name_template: '{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}'
+    format_overrides:
+      - goos: darwin
+        format: zip
     files:
       - none*
 dockers:
