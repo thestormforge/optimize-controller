@@ -26,7 +26,7 @@ import (
 	prom "github.com/prometheus/client_golang/api"
 	promv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
-	redskyv1alpha1 "github.com/redskyops/redskyops-controller/pkg/apis/redsky/v1alpha1"
+	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 

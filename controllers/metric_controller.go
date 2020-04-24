@@ -22,11 +22,11 @@ import (
 	"strconv"
 
 	"github.com/go-logr/logr"
+	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
 	"github.com/redskyops/redskyops-controller/internal/controller"
 	"github.com/redskyops/redskyops-controller/internal/meta"
 	"github.com/redskyops/redskyops-controller/internal/metric"
 	"github.com/redskyops/redskyops-controller/internal/trial"
-	redskyv1alpha1 "github.com/redskyops/redskyops-controller/pkg/apis/redsky/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"

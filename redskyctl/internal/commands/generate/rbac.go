@@ -21,7 +21,7 @@ import (
 	"sort"
 	"strings"
 
-	redskyv1alpha1 "github.com/redskyops/redskyops-controller/pkg/apis/redsky/v1alpha1"
+	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"

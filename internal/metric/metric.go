@@ -22,8 +22,8 @@ import (
 	"strings"
 	"time"
 
+	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
 	"github.com/redskyops/redskyops-controller/internal/template"
-	redskyv1alpha1 "github.com/redskyops/redskyops-controller/pkg/apis/redsky/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )

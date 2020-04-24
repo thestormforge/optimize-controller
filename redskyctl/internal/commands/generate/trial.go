@@ -19,9 +19,9 @@ package generate
 import (
 	"fmt"
 
+	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
 	"github.com/redskyops/redskyops-controller/internal/experiment"
 	"github.com/redskyops/redskyops-controller/internal/server"
-	redskyv1alpha1 "github.com/redskyops/redskyops-controller/pkg/apis/redsky/v1alpha1"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/experiments"
 	"github.com/spf13/cobra"
