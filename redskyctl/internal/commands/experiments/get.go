@@ -72,14 +72,13 @@ func (o *GetOptions) get(ctx context.Context) error {
 		switch n.Type {
 
 		case typeExperiment:
-			if n.Name != "" {
-				e = append(e, n.experimentName())
-			} else {
+			if n.Name == "" {
 				q := &experimentsv1alpha1.ExperimentListQuery{
 					Limit: o.ChunkSize,
 				}
 				return o.getExperimentList(ctx, q)
 			}
+			e = append(e, n.experimentName())
 
 		case typeTrial:
 			if n.Number < 0 {
@@ -90,10 +89,9 @@ func (o *GetOptions) get(ctx context.Context) error {
 					q.Status = append(q.Status, experimentsv1alpha1.TrialStaged)
 				}
 				return o.getTrialList(ctx, n.experimentName(), q)
-			} else {
-				key := n.experimentName()
-				t[key] = append(t[key], n.Number)
 			}
+			key := n.experimentName()
+			t[key] = append(t[key], n.Number)
 
 		default:
 			return fmt.Errorf("cannot get %s", n.Type)

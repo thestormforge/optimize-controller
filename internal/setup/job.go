@@ -110,9 +110,7 @@ func NewJob(t *redskyv1alpha1.Trial, mode string) (*batchv1.Job, error) {
 		c.Env = trial.AppendAssignmentEnv(t, c.Env)
 
 		// Add the configured volume mounts
-		for _, vm := range task.VolumeMounts {
-			c.VolumeMounts = append(c.VolumeMounts, vm)
-		}
+		c.VolumeMounts = append(c.VolumeMounts, task.VolumeMounts...)
 
 		// For Helm installs, serialize a Konjure configuration
 		helmConfig := newHelmGeneratorConfig(&task)

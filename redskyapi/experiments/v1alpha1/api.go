@@ -78,16 +78,16 @@ type ErrorType string
 
 const (
 	ErrExperimentNameInvalid  ErrorType = "experiment-name-invalid"
-	ErrExperimentNameConflict           = "experiment-name-conflict"
-	ErrExperimentInvalid                = "experiment-invalid"
-	ErrExperimentNotFound               = "experiment-not-found"
-	ErrExperimentStopped                = "experiment-stopped"
-	ErrTrialInvalid                     = "trial-invalid"
-	ErrTrialUnavailable                 = "trial-unavailable"
-	ErrTrialNotFound                    = "trial-not-found"
-	ErrTrialAlreadyReported             = "trial-already-reported"
-	ErrUnauthorized                     = "unauthorized"
-	ErrUnexpected                       = "unexpected"
+	ErrExperimentNameConflict ErrorType = "experiment-name-conflict"
+	ErrExperimentInvalid      ErrorType = "experiment-invalid"
+	ErrExperimentNotFound     ErrorType = "experiment-not-found"
+	ErrExperimentStopped      ErrorType = "experiment-stopped"
+	ErrTrialInvalid           ErrorType = "trial-invalid"
+	ErrTrialUnavailable       ErrorType = "trial-unavailable"
+	ErrTrialNotFound          ErrorType = "trial-not-found"
+	ErrTrialAlreadyReported   ErrorType = "trial-already-reported"
+	ErrUnauthorized           ErrorType = "unauthorized"
+	ErrUnexpected             ErrorType = "unexpected"
 )
 
 // Error represents the API specific error messages and may be used in response to HTTP status codes
@@ -175,7 +175,7 @@ type ConstraintType string
 
 const (
 	ConstraintSum   ConstraintType = "sum"
-	ConstraintOrder                = "order"
+	ConstraintOrder ConstraintType = "order"
 )
 
 type SumConstraintParameter struct {
@@ -214,7 +214,7 @@ type ParameterType string
 
 const (
 	ParameterTypeInteger ParameterType = "int"
-	ParameterTypeDouble                = "double"
+	ParameterTypeDouble  ParameterType = "double"
 )
 
 type Bounds struct {
@@ -368,10 +368,10 @@ type TrialStatus string
 
 const (
 	TrialStaged    TrialStatus = "staged"
-	TrialActive                = "active"
-	TrialCompleted             = "completed"
-	TrialFailed                = "failed"
-	TrialAbandoned             = "abandoned"
+	TrialActive    TrialStatus = "active"
+	TrialCompleted TrialStatus = "completed"
+	TrialFailed    TrialStatus = "failed"
+	TrialAbandoned TrialStatus = "abandoned"
 )
 
 type TrialItem struct {

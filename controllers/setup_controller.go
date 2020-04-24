@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -159,7 +158,7 @@ func (r *SetupReconciler) inspectSetupJobPods(ctx context.Context, j *batchv1.Jo
 	for i := range list.Items {
 		for _, cs := range list.Items[i].Status.ContainerStatuses {
 			if !cs.Ready && cs.State.Terminated != nil && cs.State.Terminated.ExitCode != 0 {
-				return corev1.ConditionTrue, fmt.Sprintf("Setup job has a failed container")
+				return corev1.ConditionTrue, "Setup job has a failed container"
 			}
 		}
 	}

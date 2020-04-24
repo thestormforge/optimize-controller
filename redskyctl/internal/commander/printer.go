@@ -50,7 +50,7 @@ const (
 	PrinterNoHeader = "noHeader"
 	// PrinterShowLabels is the configuration key for setting the initial show labels flag
 	PrinterShowLabels = "showLabels"
-	// PrinterHideStatus
+	// PrinterHideStatus is the configuration key for setting the initial hide status flag
 	PrinterHideStatus = "hideStatus"
 )
 
@@ -227,7 +227,7 @@ func (p *marshalPrinter) PrintObj(obj interface{}, w io.Writer) error {
 		if err != nil {
 			return err
 		}
-		_, err = fmt.Fprintf(w, string(output))
+		_, err = fmt.Fprint(w, string(output))
 		return err
 	}
 
