@@ -13,10 +13,18 @@ You can download binaries directly from the [releases page](https://github.com/r
 To download the latest release, select your platform (`linux` or `darwin`) and run:
 
 ```sh
-os=linux # Or 'darwin'
+# For Linux
 curl -s https://api.github.com/repos/redskyops/redskyops-controller/releases/latest |\
-  grep browser_download_url | grep -i ${os:-linux} | cut -d '"' -f 4 |\
+  grep browser_download_url | grep -i "linux" | cut -d '"' -f 4 |\
   xargs curl -L | tar xz
+
+# For macOS
+curl -s https://api.github.com/repos/redskyops/redskyops-controller/releases/latest |\
+  grep browser_download_url | grep -i "darwin" | cut -d '"' -f 4 |\
+  xargs curl -L > redskyctl-latest.zip
+unzip redskyctl-latest.zip
+
+# For both
 sudo mv redskyctl /usr/local/bin/
 ```
 

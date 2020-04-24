@@ -23,9 +23,24 @@ release:
   draft: true
 archives:
   - name_template: '{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}'
+    format_overrides:
+      - goos: darwin
+        format: zip
     files:
       - none*
 dockers:
   - image_templates:
       - '{{ .Env.REDSKYCTL_IMG }}'
     dockerfile: redskyctl/Dockerfile
+brews:
+  - github:
+      owner: redskyops
+      name: homebrew-tap
+    folder: Formula
+    commit_author:
+      name: Butch Masters
+      email: butch@carbonrelay.com
+    homepage: "https://redskyops.dev/"
+    description: Kubernetes Exploration
+signs:
+  - artifacts: checksum

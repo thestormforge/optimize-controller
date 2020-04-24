@@ -39,7 +39,7 @@ manager: generate fmt vet
 # Build tool binary using GoReleaser in a local dev environment (in CI we just invoke GoReleaser directly)
 tool:
 	BUILD_METADATA=${BUILD_METADATA} SETUPTOOLS_IMG=${SETUPTOOLS_IMG} PULL_POLICY=${PULL_POLICY} REDSKYCTL_IMG=${REDSKYCTL_IMG} \
-	goreleaser release --snapshot --rm-dist
+	goreleaser release --snapshot --skip-sign --rm-dist
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate fmt vet manifests
