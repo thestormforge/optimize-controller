@@ -46,6 +46,13 @@ jobs:
           echo "::set-env name=PULL_POLICY::Always"
           echo "::set-env name=DOCKER_TAG::${DOCKER_TAG}"
           gcloud --quiet auth configure-docker
+
+          # kubebuilder
+          os=$(go env GOOS)
+          arch=$(go env GOARCH)
+          curl -L https://go.kubebuilder.io/dl/2.3.1/${os}/${arch} | tar -xz -C /tmp/
+          sudo mv /tmp/kubebuilder_2.3.1_${os}_${arch} /usr/local/kubebuilder
+          export PATH=$PATH:/usr/local/kubebuilder/bin
       - name: Build controller
         run: |
           make docker-build
