@@ -97,7 +97,7 @@ func (n *name) experimentName() experimentsv1alpha1.ExperimentName {
 }
 
 // numberSuffixPattern matches the trailing digits, for example the number on the end of a trial name
-var numberSuffixPattern = regexp.MustCompile("(.*?)(?:[\\/\\-]([[:digit:]]+))?$")
+var numberSuffixPattern = regexp.MustCompile(`(.*?)(?:[/\-]([[:digit:]]+))?$`)
 
 // parseNames parses a list of arguments into structured names
 func parseNames(args []string) ([]name, error) {

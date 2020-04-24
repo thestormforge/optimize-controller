@@ -29,20 +29,20 @@ import (
 // TODO Make the constant names better reflect the code, not the text
 // TODO Use a prefix, like "phase"?
 const (
-	created      string = "Created"
-	setupCreated        = "Setup Created"
-	settingUp           = "Setting up"
-	setupDeleted        = "Setup Deleted"
-	tearingDown         = "Tearing Down"
-	patched             = "Patched"
-	patching            = "Patching"
-	running             = "Running"
-	stabilized          = "Stabilized"
-	waiting             = "Waiting"
-	captured            = "Captured"
-	capturing           = "Capturing"
-	completed           = "Completed"
-	failed              = "Failed"
+	created      = "Created"
+	setupCreated = "Setup Created"
+	settingUp    = "Setting up"
+	setupDeleted = "Setup Deleted"
+	tearingDown  = "Tearing Down"
+	patched      = "Patched"
+	patching     = "Patching"
+	running      = "Running"
+	stabilized   = "Stabilized"
+	waiting      = "Waiting"
+	captured     = "Captured"
+	capturing    = "Capturing"
+	completed    = "Completed"
+	failed       = "Failed"
 )
 
 var (

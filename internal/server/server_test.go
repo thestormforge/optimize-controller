@@ -23,10 +23,9 @@ import (
 	"time"
 
 	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
-	"github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	redskyapi "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -398,7 +397,7 @@ func TestFromClusterTrial(t *testing.T) {
 			in: &redskyv1alpha1.Trial{
 				Status: redskyv1alpha1.TrialStatus{
 					Conditions: []redskyv1alpha1.TrialCondition{
-						{Type: redskyv1alpha1.TrialComplete, Status: v1.ConditionTrue},
+						{Type: redskyv1alpha1.TrialComplete, Status: corev1.ConditionTrue},
 					},
 				},
 			},
@@ -409,7 +408,7 @@ func TestFromClusterTrial(t *testing.T) {
 			in: &redskyv1alpha1.Trial{
 				Status: redskyv1alpha1.TrialStatus{
 					Conditions: []redskyv1alpha1.TrialCondition{
-						{Type: redskyv1alpha1.TrialFailed, Status: v1.ConditionTrue},
+						{Type: redskyv1alpha1.TrialFailed, Status: corev1.ConditionTrue},
 					},
 				},
 			},
@@ -422,7 +421,7 @@ func TestFromClusterTrial(t *testing.T) {
 			in: &redskyv1alpha1.Trial{
 				Status: redskyv1alpha1.TrialStatus{
 					Conditions: []redskyv1alpha1.TrialCondition{
-						{Type: redskyv1alpha1.TrialComplete, Status: v1.ConditionTrue},
+						{Type: redskyv1alpha1.TrialComplete, Status: corev1.ConditionTrue},
 					},
 				},
 				Spec: redskyv1alpha1.TrialSpec{
@@ -434,7 +433,7 @@ func TestFromClusterTrial(t *testing.T) {
 				},
 			},
 			expectedOut: &redskyapi.TrialValues{
-				Values: []v1alpha1.Value{
+				Values: []redskyapi.Value{
 					{MetricName: "one", Value: 111.111, Error: 1111.1111},
 					{MetricName: "two", Value: 222.222, Error: 2222.2222},
 					{MetricName: "three", Value: 333.333, Error: 3333.3333},

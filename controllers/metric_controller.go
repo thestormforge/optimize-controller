@@ -98,7 +98,7 @@ func (r *MetricReconciler) ignoreTrial(t *redskyv1alpha1.Trial) bool {
 	}
 
 	// Do not ignore trials if we haven't finished processing them
-	if !trial.CheckCondition(&t.Status, redskyv1alpha1.TrialObserved, corev1.ConditionTrue) {
+	if !(trial.CheckCondition(&t.Status, redskyv1alpha1.TrialObserved, corev1.ConditionTrue)) {
 		return false
 	}
 
