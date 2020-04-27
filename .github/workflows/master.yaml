@@ -71,9 +71,9 @@ jobs:
         uses: actions/upload-artifact@v1
         with:
           name: redskyctl_darwin_amd64
-          path: dist/redskyctl_darwin_amd64
+          path: dist/redskyctl_darwin_amd64.tar.gz
       - name: Upload Linux binary
         uses: actions/upload-artifact@v1
         with:
           name: redskyctl_linux_amd64
-          path: dist/redskyctl_linux_amd64
+          path: dist/redskyctl_linux_amd64.tar.gz
