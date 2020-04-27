@@ -8,7 +8,7 @@ jobs:
     name: Build and Deploy
     runs-on: ubuntu-latest
     env:
-      BUILD_METADATA: pr.${{ github.actor }}.${{ github.run_id }}
+      BUILD_METADATA: pr.${{ github.run_number }}
       GIT_COMMIT: ${{ github.sha }}
     steps:
       - name: Check out code
