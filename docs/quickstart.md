@@ -8,7 +8,7 @@ You must have a Kubernetes cluster. Additionally, you will need a local configur
 
 A local install of [Kustomize](https://github.com/kubernetes-sigs/kustomize/releases) (v3.1.0+) is required to build the objects for your cluster.
 
-If you are planing to create the simple experiment from this guide, a [minikube](https://kubernetes.io/docs/setup/learning-environment/minikube/) cluster is preferred.
+If you are planning to create the postgres experiment from this guide, a [minikube](https://kubernetes.io/docs/setup/learning-environment/minikube/) cluster will be sufficient.
 
 ## Install the Red Sky Ops Tool
 
@@ -26,23 +26,28 @@ $ redskyctl init
 
 ## Create a Simple Experiment
 
-Generally you will want to write your own experiments to run trials on your own applications. For the purposes of this guide we can use the simple example found in the `redskyops-recipes` [repository on GitHub](https://github.com/redskyops/redskyops-recipes/tree/master/simple):
+Generally you will want to write your own experiments to run trials on your own applications. For the purposes of this guide we can use the postgres example found in the `redskyops-recipes` [repository on GitHub](https://github.com/redskyops/redskyops-recipes/tree/master/postgres):
 
 ```sh
-$ kustomize build github.com/redskyops/redskyops-recipes//simple | kubectl apply -f -
+$ kustomize build github.com/redskyops/redskyops-recipes/postgres | kubectl apply -f -
 ```
 
 ## Run a Trial
 
 With your experiment created, you can be begin running trials by suggesting parameter assignments locally. Each trial will create one or more Kubernetes jobs and will conclude by collecting a small number of metric values indicative of the performance for the trial.
 
-To interactively create a new trial for the example experiment, run:
-
 ```sh
-$ redskyctl generate trial --interactive -f <(kubectl get experiment simple -o yaml) | kubectl create -f -
+$ redskyctl generate trial --assign memory=1000 --assign cpu=500 -f <(kubectl get experiment postgres-example-test -o yaml)  | kubectl create -f -
 ```
 
-You will be prompted to enter a value for each parameter in the experiment and a new trial will be created. You can monitor the progress using `kubectl`:
+Or alternatively, To interactively create a new trial for the example experiment, run the following.
+You will be prompted to enter a value for each parameter in the experiment and a new trial will be created.
+
+```sh
+$ redskyctl generate trial --interactive -f <(kubectl get experiment postgres-example-test -o yaml)
+```
+
+You can monitor the progress using `kubectl`:
 
 ```sh
 $ kubectl get trials
@@ -50,12 +55,14 @@ $ kubectl get trials
 
 When running interactive trials in a single namespace, be sure only trial is active at a time.
 
+After the trial is complete, you will be able to view the parameters and the metrics generated from the trial. The metrics can be used to gauge how effective the used parameters were.
+
 ## Removing the Experiment
 
 To clean up the data from your experiment, simply delete the experiment. The delete will cascade to the associated trials and other Kubernetes objects:
 
 ```sh
-$ kubectl delete experiment simple
+$ kubectl delete experiment postgres-example-test
 ```
 
 ## Next Steps

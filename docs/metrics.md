@@ -49,7 +49,7 @@ The `"prometheus"` collection type treats the `query` field as a [PromQL](https:
 
 All Prometheus metrics must evaluate to scalar, that is a single floating point number. Often times it may be necessary to write a query that produces a single-element instant vector and extract that value using the [`scalar`](https://prometheus.io/docs/prometheus/latest/querying/functions/#scalar) function. Note that `scalar` function produces a `NaN` result when the size of the instant vector is not 1 and this will cause the trial to fail during metric collection.
 
-When using the Prometheus collection type, the `selector` field is used to determine the instance of Prometheus to use. A cluster wide search (all namespaces) is performed for services matching the selector. In the case of multiple matched services, each service retured by the API server is tried until the first successful attempt to capture the metric value.
+When using the Prometheus collection type, the `selector` field is used to determine the instance of Prometheus to use. A cluster wide search (all namespaces) is performed for services matching the selector. In the case of multiple matched services, each service returned by the API server is tried until the first successful attempt to capture the metric value.
 
 Prometheus connection information can be further refined using the `scheme` (must be `"https"` or `"http"`, the later of which is used by default), the `port` (a port number or name specified on the service, if the service only specifies one port this can be omitted) and the `path` (the context root of the Prometheus API).
 

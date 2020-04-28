@@ -16,8 +16,8 @@ When selecting the bounds for a parameter it is important to remember that all v
 You would consume this parameter in a `spec.containers[].resources` patch of:
 
 ```yaml
-                requests:
-                  cpu: "{{ .Values.cpu }}m"
+  requests:
+    cpu: "{{ .Values.cpu }}m"
 ```
 
 ## Parameter Manipulation
@@ -26,5 +26,5 @@ All parameters are suggested as integer values, sometimes it is necessary to man
 
 - **percent**
   Return the integer percentage.
-  
+
   `percent 9 50` will return `"4"`
