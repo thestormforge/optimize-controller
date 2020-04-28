@@ -85,12 +85,13 @@ func (o *GeneratorOptions) generate(ctx context.Context) error {
 	args = append(args, "--", "install")
 
 	// Run the command straight through to the configured output stream
-	// TODO How do we filter out the warning about not being able to attach?
 	kubectlRun, err := o.Config.Kubectl(ctx, args...)
 	if err != nil {
 		return err
 	}
+	// TODO Should we buffer this and verify we got valid YAML?
 	kubectlRun.Stdout = o.Out
-	kubectlRun.Stderr = o.ErrOut
+	// TODO What is the best way to filter out the "Error attaching, ..." line from the writer?
+	// kubectlRun.Stderr = o.ErrOut
 	return kubectlRun.Run()
 }
