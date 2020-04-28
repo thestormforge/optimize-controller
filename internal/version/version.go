@@ -22,9 +22,11 @@ package version
 
 import "strings"
 
+const defaultVersion = "v0.0.0-source"
+
 var (
 	// Version is a "v" prefixed Semver, including pre-release information if applicable
-	Version = "v0.0.0-source"
+	Version = defaultVersion
 	// BuildMetadata is the Semver build metadata stored independent of the version string
 	BuildMetadata = ""
 	// GitCommit is a Git commit identifier
@@ -47,7 +49,7 @@ func (i *Info) String() string {
 
 	// If the version was overwritten to be empty, return the default version instead
 	if i.Version == "" {
-		return "v0.0.0-source"
+		return defaultVersion
 	}
 	return i.Version
 }
