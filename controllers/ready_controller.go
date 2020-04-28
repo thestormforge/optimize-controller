@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -172,17 +171,18 @@ func (r *ReadyReconciler) checkReadiness(ctx context.Context, t *redskyv1alpha1.
 		// Get the objects to check
 		ul, err := r.getCheckTargets(ctx, c)
 		if err != nil {
-			trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "ReadinessCheckFailed", err.Error(), probeTime)
+			readinessCheckFailed(t, probeTime, err)
 			err := r.Update(ctx, t)
 			return controller.RequeueConflict(err)
 		}
 
 		// Check for readiness
 		if msg, ok, err := checker.check(ctx, c, ul, probeTime); err != nil {
-			trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "ReadinessCheckFailed", err.Error(), probeTime)
+			readinessCheckFailed(t, probeTime, err)
 			err := r.Update(ctx, t)
 			return controller.RequeueConflict(err)
 		} else if !ok {
+			// We may overwrite the message as we iterate over the remaining readiness checks
 			trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialReady, corev1.ConditionFalse, "Waiting", msg, probeTime)
 		}
 	}
@@ -233,6 +233,20 @@ func (r *ReadyReconciler) getCheckTargets(ctx context.Context, rc *redskyv1alpha
 		ul.Items = append(ul.Items, u)
 	}
 	return ul, nil
+}
+
+// readinessCheckFailed puts a trial into a failed state due to a failed readiness check
+func readinessCheckFailed(t *redskyv1alpha1.Trial, probeTime *metav1.Time, err error) {
+	reason, message := "ReadinessCheckFailed", err.Error()
+	if rerr, ok := err.(*ready.ReadinessError); ok {
+		if rerr.Reason != "" {
+			reason = rerr.Reason
+		}
+		if rerr.Message != "" {
+			message = rerr.Message
+		}
+	}
+	trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, reason, message, probeTime)
 }
 
 // readinessChecker is the loop state used to evaluate readiness checks
@@ -304,13 +318,13 @@ func (rc *readinessChecker) check(ctx context.Context, c *redskyv1alpha1.Readine
 	if ok || err != nil {
 		c.AttemptsRemaining = 0
 		c.LastCheckTime = nil
-		return msg, ok, err
+		return "", ok, err
 	}
 
 	// Check if we exceeded the failure threshold
 	c.AttemptsRemaining--
 	if c.AttemptsRemaining <= 0 {
-		return "", false, fmt.Errorf("%s", msg)
+		return "", false, &ready.ReadinessError{Reason: "ReadinessFailureThreshold", Message: msg}
 	}
 
 	// Record the fact that we need to re-check

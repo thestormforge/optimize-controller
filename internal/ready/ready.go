@@ -54,6 +54,25 @@ type ReadinessChecker struct {
 	Reader client.Reader
 }
 
+// ReadinessError is an error that occurs while testing for readiness, it indicates a "hard failure" and is not just
+// an indicator that something is not ready (i.e. it is an unrecoverable state and will never be "ready").
+type ReadinessError struct {
+	// Reason is a code indicating the reason why a readiness check failed
+	Reason string
+	// Message is a more detailed message indicating the nature of the failure
+	Message string
+
+	error string
+}
+
+// Error returns the message
+func (e *ReadinessError) Error() string {
+	if e.error != "" {
+		return e.error
+	}
+	return "readiness check failed"
+}
+
 // CheckConditions checks to see that all of the listed conditions have a status of true on the specified object. Note
 // that in addition to generically checking in the `status.conditions` field, special conditions are also supported. The
 // special conditions are prefixed with "redskyops.dev/".
@@ -88,8 +107,8 @@ func (r *ReadinessChecker) CheckConditions(ctx context.Context, obj *unstructure
 		}
 
 		// Make sure it's not a hard fail
-		if m, err := r.podFailed(ctx, obj); err != nil {
-			return m, false, err
+		if err := r.podFailed(ctx, obj); err != nil {
+			return "", false, err
 		}
 
 		// Stop checking as soon as a condition is not "True"
@@ -193,11 +212,11 @@ func (r *ReadinessChecker) podReady(ctx context.Context, obj *unstructured.Unstr
 }
 
 // podFailed looks for pods that are obviously in a failed state and are unlikely to recover
-func (r *ReadinessChecker) podFailed(ctx context.Context, obj *unstructured.Unstructured) (string, error) {
+func (r *ReadinessChecker) podFailed(ctx context.Context, obj *unstructured.Unstructured) error {
 	// Get the list of pods for the object
 	list, err := r.listPods(ctx, obj)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	// Iterate over the pods looking for failures
@@ -206,7 +225,7 @@ func (r *ReadinessChecker) podFailed(ctx context.Context, obj *unstructured.Unst
 		for _, c := range p.Status.Conditions {
 			// Check for unschedulable pods
 			if c.Type == corev1.PodScheduled && c.Status == corev1.ConditionFalse && c.Reason == corev1.PodReasonUnschedulable {
-				return c.Message, fmt.Errorf("%s", c.Reason)
+				return &ReadinessError{error: "pod unschedulable", Reason: c.Reason, Message: c.Message}
 			}
 
 			// Check the container status
@@ -218,12 +237,12 @@ func (r *ReadinessChecker) podFailed(ctx context.Context, obj *unstructured.Unst
 					switch {
 					case cc.State.Waiting != nil:
 						if cc.RestartCount > 0 && cc.State.Waiting.Reason == "CrashLoopBackOff" {
-							return cc.State.Waiting.Message, fmt.Errorf("%s", cc.State.Waiting.Reason)
+							return &ReadinessError{error: "container crash loop back off", Reason: cc.State.Waiting.Reason, Message: cc.State.Waiting.Message}
 						}
 
 					case cc.State.Terminated != nil:
 						if p.Spec.RestartPolicy == corev1.RestartPolicyNever && cc.RestartCount == 0 && cc.State.Terminated.Reason == "Error" {
-							return cc.State.Terminated.Message, fmt.Errorf("%s", cc.State.Terminated.Reason)
+							return &ReadinessError{error: "container error", Reason: cc.State.Terminated.Reason, Message: cc.State.Terminated.Message}
 						}
 					}
 				}
@@ -232,7 +251,7 @@ func (r *ReadinessChecker) podFailed(ctx context.Context, obj *unstructured.Unst
 	}
 
 	// There are no recognizably failed pods
-	return "", nil
+	return nil
 }
 
 // listPods returns the pods "owned" by the supplied unstructured object
