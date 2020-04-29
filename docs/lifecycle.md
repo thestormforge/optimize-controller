@@ -42,7 +42,7 @@ When the trial job completes, the metrics are collected according to their type.
 
 ## Report Trial
 
-When using the Enterprise product, the metrics of finished trials are reported back to the remote Red Sky API server to improve the next round of suggested parameter assignments.
+After the trial job is completed and the metrics have been collected, you can view the data by inspecting the Kubernetes trial object via `kubectl get trial`. Additionally, when using the Enterprise product, the metrics of finished trials are reported back to the remote Red Sky API server to improve the next round of suggested parameter assignments. This can be viewed by running `redskyctl results`.
 
 ## Setup Deletion
 
