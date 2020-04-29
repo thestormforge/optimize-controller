@@ -91,7 +91,6 @@ func (o *TrialOptions) generate() error {
 	// Clear out some values we do not need
 	t.Finalizers = nil
 	t.Annotations = nil
-	t.Labels = nil
 
 	return o.Printer.PrintObj(t, o.Out)
 }
