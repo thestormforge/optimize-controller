@@ -106,7 +106,7 @@ ReadinessCheck represents a check to determine when the patched application is "
 | ----- | ----------- | ------ | -------- |
 | `targetRef` | TargetRef is the reference to the object to test the readiness of | _[ObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#objectreference-v1-core)_ | true |
 | `selector` | Selector may be used to trigger a search for multiple related objects to search; this may have RBAC implications, in particular "list" permissions are required | _*[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#labelselector-v1-meta)_ | false |
-| `conditionTypes` | ConditionTypes are the status conditions that must be "True"; in addition to conditions that appear in the status of the target object, additional special conditions starting with "redskyops.dev/" can be tested | _[]string_ | true |
+| `conditionTypes` | ConditionTypes are the status conditions that must be "True"; in addition to conditions that appear in the status of the target object, additional special conditions starting with "redskyops.dev/" can be tested | _[]string_ | false |
 | `initialDelaySeconds` | InitialDelaySeconds is the approximate number of seconds after all of the patches have been applied to start evaluating this check | _int32_ | false |
 | `periodSeconds` | PeriodSeconds is the approximate amount of time in between evaluation attempts of this check | _int32_ | false |
 | `attemptsRemaining` | AttemptsRemaining is the number of failed attempts to allow before marking the entire trial as failed, will be automatically set to zero if the check has been successfully evaluated | _int32_ | false |

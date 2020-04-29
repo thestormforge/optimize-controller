@@ -182,8 +182,27 @@ func (r *ReadyReconciler) checkReadiness(ctx context.Context, t *redskyv1alpha1.
 			err := r.Update(ctx, t)
 			return controller.RequeueConflict(err)
 		} else if !ok {
-			// We may overwrite the message as we iterate over the remaining readiness checks
 			trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialReady, corev1.ConditionFalse, "Waiting", msg, probeTime)
+
+			// THE FOLLOWING BEHAVIOR MAY NEED TO CHANGE
+			// Currently we allow all of the readiness checks coming from patch operations to run "in parallel" (i.e. if
+			// something isn't ready, we continue on to the next check) while all of the readiness checks coming from
+			// the trial gates run "sequentially" (i.e. each needs transition to "ready" before we check the next).
+
+			// This supports two use cases:
+			// 1. Prevent hard failure starvation (where a long running check masks a hard failure like "unschedulable")
+			// 2. Trial level checks depend on the readiness of patched resources
+
+			// Alternative solutions may include:
+			// 1. "grouping" checks (e.g. assigning an integer, sorting the list and returning from the loop when
+			//    `!ok && t.Spec.ReadinessCheck[i].Group != t.Spec.ReadinessCheck[i-1].Group`)
+			// 2. "stacking" checks (e.g. do not sort the list and just assign a boolean to determine if "not ready"
+			//    should force a return from the loop)
+
+			// Break the loop if the last patch based check or any trial gate check is not ready
+			if i+1 >= len(t.Spec.ReadinessChecks)-len(t.Spec.ReadinessGates) {
+				break
+			}
 		}
 	}
 
