@@ -46,7 +46,7 @@ type TrialReadinessGate struct {
 	// Selector matches the resources whose condition must be checked, mutually exclusive with "Name"
 	Selector *metav1.LabelSelector `json:"selector,omitempty"`
 	// ConditionTypes are the status conditions that must be "True"
-	ConditionTypes []string `json:"conditionTypes"`
+	ConditionTypes []string `json:"conditionTypes,omitempty"`
 	// InitialDelaySeconds is the approximate number of seconds after all of the patches have been applied to start
 	// evaluating this check
 	InitialDelaySeconds int32 `json:"initialDelaySeconds,omitempty"`
