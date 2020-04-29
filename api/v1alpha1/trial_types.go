@@ -145,7 +145,7 @@ type ReadinessCheck struct {
 	Selector *metav1.LabelSelector `json:"selector,omitempty"`
 	// ConditionTypes are the status conditions that must be "True"; in addition to conditions that appear in the
 	// status of the target object, additional special conditions starting with "redskyops.dev/" can be tested
-	ConditionTypes []string `json:"conditionTypes"`
+	ConditionTypes []string `json:"conditionTypes,omitempty"`
 	// InitialDelaySeconds is the approximate number of seconds after all of the patches have been applied to start
 	// evaluating this check
 	InitialDelaySeconds int32 `json:"initialDelaySeconds,omitempty"`

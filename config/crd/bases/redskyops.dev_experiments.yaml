@@ -376,7 +376,6 @@ spec:
                                 type: string
                             type: object
                         required:
-                        - conditionTypes
                         - targetRef
                         type: object
                       type: array
