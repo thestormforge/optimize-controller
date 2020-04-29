@@ -424,8 +424,6 @@ spec:
                                   type: string
                                 type: object
                             type: object
-                        required:
-                        - conditionTypes
                         type: object
                       type: array
                     selector:
