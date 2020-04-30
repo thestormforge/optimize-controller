@@ -281,16 +281,29 @@ func (rc *readinessChecker) skipCheck(c *redskyv1alpha1.ReadinessCheck, now *met
 	if c.AttemptsRemaining <= 0 {
 		return true
 	}
+
+	// At least one check still has remaining attempts, DO NOT mark the trial as ready
 	rc.ready = false
 
 	// Determine if we need to wait for the check
 	if next := rc.nextCheckTime(c); now.Before(next) {
-		if d := next.Time.Sub(now.Time); d > rc.after {
+		d := next.Time.Sub(now.Time)
+
+		// Avoid excessive sleeps so we can still detect failures
+		if p := time.Duration(c.PeriodSeconds) * time.Second; d > p {
+			d = p
+		}
+
+		// Take the largest delay if we are considering multiple checks
+		if d > rc.after {
 			rc.after = d
 		}
+
 		return true
 	}
-	rc.requeue = false // requeue + after could be have been combined into a `*time.Duration`, this seems more readable
+
+	// There is no delay required, instead we should update the trial to record any changes
+	rc.requeue = false
 
 	return false
 }
