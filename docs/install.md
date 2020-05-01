@@ -20,6 +20,14 @@ curl -s https://api.github.com/repos/redskyops/redskyops-controller/releases/lat
 sudo mv redskyctl /usr/local/bin/
 ```
 
+## Using Homebrew
+
+For macOS users, you can install `redskyctl` using Homebrew:
+
+```sh
+brew install redskyops/tap/redskyctl
+```
+
 ## Installing the Red Sky Ops Controller
 
 The Red Sky Ops Controller runs inside your Kubernetes cluster. It can be configured to talk to a remote server for improved capabilities.
