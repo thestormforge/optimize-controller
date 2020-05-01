@@ -319,8 +319,7 @@ github.com/prometheus/common v0.4.1/go.mod h1:TNfzLD0ON7rHzMJeJkieUDPYmFC7Snx/y8
 github.com/prometheus/procfs v0.0.0-20181005140218-185b4288413d/go.mod h1:c3At6R/oaqEKCNdg8wHV1ftS6bRYblBhIjjI8uT2IGk=
 github.com/prometheus/procfs v0.0.2 h1:6LJUbpNm42llc4HRCuvApCSWB/WfhuNo9K98Q9sNGfs=
 github.com/prometheus/procfs v0.0.2/go.mod h1:TjEm7ze935MbeOT/UhFTIMYKhuLP4wbCsTZCD3I8kEA=
-github.com/redskyops/redskyops-ui/v2 v2.0.2 h1:Gzt1znuu7WsEY+gZp8hDwQCPlHLVbNRv2NFGce77K/Q=
-github.com/redskyops/redskyops-ui/v2 v2.0.2/go.mod h1:1YrDT+GwRG3KGv0HtPBu0lJ9Ghf7RiAbvmwlCUSwjsU=
+github.com/redskyops/redskyops-ui/v2 v2.1.0 h1:t4hZYvCyLmAXjWpUUscSm4tS8G44W8Ul1mIzzbfpigg=
 github.com/redskyops/redskyops-ui/v2 v2.1.0/go.mod h1:1YrDT+GwRG3KGv0HtPBu0lJ9Ghf7RiAbvmwlCUSwjsU=
 github.com/remyoudompheng/bigfft v0.0.0-20170806203942-52369c62f446/go.mod h1:uYEyJGbgTkfkS4+E/PavXkNJcbFIpEtjt2B0KDQ5+9M=
 github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af/go.mod h1:XWv6SoW27p1b0cqNHllgS5HIMJraePCO15w5zCzIWYg=
