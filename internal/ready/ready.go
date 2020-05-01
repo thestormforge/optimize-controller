@@ -156,16 +156,24 @@ func (r *ReadinessChecker) unstructuredConditionStatus(obj *unstructured.Unstruc
 
 // appReady performs a rollout status check and falls back to a pod ready check
 func (r *ReadinessChecker) appReady(ctx context.Context, obj *unstructured.Unstructured) (string, corev1.ConditionStatus, error) {
-	// Get the kubectl status viewer for the object; ignore errors if we do not recognize the kind
-	if sv, err := polymorphichelpers.StatusViewerFor(obj.GetObjectKind().GroupVersionKind().GroupKind()); err == nil {
-		// This code returns `ok && err != nil` if the object isn't supported, we want to do a pod ready check in that case
-		if msg, ok, err := sv.Status(obj, 0); ok && err == nil {
-			return strings.TrimSpace(msg), corev1.ConditionTrue, nil
-		}
+	// Get the kubectl status viewer for the object, if no status viewer is available, fall back to pod ready
+	sv, err := polymorphichelpers.StatusViewerFor(obj.GetObjectKind().GroupVersionKind().GroupKind())
+	if err != nil {
+		return r.podReady(ctx, obj)
 	}
 
-	// Fall back to the pod ready check
-	return r.podReady(ctx, obj)
+	// Evaluate the status
+	msg, ok, err := sv.Status(obj, 0)
+	msg = strings.TrimSpace(msg)
+	if ok {
+		// If the object isn't supported (i.e. we are OK, but still have an error), fall back to pod ready
+		if err != nil {
+			return r.podReady(ctx, obj)
+		}
+		return msg, corev1.ConditionTrue, nil
+	}
+	return msg, corev1.ConditionFalse, err
+
 }
 
 // rolloutStatus uses the kubectl implementation of rollout status to get the status of an object
