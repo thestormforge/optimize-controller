@@ -220,6 +220,8 @@ type TrialSpec struct {
 	Selector *metav1.LabelSelector `json:"selector,omitempty"`
 	// Template is the job template used to create trial run jobs
 	Template *batchv1beta1.JobTemplateSpec `json:"template,omitempty"`
+	// InitialDelaySeconds is number of seconds to wait after a trial becomes ready before starting the trial run job
+	InitialDelaySeconds int32 `json:"initialDelaySeconds,omitempty"`
 	// The offset used to adjust the start time to account for spin up of the trial run
 	StartTimeOffset *metav1.Duration `json:"startTimeOffset,omitempty"`
 	// The approximate amount of time the trial run should execute (not inclusive of the start time offset)

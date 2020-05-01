@@ -197,6 +197,7 @@ TrialSpec defines the desired state of Trial
 | `assignments` | Assignments are used to patch the cluster state prior to the trial run | _[][Assignment](#assignment)_ | false |
 | `selector` | Selector matches the job representing the trial run | _*[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#labelselector-v1-meta)_ | false |
 | `template` | Template is the job template used to create trial run jobs | _*[JobTemplateSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#jobtemplatespec-v1beta1-batch)_ | false |
+| `initialDelaySeconds` | InitialDelaySeconds is number of seconds to wait after a trial becomes ready before starting the trial run job | _int32_ | false |
 | `startTimeOffset` | The offset used to adjust the start time to account for spin up of the trial run | _*metav1.Duration_ | false |
 | `approximateRuntime` | The approximate amount of time the trial run should execute (not inclusive of the start time offset) | _*metav1.Duration_ | false |
 | `ttlSecondsAfterFinished` | The minimum number of seconds before an attempt should be made to clean up the trial, if unset or negative no attempt is made to clean up the trial | _*int32_ | false |
