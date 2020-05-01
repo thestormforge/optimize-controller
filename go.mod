@@ -19,7 +19,7 @@ require (
 	github.com/pkg/browser v0.0.0-20180916011732-0a3d74bf9ce4
 	github.com/prometheus/client_golang v1.0.0
 	github.com/prometheus/common v0.4.1
-	github.com/redskyops/redskyops-ui/v2 v2.0.2
+	github.com/redskyops/redskyops-ui/v2 v2.1.0
 	github.com/spf13/cobra v0.0.5
 	github.com/stretchr/testify v1.4.0
 	github.com/zorkian/go-datadog-api v2.24.0+incompatible
