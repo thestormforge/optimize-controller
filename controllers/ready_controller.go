@@ -177,11 +177,11 @@ func (r *ReadyReconciler) checkReadiness(ctx context.Context, t *redskyv1alpha1.
 		}
 
 		// Check for readiness
-		if msg, ready, err := checker.check(ctx, c, ul, probeTime); err != nil {
+		if msg, isReady, err := checker.check(ctx, c, ul, probeTime); err != nil {
 			readinessCheckFailed(t, probeTime, err)
 			err := r.Update(ctx, t)
 			return controller.RequeueConflict(err)
-		} else if !ready {
+		} else if !isReady {
 			// This will get overwritten with anything that isn't ready as we progress through the loop
 			trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialReady, corev1.ConditionFalse, "Waiting", msg, probeTime)
 		}
