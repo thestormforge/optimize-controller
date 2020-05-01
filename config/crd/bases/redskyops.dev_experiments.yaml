@@ -283,6 +283,9 @@ spec:
                         uid:
                           type: string
                       type: object
+                    initialDelaySeconds:
+                      format: int32
+                      type: integer
                     patchOperations:
                       items:
                         properties:
