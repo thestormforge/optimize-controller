@@ -1,0 +1,10 @@
+name: Documentation workflow
+on:
+  release:
+    types: [published]
+jobs:
+  triggerDeploy:
+    name: Trigger Deploy
+    steps:
+      - name: Invoke build hook
+        run: curl -X POST -d '{}' https://api.netlify.com/build_hooks/${{ secrets.NETLIFY_BUILD_HOOK }}?trigger_title=GitHub+release
