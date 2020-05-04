@@ -37,14 +37,14 @@ $ kustomize build github.com/redskyops/redskyops-recipes/postgres | kubectl appl
 With your experiment created, you can be begin running trials by suggesting parameter assignments locally. Each trial will create one or more Kubernetes jobs and will conclude by collecting a small number of metric values indicative of the performance for the trial.
 
 ```sh
-$ redskyctl generate trial --assign memory=1000 --assign cpu=500 -f <(kubectl get experiment postgres-example-test -o yaml)  | kubectl create -f -
+$ redskyctl generate trial --assign memory=1000 --assign cpu=500 -f <(kubectl get experiment postgres-example -o yaml)  | kubectl create -f -
 ```
 
 Or alternatively, To interactively create a new trial for the example experiment, run the following.
 You will be prompted to enter a value for each parameter in the experiment and a new trial will be created.
 
 ```sh
-$ redskyctl generate trial --interactive -f <(kubectl get experiment postgres-example-test -o yaml)
+$ redskyctl generate trial --interactive -f <(kubectl get experiment postgres-example -o yaml)
 ```
 
 You can monitor the progress using `kubectl`:
@@ -62,7 +62,7 @@ After the trial is complete, you will be able to view the parameters and the met
 To clean up the data from your experiment, simply delete the experiment. The delete will cascade to the associated trials and other Kubernetes objects:
 
 ```sh
-$ kubectl delete experiment postgres-example-test
+$ kubectl delete experiment postgres-example
 ```
 
 ## Next Steps
