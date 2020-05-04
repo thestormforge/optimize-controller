@@ -14,6 +14,7 @@ redskyctl authorize-cluster [flags]
 
 ```
       --client-name string   Client name to use for registration.
+      --helm-values          Generate a Helm values file instead of a secret.
   -h, --help                 help for authorize-cluster
 ```
 

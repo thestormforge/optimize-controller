@@ -14,6 +14,7 @@ redskyctl generate secret [flags]
 
 ```
       --client-name string   Client name to use for registration.
+      --helm-values          Generate a Helm values file instead of a secret.
   -h, --help                 help for secret
   -o, --output format        Output format. One of: json|yaml (default "yaml")
 ```
