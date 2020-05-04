@@ -3,7 +3,7 @@ on:
   release:
     types: [published]
 jobs:
-  build:
+  triggerDeploy:
     name: Trigger Deploy
     steps:
       - name: Invoke build hook
