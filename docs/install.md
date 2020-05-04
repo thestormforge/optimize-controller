@@ -20,7 +20,7 @@ curl -s https://api.github.com/repos/redskyops/redskyops-controller/releases/lat
 sudo mv redskyctl /usr/local/bin/
 ```
 
-## Using Homebrew
+### Using Homebrew
 
 For macOS users, you can install `redskyctl` using Homebrew:
 
@@ -38,10 +38,6 @@ To perform an easy install, simply run `redskyctl init`. This will run a pod in 
 
 Using `redskyctl init` is safe for multiple invocations; in fact re-running it with a new version of `redskyctl` is also the easiest way to upgrade your in cluster components or configuration.
 
-### Easy Enterprise Install
-
-If you are subscribing to the Enterprise product, please contact your sales representative for additional configuration prior to running `redskyctl init`. If you just want to get started, you can always apply the additional configuration later.
-
 ### Helm Install
 
 If you cannot use `redskyctl` to install, a basic Helm chart exists. To install using Helm, add the Red Sky Ops repository and install the `redskyops` chart:
@@ -53,6 +49,12 @@ helm install --namespace redsky-system --name redsky redsky/redskyops
 ```
 
 The latest release of the Helm chart may not reference the latest application version, use the `redskyTag` value to override the application version.
+
+### Enterprise Installation
+
+If you are subscribing to the Enterprise product, please contact your sales representative prior to running `redskyctl init` or installing via Helm. If you just want to get started, you can always apply the additional configuration later.
+
+Additional information can be found in the [Server Configuration](remote.md) section.
 
 ### RBAC Requirements
 
