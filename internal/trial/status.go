@@ -188,10 +188,10 @@ func values(t *redskyv1alpha1.Trial) string {
 		}
 	}
 
-	values := make([]string, len(t.Spec.Values))
+	values := make([]string, 0, len(t.Spec.Values))
 	for i := range t.Spec.Values {
 		if t.Spec.Values[i].AttemptsRemaining == 0 {
-			values[i] = fmt.Sprintf("%s=%s", t.Spec.Values[i].Name, t.Spec.Values[i].Value)
+			values = append(values, fmt.Sprintf("%s=%s", t.Spec.Values[i].Name, t.Spec.Values[i].Value))
 		}
 	}
 	return strings.Join(values, ", ")
