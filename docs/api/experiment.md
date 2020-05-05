@@ -63,14 +63,14 @@ ExperimentSpec defines the desired state of Experiment
 | ----- | ----------- | ------ | -------- |
 | `replicas` | Replicas is the number of trials to execute concurrently, defaults to 1 | _*int32_ | false |
 | `optimization` | Optimization defines additional configuration for the optimization | _[][Optimization](#optimization)_ | false |
-| `parameters` | Parameters defines the search space for the experiment | _[][Parameter](#parameter)_ | false |
+| `parameters` | Parameters defines the search space for the experiment | _[][Parameter](#parameter)_ | true |
 | `constraints` | Constraints defines restrictions on the parameter domain for the experiment | _[][Constraint](#constraint)_ | false |
-| `metrics` | Metrics defines the outcomes for the experiment | _[][Metric](#metric)_ | false |
+| `metrics` | Metrics defines the outcomes for the experiment | _[][Metric](#metric)_ | true |
 | `patches` | Patches is a sequence of templates written against the experiment parameters that will be used to put the cluster into the desired state | _[][PatchTemplate](#patchtemplate)_ | false |
 | `namespaceSelector` | NamespaceSelector is used to locate existing namespaces for trials | _*[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#labelselector-v1-meta)_ | false |
 | `namespaceTemplate` | NamespaceTemplate can be specified to create new namespaces for trials; if specified created namespaces must be matched by the namespace selector | _*[NamespaceTemplateSpec](#namespacetemplatespec)_ | false |
 | `selector` | Selector locates trial resources that are part of this experiment | _*[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#labelselector-v1-meta)_ | false |
-| `template` | Template for creating a new trial. The resulting trial must be matched by Selector. The template can provide an initial namespace, however other namespaces (matched by NamespaceSelector) will be used if the effective replica count is more then one | _[TrialTemplateSpec](#trialtemplatespec)_ | true |
+| `template` | Template for creating a new trial. The resulting trial must be matched by Selector. The template can provide an initial namespace, however other namespaces (matched by NamespaceSelector) will be used if the effective replica count is more then one | _[TrialTemplateSpec](#trialtemplatespec)_ | false |
 
 [Back to TOC](#table-of-contents)
 

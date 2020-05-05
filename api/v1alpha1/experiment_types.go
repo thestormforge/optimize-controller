@@ -175,11 +175,11 @@ type ExperimentSpec struct {
 	// Optimization defines additional configuration for the optimization
 	Optimization []Optimization `json:"optimization,omitempty"`
 	// Parameters defines the search space for the experiment
-	Parameters []Parameter `json:"parameters,omitempty"`
+	Parameters []Parameter `json:"parameters"`
 	// Constraints defines restrictions on the parameter domain for the experiment
 	Constraints []Constraint `json:"constraints,omitempty"`
 	// Metrics defines the outcomes for the experiment
-	Metrics []Metric `json:"metrics,omitempty"`
+	Metrics []Metric `json:"metrics"`
 	// Patches is a sequence of templates written against the experiment parameters that will be used to put the
 	// cluster into the desired state
 	Patches []PatchTemplate `json:"patches,omitempty"`
@@ -193,7 +193,7 @@ type ExperimentSpec struct {
 	// Template for creating a new trial. The resulting trial must be matched by Selector. The template can provide an
 	// initial namespace, however other namespaces (matched by NamespaceSelector) will be used if the effective
 	// replica count is more then one
-	Template TrialTemplateSpec `json:"template"`
+	Template TrialTemplateSpec `json:"template,omitempty"`
 }
 
 // ExperimentStatus defines the observed state of Experiment
