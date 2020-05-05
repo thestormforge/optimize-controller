@@ -274,6 +274,19 @@ type Experiment struct {
 	Parameters []Parameter `json:"parameters"`
 }
 
+// Name allows an experiment to be used as an ExperimentName
+func (e *Experiment) Name() string {
+	u, err := url.Parse(e.Self)
+	if err != nil {
+		return ""
+	}
+	i := strings.Index(u.Path, endpointExperiment)
+	if i < 0 {
+		return ""
+	}
+	return u.Path[len(endpointExperiment)+i:]
+}
+
 type ExperimentItem struct {
 	Experiment
 
@@ -520,7 +533,7 @@ func (h *httpAPI) GetAllExperimentsByPage(ctx context.Context, u string) (Experi
 }
 
 func (h *httpAPI) GetExperimentByName(ctx context.Context, n ExperimentName) (Experiment, error) {
-	u := h.client.URL(endpointExperiment + url.PathEscape(n.Name()))
+	u := h.client.URL(endpointExperiment + n.Name())
 	return h.GetExperiment(ctx, u.String())
 }
 

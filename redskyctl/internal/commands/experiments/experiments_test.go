@@ -70,6 +70,11 @@ func TestParseNames(t *testing.T) {
 			},
 		},
 		{
+			desc:  "Spaced",
+			args:  []string{"experiment", "Foo Bar"},
+			names: []name{{Type: typeExperiment, Name: "Foo Bar", Number: -1}},
+		},
+		{
 			desc:  "NotSpecified",
 			args:  nil,
 			names: nil,

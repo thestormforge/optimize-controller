@@ -240,6 +240,8 @@ func (m *experimentsMeta) ExtractValue(obj interface{}, column string) (string, 
 	case *experimentsv1alpha1.ExperimentItem:
 		switch column {
 		case "name":
+			return o.Name(), nil
+		case "Name":
 			return o.DisplayName, nil
 		case "observations":
 			return strconv.FormatInt(o.Observations, 10), nil
