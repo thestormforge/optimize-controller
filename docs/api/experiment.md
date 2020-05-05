@@ -93,7 +93,7 @@ Metric represents an observable outcome from a trial run
 | ----- | ----------- | ------ | -------- |
 | `name` | The name of the metric | _string_ | true |
 | `minimize` | Indicator that the goal of the experiment is to minimize the value of this metric | _bool_ | false |
-| `type` | The metric collection type, one of: local\|prometheus\|datadog\|jsonpath, default: local | _MetricType_ | false |
+| `type` | The metric collection type, one of: local\|pods\|prometheus\|datadog\|jsonpath, default: local | _MetricType_ | false |
 | `query` | Collection type specific query, e.g. Go template for "local", PromQL for "prometheus" or a JSON pointer expression (with curly braces) for "jsonpath" | _string_ | true |
 | `errorQuery` | Collection type specific query for the error associated with collected metric value | _string_ | false |
 | `scheme` | The scheme to use when collecting metrics | _string_ | false |
@@ -164,9 +164,9 @@ PatchTemplate defines a target resource and a patch template to apply
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| `type` | The patch type, one of: json\|merge\|strategic, default: strategic | _PatchType_ | false |
-| `patch` | A Go Template that evaluates to valid patch. | _string_ | true |
-| `targetRef` | Direct reference to the object the patch should be applied to. | _*[ObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#objectreference-v1-core)_ | false |
+| `type` | The patch type, one of: strategic\|merge\|json, default: strategic | _PatchType_ | false |
+| `patch` | A Go Template that evaluates to valid patch | _string_ | true |
+| `targetRef` | Direct reference to the object the patch should be applied to | _*[ObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#objectreference-v1-core)_ | false |
 | `readinessGates` | ReadinessGates will be evaluated for patch target readiness. A patch target is ready if all conditions specified in the readiness gates have a status equal to "True". If no readiness gates are specified, some target types may have default gates assigned to them. Some condition checks may result in errors, e.g. a condition type of "Ready" is not allowed for a ConfigMap. Condition types starting with "redskyops.dev/" may not appear in the patched target's condition list, but are still evaluated against the resource's state. | _[][PatchReadinessGate](#patchreadinessgate)_ | false |
 
 [Back to TOC](#table-of-contents)

@@ -67,7 +67,7 @@ HelmValueSource represents a source for a Helm value
 
 ## HelmValuesFromSource
 
-HelmValueFromSource represents a source of a values mapping
+HelmValuesFromSource represents a source of a values mapping
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
