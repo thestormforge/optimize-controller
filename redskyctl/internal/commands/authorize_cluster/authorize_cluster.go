@@ -51,6 +51,11 @@ func NewCommand(o *Options) *cobra.Command {
 }
 
 func (o *Options) authorizeCluster(ctx context.Context) error {
+	// If we are generating Helm values, just call the generator directly and return
+	if o.HelmValues {
+		return o.generate(ctx)
+	}
+
 	// Fork `kubectl apply` and get a pipe to write manifests to
 	kubectlApply, err := o.Config.Kubectl(ctx, "apply", "-f", "-")
 	if err != nil {

@@ -35,3 +35,7 @@ redskyctl init
 ```
 
 Alternately, you can store your configuration in the `redsky-manager` secret of the `redsky-system` namespace. You can also view this secret to verify the effective configuration values.
+
+## Helm Values
+
+If you are installing the Red Sky Ops Controller in your cluster using Helm, you can run `redskyctl authorize-cluster --helm-values` to produce a `values.yaml` file with the necessary extra configuration.

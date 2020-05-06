@@ -19,6 +19,7 @@ package authorize_cluster
 import (
 	"context"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/redskyops/redskyops-controller/internal/config"
@@ -28,6 +29,7 @@ import (
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/yaml"
 )
 
 // TODO This should work like a kustomize secret generator for the extra env vars
@@ -51,6 +53,8 @@ type GeneratorOptions struct {
 	ClientName string
 	// AllowUnauthorized generates a secret with no authorization information
 	AllowUnauthorized bool
+	// HelmValues indicates that instead of generating a Kubernetes secret, we should generate a Helm values file
+	HelmValues bool
 }
 
 // NewGeneratorCommand creates a command for generating the cluster authorization secret
@@ -82,6 +86,7 @@ func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 func (o *GeneratorOptions) addFlags(cmd *cobra.Command) {
 	// TODO Allow name to be configurable?
 	cmd.Flags().StringVar(&o.ClientName, "client-name", o.ClientName, "Client name to use for registration.")
+	cmd.Flags().BoolVar(&o.HelmValues, "helm-values", o.HelmValues, "Generate a Helm values file instead of a secret.")
 	cmd.Flags().BoolVar(&o.AllowUnauthorized, "allow-unauthorized", o.AllowUnauthorized, "Generate a secret without authorization, if necessary.")
 	_ = cmd.Flags().MarkHidden("allow-unauthorized")
 }
@@ -144,6 +149,11 @@ func (o *GeneratorOptions) generate(ctx context.Context) error {
 	secret.Data["REDSKY_AUTHORIZATION_CLIENT_ID"] = []byte(info.ClientID)
 	secret.Data["REDSKY_AUTHORIZATION_CLIENT_SECRET"] = []byte(info.ClientSecret)
 
+	// Use an alternate printer just for Helm values
+	if o.HelmValues {
+		o.Printer = &helmValuesPrinter{}
+	}
+
 	return o.Printer.PrintObj(secret, o.Out)
 }
 
@@ -181,4 +191,31 @@ func (o *GeneratorOptions) clientInfo(ctx context.Context, ctrl *config.Controll
 		ResponseTypes: []string{},
 	}
 	return o.Config.RegisterClient(ctx, client)
+}
+
+type helmValuesPrinter struct {
+}
+
+func (h helmValuesPrinter) PrintObj(i interface{}, w io.Writer) error {
+	secret, ok := i.(*corev1.Secret)
+	if !ok {
+		return nil
+	}
+
+	vals := map[string]interface{}{
+		"remoteServer": map[string]interface{}{
+			"enabled":      true,
+			"identifier":   string(secret.Data["REDSKY_SERVER_IDENTIFIER"]),
+			"issuer":       string(secret.Data["REDSKY_SERVER_ISSUER"]),
+			"clientID":     string(secret.Data["REDSKY_AUTHORIZATION_CLIENT_ID"]),
+			"clientSecret": string(secret.Data["REDSKY_AUTHORIZATION_CLIENT_SECRET"]),
+		},
+	}
+
+	b, err := yaml.Marshal(vals)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(b)
+	return err
 }
