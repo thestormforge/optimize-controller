@@ -197,25 +197,25 @@ type helmValuesPrinter struct {
 }
 
 func (h helmValuesPrinter) PrintObj(i interface{}, w io.Writer) error {
-	if secret, ok := i.(*corev1.Secret); ok {
-		vals := map[string]interface{}{
-			"remoteServer": map[string]interface{}{
-				"enabled":      true,
-				"identifier":   string(secret.Data["REDSKY_SERVER_IDENTIFIER"]),
-				"issuer":       string(secret.Data["REDSKY_SERVER_ISSUER"]),
-				"clientID":     string(secret.Data["REDSKY_AUTHORIZATION_CLIENT_ID"]),
-				"clientSecret": string(secret.Data["REDSKY_AUTHORIZATION_CLIENT_SECRET"]),
-			},
-		}
-
-		b, err := yaml.Marshal(vals)
-		if err != nil {
-			return err
-		}
-		_, err = w.Write(b)
-		if err != nil {
-			return err
-		}
+	secret, ok := i.(*corev1.Secret)
+	if !ok {
+		return nil
 	}
-	return nil
+
+	vals := map[string]interface{}{
+		"remoteServer": map[string]interface{}{
+			"enabled":      true,
+			"identifier":   string(secret.Data["REDSKY_SERVER_IDENTIFIER"]),
+			"issuer":       string(secret.Data["REDSKY_SERVER_ISSUER"]),
+			"clientID":     string(secret.Data["REDSKY_AUTHORIZATION_CLIENT_ID"]),
+			"clientSecret": string(secret.Data["REDSKY_AUTHORIZATION_CLIENT_SECRET"]),
+		},
+	}
+
+	b, err := yaml.Marshal(vals)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(b)
+	return err
 }
