@@ -34,18 +34,22 @@ import (
 // TODO Combine it with the Prometheus clients?
 var httpClient = &http.Client{Timeout: 10 * time.Second}
 
-func captureJSONPathMetric(m *redskyv1alpha1.Metric, target runtime.Object) (float64, float64, error) {
-	urls, err := toURL(target, m)
-	if err == nil {
-		for _, u := range urls {
-			if value, stddev, cerr := captureOneJSONPathMetric(u, m.Name, m.Query); cerr != nil {
-				err = cerr
-			} else {
-				return value, stddev, nil
-			}
-		}
+func captureJSONPathMetric(m *redskyv1alpha1.Metric, target runtime.Object) (value float64, stddev float64, err error) {
+	var urls []string
+
+	if urls, err = toURL(target, m); err != nil {
+		return value, stddev, err
 	}
-	return 0, 0, err
+
+	for _, u := range urls {
+		if value, stddev, err = captureOneJSONPathMetric(u, m.Name, m.Query); err != nil {
+			continue
+		}
+
+		return value, stddev, nil
+	}
+
+	return value, stddev, err
 }
 
 func captureOneJSONPathMetric(url, name, query string) (float64, float64, error) {
