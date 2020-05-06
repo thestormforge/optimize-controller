@@ -85,7 +85,7 @@ type ParameterSelector struct {
 	// TODO Offer simple manipulations via "percent", "delta", "scale"? Allow string references to other parameters
 }
 
-// HelmValueFromSource represents a source of a values mapping
+// HelmValuesFromSource represents a source of a values mapping
 type HelmValuesFromSource struct {
 	// The ConfigMap to select from
 	ConfigMap *ConfigMapHelmValuesFromSource `json:"configMap,omitempty"`
@@ -170,26 +170,25 @@ type Value struct {
 	// The number of remaining attempts to observer the value, will be automatically set
 	// to zero if the metric is successfully collected
 	AttemptsRemaining int `json:"attemptsRemaining,omitempty"`
-	// TODO Initial value captured prior to job execution for local metrics?
 }
 
 // TrialConditionType represents the possible observable conditions for a trial
 type TrialConditionType string
 
 const (
-	// Condition that indicates a successful trial run
+	// TrialComplete is a condition that indicates a successful trial run
 	TrialComplete TrialConditionType = "redskyops.dev/trial-complete"
-	// Condition that indicates a failed trial run
+	// TrialFailed is a condition that indicates a failed trial run
 	TrialFailed TrialConditionType = "redskyops.dev/trial-failed"
-	// Condition that indicates all "create" setup tasks have finished
+	// TrialSetupCreated is a condition that indicates all "create" setup tasks have finished
 	TrialSetupCreated TrialConditionType = "redskyops.dev/trial-setup-created"
-	// Condition that indicates all "delete" setup tasks have finished
+	// TrialSetupDeleted is a condition that indicates all "delete" setup tasks have finished
 	TrialSetupDeleted TrialConditionType = "redskyops.dev/trial-setup-deleted"
-	// Condition that indicates patches have been applied for a trial
+	// TrialPatched is a condition that indicates patches have been applied for a trial
 	TrialPatched TrialConditionType = "redskyops.dev/trial-patched"
-	// Condition that indicates a trail has stabilized after patches
+	// TrialReady is a condition that indicates the application is ready after patches were applied
 	TrialReady TrialConditionType = "redskyops.dev/trial-ready"
-	// Condition that indicates a trial has had metrics collected
+	// TrialObserved is a condition that indicates a trial has had metrics collected
 	TrialObserved TrialConditionType = "redskyops.dev/trial-observed"
 )
 

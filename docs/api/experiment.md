@@ -63,14 +63,14 @@ ExperimentSpec defines the desired state of Experiment
 | ----- | ----------- | ------ | -------- |
 | `replicas` | Replicas is the number of trials to execute concurrently, defaults to 1 | _*int32_ | false |
 | `optimization` | Optimization defines additional configuration for the optimization | _[][Optimization](#optimization)_ | false |
-| `parameters` | Parameters defines the search space for the experiment | _[][Parameter](#parameter)_ | false |
+| `parameters` | Parameters defines the search space for the experiment | _[][Parameter](#parameter)_ | true |
 | `constraints` | Constraints defines restrictions on the parameter domain for the experiment | _[][Constraint](#constraint)_ | false |
-| `metrics` | Metrics defines the outcomes for the experiment | _[][Metric](#metric)_ | false |
+| `metrics` | Metrics defines the outcomes for the experiment | _[][Metric](#metric)_ | true |
 | `patches` | Patches is a sequence of templates written against the experiment parameters that will be used to put the cluster into the desired state | _[][PatchTemplate](#patchtemplate)_ | false |
 | `namespaceSelector` | NamespaceSelector is used to locate existing namespaces for trials | _*[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#labelselector-v1-meta)_ | false |
 | `namespaceTemplate` | NamespaceTemplate can be specified to create new namespaces for trials; if specified created namespaces must be matched by the namespace selector | _*[NamespaceTemplateSpec](#namespacetemplatespec)_ | false |
 | `selector` | Selector locates trial resources that are part of this experiment | _*[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#labelselector-v1-meta)_ | false |
-| `template` | Template for creating a new trial. The resulting trial must be matched by Selector. The template can provide an initial namespace, however other namespaces (matched by NamespaceSelector) will be used if the effective replica count is more then one | _[TrialTemplateSpec](#trialtemplatespec)_ | true |
+| `template` | Template for creating a new trial. The resulting trial must be matched by Selector. The template can provide an initial namespace, however other namespaces (matched by NamespaceSelector) will be used if the effective replica count is more then one | _[TrialTemplateSpec](#trialtemplatespec)_ | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -93,7 +93,7 @@ Metric represents an observable outcome from a trial run
 | ----- | ----------- | ------ | -------- |
 | `name` | The name of the metric | _string_ | true |
 | `minimize` | Indicator that the goal of the experiment is to minimize the value of this metric | _bool_ | false |
-| `type` | The metric collection type, one of: local\|prometheus\|datadog\|jsonpath, default: local | _MetricType_ | false |
+| `type` | The metric collection type, one of: local\|pods\|prometheus\|datadog\|jsonpath, default: local | _MetricType_ | false |
 | `query` | Collection type specific query, e.g. Go template for "local", PromQL for "prometheus" or a JSON pointer expression (with curly braces) for "jsonpath" | _string_ | true |
 | `errorQuery` | Collection type specific query for the error associated with collected metric value | _string_ | false |
 | `scheme` | The scheme to use when collecting metrics | _string_ | false |
@@ -164,9 +164,9 @@ PatchTemplate defines a target resource and a patch template to apply
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| `type` | The patch type, one of: json\|merge\|strategic, default: strategic | _PatchType_ | false |
-| `patch` | A Go Template that evaluates to valid patch. | _string_ | true |
-| `targetRef` | Direct reference to the object the patch should be applied to. | _*[ObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#objectreference-v1-core)_ | false |
+| `type` | The patch type, one of: strategic\|merge\|json, default: strategic | _PatchType_ | false |
+| `patch` | A Go Template that evaluates to valid patch | _string_ | true |
+| `targetRef` | Direct reference to the object the patch should be applied to | _*[ObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#objectreference-v1-core)_ | false |
 | `readinessGates` | ReadinessGates will be evaluated for patch target readiness. A patch target is ready if all conditions specified in the readiness gates have a status equal to "True". If no readiness gates are specified, some target types may have default gates assigned to them. Some condition checks may result in errors, e.g. a condition type of "Ready" is not allowed for a ConfigMap. Condition types starting with "redskyops.dev/" may not appear in the patched target's condition list, but are still evaluated against the resource's state. | _[][PatchReadinessGate](#patchreadinessgate)_ | false |
 
 [Back to TOC](#table-of-contents)

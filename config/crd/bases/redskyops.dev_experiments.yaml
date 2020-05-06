@@ -3804,7 +3804,8 @@ spec:
                   type: object
               type: object
           required:
-          - template
+          - metrics
+          - parameters
           type: object
         status:
           properties:

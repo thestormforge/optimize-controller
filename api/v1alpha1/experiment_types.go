@@ -77,33 +77,22 @@ type SumConstraint struct {
 	Parameters []SumConstraintParameter `json:"parameters"`
 }
 
-// PatchType represents the allowable types of patches
-type PatchType string
-
 // MetricType represents the allowable types of metrics
 type MetricType string
 
 const (
-	// Strategic merge patch
-	PatchStrategic PatchType = "strategic"
-	// Merge patch
-	PatchMerge = "merge"
-	// JSON patch (RFC 6902)
-	PatchJSON = "json"
-
-	// Local metrics are Go Templates evaluated against the trial itself. No external service is consulted, primarily
+	// MetricLocal metrics are Go Templates evaluated against the trial itself. No external service is consulted, primarily
 	// useful for extracting start and completion times.
 	MetricLocal MetricType = "local"
-	// Pod metrics are similar to local metrics, however the list of pods in the trial namespace matched by the selector
+	// MetricPods metrics are similar to local metrics, however the list of pods in the trial namespace matched by the selector
 	// is also available.
-	MetricPods = "pods"
-	// Prometheus metrics issue PromQL queries to a matched service. Queries MUST evaluate to a scalar value.
-	MetricPrometheus = "prometheus"
-	// Datadog metrics issue queries to the Datadog service. Requires API and application key configuration.
-	MetricDatadog = "datadog"
-	// JSON path metrics fetch a JSON resource from the matched service. Queries are JSON path expression evaluated against the resource.
-	MetricJSONPath = "jsonpath"
-	// TODO "regex"?
+	MetricPods MetricType = "pods"
+	// MetricPrometheus metrics issue PromQL queries to a matched service. Queries MUST evaluate to a scalar value.
+	MetricPrometheus MetricType = "prometheus"
+	// MetricDatadog metrics issue queries to the Datadog service. Requires API and application key configuration.
+	MetricDatadog MetricType = "datadog"
+	// MetricJSONPath metrics fetch a JSON resource from the matched service. Queries are JSON path expression evaluated against the resource.
+	MetricJSONPath MetricType = "jsonpath"
 )
 
 // Metric represents an observable outcome from a trial run
@@ -113,7 +102,7 @@ type Metric struct {
 	// Indicator that the goal of the experiment is to minimize the value of this metric
 	Minimize bool `json:"minimize,omitempty"`
 
-	// The metric collection type, one of: local|prometheus|datadog|jsonpath, default: local
+	// The metric collection type, one of: local|pods|prometheus|datadog|jsonpath, default: local
 	Type MetricType `json:"type,omitempty"`
 	// Collection type specific query, e.g. Go template for "local", PromQL for "prometheus" or a JSON pointer expression (with curly braces) for "jsonpath"
 	Query string `json:"query"`
@@ -136,13 +125,25 @@ type PatchReadinessGate struct {
 	ConditionType string `json:"conditionType"`
 }
 
+// PatchType represents the allowable types of patches
+type PatchType string
+
+const (
+	// PatchStrategic is the patch type for a strategic merge patch
+	PatchStrategic PatchType = "strategic"
+	// PatchMerge is the patch type for a merge patch
+	PatchMerge PatchType = "merge"
+	// PatchJSON is the patch type for aJSON patch (RFC 6902)
+	PatchJSON PatchType = "json"
+)
+
 // PatchTemplate defines a target resource and a patch template to apply
 type PatchTemplate struct {
-	// The patch type, one of: json|merge|strategic, default: strategic
+	// The patch type, one of: strategic|merge|json, default: strategic
 	Type PatchType `json:"type,omitempty"`
-	// A Go Template that evaluates to valid patch.
+	// A Go Template that evaluates to valid patch
 	Patch string `json:"patch"`
-	// Direct reference to the object the patch should be applied to.
+	// Direct reference to the object the patch should be applied to
 	TargetRef *corev1.ObjectReference `json:"targetRef,omitempty"`
 	// ReadinessGates will be evaluated for patch target readiness. A patch target is ready if all conditions specified
 	// in the readiness gates have a status equal to "True". If no readiness gates are specified, some target types may
@@ -175,11 +176,11 @@ type ExperimentSpec struct {
 	// Optimization defines additional configuration for the optimization
 	Optimization []Optimization `json:"optimization,omitempty"`
 	// Parameters defines the search space for the experiment
-	Parameters []Parameter `json:"parameters,omitempty"`
+	Parameters []Parameter `json:"parameters"`
 	// Constraints defines restrictions on the parameter domain for the experiment
 	Constraints []Constraint `json:"constraints,omitempty"`
 	// Metrics defines the outcomes for the experiment
-	Metrics []Metric `json:"metrics,omitempty"`
+	Metrics []Metric `json:"metrics"`
 	// Patches is a sequence of templates written against the experiment parameters that will be used to put the
 	// cluster into the desired state
 	Patches []PatchTemplate `json:"patches,omitempty"`
@@ -193,7 +194,7 @@ type ExperimentSpec struct {
 	// Template for creating a new trial. The resulting trial must be matched by Selector. The template can provide an
 	// initial namespace, however other namespaces (matched by NamespaceSelector) will be used if the effective
 	// replica count is more then one
-	Template TrialTemplateSpec `json:"template"`
+	Template TrialTemplateSpec `json:"template,omitempty"`
 }
 
 // ExperimentStatus defines the observed state of Experiment

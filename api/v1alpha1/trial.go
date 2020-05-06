@@ -40,12 +40,12 @@ func (in *Trial) ExperimentNamespacedName() types.NamespacedName {
 	return nn
 }
 
-// Checks to see if the trial has an initializer
+// HasInitializer checks to see if the trial has an initializer
 func (in *Trial) HasInitializer() bool {
 	return strings.TrimSpace(in.GetAnnotations()[AnnotationInitializer]) != ""
 }
 
-// Returns an assignment value by name
+// GetAssignment returns an assignment value by name
 func (in *Trial) GetAssignment(name string) (int64, bool) {
 	for i := range in.Spec.Assignments {
 		if in.Spec.Assignments[i].Name == name {
@@ -55,7 +55,7 @@ func (in *Trial) GetAssignment(name string) (int64, bool) {
 	return 0, false
 }
 
-// Returns the job selector
+// GetJobSelector returns the job selector
 func (in *Trial) GetJobSelector() *metav1.LabelSelector {
 	if in.Spec.Selector != nil {
 		return in.Spec.Selector
