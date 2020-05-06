@@ -79,7 +79,7 @@ func toURL(target runtime.Object, m *redskyv1alpha1.Metric) ([]string, error) {
 	// TODO We can probably handle a pod list by addressing it directly
 	list, ok := target.(*corev1.ServiceList)
 	if !ok {
-		return nil, fmt.Errorf("expected service list")
+		return nil, fmt.Errorf("expected target to be a service list")
 	}
 
 	// Get URL components
@@ -97,6 +97,10 @@ func toURL(target runtime.Object, m *redskyv1alpha1.Metric) ([]string, error) {
 		// When debugging in minikube, use `minikube tunnel` to expose the cluster IP on the host
 		// TODO How do we setup port forwarding in GCP?
 		host := s.Spec.ClusterIP
+		if host == "None" {
+			// Only actual clusterIPs are support
+			continue
+		}
 		port := m.Port.IntValue()
 
 		if port < 1 {

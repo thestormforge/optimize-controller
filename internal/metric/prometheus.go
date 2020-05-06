@@ -31,17 +31,21 @@ import (
 )
 
 func capturePrometheusMetric(m *redskyv1alpha1.Metric, target runtime.Object, completionTime time.Time) (value float64, stddev float64, err error) {
-	urls, err := toURL(target, m)
-	if err == nil {
-		for _, u := range urls {
-			if value, stddev, cerr := captureOnePrometheusMetric(u, m.Query, m.ErrorQuery, completionTime); cerr != nil {
-				err = cerr
-			} else {
-				return value, stddev, nil
-			}
-		}
+	var urls []string
+
+	if urls, err = toURL(target, m); err != nil {
+		return value, stddev, err
 	}
-	return 0, 0, err
+
+	for _, u := range urls {
+		if value, stddev, err = captureOnePrometheusMetric(u, m.Query, m.ErrorQuery, completionTime); err != nil {
+			continue
+		}
+
+		return value, stddev, nil
+	}
+
+	return value, stddev, err
 }
 
 func captureOnePrometheusMetric(address, query, errorQuery string, completionTime time.Time) (float64, float64, error) {
@@ -54,16 +58,19 @@ func captureOnePrometheusMetric(address, query, errorQuery string, completionTim
 	promAPI := promv1.NewAPI(c)
 
 	// Make sure Prometheus is ready
-	ts, err := promAPI.Targets(context.TODO())
+	targets, err := promAPI.Targets(context.TODO())
 	if err != nil {
 		return 0, 0, err
 	}
-	for _, t := range ts.Active {
-		if t.Health == promv1.HealthGood {
-			if t.LastScrape.Before(completionTime) {
-				// TODO Can we make a more informed delay?
-				return 0, 0, &CaptureError{RetryAfter: 5 * time.Second}
-			}
+
+	for _, target := range targets.Active {
+		if target.Health != promv1.HealthGood {
+			continue
+		}
+
+		if target.LastScrape.Before(completionTime) {
+			// TODO Can we make a more informed delay?
+			return 0, 0, &CaptureError{RetryAfter: 5 * time.Second}
 		}
 	}
 
