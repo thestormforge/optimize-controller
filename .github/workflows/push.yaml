@@ -53,3 +53,38 @@ jobs:
         with:
           name: redskyctl_linux_amd64
           path: dist/redskyctl-linux-amd64.tar.gz
+      - name: KinD (Kubernetes in Docker) Action
+        uses: engineerd/setup-kind@v0.3.0
+      - name: redsky quickstart
+        run: |
+          #echo "Install redskyctl"
+          #curl -sLo - https://github.com/redskyops/redskyops-controller/releases/download/v1.5.0/redskyctl-linux-amd64.tar.gz | \
+          #  tar -zxf - && \
+          #  chmod 755 ./redskyctl
+          echo "Init redskyops"
+          dist/redskyctl_linux_amd64/redskyctl init
+          echo "Install kustomize"
+          curl -s "https://raw.githubusercontent.com/\
+          kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"  | \
+            bash
+          echo "Patch postgres deployment"
+          ./kustomize build github.com/redskyops/redskyops-recipes/postgres > postgres.yaml
+          # Need to change strategy here since we're limited to 2cpu total
+          sed -i -e '37i\  strategy:\n    type: Recreate' postgres.yaml
+          echo "Create postgres experiment"
+          kubectl apply -f postgres.yaml
+          echo "Create new trial"
+          dist/redskyctl_linux_amd64/redskyctl generate trial \
+            --assign memory=500 \
+            --assign cpu=100 \
+            -f <(kubectl get experiment postgres-example-test -o yaml) | \
+              kubectl create -f -
+          kubectl get trial -o wide
+          # Change this back to a higher value when we can schedule the trial
+          echo "Wait for trial to complete (120s timeout)"
+          kubectl wait trial \
+            -l redskyops.dev/experiment=postgres-example-test \
+            --for condition=redskyops.dev/trial-complete \
+            --timeout 120s
+          kubectl get trial -o wide
+          kubectl get pods -o wide -l redskyops.dev/experiment=postgres-example-test
