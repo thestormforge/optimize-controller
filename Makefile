@@ -15,7 +15,7 @@ GOBIN=$(shell go env GOBIN)
 endif
 
 # Collect version information
-VERSION ?= $(shell git ls-remote --tags origin 'v*' | tail -1 | awk -F/ '{ print $$3 }')-next
+VERSION ?= $(shell git ls-remote --tags --refs origin 'v*' | awk -F/ '{ print $$3 }' | tail -1)-next
 BUILD_METADATA ?=
 GIT_COMMIT ?= $(shell git rev-parse HEAD)
 
