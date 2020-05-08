@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM golang:1.14 as builder
+FROM golang:1.14 as cache
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -9,6 +9,7 @@ COPY go.sum go.sum
 # and so that source changes don't invalidate our downloaded layer
 RUN go mod download
 
+FROM cache as builder
 # Copy the go source
 COPY main.go main.go
 COPY api/ api/

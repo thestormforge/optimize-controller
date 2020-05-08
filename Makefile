@@ -3,6 +3,7 @@
 IMG ?= controller:latest
 REDSKYCTL_IMG ?= redskyctl:latest
 SETUPTOOLS_IMG ?= setuptools:latest
+CACHE_IMG ?= redskycache:latest
 PULL_POLICY ?= IfNotPresent
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,maxDescLen=0"
@@ -15,7 +16,7 @@ GOBIN=$(shell go env GOBIN)
 endif
 
 # Collect version information
-VERSION ?= $(shell git ls-remote --tags --refs origin 'v*' | awk -F/ '{ print $$3 }' | tail -1)-next
+VERSION ?= $(shell git ls-remote --tags --refs origin 'v*' | tail -1 | awk -F/ '{ print $$3 }')-next
 BUILD_METADATA ?=
 GIT_COMMIT ?= $(shell git rev-parse HEAD)
 
@@ -76,13 +77,23 @@ generate: controller-gen
 
 # Build the docker images
 docker-build: test
-	docker build . -t ${IMG} --build-arg LDFLAGS='${LDFLAGS}'
-	docker build config -t ${SETUPTOOLS_IMG} --build-arg IMG='${IMG}' --build-arg PULL_POLICY='${PULL_POLICY}' --build-arg VERSION='${VERSION}'
+	docker pull ${CACHE_IMG} >/dev/null 2>&1 || :
+	docker build . -t ${CACHE_IMG} \
+		--target cache \
+		--cache-from=${CACHE_IMG}
+	docker build . -t ${IMG} \
+		--build-arg LDFLAGS='${LDFLAGS}' \
+		--cache-from=${CACHE_IMG}
+	docker build config -t ${SETUPTOOLS_IMG} \
+		--build-arg IMG='${IMG}' \
+		--build-arg PULL_POLICY='${PULL_POLICY}' \
+		--build-arg VERSION='${VERSION}'
 
 # Push the docker images
 docker-push:
 	docker push ${IMG}
 	docker push ${SETUPTOOLS_IMG}
+	docker push ${CACHE_IMG}
 
 # find or download controller-gen
 # download controller-gen if necessary
