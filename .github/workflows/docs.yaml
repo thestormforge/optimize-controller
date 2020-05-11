@@ -5,6 +5,7 @@ on:
 jobs:
   triggerDeploy:
     name: Trigger Deploy
+    runs-on: ubuntu-latest
     steps:
       - name: Invoke build hook
         run: curl -X POST -d '{}' https://api.netlify.com/build_hooks/${{ secrets.NETLIFY_BUILD_HOOK }}?trigger_title=GitHub+release
