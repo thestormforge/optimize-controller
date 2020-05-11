@@ -28,6 +28,13 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
+      - name: Cache Go Modules ( docker )
+        uses: actions/cache@v1
+        with:
+          path: dockercache
+          key: ${{ runner.os }}-docker-${{ hashFiles('**/redskycache.tar') }}
+          restore-keys: |
+            ${{ runner.os }}--docker
       - name: Set up Google Cloud Platform
         uses: GoogleCloudPlatform/github-actions/setup-gcloud@0.1.2
         with:
@@ -47,6 +54,7 @@ jobs:
         run: |
           make docker-build
           make docker-push
+          mkdir -p dockercache && docker save $CACHE_IMG -o dockercache/redskycache.tar
       - name: Build tool
         uses: goreleaser/goreleaser-action@v1
         with:

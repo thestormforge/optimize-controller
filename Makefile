@@ -77,7 +77,8 @@ generate: controller-gen
 
 # Build the docker images
 docker-build: test
-	docker pull ${CACHE_IMG} >/dev/null 2>&1 || :
+	#docker pull ${CACHE_IMG} >/dev/null 2>&1 || :
+	docker import dockercache/redskycache.tar ${CACHE_IMG} 2>&1 || :
 	docker build . -t ${CACHE_IMG} \
 		--target cache \
 		--cache-from=${CACHE_IMG}
@@ -93,7 +94,6 @@ docker-build: test
 docker-push:
 	docker push ${IMG}
 	docker push ${SETUPTOOLS_IMG}
-	docker push ${CACHE_IMG}
 
 # find or download controller-gen
 # download controller-gen if necessary
