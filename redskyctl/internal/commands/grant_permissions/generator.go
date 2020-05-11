@@ -20,8 +20,10 @@ import (
 	"github.com/redskyops/redskyops-controller/internal/config"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // GeneratorOptions are the configuration options for generating the controller role definitions
@@ -42,7 +44,7 @@ type GeneratorOptions struct {
 // NewGeneratorCommand creates a command for generating the controller role definitions
 func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "bootstrap-cluster-role",
+		Use:   "bootstrap-cluster-role", // TODO "bootstrap" isn't a good name for this
 		Short: "Generate Red Sky Ops permissions",
 		Long:  "Generate RBAC for Red Sky Ops",
 
@@ -68,13 +70,35 @@ func (o *GeneratorOptions) addFlags(cmd *cobra.Command) {
 }
 
 func (o *GeneratorOptions) generate() error {
-	// The cluster role includes an aggregation label for a role that is already bound to the controller's service account
+	// We need to know what namespace the controller is supposed to be in
+	ctrl, err := config.CurrentController(o.Config.Reader())
+	if err != nil {
+		return err
+	}
+
+	// The cluster role that defines what objects we are allowed to patch
 	clusterRole := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "redsky-aggregate-to-patching",
-			Labels: map[string]string{
-				"redskyops.dev/aggregate-to-patching": "true",
+			Name: "redsky-patching-role",
+		},
+	}
+
+	// The controller uses the default service account for the namespace it is installed in
+	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: clusterRole.Name + "binding",
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      "default",
+				Namespace: ctrl.Namespace,
 			},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     clusterRole.Name,
 		},
 	}
 
@@ -109,5 +133,12 @@ func (o *GeneratorOptions) generate() error {
 		return nil
 	}
 
-	return o.Printer.PrintObj(clusterRole, o.Out)
+	// Print the cluster role and binding as a single list
+	l := &corev1.List{
+		Items: []runtime.RawExtension{
+			{Object: clusterRole},
+			{Object: clusterRoleBinding},
+		},
+	}
+	return o.Printer.PrintObj(l, o.Out)
 }
