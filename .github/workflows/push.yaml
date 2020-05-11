@@ -13,8 +13,8 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v2
-      - name: Unshallow
-        run: git fetch --prune --unshallow
+      - name: Fetch tags
+        run: git fetch --depth=1 origin '+refs/tags/*:refs/tags/*'
       - name: Verify Header
         uses: talos-systems/conform@v0.1.0-alpha.19
       - name: Set up Go
