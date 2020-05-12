@@ -24,6 +24,7 @@ redskyctl [flags]
 
 * [redskyctl authorize-cluster](redskyctl_authorize-cluster.md)	 - Authorize a cluster
 * [redskyctl check](redskyctl_check.md)	 - Run a consistency check
+* [redskyctl completion](redskyctl_completion.md)	 - Output shell completion code
 * [redskyctl config](redskyctl_config.md)	 - Work with the configuration file
 * [redskyctl delete](redskyctl_delete.md)	 - Delete a Red Sky resource
 * [redskyctl generate](redskyctl_generate.md)	 - Generate Red Sky Ops objects
