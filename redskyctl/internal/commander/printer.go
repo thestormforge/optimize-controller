@@ -28,14 +28,12 @@ import (
 
 	"encoding/json"
 
-	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/duration"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-
 	"sigs.k8s.io/yaml"
 )
 
@@ -222,6 +220,7 @@ type marshalPrinter struct {
 
 // PrintObj will marshal the supplied object
 func (p *marshalPrinter) PrintObj(obj interface{}, w io.Writer) error {
+	// TODO It would be really nice if we could fix the field ordering for Unstructured objects
 	if strings.ToLower(p.outputFormat) == "yaml" {
 		output, err := yaml.Marshal(obj)
 		if err != nil {
@@ -366,6 +365,7 @@ func (p *csvPrinter) PrintObj(obj interface{}, w io.Writer) error {
 
 // kubePrinter handles both metadata extraction and printing of objects registered to an API Machinery scheme
 type kubePrinter struct {
+	scheme     *runtime.Scheme
 	printer    ResourcePrinter
 	hideStatus bool
 }
@@ -462,21 +462,48 @@ func (k *kubePrinter) Header(outputFormat string, column string) string {
 
 // PrintObj converts the Kube runtime object to an unstructured object for marshalling
 func (k *kubePrinter) PrintObj(obj interface{}, w io.Writer) error {
-	// As a special case, deal with runtime.Object, it's type metadata, and it's silly creation timestamp
-	scheme := runtime.NewScheme()
-	_ = clientgoscheme.AddToScheme(scheme)
-	_ = redskyv1alpha1.AddToScheme(scheme)
+	// Try to convert a single object, ignore failures by just printing the raw input
 	u := &unstructured.Unstructured{}
-	// TODO Is the InternalGroupVersioner going to cause issues based on the version of client-go we use?
-	if err := scheme.Convert(obj, u, runtime.InternalGroupVersioner); err == nil {
-		removeCreationTimestamp(u.UnstructuredContent())
-		if k.hideStatus {
-			delete(u.UnstructuredContent(), "status")
-		}
-
-		obj = u
+	if err := k.convert(obj, u); err != nil {
+		return k.printer.PrintObj(obj, w)
 	}
-	return k.printer.PrintObj(obj, w)
+
+	// Print the unstructured object if it is not a list
+	l, ok := obj.(*corev1.List)
+	if !ok || !u.IsList() {
+		return k.printer.PrintObj(u, w)
+	}
+
+	// List conversion is not deep, explicitly convert each item
+	ul := &unstructured.UnstructuredList{
+		Object: u.Object,
+		Items:  make([]unstructured.Unstructured, len(l.Items)),
+	}
+	for i := range l.Items {
+		// We are only doing deep conversion for a corev1.List so we can access the raw object like this
+		if err := k.convert(l.Items[i].Object, &ul.Items[i]); err != nil {
+			return err
+		}
+	}
+	return k.printer.PrintObj(ul, w)
+}
+
+// convert attempts to convert an arbitrary object into an unstructured Kubernetes object
+func (k *kubePrinter) convert(obj interface{}, u *unstructured.Unstructured) error {
+	// TODO Is the InternalGroupVersioner going to cause issues based on the version of client-go we use?
+	if err := k.scheme.Convert(obj, u, runtime.InternalGroupVersioner); err != nil {
+		return err
+	}
+
+	// Now that it is unstructured, remove the "null" creation timestamps
+	removeCreationTimestamp(u.UnstructuredContent())
+
+	// Depending on what we are doing, marshalling the object status may not be desirable
+	if k.hideStatus {
+		delete(u.UnstructuredContent(), "status")
+	}
+
+	return nil
 }
 
 // removeCreationTimestamp recursively searches for creation timestamps and removes them

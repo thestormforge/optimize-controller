@@ -22,12 +22,14 @@ import (
 	"strings"
 
 	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
+	"github.com/redskyops/redskyops-controller/internal/config"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 )
 
@@ -35,6 +37,8 @@ import (
 // TODO Instead of it's own plugin, have it be an option on the experiment plugin
 
 type RBACOptions struct {
+	// Config is the Red Sky Configuration used to generate the role binding
+	Config *config.RedSkyConfig
 	// Printer is the resource printer used to render generated objects
 	Printer commander.ResourcePrinter
 	// IOStreams are used to access the standard process streams
@@ -86,11 +90,31 @@ func (o *RBACOptions) Complete() {
 }
 
 func (o *RBACOptions) generate() error {
+	// We need to know what namespace the controller is supposed to be in
+	ctrl, err := config.CurrentController(o.Config.Reader())
+	if err != nil {
+		return err
+	}
+
 	// Generate a cluster role
 	clusterRole := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   o.Name,
-			Labels: map[string]string{"redskyops.dev/aggregate-to-patching": "true"},
+			Name: o.Name,
+		},
+	}
+
+	// The controller uses the default service account for the namespace it is installed in
+	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      "default",
+				Namespace: ctrl.Namespace,
+			},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
 		},
 	}
 
@@ -117,6 +141,10 @@ func (o *RBACOptions) generate() error {
 		}
 	}
 
+	// Update the cluster role binding based on the cluster role name
+	clusterRoleBinding.Name = clusterRole.Name + "binding"
+	clusterRoleBinding.RoleRef.Name = clusterRole.Name
+
 	// Add rules from the experiment
 	rules, err := o.findRules(experiment)
 	if err != nil {
@@ -131,7 +159,13 @@ func (o *RBACOptions) generate() error {
 		return nil
 	}
 
-	return o.Printer.PrintObj(clusterRole, o.Out)
+	l := &corev1.List{
+		Items: []runtime.RawExtension{
+			{Object: clusterRole},
+			{Object: clusterRoleBinding},
+		},
+	}
+	return o.Printer.PrintObj(l, o.Out)
 }
 
 // findRules finds the patch targets from an experiment
