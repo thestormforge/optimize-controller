@@ -21,6 +21,11 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: '1.14'
+      # Launch KinD early so we can do other things while the control plane converges
+      - name: KinD (Kubernetes in Docker) Initialization
+        uses: engineerd/setup-kind@v0.3.0
+        with:
+          wait: 0s
       - name: Set up Google Cloud Platform
         uses: GoogleCloudPlatform/github-actions/setup-gcloud@0.1.2
         with:
@@ -35,11 +40,6 @@ jobs:
           echo "::set-env name=SETUPTOOLS_IMG::gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/setuptools:${TAG}"
           echo "::set-env name=PULL_POLICY::Always"
           gcloud --quiet auth configure-docker
-      # Launch KinD early so we can do other things while the control plane converges
-      - name: KinD (Kubernetes in Docker) Initialization
-        uses: engineerd/setup-kind@v0.3.0
-        with:
-          wait: 0s
       - name: Build controller
         run: |
           make docker-build
@@ -49,41 +49,15 @@ jobs:
         with:
           args: release --skip-sign --rm-dist
       - name: Upload macOS binary
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v2
         with:
           name: redskyctl_darwin_amd64
           path: dist/redskyctl-darwin-amd64.tar.gz
       - name: Upload Linux binary
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v2
         with:
           name: redskyctl_linux_amd64
           path: dist/redskyctl-linux-amd64.tar.gz
       - name: redsky quickstart
         run: |
-          echo "Init redskyops"
-          dist/redskyctl_linux_amd64/redskyctl init
-          echo "Install kustomize"
-          curl -s "https://raw.githubusercontent.com/\
-          kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"  | \
-            bash
-          echo "Patch postgres deployment"
-          ./kustomize build github.com/redskyops/redskyops-recipes/postgres > postgres.yaml
-          # Need to change strategy here since we're limited to 2cpu total
-          sed -i -e '37i\  strategy:\n    type: Recreate' postgres.yaml
-          echo "Create postgres experiment"
-          kubectl apply -f postgres.yaml
-          echo "Create new trial"
-          dist/redskyctl_linux_amd64/redskyctl generate trial \
-            --assign memory=500 \
-            --assign cpu=100 \
-            -f <(kubectl get experiment postgres-example-test -o yaml) | \
-              kubectl create -f -
-          kubectl get trial -o wide
-          # Change this back to a higher value when we can schedule the trial
-          echo "Wait for trial to complete (120s timeout)"
-          kubectl wait trial \
-            -l redskyops.dev/experiment=postgres-example-test \
-            --for condition=redskyops.dev/trial-complete \
-            --timeout 120s
-          kubectl get trial -o wide
-          kubectl get pods -o wide -l redskyops.dev/experiment=postgres-example-test
+          hack/integration.sh
