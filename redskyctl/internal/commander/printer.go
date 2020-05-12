@@ -468,23 +468,24 @@ func (k *kubePrinter) PrintObj(obj interface{}, w io.Writer) error {
 		return k.printer.PrintObj(obj, w)
 	}
 
-	// List conversion is not deep, explicitly convert each item
-	if l, ok := obj.(*corev1.List); u.IsList() && ok {
-		ul := &unstructured.UnstructuredList{
-			Object: u.Object,
-			Items:  make([]unstructured.Unstructured, len(l.Items)),
-		}
-		for i := range l.Items {
-			// We are only doing deep conversion for a corev1.List so we can access the raw object like this
-			if err := k.convert(l.Items[i].Object, &ul.Items[i]); err != nil {
-				return err
-			}
-		}
-		return k.printer.PrintObj(ul, w)
+	// Print the unstructured object if it is not a list
+	l, ok := obj.(*corev1.List)
+	if !ok || !u.IsList() {
+		return k.printer.PrintObj(u, w)
 	}
 
-	// Print the unstructured object
-	return k.printer.PrintObj(u, w)
+	// List conversion is not deep, explicitly convert each item
+	ul := &unstructured.UnstructuredList{
+		Object: u.Object,
+		Items:  make([]unstructured.Unstructured, len(l.Items)),
+	}
+	for i := range l.Items {
+		// We are only doing deep conversion for a corev1.List so we can access the raw object like this
+		if err := k.convert(l.Items[i].Object, &ul.Items[i]); err != nil {
+			return err
+		}
+	}
+	return k.printer.PrintObj(ul, w)
 }
 
 // convert attempts to convert an arbitrary object into an unstructured Kubernetes object
