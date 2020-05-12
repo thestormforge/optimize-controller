@@ -1,20 +1,21 @@
 FROM alpine:latest
 
-ENV HELM_VERSION="v3.1.0" \
-    HELM_URL="https://get.helm.sh/helm-v3.1.0-linux-amd64.tar.gz" \
-    HELM_SHA256="f0fd9fe2b0e09dc9ed190239fce892a468cbb0a2a8fffb9fe846f893c8fd09de"
+ENV HELM_VERSION="v3.2.1" \
+    HELM_SHA256="018f9908cb950701a5d59e757653a790c66d8eda288625dbb185354ca6f41f6b"
 
 ENV KUBECTL_VERSION="v1.14.10" \
-    KUBECTL_URL="https://storage.googleapis.com/kubernetes-release/release/v1.14.10/bin/linux/amd64/kubectl" \
     KUBECTL_SHA256="7729c6612bec76badc7926a79b26e0d9b06cc312af46dbb80ea7416d1fce0b36"
 
-ENV KUSTOMIZE_VERSION="v3.5.4" \
-    KUSTOMIZE_URL="https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv3.5.3/kustomize_v3.5.3_linux_amd64.tar.gz" \
-    KUSTOMIZE_SHA256="5cdeb2af81090ad428e3a94b39779b3e477e2bc946be1fe28714d1ca28502f6a"
+ENV KUSTOMIZE_VERSION="v3.5.5" \
+    KUSTOMIZE_SHA256="23306e0c0fb24f5a9fea4c3b794bef39211c580e4cbaee9e21b9891cb52e73e7"
 
-ENV KONJURE_VERSION="v0.2.0" \
-    KONJURE_URL="https://github.com/carbonrelay/konjure/releases/download/v0.2.0/konjure-linux-amd64.tar.gz" \
-    KONJURE_SHA256="a9812e1a29d7dca2afc3606d860c5e2f5674da6c678ca8707f9378de547f69fa"
+ENV KONJURE_VERSION="v0.2.1" \
+    KONJURE_SHA256="8bf2a82b389076d80a9bd5f379c330e5d74353ef8fac95f851dd26c26349b61c"
+
+ENV HELM_URL="https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" \
+    KUBECTL_URL="https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
+    KUSTOMIZE_URL="https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" \
+    KONJURE_URL="https://github.com/carbonrelay/konjure/releases/download/${KONJURE_VERSION}/konjure-linux-amd64.tar.gz"
 
 RUN apk --no-cache add curl && \
     curl -L "$HELM_URL" | tar xz -C /usr/local/bin --exclude '*/*[^helm]' --strip-components=1 && \
