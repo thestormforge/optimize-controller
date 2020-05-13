@@ -21,6 +21,11 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: '1.14'
+      # Launch KinD early so we can do other things while the control plane converges
+      - name: KinD (Kubernetes in Docker) Initialization
+        uses: engineerd/setup-kind@v0.3.0
+        with:
+          wait: 0s
       - name: Set up Google Cloud Platform
         uses: GoogleCloudPlatform/github-actions/setup-gcloud@0.1.2
         with:
@@ -44,12 +49,15 @@ jobs:
         with:
           args: release --skip-sign --rm-dist
       - name: Upload macOS binary
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v2
         with:
           name: redskyctl_darwin_amd64
           path: dist/redskyctl-darwin-amd64.tar.gz
       - name: Upload Linux binary
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v2
         with:
           name: redskyctl_linux_amd64
           path: dist/redskyctl-linux-amd64.tar.gz
+      - name: redsky quickstart
+        run: |
+          hack/integration.sh
