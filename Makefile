@@ -81,7 +81,9 @@ docker-build: test
 
 # Build the docker images
 docker-build-ci:
-	docker build . -t ${IMG} --build-arg LDFLAGS='${LDFLAGS}'
+	# Build on host so we can make use of the cache
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -ldflags "${LDFLAGS}" -a -o manager main.go
+	docker build . -t ${IMG}
 	docker build config -t ${SETUPTOOLS_IMG} --build-arg IMG='${IMG}' --build-arg PULL_POLICY='${PULL_POLICY}' --build-arg VERSION='${VERSION}'
 
 # Push the docker images

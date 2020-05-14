@@ -7,9 +7,6 @@ jobs:
   test:
     name: Unit Tests
     runs-on: ubuntu-latest
-    env:
-      BUILD_METADATA: pr.${{ github.run_number }}
-      GIT_COMMIT: ${{ github.sha }}
     steps:
       - name: Check out code
         uses: actions/checkout@v2
@@ -19,14 +16,6 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: '1.14'
-      - name: Bootstrap
-        run: |
-          TAG=${GITHUB_SHA:0:8}.${GITHUB_RUN_ID}
-          echo "::set-env name=IMG::gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/redskyops-controller:${TAG}"
-          echo "::set-env name=REDSKYCTL_IMG::gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/redskyctl:${TAG}"
-          echo "::set-env name=SETUPTOOLS_IMG::gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/setuptools:${TAG}"
-          echo "::set-env name=PULL_POLICY::Always"
-          gcloud --quiet auth configure-docker
       - name: Cache Go Modules
         uses: actions/cache@v1
         with:
@@ -34,6 +23,13 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
+      - name: Cache Go Cache
+        uses: actions/cache@v1
+        with:
+          path: ~/.cache
+          key: ${{ runner.os }}-gotestcache-${{ hashFiles('**.go') }}
+          restore-keys: |
+            ${{ runner.os }}-gotestcache-
       - name: Run tests
         run: |
           make test
@@ -67,10 +63,6 @@ jobs:
           echo "::set-env name=SETUPTOOLS_IMG::gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/setuptools:${TAG}"
           echo "::set-env name=PULL_POLICY::Always"
           gcloud --quiet auth configure-docker
-      - name: Build controller
-        run: |
-          make docker-build-ci
-          make docker-push
       - name: Cache Go Modules
         uses: actions/cache@v1
         with:
@@ -78,6 +70,17 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
+      - name: Cache Go Cache
+        uses: actions/cache@v1
+        with:
+          path: ~/.cache
+          key: ${{ runner.os }}-gobuildcache-${{ hashFiles('**.go') }}
+          restore-keys: |
+            ${{ runner.os }}-gobuildcache-
+      - name: Build controller
+        run: |
+          make docker-build-ci
+          make docker-push
       - name: Build tool
         uses: goreleaser/goreleaser-action@v1
         with:
