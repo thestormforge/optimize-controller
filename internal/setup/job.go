@@ -19,6 +19,7 @@ package setup
 import (
 	"encoding/base64"
 	"fmt"
+	"os"
 	"path"
 
 	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
@@ -98,6 +99,12 @@ func NewJob(t *redskyv1alpha1.Trial, mode string) (*batchv1.Job, error) {
 				RunAsGroup:               &id,
 				AllowPrivilegeEscalation: &allowPrivilegeEscalation,
 			},
+		}
+
+		// Check the environment for a default setup tools image name
+		if c.Image == "" {
+			c.Image = os.Getenv("DEFAULT_SETUP_IMAGE")
+			c.ImagePullPolicy = corev1.PullPolicy(os.Getenv("DEFAULT_SETUP_IMAGE_PULL_POLICY"))
 		}
 
 		// Make sure we have an image
