@@ -79,6 +79,11 @@ docker-build: test
 	docker build . -t ${IMG} --build-arg LDFLAGS='${LDFLAGS}'
 	docker build config -t ${SETUPTOOLS_IMG} --build-arg IMG='${IMG}' --build-arg PULL_POLICY='${PULL_POLICY}' --build-arg VERSION='${VERSION}'
 
+# Build the docker images
+docker-build-ci:
+	docker build . -t ${IMG} --build-arg LDFLAGS='${LDFLAGS}'
+	docker build config -t ${SETUPTOOLS_IMG} --build-arg IMG='${IMG}' --build-arg PULL_POLICY='${PULL_POLICY}' --build-arg VERSION='${VERSION}'
+
 # Push the docker images
 docker-push:
 	docker push ${IMG}
