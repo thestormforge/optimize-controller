@@ -18,6 +18,8 @@ package controllers
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/go-logr/logr"
 	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
@@ -34,6 +36,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/discovery"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -131,7 +134,16 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		if err := cfg.Load(); err != nil {
 			return err
 		}
-		api, err := redskyapi.NewForConfig(cfg, version.UserAgent("RedSkyController", "", nil))
+
+		// Compute the UA string comment using the Kube API server information
+		var comment string
+		if dc, err := discovery.NewDiscoveryClientForConfig(mgr.GetConfig()); err == nil {
+			if serverVersion, err := dc.ServerVersion(); err == nil && serverVersion.GitVersion != "" {
+				comment = fmt.Sprintf("Kubernetes %s", strings.TrimPrefix(serverVersion.GitVersion, "v"))
+			}
+		}
+
+		api, err := redskyapi.NewForConfig(cfg, version.UserAgent("RedSkyController", comment, nil))
 		if err != nil {
 			return err
 		}
