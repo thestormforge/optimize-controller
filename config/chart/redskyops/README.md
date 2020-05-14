@@ -14,7 +14,7 @@ helm repo update
 The Red Sky Ops manager can be installed using the Helm command:
 
 ```sh
-helm install --namespace redsky-system --name redsky redsky/redskyops
+helm install redsky redsky/redskyops --namespace redsky-system
 ```
 
 The recommended namespace (`redsky-system`) and release name (`redsky`) are consistent with an install performed using the `redskyctl` tool (see the [install guide](https://redskyops.dev/docs/install/) for more information).
@@ -23,12 +23,14 @@ The recommended namespace (`redsky-system`) and release name (`redsky`) are cons
 
 The following configuration options are available:
 
-| Parameter            | Description                                      |
-| -------------------- | ------------------------------------------------ |
-| `redskyImage`        | Docker image name                                |
-| `redskyTag`          | Docker image tag                                 |
-| `address`            | Fully qualified URL of the remote server         |
-| `oauth2ClientID`     | OAuth2 client identifier                         |
-| `oauth2ClientSecret` | OAuth2 client secret                             |
-| `oauth2TokenURL`     | Override default OAuth2 token URL                |
-| `rbac.create`        | Specify whether RBAC resources should be created |
+| Parameter                   | Description                                               |
+| --------------------------- | --------------------------------------------------------- |
+| `redskyImage`               | Docker image name                                         |
+| `redskyTag`                 | Docker image tag                                          |
+| `redskyImagePullPolicy`     | Pull policy for the Docker image                          |
+| `remoteServer.enabled`      | Flag indicating that the remote server should be used     |
+| `remoteServer.clientID`     | OAuth2 client identifier                                  |
+| `remoteServer.clientSecret` | OAuth2 client secret                                      |
+| `rbac.create`               | Specify whether RBAC resources should be created          |
+| `rbac.bootstrapPermissions` | Flag indicating default permissions should be included    |
+| `rbac.extraPermissions`     | Flag indicating additional permissions should be included |
