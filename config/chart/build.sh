@@ -52,13 +52,8 @@ cd "$WORKSPACE/install"
 konjure kustomize edit remove transformer metadata_labels.yaml
 
 
-# For the default root we are going to relocate the HTTPS proxy used for serving
-# Prometheus metrics since it would otherwise be in RBAC (which would put it in
-# a conditional block in the chart template). We also separate out the different
-# resources so they can be built individually.
+# For the default root we remove the resources that get included separately.
 cd "$WORKSPACE/default"
-mv "$WORKSPACE/rbac/auth_proxy_service.yaml" .
-kustomize edit add resource "auth_proxy_service.yaml"
 kustomize edit remove resource "../crd"
 kustomize edit remove resource "../rbac"
 
@@ -80,7 +75,6 @@ kustomize edit add label "app.kubernetes.io/name:redskyops"
 # will find it and because we removed it from the default root, we need to add
 # back the name prefix and namespace transformations.
 cd "$WORKSPACE/rbac"
-kustomize edit remove resource "auth_proxy_service.yaml"
 kustomize edit add label "app.kubernetes.io/name:redskyops"
 kustomize edit set namespace "redsky-system"
 kustomize edit set nameprefix "redsky-"

@@ -24,12 +24,3 @@ spec:
       containers:
         - name: manager
           imagePullPolicy: PULL_POLICY
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: controller-manager-metrics-service
-  namespace: system
-spec:
-  selector:
-    app.kubernetes.io/instance: RELEASE_NAME

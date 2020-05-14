@@ -7,11 +7,6 @@ spec:
   template:
     spec:
       containers:
-      - name: kube-rbac-proxy
-        securityContext:
-          runAsUser: 65534
-          runAsGroup: 65534
-          runAsNonRoot: true
       - name: manager
         imagePullPolicy: PULL_POLICY
         securityContext:
