@@ -2,9 +2,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: "{{ .Release.Name }}-aggregate-to-patching"
-  labels:
-    "redskyops.dev/aggregate-to-patching": "true"
+  name: "{{ .Release.Name }}-patching-role"
 rules:
   - apiGroups:
       - ""
@@ -30,4 +28,17 @@ rules:
     verbs:
       - create
 {{- end -}}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: "{{ .Release.Name }}-patching-rolebinding"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: "{{ .Release.Name }}-patching-role"
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: "{{ .Release.Namespace }}"
 {{- end -}}
