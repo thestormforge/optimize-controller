@@ -9,12 +9,6 @@ spec:
       containers:
       - name: manager
         imagePullPolicy: PULL_POLICY
-        securityContext:
-          runAsUser: 65532
-          runAsGroup: 65532
-          runAsNonRoot: true
-          readOnlyRootFilesystem: true
-          allowPrivilegeEscalation: false
         envFrom:
         - secretRef:
             name: redsky-manager
