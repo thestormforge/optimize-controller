@@ -51,6 +51,8 @@ func NewLabelCommand(o *LabelOptions) *cobra.Command {
 		RunE: commander.WithContextE(o.label),
 	}
 
+	_ = cmd.MarkZshCompPositionalArgumentWords(1, validTypes()...)
+
 	o.Printer = &verbPrinter{verb: "labeled"}
 	commander.ExitOnError(cmd)
 	return cmd

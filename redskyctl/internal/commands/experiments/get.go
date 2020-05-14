@@ -59,6 +59,8 @@ func NewGetCommand(o *GetOptions) *cobra.Command {
 	cmd.Flags().StringVar(&o.SortBy, "sort-by", o.SortBy, "Sort list types using this JSONPath `expression`.")
 	cmd.Flags().BoolVarP(&o.All, "all", "A", false, "Include all resources.")
 
+	_ = cmd.MarkZshCompPositionalArgumentWords(1, validTypes()...)
+
 	commander.SetPrinter(&experimentsMeta{}, &o.Printer, cmd)
 	commander.ExitOnError(cmd)
 	return cmd

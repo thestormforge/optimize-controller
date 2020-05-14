@@ -36,8 +36,13 @@ const (
 	// typeExperiment is the type argument to use for experiments
 	typeExperiment resourceType = "experiment"
 	// typeTrial is the type argument to use for trials
-	typeTrial = "trial"
+	typeTrial resourceType = "trial"
 )
+
+// validTypes returns the supported object types as strings
+func validTypes() []string {
+	return []string{string(typeExperiment), string(typeTrial)}
+}
 
 // normalizeType returns a consistent value based on a user entered type
 func normalizeType(t string) (resourceType, error) {

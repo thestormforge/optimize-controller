@@ -51,6 +51,8 @@ func NewDeleteCommand(o *DeleteOptions) *cobra.Command {
 		RunE: commander.WithContextE(o.delete),
 	}
 
+	_ = cmd.MarkZshCompPositionalArgumentWords(1, validTypes()...)
+
 	o.Printer = &verbPrinter{verb: "deleted"}
 	commander.ExitOnError(cmd)
 	return cmd
