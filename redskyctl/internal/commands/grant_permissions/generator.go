@@ -17,6 +17,10 @@ limitations under the License.
 package grant_permissions
 
 import (
+	"bufio"
+	"bytes"
+	"context"
+
 	"github.com/redskyops/redskyops-controller/internal/config"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
@@ -39,12 +43,16 @@ type GeneratorOptions struct {
 	SkipDefault bool
 	// CreateTrialNamespaces includes additional permissions to allow the controller to create trial namespaces
 	CreateTrialNamespaces bool
+	// NamespaceSelector generates namespaced bindings instead of cluster bindings
+	NamespaceSelector string
+	// IncludeManagerRole generates an additional binding to the manager role for each matched namespace
+	IncludeManagerRole bool
 }
 
 // NewGeneratorCommand creates a command for generating the controller role definitions
 func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "bootstrap-cluster-role", // TODO "bootstrap" isn't a good name for this
+		Use:   "controller-rbac",
 		Short: "Generate Red Sky Ops permissions",
 		Long:  "Generate RBAC for Red Sky Ops",
 
@@ -54,7 +62,7 @@ func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 		},
 
 		PreRun: commander.StreamsPreRun(&o.IOStreams),
-		RunE:   commander.WithoutArgsE(o.generate),
+		RunE:   commander.WithContextE(o.generate),
 	}
 
 	o.addFlags(cmd)
@@ -67,40 +75,75 @@ func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 func (o *GeneratorOptions) addFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolVar(&o.SkipDefault, "skip-default", o.SkipDefault, "Skip default permissions.")
 	cmd.Flags().BoolVar(&o.CreateTrialNamespaces, "create-trial-namespace", o.CreateTrialNamespaces, "Include trial namespace creation permissions.")
+	cmd.Flags().StringVar(&o.NamespaceSelector, "ns-selector", o.NamespaceSelector, "Bind to matching namespaces.")
+	cmd.Flags().BoolVar(&o.IncludeManagerRole, "include-manager", o.IncludeManagerRole, "Bind manager to matching namespaces.")
 }
 
-func (o *GeneratorOptions) generate() error {
-	// We need to know what namespace the controller is supposed to be in
-	ctrl, err := config.CurrentController(o.Config.Reader())
+func (o *GeneratorOptions) generate(ctx context.Context) error {
+	result := &corev1.List{}
+
+	// Determine the binding targets
+	roleRef, subject, err := o.bindingTargets()
 	if err != nil {
 		return err
 	}
 
-	// The cluster role that defines what objects we are allowed to patch
-	clusterRole := &rbacv1.ClusterRole{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "redsky-patching-role",
-		},
+	// Generate the cluster role
+	if clusterRole := o.generateClusterRole(roleRef); clusterRole != nil {
+		result.Items = append(result.Items, runtime.RawExtension{Object: clusterRole})
+	} else {
+		// Do not generate bindings if we didn't end up creating a role
+		roleRef = nil
 	}
 
-	// The controller uses the default service account for the namespace it is installed in
-	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: clusterRole.Name + "binding",
-		},
-		Subjects: []rbacv1.Subject{
-			{
-				Kind:      "ServiceAccount",
-				Name:      "default",
-				Namespace: ctrl.Namespace,
-			},
-		},
-		RoleRef: rbacv1.RoleRef{
+	// Generate the cluster role binding
+	if clusterRoleBinding := o.generateClusterRoleBinding(roleRef, subject); clusterRoleBinding != nil {
+		result.Items = append(result.Items, runtime.RawExtension{Object: clusterRoleBinding})
+	}
+
+	// Generate the role bindings
+	roleBindings, err := o.generateRoleBindings(ctx, roleRef, subject)
+	if err != nil {
+		return err
+	}
+	for _, rb := range roleBindings {
+		result.Items = append(result.Items, runtime.RawExtension{Object: rb})
+	}
+
+	// Print the result
+	if len(result.Items) == 0 {
+		return nil
+	}
+	return o.Printer.PrintObj(result, o.Out)
+}
+
+func (o *GeneratorOptions) bindingTargets() (*rbacv1.RoleRef, *rbacv1.Subject, error) {
+	// Get the namespace of the controller from the configuration
+	ctrl, err := config.CurrentController(o.Config.Reader())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// The manager runs as the default service account
+	return &rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "ClusterRole",
-			Name:     clusterRole.Name,
+			Name:     "redsky-patching-role",
 		},
+		&rbacv1.Subject{
+			Kind:      "ServiceAccount",
+			Name:      "default",
+			Namespace: ctrl.Namespace,
+		}, nil
+}
+
+func (o *GeneratorOptions) generateClusterRole(roleRef *rbacv1.RoleRef) *rbacv1.ClusterRole {
+	if roleRef == nil || (o.SkipDefault && !o.CreateTrialNamespaces) {
+		return nil
 	}
+
+	clusterRole := &rbacv1.ClusterRole{}
+	clusterRole.Name = roleRef.Name
 
 	// Include the default rules
 	if !o.SkipDefault {
@@ -128,17 +171,70 @@ func (o *GeneratorOptions) generate() error {
 		)
 	}
 
-	// Do not generate an empty cluster role
-	if len(clusterRole.Rules) == 0 {
+	return clusterRole
+}
+
+func (o *GeneratorOptions) generateClusterRoleBinding(roleRef *rbacv1.RoleRef, subject *rbacv1.Subject) *rbacv1.ClusterRoleBinding {
+	if o.NamespaceSelector != "" || roleRef == nil || subject == nil {
 		return nil
 	}
 
-	// Print the cluster role and binding as a single list
-	l := &corev1.List{
-		Items: []runtime.RawExtension{
-			{Object: clusterRole},
-			{Object: clusterRoleBinding},
+	return &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: roleRef.Name + "binding",
 		},
+		Subjects: []rbacv1.Subject{*subject},
+		RoleRef:  *roleRef,
 	}
-	return o.Printer.PrintObj(l, o.Out)
+}
+
+func (o *GeneratorOptions) generateRoleBindings(ctx context.Context, roleRef *rbacv1.RoleRef, subject *rbacv1.Subject) ([]*rbacv1.RoleBinding, error) {
+	if o.NamespaceSelector == "" || subject == nil {
+		return nil, nil
+	}
+
+	// Get the namespaces matching the selector
+	getCmd, err := o.Config.Kubectl(ctx, "get", "namespaces", "--selector", o.NamespaceSelector, "-o", "custom-columns=:metadata.name", "--no-headers")
+	if err != nil {
+		return nil, err
+	}
+	getCmd.Stderr = o.ErrOut
+	out, err := getCmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	// Scan the output, namespaces, one-per line
+	var roleBindings []*rbacv1.RoleBinding
+	scanner := bufio.NewScanner(bytes.NewReader(out))
+	for scanner.Scan() {
+		// Create namespaced binding for the generated cluster role
+		if roleRef != nil {
+			roleBindings = append(roleBindings, &rbacv1.RoleBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      roleRef.Name + "binding",
+					Namespace: scanner.Text(),
+				},
+				Subjects: []rbacv1.Subject{*subject},
+				RoleRef:  *roleRef,
+			})
+		}
+
+		// Create namespaced binding for the manager cluster role
+		if o.IncludeManagerRole {
+			roleBindings = append(roleBindings, &rbacv1.RoleBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "redsky-manager-rolebinding",
+					Namespace: scanner.Text(),
+				},
+				Subjects: []rbacv1.Subject{*subject},
+				RoleRef: rbacv1.RoleRef{
+					APIGroup: "rbac.authorization.k8s.io",
+					Kind:     "ClusterRole",
+					Name:     "redsky-manager-role",
+				},
+			})
+		}
+	}
+	return roleBindings, nil
 }
