@@ -17,7 +17,9 @@ limitations under the License.
 package generate
 
 import (
+	"fmt"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -30,11 +32,11 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/kubernetes/scheme"
 )
 
-// TODO Determine if this should be exposed as a Kustomize plugin also
-// TODO Instead of it's own plugin, have it be an option on the experiment plugin
+// TODO Instead of it's own generator, have this be an option on the experiment generator
 
 type RBACOptions struct {
 	// Config is the Red Sky Configuration used to generate the role binding
@@ -44,9 +46,11 @@ type RBACOptions struct {
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
 
-	Filename     string
-	Name         string
-	IncludeNames bool
+	Filename           string
+	Name               string
+	IncludeNames       bool
+	ClusterRole        bool
+	ClusterRoleBinding bool
 
 	mapper meta.RESTMapper
 }
@@ -72,6 +76,8 @@ func NewRBACCommand(o *RBACOptions) *cobra.Command {
 	cmd.Flags().StringVarP(&o.Filename, "filename", "f", o.Filename, "File that contains the experiment to extract roles from.")
 	cmd.Flags().StringVar(&o.Name, "role-name", o.Name, "Name of the cluster role to generate (default is to use a generated name).")
 	cmd.Flags().BoolVar(&o.IncludeNames, "include-names", o.IncludeNames, "Include resource names in the generated role.")
+	cmd.Flags().BoolVar(&o.ClusterRole, "cluster-role", o.ClusterRole, "Generate a cluster role.")
+	cmd.Flags().BoolVar(&o.ClusterRoleBinding, "cluster-role-binding", o.ClusterRoleBinding, "When generating a cluster role, also generate a cluster role binding.")
 
 	_ = cmd.MarkFlagFilename("filename", "yml", "yaml")
 
@@ -90,88 +96,174 @@ func (o *RBACOptions) Complete() {
 }
 
 func (o *RBACOptions) generate() error {
-	// We need to know what namespace the controller is supposed to be in
-	ctrl, err := config.CurrentController(o.Config.Reader())
+	// Read the experiments
+	// TODO For now just pretend like `readExperiment` could return multiple results
+	experimentList := &redskyv1alpha1.ExperimentList{}
+	experimentList.Items = make([]redskyv1alpha1.Experiment, 1)
+	if err := readExperiment(o.Filename, o.In, &experimentList.Items[0]); err != nil {
+		return err
+	}
+
+	// Determine the binding targets
+	roleRef, subject, namespaces, err := o.bindingTargets(experimentList)
 	if err != nil {
 		return err
 	}
 
-	// Generate a cluster role
-	clusterRole := &rbacv1.ClusterRole{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: o.Name,
-		},
+	// Discover the policy rules from the experiments and collapse them
+	var experimentRules []*rbacv1.PolicyRule
+	for i := range experimentList.Items {
+		experimentRules = o.appendRules(experimentRules, &experimentList.Items[i])
 	}
-
-	// The controller uses the default service account for the namespace it is installed in
-	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
-		Subjects: []rbacv1.Subject{
-			{
-				Kind:      "ServiceAccount",
-				Name:      "default",
-				Namespace: ctrl.Namespace,
-			},
-		},
-		RoleRef: rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
-		},
+	rules := make([]rbacv1.PolicyRule, 0, len(experimentRules))
+	for _, r := range experimentRules {
+		rules = mergeRule(rules, r)
 	}
-
-	// Read the experiment
-	// TODO When "readExperiment" returns multiple results, we still just generate a single cluster role
-	experiment := &redskyv1alpha1.Experiment{}
-	if err := readExperiment(o.Filename, o.In, experiment); err != nil {
-		return err
-	}
-
-	// Come up with a default name if necessary
-	if clusterRole.Name == "" {
-		if experiment.Name != "" { // TODO Only take the experiment name if it is the only one `&& len(experiments) == 1`
-			clusterRole.Name = "redsky-patching-" + strings.ReplaceAll(strings.ToLower(experiment.Name), " ", "-")
-		} else if o.Filename == "-" {
-			// TODO This needs some type of uniqueness
-			clusterRole.Name = "redsky-patching-stdin"
-		} else if o.Filename != "" {
-			// TODO This needs more clean up
-			clusterRole.Name = "redsky-patching-" + strings.ToLower(filepath.Base(o.Filename))
-		} else {
-			// TODO This probably doesn't work with cluster roles
-			clusterRole.GenerateName = "redsky-patching-"
-		}
-	}
-
-	// Update the cluster role binding based on the cluster role name
-	clusterRoleBinding.Name = clusterRole.Name + "binding"
-	clusterRoleBinding.RoleRef.Name = clusterRole.Name
-
-	// Add rules from the experiment
-	rules, err := o.findRules(experiment)
-	if err != nil {
-		return err
-	}
-	for _, r := range rules {
-		clusterRole.Rules = mergeRule(clusterRole.Rules, r)
-	}
-
-	// Do not generate an empty cluster role
-	if len(clusterRole.Rules) == 0 {
+	if len(rules) == 0 {
 		return nil
 	}
 
-	l := &corev1.List{
-		Items: []runtime.RawExtension{
-			{Object: clusterRole},
-			{Object: clusterRoleBinding},
-		},
-	}
-	return o.Printer.PrintObj(l, o.Out)
+	// Add up all the objects and print them out
+	rbac := buildRBAC(roleRef, subject, rules, namespaces)
+	return o.Printer.PrintObj(rbac, o.Out)
 }
 
-// findRules finds the patch targets from an experiment
-func (o *RBACOptions) findRules(exp *redskyv1alpha1.Experiment) ([]*rbacv1.PolicyRule, error) {
-	var rules []*rbacv1.PolicyRule
+func (o *RBACOptions) bindingTargets(experimentList *redskyv1alpha1.ExperimentList) (*rbacv1.RoleRef, *rbacv1.Subject, []string, error) {
+	// Create the role reference
+	roleRef := &rbacv1.RoleRef{APIGroup: "rbac.authorization.k8s.io", Kind: "Role", Name: o.Name}
+	if o.ClusterRole {
+		roleRef.Kind = "ClusterRole"
+	}
+	if roleRef.Name == "" {
+		roleRef.Name = "redsky-patching-"
+		if len(experimentList.Items) == 1 && experimentList.Items[0].Name != "" {
+			roleRef.Name += experimentList.Items[0].Name
+		} else if o.Filename == "-" {
+			roleRef.Name += fmt.Sprintf("stdin-%s", rand.String(5))
+		} else if o.Filename != "" {
+			dir, suffix := filepath.Split(o.Filename)
+			suffix = strings.TrimSuffix(suffix, filepath.Ext(suffix))
+			if suffix == "experiment" {
+				suffix = filepath.Base(dir)
+			}
+			re := regexp.MustCompile("[^a-z0-9]+")
+			suffix = re.ReplaceAllString(strings.ToLower(suffix), "-")
+			roleRef.Name += suffix
+		} else {
+			roleRef.Name += rand.String(5)
+		}
+	}
 
+	// Create the subject using the namespace of the controller from the configuration
+	ctrl, err := config.CurrentController(o.Config.Reader())
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	subject := &rbacv1.Subject{
+		Kind:      "ServiceAccount",
+		Name:      "default",
+		Namespace: ctrl.Namespace,
+	}
+
+	// Namespaces
+	var namespaces []string
+	if !o.ClusterRole || !o.ClusterRoleBinding {
+		// Get the distinct list of namespaces from the experiments
+		ns := make(map[string]bool, len(experimentList.Items))
+		for i := range experimentList.Items {
+			ns[experimentList.Items[i].Namespace] = true
+		}
+
+		// Try to provide an explicit default value (cstr.Namespace can still be "")
+		if ns[""] {
+			if cstr, err := config.CurrentCluster(o.Config.Reader()); err == nil {
+				delete(ns, "")
+				ns[cstr.Namespace] = true
+			}
+		}
+
+		namespaces = make([]string, 0, len(ns))
+		for k := range ns {
+			namespaces = append(namespaces, k)
+		}
+	}
+
+	// The manager runs as the default service account
+	return roleRef, subject, namespaces, nil
+}
+
+func buildRBAC(roleRef *rbacv1.RoleRef, subject *rbacv1.Subject, rules []rbacv1.PolicyRule, namespaces []string) *corev1.List {
+	result := &corev1.List{}
+	switch roleRef.Kind {
+
+	case "ClusterRole":
+		// Include a single cluster role
+		result.Items = append(result.Items, runtime.RawExtension{
+			Object: &rbacv1.ClusterRole{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: roleRef.Name,
+				},
+				Rules: rules,
+			},
+		})
+
+		// For each namespace, include a role binding
+		for _, ns := range namespaces {
+			result.Items = append(result.Items, runtime.RawExtension{
+				Object: &rbacv1.RoleBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      roleRef.Name + "binding",
+						Namespace: ns,
+					},
+					Subjects: []rbacv1.Subject{*subject},
+					RoleRef:  *roleRef,
+				},
+			})
+		}
+
+		// If there are no namespaces, include a single cluster role binding
+		if len(namespaces) == 0 {
+			result.Items = append(result.Items, runtime.RawExtension{
+				Object: &rbacv1.ClusterRoleBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: roleRef.Name + "binding",
+					},
+					Subjects: []rbacv1.Subject{*subject},
+					RoleRef:  *roleRef,
+				},
+			})
+		}
+
+	case "Role":
+		for _, ns := range namespaces {
+			// Include a role and role binding for each namespace
+			result.Items = append(result.Items,
+				runtime.RawExtension{
+					Object: &rbacv1.Role{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      roleRef.Name,
+							Namespace: ns,
+						},
+						Rules: rules,
+					},
+				},
+				runtime.RawExtension{
+					Object: &rbacv1.RoleBinding{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      roleRef.Name + "binding",
+							Namespace: ns,
+						},
+						Subjects: []rbacv1.Subject{*subject},
+						RoleRef:  *roleRef,
+					},
+				})
+		}
+	}
+	return result
+}
+
+// appendRules finds the patch and readiness targets from an experiment
+func (o *RBACOptions) appendRules(rules []*rbacv1.PolicyRule, exp *redskyv1alpha1.Experiment) []*rbacv1.PolicyRule {
 	// Patches require "get" and "patch" permissions
 	for i := range exp.Spec.Patches {
 		// TODO This needs to use patch_controller.go `renderTemplate` to get the correct reference (e.g. SMP may have the ref in the payload)
@@ -199,7 +291,7 @@ func (o *RBACOptions) findRules(exp *redskyv1alpha1.Experiment) ([]*rbacv1.Polic
 		}
 	}
 
-	return rules, nil
+	return rules
 }
 
 // newPolicyRule creates a new policy rule for the specified object reference and list of verbs

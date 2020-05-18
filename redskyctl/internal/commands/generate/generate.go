@@ -44,7 +44,7 @@ func NewCommand(o *Options) *cobra.Command {
 		Long:  "Generate Red Sky Ops object manifests",
 	}
 
-	cmd.AddCommand(NewRBACCommand(&RBACOptions{Config: o.Config}))
+	cmd.AddCommand(NewRBACCommand(&RBACOptions{Config: o.Config, ClusterRole: true, ClusterRoleBinding: true}))
 	cmd.AddCommand(NewTrialCommand(&TrialOptions{}))
 
 	// Also include plumbing generators used by other commands
