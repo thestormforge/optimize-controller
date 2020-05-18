@@ -28,6 +28,13 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
+      - name: Cache Go Cache
+        uses: actions/cache@v1
+        with:
+          path: ~/.cache
+          key: ${{ runner.os }}-gobuildcache-${{ hashFiles('**.go') }}
+          restore-keys: |
+            ${{ runner.os }}-gobuildcache-
       - name: Set up Google Cloud Platform
         uses: GoogleCloudPlatform/github-actions/setup-gcloud@0.1.2
         with:
@@ -52,7 +59,7 @@ jobs:
           gcloud --quiet auth configure-docker
       - name: Build controller
         run: |
-          make docker-build
+          make docker-build-ci
           make docker-push
       - name: Build tool
         uses: goreleaser/goreleaser-action@v1
