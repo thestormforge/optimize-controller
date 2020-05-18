@@ -18,10 +18,10 @@ dist/redskyctl_linux_amd64/redskyctl generate trial \
     kubectl create -f -
 kubectl get trial -o wide
 # Change this back to a higher value when we can schedule the trial
-echo "Wait for trial to complete (120s timeout)"
+echo "Wait for trial to complete (300s timeout)"
 kubectl wait trial \
   -l redskyops.dev/experiment=postgres-example \
   --for condition=redskyops.dev/trial-complete \
-  --timeout 120s
+  --timeout 300s
 kubectl get trial -o wide
 kubectl get pods -o wide -l redskyops.dev/experiment=postgres-example

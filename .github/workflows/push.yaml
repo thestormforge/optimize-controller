@@ -4,6 +4,35 @@ on:
     branches:
       - master
 jobs:
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+      - name: Verify License Header
+        uses: talos-systems/conform@v0.1.0-alpha.19
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.14'
+      - name: Cache Go Modules
+        uses: actions/cache@v1
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Cache Go Cache
+        uses: actions/cache@v1
+        with:
+          path: ~/.cache
+          key: ${{ runner.os }}-gotestcache-${{ hashFiles('**.go') }}
+          restore-keys: |
+            ${{ runner.os }}-gotestcache-
+      - name: Run tests
+        run: |
+          make test
   build:
     name: Build and Deploy
     runs-on: ubuntu-latest
@@ -15,12 +44,6 @@ jobs:
         uses: actions/checkout@v2
       - name: Unshallow
         run: git fetch --prune --unshallow
-      - name: Verify Header
-        uses: talos-systems/conform@v0.1.0-alpha.19
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: '1.14'
       # Launch KinD early so we can do other things while the control plane converges
       - name: KinD (Kubernetes in Docker) Initialization
         uses: engineerd/setup-kind@v0.3.0
@@ -40,9 +63,23 @@ jobs:
           echo "::set-env name=SETUPTOOLS_IMG::gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/setuptools:${TAG}"
           echo "::set-env name=PULL_POLICY::Always"
           gcloud --quiet auth configure-docker
+      - name: Cache Go Modules
+        uses: actions/cache@v1
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Cache Go Cache
+        uses: actions/cache@v1
+        with:
+          path: ~/.cache
+          key: ${{ runner.os }}-gobuildcache-${{ hashFiles('**.go') }}
+          restore-keys: |
+            ${{ runner.os }}-gobuildcache-
       - name: Build controller
         run: |
-          make docker-build
+          make docker-build-ci
           make docker-push
       - name: Build tool
         uses: goreleaser/goreleaser-action@v1
