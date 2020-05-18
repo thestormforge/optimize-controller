@@ -75,9 +75,7 @@ generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 # Build the docker images
-docker-build: test
-	docker build . -t ${IMG} --build-arg LDFLAGS='${LDFLAGS}'
-	docker build config -t ${SETUPTOOLS_IMG} --build-arg IMG='${IMG}' --build-arg PULL_POLICY='${PULL_POLICY}' --build-arg VERSION='${VERSION}'
+docker-build: test docker-build-ci
 
 # Build the docker images
 docker-build-ci:
