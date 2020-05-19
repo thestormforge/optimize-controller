@@ -54,6 +54,8 @@ func (o *Options) completion(cmd *cobra.Command) error {
 	switch o.Shell {
 	case "bash":
 		return cmd.GenBashCompletion(cmd.OutOrStdout())
+	case "fish":
+		return cmd.GenFishCompletion(cmd.OutOrStdout(), true)
 	case "zsh":
 		return cmd.GenZshCompletion(cmd.OutOrStdout())
 	default:
