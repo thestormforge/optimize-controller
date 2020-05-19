@@ -129,36 +129,27 @@ func (o *RBACOptions) generate() error {
 }
 
 func (o *RBACOptions) bindingTargets(experimentList *redskyv1alpha1.ExperimentList) (*rbacv1.RoleRef, *rbacv1.Subject, []string, error) {
+	// Read the configuration objects we need
+	r := o.Config.Reader()
+	ctrl, err := config.CurrentController(r)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	cstr, err := config.CurrentCluster(r)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
 	// Create the role reference
 	roleRef := &rbacv1.RoleRef{APIGroup: "rbac.authorization.k8s.io", Kind: "Role", Name: o.Name}
 	if o.ClusterRole {
 		roleRef.Kind = "ClusterRole"
 	}
 	if roleRef.Name == "" {
-		roleRef.Name = "redsky-patching-"
-		if len(experimentList.Items) == 1 && experimentList.Items[0].Name != "" {
-			roleRef.Name += experimentList.Items[0].Name
-		} else if o.Filename == "-" {
-			roleRef.Name += fmt.Sprintf("stdin-%s", rand.String(5))
-		} else if o.Filename != "" {
-			dir, suffix := filepath.Split(o.Filename)
-			suffix = strings.TrimSuffix(suffix, filepath.Ext(suffix))
-			if suffix == "experiment" {
-				suffix = filepath.Base(dir)
-			}
-			re := regexp.MustCompile("[^a-z0-9]+")
-			suffix = re.ReplaceAllString(strings.ToLower(suffix), "-")
-			roleRef.Name += suffix
-		} else {
-			roleRef.Name += rand.String(5)
-		}
+		roleRef.Name = roleName(o.Filename, experimentList)
 	}
 
 	// Create the subject using the namespace of the controller from the configuration
-	ctrl, err := config.CurrentController(o.Config.Reader())
-	if err != nil {
-		return nil, nil, nil, err
-	}
 	subject := &rbacv1.Subject{
 		Kind:      "ServiceAccount",
 		Name:      "default",
@@ -169,21 +160,17 @@ func (o *RBACOptions) bindingTargets(experimentList *redskyv1alpha1.ExperimentLi
 	var namespaces []string
 	if !o.ClusterRole || !o.ClusterRoleBinding {
 		// Get the distinct list of namespaces from the experiments
-		ns := make(map[string]bool, len(experimentList.Items))
+		distinct := make(map[string]struct{}, len(experimentList.Items))
 		for i := range experimentList.Items {
-			ns[experimentList.Items[i].Namespace] = true
-		}
-
-		// Try to provide an explicit default value (cstr.Namespace can still be "")
-		if ns[""] {
-			if cstr, err := config.CurrentCluster(o.Config.Reader()); err == nil {
-				delete(ns, "")
-				ns[cstr.Namespace] = true
+			ns := experimentList.Items[i].Namespace
+			if ns == "" {
+				ns = cstr.Namespace
 			}
+			distinct[ns] = struct{}{}
 		}
 
-		namespaces = make([]string, 0, len(ns))
-		for k := range ns {
+		namespaces = make([]string, 0, len(distinct))
+		for k := range distinct {
 			namespaces = append(namespaces, k)
 		}
 	}
@@ -194,10 +181,10 @@ func (o *RBACOptions) bindingTargets(experimentList *redskyv1alpha1.ExperimentLi
 
 func buildRBAC(roleRef *rbacv1.RoleRef, subject *rbacv1.Subject, rules []rbacv1.PolicyRule, namespaces []string) *corev1.List {
 	result := &corev1.List{}
-	switch roleRef.Kind {
 
+	// Include either a cluster role or a role for each namespace
+	switch roleRef.Kind {
 	case "ClusterRole":
-		// Include a single cluster role
 		result.Items = append(result.Items, runtime.RawExtension{
 			Object: &rbacv1.ClusterRole{
 				ObjectMeta: metav1.ObjectMeta{
@@ -206,59 +193,47 @@ func buildRBAC(roleRef *rbacv1.RoleRef, subject *rbacv1.Subject, rules []rbacv1.
 				Rules: rules,
 			},
 		})
-
-		// For each namespace, include a role binding
-		for _, ns := range namespaces {
-			result.Items = append(result.Items, runtime.RawExtension{
-				Object: &rbacv1.RoleBinding{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      roleRef.Name + "binding",
-						Namespace: ns,
-					},
-					Subjects: []rbacv1.Subject{*subject},
-					RoleRef:  *roleRef,
-				},
-			})
-		}
-
-		// If there are no namespaces, include a single cluster role binding
-		if len(namespaces) == 0 {
-			result.Items = append(result.Items, runtime.RawExtension{
-				Object: &rbacv1.ClusterRoleBinding{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: roleRef.Name + "binding",
-					},
-					Subjects: []rbacv1.Subject{*subject},
-					RoleRef:  *roleRef,
-				},
-			})
-		}
-
 	case "Role":
 		for _, ns := range namespaces {
-			// Include a role and role binding for each namespace
-			result.Items = append(result.Items,
-				runtime.RawExtension{
-					Object: &rbacv1.Role{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      roleRef.Name,
-							Namespace: ns,
-						},
-						Rules: rules,
+			result.Items = append(result.Items, runtime.RawExtension{
+				Object: &rbacv1.Role{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      roleRef.Name,
+						Namespace: ns,
 					},
+					Rules: rules,
 				},
-				runtime.RawExtension{
-					Object: &rbacv1.RoleBinding{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      roleRef.Name + "binding",
-							Namespace: ns,
-						},
-						Subjects: []rbacv1.Subject{*subject},
-						RoleRef:  *roleRef,
-					},
-				})
+			})
 		}
 	}
+
+	// For each namespace, include a role binding
+	for _, ns := range namespaces {
+		result.Items = append(result.Items, runtime.RawExtension{
+			Object: &rbacv1.RoleBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      roleRef.Name + "binding",
+					Namespace: ns,
+				},
+				Subjects: []rbacv1.Subject{*subject},
+				RoleRef:  *roleRef,
+			},
+		})
+	}
+
+	// If there are no namespaces for a cluster role, include a cluster role binding
+	if roleRef.Kind == "ClusterRole" && len(namespaces) == 0 {
+		result.Items = append(result.Items, runtime.RawExtension{
+			Object: &rbacv1.ClusterRoleBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: roleRef.Name + "binding",
+				},
+				Subjects: []rbacv1.Subject{*subject},
+				RoleRef:  *roleRef,
+			},
+		})
+	}
+
 	return result
 }
 
@@ -318,6 +293,35 @@ func (o *RBACOptions) newPolicyRule(ref *corev1.ObjectReference, verbs ...string
 	}
 
 	return r
+}
+
+// roleName attempts to generate a semi-unique role name
+func roleName(filename string, experimentList *redskyv1alpha1.ExperimentList) string {
+	// If there is a single experiment, incorporate it's name into the role name
+	if len(experimentList.Items) == 1 && experimentList.Items[0].Name != "" {
+		return fmt.Sprintf("redsky-patching-%s-role", experimentList.Items[0].Name)
+	}
+
+	// If there are no inputs do not do anything special
+	if len(experimentList.Items) == 0 || filename == "" {
+		return "redsky-patching-role"
+	}
+
+	// Multiple experiments, tie the role name to the input file
+	dir, unique := filepath.Split(filename)
+	unique = strings.ToLower(strings.TrimSuffix(unique, filepath.Ext(unique)))
+	if unique == "-" {
+		// The experiments were read from stdin
+		return fmt.Sprintf("redsky-patching-stdin-role-%s", rand.String(5))
+	} else if dir == "/dev/fd/" {
+		// The experiments were probably read via process substitution
+		return fmt.Sprintf("redsky-patching-fd-role-%s", rand.String(5))
+	}
+
+	// Attempt to clean up the filename into something usable
+	re := regexp.MustCompile("[^a-z0-9]+")
+	unique = re.ReplaceAllString(unique, "-")
+	return fmt.Sprintf("redsky-patching-%s-role", unique)
 }
 
 // mergeRule attempts to combine the supplied rule with an existing compatible rule, failing that the rules are return with a new rule appended
