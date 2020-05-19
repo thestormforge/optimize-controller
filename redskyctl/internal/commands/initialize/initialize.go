@@ -36,6 +36,7 @@ type Options struct {
 
 	IncludeBootstrapRole    bool
 	IncludeExtraPermissions bool
+	NamespaceSelector       string
 }
 
 // NewCommand creates a command for performing an initialization
@@ -51,6 +52,7 @@ func NewCommand(o *Options) *cobra.Command {
 
 	cmd.Flags().BoolVar(&o.IncludeBootstrapRole, "bootstrap-role", o.IncludeBootstrapRole, "Create the bootstrap role (if it does not exist).")
 	cmd.Flags().BoolVar(&o.IncludeExtraPermissions, "extra-permissions", o.IncludeExtraPermissions, "Generate permissions required for features like namespace creation")
+	cmd.Flags().StringVar(&o.NamespaceSelector, "ns-selector", o.NamespaceSelector, "Create namespaced role bindings to matching namespaces.")
 
 	commander.ExitOnError(cmd)
 	return cmd
@@ -108,6 +110,8 @@ func (o *Options) generateBootstrapRole(out io.Writer) error {
 		Config:                o.Config,
 		SkipDefault:           !o.IncludeBootstrapRole,
 		CreateTrialNamespaces: o.IncludeExtraPermissions,
+		NamespaceSelector:     o.NamespaceSelector,
+		IncludeManagerRole:    true,
 	}
 	cmd := grant_permissions.NewGeneratorCommand(opts)
 	cmd.SetArgs([]string{})
