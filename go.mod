@@ -23,7 +23,7 @@ require (
 	github.com/spf13/cobra v1.0.0
 	github.com/stretchr/testify v1.4.0
 	github.com/zorkian/go-datadog-api v2.24.0+incompatible
-	golang.org/x/net v0.0.0-20191004110552-13f9640d40b9
+	golang.org/x/net v0.0.0-20200226121028-0de0cce0169b
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
 	google.golang.org/appengine v1.6.0 // indirect
@@ -32,6 +32,7 @@ require (
 	k8s.io/client-go v0.17.2
 	k8s.io/kubectl v0.17.2
 	sigs.k8s.io/controller-runtime v0.5.0
+	sigs.k8s.io/kustomize/kyaml v0.1.11
 	sigs.k8s.io/yaml v1.1.0
 )
 
