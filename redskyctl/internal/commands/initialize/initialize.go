@@ -17,18 +17,18 @@ limitations under the License.
 package initialize
 
 import (
-	"bufio"
+	"bytes"
 	"context"
-	"fmt"
 	"io"
+	"sync"
 
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/authorize_cluster"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/grant_permissions"
 	"github.com/spf13/cobra"
+	"sigs.k8s.io/kustomize/kyaml/kio"
+	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
-
-// TODO We should be passing in labels/annotations to apply from here (e.g. managed-by redskyctl comes from here)
 
 // Options is the configuration for initialization
 type Options struct {
@@ -36,6 +36,7 @@ type Options struct {
 
 	IncludeBootstrapRole    bool
 	IncludeExtraPermissions bool
+	NamespaceSelector       string
 }
 
 // NewCommand creates a command for performing an initialization
@@ -51,13 +52,33 @@ func NewCommand(o *Options) *cobra.Command {
 
 	cmd.Flags().BoolVar(&o.IncludeBootstrapRole, "bootstrap-role", o.IncludeBootstrapRole, "Create the bootstrap role (if it does not exist).")
 	cmd.Flags().BoolVar(&o.IncludeExtraPermissions, "extra-permissions", o.IncludeExtraPermissions, "Generate permissions required for features like namespace creation")
+	cmd.Flags().StringVar(&o.NamespaceSelector, "ns-selector", o.NamespaceSelector, "Create namespaced role bindings to matching namespaces.")
 
 	commander.ExitOnError(cmd)
 	return cmd
 }
 
 func (o *Options) initialize(ctx context.Context) error {
-	// Fork `kubectl apply` and get a pipe to write manifests to
+	var manifests bytes.Buffer
+	manifests.Grow(2 << 18)
+
+	// Generate all of the manifests using a kyaml pipeline
+	p := kio.Pipeline{
+		Inputs: []kio.Reader{
+			&kio.ByteReader{Reader: o.generateInstall()},
+			&kio.ByteReader{Reader: o.generateControllerRBAC()},
+			&kio.ByteReader{Reader: o.generateSecret()},
+		},
+		Filters: []kio.Filter{kio.FilterFunc(o.filter)},
+		Outputs: []kio.Writer{kio.ByteWriter{Writer: &manifests}},
+	}
+
+	// Execute the pipeline to populate the manifests buffer
+	if err := p.Execute(); err != nil {
+		return err
+	}
+
+	// Run `kubectl apply` to install the product
 	// TODO Handle upgrades with "--prune", "--selector", "app.kubernetes.io/name=redskyops,app.kubernetes.io/managed-by=%s"
 	kubectlApply, err := o.Config.Kubectl(ctx, "apply", "-f", "-")
 	if err != nil {
@@ -65,65 +86,80 @@ func (o *Options) initialize(ctx context.Context) error {
 	}
 	kubectlApply.Stdout = o.Out
 	kubectlApply.Stderr = o.ErrOut
-	w, err := kubectlApply.StdinPipe()
-	if err != nil {
+	kubectlApply.Stdin = &manifests
+	if err := kubectlApply.Run(); err != nil {
 		return err
 	}
-
-	// Generate all of the manifests (with YAML document delimiters)
-	go func() {
-		defer func() { _ = w.Close() }()
-		// Buffer the manifests so we only send the entire group to kubectl; otherwise the time delay generating
-		// the secret may result in the controller pods being created before the secret exists.
-		buf := bufio.NewWriterSize(w, 2<<18)
-		if err := o.generateInstall(buf); err != nil {
-			return
-		}
-		_, _ = fmt.Fprintln(buf, "---")
-		if err := o.generateBootstrapRole(buf); err != nil {
-			return
-		}
-		_, _ = fmt.Fprintln(buf, "---")
-		if err := o.generateSecret(buf); err != nil {
-			return
-		}
-		_ = buf.Flush()
-	}()
-
-	// Wait for everything to be applied
-	return kubectlApply.Run()
+	return nil
 }
 
-func (o *Options) generateInstall(out io.Writer) error {
-	opts := o.GeneratorOptions
-	cmd := NewGeneratorCommand(&opts)
-	cmd.SetArgs([]string{})
-	cmd.SetOut(out)
-	cmd.SetErr(o.ErrOut)
-	return cmd.Execute()
+func (o *Options) generateInstall() io.Reader {
+	opts := o.GeneratorOptions // Be sure to copy the options here or we will overwrite the real streams
+	return o.newStdoutReader(NewGeneratorCommand(&opts))
 }
 
-func (o *Options) generateBootstrapRole(out io.Writer) error {
-	opts := &grant_permissions.GeneratorOptions{
+func (o *Options) generateControllerRBAC() io.Reader {
+	opts := grant_permissions.GeneratorOptions{
 		Config:                o.Config,
 		SkipDefault:           !o.IncludeBootstrapRole,
 		CreateTrialNamespaces: o.IncludeExtraPermissions,
+		NamespaceSelector:     o.NamespaceSelector,
+		IncludeManagerRole:    true,
 	}
-	cmd := grant_permissions.NewGeneratorCommand(opts)
-	cmd.SetArgs([]string{})
-	cmd.SetOut(out)
-	cmd.SetErr(o.ErrOut)
-	return cmd.Execute()
+	return o.newStdoutReader(grant_permissions.NewGeneratorCommand(&opts))
 }
 
-func (o *Options) generateSecret(out io.Writer) error {
-	opts := &authorize_cluster.GeneratorOptions{
+func (o *Options) generateSecret() io.Reader {
+	opts := authorize_cluster.GeneratorOptions{
 		Config:            o.Config,
 		AllowUnauthorized: true,
 	}
-	cmd := authorize_cluster.NewGeneratorCommand(opts)
-	cmd.SetArgs([]string{})
-	cmd.SetOut(out)
-	cmd.SetErr(o.ErrOut)
-	return cmd.Execute()
+	return o.newStdoutReader(authorize_cluster.NewGeneratorCommand(&opts))
+}
+
+// filter adjusts the generated initialization resources as necessary
+func (o *Options) filter(input []*yaml.RNode) ([]*yaml.RNode, error) {
+	// TODO We should eliminate the "/config/install" Kustomization and just do everything here
+
+	if o.NamespaceSelector == "" {
+		return input, nil
+	}
+
+	// If there is a namespace filter, we must remove cluster role bindings
+	var output kio.ResourceNodeSlice
+	for i := range input {
+		m, err := input[i].GetMeta()
+		if err != nil {
+			return nil, err
+		}
+		if m.Kind == "ClusterRoleBinding" && m.APIVersion == "rbac.authorization.k8s.io/v1" {
+			continue
+		}
+		output = append(output, input[i])
+	}
+	return output, nil
+}
+
+// newStdoutReader returns an io.Reader which will execute the supplied command on the first read
+func (o *Options) newStdoutReader(cmd *cobra.Command) io.Reader {
+	r := &stdoutReader{}
+	r.exec = cmd.Execute    // This is the function invoked once to populate the buffer
+	cmd.SetOut(&r.stdout)   // Have the command write to our buffer
+	cmd.SetErr(o.ErrOut)    // Have the command print error messages straight to our error stream
+	cmd.SetArgs([]string{}) // Supply an explicit empty argument array so it doesn't get the OS arguments by default
+	return r
+}
+
+type stdoutReader struct {
+	stdout bytes.Buffer
+	once   sync.Once
+	exec   func() error
+}
+
+func (c *stdoutReader) Read(b []byte) (n int, err error) {
+	c.once.Do(func() { err = c.exec() })
+	if err != nil {
+		return n, err
+	}
+	return c.stdout.Read(b)
 }
