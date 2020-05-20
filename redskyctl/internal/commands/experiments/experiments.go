@@ -251,7 +251,11 @@ func (m *experimentsMeta) ExtractValue(obj interface{}, column string) (string, 
 		case "observations":
 			return strconv.FormatInt(o.Observations, 10), nil
 		case "labels":
-			return "", nil // Experiments do not have labels, we still want to show an empty column
+			var labels []string
+			for k, v := range o.Labels {
+				labels = append(labels, fmt.Sprintf("%s=%s", k, v))
+			}
+			return strings.Join(labels, ","), nil
 		}
 	case *experimentsv1alpha1.TrialItem:
 		switch column {

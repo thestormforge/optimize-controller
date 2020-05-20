@@ -275,6 +275,8 @@ type Experiment struct {
 	Constraints []Constraint `json:"constraints,omitempty"`
 	// The search space of the experiment.
 	Parameters []Parameter `json:"parameters"`
+	// Labels for this experiment.
+	Labels map[string]string `json:"labels,omitempty"`
 }
 
 // Name allows an experiment to be used as an ExperimentName
