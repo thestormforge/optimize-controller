@@ -1,79 +1,22 @@
 name: Matrix workflow
 on:
-  push:
+  #push:
+  pull_request:
     branches:
       - master
-    tags:
-      - v*
-
 jobs:
-  build:
-    name: Build and Deploy
-    runs-on: ubuntu-latest
-    env:
-      BUILD_METADATA: build.${{ github.run_number }}
-      GIT_COMMIT: ${{ github.sha }}
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v2
-      - name: Unshallow
-        run: git fetch --prune --unshallow
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: '1.14'
-      - name: Cache Go Modules
-        uses: actions/cache@v1
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-      - name: Set up Google Cloud Platform
-        uses: GoogleCloudPlatform/github-actions/setup-gcloud@0.1.2
-        with:
-          service_account_email: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_EMAIL }}
-          service_account_key: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
-          project_id: ${{ secrets.GOOGLE_PROJECT_ID }}
-      - name: Bootstrap
-        run: |
-          TAG=${GITHUB_SHA:0:8}.${GITHUB_RUN_ID}
-          echo "::set-env name=IMG::gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/redskyops-controller:${TAG}"
-          echo "::set-env name=REDSKYCTL_IMG::gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/redskyctl:${TAG}"
-          echo "::set-env name=SETUPTOOLS_IMG::gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/setuptools:${TAG}"
-          echo "::set-env name=PULL_POLICY::Always"
-          gcloud --quiet auth configure-docker
-      - name: Build controller
-        run: |
-          make docker-build
-          make docker-push
-      - name: Build tool
-        uses: goreleaser/goreleaser-action@v1
-        with:
-          args: release --skip-sign --rm-dist
-      - name: Upload macOS binary
-        uses: actions/upload-artifact@v2
-        with:
-          name: redskyctl_darwin_amd64
-          path: dist/redskyctl-darwin-amd64.tar.gz
-      - name: Upload Linux binary
-        uses: actions/upload-artifact@v2
-        with:
-          name: redskyctl_linux_amd64
-          path: dist/redskyctl-linux-amd64.tar.gz
   test:
-    name: Build and Deploy
+    name: Test Kubernetes Versions
     runs-on: ubuntu-latest
-    needs: build
     strategy:
       matrix:
         # Version listings can be found here:
         # https://github.com/kubernetes-sigs/kind/releases
         node:
-          - v1.18.0
-          - v1.17.0
-          - v1.16.4
-          - v1.15.7
+          - v1.18.2
+          - v1.17.5
+          - v1.16.9
+          - v1.15.11
           - v1.14.10
           #- v1.13.12
           #- v1.12.10
@@ -81,19 +24,44 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v2
-      - name: Download redskyctl
-        uses: actions/download-artifact@v2
+      - name: KinD (Kubernetes in Docker) Initialization
+        uses: helm/kind-action@v1.0.0-rc.1
         with:
+          version: v0.8.1
+          node_image: kindest/node:${{ matrix.node }}
+      - name: Install Kustomize
+        run: |
+          hack/install_kustomize.sh
+      - name: Wait for build to succeed
+        uses: fountainhead/action-wait-for-check@v1.0.0
+        id: wait-for-build
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          checkName: "Build and Deploy"
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          intervalSeconds: 30
+          timeoutSeconds: 900
+      - name: Fail early if we don't have a successful build
+        if: steps.wait-for-build.outputs.conclusion != 'success'
+        run: |
+          exit 1
+      - name: Wait 10s because sleep fixes everything
+        run: |
+          sleep 10
+      - name: Download artifacts from master workflow
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          github_token: ${{secrets.GITHUB_TOKEN}}
+          #workflow: master.yaml
+          workflow: push.yaml
           name: redskyctl_linux_amd64
           path: dist/redskyctl_linux_amd64
+          commit: ${{ github.event.pull_request.head.sha || github.sha }}
+          repo: ${{github.repository}}
       - name: Rename binary because dumbness
         run: |
           tar -zxf dist/redskyctl_linux_amd64/redskyctl-linux-amd64.tar.gz \
               -C dist/redskyctl_linux_amd64
-      - name: KinD (Kubernetes in Docker) Initialization
-        uses: engineerd/setup-kind@v0.3.0
-        with:
-          image: kindest/node:${{ matrix.node }}
       - name: RedSky Quickstart
         run: |
           hack/integration.sh

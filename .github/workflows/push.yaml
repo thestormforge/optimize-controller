@@ -49,6 +49,7 @@ jobs:
       - name: KinD (Kubernetes in Docker) Initialization
         uses: helm/kind-action@v1.0.0-rc.1
         with:
+          version: v0.8.1
           wait: 0s
       - name: Set up Google Cloud Platform
         uses: GoogleCloudPlatform/github-actions/setup-gcloud@0.1.2
