@@ -110,7 +110,7 @@ func (o *LabelOptions) labelExperiments(ctx context.Context, names []experiments
 			return err
 		}
 
-		if err := o.ExperimentsAPI.LabelExperiment(ctx, exp.Labels, experimentsv1alpha1.ExperimentLabels{Labels: o.Labels}); err != nil {
+		if err := o.ExperimentsAPI.LabelExperiment(ctx, exp.LabelsURL, experimentsv1alpha1.ExperimentLabels{Labels: o.Labels}); err != nil {
 			return err
 		}
 

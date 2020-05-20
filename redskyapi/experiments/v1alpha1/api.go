@@ -239,7 +239,7 @@ type ExperimentMeta struct {
 	Self         string    `json:"-"`
 	Trials       string    `json:"-"`
 	NextTrial    string    `json:"-"`
-	Labels       string    `json:"-"`
+	LabelsURL    string    `json:"-"`
 }
 
 func (m *ExperimentMeta) SetLocation(string) {}
@@ -255,7 +255,7 @@ func (m *ExperimentMeta) SetLink(rel, link string) {
 	case relationNextTrial:
 		m.NextTrial = link
 	case relationLabels:
-		m.Labels = link
+		m.LabelsURL = link
 	}
 }
 
@@ -358,8 +358,6 @@ type ExperimentLabels struct {
 type TrialMeta struct {
 	ReportTrial string `json:"-"`
 	LabelsURL   string `json:"-"`
-
-	// TODO Add "URL" suffixes on links / rename "ReportTrial" to "SelfURL"
 }
 
 func (m *TrialMeta) SetLocation(location string) { m.ReportTrial = location }
