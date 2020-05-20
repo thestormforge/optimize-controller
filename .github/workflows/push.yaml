@@ -46,9 +46,10 @@ jobs:
         run: git fetch --prune --unshallow
       # Launch KinD early so we can do other things while the control plane converges
       - name: KinD (Kubernetes in Docker) Initialization
-        uses: engineerd/setup-kind@v0.3.0
+        uses: engineerd/setup-kind@master
         with:
           wait: 0s
+          version: "v0.8.1"
       - name: Set up Google Cloud Platform
         uses: GoogleCloudPlatform/github-actions/setup-gcloud@0.1.2
         with:
