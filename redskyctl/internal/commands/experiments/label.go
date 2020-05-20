@@ -74,9 +74,15 @@ func (o *LabelOptions) setNamesAndLabels(args []string) error {
 }
 
 func (o *LabelOptions) label(ctx context.Context) error {
+	e := make([]experimentsv1alpha1.ExperimentName, 0, len(o.Names))
 	t := make(map[experimentsv1alpha1.ExperimentName][]int64)
+
 	for _, n := range o.Names {
 		switch n.Type {
+
+		case typeExperiment:
+			e = append(e, n.experimentName())
+
 		case typeTrial:
 			key := n.experimentName()
 			t[key] = append(t[key], n.Number)
@@ -86,14 +92,36 @@ func (o *LabelOptions) label(ctx context.Context) error {
 		}
 	}
 
-	if len(t) > 0 {
-		return o.labelTrial(ctx, t)
+	if err := o.labelExperiments(ctx, e); err != nil {
+		return err
+	}
+
+	if err := o.labelTrials(ctx, t); err != nil {
+		return err
 	}
 
 	return nil
 }
 
-func (o *LabelOptions) labelTrial(ctx context.Context, numbers map[experimentsv1alpha1.ExperimentName][]int64) error {
+func (o *LabelOptions) labelExperiments(ctx context.Context, names []experimentsv1alpha1.ExperimentName) error {
+	for _, n := range names {
+		exp, err := o.ExperimentsAPI.GetExperimentByName(ctx, n)
+		if err != nil {
+			return err
+		}
+
+		if err := o.ExperimentsAPI.LabelExperiment(ctx, exp.Labels, experimentsv1alpha1.ExperimentLabels{Labels: o.Labels}); err != nil {
+			return err
+		}
+
+		if err := o.Printer.PrintObj(&exp, o.Out); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (o *LabelOptions) labelTrials(ctx context.Context, numbers map[experimentsv1alpha1.ExperimentName][]int64) error {
 	for n, nums := range numbers {
 		exp, err := o.ExperimentsAPI.GetExperimentByName(ctx, n)
 		if err != nil {
@@ -112,8 +140,7 @@ func (o *LabelOptions) labelTrial(ctx context.Context, numbers map[experimentsv1
 			if hasTrialNumber(&tl.Trials[i], nums) {
 				t := tl.Trials[i]
 				t.Experiment = &exp
-
-				if err := o.ExperimentsAPI.LabelTrial(ctx, t.TrialLabels, experimentsv1alpha1.TrialLabels{Labels: o.Labels}); err != nil {
+				if err := o.ExperimentsAPI.LabelTrial(ctx, t.LabelsURL, experimentsv1alpha1.TrialLabels{Labels: o.Labels}); err != nil {
 					return err
 				}
 				if err := o.Printer.PrintObj(&t, o.Out); err != nil {

@@ -34,13 +34,13 @@ import (
 const (
 	endpointExperiment = "/experiments/"
 
-	relationSelf        = "self"
-	relationNext        = "next"
-	relationPrev        = "prev"
-	relationPrevious    = "previous"
-	relationTrials      = "https://carbonrelay.com/rel/trials"
-	relationNextTrial   = "https://carbonrelay.com/rel/nextTrial"
-	relationTrialLabels = "https://carbonrelay.com/rel/trialLabels"
+	relationSelf      = "self"
+	relationNext      = "next"
+	relationPrev      = "prev"
+	relationPrevious  = "previous"
+	relationLabels    = "https://carbonrelay.com/rel/labels"
+	relationTrials    = "https://carbonrelay.com/rel/trials"
+	relationNextTrial = "https://carbonrelay.com/rel/nextTrial"
 )
 
 // Meta is used to collect resource metadata from the response
@@ -239,6 +239,7 @@ type ExperimentMeta struct {
 	Self         string    `json:"-"`
 	Trials       string    `json:"-"`
 	NextTrial    string    `json:"-"`
+	Labels       string    `json:"-"`
 }
 
 func (m *ExperimentMeta) SetLocation(string) {}
@@ -253,6 +254,8 @@ func (m *ExperimentMeta) SetLink(rel, link string) {
 		m.Trials = link
 	case relationNextTrial:
 		m.NextTrial = link
+	case relationLabels:
+		m.Labels = link
 	}
 }
 
@@ -311,17 +314,29 @@ func (m *ExperimentListMeta) SetLink(rel, link string) {
 }
 
 type ExperimentListQuery struct {
-	Offset int
-	Limit  int
+	Offset        int
+	Limit         int
+	LabelSelector map[string]string
 }
 
 func (p *ExperimentListQuery) Encode() string {
+	if p == nil {
+		return ""
+	}
+
 	q := url.Values{}
-	if p != nil && p.Offset != 0 {
+	if p.Offset != 0 {
 		q.Set("offset", strconv.Itoa(p.Offset))
 	}
-	if p != nil && p.Limit != 0 {
+	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(p.Limit))
+	}
+	if len(p.LabelSelector) > 0 {
+		ls := make([]string, 0, len(p.LabelSelector))
+		for k, v := range p.LabelSelector {
+			ls = append(ls, fmt.Sprintf("%s=%s", k, v))
+		}
+		q.Add("labelSelector", strings.Join(ls, ","))
 	}
 	return q.Encode()
 }
@@ -333,17 +348,29 @@ type ExperimentList struct {
 	Experiments []ExperimentItem `json:"experiments,omitempty"`
 }
 
+type ExperimentLabels struct {
+	// New labels for this experiment.
+	Labels map[string]string `json:"labels"`
+}
+
 type TrialMeta struct {
 	ReportTrial string `json:"-"`
-	TrialLabels string `json:"-"`
+	LabelsURL   string `json:"-"`
+
+	// TODO Add "URL" suffixes on links / rename "ReportTrial" to "SelfURL"
 }
 
 func (m *TrialMeta) SetLocation(location string) { m.ReportTrial = location }
 func (m *TrialMeta) SetLastModified(time.Time)   {}
 func (m *TrialMeta) SetLink(rel, link string) {
 	switch rel {
-	case relationTrialLabels:
-		m.TrialLabels = link
+	case relationLabels:
+		m.LabelsURL = link
+	}
+
+	// Backwards compatibility with the old trial labels relation
+	if m.LabelsURL == "" && rel == "https://carbonrelay.com/rel/trialLabels" {
+		m.LabelsURL = link
 	}
 }
 
@@ -410,17 +437,27 @@ type TrialListQuery struct {
 	// Comma separated list of statuses to fetch.
 	Status []TrialStatus
 	// Comma separated list of label value pairs to match on.
-	LabelSelector []string
+	LabelSelector map[string]string
 }
 
 func (p *TrialListQuery) Encode() string {
+	if p == nil {
+		return ""
+	}
 	q := url.Values{}
-	if p != nil && len(p.Status) > 0 {
+	if len(p.Status) > 0 {
 		strs := make([]string, len(p.Status))
 		for i := range p.Status {
 			strs[i] = string(p.Status[i])
 		}
 		q.Add("status", strings.Join(strs, ","))
+	}
+	if len(p.LabelSelector) > 0 {
+		ls := make([]string, 0, len(p.LabelSelector))
+		for k, v := range p.LabelSelector {
+			ls = append(ls, fmt.Sprintf("%s=%s", k, v))
+		}
+		q.Add("labelSelector", strings.Join(ls, ","))
 	}
 	return q.Encode()
 }
@@ -453,6 +490,7 @@ type API interface {
 	NextTrial(context.Context, string) (TrialAssignments, error)
 	ReportTrial(context.Context, string, TrialValues) error
 	AbandonRunningTrial(context.Context, string) error
+	LabelExperiment(context.Context, string, ExperimentLabels) error
 	LabelTrial(context.Context, string, TrialLabels) error
 }
 
@@ -771,6 +809,35 @@ func (h *httpAPI) AbandonRunningTrial(ctx context.Context, u string) error {
 		return nil
 	case http.StatusNotFound:
 		return &Error{Type: ErrTrialNotFound}
+	default:
+		return unexpected(resp, body)
+	}
+}
+
+func (h *httpAPI) LabelExperiment(ctx context.Context, u string, lbl ExperimentLabels) error {
+	b, err := json.Marshal(lbl)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, u, bytes.NewBuffer(b))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, body, err := h.client.Do(ctx, req)
+	if err != nil {
+		return err
+	}
+
+	switch resp.StatusCode {
+	case http.StatusCreated:
+		return nil
+	case http.StatusNotFound:
+		return &Error{Type: ErrTrialNotFound}
+	case http.StatusUnprocessableEntity:
+		return &Error{Type: ErrTrialInvalid}
 	default:
 		return unexpected(resp, body)
 	}
