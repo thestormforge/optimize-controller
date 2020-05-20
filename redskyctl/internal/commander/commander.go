@@ -20,13 +20,12 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"os/exec"
 
 	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
 	internalconfig "github.com/redskyops/redskyops-controller/internal/config"
-	"github.com/redskyops/redskyops-controller/internal/version"
+	"github.com/redskyops/redskyops-controller/redskyapi"
 	experimentsv1alpha1 "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/config"
 	"github.com/spf13/cobra"
@@ -68,12 +67,16 @@ func StreamsPreRun(streams *IOStreams) func(cmd *cobra.Command, args []string) {
 
 // SetExperimentsAPI creates a new experiments API interface from the supplied configuration
 func SetExperimentsAPI(api *experimentsv1alpha1.API, cfg config.Config, cmd *cobra.Command) error {
-	// TODO What if cfg == nil? Right now it will panic...
-	ea, err := experimentsv1alpha1.NewForConfig(cfg, userAgent(cmd))
+	ctx := cmd.Context()
+
+	// Reuse the OAuth2 base transport for the API calls
+	t := oauth2.NewClient(ctx, nil).Transport
+	c, err := redskyapi.NewClient(ctx, cfg, t)
 	if err != nil {
 		return err
 	}
-	*api = ea
+
+	*api = experimentsv1alpha1.NewAPI(c)
 	return nil
 }
 
@@ -120,15 +123,9 @@ func ConfigGlobals(cfg *internalconfig.RedSkyConfig, cmd *cobra.Command) {
 	root.PersistentPreRunE = func(cmd *cobra.Command, args []string) error { return cfg.Load() }
 }
 
-// WithContextE wraps a function that accepts a context in one that accepts a command and argument slice. The background
-// context is used as the root context, however a child context with additional configuration may be supplied to the
-// to the wrapped function.
+// WithContextE wraps a function that accepts a context in one that accepts a command and argument slice
 func WithContextE(runE func(context.Context) error) func(*cobra.Command, []string) error {
-	return func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
-		ctx = context.WithValue(ctx, oauth2.HTTPClient, &http.Client{Transport: userAgent(cmd)})
-		return runE(ctx)
-	}
+	return func(cmd *cobra.Command, _ []string) error { return runE(cmd.Context()) }
 }
 
 // WithoutArgsE wraps a no-argument function in one that accepts a command and argument slice
@@ -216,10 +213,4 @@ func ExitOnError(cmd *cobra.Command) {
 		cmd.PersistentPostRun = wrapE(cmd.PersistentPostRunE)
 		cmd.PersistentPostRunE = nil
 	}
-}
-
-func userAgent(cmd *cobra.Command) http.RoundTripper {
-	// TODO Get version number from cmd?
-	// TODO Include OS, etc. in comment?
-	return version.UserAgent(cmd.Root().Name(), "", nil)
 }

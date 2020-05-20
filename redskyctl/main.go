@@ -17,15 +17,19 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	crypto_rand "crypto/rand"
 	"encoding/binary"
 	"math/rand"
+	"net/http"
 	"os"
 
+	"github.com/redskyops/redskyops-controller/internal/version"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands"
+	"golang.org/x/oauth2"
 )
 
-func main() {
+func init() {
 	// Seed the pseudo random number generator using the cryptographic random number generator
 	// https://stackoverflow.com/a/54491783
 	var b [8]byte
@@ -34,12 +38,22 @@ func main() {
 		panic(err)
 	}
 	rand.Seed(int64(binary.LittleEndian.Uint64(b[:])))
+}
 
-	// TODO Determine which command to run by looking at the base name of $0
-	command := commands.NewRedskyctlCommand()
+func main() {
+	// Create a new root command
+	cmd := commands.NewRedskyctlCommand()
+
+	// TODO Include OS, etc. in comment?
+	uaRoundTripper := version.UserAgent(cmd.Root().Name(), "", nil)
+
+	// Generate a context which includes our UA string
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, oauth2.HTTPClient, &http.Client{Transport: uaRoundTripper})
 
 	// Run the command
-	if err := command.Execute(); err != nil {
+	err := cmd.ExecuteContext(ctx)
+	if err != nil {
 		os.Exit(1)
 	}
 }
