@@ -31,7 +31,8 @@ import (
 	"github.com/redskyops/redskyops-controller/internal/trial"
 	"github.com/redskyops/redskyops-controller/internal/validation"
 	"github.com/redskyops/redskyops-controller/internal/version"
-	redskyapi "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
+	"github.com/redskyops/redskyops-controller/redskyapi"
+	experimentsv1alpha1 "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	"golang.org/x/time/rate"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -45,9 +46,9 @@ import (
 // ServerReconciler reconciles a experiment and trial objects with a remote server
 type ServerReconciler struct {
 	client.Client
-	Log       logr.Logger
-	Scheme    *runtime.Scheme
-	RedSkyAPI redskyapi.API
+	Log            logr.Logger
+	Scheme         *runtime.Scheme
+	ExperimentsAPI experimentsv1alpha1.API
 
 	trialCreation *rate.Limiter
 }
@@ -128,7 +129,9 @@ func (r *ServerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 }
 
 func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	if r.RedSkyAPI == nil {
+	if r.ExperimentsAPI == nil {
+		ctx := context.Background()
+
 		// Create a new Red Sky API
 		cfg := &config.RedSkyConfig{}
 		if err := cfg.Load(); err != nil {
@@ -143,17 +146,18 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			}
 		}
 
-		api, err := redskyapi.NewForConfig(cfg, version.UserAgent("RedSkyController", comment, nil))
+		c, err := redskyapi.NewClient(ctx, cfg, version.UserAgent("RedSkyController", comment, nil))
 		if err != nil {
 			return err
 		}
+		api := experimentsv1alpha1.NewAPI(c)
 
 		// An unauthorized error means we will never be able to connect without changing the credentials and restarting
-		if _, err := api.Options(context.Background()); redskyapi.IsUnauthorized(err) {
+		if _, err := api.Options(ctx); experimentsv1alpha1.IsUnauthorized(err) {
 			r.Log.Info("Red Sky API is unavailable, skipping setup", "message", err.Error())
 			return nil
 		}
-		r.RedSkyAPI = api
+		r.ExperimentsAPI = api
 	}
 
 	// Enforce a one trial per-second creation limit (no burst! that is the whole point)
@@ -191,7 +195,7 @@ func (r *ServerReconciler) listTrials(ctx context.Context, trialList *redskyv1al
 func (r *ServerReconciler) createExperiment(ctx context.Context, log logr.Logger, exp *redskyv1alpha1.Experiment) (*ctrl.Result, error) {
 	// Convert the cluster state into a server representation
 	n, e := server.FromCluster(exp)
-	ee, err := r.RedSkyAPI.CreateExperiment(ctx, n, *e)
+	ee, err := r.ExperimentsAPI.CreateExperiment(ctx, n, *e)
 	if err != nil {
 		return &ctrl.Result{}, err
 	}
@@ -258,7 +262,7 @@ func (r *ServerReconciler) nextTrial(ctx context.Context, log logr.Logger, exp *
 	}
 
 	// Obtain a suggestion from the server
-	suggestion, err := r.RedSkyAPI.NextTrial(ctx, exp.GetAnnotations()[redskyv1alpha1.AnnotationNextTrialURL])
+	suggestion, err := r.ExperimentsAPI.NextTrial(ctx, exp.GetAnnotations()[redskyv1alpha1.AnnotationNextTrialURL])
 	if err != nil {
 		if server.StopExperiment(exp, err) {
 			err := r.Update(ctx, exp)
@@ -277,7 +281,7 @@ func (r *ServerReconciler) nextTrial(ctx context.Context, log logr.Logger, exp *
 	if err := r.Create(ctx, t); err != nil {
 		// If creation fails, abandon the suggestion (ignoring those errors)
 		if url := t.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL]; url != "" {
-			_ = r.RedSkyAPI.AbandonRunningTrial(ctx, url)
+			_ = r.ExperimentsAPI.AbandonRunningTrial(ctx, url)
 		}
 		return &ctrl.Result{}, err
 	}
@@ -294,7 +298,7 @@ func (r *ServerReconciler) reportTrial(ctx context.Context, log logr.Logger, t *
 
 	if reportTrialURL := t.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL]; reportTrialURL != "" {
 		trialValues := server.FromClusterTrial(t)
-		err := r.RedSkyAPI.ReportTrial(ctx, reportTrialURL, *trialValues)
+		err := r.ExperimentsAPI.ReportTrial(ctx, reportTrialURL, *trialValues)
 		if controller.IgnoreReportError(err) != nil {
 			return &ctrl.Result{}, err
 		}
@@ -326,7 +330,7 @@ func (r *ServerReconciler) abandonTrial(ctx context.Context, log logr.Logger, t 
 	}
 
 	if reportTrialURL := t.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL]; reportTrialURL != "" {
-		err := r.RedSkyAPI.AbandonRunningTrial(ctx, reportTrialURL)
+		err := r.ExperimentsAPI.AbandonRunningTrial(ctx, reportTrialURL)
 		if controller.IgnoreNotFound(err) != nil {
 			return &ctrl.Result{}, err
 		}

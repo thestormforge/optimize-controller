@@ -456,14 +456,9 @@ type API interface {
 	LabelTrial(context.Context, string, TrialLabels) error
 }
 
-// NewForConfig returns a new API instance for the specified configuration
-func NewForConfig(cfg redskyclient.Config, transport http.RoundTripper) (API, error) {
-	// TODO We should be wrapping transport, e.g. for our retry-after logic
-	c, err := redskyclient.NewClient(context.Background(), cfg, transport)
-	if err != nil {
-		return nil, err
-	}
-	return &httpAPI{client: c}, nil
+// NewAPI returns a new API implementation for the specified client
+func NewAPI(c redskyclient.Client) API {
+	return &httpAPI{client: c}
 }
 
 type httpAPI struct {
@@ -708,7 +703,6 @@ func (h *httpAPI) NextTrial(ctx context.Context, u string) (TrialAssignments, er
 	case http.StatusGone:
 		return asm, &Error{Type: ErrExperimentStopped}
 	case http.StatusServiceUnavailable:
-		// TODO We should include the retry logic here or at the HTTP client
 		ra, err := strconv.Atoi(resp.Header.Get("Retry-After"))
 		if err != nil || ra < 1 {
 			ra = 5
