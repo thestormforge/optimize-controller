@@ -1,17 +1,17 @@
 /*
- Copyright 2020 GramLabs, Inc.
+Copyright 2020 GramLabs, Inc.
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-     http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 */
 
 package v1alpha1
@@ -40,8 +40,8 @@ type httpAPI struct {
 }
 
 func (h *httpAPI) Options(ctx context.Context) (ServerMeta, error) {
-	sm := ServerMeta{}
 	u := h.client.URL(endpointExperiment).String()
+	sm := ServerMeta{}
 
 	req, err := http.NewRequest(http.MethodOptions, u, nil)
 	if err != nil {
@@ -49,7 +49,8 @@ func (h *httpAPI) Options(ctx context.Context) (ServerMeta, error) {
 	}
 
 	// We actually want to do OPTIONS for the whole server, now that the host:port has been captured, overwrite the RequestURL
-	// TODO Change this back to `req.URL.Opaque = "*"`?
+	// TODO This isn't working because of backend configuration issues
+	// req.URL.Opaque = "*"
 
 	resp, body, err := h.client.Do(ctx, req)
 	if err != nil {
@@ -57,21 +58,20 @@ func (h *httpAPI) Options(ctx context.Context) (ServerMeta, error) {
 	}
 
 	switch resp.StatusCode {
-	case http.StatusOK, http.StatusNoContent:
-		sm.Unmarshal(resp.Header)
-		return sm, nil
-	case http.StatusNotFound, http.StatusMethodNotAllowed:
+	case http.StatusOK, http.StatusNoContent,
 		// TODO Current behavior is to return 404 or 405 instead of 204 (or 200?)
+		http.StatusNotFound, http.StatusMethodNotAllowed:
 		sm.Unmarshal(resp.Header)
 		return sm, nil
 	default:
-		return sm, unexpected(resp, body)
+		return sm, newError(ErrUnexpected, resp, body)
 	}
 }
 
 func (h *httpAPI) GetAllExperiments(ctx context.Context, q *ExperimentListQuery) (ExperimentList, error) {
 	u := h.client.URL(endpointExperiment)
 	u.RawQuery = q.Encode()
+
 	return h.GetAllExperimentsByPage(ctx, u.String())
 }
 
@@ -97,13 +97,20 @@ func (h *httpAPI) GetAllExperimentsByPage(ctx context.Context, u string) (Experi
 		}
 		return lst, err
 	default:
-		return lst, unexpected(resp, body)
+		return lst, newError(ErrUnexpected, resp, body)
 	}
 }
 
 func (h *httpAPI) GetExperimentByName(ctx context.Context, n ExperimentName) (Experiment, error) {
-	u := h.client.URL(endpointExperiment + n.Name())
-	return h.GetExperiment(ctx, u.String())
+	u := h.client.URL(endpointExperiment + n.Name()).String()
+	exp, err := h.GetExperiment(ctx, u)
+
+	// Improve the "not found" error message using the name
+	if eerr, ok := err.(*Error); ok && eerr.Type == ErrExperimentNotFound {
+		eerr.Message = fmt.Sprintf(`experiment "%s" not found`, n.Name())
+	}
+
+	return exp, err
 }
 
 func (h *httpAPI) GetExperiment(ctx context.Context, u string) (Experiment, error) {
@@ -125,25 +132,20 @@ func (h *httpAPI) GetExperiment(ctx context.Context, u string) (Experiment, erro
 		err = json.Unmarshal(body, &e)
 		return e, err
 	case http.StatusNotFound:
-		return e, &Error{Type: ErrExperimentNotFound}
+		return e, newError(ErrExperimentNotFound, resp, body)
 	default:
-		return e, unexpected(resp, body)
+		return e, newError(ErrUnexpected, resp, body)
 	}
 }
 
 func (h *httpAPI) CreateExperiment(ctx context.Context, n ExperimentName, exp Experiment) (Experiment, error) {
+	u := h.client.URL(endpointExperiment + n.Name()).String()
 	e := Experiment{}
-	u := h.client.URL(endpointExperiment + url.PathEscape(n.Name()))
-	b, err := json.Marshal(exp)
-	if err != nil {
-		return e, err
-	}
 
-	req, err := http.NewRequest(http.MethodPut, u.String(), bytes.NewBuffer(b))
+	req, err := httpNewJSONRequest(http.MethodPut, u, exp)
 	if err != nil {
 		return e, err
 	}
-	req.Header.Set("Content-Type", "application/json")
 
 	resp, body, err := h.client.Do(ctx, req)
 	if err != nil {
@@ -151,22 +153,18 @@ func (h *httpAPI) CreateExperiment(ctx context.Context, n ExperimentName, exp Ex
 	}
 
 	switch resp.StatusCode {
-	case http.StatusOK:
-		metaUnmarshal(resp.Header, &e.ExperimentMeta)
-		err = json.Unmarshal(body, &e)
-		return e, err
-	case http.StatusCreated:
+	case http.StatusOK, http.StatusCreated:
 		metaUnmarshal(resp.Header, &e.ExperimentMeta)
 		err = json.Unmarshal(body, &e)
 		return e, err
 	case http.StatusBadRequest:
-		return e, &Error{Type: ErrExperimentNameInvalid}
+		return e, newError(ErrExperimentNameInvalid, resp, body)
 	case http.StatusConflict:
-		return e, &Error{Type: ErrExperimentNameConflict}
+		return e, newError(ErrExperimentNameConflict, resp, body)
 	case http.StatusUnprocessableEntity:
-		return e, &Error{Type: ErrExperimentInvalid}
+		return e, newError(ErrExperimentInvalid, resp, body)
 	default:
-		return e, unexpected(resp, body)
+		return e, newError(ErrUnexpected, resp, body)
 	}
 }
 
@@ -185,9 +183,9 @@ func (h *httpAPI) DeleteExperiment(ctx context.Context, u string) error {
 	case http.StatusNoContent:
 		return nil
 	case http.StatusNotFound:
-		return &Error{Type: ErrExperimentNotFound}
+		return newError(ErrExperimentNotFound, resp, body)
 	default:
-		return unexpected(resp, body)
+		return newError(ErrUnexpected, resp, body)
 	}
 }
 
@@ -221,38 +219,33 @@ func (h *httpAPI) GetAllTrials(ctx context.Context, u string, q *TrialListQuery)
 		}
 		return lst, err
 	default:
-		return lst, unexpected(resp, body)
+		return lst, newError(ErrUnexpected, resp, body)
 	}
 }
 
 func (h *httpAPI) CreateTrial(ctx context.Context, u string, asm TrialAssignments) (string, error) {
-	l := ""
-	b, err := json.Marshal(asm)
-	if err != nil {
-		return l, err
-	}
+	ta := TrialAssignments{}
 
-	req, err := http.NewRequest(http.MethodPost, u, bytes.NewBuffer(b))
+	req, err := httpNewJSONRequest(http.MethodPost, u, asm)
 	if err != nil {
-		return l, err
+		return ta.ReportTrial, err
 	}
-	req.Header.Set("Content-Type", "application/json")
 
 	resp, body, err := h.client.Do(ctx, req)
 	if err != nil {
-		return l, err
+		return ta.ReportTrial, err
 	}
 
 	switch resp.StatusCode {
 	case http.StatusCreated:
-		l = resp.Header.Get("Location")
-		return l, nil
+		metaUnmarshal(resp.Header, &ta.TrialMeta)
+		return ta.ReportTrial, nil
 	case http.StatusConflict:
-		return l, &Error{Type: ErrExperimentStopped}
+		return ta.ReportTrial, newError(ErrExperimentStopped, resp, body)
 	case http.StatusUnprocessableEntity:
-		return l, &Error{Type: ErrTrialInvalid}
+		return ta.ReportTrial, newError(ErrTrialInvalid, resp, body)
 	default:
-		return l, unexpected(resp, body)
+		return ta.ReportTrial, newError(ErrUnexpected, resp, body)
 	}
 }
 
@@ -275,17 +268,11 @@ func (h *httpAPI) NextTrial(ctx context.Context, u string) (TrialAssignments, er
 		err = json.Unmarshal(body, &asm)
 		return asm, err
 	case http.StatusGone:
-		return asm, &Error{Type: ErrExperimentStopped}
+		return asm, newError(ErrExperimentStopped, resp, body)
 	case http.StatusServiceUnavailable:
-		ra, err := strconv.Atoi(resp.Header.Get("Retry-After"))
-		if err != nil || ra < 1 {
-			ra = 5
-		} else if ra > 120 {
-			ra = 120
-		}
-		return asm, &Error{Type: ErrTrialUnavailable, RetryAfter: time.Duration(ra) * time.Second}
+		return asm, newError(ErrTrialUnavailable, resp, body)
 	default:
-		return asm, unexpected(resp, body)
+		return asm, newError(ErrUnexpected, resp, body)
 	}
 }
 
@@ -293,16 +280,11 @@ func (h *httpAPI) ReportTrial(ctx context.Context, u string, vls TrialValues) er
 	if vls.Failed {
 		vls.Values = nil
 	}
-	b, err := json.Marshal(vls)
-	if err != nil {
-		return err
-	}
 
-	req, err := http.NewRequest(http.MethodPost, u, bytes.NewBuffer(b))
+	req, err := httpNewJSONRequest(http.MethodPost, u, vls)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Content-Type", "application/json")
 
 	resp, body, err := h.client.Do(ctx, req)
 	if err != nil {
@@ -313,13 +295,13 @@ func (h *httpAPI) ReportTrial(ctx context.Context, u string, vls TrialValues) er
 	case http.StatusCreated:
 		return nil
 	case http.StatusNotFound:
-		return &Error{Type: ErrTrialNotFound}
+		return newError(ErrTrialNotFound, resp, body)
 	case http.StatusConflict:
-		return &Error{Type: ErrTrialAlreadyReported}
+		return newError(ErrTrialAlreadyReported, resp, body)
 	case http.StatusUnprocessableEntity:
-		return &Error{Type: ErrTrialInvalid}
+		return newError(ErrTrialInvalid, resp, body)
 	default:
-		return unexpected(resp, body)
+		return newError(ErrUnexpected, resp, body)
 	}
 }
 
@@ -338,23 +320,17 @@ func (h *httpAPI) AbandonRunningTrial(ctx context.Context, u string) error {
 	case http.StatusNoContent:
 		return nil
 	case http.StatusNotFound:
-		return &Error{Type: ErrTrialNotFound}
+		return newError(ErrTrialNotFound, resp, body)
 	default:
-		return unexpected(resp, body)
+		return newError(ErrUnexpected, resp, body)
 	}
 }
 
 func (h *httpAPI) LabelExperiment(ctx context.Context, u string, lbl ExperimentLabels) error {
-	b, err := json.Marshal(lbl)
+	req, err := httpNewJSONRequest(http.MethodPost, u, lbl)
 	if err != nil {
 		return err
 	}
-
-	req, err := http.NewRequest(http.MethodPost, u, bytes.NewBuffer(b))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
 
 	resp, body, err := h.client.Do(ctx, req)
 	if err != nil {
@@ -365,25 +341,19 @@ func (h *httpAPI) LabelExperiment(ctx context.Context, u string, lbl ExperimentL
 	case http.StatusCreated:
 		return nil
 	case http.StatusNotFound:
-		return &Error{Type: ErrTrialNotFound}
+		return newError(ErrTrialNotFound, resp, body)
 	case http.StatusUnprocessableEntity:
-		return &Error{Type: ErrTrialInvalid}
+		return newError(ErrTrialInvalid, resp, body)
 	default:
-		return unexpected(resp, body)
+		return newError(ErrUnexpected, resp, body)
 	}
 }
 
 func (h *httpAPI) LabelTrial(ctx context.Context, u string, lbl TrialLabels) error {
-	b, err := json.Marshal(lbl)
+	req, err := httpNewJSONRequest(http.MethodPost, u, lbl)
 	if err != nil {
 		return err
 	}
-
-	req, err := http.NewRequest(http.MethodPost, u, bytes.NewBuffer(b))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
 
 	resp, body, err := h.client.Do(ctx, req)
 	if err != nil {
@@ -394,43 +364,85 @@ func (h *httpAPI) LabelTrial(ctx context.Context, u string, lbl TrialLabels) err
 	case http.StatusCreated:
 		return nil
 	case http.StatusNotFound:
-		return &Error{Type: ErrTrialNotFound}
+		return newError(ErrTrialNotFound, resp, body)
 	case http.StatusUnprocessableEntity:
-		return &Error{Type: ErrTrialInvalid}
+		return newError(ErrTrialInvalid, resp, body)
 	default:
-		return unexpected(resp, body)
+		return newError(ErrUnexpected, resp, body)
 	}
 }
 
-// TODO Unmarshal _expected_ errors to get better messages as well
-// TODO Just return nil for any 2xx status codes?
-func unexpected(resp *http.Response, body []byte) error {
-	err := &Error{Type: ErrUnexpected}
+// httpNewJSONRequest returns a new HTTP request with a JSON payload
+func httpNewJSONRequest(method, u string, body interface{}) (*http.Request, error) {
+	b, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
 
+	req, err := http.NewRequest(method, u, bytes.NewBuffer(b))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	return req, err
+}
+
+// newError returns a new error with an API specific error condition, it also captures the details of the response
+func newError(t ErrorType, resp *http.Response, body []byte) error {
+	err := &Error{Type: t}
+
+	// Unmarshal the response body into the error to get the server supplied error message
+	// TODO We should be comparing compatible media types here (e.g. charset)
 	if resp.Header.Get("Content-Type") == "application/json" {
-		// Unmarshal body into the error to get the error message
 		_ = json.Unmarshal(body, err)
 	}
 
-	switch resp.StatusCode {
-	case http.StatusUnauthorized:
-		err.Type = ErrUnauthorized
-		if err.Message == "" {
-			err.Message = "unauthorized"
-		}
-	case http.StatusPaymentRequired:
-		err.Type = ErrUnauthorized
-		if err.Message == "" {
-			err.Message = "account is not activated"
-		}
-	case http.StatusNotFound:
-		if resp.Request != nil && resp.Request.URL != nil {
-			err.Message = fmt.Sprintf("not found: %s", resp.Request.URL.String())
+	// Capture the URL of the request
+	if resp.Request != nil && resp.Request.URL != nil {
+		err.Location = resp.Request.URL.String()
+	}
+
+	// Capture the Retry-After header for "service unavailable"
+	if resp.StatusCode == http.StatusServiceUnavailable {
+		if ra, raerr := strconv.Atoi(resp.Header.Get("Retry-After")); raerr == nil {
+			if ra < 1 {
+				ra = 5
+			} else if ra > 120 {
+				ra = 120
+			}
+			err.RetryAfter = time.Duration(ra) * time.Second
 		}
 	}
 
+	// Try to report a more specific error if the error was undocumented (e.g. came from a proxy)
+	if err.Type == ErrUnexpected {
+		switch resp.StatusCode {
+		case http.StatusUnauthorized:
+			err.Type = ErrUnauthorized
+			if err.Message == "" {
+				err.Message = "unauthorized"
+			}
+		case http.StatusPaymentRequired:
+			err.Type = ErrUnauthorized
+			if err.Message == "" {
+				err.Message = "account is not activated"
+			}
+		default:
+			if err.Message == "" {
+				err.Message = fmt.Sprintf("unexpected server response (%s)", http.StatusText(resp.StatusCode))
+			}
+		}
+	}
+
+	// Make sure we have a message
 	if err.Message == "" {
-		err.Message = fmt.Sprintf("unexpected server response: %s", resp.Status)
+		switch resp.StatusCode {
+		case http.StatusNotFound:
+			err.Message = fmt.Sprintf("not found: %s", err.Location)
+		default:
+			err.Message = strings.ReplaceAll(string(err.Type), "-", " ")
+		}
 	}
 
 	return err

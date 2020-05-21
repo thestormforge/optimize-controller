@@ -91,13 +91,11 @@ type Error struct {
 	Type       ErrorType     `json:"-"`
 	Message    string        `json:"error"`
 	RetryAfter time.Duration `json:"-"`
+	Location   string        `json:"-"`
 }
 
 func (e *Error) Error() string {
-	if e.Message != "" {
-		return e.Message
-	}
-	return string(e.Type)
+	return e.Message
 }
 
 // IsUnauthorized check to see if the error is an "unauthorized" error
