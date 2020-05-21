@@ -40,8 +40,8 @@ const (
 func FromCluster(in *redskyv1alpha1.Experiment) (redskyapi.ExperimentName, *redskyapi.Experiment) {
 	out := &redskyapi.Experiment{}
 	out.ExperimentMeta.LastModified = in.CreationTimestamp.Time
-	out.ExperimentMeta.Self = in.Annotations[redskyv1alpha1.AnnotationExperimentURL]
-	out.ExperimentMeta.NextTrial = in.Annotations[redskyv1alpha1.AnnotationNextTrialURL]
+	out.ExperimentMeta.SelfURL = in.Annotations[redskyv1alpha1.AnnotationExperimentURL]
+	out.ExperimentMeta.NextTrialURL = in.Annotations[redskyv1alpha1.AnnotationNextTrialURL]
 
 	out.Optimization = nil
 	for _, o := range in.Spec.Optimization {
@@ -123,8 +123,8 @@ func ToCluster(exp *redskyv1alpha1.Experiment, ee *redskyapi.Experiment) {
 		exp.SetAnnotations(make(map[string]string))
 	}
 
-	exp.GetAnnotations()[redskyv1alpha1.AnnotationExperimentURL] = ee.Self
-	exp.GetAnnotations()[redskyv1alpha1.AnnotationNextTrialURL] = ee.NextTrial
+	exp.GetAnnotations()[redskyv1alpha1.AnnotationExperimentURL] = ee.SelfURL
+	exp.GetAnnotations()[redskyv1alpha1.AnnotationNextTrialURL] = ee.NextTrialURL
 
 	exp.Spec.Optimization = nil
 	for i := range ee.Optimization {

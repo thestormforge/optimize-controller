@@ -168,7 +168,7 @@ func (o *GetOptions) getTrials(ctx context.Context, numbers map[experimentsv1alp
 		}
 
 		// Get the trials
-		tl, err := o.ExperimentsAPI.GetAllTrials(ctx, exp.Trials, nil)
+		tl, err := o.ExperimentsAPI.GetAllTrials(ctx, exp.TrialsURL, nil)
 		if err != nil {
 			return err
 		}
@@ -203,8 +203,8 @@ func (o *GetOptions) getTrialList(ctx context.Context, name experimentsv1alpha1.
 
 	// Fetch the trial data
 	var l experimentsv1alpha1.TrialList
-	if exp.Trials != "" {
-		l, err = o.ExperimentsAPI.GetAllTrials(ctx, exp.Trials, q)
+	if exp.TrialsURL != "" {
+		l, err = o.ExperimentsAPI.GetAllTrials(ctx, exp.TrialsURL, q)
 		if err != nil {
 			return err
 		}

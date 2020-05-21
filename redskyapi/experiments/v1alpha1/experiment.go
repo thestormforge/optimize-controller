@@ -119,9 +119,9 @@ type Parameter struct {
 
 type ExperimentMeta struct {
 	LastModified time.Time `json:"-"`
-	Self         string    `json:"-"`
-	Trials       string    `json:"-"`
-	NextTrial    string    `json:"-"`
+	SelfURL      string    `json:"-"`
+	TrialsURL    string    `json:"-"`
+	NextTrialURL string    `json:"-"`
 	LabelsURL    string    `json:"-"`
 }
 
@@ -132,11 +132,11 @@ func (m *ExperimentMeta) SetLastModified(lastModified time.Time) {
 func (m *ExperimentMeta) SetLink(rel, link string) {
 	switch rel {
 	case relationSelf:
-		m.Self = link
+		m.SelfURL = link
 	case relationTrials:
-		m.Trials = link
+		m.TrialsURL = link
 	case relationNextTrial:
-		m.NextTrial = link
+		m.NextTrialURL = link
 	case relationLabels:
 		m.LabelsURL = link
 	}
@@ -164,7 +164,7 @@ type Experiment struct {
 
 // Name allows an experiment to be used as an ExperimentName
 func (e *Experiment) Name() string {
-	u, err := url.Parse(e.Self)
+	u, err := url.Parse(e.SelfURL)
 	if err != nil {
 		return ""
 	}

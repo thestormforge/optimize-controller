@@ -55,8 +55,8 @@ func TestFromCluster(t *testing.T) {
 			out: &redskyapi.Experiment{
 				ExperimentMeta: redskyapi.ExperimentMeta{
 					LastModified: now,
-					Self:         "self_111",
-					NextTrial:    "next_trial_111",
+					SelfURL:      "self_111",
+					NextTrialURL: "next_trial_111",
 				},
 			},
 		},
@@ -240,8 +240,8 @@ func TestToCluster(t *testing.T) {
 			},
 			ee: &redskyapi.Experiment{
 				ExperimentMeta: redskyapi.ExperimentMeta{
-					Self:      "self_111",
-					NextTrial: "next_trial_111",
+					SelfURL:      "self_111",
+					NextTrialURL: "next_trial_111",
 				},
 				Optimization: []redskyapi.Optimization{
 					{Name: "one", Value: "111"},
