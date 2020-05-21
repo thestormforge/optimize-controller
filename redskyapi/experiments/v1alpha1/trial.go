@@ -25,11 +25,11 @@ import (
 )
 
 type TrialMeta struct {
-	ReportTrial string `json:"-"`
-	LabelsURL   string `json:"-"`
+	SelfURL   string `json:"-"`
+	LabelsURL string `json:"-"`
 }
 
-func (m *TrialMeta) SetLocation(location string) { m.ReportTrial = location }
+func (m *TrialMeta) SetLocation(location string) { m.SelfURL = location }
 func (m *TrialMeta) SetLastModified(time.Time)   {}
 func (m *TrialMeta) SetLink(rel, link string) {
 	switch rel {

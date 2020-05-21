@@ -164,7 +164,7 @@ func (o *ServerOptions) checkServer() error {
 
 	// Report a trial observation back
 	v := generateObservation(o, &exp)
-	err = o.ExperimentsAPI.ReportTrial(context.TODO(), t.ReportTrial, *v)
+	err = o.ExperimentsAPI.ReportTrial(context.TODO(), t.SelfURL, *v)
 	if err != nil {
 		return err
 	}
@@ -303,7 +303,7 @@ func checkServerExperiment(name string, original, created *experimentsv1alpha1.E
 }
 
 func checkTrialAssignments(exp *experimentsv1alpha1.Experiment, t *experimentsv1alpha1.TrialAssignments) error {
-	if t.ReportTrial == "" {
+	if t.SelfURL == "" {
 		return fmt.Errorf("server did not return a report trial link")
 	}
 

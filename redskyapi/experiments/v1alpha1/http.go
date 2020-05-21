@@ -228,24 +228,24 @@ func (h *httpAPI) CreateTrial(ctx context.Context, u string, asm TrialAssignment
 
 	req, err := httpNewJSONRequest(http.MethodPost, u, asm)
 	if err != nil {
-		return ta.ReportTrial, err
+		return ta.SelfURL, err
 	}
 
 	resp, body, err := h.client.Do(ctx, req)
 	if err != nil {
-		return ta.ReportTrial, err
+		return ta.SelfURL, err
 	}
 
 	switch resp.StatusCode {
 	case http.StatusCreated:
 		metaUnmarshal(resp.Header, &ta.TrialMeta)
-		return ta.ReportTrial, nil
+		return ta.SelfURL, nil
 	case http.StatusConflict:
-		return ta.ReportTrial, newError(ErrExperimentStopped, resp, body)
+		return ta.SelfURL, newError(ErrExperimentStopped, resp, body)
 	case http.StatusUnprocessableEntity:
-		return ta.ReportTrial, newError(ErrTrialInvalid, resp, body)
+		return ta.SelfURL, newError(ErrTrialInvalid, resp, body)
 	default:
-		return ta.ReportTrial, newError(ErrUnexpected, resp, body)
+		return ta.SelfURL, newError(ErrUnexpected, resp, body)
 	}
 }
 

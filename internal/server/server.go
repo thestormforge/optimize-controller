@@ -139,11 +139,11 @@ func ToCluster(exp *redskyv1alpha1.Experiment, ee *redskyapi.Experiment) {
 
 // ToClusterTrial converts API state to cluster state
 func ToClusterTrial(t *redskyv1alpha1.Trial, suggestion *redskyapi.TrialAssignments) {
-	t.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL] = suggestion.ReportTrial
+	t.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL] = suggestion.SelfURL
 
 	// Try to make the cluster trial names match what is on the server
-	if t.Name == "" && t.GenerateName != "" && suggestion.ReportTrial != "" {
-		name := path.Base(suggestion.ReportTrial)
+	if t.Name == "" && t.GenerateName != "" && suggestion.SelfURL != "" {
+		name := path.Base(suggestion.SelfURL)
 		if num, err := strconv.ParseInt(name, 10, 64); err == nil {
 			t.Name = fmt.Sprintf("%s%03d", t.GenerateName, num)
 		} else {

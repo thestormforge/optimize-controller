@@ -294,7 +294,7 @@ func TestToClusterTrial(t *testing.T) {
 			},
 			suggestion: &redskyapi.TrialAssignments{
 				TrialMeta: redskyapi.TrialMeta{
-					ReportTrial: "some/path/1",
+					SelfURL: "some/path/1",
 				},
 				Assignments: []redskyapi.Assignment{
 					{ParameterName: "one", Value: json.Number("111")},
@@ -336,7 +336,7 @@ func TestToClusterTrial(t *testing.T) {
 			},
 			suggestion: &redskyapi.TrialAssignments{
 				TrialMeta: redskyapi.TrialMeta{
-					ReportTrial: "some/path/one",
+					SelfURL: "some/path/one",
 				},
 				Assignments: []redskyapi.Assignment{
 					{ParameterName: "one", Value: json.Number("111")},
