@@ -73,6 +73,7 @@ vet:
 # Generate code
 generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	go generate ./internal/assets
 
 # Build the docker images
 docker-build: test docker-build-ci
