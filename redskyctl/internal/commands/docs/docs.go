@@ -51,7 +51,7 @@ func NewCommand(o *Options) *cobra.Command {
 
 	cmd.Flags().StringVarP(&o.Directory, "directory", "d", "./", "Directory where documentation is written.")
 	cmd.Flags().StringVar(&o.DocType, "doc-type", "markdown", "Documentation type to write, one of: markdown|man|api.")
-	cmd.Flags().StringVar(&o.SourcePath, "source", "api/v1alpha1", "Source path used to find API types.")
+	cmd.Flags().StringVar(&o.SourcePath, "source", "", "Source path used to find API types.")
 
 	_ = cmd.MarkFlagDirname("directory")
 	_ = cmd.MarkFlagDirname("source")
