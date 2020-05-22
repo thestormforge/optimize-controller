@@ -19,7 +19,7 @@ package generate
 import (
 	"fmt"
 
-	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
+	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/internal/experiment"
 	"github.com/redskyops/redskyops-controller/internal/server"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
@@ -65,7 +65,7 @@ func NewTrialCommand(o *TrialOptions) *cobra.Command {
 
 func (o *TrialOptions) generate() error {
 	// TODO When "readExperiment" returns multiple experiments, this whole thing runs in a loop...
-	exp := &redskyv1alpha1.Experiment{}
+	exp := &redskyv1beta1.Experiment{}
 	if err := readExperiment(o.Filename, o.In, exp); err != nil {
 		return err
 	}
@@ -82,7 +82,7 @@ func (o *TrialOptions) generate() error {
 	}
 
 	// Build the trial
-	t := &redskyv1alpha1.Trial{}
+	t := &redskyv1beta1.Trial{}
 	experiment.PopulateTrialFromTemplate(exp, t)
 	server.ToClusterTrial(t, sug)
 

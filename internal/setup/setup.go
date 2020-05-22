@@ -19,7 +19,7 @@ package setup
 import (
 	"fmt"
 
-	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
+	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,7 +38,7 @@ const (
 )
 
 // UpdateStatus returns true if there are setup tasks
-func UpdateStatus(t *redskyv1alpha1.Trial, probeTime *metav1.Time) bool {
+func UpdateStatus(t *redskyv1beta1.Trial, probeTime *metav1.Time) bool {
 	var needsCreate, needsDelete bool
 	for _, task := range t.Spec.SetupTasks {
 		needsCreate = needsCreate || !task.SkipCreate
@@ -53,18 +53,18 @@ func UpdateStatus(t *redskyv1alpha1.Trial, probeTime *metav1.Time) bool {
 	// TODO Can we return false from this here as an optimization if both status are True?
 	for i := range t.Status.Conditions {
 		switch t.Status.Conditions[i].Type {
-		case redskyv1alpha1.TrialSetupCreated:
+		case redskyv1beta1.TrialSetupCreated:
 			t.Status.Conditions[i].LastProbeTime = *probeTime
 			needsCreate = false
-		case redskyv1alpha1.TrialSetupDeleted:
+		case redskyv1beta1.TrialSetupDeleted:
 			t.Status.Conditions[i].LastProbeTime = *probeTime
 			needsDelete = false
 		}
 	}
 
 	if needsCreate {
-		t.Status.Conditions = append(t.Status.Conditions, redskyv1alpha1.TrialCondition{
-			Type:               redskyv1alpha1.TrialSetupCreated,
+		t.Status.Conditions = append(t.Status.Conditions, redskyv1beta1.TrialCondition{
+			Type:               redskyv1beta1.TrialSetupCreated,
 			Status:             corev1.ConditionUnknown,
 			LastProbeTime:      *probeTime,
 			LastTransitionTime: *probeTime,
@@ -72,8 +72,8 @@ func UpdateStatus(t *redskyv1alpha1.Trial, probeTime *metav1.Time) bool {
 	}
 
 	if needsDelete {
-		t.Status.Conditions = append(t.Status.Conditions, redskyv1alpha1.TrialCondition{
-			Type:               redskyv1alpha1.TrialSetupDeleted,
+		t.Status.Conditions = append(t.Status.Conditions, redskyv1beta1.TrialCondition{
+			Type:               redskyv1beta1.TrialSetupDeleted,
 			Status:             corev1.ConditionUnknown,
 			LastProbeTime:      *probeTime,
 			LastTransitionTime: *probeTime,
@@ -85,15 +85,15 @@ func UpdateStatus(t *redskyv1alpha1.Trial, probeTime *metav1.Time) bool {
 }
 
 // GetTrialConditionType returns the trial condition type used to report status for the specified job
-func GetTrialConditionType(j *batchv1.Job) (redskyv1alpha1.TrialConditionType, error) {
+func GetTrialConditionType(j *batchv1.Job) (redskyv1beta1.TrialConditionType, error) {
 	// TODO This should just be a label or annotation on the job
 	for _, c := range j.Spec.Template.Spec.Containers {
 		if len(c.Args) > 0 {
 			switch c.Args[0] {
 			case ModeCreate:
-				return redskyv1alpha1.TrialSetupCreated, nil
+				return redskyv1beta1.TrialSetupCreated, nil
 			case ModeDelete:
-				return redskyv1alpha1.TrialSetupDeleted, nil
+				return redskyv1beta1.TrialSetupDeleted, nil
 			default:
 				return "", fmt.Errorf("unknown setup job container argument: %s", c.Args[0])
 			}

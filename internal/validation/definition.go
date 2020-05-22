@@ -19,12 +19,12 @@ package validation
 import (
 	"fmt"
 
-	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
+	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	redskyapi "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 )
 
 // CheckDefinition will make sure the cluster and API experiment definitions are compatible
-func CheckDefinition(exp *redskyv1alpha1.Experiment, ee *redskyapi.Experiment) error {
+func CheckDefinition(exp *redskyv1beta1.Experiment, ee *redskyapi.Experiment) error {
 	if len(exp.Spec.Parameters) == len(ee.Parameters) {
 		parameters := make(map[string]bool, len(exp.Spec.Parameters))
 		for i := range exp.Spec.Parameters {

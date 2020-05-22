@@ -19,7 +19,7 @@ package experiment
 import (
 	"context"
 
-	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
+	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/internal/trial"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -29,7 +29,7 @@ import (
 )
 
 // NextTrialNamespace searches for or creates a new namespace to run a new trial in, returning an empty string if no such namespace can be found
-func NextTrialNamespace(ctx context.Context, c client.Client, exp *redskyv1alpha1.Experiment, trialList *redskyv1alpha1.TrialList) (string, error) {
+func NextTrialNamespace(ctx context.Context, c client.Client, exp *redskyv1beta1.Experiment, trialList *redskyv1beta1.TrialList) (string, error) {
 	// Determine which namespaces have an active trial
 	activeNamespaces := make(map[string]bool, len(trialList.Items))
 	activeTrials := int32(0)
@@ -93,7 +93,7 @@ func ignorePermissions(err error) error {
 	return err
 }
 
-func createNamespaceFromTemplate(ctx context.Context, c client.Client, exp *redskyv1alpha1.Experiment) (string, error) {
+func createNamespaceFromTemplate(ctx context.Context, c client.Client, exp *redskyv1beta1.Experiment) (string, error) {
 	// Use the template to populate a new namespace
 	n := &corev1.Namespace{}
 	exp.Spec.NamespaceTemplate.ObjectMeta.DeepCopyInto(&n.ObjectMeta)
@@ -104,8 +104,8 @@ func createNamespaceFromTemplate(ctx context.Context, c client.Client, exp *reds
 	if n.Labels == nil {
 		n.Labels = map[string]string{}
 	}
-	n.Labels[redskyv1alpha1.LabelExperiment] = exp.Name
-	n.Labels[redskyv1alpha1.LabelTrialRole] = "trialSetup"
+	n.Labels[redskyv1beta1.LabelExperiment] = exp.Name
+	n.Labels[redskyv1beta1.LabelTrialRole] = "trialSetup"
 
 	// TODO We should also record the fact that we created the namespace for possible clean up later
 
@@ -148,7 +148,7 @@ type trialNamespace struct {
 	RoleBindings   []rbacv1.RoleBinding
 }
 
-func createTrialNamespace(exp *redskyv1alpha1.Experiment, namespace string) *trialNamespace {
+func createTrialNamespace(exp *redskyv1beta1.Experiment, namespace string) *trialNamespace {
 	ts := &trialNamespace{}
 
 	// Fill in the details about the service account

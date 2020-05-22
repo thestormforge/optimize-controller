@@ -23,7 +23,7 @@ import (
 	"os"
 	"os/exec"
 
-	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
+	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	internalconfig "github.com/redskyops/redskyops-controller/internal/config"
 	"github.com/redskyops/redskyops-controller/redskyapi"
 	experimentsv1alpha1 "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
@@ -93,7 +93,7 @@ func SetPrinter(meta TableMeta, printer *ResourcePrinter, cmd *cobra.Command) {
 func SetKubePrinter(printer *ResourcePrinter, cmd *cobra.Command) {
 	kp := &kubePrinter{scheme: runtime.NewScheme()}
 	_ = clientgoscheme.AddToScheme(kp.scheme)
-	_ = redskyv1alpha1.AddToScheme(kp.scheme)
+	_ = redskyv1beta1.AddToScheme(kp.scheme)
 	pf := newPrintFlags(kp, cmd.Annotations)
 	pf.addFlags(cmd)
 	AddPreRunE(cmd, func(*cobra.Command, []string) error {

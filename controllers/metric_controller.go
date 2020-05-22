@@ -22,7 +22,7 @@ import (
 	"strconv"
 
 	"github.com/go-logr/logr"
-	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
+	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/internal/controller"
 	"github.com/redskyops/redskyops-controller/internal/meta"
 	"github.com/redskyops/redskyops-controller/internal/metric"
@@ -50,7 +50,7 @@ func (r *MetricReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	now := metav1.Now()
 
-	t := &redskyv1alpha1.Trial{}
+	t := &redskyv1beta1.Trial{}
 	if err := r.Get(ctx, req.NamespacedName, t); err != nil || r.ignoreTrial(t) {
 		return ctrl.Result{}, controller.IgnoreNotFound(err)
 	}
@@ -69,18 +69,18 @@ func (r *MetricReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 func (r *MetricReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named("metric").
-		For(&redskyv1alpha1.Trial{}).
+		For(&redskyv1beta1.Trial{}).
 		Complete(r)
 }
 
-func (r *MetricReconciler) ignoreTrial(t *redskyv1alpha1.Trial) bool {
+func (r *MetricReconciler) ignoreTrial(t *redskyv1beta1.Trial) bool {
 	// Ignore deleted trials
 	if !t.DeletionTimestamp.IsZero() {
 		return true
 	}
 
 	// Ignore failed trials
-	if trial.CheckCondition(&t.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue) {
+	if trial.CheckCondition(&t.Status, redskyv1beta1.TrialFailed, corev1.ConditionTrue) {
 		return true
 	}
 
@@ -98,7 +98,7 @@ func (r *MetricReconciler) ignoreTrial(t *redskyv1alpha1.Trial) bool {
 	}
 
 	// Do not ignore trials if we haven't finished processing them
-	if !(trial.CheckCondition(&t.Status, redskyv1alpha1.TrialObserved, corev1.ConditionTrue)) {
+	if !(trial.CheckCondition(&t.Status, redskyv1beta1.TrialObserved, corev1.ConditionTrue)) {
 		return false
 	}
 
@@ -106,21 +106,21 @@ func (r *MetricReconciler) ignoreTrial(t *redskyv1alpha1.Trial) bool {
 	return true
 }
 
-func (r *MetricReconciler) evaluateMetrics(ctx context.Context, t *redskyv1alpha1.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
+func (r *MetricReconciler) evaluateMetrics(ctx context.Context, t *redskyv1beta1.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
 	// TODO This check precludes manual additions of Values
 	if len(t.Spec.Values) > 0 {
 		return nil, nil
 	}
 
 	// Get the experiment
-	exp := &redskyv1alpha1.Experiment{}
+	exp := &redskyv1beta1.Experiment{}
 	if err := r.Get(ctx, t.ExperimentNamespacedName(), exp); err != nil {
 		return &ctrl.Result{}, err
 	}
 
 	// Evaluate the metrics
 	for _, m := range exp.Spec.Metrics {
-		t.Spec.Values = append(t.Spec.Values, redskyv1alpha1.Value{
+		t.Spec.Values = append(t.Spec.Values, redskyv1beta1.Value{
 			Name:              m.Name,
 			AttemptsRemaining: 3,
 		})
@@ -128,7 +128,7 @@ func (r *MetricReconciler) evaluateMetrics(ctx context.Context, t *redskyv1alpha
 
 	// Update the status to indicate that we will be collecting metrics
 	if len(t.Spec.Values) > 0 {
-		trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialObserved, corev1.ConditionUnknown, "", "", probeTime)
+		trial.ApplyCondition(&t.Status, redskyv1beta1.TrialObserved, corev1.ConditionUnknown, "", "", probeTime)
 		err := r.Update(ctx, t)
 		return controller.RequeueConflict(err)
 	}
@@ -136,13 +136,13 @@ func (r *MetricReconciler) evaluateMetrics(ctx context.Context, t *redskyv1alpha
 	return nil, nil
 }
 
-func (r *MetricReconciler) collectMetrics(ctx context.Context, t *redskyv1alpha1.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
+func (r *MetricReconciler) collectMetrics(ctx context.Context, t *redskyv1beta1.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
 	// Index the metric definitions
-	exp := &redskyv1alpha1.Experiment{}
+	exp := &redskyv1beta1.Experiment{}
 	if err := r.Get(ctx, t.ExperimentNamespacedName(), exp); err != nil {
 		return &ctrl.Result{}, err
 	}
-	metrics := make(map[string]*redskyv1alpha1.Metric, len(exp.Spec.Metrics))
+	metrics := make(map[string]*redskyv1beta1.Metric, len(exp.Spec.Metrics))
 	for i := range exp.Spec.Metrics {
 		metrics[exp.Spec.Metrics[i].Name] = &exp.Spec.Metrics[i]
 	}
@@ -177,7 +177,7 @@ func (r *MetricReconciler) collectMetrics(ctx context.Context, t *redskyv1alpha1
 		if captureError != nil && v.AttemptsRemaining > 0 {
 			v.AttemptsRemaining = v.AttemptsRemaining - 1
 			if v.AttemptsRemaining == 0 {
-				trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, "MetricFailed", captureError.Error(), probeTime)
+				trial.ApplyCondition(&t.Status, redskyv1beta1.TrialFailed, corev1.ConditionTrue, "MetricFailed", captureError.Error(), probeTime)
 				if merr, ok := captureError.(*metric.CaptureError); ok {
 					// Metric errors contain additional information which should be logged for debugging
 					log.Error(merr, "Metric collection failed", "address", merr.Address, "query", merr.Query, "completionTime", merr.CompletionTime)
@@ -186,20 +186,20 @@ func (r *MetricReconciler) collectMetrics(ctx context.Context, t *redskyv1alpha1
 		}
 
 		// We have started collecting metrics (success or fail), transition into a false status
-		trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialObserved, corev1.ConditionFalse, "", "", probeTime)
+		trial.ApplyCondition(&t.Status, redskyv1beta1.TrialObserved, corev1.ConditionFalse, "", "", probeTime)
 		err := r.Update(ctx, t)
 		return controller.RequeueConflict(err)
 	}
 
 	// We made it through all of the metrics without needing additional changes
-	trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialObserved, corev1.ConditionTrue, "", "", probeTime)
+	trial.ApplyCondition(&t.Status, redskyv1beta1.TrialObserved, corev1.ConditionTrue, "", "", probeTime)
 	err := r.Update(ctx, t)
 	return controller.RequeueConflict(err)
 }
 
-func (r *MetricReconciler) target(ctx context.Context, namespace string, m *redskyv1alpha1.Metric) (runtime.Object, error) {
+func (r *MetricReconciler) target(ctx context.Context, namespace string, m *redskyv1beta1.Metric) (runtime.Object, error) {
 	switch m.Type {
-	case redskyv1alpha1.MetricPods:
+	case redskyv1beta1.MetricPods:
 		// Use the selector to get a list of pods
 		target := &corev1.PodList{}
 		if sel, err := meta.MatchingSelector(m.Selector); err != nil {
@@ -208,7 +208,7 @@ func (r *MetricReconciler) target(ctx context.Context, namespace string, m *reds
 			return nil, err
 		}
 		return target, nil
-	case redskyv1alpha1.MetricPrometheus, redskyv1alpha1.MetricJSONPath:
+	case redskyv1beta1.MetricPrometheus, redskyv1beta1.MetricJSONPath:
 		// Both Prometheus and JSONPath target a service
 		target := &corev1.ServiceList{}
 		if sel, err := meta.MatchingSelector(m.Selector); err != nil {

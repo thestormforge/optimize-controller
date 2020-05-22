@@ -23,7 +23,7 @@ import (
 	"sort"
 	"strings"
 
-	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
+	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/internal/config"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
@@ -98,8 +98,8 @@ func (o *RBACOptions) Complete() {
 func (o *RBACOptions) generate() error {
 	// Read the experiments
 	// TODO For now just pretend like `readExperiment` could return multiple results
-	experimentList := &redskyv1alpha1.ExperimentList{}
-	experimentList.Items = make([]redskyv1alpha1.Experiment, 1)
+	experimentList := &redskyv1beta1.ExperimentList{}
+	experimentList.Items = make([]redskyv1beta1.Experiment, 1)
 	if err := readExperiment(o.Filename, o.In, &experimentList.Items[0]); err != nil {
 		return err
 	}
@@ -128,7 +128,7 @@ func (o *RBACOptions) generate() error {
 	return o.Printer.PrintObj(rbac, o.Out)
 }
 
-func (o *RBACOptions) bindingTargets(experimentList *redskyv1alpha1.ExperimentList) (*rbacv1.RoleRef, *rbacv1.Subject, []string, error) {
+func (o *RBACOptions) bindingTargets(experimentList *redskyv1beta1.ExperimentList) (*rbacv1.RoleRef, *rbacv1.Subject, []string, error) {
 	// Read the configuration objects we need
 	r := o.Config.Reader()
 	ctrl, err := config.CurrentController(r)
@@ -238,7 +238,7 @@ func buildRBAC(roleRef *rbacv1.RoleRef, subject *rbacv1.Subject, rules []rbacv1.
 }
 
 // appendRules finds the patch and readiness targets from an experiment
-func (o *RBACOptions) appendRules(rules []*rbacv1.PolicyRule, exp *redskyv1alpha1.Experiment) []*rbacv1.PolicyRule {
+func (o *RBACOptions) appendRules(rules []*rbacv1.PolicyRule, exp *redskyv1beta1.Experiment) []*rbacv1.PolicyRule {
 	// Patches require "get" and "patch" permissions
 	for i := range exp.Spec.Patches {
 		// TODO This needs to use patch_controller.go `renderTemplate` to get the correct reference (e.g. SMP may have the ref in the payload)
@@ -296,7 +296,7 @@ func (o *RBACOptions) newPolicyRule(ref *corev1.ObjectReference, verbs ...string
 }
 
 // roleName attempts to generate a semi-unique role name
-func roleName(filename string, experimentList *redskyv1alpha1.ExperimentList) string {
+func roleName(filename string, experimentList *redskyv1beta1.ExperimentList) string {
 	// If there is a single experiment, incorporate it's name into the role name
 	if len(experimentList.Items) == 1 && experimentList.Items[0].Name != "" {
 		return fmt.Sprintf("redsky-patching-%s-role", experimentList.Items[0].Name)

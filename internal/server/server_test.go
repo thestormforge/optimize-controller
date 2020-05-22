@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
+	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	redskyapi "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -34,21 +34,21 @@ func TestFromCluster(t *testing.T) {
 	now := time.Now()
 	cases := []struct {
 		desc string
-		in   *redskyv1alpha1.Experiment
+		in   *redskyv1beta1.Experiment
 		out  *redskyapi.Experiment
 		name redskyapi.ExperimentName
 	}{
 		{
 			desc: "basic",
-			in: &redskyv1alpha1.Experiment{
+			in: &redskyv1beta1.Experiment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "basic",
 					CreationTimestamp: metav1.Time{
 						Time: now,
 					},
 					Annotations: map[string]string{
-						redskyv1alpha1.AnnotationExperimentURL: "self_111",
-						redskyv1alpha1.AnnotationNextTrialURL:  "next_trial_111",
+						redskyv1beta1.AnnotationExperimentURL: "self_111",
+						redskyv1beta1.AnnotationNextTrialURL:  "next_trial_111",
 					},
 				},
 			},
@@ -62,9 +62,9 @@ func TestFromCluster(t *testing.T) {
 		},
 		{
 			desc: "optimization",
-			in: &redskyv1alpha1.Experiment{
-				Spec: redskyv1alpha1.ExperimentSpec{
-					Optimization: []redskyv1alpha1.Optimization{
+			in: &redskyv1beta1.Experiment{
+				Spec: redskyv1beta1.ExperimentSpec{
+					Optimization: []redskyv1beta1.Optimization{
 						{Name: "one", Value: "111"},
 						{Name: "two", Value: "222"},
 						{Name: "three", Value: "333"},
@@ -81,9 +81,9 @@ func TestFromCluster(t *testing.T) {
 		},
 		{
 			desc: "parameters",
-			in: &redskyv1alpha1.Experiment{
-				Spec: redskyv1alpha1.ExperimentSpec{
-					Parameters: []redskyv1alpha1.Parameter{
+			in: &redskyv1beta1.Experiment{
+				Spec: redskyv1beta1.ExperimentSpec{
+					Parameters: []redskyv1beta1.Parameter{
 						{Name: "one", Min: 111, Max: 222},
 						{Name: "two", Min: 1111, Max: 2222},
 						{Name: "three", Min: 11111, Max: 22222},
@@ -122,12 +122,12 @@ func TestFromCluster(t *testing.T) {
 		},
 		{
 			desc: "orderConstraints",
-			in: &redskyv1alpha1.Experiment{
-				Spec: redskyv1alpha1.ExperimentSpec{
-					Constraints: []redskyv1alpha1.Constraint{
+			in: &redskyv1beta1.Experiment{
+				Spec: redskyv1beta1.ExperimentSpec{
+					Constraints: []redskyv1beta1.Constraint{
 						{
 							Name: "one-two",
-							Order: &redskyv1alpha1.OrderConstraint{
+							Order: &redskyv1beta1.OrderConstraint{
 								LowerParameter: "one",
 								UpperParameter: "two",
 							},
@@ -147,14 +147,14 @@ func TestFromCluster(t *testing.T) {
 		},
 		{
 			desc: "sumConstraints",
-			in: &redskyv1alpha1.Experiment{
-				Spec: redskyv1alpha1.ExperimentSpec{
-					Constraints: []redskyv1alpha1.Constraint{
+			in: &redskyv1beta1.Experiment{
+				Spec: redskyv1beta1.ExperimentSpec{
+					Constraints: []redskyv1beta1.Constraint{
 						{
 							Name: "one-two",
-							Sum: &redskyv1alpha1.SumConstraint{
+							Sum: &redskyv1beta1.SumConstraint{
 								Bound: resource.MustParse("1"),
-								Parameters: []redskyv1alpha1.SumConstraintParameter{
+								Parameters: []redskyv1beta1.SumConstraintParameter{
 									{
 										Name:   "one",
 										Weight: resource.MustParse("-1.0"),
@@ -197,9 +197,9 @@ func TestFromCluster(t *testing.T) {
 		},
 		{
 			desc: "metrics",
-			in: &redskyv1alpha1.Experiment{
-				Spec: redskyv1alpha1.ExperimentSpec{
-					Metrics: []redskyv1alpha1.Metric{
+			in: &redskyv1beta1.Experiment{
+				Spec: redskyv1beta1.ExperimentSpec{
+					Metrics: []redskyv1beta1.Metric{
 						{Name: "one", Minimize: true},
 						{Name: "two", Minimize: false},
 						{Name: "three", Minimize: true},
@@ -227,13 +227,13 @@ func TestFromCluster(t *testing.T) {
 func TestToCluster(t *testing.T) {
 	cases := []struct {
 		desc   string
-		exp    *redskyv1alpha1.Experiment
+		exp    *redskyv1beta1.Experiment
 		ee     *redskyapi.Experiment
-		expOut *redskyv1alpha1.Experiment
+		expOut *redskyv1beta1.Experiment
 	}{
 		{
 			desc: "basic",
-			exp: &redskyv1alpha1.Experiment{
+			exp: &redskyv1beta1.Experiment{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: nil,
 				},
@@ -249,18 +249,18 @@ func TestToCluster(t *testing.T) {
 					{Name: "three", Value: "333"},
 				},
 			},
-			expOut: &redskyv1alpha1.Experiment{
+			expOut: &redskyv1beta1.Experiment{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						redskyv1alpha1.AnnotationExperimentURL: "self_111",
-						redskyv1alpha1.AnnotationNextTrialURL:  "next_trial_111",
+						redskyv1beta1.AnnotationExperimentURL: "self_111",
+						redskyv1beta1.AnnotationNextTrialURL:  "next_trial_111",
 					},
 					Finalizers: []string{
 						Finalizer,
 					},
 				},
-				Spec: redskyv1alpha1.ExperimentSpec{
-					Optimization: []redskyv1alpha1.Optimization{
+				Spec: redskyv1beta1.ExperimentSpec{
+					Optimization: []redskyv1beta1.Optimization{
 						{Name: "one", Value: "111"},
 						{Name: "two", Value: "222"},
 						{Name: "three", Value: "333"},
@@ -280,13 +280,13 @@ func TestToCluster(t *testing.T) {
 func TestToClusterTrial(t *testing.T) {
 	cases := []struct {
 		desc       string
-		trial      *redskyv1alpha1.Trial
+		trial      *redskyv1beta1.Trial
 		suggestion *redskyapi.TrialAssignments
-		trialOut   *redskyv1alpha1.Trial
+		trialOut   *redskyv1beta1.Trial
 	}{
 		{
 			desc: "empty name with generate name",
-			trial: &redskyv1alpha1.Trial{
+			trial: &redskyv1beta1.Trial{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "generate_name",
 					Annotations:  map[string]string{},
@@ -302,23 +302,23 @@ func TestToClusterTrial(t *testing.T) {
 					{ParameterName: "three", Value: json.Number("333")},
 				},
 			},
-			trialOut: &redskyv1alpha1.Trial{
+			trialOut: &redskyv1beta1.Trial{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:         "generate_name001",
 					GenerateName: "generate_name",
 					Annotations: map[string]string{
-						redskyv1alpha1.AnnotationReportTrialURL: "some/path/1",
+						redskyv1beta1.AnnotationReportTrialURL: "some/path/1",
 					},
 					Finalizers: []string{
 						Finalizer,
 					},
 				},
-				Status: redskyv1alpha1.TrialStatus{
+				Status: redskyv1beta1.TrialStatus{
 					Phase:       "Created",
 					Assignments: "one=111, two=222, three=333",
 				},
-				Spec: redskyv1alpha1.TrialSpec{
-					Assignments: []redskyv1alpha1.Assignment{
+				Spec: redskyv1beta1.TrialSpec{
+					Assignments: []redskyv1beta1.Assignment{
 						{Name: "one", Value: 111},
 						{Name: "two", Value: 222},
 						{Name: "three", Value: 333},
@@ -328,7 +328,7 @@ func TestToClusterTrial(t *testing.T) {
 		},
 		{
 			desc: "name with generate name",
-			trial: &redskyv1alpha1.Trial{
+			trial: &redskyv1beta1.Trial{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "generate_name",
 					Annotations:  map[string]string{},
@@ -344,23 +344,23 @@ func TestToClusterTrial(t *testing.T) {
 					{ParameterName: "three", Value: json.Number("333")},
 				},
 			},
-			trialOut: &redskyv1alpha1.Trial{
+			trialOut: &redskyv1beta1.Trial{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:         "generate_nameone",
 					GenerateName: "generate_name",
 					Annotations: map[string]string{
-						redskyv1alpha1.AnnotationReportTrialURL: "some/path/one",
+						redskyv1beta1.AnnotationReportTrialURL: "some/path/one",
 					},
 					Finalizers: []string{
 						Finalizer,
 					},
 				},
-				Status: redskyv1alpha1.TrialStatus{
+				Status: redskyv1beta1.TrialStatus{
 					Phase:       "Created",
 					Assignments: "one=111, two=222, three=333",
 				},
-				Spec: redskyv1alpha1.TrialSpec{
-					Assignments: []redskyv1alpha1.Assignment{
+				Spec: redskyv1beta1.TrialSpec{
+					Assignments: []redskyv1beta1.Assignment{
 						{Name: "one", Value: 111},
 						{Name: "two", Value: 222},
 						{Name: "three", Value: 333},
@@ -380,24 +380,24 @@ func TestToClusterTrial(t *testing.T) {
 func TestFromClusterTrial(t *testing.T) {
 	cases := []struct {
 		desc        string
-		in          *redskyv1alpha1.Trial
+		in          *redskyv1beta1.Trial
 		expectedOut *redskyapi.TrialValues
 	}{
 		{
 			desc: "no conditions",
-			in: &redskyv1alpha1.Trial{
-				Status: redskyv1alpha1.TrialStatus{
-					Conditions: []redskyv1alpha1.TrialCondition{},
+			in: &redskyv1beta1.Trial{
+				Status: redskyv1beta1.TrialStatus{
+					Conditions: []redskyv1beta1.TrialCondition{},
 				},
 			},
 			expectedOut: &redskyapi.TrialValues{},
 		},
 		{
 			desc: "not failed",
-			in: &redskyv1alpha1.Trial{
-				Status: redskyv1alpha1.TrialStatus{
-					Conditions: []redskyv1alpha1.TrialCondition{
-						{Type: redskyv1alpha1.TrialComplete, Status: corev1.ConditionTrue},
+			in: &redskyv1beta1.Trial{
+				Status: redskyv1beta1.TrialStatus{
+					Conditions: []redskyv1beta1.TrialCondition{
+						{Type: redskyv1beta1.TrialComplete, Status: corev1.ConditionTrue},
 					},
 				},
 			},
@@ -405,10 +405,10 @@ func TestFromClusterTrial(t *testing.T) {
 		},
 		{
 			desc: "failed",
-			in: &redskyv1alpha1.Trial{
-				Status: redskyv1alpha1.TrialStatus{
-					Conditions: []redskyv1alpha1.TrialCondition{
-						{Type: redskyv1alpha1.TrialFailed, Status: corev1.ConditionTrue},
+			in: &redskyv1beta1.Trial{
+				Status: redskyv1beta1.TrialStatus{
+					Conditions: []redskyv1beta1.TrialCondition{
+						{Type: redskyv1beta1.TrialFailed, Status: corev1.ConditionTrue},
 					},
 				},
 			},
@@ -418,14 +418,14 @@ func TestFromClusterTrial(t *testing.T) {
 		},
 		{
 			desc: "conditions not failed",
-			in: &redskyv1alpha1.Trial{
-				Status: redskyv1alpha1.TrialStatus{
-					Conditions: []redskyv1alpha1.TrialCondition{
-						{Type: redskyv1alpha1.TrialComplete, Status: corev1.ConditionTrue},
+			in: &redskyv1beta1.Trial{
+				Status: redskyv1beta1.TrialStatus{
+					Conditions: []redskyv1beta1.TrialCondition{
+						{Type: redskyv1beta1.TrialComplete, Status: corev1.ConditionTrue},
 					},
 				},
-				Spec: redskyv1alpha1.TrialSpec{
-					Values: []redskyv1alpha1.Value{
+				Spec: redskyv1beta1.TrialSpec{
+					Values: []redskyv1beta1.Value{
 						{Name: "one", Value: "111.111", Error: "1111.1111"},
 						{Name: "two", Value: "222.222", Error: "2222.2222"},
 						{Name: "three", Value: "333.333", Error: "3333.3333"},
@@ -452,41 +452,41 @@ func TestFromClusterTrial(t *testing.T) {
 func TestStopExperiment(t *testing.T) {
 	cases := []struct {
 		desc        string
-		exp         *redskyv1alpha1.Experiment
+		exp         *redskyv1beta1.Experiment
 		err         error
 		expectedOut bool
-		expectedExp *redskyv1alpha1.Experiment
+		expectedExp *redskyv1beta1.Experiment
 	}{
 		{
 			desc: "no error",
-			exp: &redskyv1alpha1.Experiment{
+			exp: &redskyv1beta1.Experiment{
 				ObjectMeta: metav1.ObjectMeta{},
 			},
 			err:         nil,
 			expectedOut: false,
-			expectedExp: &redskyv1alpha1.Experiment{
+			expectedExp: &redskyv1beta1.Experiment{
 				ObjectMeta: metav1.ObjectMeta{},
 			},
 		},
 		{
 			desc: "error wrong type",
-			exp: &redskyv1alpha1.Experiment{
+			exp: &redskyv1beta1.Experiment{
 				ObjectMeta: metav1.ObjectMeta{},
 			},
 			err: &redskyapi.Error{
 				Type: redskyapi.ErrExperimentNameInvalid,
 			},
 			expectedOut: false,
-			expectedExp: &redskyv1alpha1.Experiment{
+			expectedExp: &redskyv1beta1.Experiment{
 				ObjectMeta: metav1.ObjectMeta{},
 			},
 		},
 		{
 			desc: "error",
-			exp: &redskyv1alpha1.Experiment{
+			exp: &redskyv1beta1.Experiment{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						redskyv1alpha1.AnnotationNextTrialURL: "111",
+						redskyv1beta1.AnnotationNextTrialURL: "111",
 					},
 				},
 			},
@@ -494,7 +494,7 @@ func TestStopExperiment(t *testing.T) {
 				Type: redskyapi.ErrExperimentStopped,
 			},
 			expectedOut: true,
-			expectedExp: &redskyv1alpha1.Experiment{
+			expectedExp: &redskyv1beta1.Experiment{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{},
 				},
