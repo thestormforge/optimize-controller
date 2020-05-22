@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 
+	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/controllers"
 	"github.com/redskyops/redskyops-controller/internal/config"
@@ -41,6 +42,7 @@ var (
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
+	_ = redskyv1alpha1.AddToScheme(scheme)
 	_ = redskyv1beta1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }

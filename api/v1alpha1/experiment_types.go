@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1beta1
+package v1alpha1
 
 import (
 	corev1 "k8s.io/api/core/v1"
@@ -208,7 +208,6 @@ type ExperimentStatus struct {
 
 // +genclient
 // +kubebuilder:object:root=true
-// +kubebuilder:storageversion
 
 // Experiment is the Schema for the experiments API
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase",description="Experiment status"
