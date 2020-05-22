@@ -175,23 +175,6 @@ type Value struct {
 // TrialConditionType represents the possible observable conditions for a trial
 type TrialConditionType string
 
-const (
-	// TrialComplete is a condition that indicates a successful trial run
-	TrialComplete TrialConditionType = "redskyops.dev/trial-complete"
-	// TrialFailed is a condition that indicates a failed trial run
-	TrialFailed TrialConditionType = "redskyops.dev/trial-failed"
-	// TrialSetupCreated is a condition that indicates all "create" setup tasks have finished
-	TrialSetupCreated TrialConditionType = "redskyops.dev/trial-setup-created"
-	// TrialSetupDeleted is a condition that indicates all "delete" setup tasks have finished
-	TrialSetupDeleted TrialConditionType = "redskyops.dev/trial-setup-deleted"
-	// TrialPatched is a condition that indicates patches have been applied for a trial
-	TrialPatched TrialConditionType = "redskyops.dev/trial-patched"
-	// TrialReady is a condition that indicates the application is ready after patches were applied
-	TrialReady TrialConditionType = "redskyops.dev/trial-ready"
-	// TrialObserved is a condition that indicates a trial has had metrics collected
-	TrialObserved TrialConditionType = "redskyops.dev/trial-observed"
-)
-
 // TrialCondition represents an observed condition of a trial
 type TrialCondition struct {
 	// The condition type, e.g. "redskyops.dev/trial-complete"

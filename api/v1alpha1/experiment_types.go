@@ -80,21 +80,6 @@ type SumConstraint struct {
 // MetricType represents the allowable types of metrics
 type MetricType string
 
-const (
-	// MetricLocal metrics are Go Templates evaluated against the trial itself. No external service is consulted, primarily
-	// useful for extracting start and completion times.
-	MetricLocal MetricType = "local"
-	// MetricPods metrics are similar to local metrics, however the list of pods in the trial namespace matched by the selector
-	// is also available.
-	MetricPods MetricType = "pods"
-	// MetricPrometheus metrics issue PromQL queries to a matched service. Queries MUST evaluate to a scalar value.
-	MetricPrometheus MetricType = "prometheus"
-	// MetricDatadog metrics issue queries to the Datadog service. Requires API and application key configuration.
-	MetricDatadog MetricType = "datadog"
-	// MetricJSONPath metrics fetch a JSON resource from the matched service. Queries are JSON path expression evaluated against the resource.
-	MetricJSONPath MetricType = "jsonpath"
-)
-
 // Metric represents an observable outcome from a trial run
 type Metric struct {
 	// The name of the metric
@@ -127,15 +112,6 @@ type PatchReadinessGate struct {
 
 // PatchType represents the allowable types of patches
 type PatchType string
-
-const (
-	// PatchStrategic is the patch type for a strategic merge patch
-	PatchStrategic PatchType = "strategic"
-	// PatchMerge is the patch type for a merge patch
-	PatchMerge PatchType = "merge"
-	// PatchJSON is the patch type for aJSON patch (RFC 6902)
-	PatchJSON PatchType = "json"
-)
 
 // PatchTemplate defines a target resource and a patch template to apply
 type PatchTemplate struct {
