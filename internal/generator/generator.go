@@ -87,7 +87,7 @@ func main() {
 		zw.Write(data)
 		zw.Close()
 
-		outputBuffer.WriteString(fmt.Sprintf("var %s = Asset{Data: `%s`}\n", variableName, base64.StdEncoding.EncodeToString(buf.Bytes())))
+		outputBuffer.WriteString(fmt.Sprintf("var %s = Asset{data: `%s`}\n", variableName, base64.StdEncoding.EncodeToString(buf.Bytes())))
 	}
 
 	if err := ioutil.WriteFile(*outputFile, outputBuffer.Bytes(), 0644); err != nil {
