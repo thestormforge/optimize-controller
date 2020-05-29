@@ -71,8 +71,10 @@ vet:
 	go vet ./...
 
 # Generate code
-generate: controller-gen
+generate: controller-gen conversion-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	$(CONVERSION_GEN) --go-header-file "./hack/boilerplate.go.txt" --input-dirs "./api/v1alpha1" \
+	    --output-base "." --output-file-base="zz_generated.conversion" --skip-unsafe=true
 
 # Build the docker images
 docker-build: test docker-build-ci
@@ -104,6 +106,23 @@ ifeq (, $(shell which controller-gen))
 CONTROLLER_GEN=$(GOBIN)/controller-gen
 else
 CONTROLLER_GEN=$(shell which controller-gen)
+endif
+
+# find or download conversion-gen
+# download conversion-gen if necessary
+conversion-gen:
+ifeq (, $(shell which conversion-gen))
+	@{ \
+	set -e ;\
+	CONVERSION_GEN_TMP_DIR=$$(mktemp -d) ;\
+	cd $$CONVERSION_GEN_TMP_DIR ;\
+	go mod init tmp ;\
+	go get k8s.io/code-generator/cmd/conversion-gen@v0.18.3 ;\
+	rm -rf $$CONVERSION_GEN_TMP_DIR ;\
+	}
+CONVERSION_GEN=$(GOBIN)/conversion-gen
+else
+CONVERSION_GEN=$(shell which conversion-gen)
 endif
 
 # Generate CLI and API documentation

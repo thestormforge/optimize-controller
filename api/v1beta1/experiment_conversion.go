@@ -16,18 +16,5 @@ limitations under the License.
 
 package v1beta1
 
-// Hub marks these types as a conversion hub.
-func (*Optimization) Hub()           {}
-func (*Parameter) Hub()              {}
-func (*Constraint) Hub()             {}
-func (*OrderConstraint) Hub()        {}
-func (*SumConstraintParameter) Hub() {}
-func (*SumConstraint) Hub()          {}
-func (*Metric) Hub()                 {}
-func (*PatchReadinessGate) Hub()     {}
-func (*PatchTemplate) Hub()          {}
-func (*NamespaceTemplateSpec) Hub()  {}
-func (*TrialTemplateSpec) Hub()      {}
-
 // Hub marks this type as a conversion hub.
 func (*Experiment) Hub() {}

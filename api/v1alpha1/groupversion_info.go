@@ -33,4 +33,7 @@ var (
 
 	// AddToScheme adds the types in this group-version to the given scheme.
 	AddToScheme = SchemeBuilder.AddToScheme
+
+	// localSchemeBuilder is the underlying API machinery scheme builder, exposed here for the generated code
+	localSchemeBuilder = SchemeBuilder.SchemeBuilder
 )

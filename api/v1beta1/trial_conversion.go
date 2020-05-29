@@ -16,19 +16,5 @@ limitations under the License.
 
 package v1beta1
 
-// Hub marks these types as a conversion hub.
-func (*Assignment) Hub()                    {}
-func (*TrialReadinessGate) Hub()            {}
-func (*HelmValue) Hub()                     {}
-func (*HelmValueSource) Hub()               {}
-func (*ParameterSelector) Hub()             {}
-func (*HelmValuesFromSource) Hub()          {}
-func (*ConfigMapHelmValuesFromSource) Hub() {}
-func (*SetupTask) Hub()                     {}
-func (*PatchOperation) Hub()                {}
-func (*ReadinessCheck) Hub()                {}
-func (*Value) Hub()                         {}
-func (*TrialCondition) Hub()                {}
-
 // Hub marks this type as a conversion hub.
 func (*Trial) Hub() {}

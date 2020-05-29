@@ -14,18 +14,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller
-
-// Convertible is used to convert ancillary objects (i.e. those which do not implement `runtime.Object`).
-type Convertible interface {
-	// ConvertTo converts a spoke version into a hub version
-	ConvertTo(dst Hub) error
-	// ConvertFrom converts a hub version into a spoke version
-	ConvertFrom(src Hub) error
-}
-
-// Hub is used to mark ancillary objects as a hub version for conversion.
-type Hub interface {
-	// Hub is a dummy method used for identification
-	Hub()
-}
+// +k8s:conversion-gen=github.com/redskyops/redskyops-controller/api/v1beta1
+package v1alpha1
