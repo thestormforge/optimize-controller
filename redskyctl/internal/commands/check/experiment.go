@@ -101,7 +101,7 @@ func checkExperiment(lint Linter, experiment *redskyv1beta1.Experiment) {
 	checkParameters(lint.For("spec", "parameters"), experiment.Spec.Parameters)
 	checkMetrics(lint.For("spec", "metrics"), experiment.Spec.Metrics)
 	checkPatches(lint.For("spec", "patches"), experiment.Spec.Patches)
-	checkTrialTemplate(lint.For("spec", "template"), &experiment.Spec.Template)
+	checkTrialTemplate(lint.For("spec", "template"), &experiment.Spec.TrialTemplate)
 
 	// TODO Some checks are higher level and need a combination of pieces: e.g. selector/template matching
 

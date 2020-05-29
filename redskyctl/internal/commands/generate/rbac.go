@@ -250,16 +250,16 @@ func (o *RBACOptions) appendRules(rules []*rbacv1.PolicyRule, exp *redskyv1beta1
 	}
 
 	// Readiness checks with no name require "list" permissions
-	for i := range exp.Spec.Template.Spec.ReadinessChecks {
-		ref := &exp.Spec.Template.Spec.ReadinessChecks[i].TargetRef
+	for i := range exp.Spec.TrialTemplate.Spec.ReadinessChecks {
+		ref := &exp.Spec.TrialTemplate.Spec.ReadinessChecks[i].TargetRef
 		if ref.Name == "" {
 			rules = append(rules, o.newPolicyRule(ref, "list"))
 		}
 	}
 
 	// Readiness gates will be converted to readiness checks; therefore we need the same check on non-empty names
-	for i := range exp.Spec.Template.Spec.ReadinessGates {
-		r := &exp.Spec.Template.Spec.ReadinessGates[i]
+	for i := range exp.Spec.TrialTemplate.Spec.ReadinessGates {
+		r := &exp.Spec.TrialTemplate.Spec.ReadinessGates[i]
 		if r.Name == "" {
 			ref := &corev1.ObjectReference{Kind: r.Kind, APIVersion: r.APIVersion}
 			rules = append(rules, o.newPolicyRule(ref, "list"))

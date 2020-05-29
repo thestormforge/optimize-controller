@@ -25,8 +25,8 @@ import (
 // PopulateTrialFromTemplate creates a new trial for an experiment
 func PopulateTrialFromTemplate(exp *redskyv1beta1.Experiment, t *redskyv1beta1.Trial) {
 	// Start with the trial template
-	exp.Spec.Template.ObjectMeta.DeepCopyInto(&t.ObjectMeta)
-	exp.Spec.Template.Spec.DeepCopyInto(&t.Spec)
+	exp.Spec.TrialTemplate.ObjectMeta.DeepCopyInto(&t.ObjectMeta)
+	exp.Spec.TrialTemplate.Spec.DeepCopyInto(&t.Spec)
 
 	// The creation timestamp is NOT a pointer so it needs an explicit value that serializes to something
 	// TODO This should not be necessary

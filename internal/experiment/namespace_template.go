@@ -48,7 +48,7 @@ func NextTrialNamespace(ctx context.Context, c client.Client, exp *redskyv1beta1
 
 	// Match the potential namespaces
 	var selector client.ListOption
-	if n := exp.Spec.Template.Namespace; n != "" {
+	if n := exp.Spec.TrialTemplate.Namespace; n != "" {
 		// If there is an explicit target namespace on the trial template it is the only one we will be allowed to use
 		selector = client.MatchingFields{"metadata.name": n}
 	} else if exp.Spec.NamespaceSelector == nil && exp.Spec.NamespaceTemplate == nil {
@@ -154,7 +154,7 @@ func createTrialNamespace(exp *redskyv1beta1.Experiment, namespace string) *tria
 	// Fill in the details about the service account
 	ts.ServiceAccount = &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      exp.Spec.Template.Spec.SetupServiceAccountName,
+			Name:      exp.Spec.TrialTemplate.Spec.SetupServiceAccountName,
 			Namespace: namespace,
 		},
 	}
@@ -163,13 +163,13 @@ func createTrialNamespace(exp *redskyv1beta1.Experiment, namespace string) *tria
 	}
 
 	// Add a namespaced role and binding based on the default setup task policy rules
-	if len(exp.Spec.Template.Spec.SetupDefaultRules) > 0 {
+	if len(exp.Spec.TrialTemplate.Spec.SetupDefaultRules) > 0 {
 		ts.Role = &rbacv1.Role{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "redsky-setup-role",
 				Namespace: namespace,
 			},
-			Rules: exp.Spec.Template.Spec.SetupDefaultRules,
+			Rules: exp.Spec.TrialTemplate.Spec.SetupDefaultRules,
 		}
 
 		ts.RoleBindings = append(ts.RoleBindings, rbacv1.RoleBinding{
@@ -191,7 +191,7 @@ func createTrialNamespace(exp *redskyv1beta1.Experiment, namespace string) *tria
 	}
 
 	// Add a namespaced role binding to a (presumably existing) cluster role
-	if exp.Spec.Template.Spec.SetupDefaultClusterRole != "" {
+	if exp.Spec.TrialTemplate.Spec.SetupDefaultClusterRole != "" {
 		ts.RoleBindings = append(ts.RoleBindings, rbacv1.RoleBinding{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "redsky-setup-cluster-rolebinding",
@@ -205,7 +205,7 @@ func createTrialNamespace(exp *redskyv1beta1.Experiment, namespace string) *tria
 			RoleRef: rbacv1.RoleRef{
 				APIGroup: "rbac.authorization.k8s.io",
 				Kind:     "ClusterRole",
-				Name:     exp.Spec.Template.Spec.SetupDefaultClusterRole,
+				Name:     exp.Spec.TrialTemplate.Spec.SetupDefaultClusterRole,
 			},
 		})
 	}

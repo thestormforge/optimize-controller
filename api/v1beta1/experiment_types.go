@@ -191,10 +191,10 @@ type ExperimentSpec struct {
 	NamespaceTemplate *NamespaceTemplateSpec `json:"namespaceTemplate,omitempty"`
 	// Selector locates trial resources that are part of this experiment
 	Selector *metav1.LabelSelector `json:"selector,omitempty"`
-	// Template for creating a new trial. The resulting trial must be matched by Selector. The template can provide an
+	// TrialTemplate for creating a new trial. The resulting trial must be matched by Selector. The template can provide an
 	// initial namespace, however other namespaces (matched by NamespaceSelector) will be used if the effective
 	// replica count is more then one
-	Template TrialTemplateSpec `json:"template,omitempty"`
+	TrialTemplate TrialTemplateSpec `json:"trialTemplate,omitempty"`
 }
 
 // ExperimentStatus defines the observed state of Experiment

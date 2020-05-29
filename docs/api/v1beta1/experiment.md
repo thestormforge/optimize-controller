@@ -70,7 +70,7 @@ ExperimentSpec defines the desired state of Experiment
 | `namespaceSelector` | NamespaceSelector is used to locate existing namespaces for trials | _*[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#labelselector-v1-meta)_ | false |
 | `namespaceTemplate` | NamespaceTemplate can be specified to create new namespaces for trials; if specified created namespaces must be matched by the namespace selector | _*[NamespaceTemplateSpec](#namespacetemplatespec)_ | false |
 | `selector` | Selector locates trial resources that are part of this experiment | _*[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#labelselector-v1-meta)_ | false |
-| `template` | Template for creating a new trial. The resulting trial must be matched by Selector. The template can provide an initial namespace, however other namespaces (matched by NamespaceSelector) will be used if the effective replica count is more then one | _[TrialTemplateSpec](#trialtemplatespec)_ | false |
+| `trialTemplate` | TrialTemplate for creating a new trial. The resulting trial must be matched by Selector. The template can provide an initial namespace, however other namespaces (matched by NamespaceSelector) will be used if the effective replica count is more then one | _[TrialTemplateSpec](#trialtemplatespec)_ | false |
 
 [Back to TOC](#table-of-contents)
 
