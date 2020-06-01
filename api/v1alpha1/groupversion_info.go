@@ -35,5 +35,5 @@ var (
 	AddToScheme = SchemeBuilder.AddToScheme
 
 	// localSchemeBuilder is the underlying API machinery scheme builder, exposed here for the generated code
-	localSchemeBuilder = SchemeBuilder.SchemeBuilder
+	localSchemeBuilder = &SchemeBuilder.SchemeBuilder
 )
