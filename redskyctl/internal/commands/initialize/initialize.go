@@ -25,6 +25,7 @@ import (
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/authorize_cluster"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/grant_permissions"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/kustomize"
 	"github.com/spf13/cobra"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
@@ -37,6 +38,7 @@ type Options struct {
 	IncludeBootstrapRole    bool
 	IncludeExtraPermissions bool
 	NamespaceSelector       string
+	Image                   string
 }
 
 // NewCommand creates a command for performing an initialization
@@ -53,6 +55,7 @@ func NewCommand(o *Options) *cobra.Command {
 	cmd.Flags().BoolVar(&o.IncludeBootstrapRole, "bootstrap-role", o.IncludeBootstrapRole, "Create the bootstrap role (if it does not exist).")
 	cmd.Flags().BoolVar(&o.IncludeExtraPermissions, "extra-permissions", o.IncludeExtraPermissions, "Generate permissions required for features like namespace creation")
 	cmd.Flags().StringVar(&o.NamespaceSelector, "ns-selector", o.NamespaceSelector, "Create namespaced role bindings to matching namespaces.")
+	cmd.Flags().StringVar(&o.Image, "image", kustomize.BuildImage, "Specify the controller image to use.")
 
 	commander.ExitOnError(cmd)
 	return cmd
@@ -60,12 +63,16 @@ func NewCommand(o *Options) *cobra.Command {
 
 func (o *Options) initialize(ctx context.Context) error {
 	var manifests bytes.Buffer
-	manifests.Grow(2 << 18)
+
+	install, err := o.generateInstall()
+	if err != nil {
+		return err
+	}
 
 	// Generate all of the manifests using a kyaml pipeline
 	p := kio.Pipeline{
 		Inputs: []kio.Reader{
-			&kio.ByteReader{Reader: o.generateInstall()},
+			&kio.ByteReader{Reader: install},
 			&kio.ByteReader{Reader: o.generateControllerRBAC()},
 			&kio.ByteReader{Reader: o.generateSecret()},
 		},
@@ -93,9 +100,19 @@ func (o *Options) initialize(ctx context.Context) error {
 	return nil
 }
 
-func (o *Options) generateInstall() io.Reader {
-	opts := o.GeneratorOptions // Be sure to copy the options here or we will overwrite the real streams
-	return o.newStdoutReader(NewGeneratorCommand(&opts))
+func (o *Options) generateInstall() (io.Reader, error) {
+	yamls, err := kustomize.Yamls(
+		kustomize.WithImage(o.Image),
+		kustomize.WithLabels(map[string]string{
+			"app.kubernetes.io/managed-by": "redskyctl",
+		}),
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return bytes.NewReader(yamls), nil
 }
 
 func (o *Options) generateControllerRBAC() io.Reader {
