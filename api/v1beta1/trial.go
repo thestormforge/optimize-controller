@@ -61,8 +61,8 @@ func (in *Trial) GetJobSelector() *metav1.LabelSelector {
 		return in.Spec.Selector
 	}
 
-	if in.Spec.Template != nil && len(in.Spec.Template.Labels) > 0 {
-		return &metav1.LabelSelector{MatchLabels: in.Spec.Template.Labels}
+	if in.Spec.JobTemplate != nil && len(in.Spec.JobTemplate.Labels) > 0 {
+		return &metav1.LabelSelector{MatchLabels: in.Spec.JobTemplate.Labels}
 	}
 
 	return &metav1.LabelSelector{

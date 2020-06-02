@@ -669,8 +669,8 @@ func (in *TrialSpec) DeepCopyInto(out *TrialSpec) {
 		*out = new(v1.LabelSelector)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.Template != nil {
-		in, out := &in.Template, &out.Template
+	if in.JobTemplate != nil {
+		in, out := &in.JobTemplate, &out.JobTemplate
 		*out = new(batchv1beta1.JobTemplateSpec)
 		(*in).DeepCopyInto(*out)
 	}

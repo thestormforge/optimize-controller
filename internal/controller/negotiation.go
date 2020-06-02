@@ -144,7 +144,7 @@ func (c *ConversionDecoder) mayNeedConversionFrom(obj runtime.Object) []string {
 	switch o := obj.(type) {
 	case *v1beta1.Experiment:
 		// As a heuristic, look to see if the job template is nil
-		if o.Spec.TrialTemplate.Spec.Template == nil {
+		if o.Spec.TrialTemplate.Spec.JobTemplate == nil {
 			return []string{"v1alpha1"}
 		}
 	}
@@ -157,7 +157,7 @@ func (c *ConversionDecoder) needsConversion(from, obj runtime.Object) bool {
 	case *v1beta1.Experiment:
 		switch f := from.(type) {
 		case *v1alpha1.Experiment:
-			if o.Spec.TrialTemplate.Spec.Template == nil && f.Spec.Template.Spec.Template != nil {
+			if o.Spec.TrialTemplate.Spec.JobTemplate == nil && f.Spec.Template.Spec.Template != nil {
 				return true
 			}
 		}

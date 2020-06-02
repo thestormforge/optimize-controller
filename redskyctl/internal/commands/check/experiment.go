@@ -215,8 +215,8 @@ func checkTrialTemplate(lint Linter, template *redskyv1beta1.TrialTemplateSpec) 
 }
 
 func checkTrial(lint Linter, trial *redskyv1beta1.TrialSpec) {
-	if trial.Template != nil {
-		checkJobTemplate(lint.For("template"), trial.Template)
+	if trial.JobTemplate != nil {
+		checkJobTemplate(lint.For("jobTemplate"), trial.JobTemplate)
 	}
 }
 

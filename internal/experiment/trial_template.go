@@ -30,9 +30,9 @@ func PopulateTrialFromTemplate(exp *redskyv1beta1.Experiment, t *redskyv1beta1.T
 
 	// The creation timestamp is NOT a pointer so it needs an explicit value that serializes to something
 	// TODO This should not be necessary
-	if t.Spec.Template != nil {
-		t.Spec.Template.ObjectMeta.CreationTimestamp = metav1.Now()
-		t.Spec.Template.Spec.Template.ObjectMeta.CreationTimestamp = metav1.Now()
+	if t.Spec.JobTemplate != nil {
+		t.Spec.JobTemplate.ObjectMeta.CreationTimestamp = metav1.Now()
+		t.Spec.JobTemplate.Spec.Template.ObjectMeta.CreationTimestamp = metav1.Now()
 	}
 
 	// Make sure labels and annotation maps are not nil

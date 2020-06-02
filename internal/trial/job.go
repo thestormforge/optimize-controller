@@ -35,9 +35,9 @@ func NewJob(t *redskyv1beta1.Trial) *batchv1.Job {
 	job := &batchv1.Job{}
 
 	// Start with the job template
-	if t.Spec.Template != nil {
-		t.Spec.Template.ObjectMeta.DeepCopyInto(&job.ObjectMeta)
-		t.Spec.Template.Spec.DeepCopyInto(&job.Spec)
+	if t.Spec.JobTemplate != nil {
+		t.Spec.JobTemplate.ObjectMeta.DeepCopyInto(&job.ObjectMeta)
+		t.Spec.JobTemplate.Spec.DeepCopyInto(&job.Spec)
 	}
 
 	// Apply labels to the job itself
