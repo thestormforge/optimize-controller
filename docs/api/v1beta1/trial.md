@@ -203,7 +203,6 @@ TrialSpec defines the desired state of Trial
 | `ttlSecondsAfterFinished` | The minimum number of seconds before an attempt should be made to clean up the trial, if unset or negative no attempt is made to clean up the trial | _*int32_ | false |
 | `ttlSecondsAfterFailure` | The minimum number of seconds before an attempt should be made to clean up a failed trial, defaults to TTLSecondsAfterFinished | _*int32_ | false |
 | `readinessGates` | The readiness gates to check before running the trial job | _[][TrialReadinessGate](#trialreadinessgate)_ | false |
-| `readinessChecks` | ReadinessChecks are the all of the objects whose conditions need to be inspected for this trial | _[][ReadinessCheck](#readinesscheck)_ | false |
 | `values` | Values are the collected metrics at the end of the trial run | _[][Value](#value)_ | false |
 | `setupTasks` | Setup tasks that must run before the trial starts (and possibly after it ends) | _[][SetupTask](#setuptask)_ | false |
 | `setupVolumes` | Volumes to make available to setup tasks, typically ConfigMap backed volumes | _[][Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#volume-v1-core)_ | false |
@@ -226,6 +225,7 @@ TrialStatus defines the observed state of Trial
 | `completionTime` | CompletionTime is the effective (possibly adjusted) time the trial run job completed | _*[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#time-v1-meta)_ | false |
 | `conditions` | Condition is the current state of the trial | _[][TrialCondition](#trialcondition)_ | false |
 | `patchOperations` | PatchOperations are the patches from the experiment evaluated in the context of this trial | _[][PatchOperation](#patchoperation)_ | false |
+| `readinessChecks` | ReadinessChecks are the all of the objects whose conditions need to be inspected for this trial | _[][ReadinessCheck](#readinesscheck)_ | false |
 
 [Back to TOC](#table-of-contents)
 

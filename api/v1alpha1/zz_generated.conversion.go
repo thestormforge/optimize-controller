@@ -1376,17 +1376,7 @@ func autoConvert_v1alpha1_TrialSpec_To_v1beta1_TrialSpec(in *TrialSpec, out *v1b
 		out.ReadinessGates = nil
 	}
 	// WARNING: in.PatchOperations requires manual conversion: does not exist in peer-type
-	if in.ReadinessChecks != nil {
-		in, out := &in.ReadinessChecks, &out.ReadinessChecks
-		*out = make([]v1beta1.ReadinessCheck, len(*in))
-		for i := range *in {
-			if err := Convert_v1alpha1_ReadinessCheck_To_v1beta1_ReadinessCheck(&(*in)[i], &(*out)[i], s); err != nil {
-				return err
-			}
-		}
-	} else {
-		out.ReadinessChecks = nil
-	}
+	// WARNING: in.ReadinessChecks requires manual conversion: does not exist in peer-type
 	if in.Values != nil {
 		in, out := &in.Values, &out.Values
 		*out = make([]v1beta1.Value, len(*in))
@@ -1446,17 +1436,6 @@ func autoConvert_v1beta1_TrialSpec_To_v1alpha1_TrialSpec(in *v1beta1.TrialSpec, 
 		}
 	} else {
 		out.ReadinessGates = nil
-	}
-	if in.ReadinessChecks != nil {
-		in, out := &in.ReadinessChecks, &out.ReadinessChecks
-		*out = make([]ReadinessCheck, len(*in))
-		for i := range *in {
-			if err := Convert_v1beta1_ReadinessCheck_To_v1alpha1_ReadinessCheck(&(*in)[i], &(*out)[i], s); err != nil {
-				return err
-			}
-		}
-	} else {
-		out.ReadinessChecks = nil
 	}
 	if in.Values != nil {
 		in, out := &in.Values, &out.Values
@@ -1530,6 +1509,7 @@ func autoConvert_v1beta1_TrialStatus_To_v1alpha1_TrialStatus(in *v1beta1.TrialSt
 		out.Conditions = nil
 	}
 	// WARNING: in.PatchOperations requires manual conversion: does not exist in peer-type
+	// WARNING: in.ReadinessChecks requires manual conversion: does not exist in peer-type
 	return nil
 }
 

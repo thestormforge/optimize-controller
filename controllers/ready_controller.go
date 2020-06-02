@@ -144,7 +144,7 @@ func (r *ReadyReconciler) evaluateReadinessChecks(ctx context.Context, t *redsky
 			rc.AttemptsRemaining = 1
 		}
 
-		t.Spec.ReadinessChecks = append(t.Spec.ReadinessChecks, rc)
+		t.Status.ReadinessChecks = append(t.Status.ReadinessChecks, rc)
 	}
 
 	// Update the status to indicate that readiness checks are evaluated
@@ -162,8 +162,8 @@ func (r *ReadyReconciler) checkReadiness(ctx context.Context, t *redskyv1beta1.T
 
 	// Create a new "checker" to maintain state while looping over the readiness checks
 	checker := newReadinessChecker(r.Client, t)
-	for i := range t.Spec.ReadinessChecks {
-		c := &t.Spec.ReadinessChecks[i]
+	for i := range t.Status.ReadinessChecks {
+		c := &t.Status.ReadinessChecks[i]
 		if checker.skipCheck(c, probeTime) {
 			continue
 		}

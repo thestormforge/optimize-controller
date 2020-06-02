@@ -232,8 +232,6 @@ type TrialSpec struct {
 	// The readiness gates to check before running the trial job
 	ReadinessGates []TrialReadinessGate `json:"readinessGates,omitempty"`
 
-	// ReadinessChecks are the all of the objects whose conditions need to be inspected for this trial
-	ReadinessChecks []ReadinessCheck `json:"readinessChecks,omitempty"`
 	// Values are the collected metrics at the end of the trial run
 	Values []Value `json:"values,omitempty"`
 
@@ -265,6 +263,8 @@ type TrialStatus struct {
 	Conditions []TrialCondition `json:"conditions,omitempty"`
 	// PatchOperations are the patches from the experiment evaluated in the context of this trial
 	PatchOperations []PatchOperation `json:"patchOperations,omitempty"`
+	// ReadinessChecks are the all of the objects whose conditions need to be inspected for this trial
+	ReadinessChecks []ReadinessCheck `json:"readinessChecks,omitempty"`
 }
 
 // +genclient

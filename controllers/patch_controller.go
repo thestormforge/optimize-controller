@@ -131,8 +131,8 @@ func (r *PatchReconciler) evaluatePatchOperations(ctx context.Context, t *redsky
 	}
 
 	// Readiness checks from patches should always be applied first
-	readinessChecks := t.Spec.ReadinessChecks
-	t.Spec.ReadinessChecks = nil
+	readinessChecks := t.Status.ReadinessChecks
+	t.Status.ReadinessChecks = nil
 
 	// Evaluate the patches
 	te := template.New()
@@ -156,12 +156,12 @@ func (r *PatchReconciler) evaluatePatchOperations(ctx context.Context, t *redsky
 		if rc, err := r.createReadinessCheck(p, ref); err != nil {
 			return &ctrl.Result{}, err
 		} else if rc != nil {
-			t.Spec.ReadinessChecks = append(t.Spec.ReadinessChecks, *rc)
+			t.Status.ReadinessChecks = append(t.Status.ReadinessChecks, *rc)
 		}
 	}
 
 	// Add back any pre-existing readiness checks
-	t.Spec.ReadinessChecks = append(t.Spec.ReadinessChecks, readinessChecks...)
+	t.Status.ReadinessChecks = append(t.Status.ReadinessChecks, readinessChecks...)
 
 	// Update the status to indicate that patches are evaluated
 	trial.ApplyCondition(&t.Status, redskyv1beta1.TrialPatched, corev1.ConditionFalse, "", "", probeTime)

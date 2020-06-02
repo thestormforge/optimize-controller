@@ -51,6 +51,18 @@ func Convert_v1alpha1_Trial_To_v1beta1_Trial(in *Trial, out *v1beta1.Trial, s co
 		out.Status.PatchOperations = nil
 	}
 
+	if in.Spec.ReadinessChecks != nil {
+		in, out := &in.Spec.ReadinessChecks, &out.Status.ReadinessChecks
+		*out = make([]v1beta1.ReadinessCheck, len(*in))
+		for i := range *in {
+			if err := Convert_v1alpha1_ReadinessCheck_To_v1beta1_ReadinessCheck(&(*in)[i], &(*out)[i], s); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Status.ReadinessChecks = nil
+	}
+
 	return autoConvert_v1alpha1_Trial_To_v1beta1_Trial(in, out, s)
 }
 
@@ -65,6 +77,18 @@ func Convert_v1beta1_Trial_To_v1alpha1_Trial(in *v1beta1.Trial, out *Trial, s co
 		}
 	} else {
 		out.Spec.PatchOperations = nil
+	}
+
+	if in.Status.ReadinessChecks != nil {
+		in, out := &in.Status.ReadinessChecks, &out.Spec.ReadinessChecks
+		*out = make([]ReadinessCheck, len(*in))
+		for i := range *in {
+			if err := Convert_v1beta1_ReadinessCheck_To_v1alpha1_ReadinessCheck(&(*in)[i], &(*out)[i], s); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Spec.ReadinessChecks = nil
 	}
 
 	return autoConvert_v1beta1_Trial_To_v1alpha1_Trial(in, out, s)

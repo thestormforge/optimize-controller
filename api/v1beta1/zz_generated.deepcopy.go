@@ -701,13 +701,6 @@ func (in *TrialSpec) DeepCopyInto(out *TrialSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.ReadinessChecks != nil {
-		in, out := &in.ReadinessChecks, &out.ReadinessChecks
-		*out = make([]ReadinessCheck, len(*in))
-		for i := range *in {
-			(*in)[i].DeepCopyInto(&(*out)[i])
-		}
-	}
 	if in.Values != nil {
 		in, out := &in.Values, &out.Values
 		*out = make([]Value, len(*in))
@@ -767,6 +760,13 @@ func (in *TrialStatus) DeepCopyInto(out *TrialStatus) {
 	if in.PatchOperations != nil {
 		in, out := &in.PatchOperations, &out.PatchOperations
 		*out = make([]PatchOperation, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+	if in.ReadinessChecks != nil {
+		in, out := &in.ReadinessChecks, &out.ReadinessChecks
+		*out = make([]ReadinessCheck, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}

@@ -249,10 +249,14 @@ func (o *RBACOptions) appendRules(rules []*rbacv1.PolicyRule, exp *redskyv1beta1
 		}
 	}
 
-	// Readiness checks with no name require "list" permissions
-	for i := range exp.Spec.TrialTemplate.Spec.ReadinessChecks {
-		ref := &exp.Spec.TrialTemplate.Spec.ReadinessChecks[i].TargetRef
-		if ref.Name == "" {
+	// Readiness gates with no name require "list" permissions
+	for i := range exp.Spec.TrialTemplate.Spec.ReadinessGates {
+		rg := &exp.Spec.TrialTemplate.Spec.ReadinessGates[i]
+		if rg.Name == "" {
+			ref := &corev1.ObjectReference{
+				Kind:       rg.Kind,
+				APIVersion: rg.APIVersion,
+			}
 			rules = append(rules, o.newPolicyRule(ref, "list"))
 		}
 	}
