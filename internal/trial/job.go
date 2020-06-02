@@ -106,8 +106,8 @@ func addDefaultContainer(t *redskyv1beta1.Trial, job *batchv1.Job) {
 
 func patchSelf(t *redskyv1beta1.Trial, job *batchv1.Job) *batchv1.Job {
 	// Look for patch operations that match this trial and apply them
-	for i := range t.Spec.PatchOperations {
-		po := &t.Spec.PatchOperations[i]
+	for i := range t.Status.PatchOperations {
+		po := &t.Status.PatchOperations[i]
 		if IsTrialJobReference(t, &po.TargetRef) && po.PatchType == types.StrategicMergePatchType {
 			// Ignore errors all the way down, only overwrite the job if everything is successful
 			if original, err := json.Marshal(job); err == nil {

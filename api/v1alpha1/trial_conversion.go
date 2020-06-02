@@ -38,12 +38,50 @@ func (in *Trial) ConvertFrom(hub conversion.Hub) error {
 	return s.Convert(hub.(*v1beta1.Trial), in, nil)
 }
 
+func Convert_v1alpha1_Trial_To_v1beta1_Trial(in *Trial, out *v1beta1.Trial, s conv.Scope) error {
+	if in.Spec.PatchOperations != nil {
+		in, out := &in.Spec.PatchOperations, &out.Status.PatchOperations
+		*out = make([]v1beta1.PatchOperation, len(*in))
+		for i := range *in {
+			if err := Convert_v1alpha1_PatchOperation_To_v1beta1_PatchOperation(&(*in)[i], &(*out)[i], s); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Status.PatchOperations = nil
+	}
+
+	return autoConvert_v1alpha1_Trial_To_v1beta1_Trial(in, out, s)
+}
+
+func Convert_v1beta1_Trial_To_v1alpha1_Trial(in *v1beta1.Trial, out *Trial, s conv.Scope) error {
+	if in.Status.PatchOperations != nil {
+		in, out := &in.Status.PatchOperations, &out.Spec.PatchOperations
+		*out = make([]PatchOperation, len(*in))
+		for i := range *in {
+			if err := Convert_v1beta1_PatchOperation_To_v1alpha1_PatchOperation(&(*in)[i], &(*out)[i], s); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Spec.PatchOperations = nil
+	}
+
+	return autoConvert_v1beta1_Trial_To_v1alpha1_Trial(in, out, s)
+}
+
 func Convert_v1alpha1_TrialSpec_To_v1beta1_TrialSpec(in *TrialSpec, out *v1beta1.TrialSpec, s conv.Scope) error {
 	out.JobTemplate = in.Template
+
 	return autoConvert_v1alpha1_TrialSpec_To_v1beta1_TrialSpec(in, out, s)
 }
 
 func Convert_v1beta1_TrialSpec_To_v1alpha1_TrialSpec(in *v1beta1.TrialSpec, out *TrialSpec, s conv.Scope) error {
 	out.Template = in.JobTemplate
+
 	return autoConvert_v1beta1_TrialSpec_To_v1alpha1_TrialSpec(in, out, s)
+}
+
+func Convert_v1beta1_TrialStatus_To_v1alpha1_TrialStatus(in *v1beta1.TrialStatus, out *TrialStatus, s conv.Scope) error {
+	return autoConvert_v1beta1_TrialStatus_To_v1alpha1_TrialStatus(in, out, s)
 }

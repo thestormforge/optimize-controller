@@ -149,7 +149,7 @@ func (r *PatchReconciler) evaluatePatchOperations(ctx context.Context, t *redsky
 		if po, err := r.createPatchOperation(t, p, ref, data); err != nil {
 			return &ctrl.Result{}, err
 		} else if po != nil {
-			t.Spec.PatchOperations = append(t.Spec.PatchOperations, *po)
+			t.Status.PatchOperations = append(t.Status.PatchOperations, *po)
 		}
 
 		// Add a readiness check if necessary
@@ -177,8 +177,8 @@ func (r *PatchReconciler) applyPatches(ctx context.Context, t *redskyv1beta1.Tri
 	}
 
 	// Iterate over the patches, looking for remaining attempts
-	for i := range t.Spec.PatchOperations {
-		p := &t.Spec.PatchOperations[i]
+	for i := range t.Status.PatchOperations {
+		p := &t.Status.PatchOperations[i]
 		if p.AttemptsRemaining == 0 {
 			continue
 		}
