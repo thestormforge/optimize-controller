@@ -55,8 +55,8 @@ func TestFromCluster(t *testing.T) {
 			out: &redskyapi.Experiment{
 				ExperimentMeta: redskyapi.ExperimentMeta{
 					LastModified: now,
-					Self:         "self_111",
-					NextTrial:    "next_trial_111",
+					SelfURL:      "self_111",
+					NextTrialURL: "next_trial_111",
 				},
 			},
 		},
@@ -240,8 +240,8 @@ func TestToCluster(t *testing.T) {
 			},
 			ee: &redskyapi.Experiment{
 				ExperimentMeta: redskyapi.ExperimentMeta{
-					Self:      "self_111",
-					NextTrial: "next_trial_111",
+					SelfURL:      "self_111",
+					NextTrialURL: "next_trial_111",
 				},
 				Optimization: []redskyapi.Optimization{
 					{Name: "one", Value: "111"},
@@ -294,7 +294,7 @@ func TestToClusterTrial(t *testing.T) {
 			},
 			suggestion: &redskyapi.TrialAssignments{
 				TrialMeta: redskyapi.TrialMeta{
-					ReportTrial: "some/path/1",
+					SelfURL: "some/path/1",
 				},
 				Assignments: []redskyapi.Assignment{
 					{ParameterName: "one", Value: json.Number("111")},
@@ -336,7 +336,7 @@ func TestToClusterTrial(t *testing.T) {
 			},
 			suggestion: &redskyapi.TrialAssignments{
 				TrialMeta: redskyapi.TrialMeta{
-					ReportTrial: "some/path/one",
+					SelfURL: "some/path/one",
 				},
 				Assignments: []redskyapi.Assignment{
 					{ParameterName: "one", Value: json.Number("111")},

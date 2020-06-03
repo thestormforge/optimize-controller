@@ -90,7 +90,7 @@ func (o *DeleteOptions) deleteExperiment(ctx context.Context, name experimentsv1
 		return err
 	}
 
-	if err := o.ExperimentsAPI.DeleteExperiment(ctx, exp.Self); err != nil {
+	if err := o.ExperimentsAPI.DeleteExperiment(ctx, exp.SelfURL); err != nil {
 		return err
 	}
 

@@ -130,7 +130,7 @@ func (o *LabelOptions) labelTrials(ctx context.Context, numbers map[experimentsv
 
 		// Note that you can only label completed trials
 		q := &experimentsv1alpha1.TrialListQuery{Status: []experimentsv1alpha1.TrialStatus{experimentsv1alpha1.TrialCompleted}}
-		tl, err := o.ExperimentsAPI.GetAllTrials(ctx, exp.Trials, q)
+		tl, err := o.ExperimentsAPI.GetAllTrials(ctx, exp.TrialsURL, q)
 		if err != nil {
 			return err
 		}
