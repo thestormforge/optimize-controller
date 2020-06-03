@@ -18,6 +18,7 @@ package controller
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/redskyops/redskyops-controller/api/v1alpha1"
 	"github.com/redskyops/redskyops-controller/api/v1beta1"
@@ -69,7 +70,7 @@ type ConversionDecoder struct {
 func (c *ConversionDecoder) Decode(data []byte, defaults *schema.GroupVersionKind, into runtime.Object) (runtime.Object, *schema.GroupVersionKind, error) {
 	// Use the delegate to perform the initial decode
 	obj, gvk, err := c.Decoder.Decode(data, defaults, into)
-	if err != nil {
+	if err != nil || gvk.Group != "redskyops.dev" {
 		return obj, gvk, err
 	}
 
@@ -140,11 +141,28 @@ func (c *ConversionDecoder) mayNeedConversionFrom(obj runtime.Object) []string {
 		return result
 	}
 
-	// Try to identify objects which may need conversion
+	// Try to identify objects which MAY need conversion
+
+	// For example: checks can look for zero values on renamed or moved fields, if the field has a zero value
+	// because it was never actually specified, we should catch that in `needsConversion` once we can look at
+	// both representations at the same time.
+
+	// Note that the cases of the inner switch statements in `needsConversion` should correspond to the list
+	// of versions we return here.
+
 	switch o := obj.(type) {
 	case *v1beta1.Experiment:
-		// As a heuristic, look to see if the job template is nil
-		if o.Spec.TrialTemplate.Spec.JobTemplate == nil {
+		if reflect.DeepEqual(o.Spec.TrialTemplate, v1beta1.TrialTemplateSpec{}) {
+			return []string{"v1alpha1"}
+		}
+	case *v1beta1.Trial:
+		if o.Spec.JobTemplate == nil {
+			return []string{"v1alpha1"}
+		}
+		if len(o.Status.PatchOperations) == 0 {
+			return []string{"v1alpha1"}
+		}
+		if len(o.Status.ReadinessChecks) == 0 {
 			return []string{"v1alpha1"}
 		}
 	}
@@ -157,7 +175,20 @@ func (c *ConversionDecoder) needsConversion(from, obj runtime.Object) bool {
 	case *v1beta1.Experiment:
 		switch f := from.(type) {
 		case *v1alpha1.Experiment:
-			if o.Spec.TrialTemplate.Spec.JobTemplate == nil && f.Spec.Template.Spec.Template != nil {
+			if !reflect.DeepEqual(o.Spec.TrialTemplate, f.Spec.Template) {
+				return true
+			}
+		}
+	case *v1beta1.Trial:
+		switch f := from.(type) {
+		case *v1alpha1.Trial:
+			if o.Spec.JobTemplate == nil && f.Spec.Template != nil {
+				return true
+			}
+			if len(o.Status.PatchOperations) == 0 && len(f.Spec.PatchOperations) > 0 {
+				return true
+			}
+			if len(o.Status.ReadinessChecks) == 0 && len(f.Spec.ReadinessChecks) > 0 {
 				return true
 			}
 		}
