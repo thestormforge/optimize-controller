@@ -153,7 +153,7 @@ func (r *PatchReconciler) evaluatePatchOperations(ctx context.Context, t *redsky
 		}
 
 		// Add a readiness check if necessary
-		if rc, err := r.createReadinessCheck(p, ref); err != nil {
+		if rc, err := r.createReadinessCheck(t, p, ref); err != nil {
 			return &ctrl.Result{}, err
 		} else if rc != nil {
 			t.Status.ReadinessChecks = append(t.Status.ReadinessChecks, *rc)
@@ -285,7 +285,12 @@ func (r *PatchReconciler) createPatchOperation(t *redskyv1beta1.Trial, p *redsky
 }
 
 // createReadinessCheck creates a readiness check for a patch operation
-func (r *PatchReconciler) createReadinessCheck(p *redskyv1beta1.PatchTemplate, ref *corev1.ObjectReference) (*redskyv1beta1.ReadinessCheck, error) {
+func (r *PatchReconciler) createReadinessCheck(t *redskyv1beta1.Trial, p *redskyv1beta1.PatchTemplate, ref *corev1.ObjectReference) (*redskyv1beta1.ReadinessCheck, error) {
+	// Do not create a readiness check on the trial job
+	if trial.IsTrialJobReference(t, ref) {
+		return nil, nil
+	}
+
 	// NOTE: There is a cardinality mismatch between the `PatchReadinessGate` type and the `ReadinessCheck` type in
 	// regard to condition types. We purposely do not expose user facing configuration for these checks (users can
 	// skip patch readiness checks and specify them manually for fine grained control).

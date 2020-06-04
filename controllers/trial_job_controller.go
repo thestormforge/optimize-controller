@@ -42,7 +42,7 @@ type TrialJobReconciler struct {
 }
 
 // +kubebuilder:rbac:groups=redskyops.dev,resources=trials,verbs=get;list;watch;update
-// +kubebuilder:rbac:groups=batch;extensions,resources=jobs,verbs=list;watch;create
+// +kubebuilder:rbac:groups=batch;extensions,resources=jobs,verbs=get;list;watch;create
 // +kubebuilder:rbac:groups="",resources=pods,verbs=list
 
 func (r *TrialJobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
@@ -179,20 +179,26 @@ func (r *TrialJobReconciler) applyJobStatus(ctx context.Context, t *redskyv1beta
 	if matchingSelector, err := meta.MatchingSelector(job.Spec.Selector); err == nil {
 		podList := &corev1.PodList{}
 		if err := r.List(ctx, podList, client.InNamespace(job.Namespace), matchingSelector); err == nil {
-			startedAt, finishedAt = containerTime(podList)
-
-			// Check if the job has a start/completion time, but it is not yet reflected in the pod state we are seeing
-			if (startedAt == nil && job.Status.StartTime != nil) || (finishedAt == nil && job.Status.CompletionTime != nil) {
-				return false, true
-			}
-
-			// Look for pod failures (edge case where job controller doesn't update status properly, e.g. initContainer failure)
+			// Look for pod failures (edge case where job controller doesn't update status properly, e.g. initContainer failure or unschedulable)
 			for i := range podList.Items {
 				s := &podList.Items[i].Status
 				if s.Phase == corev1.PodFailed {
 					trial.ApplyCondition(&t.Status, redskyv1beta1.TrialFailed, corev1.ConditionTrue, s.Reason, "", time)
 					dirty = true
 				}
+				// TODO We should consolidate this with `internal/ready/podFailed`
+				for _, c := range s.Conditions {
+					if c.Type == corev1.PodScheduled && c.Status == corev1.ConditionFalse && c.Reason == corev1.PodReasonUnschedulable {
+						trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, c.Reason, c.Message, time)
+						dirty = true
+					}
+				}
+			}
+
+			// Check if the job has a start/completion time, but it is not yet reflected in the pod state we are seeing
+			startedAt, finishedAt = containerTime(podList)
+			if (startedAt == nil && job.Status.StartTime != nil) || (finishedAt == nil && job.Status.CompletionTime != nil) {
+				return dirty, true
 			}
 		}
 	}
