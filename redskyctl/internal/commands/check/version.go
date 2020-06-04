@@ -76,7 +76,7 @@ func (o *VersionOptions) checkVersion(ctx context.Context) error {
 
 	// Just exit
 	if latest.TagName == cur {
-		_, _ = fmt.Fprintln(o.Out, "Version %s is the latest version", versionInfo.String())
+		_, _ = fmt.Fprintf(o.Out, "Version %s is the latest version\n", versionInfo.String())
 		return nil
 	}
 
