@@ -21,7 +21,7 @@ import (
 	"io/ioutil"
 	"strings"
 
-	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
+	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/internal/template"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
@@ -74,7 +74,7 @@ func (o *ExperimentOptions) checkExperiment() error {
 	}
 
 	// Unmarshal the experiment
-	experiment := &redskyv1alpha1.Experiment{}
+	experiment := &redskyv1beta1.Experiment{}
 	if err = yaml.Unmarshal(data, experiment); err != nil {
 		return err
 	}
@@ -92,7 +92,7 @@ func (o *ExperimentOptions) checkExperiment() error {
 	return nil
 }
 
-func checkExperiment(lint Linter, experiment *redskyv1alpha1.Experiment) {
+func checkExperiment(lint Linter, experiment *redskyv1beta1.Experiment) {
 
 	if !checkTypeMeta(lint.For("metadata"), &experiment.TypeMeta) {
 		return
@@ -101,7 +101,7 @@ func checkExperiment(lint Linter, experiment *redskyv1alpha1.Experiment) {
 	checkParameters(lint.For("spec", "parameters"), experiment.Spec.Parameters)
 	checkMetrics(lint.For("spec", "metrics"), experiment.Spec.Metrics)
 	checkPatches(lint.For("spec", "patches"), experiment.Spec.Patches)
-	checkTrialTemplate(lint.For("spec", "template"), &experiment.Spec.Template)
+	checkTrialTemplate(lint.For("spec", "template"), &experiment.Spec.TrialTemplate)
 
 	// TODO Some checks are higher level and need a combination of pieces: e.g. selector/template matching
 
@@ -116,15 +116,15 @@ func checkTypeMeta(lint Linter, typeMeta *metav1.TypeMeta) bool {
 		ok = false
 	}
 
-	if typeMeta.APIVersion != redskyv1alpha1.GroupVersion.String() {
-		lint.For("metadata").Error().Invalid("apiVersion", typeMeta.APIVersion, redskyv1alpha1.GroupVersion.String())
+	if typeMeta.APIVersion != redskyv1beta1.GroupVersion.String() {
+		lint.For("metadata").Error().Invalid("apiVersion", typeMeta.APIVersion, redskyv1beta1.GroupVersion.String())
 		ok = false
 	}
 
 	return ok
 }
 
-func checkParameters(lint Linter, parameters []redskyv1alpha1.Parameter) {
+func checkParameters(lint Linter, parameters []redskyv1beta1.Parameter) {
 
 	if len(parameters) == 0 {
 		lint.Error().Missing("parameters")
@@ -136,11 +136,11 @@ func checkParameters(lint Linter, parameters []redskyv1alpha1.Parameter) {
 
 }
 
-func checkParameter(lint Linter, parameter *redskyv1alpha1.Parameter) {
+func checkParameter(lint Linter, parameter *redskyv1beta1.Parameter) {
 
 }
 
-func checkMetrics(lint Linter, metrics []redskyv1alpha1.Metric) {
+func checkMetrics(lint Linter, metrics []redskyv1beta1.Metric) {
 
 	if len(metrics) == 0 {
 		lint.Error().Missing("metrics")
@@ -152,17 +152,17 @@ func checkMetrics(lint Linter, metrics []redskyv1alpha1.Metric) {
 
 }
 
-func checkMetric(lint Linter, metric *redskyv1alpha1.Metric) {
+func checkMetric(lint Linter, metric *redskyv1beta1.Metric) {
 
 	if metric.Query == "" {
 		lint.Error().Missing("query")
 	}
 
-	if metric.Type == redskyv1alpha1.MetricPrometheus && metric.Selector == nil {
+	if metric.Type == redskyv1beta1.MetricPrometheus && metric.Selector == nil {
 		lint.Error().Missing("selector for Prometheus metric")
 	}
 
-	if metric.Type == redskyv1alpha1.MetricJSONPath {
+	if metric.Type == redskyv1beta1.MetricJSONPath {
 		// TODO We need to render the template first
 		if !strings.Contains(metric.Query, "{") {
 			lint.Error().Invalid("query", metric.Query)
@@ -173,13 +173,13 @@ func checkMetric(lint Linter, metric *redskyv1alpha1.Metric) {
 		lint.Error().Invalid("scheme", metric.Scheme, "http", "https")
 	}
 
-	if _, _, err := template.New().RenderMetricQueries(metric, &redskyv1alpha1.Trial{}, nil); err != nil {
+	if _, _, err := template.New().RenderMetricQueries(metric, &redskyv1beta1.Trial{}, nil); err != nil {
 		lint.Error().Failed("query", err)
 	}
 
 }
 
-func checkPatches(lint Linter, patches []redskyv1alpha1.PatchTemplate) {
+func checkPatches(lint Linter, patches []redskyv1beta1.PatchTemplate) {
 
 	if len(patches) == 0 {
 		lint.Error().Missing("patches")
@@ -191,7 +191,7 @@ func checkPatches(lint Linter, patches []redskyv1alpha1.PatchTemplate) {
 
 }
 
-func checkPatch(lint Linter, patch *redskyv1alpha1.PatchTemplate) {
+func checkPatch(lint Linter, patch *redskyv1beta1.PatchTemplate) {
 
 	if patch.TargetRef.APIVersion == "" {
 		// TODO Is is OK to skip this for the core kinds or should we still require "v1"?
@@ -204,19 +204,19 @@ func checkPatch(lint Linter, patch *redskyv1alpha1.PatchTemplate) {
 		lint.Error().Missing("kind")
 	}
 
-	if _, err := template.New().RenderPatch(patch, &redskyv1alpha1.Trial{}); err != nil {
+	if _, err := template.New().RenderPatch(patch, &redskyv1beta1.Trial{}); err != nil {
 		lint.Error().Failed("patch", err)
 	}
 
 }
 
-func checkTrialTemplate(lint Linter, template *redskyv1alpha1.TrialTemplateSpec) {
+func checkTrialTemplate(lint Linter, template *redskyv1beta1.TrialTemplateSpec) {
 	checkTrial(lint.For("spec"), &template.Spec)
 }
 
-func checkTrial(lint Linter, trial *redskyv1alpha1.TrialSpec) {
-	if trial.Template != nil {
-		checkJobTemplate(lint.For("template"), trial.Template)
+func checkTrial(lint Linter, trial *redskyv1beta1.TrialSpec) {
+	if trial.JobTemplate != nil {
+		checkJobTemplate(lint.For("jobTemplate"), trial.JobTemplate)
 	}
 }
 

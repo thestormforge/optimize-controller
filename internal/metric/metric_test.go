@@ -27,7 +27,7 @@ import (
 	"testing"
 	"time"
 
-	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
+	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -53,13 +53,13 @@ func TestCaptureMetric(t *testing.T) {
 
 	testCases := []struct {
 		desc     string
-		metric   *redskyv1alpha1.Metric
+		metric   *redskyv1beta1.Metric
 		obj      runtime.Object
 		expected float64
 	}{
 		{
 			desc: "default local",
-			metric: &redskyv1alpha1.Metric{
+			metric: &redskyv1beta1.Metric{
 				Name:  "testMetric",
 				Query: "{{duration .StartTime .CompletionTime}}",
 			},
@@ -68,20 +68,20 @@ func TestCaptureMetric(t *testing.T) {
 		},
 		{
 			desc: "explicit local",
-			metric: &redskyv1alpha1.Metric{
+			metric: &redskyv1beta1.Metric{
 				Name:  "testMetric",
 				Query: "{{duration .StartTime .CompletionTime}}",
-				Type:  redskyv1alpha1.MetricLocal,
+				Type:  redskyv1beta1.MetricLocal,
 			},
 			obj:      &corev1.PodList{},
 			expected: 5,
 		},
 		{
 			desc: "default prometheus",
-			metric: &redskyv1alpha1.Metric{
+			metric: &redskyv1beta1.Metric{
 				Name:  "testMetric",
 				Query: "scalar(prometheus_build_info)",
-				Type:  redskyv1alpha1.MetricPrometheus,
+				Type:  redskyv1beta1.MetricPrometheus,
 			},
 			obj: &corev1.ServiceList{
 				Items: []corev1.Service{
@@ -103,10 +103,10 @@ func TestCaptureMetric(t *testing.T) {
 		},
 		{
 			desc: "default jonPath",
-			metric: &redskyv1alpha1.Metric{
+			metric: &redskyv1beta1.Metric{
 				Name:  "testMetric",
 				Query: "{.current_response_time_percentile_95}",
-				Type:  redskyv1alpha1.MetricJSONPath,
+				Type:  redskyv1beta1.MetricJSONPath,
 			},
 			obj: &corev1.ServiceList{
 				Items: []corev1.Service{
@@ -130,8 +130,8 @@ func TestCaptureMetric(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("%q", tc.desc), func(t *testing.T) {
-			trial := &redskyv1alpha1.Trial{
-				Status: redskyv1alpha1.TrialStatus{
+			trial := &redskyv1beta1.Trial{
+				Status: redskyv1beta1.TrialStatus{
 					StartTime:      &now,
 					CompletionTime: &later,
 				},

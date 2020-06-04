@@ -26,11 +26,11 @@ import (
 	prom "github.com/prometheus/client_golang/api"
 	promv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
-	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
+	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-func capturePrometheusMetric(m *redskyv1alpha1.Metric, target runtime.Object, completionTime time.Time) (value float64, stddev float64, err error) {
+func capturePrometheusMetric(m *redskyv1beta1.Metric, target runtime.Object, completionTime time.Time) (value float64, stddev float64, err error) {
 	var urls []string
 
 	if urls, err = toURL(target, m); err != nil {

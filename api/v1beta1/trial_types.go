@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1beta1
 
 import (
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
@@ -175,6 +175,23 @@ type Value struct {
 // TrialConditionType represents the possible observable conditions for a trial
 type TrialConditionType string
 
+const (
+	// TrialComplete is a condition that indicates a successful trial run
+	TrialComplete TrialConditionType = "redskyops.dev/trial-complete"
+	// TrialFailed is a condition that indicates a failed trial run
+	TrialFailed TrialConditionType = "redskyops.dev/trial-failed"
+	// TrialSetupCreated is a condition that indicates all "create" setup tasks have finished
+	TrialSetupCreated TrialConditionType = "redskyops.dev/trial-setup-created"
+	// TrialSetupDeleted is a condition that indicates all "delete" setup tasks have finished
+	TrialSetupDeleted TrialConditionType = "redskyops.dev/trial-setup-deleted"
+	// TrialPatched is a condition that indicates patches have been applied for a trial
+	TrialPatched TrialConditionType = "redskyops.dev/trial-patched"
+	// TrialReady is a condition that indicates the application is ready after patches were applied
+	TrialReady TrialConditionType = "redskyops.dev/trial-ready"
+	// TrialObserved is a condition that indicates a trial has had metrics collected
+	TrialObserved TrialConditionType = "redskyops.dev/trial-observed"
+)
+
 // TrialCondition represents an observed condition of a trial
 type TrialCondition struct {
 	// The condition type, e.g. "redskyops.dev/trial-complete"
@@ -200,8 +217,8 @@ type TrialSpec struct {
 	Assignments []Assignment `json:"assignments,omitempty"`
 	// Selector matches the job representing the trial run
 	Selector *metav1.LabelSelector `json:"selector,omitempty"`
-	// Template is the job template used to create trial run jobs
-	Template *batchv1beta1.JobTemplateSpec `json:"template,omitempty"`
+	// JobTemplate is the job template used to create trial run jobs
+	JobTemplate *batchv1beta1.JobTemplateSpec `json:"jobTemplate,omitempty"`
 	// InitialDelaySeconds is number of seconds to wait after a trial becomes ready before starting the trial run job
 	InitialDelaySeconds int32 `json:"initialDelaySeconds,omitempty"`
 	// The offset used to adjust the start time to account for spin up of the trial run
@@ -215,10 +232,6 @@ type TrialSpec struct {
 	// The readiness gates to check before running the trial job
 	ReadinessGates []TrialReadinessGate `json:"readinessGates,omitempty"`
 
-	// PatchOperations are the patches from the experiment evaluated in the context of this trial
-	PatchOperations []PatchOperation `json:"patchOperations,omitempty"`
-	// ReadinessChecks are the all of the objects whose conditions need to be inspected for this trial
-	ReadinessChecks []ReadinessCheck `json:"readinessChecks,omitempty"`
 	// Values are the collected metrics at the end of the trial run
 	Values []Value `json:"values,omitempty"`
 
@@ -248,10 +261,15 @@ type TrialStatus struct {
 	CompletionTime *metav1.Time `json:"completionTime,omitempty"`
 	// Condition is the current state of the trial
 	Conditions []TrialCondition `json:"conditions,omitempty"`
+	// PatchOperations are the patches from the experiment evaluated in the context of this trial
+	PatchOperations []PatchOperation `json:"patchOperations,omitempty"`
+	// ReadinessChecks are the all of the objects whose conditions need to be inspected for this trial
+	ReadinessChecks []ReadinessCheck `json:"readinessChecks,omitempty"`
 }
 
 // +genclient
 // +kubebuilder:object:root=true
+// +kubebuilder:storageversion
 
 // Trial is the Schema for the trials API
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase",description="Trial status"

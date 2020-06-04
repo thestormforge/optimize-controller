@@ -22,7 +22,7 @@ import (
 	"strings"
 	"time"
 
-	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
+	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/internal/template"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -47,7 +47,7 @@ func (e *CaptureError) Error() string {
 }
 
 // CaptureMetric captures a point-in-time metric value and it's error (standard deviation)
-func CaptureMetric(metric *redskyv1alpha1.Metric, trial *redskyv1alpha1.Trial, target runtime.Object) (float64, float64, error) {
+func CaptureMetric(metric *redskyv1beta1.Metric, trial *redskyv1beta1.Trial, target runtime.Object) (float64, float64, error) {
 	// Work on a copy so we can render the queries in place
 	metric = metric.DeepCopy()
 
@@ -59,22 +59,22 @@ func CaptureMetric(metric *redskyv1alpha1.Metric, trial *redskyv1alpha1.Trial, t
 
 	// Capture the value based on the metric type
 	switch metric.Type {
-	case redskyv1alpha1.MetricLocal, redskyv1alpha1.MetricPods, "":
+	case redskyv1beta1.MetricLocal, redskyv1beta1.MetricPods, "":
 		// Just parse the query as a float
 		value, err := strconv.ParseFloat(metric.Query, 64)
 		return value, 0, err
-	case redskyv1alpha1.MetricPrometheus:
+	case redskyv1beta1.MetricPrometheus:
 		return capturePrometheusMetric(metric, target, trial.Status.CompletionTime.Time)
-	case redskyv1alpha1.MetricDatadog:
+	case redskyv1beta1.MetricDatadog:
 		return captureDatadogMetric(metric.Scheme, metric.Query, trial.Status.StartTime.Time, trial.Status.CompletionTime.Time)
-	case redskyv1alpha1.MetricJSONPath:
+	case redskyv1beta1.MetricJSONPath:
 		return captureJSONPathMetric(metric, target)
 	default:
 		return 0, 0, fmt.Errorf("unknown metric type: %s", metric.Type)
 	}
 }
 
-func toURL(target runtime.Object, m *redskyv1alpha1.Metric) ([]string, error) {
+func toURL(target runtime.Object, m *redskyv1beta1.Metric) ([]string, error) {
 	// Make sure we got a service list
 	// TODO We can probably handle a pod list by addressing it directly
 	list, ok := target.(*corev1.ServiceList)

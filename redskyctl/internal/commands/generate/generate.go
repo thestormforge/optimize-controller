@@ -21,7 +21,7 @@ import (
 	"io"
 	"io/ioutil"
 
-	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
+	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/internal/config"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/authorize_cluster"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/grant_permissions"
@@ -58,7 +58,7 @@ func NewCommand(o *Options) *cobra.Command {
 // TODO This should read all of the experiments from a stream of documents and return a list
 
 // readExperiment unmarshals experiment data
-func readExperiment(filename string, defaultReader io.Reader, experiment *redskyv1alpha1.Experiment) error {
+func readExperiment(filename string, defaultReader io.Reader, experiment *redskyv1beta1.Experiment) error {
 	if filename == "" {
 		return nil
 	}
@@ -79,7 +79,7 @@ func readExperiment(filename string, defaultReader io.Reader, experiment *redsky
 	if err = yaml.Unmarshal(data, experiment); err != nil {
 		return err
 	}
-	if experiment.GroupVersionKind().GroupVersion() != redskyv1alpha1.GroupVersion || experiment.Kind != "Experiment" {
+	if experiment.GroupVersionKind().GroupVersion() != redskyv1beta1.GroupVersion || experiment.Kind != "Experiment" {
 		return fmt.Errorf("expected experiment, got: %s", experiment.GroupVersionKind())
 	}
 	return nil

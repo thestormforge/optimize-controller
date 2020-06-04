@@ -16,7 +16,7 @@ limitations under the License.
 
 package validation
 
-import redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
+import redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 
 // AssignmentError is raised when trial assignments do not match the experiment parameter definitions
 type AssignmentError struct {
@@ -37,7 +37,7 @@ func (e *AssignmentError) Error() string {
 }
 
 // CheckAssignments ensures the trial assignments match the definitions on the experiment
-func CheckAssignments(t *redskyv1alpha1.Trial, exp *redskyv1alpha1.Experiment) error {
+func CheckAssignments(t *redskyv1beta1.Trial, exp *redskyv1beta1.Experiment) error {
 	err := &AssignmentError{}
 
 	// Index the assignments, checking for duplicates

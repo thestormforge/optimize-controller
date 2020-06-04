@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1beta1
 
 import (
 	corev1 "k8s.io/api/core/v1"
@@ -80,6 +80,21 @@ type SumConstraint struct {
 // MetricType represents the allowable types of metrics
 type MetricType string
 
+const (
+	// MetricLocal metrics are Go Templates evaluated against the trial itself. No external service is consulted, primarily
+	// useful for extracting start and completion times.
+	MetricLocal MetricType = "local"
+	// MetricPods metrics are similar to local metrics, however the list of pods in the trial namespace matched by the selector
+	// is also available.
+	MetricPods MetricType = "pods"
+	// MetricPrometheus metrics issue PromQL queries to a matched service. Queries MUST evaluate to a scalar value.
+	MetricPrometheus MetricType = "prometheus"
+	// MetricDatadog metrics issue queries to the Datadog service. Requires API and application key configuration.
+	MetricDatadog MetricType = "datadog"
+	// MetricJSONPath metrics fetch a JSON resource from the matched service. Queries are JSON path expression evaluated against the resource.
+	MetricJSONPath MetricType = "jsonpath"
+)
+
 // Metric represents an observable outcome from a trial run
 type Metric struct {
 	// The name of the metric
@@ -112,6 +127,15 @@ type PatchReadinessGate struct {
 
 // PatchType represents the allowable types of patches
 type PatchType string
+
+const (
+	// PatchStrategic is the patch type for a strategic merge patch
+	PatchStrategic PatchType = "strategic"
+	// PatchMerge is the patch type for a merge patch
+	PatchMerge PatchType = "merge"
+	// PatchJSON is the patch type for aJSON patch (RFC 6902)
+	PatchJSON PatchType = "json"
+)
 
 // PatchTemplate defines a target resource and a patch template to apply
 type PatchTemplate struct {
@@ -167,10 +191,10 @@ type ExperimentSpec struct {
 	NamespaceTemplate *NamespaceTemplateSpec `json:"namespaceTemplate,omitempty"`
 	// Selector locates trial resources that are part of this experiment
 	Selector *metav1.LabelSelector `json:"selector,omitempty"`
-	// Template for creating a new trial. The resulting trial must be matched by Selector. The template can provide an
+	// TrialTemplate for creating a new trial. The resulting trial must be matched by Selector. The template can provide an
 	// initial namespace, however other namespaces (matched by NamespaceSelector) will be used if the effective
 	// replica count is more then one
-	Template TrialTemplateSpec `json:"template,omitempty"`
+	TrialTemplate TrialTemplateSpec `json:"trialTemplate,omitempty"`
 }
 
 // ExperimentStatus defines the observed state of Experiment
@@ -184,6 +208,7 @@ type ExperimentStatus struct {
 
 // +genclient
 // +kubebuilder:object:root=true
+// +kubebuilder:storageversion
 
 // Experiment is the Schema for the experiments API
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase",description="Experiment status"

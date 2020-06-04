@@ -19,13 +19,13 @@ package trial
 import (
 	"strings"
 
-	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
+	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 )
 
 // GetInitializers returns the initializers for the specified trial
-func GetInitializers(t *redskyv1alpha1.Trial) []string {
+func GetInitializers(t *redskyv1beta1.Trial) []string {
 	var initializers []string
-	for _, e := range strings.Split(t.GetAnnotations()[redskyv1alpha1.AnnotationInitializer], ",") {
+	for _, e := range strings.Split(t.GetAnnotations()[redskyv1beta1.AnnotationInitializer], ",") {
 		e = strings.TrimSpace(e)
 		if e != "" {
 			initializers = append(initializers, e)
@@ -35,21 +35,21 @@ func GetInitializers(t *redskyv1alpha1.Trial) []string {
 }
 
 // SetInitializers sets the supplied initializers on the trial
-func SetInitializers(t *redskyv1alpha1.Trial, initializers []string) {
+func SetInitializers(t *redskyv1beta1.Trial, initializers []string) {
 	a := t.GetAnnotations()
 	if a == nil {
 		a = make(map[string]string, 1)
 	}
 	if len(initializers) > 0 {
-		a[redskyv1alpha1.AnnotationInitializer] = strings.Join(initializers, ",")
+		a[redskyv1beta1.AnnotationInitializer] = strings.Join(initializers, ",")
 	} else {
-		delete(a, redskyv1alpha1.AnnotationInitializer)
+		delete(a, redskyv1beta1.AnnotationInitializer)
 	}
 	t.SetAnnotations(a)
 }
 
 // AddInitializer adds an initializer to the trial; returns true only if the trial is changed
-func AddInitializer(t *redskyv1alpha1.Trial, initializer string) bool {
+func AddInitializer(t *redskyv1beta1.Trial, initializer string) bool {
 	init := GetInitializers(t)
 	for _, e := range init {
 		if e == initializer {
@@ -61,7 +61,7 @@ func AddInitializer(t *redskyv1alpha1.Trial, initializer string) bool {
 }
 
 // RemoveInitializer removes the first occurrence of an initializer from the trial; returns true only if the trial is changed
-func RemoveInitializer(t *redskyv1alpha1.Trial, initializer string) bool {
+func RemoveInitializer(t *redskyv1beta1.Trial, initializer string) bool {
 	init := GetInitializers(t)
 	for i, e := range init {
 		if e == initializer {

@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
+	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/internal/controller"
 	"github.com/redskyops/redskyops-controller/internal/meta"
 	"github.com/redskyops/redskyops-controller/internal/trial"
@@ -49,7 +49,7 @@ func (r *TrialJobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	now := metav1.Now()
 
-	t := &redskyv1alpha1.Trial{}
+	t := &redskyv1beta1.Trial{}
 	if err := r.Get(ctx, req.NamespacedName, t); err != nil || r.ignoreTrial(t) {
 		return ctrl.Result{}, controller.IgnoreNotFound(err)
 	}
@@ -70,7 +70,7 @@ func (r *TrialJobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		// Insert a "sleep" between "ready" and the trial job
 		if ids := time.Duration(t.Spec.InitialDelaySeconds) * time.Second; ids > 0 {
 			for _, c := range t.Status.Conditions {
-				if c.Type == redskyv1alpha1.TrialReady {
+				if c.Type == redskyv1beta1.TrialReady {
 					startTime := c.LastTransitionTime.Add(ids)
 					if startTime.After(now.Time) {
 						return ctrl.Result{RequeueAfter: startTime.Sub(now.Time)}, nil
@@ -91,24 +91,24 @@ func (r *TrialJobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 func (r *TrialJobReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named("trial-job").
-		For(&redskyv1alpha1.Trial{}).
+		For(&redskyv1beta1.Trial{}).
 		Owns(&batchv1.Job{}).
 		Complete(r)
 }
 
-func (r *TrialJobReconciler) ignoreTrial(t *redskyv1alpha1.Trial) bool {
+func (r *TrialJobReconciler) ignoreTrial(t *redskyv1beta1.Trial) bool {
 	// Ignore deleted trials
 	if !t.DeletionTimestamp.IsZero() {
 		return true
 	}
 
 	// Ignore failed trials
-	if trial.CheckCondition(&t.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue) {
+	if trial.CheckCondition(&t.Status, redskyv1beta1.TrialFailed, corev1.ConditionTrue) {
 		return true
 	}
 
 	// Ignore trials that are not ready yet
-	if !trial.CheckCondition(&t.Status, redskyv1alpha1.TrialReady, corev1.ConditionTrue) {
+	if !trial.CheckCondition(&t.Status, redskyv1beta1.TrialReady, corev1.ConditionTrue) {
 		return true
 	}
 
@@ -122,7 +122,7 @@ func (r *TrialJobReconciler) ignoreTrial(t *redskyv1alpha1.Trial) bool {
 }
 
 // updateStatus will update the trial status based on the supplied list of trial run jobs
-func (r *TrialJobReconciler) updateStatus(ctx context.Context, t *redskyv1alpha1.Trial, jobList *batchv1.JobList, probeTime *metav1.Time) (*ctrl.Result, error) {
+func (r *TrialJobReconciler) updateStatus(ctx context.Context, t *redskyv1beta1.Trial, jobList *batchv1.JobList, probeTime *metav1.Time) (*ctrl.Result, error) {
 	for i := range jobList.Items {
 		if update, requeue := r.applyJobStatus(ctx, t, &jobList.Items[i], probeTime); update {
 			err := r.Update(ctx, t)
@@ -137,7 +137,7 @@ func (r *TrialJobReconciler) updateStatus(ctx context.Context, t *redskyv1alpha1
 }
 
 // createJob will create a new trial run job
-func (r *TrialJobReconciler) createJob(ctx context.Context, t *redskyv1alpha1.Trial) (*ctrl.Result, error) {
+func (r *TrialJobReconciler) createJob(ctx context.Context, t *redskyv1beta1.Trial) (*ctrl.Result, error) {
 	job := trial.NewJob(t)
 	if err := controllerutil.SetControllerReference(t, job, r.Scheme); err != nil {
 		return &ctrl.Result{}, err
@@ -161,7 +161,7 @@ func (r *TrialJobReconciler) listJobs(ctx context.Context, jobList *batchv1.JobL
 	// NOTE: We do not use label selectors on search because we don't know if they are user modified
 	items := jobList.Items[:0]
 	for i := range jobList.Items {
-		if jobList.Items[i].Labels[redskyv1alpha1.LabelTrialRole] != "trialSetup" {
+		if jobList.Items[i].Labels[redskyv1beta1.LabelTrialRole] != "trialSetup" {
 			items = append(items, jobList.Items[i])
 		}
 	}
@@ -170,7 +170,7 @@ func (r *TrialJobReconciler) listJobs(ctx context.Context, jobList *batchv1.JobL
 	return nil
 }
 
-func (r *TrialJobReconciler) applyJobStatus(ctx context.Context, t *redskyv1alpha1.Trial, job *batchv1.Job, time *metav1.Time) (bool, bool) {
+func (r *TrialJobReconciler) applyJobStatus(ctx context.Context, t *redskyv1beta1.Trial, job *batchv1.Job, time *metav1.Time) (bool, bool) {
 	var dirty bool
 
 	// Get the interval of the container execution in the job pods
@@ -190,7 +190,7 @@ func (r *TrialJobReconciler) applyJobStatus(ctx context.Context, t *redskyv1alph
 			for i := range podList.Items {
 				s := &podList.Items[i].Status
 				if s.Phase == corev1.PodFailed {
-					trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, s.Reason, "", time)
+					trial.ApplyCondition(&t.Status, redskyv1beta1.TrialFailed, corev1.ConditionTrue, s.Reason, "", time)
 					dirty = true
 				}
 			}
@@ -212,7 +212,7 @@ func (r *TrialJobReconciler) applyJobStatus(ctx context.Context, t *redskyv1alph
 	// Mark the trial as failed if the job itself failed
 	for _, c := range job.Status.Conditions {
 		if c.Type == batchv1.JobFailed && c.Status == corev1.ConditionTrue {
-			trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, c.Reason, c.Message, time)
+			trial.ApplyCondition(&t.Status, redskyv1beta1.TrialFailed, corev1.ConditionTrue, c.Reason, c.Message, time)
 			dirty = true
 		}
 	}

@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	. "github.com/onsi/gomega"
-	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
+	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -28,7 +28,7 @@ func TestSummarize(t *testing.T) {
 	g := NewGomegaWithT(t)
 	now := metav1.Now()
 	paused := int32(0)
-	exp := &redskyv1alpha1.Experiment{}
+	exp := &redskyv1beta1.Experiment{}
 	exp.Annotations = map[string]string{}
 
 	// Initial phase is "empty" or created
@@ -63,19 +63,19 @@ func TestSummarize(t *testing.T) {
 }
 
 // Explicitly sets the state of the fields consider when computing the phase
-func setupExperiment(exp *redskyv1alpha1.Experiment, replicas *int32, experimentURL, nextTrialURL string, deletionTimestamp *metav1.Time) {
+func setupExperiment(exp *redskyv1beta1.Experiment, replicas *int32, experimentURL, nextTrialURL string, deletionTimestamp *metav1.Time) {
 	exp.Spec.Replicas = replicas
 
 	if experimentURL != "" {
-		exp.Annotations[redskyv1alpha1.AnnotationExperimentURL] = experimentURL
+		exp.Annotations[redskyv1beta1.AnnotationExperimentURL] = experimentURL
 	} else {
-		delete(exp.Annotations, redskyv1alpha1.AnnotationExperimentURL)
+		delete(exp.Annotations, redskyv1beta1.AnnotationExperimentURL)
 	}
 
 	if nextTrialURL != "" {
-		exp.Annotations[redskyv1alpha1.AnnotationNextTrialURL] = nextTrialURL
+		exp.Annotations[redskyv1beta1.AnnotationNextTrialURL] = nextTrialURL
 	} else {
-		delete(exp.Annotations, redskyv1alpha1.AnnotationNextTrialURL)
+		delete(exp.Annotations, redskyv1beta1.AnnotationNextTrialURL)
 	}
 
 	exp.DeletionTimestamp = deletionTimestamp

@@ -19,7 +19,7 @@ package experiment
 import (
 	"context"
 
-	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
+	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/internal/trial"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -29,7 +29,7 @@ import (
 )
 
 // NextTrialNamespace searches for or creates a new namespace to run a new trial in, returning an empty string if no such namespace can be found
-func NextTrialNamespace(ctx context.Context, c client.Client, exp *redskyv1alpha1.Experiment, trialList *redskyv1alpha1.TrialList) (string, error) {
+func NextTrialNamespace(ctx context.Context, c client.Client, exp *redskyv1beta1.Experiment, trialList *redskyv1beta1.TrialList) (string, error) {
 	// Determine which namespaces have an active trial
 	activeNamespaces := make(map[string]bool, len(trialList.Items))
 	activeTrials := int32(0)
@@ -48,7 +48,7 @@ func NextTrialNamespace(ctx context.Context, c client.Client, exp *redskyv1alpha
 
 	// Match the potential namespaces
 	var selector client.ListOption
-	if n := exp.Spec.Template.Namespace; n != "" {
+	if n := exp.Spec.TrialTemplate.Namespace; n != "" {
 		// If there is an explicit target namespace on the trial template it is the only one we will be allowed to use
 		selector = client.MatchingFields{"metadata.name": n}
 	} else if exp.Spec.NamespaceSelector == nil && exp.Spec.NamespaceTemplate == nil {
@@ -93,7 +93,7 @@ func ignorePermissions(err error) error {
 	return err
 }
 
-func createNamespaceFromTemplate(ctx context.Context, c client.Client, exp *redskyv1alpha1.Experiment) (string, error) {
+func createNamespaceFromTemplate(ctx context.Context, c client.Client, exp *redskyv1beta1.Experiment) (string, error) {
 	// Use the template to populate a new namespace
 	n := &corev1.Namespace{}
 	exp.Spec.NamespaceTemplate.ObjectMeta.DeepCopyInto(&n.ObjectMeta)
@@ -104,8 +104,8 @@ func createNamespaceFromTemplate(ctx context.Context, c client.Client, exp *reds
 	if n.Labels == nil {
 		n.Labels = map[string]string{}
 	}
-	n.Labels[redskyv1alpha1.LabelExperiment] = exp.Name
-	n.Labels[redskyv1alpha1.LabelTrialRole] = "trialSetup"
+	n.Labels[redskyv1beta1.LabelExperiment] = exp.Name
+	n.Labels[redskyv1beta1.LabelTrialRole] = "trialSetup"
 
 	// TODO We should also record the fact that we created the namespace for possible clean up later
 
@@ -148,13 +148,13 @@ type trialNamespace struct {
 	RoleBindings   []rbacv1.RoleBinding
 }
 
-func createTrialNamespace(exp *redskyv1alpha1.Experiment, namespace string) *trialNamespace {
+func createTrialNamespace(exp *redskyv1beta1.Experiment, namespace string) *trialNamespace {
 	ts := &trialNamespace{}
 
 	// Fill in the details about the service account
 	ts.ServiceAccount = &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      exp.Spec.Template.Spec.SetupServiceAccountName,
+			Name:      exp.Spec.TrialTemplate.Spec.SetupServiceAccountName,
 			Namespace: namespace,
 		},
 	}
@@ -163,13 +163,13 @@ func createTrialNamespace(exp *redskyv1alpha1.Experiment, namespace string) *tri
 	}
 
 	// Add a namespaced role and binding based on the default setup task policy rules
-	if len(exp.Spec.Template.Spec.SetupDefaultRules) > 0 {
+	if len(exp.Spec.TrialTemplate.Spec.SetupDefaultRules) > 0 {
 		ts.Role = &rbacv1.Role{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "redsky-setup-role",
 				Namespace: namespace,
 			},
-			Rules: exp.Spec.Template.Spec.SetupDefaultRules,
+			Rules: exp.Spec.TrialTemplate.Spec.SetupDefaultRules,
 		}
 
 		ts.RoleBindings = append(ts.RoleBindings, rbacv1.RoleBinding{
@@ -191,7 +191,7 @@ func createTrialNamespace(exp *redskyv1alpha1.Experiment, namespace string) *tri
 	}
 
 	// Add a namespaced role binding to a (presumably existing) cluster role
-	if exp.Spec.Template.Spec.SetupDefaultClusterRole != "" {
+	if exp.Spec.TrialTemplate.Spec.SetupDefaultClusterRole != "" {
 		ts.RoleBindings = append(ts.RoleBindings, rbacv1.RoleBinding{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "redsky-setup-cluster-rolebinding",
@@ -205,7 +205,7 @@ func createTrialNamespace(exp *redskyv1alpha1.Experiment, namespace string) *tri
 			RoleRef: rbacv1.RoleRef{
 				APIGroup: "rbac.authorization.k8s.io",
 				Kind:     "ClusterRole",
-				Name:     exp.Spec.Template.Spec.SetupDefaultClusterRole,
+				Name:     exp.Spec.TrialTemplate.Spec.SetupDefaultClusterRole,
 			},
 		})
 	}

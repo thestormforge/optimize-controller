@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
+	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/internal/controller"
 	"github.com/redskyops/redskyops-controller/internal/ready"
 	"github.com/redskyops/redskyops-controller/internal/trial"
@@ -55,7 +55,7 @@ func (r *ReadyReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	now := metav1.Now()
 
-	t := &redskyv1alpha1.Trial{}
+	t := &redskyv1beta1.Trial{}
 	if err := r.Get(ctx, req.NamespacedName, t); err != nil || r.ignoreTrial(t) {
 		return ctrl.Result{}, controller.IgnoreNotFound(err)
 	}
@@ -76,29 +76,29 @@ func (r *ReadyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.apiReader = mgr.GetAPIReader()
 	return ctrl.NewControllerManagedBy(mgr).
 		Named("ready").
-		For(&redskyv1alpha1.Trial{}).
+		For(&redskyv1beta1.Trial{}).
 		Complete(r)
 }
 
 // ignoreTrial determines which trial objects can be ignored by this reconciler
-func (r *ReadyReconciler) ignoreTrial(t *redskyv1alpha1.Trial) bool {
+func (r *ReadyReconciler) ignoreTrial(t *redskyv1beta1.Trial) bool {
 	// Ignore deleted trials
 	if !t.DeletionTimestamp.IsZero() {
 		return true
 	}
 
 	// Ignore failed trials
-	if trial.CheckCondition(&t.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue) {
+	if trial.CheckCondition(&t.Status, redskyv1beta1.TrialFailed, corev1.ConditionTrue) {
 		return true
 	}
 
 	// Ignore unpatched trials
-	if !trial.CheckCondition(&t.Status, redskyv1alpha1.TrialPatched, corev1.ConditionTrue) {
+	if !trial.CheckCondition(&t.Status, redskyv1beta1.TrialPatched, corev1.ConditionTrue) {
 		return true
 	}
 
 	// Ignore ready trials
-	if trial.CheckCondition(&t.Status, redskyv1alpha1.TrialReady, corev1.ConditionTrue) {
+	if trial.CheckCondition(&t.Status, redskyv1beta1.TrialReady, corev1.ConditionTrue) {
 		return true
 	}
 
@@ -107,9 +107,9 @@ func (r *ReadyReconciler) ignoreTrial(t *redskyv1alpha1.Trial) bool {
 }
 
 // evaluateReadinessChecks will prepare all of the readiness checks for the trial
-func (r *ReadyReconciler) evaluateReadinessChecks(ctx context.Context, t *redskyv1alpha1.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
+func (r *ReadyReconciler) evaluateReadinessChecks(ctx context.Context, t *redskyv1beta1.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
 	// Only evaluate readiness checks if the "ready" status is "unknown"
-	if !trial.CheckCondition(&t.Status, redskyv1alpha1.TrialReady, corev1.ConditionUnknown) {
+	if !trial.CheckCondition(&t.Status, redskyv1beta1.TrialReady, corev1.ConditionUnknown) {
 		return nil, nil
 	}
 
@@ -118,7 +118,7 @@ func (r *ReadyReconciler) evaluateReadinessChecks(ctx context.Context, t *redsky
 	// Add readiness checks for the trial itself
 	for i := range t.Spec.ReadinessGates {
 		c := &t.Spec.ReadinessGates[i]
-		rc := redskyv1alpha1.ReadinessCheck{
+		rc := redskyv1beta1.ReadinessCheck{
 			TargetRef: corev1.ObjectReference{
 				Kind:       c.Kind,
 				Namespace:  t.Namespace,
@@ -144,26 +144,26 @@ func (r *ReadyReconciler) evaluateReadinessChecks(ctx context.Context, t *redsky
 			rc.AttemptsRemaining = 1
 		}
 
-		t.Spec.ReadinessChecks = append(t.Spec.ReadinessChecks, rc)
+		t.Status.ReadinessChecks = append(t.Status.ReadinessChecks, rc)
 	}
 
 	// Update the status to indicate that readiness checks are evaluated
-	trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialReady, corev1.ConditionFalse, "", "", probeTime)
+	trial.ApplyCondition(&t.Status, redskyv1beta1.TrialReady, corev1.ConditionFalse, "", "", probeTime)
 	err := r.Update(ctx, t)
 	return controller.RequeueConflict(err)
 }
 
 // checkReadiness will evaluate the readiness checks for the trial
-func (r *ReadyReconciler) checkReadiness(ctx context.Context, t *redskyv1alpha1.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
+func (r *ReadyReconciler) checkReadiness(ctx context.Context, t *redskyv1beta1.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
 	// Only check readiness checks if the "ready" status is "false"
-	if !trial.CheckCondition(&t.Status, redskyv1alpha1.TrialReady, corev1.ConditionFalse) {
+	if !trial.CheckCondition(&t.Status, redskyv1beta1.TrialReady, corev1.ConditionFalse) {
 		return nil, nil
 	}
 
 	// Create a new "checker" to maintain state while looping over the readiness checks
 	checker := newReadinessChecker(r.Client, t)
-	for i := range t.Spec.ReadinessChecks {
-		c := &t.Spec.ReadinessChecks[i]
+	for i := range t.Status.ReadinessChecks {
+		c := &t.Status.ReadinessChecks[i]
 		if checker.skipCheck(c, probeTime) {
 			continue
 		}
@@ -183,7 +183,7 @@ func (r *ReadyReconciler) checkReadiness(ctx context.Context, t *redskyv1alpha1.
 			return controller.RequeueConflict(err)
 		} else if !isReady {
 			// This will get overwritten with anything that isn't ready as we progress through the loop
-			trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialReady, corev1.ConditionFalse, "Waiting", msg, probeTime)
+			trial.ApplyCondition(&t.Status, redskyv1beta1.TrialReady, corev1.ConditionFalse, "Waiting", msg, probeTime)
 		}
 	}
 
@@ -194,14 +194,14 @@ func (r *ReadyReconciler) checkReadiness(ctx context.Context, t *redskyv1alpha1.
 
 	// Update the trial (and the status, if all the checks are complete)
 	if checker.ready {
-		trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialReady, corev1.ConditionTrue, "", "", probeTime)
+		trial.ApplyCondition(&t.Status, redskyv1beta1.TrialReady, corev1.ConditionTrue, "", "", probeTime)
 	}
 	err := r.Update(ctx, t)
 	return controller.RequeueConflict(err)
 }
 
 // getCheckTargets returns the list of target objects for the readiness check
-func (r *ReadyReconciler) getCheckTargets(ctx context.Context, rc *redskyv1alpha1.ReadinessCheck) (*unstructured.UnstructuredList, error) {
+func (r *ReadyReconciler) getCheckTargets(ctx context.Context, rc *redskyv1beta1.ReadinessCheck) (*unstructured.UnstructuredList, error) {
 	ul := &unstructured.UnstructuredList{}
 
 	// If there is no kind on the target reference, we can't actually fetch anything
@@ -236,7 +236,7 @@ func (r *ReadyReconciler) getCheckTargets(ctx context.Context, rc *redskyv1alpha
 }
 
 // readinessCheckFailed puts a trial into a failed state due to a failed readiness check
-func readinessCheckFailed(t *redskyv1alpha1.Trial, probeTime *metav1.Time, err error) {
+func readinessCheckFailed(t *redskyv1beta1.Trial, probeTime *metav1.Time, err error) {
 	reason, message := "ReadinessCheckFailed", err.Error()
 	if rerr, ok := err.(*ready.ReadinessError); ok {
 		if rerr.Reason != "" {
@@ -246,7 +246,7 @@ func readinessCheckFailed(t *redskyv1alpha1.Trial, probeTime *metav1.Time, err e
 			message = rerr.Message
 		}
 	}
-	trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, reason, message, probeTime)
+	trial.ApplyCondition(&t.Status, redskyv1beta1.TrialFailed, corev1.ConditionTrue, reason, message, probeTime)
 }
 
 // readinessChecker is the loop state used to evaluate readiness checks
@@ -264,11 +264,11 @@ type readinessChecker struct {
 }
 
 // newReadinessChecker returns a new checker for the supplied trial
-func newReadinessChecker(reader client.Reader, t *redskyv1alpha1.Trial) *readinessChecker {
+func newReadinessChecker(reader client.Reader, t *redskyv1beta1.Trial) *readinessChecker {
 	checker := ready.ReadinessChecker{Reader: reader}
 	epoch := t.GetCreationTimestamp()
 	for i := range t.Status.Conditions {
-		if t.Status.Conditions[i].Type == redskyv1alpha1.TrialPatched {
+		if t.Status.Conditions[i].Type == redskyv1beta1.TrialPatched {
 			epoch = t.Status.Conditions[i].LastTransitionTime
 		}
 	}
@@ -276,7 +276,7 @@ func newReadinessChecker(reader client.Reader, t *redskyv1alpha1.Trial) *readine
 }
 
 // skipCheck determines if a check should be evaluated, recording the results internally
-func (rc *readinessChecker) skipCheck(c *redskyv1alpha1.ReadinessCheck, now *metav1.Time) bool {
+func (rc *readinessChecker) skipCheck(c *redskyv1beta1.ReadinessCheck, now *metav1.Time) bool {
 	// Determine if the check is completed
 	if c.AttemptsRemaining <= 0 {
 		return true
@@ -310,7 +310,7 @@ func (rc *readinessChecker) skipCheck(c *redskyv1alpha1.ReadinessCheck, now *met
 
 // check evaluates a readiness check against a (possibly nil) target, returning a status message and boolean indicating
 // if the target is in fact ready
-func (rc *readinessChecker) check(ctx context.Context, c *redskyv1alpha1.ReadinessCheck, ul *unstructured.UnstructuredList, now *metav1.Time) (string, bool, error) {
+func (rc *readinessChecker) check(ctx context.Context, c *redskyv1beta1.ReadinessCheck, ul *unstructured.UnstructuredList, now *metav1.Time) (string, bool, error) {
 	// Evaluate the actual conditions (stop at the first one that isn't "ready")
 	var msg string // TODO Default the message to "target not found" or something to indicate the check isn't ready because there are no objects
 	var ok bool
@@ -346,7 +346,7 @@ func (rc *readinessChecker) check(ctx context.Context, c *redskyv1alpha1.Readine
 }
 
 // nextCheckTime returns the approximate time that an attempt should be made to evaluate a check
-func (rc *readinessChecker) nextCheckTime(c *redskyv1alpha1.ReadinessCheck) *metav1.Time {
+func (rc *readinessChecker) nextCheckTime(c *redskyv1beta1.ReadinessCheck) *metav1.Time {
 	if c.LastCheckTime != nil {
 		periodSeconds := c.PeriodSeconds
 		if periodSeconds < 1 {

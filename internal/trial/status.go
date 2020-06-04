@@ -21,7 +21,7 @@ import (
 	"sort"
 	"strings"
 
-	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
+	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -46,19 +46,19 @@ const (
 )
 
 var (
-	trialConditionTypeOrder = []redskyv1alpha1.TrialConditionType{
-		redskyv1alpha1.TrialSetupCreated,
-		redskyv1alpha1.TrialSetupDeleted,
-		redskyv1alpha1.TrialPatched,
-		redskyv1alpha1.TrialReady,
-		redskyv1alpha1.TrialObserved,
-		redskyv1alpha1.TrialComplete,
-		redskyv1alpha1.TrialFailed,
+	trialConditionTypeOrder = []redskyv1beta1.TrialConditionType{
+		redskyv1beta1.TrialSetupCreated,
+		redskyv1beta1.TrialSetupDeleted,
+		redskyv1beta1.TrialPatched,
+		redskyv1beta1.TrialReady,
+		redskyv1beta1.TrialObserved,
+		redskyv1beta1.TrialComplete,
+		redskyv1beta1.TrialFailed,
 	}
 )
 
 // UpdateStatus will make sure the trial status matches the current state of the trial; returns true only if changes were necessary
-func UpdateStatus(t *redskyv1alpha1.Trial) bool {
+func UpdateStatus(t *redskyv1beta1.Trial) bool {
 	phase := summarize(t)
 	assignments := assignments(t)
 	values := values(t)
@@ -79,7 +79,7 @@ func UpdateStatus(t *redskyv1alpha1.Trial) bool {
 	return dirty
 }
 
-func summarize(t *redskyv1alpha1.Trial) string {
+func summarize(t *redskyv1beta1.Trial) string {
 	// If there is an initializer we are in the "setting up" phase
 	if t.HasInitializer() {
 		return settingUp
@@ -104,7 +104,7 @@ func summarize(t *redskyv1alpha1.Trial) string {
 		c := t.Status.Conditions[i]
 		switch c.Type {
 
-		case redskyv1alpha1.TrialSetupCreated:
+		case redskyv1beta1.TrialSetupCreated:
 			switch c.Status {
 			case corev1.ConditionTrue:
 				phase = setupCreated
@@ -114,7 +114,7 @@ func summarize(t *redskyv1alpha1.Trial) string {
 				phase = settingUp
 			}
 
-		case redskyv1alpha1.TrialSetupDeleted:
+		case redskyv1beta1.TrialSetupDeleted:
 			switch c.Status {
 			case corev1.ConditionTrue:
 				phase = setupDeleted
@@ -122,7 +122,7 @@ func summarize(t *redskyv1alpha1.Trial) string {
 				phase = tearingDown
 			}
 
-		case redskyv1alpha1.TrialPatched:
+		case redskyv1beta1.TrialPatched:
 			switch c.Status {
 			case corev1.ConditionTrue:
 				phase = patched
@@ -132,7 +132,7 @@ func summarize(t *redskyv1alpha1.Trial) string {
 				phase = patching
 			}
 
-		case redskyv1alpha1.TrialReady:
+		case redskyv1beta1.TrialReady:
 			switch c.Status {
 			case corev1.ConditionTrue:
 				if t.Status.StartTime != nil {
@@ -146,7 +146,7 @@ func summarize(t *redskyv1alpha1.Trial) string {
 				phase = waiting
 			}
 
-		case redskyv1alpha1.TrialObserved:
+		case redskyv1beta1.TrialObserved:
 			switch c.Status {
 			case corev1.ConditionTrue:
 				phase = captured
@@ -156,13 +156,13 @@ func summarize(t *redskyv1alpha1.Trial) string {
 				phase = capturing
 			}
 
-		case redskyv1alpha1.TrialComplete:
+		case redskyv1beta1.TrialComplete:
 			switch c.Status {
 			case corev1.ConditionTrue:
 				return completed
 			}
 
-		case redskyv1alpha1.TrialFailed:
+		case redskyv1beta1.TrialFailed:
 			switch c.Status {
 			case corev1.ConditionTrue:
 				return failed
@@ -172,7 +172,7 @@ func summarize(t *redskyv1alpha1.Trial) string {
 	return phase
 }
 
-func assignments(t *redskyv1alpha1.Trial) string {
+func assignments(t *redskyv1beta1.Trial) string {
 	assignments := make([]string, len(t.Spec.Assignments))
 	for i := range t.Spec.Assignments {
 		assignments[i] = fmt.Sprintf("%s=%d", t.Spec.Assignments[i].Name, t.Spec.Assignments[i].Value)
@@ -180,10 +180,10 @@ func assignments(t *redskyv1alpha1.Trial) string {
 	return strings.Join(assignments, ", ")
 }
 
-func values(t *redskyv1alpha1.Trial) string {
+func values(t *redskyv1beta1.Trial) string {
 	for i := range t.Status.Conditions {
 		c := &t.Status.Conditions[i]
-		if c.Type == redskyv1alpha1.TrialFailed && c.Status == corev1.ConditionTrue {
+		if c.Type == redskyv1beta1.TrialFailed && c.Status == corev1.ConditionTrue {
 			return c.Message
 		}
 	}
@@ -198,7 +198,7 @@ func values(t *redskyv1alpha1.Trial) string {
 }
 
 // ApplyCondition updates a the status of an existing condition or adds it if it does not exist
-func ApplyCondition(status *redskyv1alpha1.TrialStatus, conditionType redskyv1alpha1.TrialConditionType, conditionStatus corev1.ConditionStatus, reason, message string, time *metav1.Time) {
+func ApplyCondition(status *redskyv1beta1.TrialStatus, conditionType redskyv1beta1.TrialConditionType, conditionStatus corev1.ConditionStatus, reason, message string, time *metav1.Time) {
 	// Make sure we have a time
 	if time == nil {
 		now := metav1.Now()
@@ -228,7 +228,7 @@ func ApplyCondition(status *redskyv1alpha1.TrialStatus, conditionType redskyv1al
 	}
 
 	// Condition does not exist
-	status.Conditions = append(status.Conditions, redskyv1alpha1.TrialCondition{
+	status.Conditions = append(status.Conditions, redskyv1beta1.TrialCondition{
 		Type:               conditionType,
 		Status:             conditionStatus,
 		Reason:             reason,
@@ -239,7 +239,7 @@ func ApplyCondition(status *redskyv1alpha1.TrialStatus, conditionType redskyv1al
 }
 
 // CheckCondition checks to see if a condition has a specific status
-func CheckCondition(status *redskyv1alpha1.TrialStatus, conditionType redskyv1alpha1.TrialConditionType, conditionStatus corev1.ConditionStatus) bool {
+func CheckCondition(status *redskyv1beta1.TrialStatus, conditionType redskyv1beta1.TrialConditionType, conditionStatus corev1.ConditionStatus) bool {
 	for i := range status.Conditions {
 		if status.Conditions[i].Type == conditionType {
 			return status.Conditions[i].Status == conditionStatus

@@ -23,8 +23,10 @@ import (
 	"os"
 
 	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
+	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/controllers"
 	"github.com/redskyops/redskyops-controller/internal/config"
+	"github.com/redskyops/redskyops-controller/internal/controller"
 	"github.com/redskyops/redskyops-controller/internal/version"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -42,6 +44,7 @@ func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
 	_ = redskyv1alpha1.AddToScheme(scheme)
+	_ = redskyv1beta1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -63,7 +66,7 @@ func main() {
 	v := version.GetInfo()
 	setupLog.Info("Red Sky Ops Controller", "version", v.String(), "gitCommit", v.GitCommit)
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	mgr, err := ctrl.NewManager(controller.WithConversion(ctrl.GetConfigOrDie(), scheme), ctrl.Options{
 		Scheme:             scheme,
 		MetricsBindAddress: metricsAddr,
 		LeaderElection:     enableLeaderElection,

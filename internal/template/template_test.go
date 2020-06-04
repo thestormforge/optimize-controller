@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
+	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -38,20 +38,20 @@ func TestEngine(t *testing.T) {
 
 	testCases := []struct {
 		desc     string
-		trial    *redskyv1alpha1.Trial
+		trial    *redskyv1beta1.Trial
 		input    interface{}
 		obj      runtime.Object
 		expected string
 	}{
 		{
 			desc: "default patch",
-			trial: &redskyv1alpha1.Trial{
-				Status: redskyv1alpha1.TrialStatus{
+			trial: &redskyv1beta1.Trial{
+				Status: redskyv1beta1.TrialStatus{
 					StartTime:      &now,
 					CompletionTime: &later,
 				},
 			},
-			input: &redskyv1alpha1.PatchTemplate{
+			input: &redskyv1beta1.PatchTemplate{
 				Patch: "metadata:\n  labels:\n    app: testApp\n",
 				TargetRef: &corev1.ObjectReference{
 					Kind:       "Pod",
@@ -64,13 +64,13 @@ func TestEngine(t *testing.T) {
 		},
 		{
 			desc: "default helm",
-			trial: &redskyv1alpha1.Trial{
-				Status: redskyv1alpha1.TrialStatus{
+			trial: &redskyv1beta1.Trial{
+				Status: redskyv1beta1.TrialStatus{
 					StartTime:      &now,
 					CompletionTime: &later,
 				},
 			},
-			input: &redskyv1alpha1.HelmValue{
+			input: &redskyv1beta1.HelmValue{
 				Name:  "name",
 				Value: intstr.FromString("testName"),
 			},
@@ -78,48 +78,48 @@ func TestEngine(t *testing.T) {
 		},
 		{
 			desc: "default metric (duration)",
-			trial: &redskyv1alpha1.Trial{
-				Status: redskyv1alpha1.TrialStatus{
+			trial: &redskyv1beta1.Trial{
+				Status: redskyv1beta1.TrialStatus{
 					StartTime:      &now,
 					CompletionTime: &later,
 				},
 			},
-			input: &redskyv1alpha1.Metric{
+			input: &redskyv1beta1.Metric{
 				Name:  "testMetric",
 				Query: "{{duration .StartTime .CompletionTime}}",
-				Type:  redskyv1alpha1.MetricLocal,
+				Type:  redskyv1beta1.MetricLocal,
 			},
 			obj:      &corev1.Pod{},
 			expected: "5",
 		},
 		{
 			desc: "default metric (percent)",
-			trial: &redskyv1alpha1.Trial{
-				Status: redskyv1alpha1.TrialStatus{
+			trial: &redskyv1beta1.Trial{
+				Status: redskyv1beta1.TrialStatus{
 					StartTime:      &now,
 					CompletionTime: &later,
 				},
 			},
-			input: &redskyv1alpha1.Metric{
+			input: &redskyv1beta1.Metric{
 				Name:  "testMetric",
 				Query: "{{percent 100 5}}",
-				Type:  redskyv1alpha1.MetricLocal,
+				Type:  redskyv1beta1.MetricLocal,
 			},
 			obj:      &corev1.Pod{},
 			expected: "5",
 		},
 		{
 			desc: "default metric (weighted)",
-			trial: &redskyv1alpha1.Trial{
-				Status: redskyv1alpha1.TrialStatus{
+			trial: &redskyv1beta1.Trial{
+				Status: redskyv1beta1.TrialStatus{
 					StartTime:      &now,
 					CompletionTime: &later,
 				},
 			},
-			input: &redskyv1alpha1.Metric{
+			input: &redskyv1beta1.Metric{
 				Name:  "testMetric",
 				Query: `{{resourceRequests .Pods "cpu=0.05,memory=0.005"}}`,
-				Type:  redskyv1alpha1.MetricLocal,
+				Type:  redskyv1beta1.MetricLocal,
 			},
 			obj: &corev1.PodList{
 				Items: []corev1.Pod{
@@ -157,13 +157,13 @@ func TestEngine(t *testing.T) {
 			)
 
 			switch tc.input.(type) {
-			case *redskyv1alpha1.PatchTemplate:
-				boutput, err = eng.RenderPatch(tc.input.(*redskyv1alpha1.PatchTemplate), tc.trial)
+			case *redskyv1beta1.PatchTemplate:
+				boutput, err = eng.RenderPatch(tc.input.(*redskyv1beta1.PatchTemplate), tc.trial)
 				got = string(boutput)
-			case *redskyv1alpha1.HelmValue:
-				got, err = eng.RenderHelmValue(tc.input.(*redskyv1alpha1.HelmValue), tc.trial)
-			case *redskyv1alpha1.Metric:
-				got, _, err = eng.RenderMetricQueries(tc.input.(*redskyv1alpha1.Metric), tc.trial, tc.obj)
+			case *redskyv1beta1.HelmValue:
+				got, err = eng.RenderHelmValue(tc.input.(*redskyv1beta1.HelmValue), tc.trial)
+			case *redskyv1beta1.Metric:
+				got, _, err = eng.RenderMetricQueries(tc.input.(*redskyv1beta1.Metric), tc.trial, tc.obj)
 			}
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expected, got)

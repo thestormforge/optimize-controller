@@ -25,7 +25,7 @@ import (
 	"strconv"
 	"time"
 
-	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
+	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/util/jsonpath"
 )
@@ -34,7 +34,7 @@ import (
 // TODO Combine it with the Prometheus clients?
 var httpClient = &http.Client{Timeout: 10 * time.Second}
 
-func captureJSONPathMetric(m *redskyv1alpha1.Metric, target runtime.Object) (value float64, stddev float64, err error) {
+func captureJSONPathMetric(m *redskyv1beta1.Metric, target runtime.Object) (value float64, stddev float64, err error) {
 	var urls []string
 
 	if urls, err = toURL(target, m); err != nil {

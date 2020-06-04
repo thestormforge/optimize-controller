@@ -22,7 +22,7 @@ import (
 	"path"
 	"strconv"
 
-	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
+	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/internal/trial"
 	redskyapi "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
@@ -37,11 +37,11 @@ const (
 // TODO Split this into trial.go and experiment.go ?
 
 // FromCluster converts cluster state to API state
-func FromCluster(in *redskyv1alpha1.Experiment) (redskyapi.ExperimentName, *redskyapi.Experiment) {
+func FromCluster(in *redskyv1beta1.Experiment) (redskyapi.ExperimentName, *redskyapi.Experiment) {
 	out := &redskyapi.Experiment{}
 	out.ExperimentMeta.LastModified = in.CreationTimestamp.Time
-	out.ExperimentMeta.SelfURL = in.Annotations[redskyv1alpha1.AnnotationExperimentURL]
-	out.ExperimentMeta.NextTrialURL = in.Annotations[redskyv1alpha1.AnnotationNextTrialURL]
+	out.ExperimentMeta.SelfURL = in.Annotations[redskyv1beta1.AnnotationExperimentURL]
+	out.ExperimentMeta.NextTrialURL = in.Annotations[redskyv1beta1.AnnotationNextTrialURL]
 
 	out.Optimization = nil
 	for _, o := range in.Spec.Optimization {
@@ -118,17 +118,17 @@ func FromCluster(in *redskyv1alpha1.Experiment) (redskyapi.ExperimentName, *reds
 }
 
 // ToCluster converts API state to cluster state
-func ToCluster(exp *redskyv1alpha1.Experiment, ee *redskyapi.Experiment) {
+func ToCluster(exp *redskyv1beta1.Experiment, ee *redskyapi.Experiment) {
 	if exp.GetAnnotations() == nil {
 		exp.SetAnnotations(make(map[string]string))
 	}
 
-	exp.GetAnnotations()[redskyv1alpha1.AnnotationExperimentURL] = ee.SelfURL
-	exp.GetAnnotations()[redskyv1alpha1.AnnotationNextTrialURL] = ee.NextTrialURL
+	exp.GetAnnotations()[redskyv1beta1.AnnotationExperimentURL] = ee.SelfURL
+	exp.GetAnnotations()[redskyv1beta1.AnnotationNextTrialURL] = ee.NextTrialURL
 
 	exp.Spec.Optimization = nil
 	for i := range ee.Optimization {
-		exp.Spec.Optimization = append(exp.Spec.Optimization, redskyv1alpha1.Optimization{
+		exp.Spec.Optimization = append(exp.Spec.Optimization, redskyv1beta1.Optimization{
 			Name:  ee.Optimization[i].Name,
 			Value: ee.Optimization[i].Value,
 		})
@@ -138,8 +138,8 @@ func ToCluster(exp *redskyv1alpha1.Experiment, ee *redskyapi.Experiment) {
 }
 
 // ToClusterTrial converts API state to cluster state
-func ToClusterTrial(t *redskyv1alpha1.Trial, suggestion *redskyapi.TrialAssignments) {
-	t.GetAnnotations()[redskyv1alpha1.AnnotationReportTrialURL] = suggestion.SelfURL
+func ToClusterTrial(t *redskyv1beta1.Trial, suggestion *redskyapi.TrialAssignments) {
+	t.GetAnnotations()[redskyv1beta1.AnnotationReportTrialURL] = suggestion.SelfURL
 
 	// Try to make the cluster trial names match what is on the server
 	if t.Name == "" && t.GenerateName != "" && suggestion.SelfURL != "" {
@@ -153,7 +153,7 @@ func ToClusterTrial(t *redskyv1alpha1.Trial, suggestion *redskyapi.TrialAssignme
 
 	for _, a := range suggestion.Assignments {
 		if v, err := a.Value.Int64(); err == nil {
-			t.Spec.Assignments = append(t.Spec.Assignments, redskyv1alpha1.Assignment{
+			t.Spec.Assignments = append(t.Spec.Assignments, redskyv1beta1.Assignment{
 				Name:  a.ParameterName,
 				Value: v,
 			})
@@ -166,12 +166,12 @@ func ToClusterTrial(t *redskyv1alpha1.Trial, suggestion *redskyapi.TrialAssignme
 }
 
 // FromClusterTrial converts cluster state to API state
-func FromClusterTrial(in *redskyv1alpha1.Trial) *redskyapi.TrialValues {
+func FromClusterTrial(in *redskyv1beta1.Trial) *redskyapi.TrialValues {
 	out := &redskyapi.TrialValues{}
 
 	// Check to see if the trial failed
 	for _, c := range in.Status.Conditions {
-		if c.Type == redskyv1alpha1.TrialFailed && c.Status == corev1.ConditionTrue {
+		if c.Type == redskyv1beta1.TrialFailed && c.Status == corev1.ConditionTrue {
 			out.Failed = true
 		}
 	}
@@ -197,10 +197,10 @@ func FromClusterTrial(in *redskyv1alpha1.Trial) *redskyapi.TrialValues {
 }
 
 // StopExperiment updates the experiment in the event that it should be paused or halted
-func StopExperiment(exp *redskyv1alpha1.Experiment, err error) bool {
+func StopExperiment(exp *redskyv1beta1.Experiment, err error) bool {
 	if rse, ok := err.(*redskyapi.Error); ok && rse.Type == redskyapi.ErrExperimentStopped {
 		exp.SetReplicas(0)
-		delete(exp.GetAnnotations(), redskyv1alpha1.AnnotationNextTrialURL)
+		delete(exp.GetAnnotations(), redskyv1beta1.AnnotationNextTrialURL)
 		return true
 	}
 	return false
