@@ -135,7 +135,7 @@ func (o *ServerOptions) checkServer() error {
 		return err
 	}
 	defer func() {
-		_ = o.ExperimentsAPI.DeleteExperiment(context.TODO(), exp.Self)
+		_ = o.ExperimentsAPI.DeleteExperiment(context.TODO(), exp.SelfURL)
 	}()
 
 	// Validate the experiment
@@ -146,7 +146,7 @@ func (o *ServerOptions) checkServer() error {
 	// Get the next trial assignments
 	var t experimentsv1alpha1.TrialAssignments
 	for i := 0; i < 5; i++ {
-		t, err = o.ExperimentsAPI.NextTrial(context.TODO(), exp.NextTrial)
+		t, err = o.ExperimentsAPI.NextTrial(context.TODO(), exp.NextTrialURL)
 		if aerr, ok := err.(*experimentsv1alpha1.Error); ok && aerr.Type == experimentsv1alpha1.ErrTrialUnavailable {
 			time.Sleep(aerr.RetryAfter)
 			continue
@@ -164,7 +164,7 @@ func (o *ServerOptions) checkServer() error {
 
 	// Report a trial observation back
 	v := generateObservation(o, &exp)
-	err = o.ExperimentsAPI.ReportTrial(context.TODO(), t.ReportTrial, *v)
+	err = o.ExperimentsAPI.ReportTrial(context.TODO(), t.SelfURL, *v)
 	if err != nil {
 		return err
 	}
@@ -253,13 +253,13 @@ func generateValue() (float64, float64) {
 }
 
 func checkServerExperiment(name string, original, created *experimentsv1alpha1.Experiment) error {
-	if created.Self == "" {
+	if created.SelfURL == "" {
 		return fmt.Errorf("server did not return a self link")
 	}
-	if created.NextTrial == "" {
+	if created.NextTrialURL == "" {
 		return fmt.Errorf("server did not return a next trial link")
 	}
-	if created.Trials == "" {
+	if created.TrialsURL == "" {
 		return fmt.Errorf("server did not return a trials link")
 	}
 
@@ -303,7 +303,7 @@ func checkServerExperiment(name string, original, created *experimentsv1alpha1.E
 }
 
 func checkTrialAssignments(exp *experimentsv1alpha1.Experiment, t *experimentsv1alpha1.TrialAssignments) error {
-	if t.ReportTrial == "" {
+	if t.SelfURL == "" {
 		return fmt.Errorf("server did not return a report trial link")
 	}
 

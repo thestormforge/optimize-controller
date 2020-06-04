@@ -76,7 +76,7 @@ func (o *SuggestOptions) suggest(ctx context.Context) error {
 		return err
 	}
 
-	_, err = o.ExperimentsAPI.CreateTrial(ctx, exp.Trials, *ta)
+	_, err = o.ExperimentsAPI.CreateTrial(ctx, exp.TrialsURL, *ta)
 	return err
 }
 

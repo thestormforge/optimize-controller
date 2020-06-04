@@ -40,8 +40,8 @@ const (
 func FromCluster(in *redskyv1beta1.Experiment) (redskyapi.ExperimentName, *redskyapi.Experiment) {
 	out := &redskyapi.Experiment{}
 	out.ExperimentMeta.LastModified = in.CreationTimestamp.Time
-	out.ExperimentMeta.Self = in.Annotations[redskyv1beta1.AnnotationExperimentURL]
-	out.ExperimentMeta.NextTrial = in.Annotations[redskyv1beta1.AnnotationNextTrialURL]
+	out.ExperimentMeta.SelfURL = in.Annotations[redskyv1beta1.AnnotationExperimentURL]
+	out.ExperimentMeta.NextTrialURL = in.Annotations[redskyv1beta1.AnnotationNextTrialURL]
 
 	out.Optimization = nil
 	for _, o := range in.Spec.Optimization {
@@ -123,8 +123,8 @@ func ToCluster(exp *redskyv1beta1.Experiment, ee *redskyapi.Experiment) {
 		exp.SetAnnotations(make(map[string]string))
 	}
 
-	exp.GetAnnotations()[redskyv1beta1.AnnotationExperimentURL] = ee.Self
-	exp.GetAnnotations()[redskyv1beta1.AnnotationNextTrialURL] = ee.NextTrial
+	exp.GetAnnotations()[redskyv1beta1.AnnotationExperimentURL] = ee.SelfURL
+	exp.GetAnnotations()[redskyv1beta1.AnnotationNextTrialURL] = ee.NextTrialURL
 
 	exp.Spec.Optimization = nil
 	for i := range ee.Optimization {
@@ -139,11 +139,11 @@ func ToCluster(exp *redskyv1beta1.Experiment, ee *redskyapi.Experiment) {
 
 // ToClusterTrial converts API state to cluster state
 func ToClusterTrial(t *redskyv1beta1.Trial, suggestion *redskyapi.TrialAssignments) {
-	t.GetAnnotations()[redskyv1beta1.AnnotationReportTrialURL] = suggestion.ReportTrial
+	t.GetAnnotations()[redskyv1beta1.AnnotationReportTrialURL] = suggestion.SelfURL
 
 	// Try to make the cluster trial names match what is on the server
-	if t.Name == "" && t.GenerateName != "" && suggestion.ReportTrial != "" {
-		name := path.Base(suggestion.ReportTrial)
+	if t.Name == "" && t.GenerateName != "" && suggestion.SelfURL != "" {
+		name := path.Base(suggestion.SelfURL)
 		if num, err := strconv.ParseInt(name, 10, 64); err == nil {
 			t.Name = fmt.Sprintf("%s%03d", t.GenerateName, num)
 		} else {
