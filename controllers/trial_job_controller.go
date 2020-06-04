@@ -189,7 +189,7 @@ func (r *TrialJobReconciler) applyJobStatus(ctx context.Context, t *redskyv1beta
 				// TODO We should consolidate this with `internal/ready/podFailed`
 				for _, c := range s.Conditions {
 					if c.Type == corev1.PodScheduled && c.Status == corev1.ConditionFalse && c.Reason == corev1.PodReasonUnschedulable {
-						trial.ApplyCondition(&t.Status, redskyv1alpha1.TrialFailed, corev1.ConditionTrue, c.Reason, c.Message, time)
+						trial.ApplyCondition(&t.Status, redskyv1beta1.TrialFailed, corev1.ConditionTrue, c.Reason, c.Message, time)
 						dirty = true
 					}
 				}
