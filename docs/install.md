@@ -60,10 +60,10 @@ Additional information can be found in the [Server Configuration](remote.md) sec
 
 Red Sky Ops uses Kubernetes jobs to implement trial runs along with custom resources describing the experiment and trial. The Red Sky Ops Controller needs full permission to manipulate these resources. Additionally, the Red Sky Ops Controller must be able to list core pods, services, and namespaces.
 
-The exact role requirements for a specific version can be reproduced using Kustomize, for example to view the [roles for v1.3.1](https://github.com/redskyops/redskyops-controller/tree/v1.3.1/config/rbac):
+The exact role requirements for a specific version can be reproduced using Kustomize, for example to view the [roles for v1.5.2](https://github.com/redskyops/redskyops-controller/tree/v1.5.2/config/rbac):
 
 ```sh
-kustomize build github.com/redskyops/redskyops-controller//config/rbac/?ref=v1.3.1
+kustomize build 'github.com/redskyops/redskyops-controller/config/rbac/?ref=v1.5.2'
 ```
 
 The `redskyctl init` command will attempt to run a container in the default namespace of current context from your Kubernetes configuration. The container being run generates the manifests required for installation (see "Advanced Installation" for more details). Running the container requires "create" permission for the core "pods" resource.
