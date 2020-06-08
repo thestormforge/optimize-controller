@@ -19,48 +19,24 @@ package kustomize
 import (
 	"bytes"
 	"compress/gzip"
-	"encoding/base64"
 	"io"
 )
 
-// Path is relative to redskyctl/internal/kustomize
-//go:generate mkdir -p kustomizeTemp
-//go:generate kustomize build ../../../config/default -o kustomizeTemp
-
 // Create go run alias
-//go:generate -command assetGen go run ../../../cmd/generator/main.go --header ../../../hack/boilerplate.go.txt --package kustomize
+// Path is relative to redskyctl/internal/kustomize
+//go:generate -command assetGen go run ../../../cmd/generator/main.go --header ../../../hack/boilerplate.go.txt --package kustomize --path ../../../config/default
 
-// Namespace
-//go:generate assetGen --file kustomizeTemp/~g_v1_namespace_redsky-system.yaml --output namespace.go
-
-// CRD
-//go:generate assetGen --file kustomizeTemp/apiextensions.k8s.io_v1beta1_customresourcedefinition_trials.redskyops.dev.yaml --output trials.go
-//go:generate assetGen --file kustomizeTemp/apiextensions.k8s.io_v1beta1_customresourcedefinition_experiments.redskyops.dev.yaml --output experiments.go
-
-// RBAC
-//go:generate assetGen --file kustomizeTemp/rbac.authorization.k8s.io_v1_clusterrolebinding_redsky-manager-rolebinding.yaml --output role_binding.go
-//go:generate assetGen --file kustomizeTemp/rbac.authorization.k8s.io_v1_clusterrole_redsky-manager-role.yaml --output role.go
-
-// Deployment
-//go:generate assetGen --file kustomizeTemp/apps_v1_deployment_redsky-controller-manager.yaml --output deployment.go
-
-// Cleanup
-//go:generate rm -r kustomizeTemp
+//go:generate assetGen
 
 // Asset is a representation of an embedded file.
-// The file will be gzipped and base64 encoded via cmd/generator.
+// The file will be gzip encoded via cmd/generator.
 type Asset struct {
-	data  string
+	data  []byte
 	bytes []byte
 }
 
 var Assets = map[string]Asset{
-	"namespace":     Namespace,
-	"experimentcrd": ExperimentCRD,
-	"trialcrd":      TrialCRD,
-	"managercrb":    ManagerClusterRoleBinding,
-	"managercr":     ManagerClusterRole,
-	"manager":       ManagerDeployment,
+	"stock": kustomizeBase,
 }
 
 // Reader is a convenience function to provide an io.Reader interface for the
@@ -86,9 +62,8 @@ func (a *Asset) Bytes() ([]byte, error) {
 
 func (a *Asset) decode() (err error) {
 	var (
-		decoded []byte
-		output  bytes.Buffer
-		zr      *gzip.Reader
+		output bytes.Buffer
+		zr     *gzip.Reader
 	)
 
 	// No need to decode again
@@ -96,12 +71,7 @@ func (a *Asset) decode() (err error) {
 		return nil
 	}
 
-	decoded, err = base64.StdEncoding.DecodeString(a.data)
-	if err != nil {
-		return err
-	}
-
-	buf := bytes.NewBuffer(decoded)
+	buf := bytes.NewBuffer(a.data)
 
 	if zr, err = gzip.NewReader(buf); err != nil {
 		return err

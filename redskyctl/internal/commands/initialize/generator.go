@@ -67,7 +67,7 @@ func (o *GeneratorOptions) generate(ctx context.Context) error {
 		return err
 	}
 
-	fmt.Println(string(yamls))
+	fmt.Fprintln(o.Out, string(yamls))
 
 	return nil
 }
