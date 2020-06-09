@@ -60,7 +60,6 @@ jobs:
       - name: Build controller
         run: |
           make docker-build-ci
-          make docker-push
       - name: Build tool
         uses: goreleaser/goreleaser-action@v1
         with:
@@ -68,13 +67,14 @@ jobs:
           key: ${{ secrets.BMASTERS_PRIVATE_KEY }}
         env:
           GITHUB_TOKEN: ${{ secrets.BMASTERS_TOKEN }}
-      - name: Tag Docker images
+      - name: Push Docker images
         run: |
           docker tag "${IMG}" "${IMG%%:*}:${DOCKER_TAG}"
-          docker push "${IMG%%:*}:${DOCKER_TAG}"
           docker tag "${REDSKYCTL_IMG}" "${REDSKYCTL_IMG%%:*}:${DOCKER_TAG}"
-          docker push "${REDSKYCTL_IMG%%:*}:${DOCKER_TAG}"
           docker tag "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:${DOCKER_TAG}"
+          make docker-push
+          docker push "${IMG%%:*}:${DOCKER_TAG}"
+          docker push "${REDSKYCTL_IMG%%:*}:${DOCKER_TAG}"
           docker push "${SETUPTOOLS_IMG%%:*}:${DOCKER_TAG}"
       - name: Upload macOS binary
         uses: actions/upload-artifact@v1

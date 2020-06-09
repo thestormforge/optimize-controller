@@ -80,11 +80,13 @@ jobs:
       - name: Build controller
         run: |
           make docker-build-ci
-          make docker-push
       - name: Build tool
         uses: goreleaser/goreleaser-action@v1
         with:
           args: release --skip-sign --rm-dist
+      - name: Push Docker images
+        run: |
+          make docker-push
       - name: Upload macOS binary
         uses: actions/upload-artifact@v2
         with:
