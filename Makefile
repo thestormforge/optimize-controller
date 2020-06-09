@@ -91,6 +91,7 @@ docker-build-ci:
 docker-push:
 	docker push ${IMG}
 	docker push ${SETUPTOOLS_IMG}
+	docker push ${REDSKYCTL_IMG}
 
 # find or download controller-gen
 # download controller-gen if necessary

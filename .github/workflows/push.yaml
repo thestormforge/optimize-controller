@@ -57,7 +57,7 @@ jobs:
           project_id: ${{ secrets.GOOGLE_PROJECT_ID }}
       - name: Bootstrap
         run: |
-          TAG=${GITHUB_SHA:0:8}.${GITHUB_RUN_ID}
+          TAG=${GITHUB_SHA:0:8}.${GITHUB_RUN_NUMBER}
           echo "::set-env name=IMG::gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/redskyops-controller:${TAG}"
           echo "::set-env name=REDSKYCTL_IMG::gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/redskyctl:${TAG}"
           echo "::set-env name=SETUPTOOLS_IMG::gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/setuptools:${TAG}"
@@ -80,11 +80,13 @@ jobs:
       - name: Build controller
         run: |
           make docker-build-ci
-          make docker-push
       - name: Build tool
         uses: goreleaser/goreleaser-action@v1
         with:
           args: release --skip-sign --rm-dist
+      - name: Push Docker images
+        run: |
+          make docker-push
       - name: Upload macOS binary
         uses: actions/upload-artifact@v2
         with:
