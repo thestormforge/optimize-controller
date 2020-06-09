@@ -81,7 +81,7 @@ jobs:
         run: |
           make docker-build-ci
       - name: Build tool
-        uses: goreleaser/goreleaser-action@v1
+        uses: goreleaser/goreleaser-action@v2
         with:
           args: release --skip-sign --rm-dist
       - name: Push Docker images

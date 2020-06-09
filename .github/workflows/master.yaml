@@ -41,6 +41,11 @@ jobs:
           service_account_email: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_EMAIL }}
           service_account_key: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
           project_id: ${{ secrets.GOOGLE_PROJECT_ID }}
+      - name: Import GPG key
+        id: import_gpg
+        uses: crazy-max/ghaction-import-gpg@v2
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.BMASTERS_PRIVATE_KEY }}
       - name: Bootstrap
         run: |
           if [ -z "${GITHUB_REF/refs\/tags\/*/}" ]; then
@@ -61,10 +66,9 @@ jobs:
         run: |
           make docker-build-ci
       - name: Build tool
-        uses: goreleaser/goreleaser-action@v1
+        uses: goreleaser/goreleaser-action@v2
         with:
           args: release --rm-dist --release-notes hack/changelog.md.txt
-          key: ${{ secrets.BMASTERS_PRIVATE_KEY }}
         env:
           GITHUB_TOKEN: ${{ secrets.BMASTERS_TOKEN }}
       - name: Push Docker images
