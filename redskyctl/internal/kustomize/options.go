@@ -17,10 +17,12 @@ limitations under the License.
 package kustomize
 
 import (
+	"bytes"
 	"fmt"
+	"path/filepath"
 	"strings"
+	"text/template"
 
-	"github.com/redskyops/redskyops-controller/internal/version"
 	"sigs.k8s.io/kustomize/api/filesys"
 	"sigs.k8s.io/kustomize/api/krusty"
 	"sigs.k8s.io/kustomize/api/types"
@@ -51,9 +53,6 @@ func defaultOptions() *Kustomize {
 					NewName: strings.Split(BuildImage, ":")[0],
 					NewTag:  strings.Split(BuildImage, ":")[1],
 				},
-			},
-			CommonLabels: map[string]string{
-				"app.kubernetes.io/version": version.Version,
 			},
 		},
 	}
@@ -87,7 +86,37 @@ func WithImage(i string) Option {
 // WithLabels sets the common labels attribute for the kustomization.
 func WithLabels(l map[string]string) Option {
 	return func(k *Kustomize) error {
-		k.kustomize.CommonLabels = l
+		// The schema for plugins are loosely defined, so we need to use a template
+		labelTransformer := `
+apiVersion: builtin
+kind: LabelTransformer
+metadata:
+  name: metadata_labels
+labels:
+{{ range $label, $value := . }}
+  {{ $label }}: {{ $value }}
+{{ end }}
+fieldSpecs:
+  - kind: Deployment
+    path: spec/template/metadata/labels
+    create: true
+  - path: metadata/labels
+    create: true`
+
+		t := template.Must(template.New("labelTransformer").Parse(labelTransformer))
+
+		// Execute the template for each recipient.
+		var b bytes.Buffer
+		if err := t.Execute(&b, l); err != nil {
+			return err
+		}
+
+		if err := k.fs.WriteFile(filepath.Join(k.Base, "labelTransformer.yaml"), b.Bytes()); err != nil {
+			return err
+		}
+
+		k.kustomize.Transformers = append(k.kustomize.Transformers, "labelTransformer.yaml")
+
 		return nil
 	}
 }

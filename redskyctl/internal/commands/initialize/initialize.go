@@ -23,6 +23,7 @@ import (
 	"sync"
 
 	"github.com/redskyops/redskyops-controller/internal/config"
+	"github.com/redskyops/redskyops-controller/internal/version"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/authorize_cluster"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/grant_permissions"
@@ -98,6 +99,7 @@ func (o *Options) initialize(ctx context.Context) error {
 	if err := kubectlApply.Run(); err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -112,6 +114,7 @@ func (o *Options) generateInstall() (io.Reader, error) {
 		kustomize.WithNamespace(ctrl.Namespace),
 		kustomize.WithImage(o.Image),
 		kustomize.WithLabels(map[string]string{
+			"app.kubernetes.io/version":    version.GetInfo().String(),
 			"app.kubernetes.io/managed-by": "redskyctl",
 		}),
 	)
