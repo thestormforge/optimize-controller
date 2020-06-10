@@ -59,8 +59,8 @@ func NewCommand(o *Options) *cobra.Command {
 	return cmd
 }
 
-// readExperiment unmarshals experiment data
-func readExperiment(filename string, defaultReader io.Reader, list *redskyv1beta1.ExperimentList) error {
+// readExperiments unmarshals experiment data
+func readExperiments(filename string, defaultReader io.Reader, list *redskyv1beta1.ExperimentList) error {
 	if filename == "" {
 		return nil
 	}

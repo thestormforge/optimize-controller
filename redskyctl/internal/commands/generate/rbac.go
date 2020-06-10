@@ -98,7 +98,7 @@ func (o *RBACOptions) Complete() {
 func (o *RBACOptions) generate() error {
 	// Read the experiments
 	experimentList := &redskyv1beta1.ExperimentList{}
-	if err := readExperiment(o.Filename, o.In, experimentList); err != nil {
+	if err := readExperiments(o.Filename, o.In, experimentList); err != nil {
 		return err
 	}
 

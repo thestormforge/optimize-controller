@@ -66,7 +66,7 @@ func NewTrialCommand(o *TrialOptions) *cobra.Command {
 func (o *TrialOptions) generate() error {
 	// Read the experiments
 	experimentList := &redskyv1beta1.ExperimentList{}
-	if err := readExperiment(o.Filename, o.In, experimentList); err != nil {
+	if err := readExperiments(o.Filename, o.In, experimentList); err != nil {
 		return err
 	}
 	if len(experimentList.Items) != 1 {
