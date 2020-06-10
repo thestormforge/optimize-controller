@@ -120,3 +120,36 @@ fieldSpecs:
 		return nil
 	}
 }
+
+// WithAPI configures the controller to use the RedSky API.
+// If true, the controller deployment is patched to pull environment variables from the secret.
+func WithAPI(o bool) Option {
+	return func(k *Kustomize) error {
+		if o == false {
+			return nil
+		}
+
+		controllerEnvPatch := []byte(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redsky-controller-manager
+  namespace: redsky-system
+spec:
+  template:
+    spec:
+      containers:
+      - name: manager
+        envFrom:
+        - secretRef:
+            name: redsky-manager`)
+
+		if err := k.fs.WriteFile(filepath.Join(k.Base, "manager_patch.yaml"), controllerEnvPatch); err != nil {
+			return err
+		}
+
+		k.kustomize.PatchesStrategicMerge = append(k.kustomize.PatchesStrategicMerge, "manager_patch.yaml")
+
+		return nil
+	}
+}

@@ -66,7 +66,7 @@ func NewCommand(o *Options) *cobra.Command {
 func (o *Options) initialize(ctx context.Context) error {
 	var manifests bytes.Buffer
 
-	install, err := o.generateInstall()
+	install, err := o.generateInstall(ctx)
 	if err != nil {
 		return err
 	}
@@ -103,11 +103,21 @@ func (o *Options) initialize(ctx context.Context) error {
 	return nil
 }
 
-func (o *Options) generateInstall() (io.Reader, error) {
+func (o *Options) generateInstall(ctx context.Context) (io.Reader, error) {
 	r := o.Config.Reader()
 	ctrl, err := config.CurrentController(r)
 	if err != nil {
 		return nil, err
+	}
+
+	auth, err := config.CurrentAuthorization(r)
+	if err != nil {
+		return nil, err
+	}
+
+	apiEnabled := false
+	if auth.Credential.TokenCredential != nil {
+		apiEnabled = true
 	}
 
 	yamls, err := kustomize.Yamls(
@@ -117,6 +127,7 @@ func (o *Options) generateInstall() (io.Reader, error) {
 			"app.kubernetes.io/version":    version.GetInfo().String(),
 			"app.kubernetes.io/managed-by": "redskyctl",
 		}),
+		kustomize.WithAPI(apiEnabled),
 	)
 
 	if err != nil {

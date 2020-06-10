@@ -59,8 +59,26 @@ func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 }
 
 func (o *GeneratorOptions) generate(ctx context.Context) error {
+	r := o.Config.Reader()
+	ctrl, err := config.CurrentController(r)
+	if err != nil {
+		return err
+	}
+
+	apiEnabled := false
+
+	auth, err := config.CurrentAuthorization(r)
+	if err != nil {
+		return err
+	}
+	if auth.Credential.TokenCredential != nil {
+		apiEnabled = true
+	}
+
 	yamls, err := kustomize.Yamls(
 		kustomize.WithImage(o.Image),
+		kustomize.WithNamespace(ctrl.Namespace),
+		kustomize.WithAPI(apiEnabled),
 	)
 
 	if err != nil {
