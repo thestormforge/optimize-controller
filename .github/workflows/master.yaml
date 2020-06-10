@@ -47,21 +47,26 @@ jobs:
         env:
           GPG_PRIVATE_KEY: ${{ secrets.BMASTERS_PRIVATE_KEY }}
       - name: Bootstrap
+        env:
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
         run: |
           if [ -z "${GITHUB_REF/refs\/tags\/*/}" ]; then
-            echo "::set-env name=VERSION::${GITHUB_REF##*/}"
             TAG=${GITHUB_REF##*/v}
-            DOCKER_TAG=latest
+            echo "::set-env name=DOCKER_TAG::latest"
+            echo "::set-env name=VERSION::v${TAG}"
+            echo "::set-env name=IMG::redskyops/redskyops-controller:${TAG}"
+            echo "::set-env name=REDSKYCTL_IMG::redskyops/redskyctl:${TAG}"
+            echo "::set-env name=SETUPTOOLS_IMG::redskyops/setuptools:${TAG}"
+            printenv DOCKER_PASSWORD | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
           else
-            TAG=${GITHUB_SHA:0:8}.${GITHUB_RUN_NUMBER}
-            DOCKER_TAG=canary
+            TAG="sha-$(git rev-parse --short HEAD)"
+            echo "::set-env name=DOCKER_TAG::canary" # TODO This should change to "latest" after the 1.6.0 release
+            echo "::set-env name=IMG::gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/redskyops-controller:${TAG}"
+            echo "::set-env name=REDSKYCTL_IMG::gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/redskyctl:${TAG}"
+            echo "::set-env name=SETUPTOOLS_IMG::gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/setuptools:${TAG}"
+            gcloud --quiet auth configure-docker
           fi
-          echo "::set-env name=IMG::gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/redskyops-controller:${TAG}"
-          echo "::set-env name=REDSKYCTL_IMG::gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/redskyctl:${TAG}"
-          echo "::set-env name=SETUPTOOLS_IMG::gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/setuptools:${TAG}"
           echo "::set-env name=PULL_POLICY::Always"
-          echo "::set-env name=DOCKER_TAG::${DOCKER_TAG}"
-          gcloud --quiet auth configure-docker
       - name: Build controller
         run: |
           make docker-build-ci
