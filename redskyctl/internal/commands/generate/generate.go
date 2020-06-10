@@ -20,14 +20,17 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"path/filepath"
 
+	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/internal/config"
+	"github.com/redskyops/redskyops-controller/internal/controller"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/authorize_cluster"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/grant_permissions"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/initialize"
 	"github.com/spf13/cobra"
-	"sigs.k8s.io/yaml"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // Options includes the configuration for the subcommands
@@ -55,10 +58,8 @@ func NewCommand(o *Options) *cobra.Command {
 	return cmd
 }
 
-// TODO This should read all of the experiments from a stream of documents and return a list
-
 // readExperiment unmarshals experiment data
-func readExperiment(filename string, defaultReader io.Reader, experiment *redskyv1beta1.Experiment) error {
+func readExperiment(filename string, defaultReader io.Reader, list *redskyv1beta1.ExperimentList) error {
 	if filename == "" {
 		return nil
 	}
@@ -74,13 +75,32 @@ func readExperiment(filename string, defaultReader io.Reader, experiment *redsky
 		return err
 	}
 
-	// TODO Split on "---\n" ?
+	// Create a decoder
+	scheme := runtime.NewScheme()
+	_ = redskyv1beta1.AddToScheme(scheme)
+	_ = redskyv1alpha1.AddToScheme(scheme)
+	cs := controller.NewConversionSerializer(scheme)
+	mediaType := runtime.ContentTypeYAML
+	switch filepath.Ext(filename) {
+	case "json":
+		mediaType = runtime.ContentTypeJSON
+	}
+	info, ok := runtime.SerializerInfoForMediaType(cs.SupportedMediaTypes(), mediaType)
+	if !ok {
+		return fmt.Errorf("could not find serializer for %s", mediaType)
+	}
+	decoder := cs.DecoderToVersion(info.Serializer, runtime.InternalGroupVersioner)
 
-	if err = yaml.Unmarshal(data, experiment); err != nil {
+	// TODO This should be able to decode multiple experiments
+	expGVK := redskyv1beta1.GroupVersion.WithKind("Experiment")
+	items := make([]redskyv1beta1.Experiment, 1)
+	obj, _, err := decoder.Decode(data, &expGVK, &items[0])
+	if err != nil {
 		return err
 	}
-	if experiment.GroupVersionKind().GroupVersion() != redskyv1beta1.GroupVersion || experiment.Kind != "Experiment" {
-		return fmt.Errorf("expected experiment, got: %s", experiment.GroupVersionKind())
+	if obj != &items[0] {
+		return fmt.Errorf("unable to decode experiment")
 	}
+	list.Items = items
 	return nil
 }

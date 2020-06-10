@@ -42,13 +42,17 @@ import (
 // objects occurs during client-go reads into the cache. This ensures the controller never actually sees old
 // representations of the objects (and we lazily migrate storage to the latest representation).
 func WithConversion(config *rest.Config, scheme *runtime.Scheme) *rest.Config {
-	config.NegotiatedSerializer = &ConversionSerializer{
-		NegotiatedSerializer: serializer.WithoutConversionCodecFactory{
-			CodecFactory: serializer.NewCodecFactory(scheme),
-		},
-		scheme: scheme,
-	}
+	config.NegotiatedSerializer = NewConversionSerializer(scheme)
 	return config
+}
+
+// NewConversionSerializer creates a new negotiated serializer that handles detection/conversion between versions
+// of redskyops.dev objects.
+func NewConversionSerializer(scheme *runtime.Scheme) runtime.NegotiatedSerializer {
+	return &ConversionSerializer{
+		NegotiatedSerializer: serializer.NewCodecFactory(scheme).WithoutConversion(),
+		scheme:               scheme,
+	}
 }
 
 // ConversionSerializer is a negotiated serializer that also handles the representation migration hack.

@@ -97,10 +97,8 @@ func (o *RBACOptions) Complete() {
 
 func (o *RBACOptions) generate() error {
 	// Read the experiments
-	// TODO For now just pretend like `readExperiment` could return multiple results
 	experimentList := &redskyv1beta1.ExperimentList{}
-	experimentList.Items = make([]redskyv1beta1.Experiment, 1)
-	if err := readExperiment(o.Filename, o.In, &experimentList.Items[0]); err != nil {
+	if err := readExperiment(o.Filename, o.In, experimentList); err != nil {
 		return err
 	}
 
