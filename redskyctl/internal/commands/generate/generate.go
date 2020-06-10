@@ -30,6 +30,7 @@ import (
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/grant_permissions"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/initialize"
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -64,6 +65,7 @@ func readExperiment(filename string, defaultReader io.Reader, list *redskyv1beta
 		return nil
 	}
 
+	// Read the file
 	var data []byte
 	var err error
 	if filename == "-" {
@@ -79,6 +81,7 @@ func readExperiment(filename string, defaultReader io.Reader, list *redskyv1beta
 	scheme := runtime.NewScheme()
 	_ = redskyv1beta1.AddToScheme(scheme)
 	_ = redskyv1alpha1.AddToScheme(scheme)
+	_ = registerListConversions(scheme)
 	cs := controller.NewConversionSerializer(scheme)
 	mediaType := runtime.ContentTypeYAML
 	switch filepath.Ext(filename) {
@@ -91,16 +94,37 @@ func readExperiment(filename string, defaultReader io.Reader, list *redskyv1beta
 	}
 	decoder := cs.DecoderToVersion(info.Serializer, runtime.InternalGroupVersioner)
 
-	// TODO This should be able to decode multiple experiments
-	expGVK := redskyv1beta1.GroupVersion.WithKind("Experiment")
-	items := make([]redskyv1beta1.Experiment, 1)
-	obj, _, err := decoder.Decode(data, &expGVK, &items[0])
+	// NOTE: This attempts to read an "ExperimentList", a stream of experiment YAML documents IS NOT an experiment list
+	// TODO If the mediaType is YAML we should use a `yaml.NewDocumentDecoder(...)` to get individual documents
+	gvk := redskyv1beta1.GroupVersion.WithKind("ExperimentList")
+	obj, _, err := decoder.Decode(data, &gvk, list)
 	if err != nil {
 		return err
 	}
-	if obj != &items[0] {
-		return fmt.Errorf("unable to decode experiment")
+
+	// If the decoded object was not what we were looking, attempt to convert it
+	if obj != list {
+		return scheme.Convert(obj, list, nil)
 	}
-	list.Items = items
+	return nil
+}
+
+func registerListConversions(s *runtime.Scheme) error {
+	// Convert from a single experiment to a list of experiments
+	if err := s.AddConversionFunc((*redskyv1beta1.Experiment)(nil), (*redskyv1beta1.ExperimentList)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		b.(*redskyv1beta1.ExperimentList).Items = []redskyv1beta1.Experiment{*a.(*redskyv1beta1.Experiment)}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	// Convert from a single v1alpha1 experiment to a list of experiments
+	if err := s.AddConversionFunc((*redskyv1alpha1.Experiment)(nil), (*redskyv1beta1.ExperimentList)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		l := b.(*redskyv1beta1.ExperimentList)
+		l.Items = make([]redskyv1beta1.Experiment, 1)
+		return scope.Convert(a, &l.Items[0], scope.Flags())
+	}); err != nil {
+		return err
+	}
 	return nil
 }
