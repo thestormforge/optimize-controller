@@ -23,6 +23,3 @@ manager
 *.swp
 *.swo
 *~
-
-# We generate these files during build so we can inject build time variables
-redskyctl/internal/kustomize/zz_generated.*

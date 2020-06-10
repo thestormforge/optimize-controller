@@ -44,7 +44,7 @@ tool:
 	PULL_POLICY=${PULL_POLICY} \
 	REDSKYCTL_IMG=${REDSKYCTL_IMG} \
 	IMG=${IMG} \
-	goreleaser release --snapshot --skip-sign --rm-dist --debug
+	goreleaser release --snapshot --skip-sign --rm-dist
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate fmt vet manifests
@@ -81,13 +81,13 @@ vet:
 generate: controller-gen conversion-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 	$(CONVERSION_GEN) --go-header-file "./hack/boilerplate.go.txt" --input-dirs "./api/v1alpha1" \
-	    --output-base "." --output-file-base="zz_generated.conversion" --skip-unsafe=true
+		--output-base "." --output-file-base="zz_generated.conversion" --skip-unsafe=true
 
 # Build the docker images
 docker-build: test docker-build-ci
 
 # Build the docker images
-docker-build-ci: manifests
+docker-build-ci:
 	# Build on host so we can make use of the cache
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -ldflags "${LDFLAGS}" -a -o manager main.go
 	docker build . -t ${IMG}

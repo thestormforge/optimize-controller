@@ -125,7 +125,7 @@ fieldSpecs:
 // If true, the controller deployment is patched to pull environment variables from the secret.
 func WithAPI(o bool) Option {
 	return func(k *Kustomize) error {
-		if o == false {
+		if !o {
 			return nil
 		}
 

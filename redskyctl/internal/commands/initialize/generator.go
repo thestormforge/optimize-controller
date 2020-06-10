@@ -65,12 +65,12 @@ func (o *GeneratorOptions) generate(ctx context.Context) error {
 		return err
 	}
 
-	apiEnabled := false
-
 	auth, err := config.CurrentAuthorization(r)
 	if err != nil {
 		return err
 	}
+
+	apiEnabled := false
 	if auth.Credential.TokenCredential != nil {
 		apiEnabled = true
 	}

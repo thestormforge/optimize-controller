@@ -73,7 +73,10 @@ func main() {
 	// Compress data
 	var buf bytes.Buffer
 	zw := gzip.NewWriter(&buf)
-	zw.Write(yamls)
+	if _, err = zw.Write(yamls); err != nil {
+		log.Fatal("failed to gzip yamls:", err)
+	}
+
 	zw.Close()
 
 	outputBuffer.WriteString("// The below is a gzipped encoded yaml\n")

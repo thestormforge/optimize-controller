@@ -124,7 +124,7 @@ func (o *Options) generateInstall(ctx context.Context) (io.Reader, error) {
 		kustomize.WithNamespace(ctrl.Namespace),
 		kustomize.WithImage(o.Image),
 		kustomize.WithLabels(map[string]string{
-			"app.kubernetes.io/version":    version.GetInfo().String(),
+			"app.kubernetes.io/version":    version.GetInfo().Version,
 			"app.kubernetes.io/managed-by": "redskyctl",
 		}),
 		kustomize.WithAPI(apiEnabled),

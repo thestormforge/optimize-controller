@@ -31,7 +31,6 @@ import (
 type Kustomize struct {
 	Base string
 
-	resources []string
 	kustomize *types.Kustomization
 	fs        filesys.FileSystem
 
