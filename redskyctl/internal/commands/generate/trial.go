@@ -64,12 +64,16 @@ func NewTrialCommand(o *TrialOptions) *cobra.Command {
 }
 
 func (o *TrialOptions) generate() error {
-	// TODO When "readExperiment" returns multiple experiments, this whole thing runs in a loop...
-	exp := &redskyv1beta1.Experiment{}
-	if err := readExperiment(o.Filename, o.In, exp); err != nil {
+	// Read the experiments
+	experimentList := &redskyv1beta1.ExperimentList{}
+	if err := readExperiments(o.Filename, o.In, experimentList); err != nil {
 		return err
 	}
+	if len(experimentList.Items) != 1 {
+		return fmt.Errorf("trial generation requires a single experiment as input")
+	}
 
+	exp := &experimentList.Items[0]
 	if len(exp.Spec.Parameters) == 0 {
 		return fmt.Errorf("experiment must contain at least one parameter")
 	}
