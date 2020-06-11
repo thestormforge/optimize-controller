@@ -76,6 +76,9 @@ jobs:
           args: release --rm-dist --release-notes hack/changelog.md.txt
         env:
           GITHUB_TOKEN: ${{ secrets.BMASTERS_TOKEN }}
+          AC_USERNAME: ${{ secrets.AC_USERNAME }}
+          AC_PASSWORD: ${{ secrets.AC_PASSWORD }}
+          AC_IDENTITY_P12: ${{ secrets.AC_IDENTITY_P12 }}
       - name: Push Docker images
         run: |
           docker tag "${IMG}" "${IMG%%:*}:${DOCKER_TAG}"
