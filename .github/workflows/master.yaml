@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     name: Build and Deploy
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     env:
       BUILD_METADATA: build.${{ github.run_number }}
       GIT_COMMIT: ${{ github.sha }}
