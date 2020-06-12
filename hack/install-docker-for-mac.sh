@@ -11,4 +11,23 @@ sudo /bin/chmod 544 /Library/PrivilegedHelperTools/com.docker.vmnetd
 sudo /bin/chmod 644 /Library/LaunchDaemons/com.docker.vmnetd.plist
 sudo /bin/launchctl load /Library/LaunchDaemons/com.docker.vmnetd.plist
 
-open -g -a /Applications/Docker.app || exit
+/Applications/Docker.app/Contents/MacOS/Docker --unattended &
+
+while ! docker info 2>/dev/null ; do
+    sleep 5
+    retries=`expr ${retries} + 1`
+
+    if pgrep -xq -- "Docker"; then
+        echo 'Docker still running'
+    else
+        echo 'Docker not running, restart'
+        /Applications/Docker.app/Contents/MacOS/Docker --unattended &
+    fi
+
+    if [[ ${retries} -gt 30 ]]; then
+        >&2 echo 'Failed to run Docker'
+        exit 1
+    fi;
+
+    echo 'Waiting for Docker service to be in the running state'
+done
