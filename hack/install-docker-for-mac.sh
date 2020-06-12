@@ -13,6 +13,7 @@ sudo /bin/launchctl load /Library/LaunchDaemons/com.docker.vmnetd.plist
 
 /Applications/Docker.app/Contents/MacOS/Docker --unattended &
 
+retries=0
 while ! docker info 2>/dev/null ; do
     sleep 5
     retries=`expr ${retries} + 1`
