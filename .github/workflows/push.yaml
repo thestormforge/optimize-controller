@@ -57,11 +57,12 @@ jobs:
           project_id: ${{ secrets.GOOGLE_PROJECT_ID }}
       - name: Bootstrap
         run: |
-          TAG=${GITHUB_SHA:0:8}.${GITHUB_RUN_NUMBER}
+          TAG="sha-$(git rev-parse --short HEAD)"
           echo "::set-env name=IMG::gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/redskyops-controller:${TAG}"
           echo "::set-env name=REDSKYCTL_IMG::gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/redskyctl:${TAG}"
           echo "::set-env name=SETUPTOOLS_IMG::gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/setuptools:${TAG}"
           echo "::set-env name=PULL_POLICY::Always"
+          echo "::set-env name=DOCKER_TAG::pr-${{ github.event.number }}"
           gcloud --quiet auth configure-docker
       - name: Cache Go Modules
         uses: actions/cache@v1
@@ -81,12 +82,18 @@ jobs:
         run: |
           make docker-build-ci
       - name: Build tool
-        uses: goreleaser/goreleaser-action@v1
+        uses: goreleaser/goreleaser-action@v2
         with:
           args: release --skip-sign --rm-dist
       - name: Push Docker images
         run: |
+          docker tag "${IMG}" "${IMG%%:*}:${DOCKER_TAG}"
+          docker tag "${REDSKYCTL_IMG}" "${REDSKYCTL_IMG%%:*}:${DOCKER_TAG}"
+          docker tag "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:${DOCKER_TAG}"
           make docker-push
+          docker push "${IMG%%:*}:${DOCKER_TAG}"
+          docker push "${REDSKYCTL_IMG%%:*}:${DOCKER_TAG}"
+          docker push "${SETUPTOOLS_IMG%%:*}:${DOCKER_TAG}"
       - name: Upload macOS binary
         uses: actions/upload-artifact@v2
         with:
