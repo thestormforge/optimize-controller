@@ -24,6 +24,8 @@ jobs:
       - name: Set up Docker
         run: |
           brew cask install docker
+          sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended
+          docker version
       - name: Cache Go Modules
         uses: actions/cache@v1
         with:
