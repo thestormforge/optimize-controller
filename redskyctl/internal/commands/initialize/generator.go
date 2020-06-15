@@ -18,10 +18,11 @@ package initialize
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/redskyops/redskyops-controller/internal/config"
-	"github.com/redskyops/redskyops-controller/internal/setup"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/kustomize"
 	"github.com/spf13/cobra"
 )
 
@@ -31,6 +32,8 @@ type GeneratorOptions struct {
 	Config *config.RedSkyConfig
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
+
+	Image string
 }
 
 // NewGeneratorCommand creates a command for generating the controller installation
@@ -49,49 +52,40 @@ func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 		RunE:   commander.WithContextE(o.generate),
 	}
 
+	cmd.Flags().StringVar(&o.Image, "image", kustomize.BuildImage, "Specify the controller image to use.")
+
 	commander.ExitOnError(cmd)
 	return cmd
 }
 
 func (o *GeneratorOptions) generate(ctx context.Context) error {
-	// Read the initial information from the configuration
 	r := o.Config.Reader()
 	ctrl, err := config.CurrentController(r)
 	if err != nil {
 		return err
 	}
 
-	// Create an argument list to generate the installation manifests
-	args := []string{"run", "redsky-bootstrap"}
-
-	// Create a single attached pod
-	args = append(args, "--restart", "Never", "--attach")
-
-	// Quietly remove the pod when we are done
-	args = append(args, "--rm", "--quiet")
-
-	// Use the image embedded in the code
-	args = append(args, "--image", setup.Image)
-	// TODO We may need to overwrite this for offline clusters
-	args = append(args, "--image-pull-policy", setup.ImagePullPolicy)
-
-	// Do not allow the pod to access the API
-	args = append(args, "--overrides", `{"spec":{"automountServiceAccountToken":false}}`)
-
-	// Overwrite the "redsky-system" namespace
-	args = append(args, "--env", "NAMESPACE="+ctrl.Namespace)
-
-	// Arguments passed to the container
-	args = append(args, "--", "install")
-
-	// Run the command straight through to the configured output stream
-	kubectlRun, err := o.Config.Kubectl(ctx, args...)
+	auth, err := config.CurrentAuthorization(r)
 	if err != nil {
 		return err
 	}
-	// TODO Should we buffer this and verify we got valid YAML?
-	kubectlRun.Stdout = o.Out
-	// TODO What is the best way to filter out the "Error attaching, ..." line from the writer?
-	// kubectlRun.Stderr = o.ErrOut
-	return kubectlRun.Run()
+
+	apiEnabled := false
+	if auth.Credential.TokenCredential != nil {
+		apiEnabled = true
+	}
+
+	yamls, err := kustomize.Yamls(
+		kustomize.WithImage(o.Image),
+		kustomize.WithNamespace(ctrl.Namespace),
+		kustomize.WithAPI(apiEnabled),
+	)
+
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintln(o.Out, string(yamls))
+
+	return nil
 }

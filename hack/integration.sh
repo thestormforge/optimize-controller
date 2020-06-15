@@ -2,14 +2,10 @@
 
 set -e
 
-
 echo "Init redskyops"
 dist/redskyctl_linux_amd64/redskyctl init
-echo "Install kustomize"
-curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"  | \
-  bash
 echo "Create postgres experiment"
-./kustomize build hack | kubectl apply -f -
+kustomize build hack | kubectl apply -f -
 echo "Create new trial"
 dist/redskyctl_linux_amd64/redskyctl generate trial \
   --assign memory=500 \

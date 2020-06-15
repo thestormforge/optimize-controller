@@ -25,11 +25,12 @@ LDFLAGS += -X github.com/redskyops/redskyops-controller/internal/version.BuildMe
 LDFLAGS += -X github.com/redskyops/redskyops-controller/internal/version.GitCommit=${GIT_COMMIT}
 LDFLAGS += -X github.com/redskyops/redskyops-controller/internal/setup.Image=${SETUPTOOLS_IMG}
 LDFLAGS += -X github.com/redskyops/redskyops-controller/internal/setup.ImagePullPolicy=${PULL_POLICY}
+LDFLAGS += -X github.com/redskyops/redskyops-controller/redskyctl/internal/kustomize.BuildImage=${IMG}
 
 all: manager tool
 
 # Run tests
-test: generate fmt vet manifests
+test: generate manifests fmt vet
 	go test ./... -coverprofile cover.out
 
 # Build manager binary
@@ -38,7 +39,11 @@ manager: generate fmt vet
 
 # Build tool binary using GoReleaser in a local dev environment (in CI we just invoke GoReleaser directly)
 tool:
-	BUILD_METADATA=${BUILD_METADATA} SETUPTOOLS_IMG=${SETUPTOOLS_IMG} PULL_POLICY=${PULL_POLICY} REDSKYCTL_IMG=${REDSKYCTL_IMG} \
+	BUILD_METADATA=${BUILD_METADATA} \
+	SETUPTOOLS_IMG=${SETUPTOOLS_IMG} \
+	PULL_POLICY=${PULL_POLICY} \
+	REDSKYCTL_IMG=${REDSKYCTL_IMG} \
+	IMG=${IMG} \
 	goreleaser release --snapshot --skip-sign --rm-dist
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
@@ -62,6 +67,7 @@ deploy: manifests
 manifests: controller-gen
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./api/...;./controllers/..." output:crd:artifacts:config=config/crd/bases
 	$(CONTROLLER_GEN) schemapatch:manifests=config/crd/bases,maxDescLen=0  paths="./api/..." output:dir=./config/crd/bases
+	go generate ./redskyctl/internal/kustomize
 
 # Run go fmt against code
 fmt:
@@ -75,7 +81,7 @@ vet:
 generate: controller-gen conversion-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 	$(CONVERSION_GEN) --go-header-file "./hack/boilerplate.go.txt" --input-dirs "./api/v1alpha1" \
-	    --output-base "." --output-file-base="zz_generated.conversion" --skip-unsafe=true
+		--output-base "." --output-file-base="zz_generated.conversion" --skip-unsafe=true
 
 # Build the docker images
 docker-build: test docker-build-ci

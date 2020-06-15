@@ -9,8 +9,8 @@ namespace: redsky-system
 namePrefix: redsky-
 
 # Labels to add to all resources and selectors.
-#commonLabels:
-#  someName: someValue
+commonLabels:
+  app.kubernetes.io/name: redskyops
 
 resources:
 - ../crd
