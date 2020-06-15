@@ -84,13 +84,7 @@ func (o *GetOptions) get(ctx context.Context) error {
 
 		case typeTrial:
 			if n.Number < 0 {
-				q := &experimentsv1alpha1.TrialListQuery{
-					Status: []experimentsv1alpha1.TrialStatus{experimentsv1alpha1.TrialActive, experimentsv1alpha1.TrialCompleted, experimentsv1alpha1.TrialFailed},
-				}
-				if o.All {
-					q.Status = append(q.Status, experimentsv1alpha1.TrialStaged)
-				}
-				return o.getTrialList(ctx, n.experimentName(), q)
+				return o.getTrialList(ctx, n.experimentName(), o.trialListQuery())
 			}
 			key := n.experimentName()
 			t[key] = append(t[key], n.Number)
@@ -109,6 +103,16 @@ func (o *GetOptions) get(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (o *GetOptions) trialListQuery() *experimentsv1alpha1.TrialListQuery {
+	q := &experimentsv1alpha1.TrialListQuery{
+		Status: []experimentsv1alpha1.TrialStatus{experimentsv1alpha1.TrialActive, experimentsv1alpha1.TrialCompleted, experimentsv1alpha1.TrialFailed},
+	}
+	if o.All {
+		q.Status = append(q.Status, experimentsv1alpha1.TrialStaged)
+	}
+	return q
 }
 
 func (o *GetOptions) getExperiments(ctx context.Context, names []experimentsv1alpha1.ExperimentName) error {
@@ -168,7 +172,7 @@ func (o *GetOptions) getTrials(ctx context.Context, numbers map[experimentsv1alp
 		}
 
 		// Get the trials
-		tl, err := o.ExperimentsAPI.GetAllTrials(ctx, exp.TrialsURL, nil)
+		tl, err := o.ExperimentsAPI.GetAllTrials(ctx, exp.TrialsURL, o.trialListQuery())
 		if err != nil {
 			return err
 		}
