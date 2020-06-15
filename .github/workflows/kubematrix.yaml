@@ -1,0 +1,72 @@
+name: Matrix workflow
+on:
+  #push:
+  pull_request:
+    branches:
+      - master
+jobs:
+  test:
+    name: Test Kubernetes Versions
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Version listings can be found here:
+        # https://github.com/kubernetes-sigs/kind/releases
+        node:
+          - v1.18.2
+          - v1.17.5
+          - v1.16.9
+          - v1.15.11
+          - v1.14.10
+          #- v1.13.12
+          #- v1.12.10
+          #- v1.11.10
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+      - name: KinD (Kubernetes in Docker) Initialization
+        uses: helm/kind-action@v1.0.0-rc.1
+        with:
+          version: v0.8.1
+          node_image: kindest/node:${{ matrix.node }}
+      - name: Install Kustomize
+        run: |
+          hack/install_kustomize.sh
+      - name: Wait for build to succeed
+        uses: fountainhead/action-wait-for-check@v1.0.0
+        id: wait-for-build
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          checkName: "Build and Deploy"
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          intervalSeconds: 30
+          timeoutSeconds: 900
+      - name: Fail early if we don't have a successful build
+        if: steps.wait-for-build.outputs.conclusion != 'success'
+        run: |
+          exit 1
+      - name: Wait 10s because sleep fixes everything
+        run: |
+          sleep 10
+      - name: Download artifacts from master workflow
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          github_token: ${{secrets.GITHUB_TOKEN}}
+          #workflow: master.yaml
+          workflow: push.yaml
+          name: redskyctl_linux_amd64
+          path: dist/redskyctl_linux_amd64
+          commit: ${{ github.event.pull_request.head.sha || github.sha }}
+          repo: ${{github.repository}}
+      - name: Rename binary because dumbness
+        run: |
+          tar -zxf dist/redskyctl_linux_amd64/redskyctl-linux-amd64.tar.gz \
+              -C dist/redskyctl_linux_amd64
+      - name: RedSky Quickstart
+        run: |
+          hack/integration.sh
+      - name: The job has failed
+        if: ${{ failure() }}
+        run: |
+          kubectl get trial,experiment,svc,pod -o wide
+          kubectl get pods -o wide -l redskyops.dev/experiment=postgres-example
