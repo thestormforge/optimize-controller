@@ -24,6 +24,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -453,11 +454,39 @@ func (rsc *RedSkyConfig) PublicKey(ctx context.Context, keyID interface{}) (inte
 	return nil, fmt.Errorf("jwks: unable to find key: %v", keyID)
 }
 
-func (rsc *RedSkyConfig) clientID(srv *Server) string {
+func (rsc *RedSkyConfig) clientID(srv *Server) (id string) {
 	if rsc.ClientIdentity != nil {
 		return rsc.ClientIdentity(srv.Authorization.Issuer)
 	}
-	return ""
+
+	switch srv.Authorization.Issuer {
+	case "https://auth.carbonrelay.io/":
+		id = "pE3kMKdrMTdW4DOxQHesyAuFGNOWaEke"
+	case "https://carbonrelay-dev.auth0.com/":
+		id = "fmbRPm2zoQJ64hb37CUJDJVmRLHhE04Y"
+	case "":
+		id = ""
+	default:
+		// OAuth specifications warning against mix-ups, instead of using a fixed environment variable name, the name
+		// should be derived from the issuer: this helps ensure we do not send the client identifier to the wrong server.
+
+		// PRECONDITION: issuer identifiers must be https:// URIs with no query or fragment
+		prefix := strings.ReplaceAll(strings.TrimPrefix(srv.Authorization.Issuer, "https://"), "//", "/")
+		prefix = strings.ReplaceAll(strings.TrimRight(prefix, "/"), "/", "//") + "/"
+		prefix = strings.Map(func(r rune) rune {
+			switch {
+			case r >= 'A' && r <= 'Z':
+				return r
+			case r == '.' || r == '/':
+				return '_'
+			}
+			return -1
+		}, strings.ToUpper(prefix))
+
+		id = os.Getenv(prefix + "CLIENT_ID")
+	}
+
+	return id
 }
 
 type updateTokenSource struct {

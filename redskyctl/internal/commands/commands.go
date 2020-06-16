@@ -17,9 +17,6 @@ limitations under the License.
 package commands
 
 import (
-	"os"
-	"strings"
-
 	"github.com/redskyops/redskyops-controller/internal/config"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/authorize_cluster"
@@ -55,9 +52,6 @@ func NewRedskyctlCommand() *cobra.Command {
 	cfg := &config.RedSkyConfig{}
 	commander.ConfigGlobals(cfg, rootCmd)
 
-	// Establish OAuth client identity
-	cfg.ClientIdentity = authorizationIdentity
-
 	// Add the sub-commands
 	rootCmd.AddCommand(authorize_cluster.NewCommand(&authorize_cluster.Options{GeneratorOptions: authorize_cluster.GeneratorOptions{Config: cfg}}))
 	rootCmd.AddCommand(check.NewCommand(&check.Options{Config: cfg}))
@@ -85,32 +79,4 @@ func NewRedskyctlCommand() *cobra.Command {
 	// TODO The "get" functionality needs to support templating so you can extract assignments for downstream use
 
 	return rootCmd
-}
-
-// authorizationIdentity returns the client identifier to use for a given authorization server (identified by it's issuer URI)
-func authorizationIdentity(issuer string) string {
-	switch issuer {
-	case "https://auth.carbonrelay.io/":
-		return "pE3kMKdrMTdW4DOxQHesyAuFGNOWaEke"
-	case "https://carbonrelay-dev.auth0.com/":
-		return "fmbRPm2zoQJ64hb37CUJDJVmRLHhE04Y"
-	default:
-		// OAuth specifications warning against mix-ups, instead of using a fixed environment variable name, the name
-		// should be derived from the issuer: this helps ensure we do not send the client identifier to the wrong server.
-
-		// PRECONDITION: issuer identifiers must be https:// URIs with no query or fragment
-		prefix := strings.ReplaceAll(strings.TrimPrefix(issuer, "https://"), "//", "/")
-		prefix = strings.ReplaceAll(strings.TrimRight(prefix, "/"), "/", "//") + "/"
-		prefix = strings.Map(func(r rune) rune {
-			switch {
-			case r >= 'A' && r <= 'Z':
-				return r
-			case r == '.' || r == '/':
-				return '_'
-			}
-			return -1
-		}, strings.ToUpper(prefix))
-
-		return os.Getenv(prefix + "CLIENT_ID")
-	}
 }
