@@ -81,10 +81,10 @@ func (o *LabelOptions) label(ctx context.Context) error {
 		switch n.Type {
 
 		case typeExperiment:
-			e = append(e, n.experimentName())
+			e = append(e, n.ExperimentName())
 
 		case typeTrial:
-			key := n.experimentName()
+			key := n.ExperimentName()
 			t[key] = append(t[key], n.Number)
 
 		default:

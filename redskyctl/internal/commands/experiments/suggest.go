@@ -66,7 +66,7 @@ func NewSuggestCommand(o *SuggestOptions) *cobra.Command {
 }
 
 func (o *SuggestOptions) suggest(ctx context.Context) error {
-	exp, err := o.ExperimentsAPI.GetExperimentByName(ctx, o.Names[0].experimentName())
+	exp, err := o.ExperimentsAPI.GetExperimentByName(ctx, o.Names[0].ExperimentName())
 	if err != nil {
 		return err
 	}

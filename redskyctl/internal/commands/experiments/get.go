@@ -80,13 +80,13 @@ func (o *GetOptions) get(ctx context.Context) error {
 				}
 				return o.getExperimentList(ctx, q)
 			}
-			e = append(e, n.experimentName())
+			e = append(e, n.ExperimentName())
 
 		case typeTrial:
 			if n.Number < 0 {
-				return o.getTrialList(ctx, n.experimentName(), o.trialListQuery())
+				return o.getTrialList(ctx, n.ExperimentName(), o.trialListQuery())
 			}
-			key := n.experimentName()
+			key := n.ExperimentName()
 			t[key] = append(t[key], n.Number)
 
 		default:

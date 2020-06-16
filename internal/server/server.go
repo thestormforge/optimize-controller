@@ -139,7 +139,9 @@ func ToCluster(exp *redskyv1beta1.Experiment, ee *redskyapi.Experiment) {
 
 // ToClusterTrial converts API state to cluster state
 func ToClusterTrial(t *redskyv1beta1.Trial, suggestion *redskyapi.TrialAssignments) {
-	t.GetAnnotations()[redskyv1beta1.AnnotationReportTrialURL] = suggestion.SelfURL
+	if t.GetAnnotations() != nil {
+		t.GetAnnotations()[redskyv1beta1.AnnotationReportTrialURL] = suggestion.SelfURL
+	}
 
 	// Try to make the cluster trial names match what is on the server
 	if t.Name == "" && t.GenerateName != "" && suggestion.SelfURL != "" {
