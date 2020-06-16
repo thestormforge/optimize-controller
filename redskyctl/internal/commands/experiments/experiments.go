@@ -72,7 +72,7 @@ type Options struct {
 
 func (o *Options) setNames(args []string) error {
 	var err error
-	o.Names, err = parseNames(args)
+	o.Names, err = ParseNames(args)
 	return err
 }
 
@@ -96,8 +96,8 @@ type name struct {
 	Number int64
 }
 
-// experimentName returns the name as a typed experiment name
-func (n *name) experimentName() experimentsv1alpha1.ExperimentName {
+// ExperimentName returns the name as a typed experiment name
+func (n *name) ExperimentName() experimentsv1alpha1.ExperimentName {
 	return experimentsv1alpha1.NewExperimentName(n.Name)
 }
 
@@ -105,7 +105,7 @@ func (n *name) experimentName() experimentsv1alpha1.ExperimentName {
 var numberSuffixPattern = regexp.MustCompile(`(.*?)(?:[/\-]([[:digit:]]+))?$`)
 
 // parseNames parses a list of arguments into structured names
-func parseNames(args []string) ([]name, error) {
+func ParseNames(args []string) ([]name, error) {
 	var t resourceType
 	names := make([]name, 0, len(args))
 	for _, arg := range args {

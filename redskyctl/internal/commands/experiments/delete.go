@@ -66,7 +66,7 @@ func (o *DeleteOptions) delete(ctx context.Context) error {
 
 		switch n.Type {
 		case typeExperiment:
-			if err := o.deleteExperiment(ctx, n.experimentName()); o.ignoreDeleteError(err) != nil {
+			if err := o.deleteExperiment(ctx, n.ExperimentName()); o.ignoreDeleteError(err) != nil {
 				return err
 			}
 		default:
