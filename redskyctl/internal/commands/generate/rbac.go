@@ -97,10 +97,15 @@ func (o *RBACOptions) Complete() {
 }
 
 func (o *RBACOptions) generate() error {
-	// Read the experiments
-	experimentList := &redskyv1beta1.ExperimentList{}
-	if err := util.ReadExperiments(o.Filename, o.In, experimentList); err != nil {
+	// Read the experiment
+	experiment, err := util.ReadExperiment(o.Filename, o.In)
+	if err != nil {
 		return err
+	}
+
+	// Temporary hack until we get the rest sorted
+	experimentList := &redskyv1beta1.ExperimentList{
+		Items: []redskyv1beta1.Experiment{*experiment},
 	}
 
 	// Determine the binding targets

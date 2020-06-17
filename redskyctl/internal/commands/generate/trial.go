@@ -66,15 +66,11 @@ func NewTrialCommand(o *TrialOptions) *cobra.Command {
 
 func (o *TrialOptions) generate() error {
 	// Read the experiments
-	experimentList := &redskyv1beta1.ExperimentList{}
-	if err := util.ReadExperiments(o.Filename, o.In, experimentList); err != nil {
+	exp, err := util.ReadExperiment(o.Filename, o.In)
+	if err != nil {
 		return err
 	}
-	if len(experimentList.Items) != 1 {
-		return fmt.Errorf("trial generation requires a single experiment as input")
-	}
 
-	exp := &experimentList.Items[0]
 	if len(exp.Spec.Parameters) == 0 {
 		return fmt.Errorf("experiment must contain at least one parameter")
 	}

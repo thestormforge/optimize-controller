@@ -17,20 +17,20 @@ limitations under the License.
 package util
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"path/filepath"
 
 	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
-	"github.com/redskyops/redskyops-controller/internal/controller"
-	"k8s.io/apimachinery/pkg/conversion"
-	"k8s.io/apimachinery/pkg/runtime"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
-// ReadExperiments unmarshals experiment data
-func ReadExperiments(filename string, defaultReader io.Reader, list *redskyv1beta1.ExperimentList) (err error) {
+// ReadExperiment unmarshals a single experiment's data. In a multidoc yaml file, only the first
+// experiment is read.
+func ReadExperiment(filename string, defaultReader io.Reader) (exp *redskyv1beta1.Experiment, err error) {
 	var data []byte
 
 	switch filename {
@@ -42,63 +42,43 @@ func ReadExperiments(filename string, defaultReader io.Reader, list *redskyv1bet
 		data, err = ioutil.ReadFile(filename)
 	}
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	// Create a decoder
-	scheme := runtime.NewScheme()
-	_ = redskyv1beta1.AddToScheme(scheme)
-	_ = redskyv1alpha1.AddToScheme(scheme)
-	_ = registerListConversions(scheme)
-	cs := controller.NewConversionSerializer(scheme)
-
-	// TODO: see if we can switch to a better way of handling the serialization of the file
-	// this seems pretty fragile
-	mediaType := runtime.ContentTypeYAML
-	switch filepath.Ext(filename) {
-	case "json":
-		mediaType = runtime.ContentTypeJSON
+	reader := bytes.NewReader(data)
+	decoder := yaml.NewYAMLOrJSONDecoder(reader, 32*1024)
+	baseObj := &metav1.TypeMeta{}
+	if err = decoder.Decode(baseObj); err != nil {
+		return nil, err
 	}
 
-	info, ok := runtime.SerializerInfoForMediaType(cs.SupportedMediaTypes(), mediaType)
-	if !ok {
-		return fmt.Errorf("could not find serializer for %s", mediaType)
+	// Reset the reader
+	reader.Seek(0, 0)
+	exp = &redskyv1beta1.Experiment{}
+
+	switch baseObj.APIVersion {
+	case redskyv1alpha1.GroupVersion.String():
+		redo := &redskyv1alpha1.Experiment{}
+		if err = decoder.Decode(redo); err != nil {
+			return nil, err
+		}
+
+		if err = redo.ConvertTo(exp); err != nil {
+			return nil, err
+		}
+
+		// TODO not sure why these aren't set after the conversion
+		if exp.Kind == "" {
+			exp.Kind = "Experiment"
+		}
+		if exp.APIVersion == "" {
+			exp.APIVersion = redskyv1beta1.GroupVersion.String()
+		}
+	case redskyv1beta1.GroupVersion.String():
+		if err = decoder.Decode(exp); err != nil {
+			return nil, err
+		}
 	}
 
-	decoder := cs.DecoderToVersion(info.Serializer, runtime.InternalGroupVersioner)
-
-	// NOTE: This attempts to read an "ExperimentList", a stream of experiment YAML documents IS NOT an experiment list
-	// TODO If the mediaType is YAML we should use a `yaml.NewDocumentDecoder(...)` to get individual documents
-	gvk := redskyv1beta1.GroupVersion.WithKind("ExperimentList")
-	obj, _, err := decoder.Decode(data, &gvk, list)
-	if err != nil {
-		return err
-	}
-
-	// If the decoded object was not what we were looking, attempt to convert it
-	if obj != list {
-		return scheme.Convert(obj, list, nil)
-	}
-
-	return nil
-}
-
-func registerListConversions(s *runtime.Scheme) error {
-	// Convert from a single experiment to a list of experiments
-	if err := s.AddConversionFunc((*redskyv1beta1.Experiment)(nil), (*redskyv1beta1.ExperimentList)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		b.(*redskyv1beta1.ExperimentList).Items = []redskyv1beta1.Experiment{*a.(*redskyv1beta1.Experiment)}
-		return nil
-	}); err != nil {
-		return err
-	}
-
-	// Convert from a single v1alpha1 experiment to a list of experiments
-	if err := s.AddConversionFunc((*redskyv1alpha1.Experiment)(nil), (*redskyv1beta1.ExperimentList)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		l := b.(*redskyv1beta1.ExperimentList)
-		l.Items = make([]redskyv1beta1.Experiment, 1)
-		return scope.Convert(a, &l.Items[0], scope.Flags())
-	}); err != nil {
-		return err
-	}
-	return nil
+	return exp, nil
 }
