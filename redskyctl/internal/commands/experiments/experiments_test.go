@@ -89,7 +89,7 @@ func TestParseNames(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			names, err := parseNames(c.args)
+			names, err := ParseNames(c.args)
 			if c.err != "" {
 				assert.EqualError(t, err, c.err)
 			} else if assert.NoError(t, err) {
