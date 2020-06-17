@@ -24,6 +24,7 @@ import (
 	"github.com/redskyops/redskyops-controller/internal/server"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/experiments"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/util"
 	"github.com/spf13/cobra"
 )
 
@@ -66,7 +67,7 @@ func NewTrialCommand(o *TrialOptions) *cobra.Command {
 func (o *TrialOptions) generate() error {
 	// Read the experiments
 	experimentList := &redskyv1beta1.ExperimentList{}
-	if err := readExperiments(o.Filename, o.In, experimentList); err != nil {
+	if err := util.ReadExperiments(o.Filename, o.In, experimentList); err != nil {
 		return err
 	}
 	if len(experimentList.Items) != 1 {
