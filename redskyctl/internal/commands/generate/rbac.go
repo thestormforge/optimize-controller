@@ -26,6 +26,7 @@ import (
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/internal/config"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/util"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -98,7 +99,7 @@ func (o *RBACOptions) Complete() {
 func (o *RBACOptions) generate() error {
 	// Read the experiments
 	experimentList := &redskyv1beta1.ExperimentList{}
-	if err := readExperiments(o.Filename, o.In, experimentList); err != nil {
+	if err := util.ReadExperiments(o.Filename, o.In, experimentList); err != nil {
 		return err
 	}
 
