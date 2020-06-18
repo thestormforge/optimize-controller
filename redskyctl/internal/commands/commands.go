@@ -25,6 +25,7 @@ import (
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/configure"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/docs"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/experiments"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/export"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/generate"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/grant_permissions"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/initialize"
@@ -71,6 +72,8 @@ func NewRedskyctlCommand() *cobra.Command {
 	rootCmd.AddCommand(results.NewCommand(&results.Options{Config: cfg}))
 	rootCmd.AddCommand(revoke.NewCommand(&revoke.Options{Config: cfg}))
 	rootCmd.AddCommand(version.NewCommand(&version.Options{Config: cfg}))
+
+	rootCmd.AddCommand(export.NewCommand())
 
 	// TODO Add 'backup' and 'restore' maintenance commands ('maint' subcommands?)
 	// TODO We need helpers for doing a "dry run" on patches to make configuration easier
