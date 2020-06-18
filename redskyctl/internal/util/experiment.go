@@ -56,6 +56,10 @@ func ReadExperiment(filename string, defaultReader io.Reader) (exp *redskyv1beta
 	reader.Seek(0, 0)
 	exp = &redskyv1beta1.Experiment{}
 
+	// This seems janky?
+	// For whatever reason these values arent populated
+	exp.GetObjectKind().SetGroupVersionKind(redskyv1beta1.GroupVersion.WithKind("Experiment"))
+
 	switch baseObj.APIVersion {
 	case redskyv1alpha1.GroupVersion.String():
 		redo := &redskyv1alpha1.Experiment{}
@@ -66,15 +70,13 @@ func ReadExperiment(filename string, defaultReader io.Reader) (exp *redskyv1beta
 		if err = redo.ConvertTo(exp); err != nil {
 			return nil, err
 		}
-
-		// TODO not sure why these aren't set after the conversion
-		if exp.Kind == "" {
-			exp.Kind = "Experiment"
-		}
-		if exp.APIVersion == "" {
-			exp.APIVersion = redskyv1beta1.GroupVersion.String()
-		}
 	case redskyv1beta1.GroupVersion.String():
+		// We could probably do a fallthrough here, but would prefer to be explicit
+		if err = decoder.Decode(exp); err != nil {
+			return nil, err
+		}
+	default:
+		// Attempt to decode it as the hub/most recent version if not explicit
 		if err = decoder.Decode(exp); err != nil {
 			return nil, err
 		}
