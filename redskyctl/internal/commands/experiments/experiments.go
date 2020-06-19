@@ -67,7 +67,7 @@ type Options struct {
 	commander.IOStreams
 
 	// Names of the resources to work with
-	Names []name
+	Names []Identifier
 }
 
 func (o *Options) setNames(args []string) error {
@@ -87,7 +87,7 @@ func hasTrialNumber(t *experimentsv1alpha1.TrialItem, nums []int64) bool {
 }
 
 // name is construct for identifying an object in the Experiments API
-type name struct {
+type Identifier struct {
 	// Type is the normalized type name being named
 	Type resourceType
 	// Name is the actual name (minus the type and number if present)
@@ -97,49 +97,51 @@ type name struct {
 }
 
 // ExperimentName returns the name as a typed experiment name
-func (n *name) ExperimentName() experimentsv1alpha1.ExperimentName {
-	return experimentsv1alpha1.NewExperimentName(n.Name)
+func (id *Identifier) ExperimentName() experimentsv1alpha1.ExperimentName {
+	return experimentsv1alpha1.NewExperimentName(id.Name)
 }
 
 // numberSuffixPattern matches the trailing digits, for example the number on the end of a trial name
 var numberSuffixPattern = regexp.MustCompile(`(.*?)(?:[/\-]([[:digit:]]+))?$`)
 
 // parseNames parses a list of arguments into structured names
-func ParseNames(args []string) ([]name, error) {
+func ParseNames(args []string) ([]Identifier, error) {
 	var t resourceType
-	names := make([]name, 0, len(args))
+	ids := make([]Identifier, 0, len(args))
+
 	for _, arg := range args {
-		n := name{Type: t, Name: arg, Number: -1}
-		if sm := numberSuffixPattern.FindStringSubmatch(n.Name); sm != nil && sm[2] != "" {
-			n.Number, _ = strconv.ParseInt(sm[2], 10, 64)
-			n.Name = sm[1]
+		id := Identifier{Type: t, Name: arg, Number: -1}
+
+		if sm := numberSuffixPattern.FindStringSubmatch(id.Name); sm != nil && sm[2] != "" {
+			id.Number, _ = strconv.ParseInt(sm[2], 10, 64)
+			id.Name = sm[1]
 		}
 
-		p := strings.SplitN(n.Name, "/", 2)
+		p := strings.SplitN(id.Name, "/", 2)
 		if len(p) > 1 || t == "" {
 			nt, err := normalizeType(p[0])
 			if err != nil {
 				return nil, err
 			}
 			if len(p) > 1 {
-				n.Type = nt
-				n.Name = p[1]
+				id.Type = nt
+				id.Name = p[1]
 			} else if t == "" {
 				t = nt
 				continue
 			}
 		}
-		names = append(names, n)
+		ids = append(ids, id)
 	}
 
-	if len(names) == 0 {
+	if len(ids) == 0 {
 		if t == "" {
 			return nil, fmt.Errorf("required resource not specified")
 		}
-		names = append(names, name{Type: t, Number: -1})
+		ids = append(ids, Identifier{Type: t, Number: -1})
 	}
 
-	return names, nil
+	return ids, nil
 }
 
 // verbPrinter

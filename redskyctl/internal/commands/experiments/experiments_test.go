@@ -26,33 +26,33 @@ func TestParseNames(t *testing.T) {
 	cases := []struct {
 		desc  string
 		args  []string
-		names []name
+		names []Identifier
 		err   string
 	}{
 		{
 			desc:  "ListType",
 			args:  []string{"exp"},
-			names: []name{{Type: typeExperiment, Number: -1}},
+			names: []Identifier{{Type: typeExperiment, Number: -1}},
 		},
 		{
 			desc:  "SharedType",
 			args:  []string{"experiment", "foo", "bar"},
-			names: []name{{Type: typeExperiment, Name: "foo", Number: -1}, {Type: typeExperiment, Name: "bar", Number: -1}},
+			names: []Identifier{{Type: typeExperiment, Name: "foo", Number: -1}, {Type: typeExperiment, Name: "bar", Number: -1}},
 		},
 		{
 			desc:  "IndividualType",
 			args:  []string{"experiment/foo", "trial/bar"},
-			names: []name{{Type: typeExperiment, Name: "foo", Number: -1}, {Type: typeTrial, Name: "bar", Number: -1}},
+			names: []Identifier{{Type: typeExperiment, Name: "foo", Number: -1}, {Type: typeTrial, Name: "bar", Number: -1}},
 		},
 		{
 			desc:  "OverrideSharedType",
 			args:  []string{"experiment", "foo", "trial/bar"},
-			names: []name{{Type: typeExperiment, Name: "foo", Number: -1}, {Type: typeTrial, Name: "bar", Number: -1}},
+			names: []Identifier{{Type: typeExperiment, Name: "foo", Number: -1}, {Type: typeTrial, Name: "bar", Number: -1}},
 		},
 		{
 			desc: "SharedTypeNumbered",
 			args: []string{"trial", "foo/1", "foo/002", "foo-3", "foo-004"},
-			names: []name{
+			names: []Identifier{
 				{Type: typeTrial, Name: "foo", Number: 1},
 				{Type: typeTrial, Name: "foo", Number: 2},
 				{Type: typeTrial, Name: "foo", Number: 3},
@@ -62,7 +62,7 @@ func TestParseNames(t *testing.T) {
 		{
 			desc: "TypeNumbered",
 			args: []string{"trial/foo/1", "trial/foo/002", "trial/foo-3", "trial/foo-004"},
-			names: []name{
+			names: []Identifier{
 				{Type: typeTrial, Name: "foo", Number: 1},
 				{Type: typeTrial, Name: "foo", Number: 2},
 				{Type: typeTrial, Name: "foo", Number: 3},
@@ -72,7 +72,7 @@ func TestParseNames(t *testing.T) {
 		{
 			desc:  "Spaced",
 			args:  []string{"experiment", "Foo Bar"},
-			names: []name{{Type: typeExperiment, Name: "Foo Bar", Number: -1}},
+			names: []Identifier{{Type: typeExperiment, Name: "Foo Bar", Number: -1}},
 		},
 		{
 			desc:  "NotSpecified",
