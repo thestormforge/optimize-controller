@@ -60,7 +60,15 @@ func NewServerCommand(o *ServerOptions) *cobra.Command {
 				return err
 			}
 			commander.SetStreams(&o.IOStreams, cmd)
-			return commander.SetExperimentsAPI(&o.ExperimentsAPI, o.Config, cmd)
+
+			expAPI, err := commander.NewExperimentsAPI(cmd.Context(), o.Config)
+			if err != nil {
+				return err
+			}
+
+			o.ExperimentsAPI = expAPI
+
+			return nil
 		},
 		RunE: commander.WithoutArgsE(o.checkServer),
 	}

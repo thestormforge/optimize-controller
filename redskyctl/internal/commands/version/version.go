@@ -74,8 +74,17 @@ func NewCommand(o *Options) *cobra.Command {
 			if o.Product == "" {
 				o.Product = cmd.Root().Name()
 			}
+
 			commander.SetStreams(&o.IOStreams, cmd)
-			return commander.SetExperimentsAPI(&o.ExperimentsAPI, o.Config, cmd)
+
+			expAPI, err := commander.NewExperimentsAPI(cmd.Context(), o.Config)
+			if err != nil {
+				return err
+			}
+
+			o.ExperimentsAPI = expAPI
+
+			return nil
 		},
 		RunE: commander.WithContextE(o.version),
 	}

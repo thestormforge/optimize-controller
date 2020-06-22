@@ -49,7 +49,15 @@ func NewConfigCommand(o *ConfigOptions) *cobra.Command {
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			// TODO We should have an option to overwrite the configuration using stdin (e.g. to test connections using the controller config)
 			commander.SetStreams(&o.IOStreams, cmd)
-			return commander.SetExperimentsAPI(&o.ExperimentsAPI, o.Config, cmd)
+
+			expAPI, err := commander.NewExperimentsAPI(cmd.Context(), o.Config)
+			if err != nil {
+				return err
+			}
+
+			o.ExperimentsAPI = expAPI
+
+			return nil
 		},
 		RunE: commander.WithContextE(o.checkConfig),
 	}
