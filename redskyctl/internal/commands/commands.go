@@ -73,7 +73,7 @@ func NewRedskyctlCommand() *cobra.Command {
 	rootCmd.AddCommand(revoke.NewCommand(&revoke.Options{Config: cfg}))
 	rootCmd.AddCommand(version.NewCommand(&version.Options{Config: cfg}))
 
-	rootCmd.AddCommand(export.NewCommand())
+	rootCmd.AddCommand(export.NewCommand(cfg))
 
 	// TODO Add 'backup' and 'restore' maintenance commands ('maint' subcommands?)
 	// TODO We need helpers for doing a "dry run" on patches to make configuration easier
