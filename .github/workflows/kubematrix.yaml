@@ -51,8 +51,7 @@ jobs:
         uses: dawidd6/action-download-artifact@v2
         with:
           github_token: ${{secrets.GITHUB_TOKEN}}
-          #workflow: master.yaml
-          workflow: push.yaml
+          workflow: master.yaml
           name: redskyctl_linux_amd64
           path: dist/redskyctl_linux_amd64
           commit: ${{ github.event.pull_request.head.sha || github.sha }}
