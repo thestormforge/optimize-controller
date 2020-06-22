@@ -51,8 +51,17 @@ func NewSuggestCommand(o *SuggestOptions) *cobra.Command {
 
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			o.Names = []Identifier{{Type: typeExperiment, Name: args[0]}}
+
 			commander.SetStreams(&o.IOStreams, cmd)
-			return commander.SetExperimentsAPI(&o.ExperimentsAPI, o.Config, cmd)
+
+			expAPI, err := commander.NewExperimentsAPI(cmd.Context(), o.Config)
+			if err != nil {
+				return err
+			}
+
+			o.ExperimentsAPI = expAPI
+
+			return nil
 		},
 		RunE: commander.WithContextE(o.suggest),
 	}

@@ -66,19 +66,16 @@ func StreamsPreRun(streams *IOStreams) func(cmd *cobra.Command, args []string) {
 	}
 }
 
-// SetExperimentsAPI creates a new experiments API interface from the supplied configuration
-func SetExperimentsAPI(api *experimentsv1alpha1.API, cfg config.Config, cmd *cobra.Command) error {
-	ctx := cmd.Context()
-
+// NewExperimentsAPI creates a new experiments API interface from the supplied configuration
+func NewExperimentsAPI(ctx context.Context, cfg config.Config) (experimentsv1alpha1.API, error) {
 	// Reuse the OAuth2 base transport for the API calls
 	t := oauth2.NewClient(ctx, nil).Transport
 	c, err := redskyapi.NewClient(ctx, cfg, t)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	*api = experimentsv1alpha1.NewAPI(c)
-	return nil
+	return experimentsv1alpha1.NewAPI(c), nil
 }
 
 // SetPrinter assigns the resource printer during the pre-run of the supplied command

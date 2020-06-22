@@ -43,9 +43,14 @@ func NewLabelCommand(o *LabelOptions) *cobra.Command {
 
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			commander.SetStreams(&o.IOStreams, cmd)
-			if err := commander.SetExperimentsAPI(&o.ExperimentsAPI, o.Config, cmd); err != nil {
+
+			expAPI, err := commander.NewExperimentsAPI(cmd.Context(), o.Config)
+			if err != nil {
 				return err
 			}
+
+			o.ExperimentsAPI = expAPI
+
 			return o.setNamesAndLabels(args)
 		},
 		RunE: commander.WithContextE(o.label),
