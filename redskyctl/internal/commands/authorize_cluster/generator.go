@@ -191,6 +191,11 @@ func (o *GeneratorOptions) readConfig() (string, *config.Controller, map[string]
 }
 
 func (o *GeneratorOptions) clientInfo(ctx context.Context, ctrl *config.Controller) (*registration.ClientInformationResponse, error) {
+	// If the configuration already contains usable client information, skip the actual registration
+	if resp := localClientInformation(ctrl); resp != nil {
+		return resp, nil
+	}
+
 	// Try to read an existing client (ignore errors and just re-register)
 	if ctrl.RegistrationClientURI != "" {
 		if info, err := registration.Read(ctx, ctrl.RegistrationClientURI, ctrl.RegistrationAccessToken); err == nil {
@@ -206,6 +211,28 @@ func (o *GeneratorOptions) clientInfo(ctx context.Context, ctrl *config.Controll
 		ResponseTypes: []string{},
 	}
 	return o.Config.RegisterClient(ctx, client)
+}
+
+// localClientInformation returns a mock client information response based on local information in the current
+// configuration. This is primarily useful for debugging, e.g. when you have a client ID/secret you want to test.
+func localClientInformation(ctrl *config.Controller) *registration.ClientInformationResponse {
+	// Make sure we include the current information so they aren't lost when we update the controller configuration
+	resp := &registration.ClientInformationResponse{
+		RegistrationClientURI:   ctrl.RegistrationClientURI,
+		RegistrationAccessToken: ctrl.RegistrationAccessToken,
+	}
+	for _, v := range ctrl.Env {
+		switch v.Name {
+		case "REDSKY_AUTHORIZATION_CLIENT_ID":
+			resp.ClientID = v.Value
+		case "REDSKY_AUTHORIZATION_CLIENT_SECRET":
+			resp.ClientSecret = v.Value
+		}
+	}
+	if resp.ClientID == "" {
+		return nil
+	}
+	return resp
 }
 
 type helmValuesPrinter struct {
