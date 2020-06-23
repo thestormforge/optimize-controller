@@ -19,7 +19,6 @@ package export
 import (
 	"context"
 	"fmt"
-	"log"
 	"path/filepath"
 
 	redsky "github.com/redskyops/redskyops-controller/api/v1beta1"
@@ -74,25 +73,21 @@ func (e *ExportCommand) Run(cmd *cobra.Command, args []string) (err error) {
 	e.RedSkyAPI = api
 
 	// Read the experiment
-	log.Println("loading experiment")
 	if err = e.ReadExperimentFile(); err != nil {
 		return err
 	}
 
 	// Discover all trials for a given experiment
-	log.Println("looking up trial")
 	trialNames, err := experiments.ParseNames(append([]string{"trials"}, args...))
 	if err != nil {
 		return err
 	}
 
 	if len(trialNames) != 1 {
-		log.Println(trialNames)
 		return fmt.Errorf("only a single trial name is supported")
 	}
 
 	// Get parameters for given trial
-	log.Println("looking up trial details")
 	trial, err := e.GetTrial(cmd.Context(), trialNames[0])
 	if err != nil {
 		return err
@@ -100,7 +95,6 @@ func (e *ExportCommand) Run(cmd *cobra.Command, args []string) (err error) {
 
 	e.trial = trial
 
-	log.Println("create patches")
 	// Render all the necessary patches defined in the experiment
 	// with the parameters from the trial
 	patches, err := e.Patches(cmd.Context())
@@ -108,7 +102,6 @@ func (e *ExportCommand) Run(cmd *cobra.Command, args []string) (err error) {
 		return err
 	}
 
-	log.Println("patch resource")
 	resources, err := patchResource(patches)
 	if err != nil {
 		return err
@@ -168,12 +161,12 @@ func (e *ExportCommand) GetTrial(ctx context.Context, trialID experiments.Identi
 	}
 
 	// Convert api trial to kube trial
-	trial = redskyTrial(wantedTrial, trialID.ExperimentName().Name())
+	trial = redskyTrial(wantedTrial, trialID.ExperimentName().Name(), e.experiment.ObjectMeta.Namespace)
 
 	return trial, nil
 }
 
-func redskyTrial(apiTrial *expapi.TrialItem, expName string) (trial *redsky.Trial) {
+func redskyTrial(apiTrial *expapi.TrialItem, expName string, expNamespace string) (trial *redsky.Trial) {
 	trial = &redsky.Trial{}
 	server.ToClusterTrial(trial, &apiTrial.TrialAssignments)
 	trial.ObjectMeta.Labels = map[string]string{
@@ -181,7 +174,7 @@ func redskyTrial(apiTrial *expapi.TrialItem, expName string) (trial *redsky.Tria
 	}
 
 	// Is this actually needed?
-	// trial.ObjectMeta.Namespace = experimentFile.ObjectMeta.Namespace
+	trial.ObjectMeta.Namespace = expNamespace
 
 	return trial
 }
@@ -215,7 +208,26 @@ func (e *ExportCommand) Patches(ctx context.Context) ([]*patchNTarget, error) {
 	// Apply patch operations
 	patches := []*patchNTarget{}
 	for idx, patchOp := range e.trial.Status.PatchOperations {
-		patchBytes, err := createPatch(&patchOp)
+		kubectlGet, err := e.Config.Kubectl(ctx,
+			"-n",
+			patchOp.TargetRef.Namespace,
+			"get",
+			patchOp.TargetRef.Kind,
+			patchOp.TargetRef.Name,
+			"-o",
+			"json")
+		if err != nil {
+			return nil, err
+		}
+
+		output, err := kubectlGet.CombinedOutput()
+		if err != nil {
+			// TODO: Should we wrap the error with the output
+			// return nil, fmt.Errorf("kubectl failed with %v: %w", string(output), err)
+			return nil, err
+		}
+
+		patchBytes, err := createPatch(&patchOp, output)
 		if err != nil {
 			return nil, err
 		}
@@ -226,28 +238,6 @@ func (e *ExportCommand) Patches(ctx context.Context) ([]*patchNTarget, error) {
 				Name:      patchOp.TargetRef.Name,
 				Namespace: patchOp.TargetRef.Namespace,
 			},
-		}
-
-		// TODO: look at replacing kubectl fork with client-go
-		// so we can better mock this
-		kubectlGet, err := e.Config.Kubectl(ctx,
-			"-n",
-			patchOp.TargetRef.Namespace,
-			"get",
-			patchOp.TargetRef.Kind,
-			patchOp.TargetRef.Name,
-			"-o",
-			"json")
-		if err != nil {
-			log.Println("err 1")
-			return nil, err
-		}
-
-		output, err := kubectlGet.CombinedOutput()
-		if err != nil {
-			// TODO: Should we wrap the error with the output
-			// return nil, fmt.Errorf("kubectl failed with %v: %w", string(output), err)
-			return nil, err
 		}
 
 		pnt := &patchNTarget{
@@ -293,9 +283,11 @@ func patchResource(pnt []*patchNTarget) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	if err = fs.WriteFile(filepath.Join(base, konfig.DefaultKustomizationFileName()), kYaml); err != nil {
 		return nil, err
 	}
+
 	kustomizer := krusty.MakeKustomizer(fs, krusty.MakeDefaultOptions())
 	res, err := kustomizer.Run(base)
 	if err != nil {
