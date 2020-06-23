@@ -136,9 +136,9 @@ func (o *SuggestOptions) defaultValue(p *experimentsv1alpha1.Parameter) (*json.N
 
 func (o *SuggestOptions) assignInteractive(p *experimentsv1alpha1.Parameter, def *json.Number) (json.Number, error) {
 	if def != nil {
-		_, _ = fmt.Fprintf(o.Out, "Assignment for %v parameter '%s' [%v,%v] (%v): ", p.Type, p.Name, p.Bounds.Min, p.Bounds.Max, *def)
+		_, _ = fmt.Fprintf(o.ErrOut, "Assignment for %v parameter '%s' [%v,%v] (%v): ", p.Type, p.Name, p.Bounds.Min, p.Bounds.Max, *def)
 	} else {
-		_, _ = fmt.Fprintf(o.Out, "Assignment for %v parameter '%s' [%v,%v]: ", p.Type, p.Name, p.Bounds.Min, p.Bounds.Max)
+		_, _ = fmt.Fprintf(o.ErrOut, "Assignment for %v parameter '%s' [%v,%v]: ", p.Type, p.Name, p.Bounds.Min, p.Bounds.Max)
 	}
 
 	s := bufio.NewScanner(o.In)
