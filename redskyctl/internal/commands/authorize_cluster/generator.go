@@ -153,8 +153,8 @@ func (o *GeneratorOptions) generate(ctx context.Context) error {
 	}
 
 	// Overwrite the client credentials in the secret
-	secret.Data["REDSKY_AUTHORIZATION_CLIENT_ID"] = []byte(info.ClientID)
-	secret.Data["REDSKY_AUTHORIZATION_CLIENT_SECRET"] = []byte(info.ClientSecret)
+	mergeString(secret.Data, "REDSKY_AUTHORIZATION_CLIENT_ID", info.ClientID)
+	mergeString(secret.Data, "REDSKY_AUTHORIZATION_CLIENT_SECRET", info.ClientSecret)
 
 	// Use an alternate printer just for Helm values
 	if o.HelmValues {
@@ -162,6 +162,14 @@ func (o *GeneratorOptions) generate(ctx context.Context) error {
 	}
 
 	return o.Printer.PrintObj(secret, o.Out)
+}
+
+func mergeString(m map[string][]byte, key, value string) {
+	if value != "" {
+		m[key] = []byte(value)
+	} else {
+		delete(m, key)
+	}
 }
 
 func (o *GeneratorOptions) readConfig() (string, *config.Controller, map[string][]byte, error) {
