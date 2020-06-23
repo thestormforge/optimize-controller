@@ -41,6 +41,8 @@ type Options struct {
 	IncludeExtraPermissions bool
 	NamespaceSelector       string
 	Image                   string
+	SkipControllerRBAC      bool
+	SkipSecret              bool
 }
 
 // NewCommand creates a command for performing an initialization
@@ -59,6 +61,12 @@ func NewCommand(o *Options) *cobra.Command {
 	cmd.Flags().StringVar(&o.NamespaceSelector, "ns-selector", o.NamespaceSelector, "Create namespaced role bindings to matching namespaces.")
 	cmd.Flags().StringVar(&o.Image, "image", kustomize.BuildImage, "Specify the controller image to use.")
 
+	// Add hidden options to skip the aggregated generators
+	cmd.Flags().BoolVar(&o.SkipControllerRBAC, "skip-controller-rbac", o.SkipControllerRBAC, "Skip generation of additional controller roles.")
+	cmd.Flags().BoolVar(&o.SkipSecret, "skip-secret", o.SkipSecret, "Skip generation of secret.")
+	_ = cmd.Flags().MarkHidden("skip-controller-rbac")
+	_ = cmd.Flags().MarkHidden("skip-secret")
+
 	commander.ExitOnError(cmd)
 	return cmd
 }
@@ -73,13 +81,15 @@ func (o *Options) initialize(ctx context.Context) error {
 
 	// Generate all of the manifests using a kyaml pipeline
 	p := kio.Pipeline{
-		Inputs: []kio.Reader{
-			&kio.ByteReader{Reader: install},
-			&kio.ByteReader{Reader: o.generateControllerRBAC()},
-			&kio.ByteReader{Reader: o.generateSecret()},
-		},
+		Inputs:  []kio.Reader{&kio.ByteReader{Reader: install}},
 		Filters: []kio.Filter{kio.FilterFunc(o.filter)},
 		Outputs: []kio.Writer{kio.ByteWriter{Writer: &manifests}},
+	}
+	if !o.SkipControllerRBAC {
+		p.Inputs = append(p.Inputs, &kio.ByteReader{Reader: o.generateControllerRBAC()})
+	}
+	if !o.SkipSecret {
+		p.Inputs = append(p.Inputs, &kio.ByteReader{Reader: o.generateSecret()})
 	}
 
 	// Execute the pipeline to populate the manifests buffer
