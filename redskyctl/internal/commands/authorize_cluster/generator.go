@@ -76,6 +76,11 @@ func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 		RunE: commander.WithContextE(o.generate),
 	}
 
+	// Provide a more meaningful default client name if possible
+	if o.ClientName == "" {
+		o.ClientName = clusterName(context.TODO(), o.Config)
+	}
+
 	o.addFlags(cmd)
 
 	commander.SetKubePrinter(&o.Printer, cmd)
@@ -83,8 +88,19 @@ func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 	return cmd
 }
 
+func clusterName(ctx context.Context, cfg *config.RedSkyConfig) string {
+	kubectl, err := cfg.Kubectl(ctx, "config", "view", "--minify", "--output", "jsonpath={.clusters[0].name}")
+	if err != nil {
+		return ""
+	}
+	stdout, err := kubectl.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(stdout))
+}
+
 func (o *GeneratorOptions) addFlags(cmd *cobra.Command) {
-	// TODO Allow name to be configurable?
 	cmd.Flags().StringVar(&o.ClientName, "client-name", o.ClientName, "Client name to use for registration.")
 	cmd.Flags().BoolVar(&o.HelmValues, "helm-values", o.HelmValues, "Generate a Helm values file instead of a secret.")
 	cmd.Flags().BoolVar(&o.AllowUnauthorized, "allow-unauthorized", o.AllowUnauthorized, "Generate a secret without authorization, if necessary.")
@@ -97,17 +113,8 @@ func (o *GeneratorOptions) complete(ctx context.Context) error {
 		o.Name = "redsky-manager"
 	}
 
-	// TODO Should this be part of `NewGeneratorCommand` (before addFlags) so the default can appear in the help output?
 	if o.ClientName == "" {
-		kubectl, err := o.Config.Kubectl(ctx, "config", "view", "--minify", "--output", "jsonpath={.clusters[0].name}")
-		if err != nil {
-			return err
-		}
-		stdout, err := kubectl.Output()
-		if err != nil {
-			return err
-		}
-		o.ClientName = strings.TrimSpace(string(stdout))
+		o.ClientName = "default"
 	}
 
 	return nil
