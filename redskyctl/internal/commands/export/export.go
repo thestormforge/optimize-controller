@@ -43,10 +43,11 @@ func NewCommand(cfg config.Config) *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "export",
-		Short: "Export trial parameters",
-		Long:  "Export trial parameters to a Kubernetes object",
-		RunE:  ec.Run,
+		Use:    "export",
+		Short:  "Export trial parameters",
+		Long:   "Export trial parameters to a Kubernetes object",
+		PreRun: commander.StreamsPreRun(&ec.IOStreams),
+		RunE:   ec.Run,
 	}
 
 	// TODO mark flag as required
@@ -62,6 +63,8 @@ type ExportCommand struct {
 
 	experiment *redsky.Experiment
 	trial      *redsky.Trial
+
+	commander.IOStreams
 }
 
 func (e *ExportCommand) Run(cmd *cobra.Command, args []string) (err error) {
@@ -107,7 +110,7 @@ func (e *ExportCommand) Run(cmd *cobra.Command, args []string) (err error) {
 		return err
 	}
 
-	fmt.Println(string(resources))
+	fmt.Fprintf(e.Out, string(resources))
 
 	return nil
 }
