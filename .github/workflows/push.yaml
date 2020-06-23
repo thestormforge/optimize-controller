@@ -56,13 +56,13 @@ jobs:
         with:
           service_account_email: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_EMAIL }}
           service_account_key: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
-          project_id: ${{ secrets.GOOGLE_PROJECT_ID }}
+          project_id: redskyops
       - name: Bootstrap
         run: |
           TAG="sha-$(git rev-parse --short HEAD)"
-          echo "::set-env name=IMG::gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/redskyops-controller:${TAG}"
-          echo "::set-env name=REDSKYCTL_IMG::gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/redskyctl:${TAG}"
-          echo "::set-env name=SETUPTOOLS_IMG::gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/setuptools:${TAG}"
+          echo "::set-env name=IMG::gcr.io/redskyops/redskyops-controller:${TAG}"
+          echo "::set-env name=REDSKYCTL_IMG::gcr.io/redskyops/redskyctl:${TAG}"
+          echo "::set-env name=SETUPTOOLS_IMG::gcr.io/redskyops/setuptools:${TAG}"
           echo "::set-env name=PULL_POLICY::Always"
           echo "::set-env name=DOCKER_TAG::pr-${{ github.event.number }}"
           gcloud --quiet auth configure-docker

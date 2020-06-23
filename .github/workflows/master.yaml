@@ -44,7 +44,7 @@ jobs:
         with:
           service_account_email: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_EMAIL }}
           service_account_key: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
-          project_id: ${{ secrets.GOOGLE_PROJECT_ID }}
+          project_id: redskyops
       - name: Import GPG key
         id: import_gpg
         uses: crazy-max/ghaction-import-gpg@v2
@@ -67,8 +67,8 @@ jobs:
             TAG="sha-$(git rev-parse --short HEAD)"
             echo "::set-env name=DOCKER_TAG::canary" # TODO This should change to "latest" after the 1.6.0 release
             echo "::set-env name=IMG::gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/redskyops-controller:${TAG}"
-            echo "::set-env name=REDSKYCTL_IMG::gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/redskyctl:${TAG}"
-            echo "::set-env name=SETUPTOOLS_IMG::gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/setuptools:${TAG}"
+            echo "::set-env name=REDSKYCTL_IMG::gcr.io/redskyops/redskyctl:${TAG}"
+            echo "::set-env name=SETUPTOOLS_IMG::gcr.io/redskyops/setuptools:${TAG}"
             gcloud --quiet auth configure-docker
           fi
           echo "::set-env name=PULL_POLICY::Always"
