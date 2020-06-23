@@ -175,10 +175,9 @@ func doRegistrationRoundTrip(ctx context.Context, req *http.Request, src oauth2.
 
 	if code := r.StatusCode; code < 200 || code > 299 {
 		responseError := &ClientRegistrationErrorResponse{}
-		if err := json.Unmarshal(body, responseError); err != nil {
-			if t, _, err := mime.ParseMediaType(r.Header.Get("Content-Type")); err == nil && t != "application/json" {
-				return nil, fmt.Errorf("registration: invalid response body type; expected JSON, got: %s", t)
-			}
+		if t, _, err := mime.ParseMediaType(r.Header.Get("Content-Type")); err != nil || t != "application/json" {
+			return nil, fmt.Errorf("registration: unexpected server error (%v - %s)", code, http.StatusText(code))
+		} else if err := json.Unmarshal(body, responseError); err != nil {
 			return nil, fmt.Errorf("registration: invalid response: %v", err)
 		}
 		if responseError.ErrorCode == "" {
