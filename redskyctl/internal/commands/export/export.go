@@ -225,9 +225,7 @@ func (e *ExportCommand) Patches(ctx context.Context) ([]*patchNTarget, error) {
 
 		output, err := kubectlGet.CombinedOutput()
 		if err != nil {
-			// TODO: Should we wrap the error with the output
-			// return nil, fmt.Errorf("kubectl failed with %v: %w", string(output), err)
-			return nil, err
+			return nil, fmt.Errorf("kubectl failed with:\n%s: %w\n", string(output), err)
 		}
 
 		patchBytes, err := createPatch(&patchOp, output)
