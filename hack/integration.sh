@@ -3,7 +3,7 @@
 set -e
 
 echo "Init redskyops"
-dist/redskyctl_linux_amd64/redskyctl init
+dist/redskyctl_linux_amd64/redskyctl init --wait
 echo "Create postgres experiment"
 kustomize build hack | kubectl apply -f -
 echo "Create new trial"

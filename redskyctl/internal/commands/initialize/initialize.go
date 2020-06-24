@@ -37,6 +37,7 @@ import (
 type Options struct {
 	GeneratorOptions
 
+	Wait                    bool
 	IncludeBootstrapRole    bool
 	IncludeExtraPermissions bool
 	NamespaceSelector       string
@@ -56,6 +57,7 @@ func NewCommand(o *Options) *cobra.Command {
 		RunE:   commander.WithContextE(o.initialize),
 	}
 
+	cmd.Flags().BoolVar(&o.Wait, "wait", o.Wait, "Wait for resources to be established before returning.")
 	cmd.Flags().BoolVar(&o.IncludeBootstrapRole, "bootstrap-role", o.IncludeBootstrapRole, "Create the bootstrap role (if it does not exist).")
 	cmd.Flags().BoolVar(&o.IncludeExtraPermissions, "extra-permissions", o.IncludeExtraPermissions, "Generate permissions required for features like namespace creation")
 	cmd.Flags().StringVar(&o.NamespaceSelector, "ns-selector", o.NamespaceSelector, "Create namespaced role bindings to matching namespaces.")
@@ -108,6 +110,17 @@ func (o *Options) initialize(ctx context.Context) error {
 	kubectlApply.Stdin = &manifests
 	if err := kubectlApply.Run(); err != nil {
 		return err
+	}
+
+	// Run `kubectl wait` to ensure the CRD is installed
+	if o.Wait {
+		kubectlWait, err := o.Config.Kubectl(ctx, "wait", "crd/experiments.redskyops.dev", "crd/trials.redskyops.dev", "--for", "condition=Established")
+		if err != nil {
+			return err
+		}
+		if err := kubectlWait.Run(); err != nil {
+			return err
+		}
 	}
 
 	return nil
