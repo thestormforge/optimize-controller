@@ -29,16 +29,20 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+// Patcher contains a template engine to render
 type Patcher struct {
 	Engine *template.Engine
 }
 
+// NewPatcher initializes a Patcher
 func NewPatcher() *Patcher {
 	return &Patcher{
 		Engine: template.New(),
 	}
 }
 
+// CreatePatchOperation renders a patch template in the context of a given trial and creates a
+// PatchOperation.
 func (p *Patcher) CreatePatchOperation(t *redsky.Trial, pt *redsky.PatchTemplate) (patchOp *redsky.PatchOperation, err error) {
 	// Determine the patch type
 	var patchType types.PatchType
