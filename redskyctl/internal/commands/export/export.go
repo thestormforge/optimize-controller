@@ -50,8 +50,8 @@ func NewCommand(cfg config.Config) *cobra.Command {
 		RunE:   ec.Run,
 	}
 
-	// TODO mark flag as required
 	cmd.Flags().StringVarP(&ec.filename, "filename", "f", "", "path to experiment file")
+	cmd.MarkFlagRequired("filename")
 
 	return cmd
 }
@@ -200,8 +200,6 @@ func (e *ExportCommand) Patches(ctx context.Context) ([]*patchNTarget, error) {
 		}
 
 		if po == nil {
-			// TODO figure out how to find name
-			// Maybe just toss out experiment name
 			return nil, fmt.Errorf("failed to create a patch operation for %s", e.trial.ObjectMeta.GenerateName)
 		}
 

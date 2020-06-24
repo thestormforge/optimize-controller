@@ -204,12 +204,6 @@ func TestRenderPatch(t *testing.T) {
 			assert.NoError(t, err)
 
 			limits := deployment.Spec.Template.Spec.Containers[0].Resources.Limits
-			/*
-				yolo := limits[corev1.ResourceCPU]
-				fmt.Println((&yolo).MilliValue())
-				oloy := limits[corev1.ResourceMemory]
-				fmt.Println((&oloy).MilliValue())
-			*/
 
 			// wannabe doesnt contain the actual units ( m/Mi/Gi/etc )
 			// but since we're testing and know it, we'll just hardcode
