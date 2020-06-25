@@ -52,6 +52,7 @@ jobs:
           version: v0.8.1
           wait: 0s
       - name: Set up Google Cloud Platform
+        if: github.event.pull_request.head.repo.fork == false
         uses: GoogleCloudPlatform/github-actions/setup-gcloud@0.1.2
         with:
           service_account_email: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_EMAIL }}
@@ -65,7 +66,6 @@ jobs:
           echo "::set-env name=SETUPTOOLS_IMG::gcr.io/redskyops/setuptools:${TAG}"
           echo "::set-env name=PULL_POLICY::Always"
           echo "::set-env name=DOCKER_TAG::pr-${{ github.event.number }}"
-          gcloud --quiet auth configure-docker
       - name: Cache Go Modules
         uses: actions/cache@v1
         with:
@@ -88,11 +88,15 @@ jobs:
         uses: goreleaser/goreleaser-action@v2
         with:
           args: release --skip-sign --rm-dist
-      - name: Push Docker images
+      - name: Tag Docker images
         run: |
           docker tag "${IMG}" "${IMG%%:*}:${DOCKER_TAG}"
           docker tag "${REDSKYCTL_IMG}" "${REDSKYCTL_IMG%%:*}:${DOCKER_TAG}"
           docker tag "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:${DOCKER_TAG}"
+      - name: Push Docker images
+        if: github.event.pull_request.head.repo.fork == false
+        run: |
+          gcloud --quiet auth configure-docker
           make docker-push
           docker push "${IMG%%:*}:${DOCKER_TAG}"
           docker push "${REDSKYCTL_IMG%%:*}:${DOCKER_TAG}"
