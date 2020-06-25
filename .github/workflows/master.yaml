@@ -40,7 +40,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gobuildcache-
       - name: Set up Google Cloud Platform
-        uses: GoogleCloudPlatform/github-actions/setup-gcloud@0.1.2
+        uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
         with:
           service_account_email: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_EMAIL }}
           service_account_key: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
@@ -66,7 +66,7 @@ jobs:
           else
             TAG="sha-$(git rev-parse --short HEAD)"
             echo "::set-env name=DOCKER_TAG::canary" # TODO This should change to "latest" after the 1.6.0 release
-            echo "::set-env name=IMG::gcr.io/${{ secrets.GOOGLE_PROJECT_ID }}/redskyops-controller:${TAG}"
+            echo "::set-env name=IMG::gcr.io/redskyops/redskyops-controller:${TAG}"
             echo "::set-env name=REDSKYCTL_IMG::gcr.io/redskyops/redskyctl:${TAG}"
             echo "::set-env name=SETUPTOOLS_IMG::gcr.io/redskyops/setuptools:${TAG}"
             gcloud --quiet auth configure-docker
