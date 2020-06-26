@@ -35,7 +35,8 @@ func Test(t *testing.T) {
 		}
 	}{
 		{
-			desc: "default",
+			desc:    "default",
+			options: []Option{WithInstall()},
 			expected: struct {
 				Namespace string
 				Image     string
@@ -46,7 +47,7 @@ func Test(t *testing.T) {
 		},
 		{
 			desc:    "custom namespace",
-			options: []Option{WithNamespace("trololololo")},
+			options: []Option{WithInstall(), WithNamespace("trololololo")},
 			expected: struct {
 				Namespace string
 				Image     string
@@ -57,7 +58,7 @@ func Test(t *testing.T) {
 		},
 		{
 			desc:    "custom image",
-			options: []Option{WithImage("mycoolregistry.com/image:tag")},
+			options: []Option{WithInstall(), WithImage("mycoolregistry.com/image:tag")},
 			expected: struct {
 				Namespace string
 				Image     string

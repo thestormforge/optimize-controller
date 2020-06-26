@@ -45,7 +45,54 @@ func defaultOptions() *Kustomize {
 		Base:       "/app/base",
 		fs:         fs,
 		Kustomizer: krusty.MakeKustomizer(fs, krusty.MakeDefaultOptions()),
-		kustomize: &types.Kustomization{
+		kustomize:  &types.Kustomization{},
+	}
+}
+
+// WithResources updates the kustomization with the specified list of
+// Assets and writes them to the in memory filesystem.
+func WithResources(a map[string]*Asset) Option {
+	return func(k *Kustomize) (err error) {
+		// Write out all assets to in memory filesystem
+		for name, asset := range a {
+			k.kustomize.Resources = append(k.kustomize.Resources, name)
+
+			var assetBytes []byte
+			if assetBytes, err = asset.Bytes(); err != nil {
+				return err
+			}
+
+			if err = k.fs.WriteFile(filepath.Join(k.Base, name), assetBytes); err != nil {
+				return err
+			}
+
+		}
+		return nil
+	}
+}
+
+// WithPatches updates the kustomization with the specified list of
+// Patches and writes them to the in memory filesystem.
+func WithPatches(a map[string]types.Patch) Option {
+	return func(k *Kustomize) (err error) {
+		// Write out all assets to in memory filesystem
+		for name, patch := range a {
+			k.kustomize.Patches = append(k.kustomize.Patches, patch)
+
+			if err = k.fs.WriteFile(filepath.Join(k.Base, name), []byte(patch.Patch)); err != nil {
+				return err
+			}
+
+		}
+		return nil
+	}
+}
+
+// WithInstall initializes a kustomization with the bases of what we need
+// to perform an install/init.
+func WithInstall() Option {
+	return func(k *Kustomize) error {
+		k.kustomize = &types.Kustomization{
 			Namespace: defaultNamespace,
 			Images: []types.Image{
 				{
@@ -54,7 +101,12 @@ func defaultOptions() *Kustomize {
 					NewTag:  strings.Split(BuildImage, ":")[1],
 				},
 			},
-		},
+		}
+
+		// Pull in the default bundled resources
+		WithResources(Assets)(k)
+
+		return nil
 	}
 }
 
