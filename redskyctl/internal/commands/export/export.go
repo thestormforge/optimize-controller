@@ -19,7 +19,6 @@ package export
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 
 	redsky "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/internal/patch"
@@ -28,13 +27,10 @@ import (
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/experiments"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/config"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/kustomize"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/util"
 	"github.com/spf13/cobra"
-	"sigs.k8s.io/kustomize/api/filesys"
-	"sigs.k8s.io/kustomize/api/konfig"
-	"sigs.k8s.io/kustomize/api/krusty"
 	"sigs.k8s.io/kustomize/api/types"
-	"sigs.k8s.io/yaml"
 )
 
 func NewCommand(cfg config.Config) *cobra.Command {
@@ -253,45 +249,16 @@ func (e *ExportCommand) Patches(ctx context.Context) ([]*patchNTarget, error) {
 }
 
 func patchResource(pnt []*patchNTarget) ([]byte, error) {
-	k := &types.Kustomization{}
-
-	// Set up a kustomize target
-	// TODO see how we can integrate this with kustomize pkg
-	fs := filesys.MakeFsInMemory()
-	base := "/app/base"
-
-	var err error
+	resources := make(map[string]*kustomize.Asset)
+	patches := make(map[string]types.Patch)
 
 	for _, p := range pnt {
-		if err = fs.WriteFile(filepath.Join(base, p.PatchName), []byte(p.Patch.Patch)); err != nil {
-			return nil, err
-		}
-
-		k.Patches = append(k.Patches, p.Patch)
-
-		// Only write target out once
-		if exists := fs.Exists(filepath.Join(base, p.TargetName)); !exists {
-			if err = fs.WriteFile(filepath.Join(base, p.TargetName), p.Target); err != nil {
-				return nil, err
-			}
-			k.Resources = append(k.Resources, p.TargetName)
-		}
+		patches[p.PatchName] = p.Patch
+		resources[p.TargetName] = kustomize.NewAssetFromBytes(p.Target)
 	}
 
-	kYaml, err := yaml.Marshal(k)
-	if err != nil {
-		return nil, err
-	}
-
-	if err = fs.WriteFile(filepath.Join(base, konfig.DefaultKustomizationFileName()), kYaml); err != nil {
-		return nil, err
-	}
-
-	kustomizer := krusty.MakeKustomizer(fs, krusty.MakeDefaultOptions())
-	res, err := kustomizer.Run(base)
-	if err != nil {
-		return nil, err
-	}
-
-	return res.AsYaml()
+	return kustomize.Yamls(
+		kustomize.WithResources(resources),
+		kustomize.WithPatches(patches),
+	)
 }
