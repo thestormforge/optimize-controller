@@ -73,7 +73,7 @@ The `redskyctl init` command will attempt to run a container in the default name
 If you have specific security requirements or the default RBAC configuration for the easy install is too permissive for your environment, there are a number of ways to obtain the raw Red Sky Ops Controller manifests:
 
 1. Using `redskyctl generate install` will print the raw manifests used during installation, however this still requires creating a Kubernetes pod.
-2. Using Docker to run the `setuptools` image directly. For example, `docker container run --rm $(redskyctl version --setuptools)` will produce the same output as `redskyctl generate install --bootstrap-role=false` without requiring a configured Kubernetes context.
+2. Using Docker to run the `setuptools` image directly. For example, `docker container run --rm $(redskyctl version --setuptools-img)` will produce the same output as `redskyctl generate install --bootstrap-role=false` without requiring a configured Kubernetes context.
 
 ## Upgrading the Red Sky Ops Controller
 
