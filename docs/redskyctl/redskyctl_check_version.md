@@ -1,20 +1,19 @@
-## redskyctl generate install
+## redskyctl check version
 
-Generate Red Sky Ops manifests
+Check for the latest version number
 
 ### Synopsis
 
-Generate installation manifests for Red Sky Ops
+Check the current version number against the latest
 
 ```
-redskyctl generate install [flags]
+redskyctl check version [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help           help for install
-      --image string   Specify the controller image to use. (default "controller:latest")
+  -h, --help   help for version
 ```
 
 ### Options inherited from parent commands
@@ -28,5 +27,5 @@ redskyctl generate install [flags]
 
 ### SEE ALSO
 
-* [redskyctl generate](redskyctl_generate.md)	 - Generate Red Sky Ops objects
+* [redskyctl check](redskyctl_check.md)	 - Run a consistency check
 

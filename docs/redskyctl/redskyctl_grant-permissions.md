@@ -15,6 +15,8 @@ redskyctl grant-permissions [flags]
 ```
       --create-trial-namespace   Include trial namespace creation permissions.
   -h, --help                     help for grant-permissions
+      --include-manager          Bind manager to matching namespaces.
+      --ns-selector string       Bind to matching namespaces.
       --skip-default             Skip default permissions.
 ```
 

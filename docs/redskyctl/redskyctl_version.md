@@ -13,9 +13,10 @@ redskyctl version [flags]
 ### Options
 
 ```
-      --debug        Display debugging information.
-  -h, --help         help for version
-      --setuptools   Print only the name of the setuptools image.
+      --controller-image   Print only the name of the controller image.
+      --debug              Display debugging information.
+  -h, --help               help for version
+      --setuptools-image   Print only the name of the setuptools image.
 ```
 
 ### Options inherited from parent commands

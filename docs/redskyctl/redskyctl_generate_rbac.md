@@ -13,11 +13,13 @@ redskyctl generate rbac [flags]
 ### Options
 
 ```
-  -f, --filename string    File that contains the experiment to extract roles from.
-  -h, --help               help for rbac
-      --include-names      Include resource names in the generated role.
-  -o, --output format      Output format. One of: json|yaml (default "yaml")
-      --role-name string   Name of the cluster role to generate (default is to use a generated name).
+      --cluster-role           Generate a cluster role. (default true)
+      --cluster-role-binding   When generating a cluster role, also generate a cluster role binding. (default true)
+  -f, --filename string        File that contains the experiment to extract roles from.
+  -h, --help                   help for rbac
+      --include-names          Include resource names in the generated role.
+  -o, --output format          Output format. One of: json|yaml (default "yaml")
+      --role-name string       Name of the cluster role to generate (default is to use a generated name).
 ```
 
 ### Options inherited from parent commands
