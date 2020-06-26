@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os/exec"
 	"strings"
 
 	"github.com/redskyops/redskyops-controller/internal/config"
@@ -78,7 +79,7 @@ func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 
 	// Provide a more meaningful default client name if possible
 	if o.ClientName == "" {
-		o.ClientName = clusterName(context.TODO(), o.Config)
+		o.ClientName = clusterName()
 	}
 
 	o.addFlags(cmd)
@@ -88,11 +89,8 @@ func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 	return cmd
 }
 
-func clusterName(ctx context.Context, cfg *config.RedSkyConfig) string {
-	kubectl, err := cfg.Kubectl(ctx, "config", "view", "--minify", "--output", "jsonpath={.clusters[0].name}")
-	if err != nil {
-		return ""
-	}
+func clusterName() string {
+	kubectl := exec.Command("kubectl", "config", "view", "--minify", "--output", "jsonpath={.clusters[0].name}")
 	stdout, err := kubectl.Output()
 	if err != nil {
 		return ""

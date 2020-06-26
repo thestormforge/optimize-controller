@@ -136,6 +136,6 @@ endif
 # Generate CLI and API documentation
 generate-docs:
 	rm -rf docs/redskyctl docs/api
-	go run -ldflags '$(LDFLAGS)' redskyctl/main.go docs --directory docs/redskyctl
+	KUBECONFIG="xxx" go run -ldflags '$(LDFLAGS)' redskyctl/main.go docs --directory docs/redskyctl
 	go run -ldflags '$(LDFLAGS)' redskyctl/main.go docs --directory docs/api/v1beta1 --source api/v1beta1 --doc-type api
 	go run -ldflags '$(LDFLAGS)' redskyctl/main.go docs --directory docs/api/v1alpha1 --source api/v1alpha1 --doc-type api
