@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os/exec"
 	"strings"
 
 	"github.com/redskyops/redskyops-controller/internal/config"
@@ -76,6 +77,11 @@ func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 		RunE: commander.WithContextE(o.generate),
 	}
 
+	// Provide a more meaningful default client name if possible
+	if o.ClientName == "" {
+		o.ClientName = clusterName()
+	}
+
 	o.addFlags(cmd)
 
 	commander.SetKubePrinter(&o.Printer, cmd)
@@ -83,8 +89,16 @@ func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 	return cmd
 }
 
+func clusterName() string {
+	kubectl := exec.Command("kubectl", "config", "view", "--minify", "--output", "jsonpath={.clusters[0].name}")
+	stdout, err := kubectl.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(stdout))
+}
+
 func (o *GeneratorOptions) addFlags(cmd *cobra.Command) {
-	// TODO Allow name to be configurable?
 	cmd.Flags().StringVar(&o.ClientName, "client-name", o.ClientName, "Client name to use for registration.")
 	cmd.Flags().BoolVar(&o.HelmValues, "helm-values", o.HelmValues, "Generate a Helm values file instead of a secret.")
 	cmd.Flags().BoolVar(&o.AllowUnauthorized, "allow-unauthorized", o.AllowUnauthorized, "Generate a secret without authorization, if necessary.")
@@ -97,17 +111,8 @@ func (o *GeneratorOptions) complete(ctx context.Context) error {
 		o.Name = "redsky-manager"
 	}
 
-	// TODO Should this be part of `NewGeneratorCommand` (before addFlags) so the default can appear in the help output?
 	if o.ClientName == "" {
-		kubectl, err := o.Config.Kubectl(ctx, "config", "view", "--minify", "--output", "jsonpath={.clusters[0].name}")
-		if err != nil {
-			return err
-		}
-		stdout, err := kubectl.Output()
-		if err != nil {
-			return err
-		}
-		o.ClientName = strings.TrimSpace(string(stdout))
+		o.ClientName = "default"
 	}
 
 	return nil
@@ -146,8 +151,8 @@ func (o *GeneratorOptions) generate(ctx context.Context) error {
 	}
 
 	// Overwrite the client credentials in the secret
-	secret.Data["REDSKY_AUTHORIZATION_CLIENT_ID"] = []byte(info.ClientID)
-	secret.Data["REDSKY_AUTHORIZATION_CLIENT_SECRET"] = []byte(info.ClientSecret)
+	mergeString(secret.Data, "REDSKY_AUTHORIZATION_CLIENT_ID", info.ClientID)
+	mergeString(secret.Data, "REDSKY_AUTHORIZATION_CLIENT_SECRET", info.ClientSecret)
 
 	// Use an alternate printer just for Helm values
 	if o.HelmValues {
@@ -155,6 +160,14 @@ func (o *GeneratorOptions) generate(ctx context.Context) error {
 	}
 
 	return o.Printer.PrintObj(secret, o.Out)
+}
+
+func mergeString(m map[string][]byte, key, value string) {
+	if value != "" {
+		m[key] = []byte(value)
+	} else {
+		delete(m, key)
+	}
 }
 
 func (o *GeneratorOptions) readConfig() (string, *config.Controller, map[string][]byte, error) {
@@ -176,6 +189,11 @@ func (o *GeneratorOptions) readConfig() (string, *config.Controller, map[string]
 }
 
 func (o *GeneratorOptions) clientInfo(ctx context.Context, ctrl *config.Controller) (*registration.ClientInformationResponse, error) {
+	// If the configuration already contains usable client information, skip the actual registration
+	if resp := localClientInformation(ctrl); resp != nil {
+		return resp, nil
+	}
+
 	// Try to read an existing client (ignore errors and just re-register)
 	if ctrl.RegistrationClientURI != "" {
 		if info, err := registration.Read(ctx, ctrl.RegistrationClientURI, ctrl.RegistrationAccessToken); err == nil {
@@ -191,6 +209,28 @@ func (o *GeneratorOptions) clientInfo(ctx context.Context, ctrl *config.Controll
 		ResponseTypes: []string{},
 	}
 	return o.Config.RegisterClient(ctx, client)
+}
+
+// localClientInformation returns a mock client information response based on local information in the current
+// configuration. This is primarily useful for debugging, e.g. when you have a client ID/secret you want to test.
+func localClientInformation(ctrl *config.Controller) *registration.ClientInformationResponse {
+	// Make sure we include the current information so they aren't lost when we update the controller configuration
+	resp := &registration.ClientInformationResponse{
+		RegistrationClientURI:   ctrl.RegistrationClientURI,
+		RegistrationAccessToken: ctrl.RegistrationAccessToken,
+	}
+	for _, v := range ctrl.Env {
+		switch v.Name {
+		case "REDSKY_AUTHORIZATION_CLIENT_ID":
+			resp.ClientID = v.Value
+		case "REDSKY_AUTHORIZATION_CLIENT_SECRET":
+			resp.ClientSecret = v.Value
+		}
+	}
+	if resp.ClientID == "" {
+		return nil
+	}
+	return resp
 }
 
 type helmValuesPrinter struct {
