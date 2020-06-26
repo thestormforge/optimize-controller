@@ -10,6 +10,15 @@ Output shell completion code which can be evaluated to provide interactive compl
 redskyctl completion SHELL [flags]
 ```
 
+### Examples
+
+```
+# Load the completion code for zsh into the current shell
+source <(redskyctl completion zsh)
+# Set the completion code for zsh to autoload (assuming '$ZSH/completions' is part of 'fpath')
+redskyctl completion zsh > $ZSH/completions/_redskyctl
+```
+
 ### Options
 
 ```

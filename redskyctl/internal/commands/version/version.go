@@ -28,6 +28,7 @@ import (
 	experimentsv1alpha1 "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/config"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/kustomize"
 	"github.com/spf13/cobra"
 )
 
@@ -56,6 +57,8 @@ type Options struct {
 	Product string
 	// ShowSetupToolsImage toggles the setup tools image information
 	ShowSetupToolsImage bool
+	// ShowControllerImage toggles the controller image information
+	ShowControllerImage bool
 	// Debug enables error logging
 	Debug bool
 }
@@ -77,7 +80,8 @@ func NewCommand(o *Options) *cobra.Command {
 		RunE: commander.WithContextE(o.version),
 	}
 
-	cmd.Flags().BoolVar(&o.ShowSetupToolsImage, "setuptools", false, "Print only the name of the setuptools image.")
+	cmd.Flags().BoolVar(&o.ShowSetupToolsImage, "setuptools-image", false, "Print only the name of the setuptools image.")
+	cmd.Flags().BoolVar(&o.ShowControllerImage, "controller-image", false, "Print only the name of the controller image.")
 	cmd.Flags().BoolVar(&o.Debug, "debug", o.Debug, "Display debugging information.")
 
 	commander.ExitOnError(cmd)
@@ -85,9 +89,12 @@ func NewCommand(o *Options) *cobra.Command {
 }
 
 func (o *Options) version(ctx context.Context) error {
-	// The setup tools image name needs to be printed by itself
+	// The show image names need to be printed by themselves
 	if o.ShowSetupToolsImage {
 		_, _ = fmt.Fprintln(o.Out, setup.Image)
+		return nil
+	} else if o.ShowControllerImage {
+		_, _ = fmt.Fprintln(o.Out, kustomize.BuildImage)
 		return nil
 	}
 

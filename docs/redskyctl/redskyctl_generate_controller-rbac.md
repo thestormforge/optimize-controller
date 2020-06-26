@@ -1,4 +1,4 @@
-## redskyctl generate bootstrap-cluster-role
+## redskyctl generate controller-rbac
 
 Generate Red Sky Ops permissions
 
@@ -7,14 +7,16 @@ Generate Red Sky Ops permissions
 Generate RBAC for Red Sky Ops
 
 ```
-redskyctl generate bootstrap-cluster-role [flags]
+redskyctl generate controller-rbac [flags]
 ```
 
 ### Options
 
 ```
       --create-trial-namespace   Include trial namespace creation permissions.
-  -h, --help                     help for bootstrap-cluster-role
+  -h, --help                     help for controller-rbac
+      --include-manager          Bind manager to matching namespaces.
+      --ns-selector string       Bind to matching namespaces.
   -o, --output format            Output format. One of: json|yaml (default "yaml")
       --skip-default             Skip default permissions.
 ```

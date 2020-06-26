@@ -56,25 +56,6 @@ If you are subscribing to the Enterprise product, please contact your sales repr
 
 Additional information can be found in the [Server Configuration](remote.md) section.
 
-### RBAC Requirements
-
-Red Sky Ops uses Kubernetes jobs to implement trial runs along with custom resources describing the experiment and trial. The Red Sky Ops Controller needs full permission to manipulate these resources. Additionally, the Red Sky Ops Controller must be able to list core pods, services, and namespaces.
-
-The exact role requirements for a specific version can be reproduced using Kustomize, for example to view the [roles for v1.5.2](https://github.com/redskyops/redskyops-controller/tree/v1.5.2/config/rbac):
-
-```sh
-kustomize build 'github.com/redskyops/redskyops-controller/config/rbac/?ref=v1.5.2'
-```
-
-The `redskyctl init` command will attempt to run a container in the default namespace of current context from your Kubernetes configuration. The container being run generates the manifests required for installation (see "Advanced Installation" for more details). Running the container requires "create" permission for the core "pods" resource.
-
-### Advanced Installation
-
-If you have specific security requirements or the default RBAC configuration for the easy install is too permissive for your environment, there are a number of ways to obtain the raw Red Sky Ops Controller manifests:
-
-1. Using `redskyctl generate install` will print the raw manifests used during installation, however this still requires creating a Kubernetes pod.
-2. Using Docker to run the `setuptools` image directly. For example, `docker container run --rm $(redskyctl version --setuptools)` will produce the same output as `redskyctl generate install --bootstrap-role=false` without requiring a configured Kubernetes context.
-
 ## Upgrading the Red Sky Ops Controller
 
 The preferred way to upgrade the Red Sky Ops Controller is to install the latest version of `redskyctl` locally and run `redskyctl init`. Use `redskyctl version` to check the current version numbers.
@@ -86,3 +67,21 @@ In some cases there may be incompatibilities between versions requiring an unins
 To remove the Red Sky Ops Controller completely from your cluster, run `redskyctl reset`.
 
 *IMPORTANT* Running the reset command will also remove all of the Red Sky Ops data. Ensure you have backed up any information in the cluster prior to running this command.
+
+## Advanced Installation Topics
+
+Controller installation involves generating manifests and applying them to your cluster using `kubectl`. If you have specific security requirements, or if the default RBAC configuration for the easy install is too permissive for your environment, or if you just want to inspect the manifests prior to installation, you can obtain the raw Red Sky Ops Controller manifests using the `redskyctl` command:
+
+```sh
+# Generate the controller manifests
+redskyctl generate install
+
+# Generate the additional patching role and binding
+redskyctl generate controller-rbac
+```
+
+### RBAC Requirements
+
+The Red Sky Ops Controller uses Kubernetes jobs to implement trial runs along with custom resources describing the experiment and trial. The Red Sky Ops Controller needs full permission to manipulate these resources. Additionally, the Red Sky Ops Controller must be able to list core pods, services, and namespaces.
+
+The exact permissions required for a particular version can be found by inspecting the output of the `redskyctl generate ...` commands.

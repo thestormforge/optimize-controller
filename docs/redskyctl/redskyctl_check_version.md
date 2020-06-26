@@ -1,22 +1,19 @@
-## redskyctl version
+## redskyctl check version
 
-Print the version information
+Check for the latest version number
 
 ### Synopsis
 
-Print the version information for Red Sky Ops components
+Check the current version number against the latest
 
 ```
-redskyctl version [flags]
+redskyctl check version [flags]
 ```
 
 ### Options
 
 ```
-      --controller-image   Print only the name of the controller image.
-      --debug              Display debugging information.
-  -h, --help               help for version
-      --setuptools-image   Print only the name of the setuptools image.
+  -h, --help   help for version
 ```
 
 ### Options inherited from parent commands
@@ -30,5 +27,5 @@ redskyctl version [flags]
 
 ### SEE ALSO
 
-* [redskyctl](redskyctl.md)	 - Kubernetes Exploration
+* [redskyctl check](redskyctl_check.md)	 - Run a consistency check
 

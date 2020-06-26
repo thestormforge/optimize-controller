@@ -27,4 +27,5 @@ Run a consistency check on Red Sky Ops components
 * [redskyctl check config](redskyctl_check_config.md)	 - Check the configuration
 * [redskyctl check experiment](redskyctl_check_experiment.md)	 - Check an experiment
 * [redskyctl check server](redskyctl_check_server.md)	 - Check the server
+* [redskyctl check version](redskyctl_check_version.md)	 - Check for the latest version number
 
