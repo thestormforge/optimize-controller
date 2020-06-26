@@ -80,8 +80,8 @@ func NewCommand(o *Options) *cobra.Command {
 		RunE: commander.WithContextE(o.version),
 	}
 
-	cmd.Flags().BoolVar(&o.ShowSetupToolsImage, "setuptools-img", false, "Print only the name of the setuptools image.")
-	cmd.Flags().BoolVar(&o.ShowControllerImage, "controller-img", false, "Print only the name of the controller image.")
+	cmd.Flags().BoolVar(&o.ShowSetupToolsImage, "setuptools-image", false, "Print only the name of the setuptools image.")
+	cmd.Flags().BoolVar(&o.ShowControllerImage, "controller-image", false, "Print only the name of the controller image.")
 	cmd.Flags().BoolVar(&o.Debug, "debug", o.Debug, "Display debugging information.")
 
 	commander.ExitOnError(cmd)
