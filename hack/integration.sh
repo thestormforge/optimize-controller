@@ -3,8 +3,8 @@
 set -e
 
 echo "Upload image to KinD"
-kind load docker-image "${IMG}" --name chart-testing
-kind load docker-image "${SETUPTOOLS_IMG}" --name chart-testing
+[[ -n "${IMG}" ]] && kind load docker-image "${IMG}" --name chart-testing
+[[ -n "${SETUPTOOLS_IMG}" ]] && kind load docker-image "${SETUPTOOLS_IMG}" --name chart-testing
 echo "Init redskyops"
 dist/redskyctl_linux_amd64/redskyctl init --wait
 echo "Create postgres experiment"
