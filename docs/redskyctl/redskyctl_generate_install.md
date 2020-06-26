@@ -13,8 +13,7 @@ redskyctl generate install [flags]
 ### Options
 
 ```
-  -h, --help           help for install
-      --image string   Specify the controller image to use. (default "controller:latest")
+  -h, --help   help for install
 ```
 
 ### Options inherited from parent commands

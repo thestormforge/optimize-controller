@@ -53,6 +53,7 @@ func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&o.Image, "image", kustomize.BuildImage, "Specify the controller image to use.")
+	_ = cmd.Flags().MarkHidden("image")
 
 	commander.ExitOnError(cmd)
 	return cmd
