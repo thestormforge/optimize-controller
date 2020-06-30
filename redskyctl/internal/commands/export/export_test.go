@@ -82,17 +82,19 @@ func TestLookupTrial(t *testing.T) {
 		expectedError bool
 		e             *ExportCommand
 		trialName     string
+		trialLabel    map[string]string
 	}{
 		{
 			desc:          "default",
 			expectedError: false,
 			e:             &ExportCommand{RedSkyAPI: &fakeRedSkyServer{}, experiment: exp},
-			trialName:     "test-1234",
+			trialName:     "test-1234", // name isnt actually used in the fake api, so this can be anything
 		},
 		{
 			desc:          "no api",
 			expectedError: true,
 			e:             &ExportCommand{experiment: exp},
+			trialName:     "yolo-1234",
 		},
 		{
 			desc:          "bad trial",
@@ -100,21 +102,38 @@ func TestLookupTrial(t *testing.T) {
 			e:             &ExportCommand{RedSkyAPI: &fakeRedSkyServer{}, experiment: exp},
 			trialName:     "test-test",
 		},
+		{
+			desc:          "trial from label",
+			expectedError: true,
+			e:             &ExportCommand{RedSkyAPI: &fakeRedSkyServer{}, experiment: exp},
+			trialLabel:    map[string]string{"best": "true"}, // label isnt actually used in the fake api, so this can be anything
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("%q", tc.desc), func(t *testing.T) {
-			trialNames, err := experiments.ParseNames(append([]string{"trials", tc.trialName}))
-			assert.NoError(t, err)
+			var err error
 
-			trial, err := tc.e.GetTrial(context.Background(), trialNames[0])
+			switch {
+			case tc.trialName != "":
+				var trialNames []experiments.Identifier
+				trialNames, err = experiments.ParseNames(append([]string{"trials", tc.trialName}))
+				assert.NoError(t, err)
+
+				err = tc.e.GetTrialByID(context.Background(), trialNames[0])
+			case tc.trialLabel != nil:
+				err = tc.e.GetTrialByLabel(context.Background(), tc.trialLabel)
+			default:
+				t.Error("tc.trialName or tc.trialLabel must be specified")
+			}
+
 			if tc.expectedError {
 				assert.Error(t, err)
 				return
 			}
 
 			assert.NoError(t, err)
-			assert.Equal(t, len(trial.Spec.Assignments), 2)
+			assert.Equal(t, len(tc.e.trial.Spec.Assignments), 2)
 		})
 	}
 }

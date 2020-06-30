@@ -46,8 +46,10 @@ func NewCommand(cfg config.Config) *cobra.Command {
 		RunE:   ec.Run,
 	}
 
-	cmd.Flags().StringVarP(&ec.filename, "filename", "f", "", "path to experiment file")
-	cmd.MarkFlagRequired("filename")
+	cmd.Flags().StringVarP(&ec.filename, "experiment", "f", "", "path to experiment file")
+	cmd.Flags().StringVarP(&ec.trialName, "trialname", "t", "", "name of trial (ex. postgres-123)")
+	cmd.Flags().StringToStringVarP(&ec.label, "label", "l", nil, "label selector for a trial in k=v format (ex. best=true)")
+	cmd.MarkFlagRequired("experiment")
 
 	return cmd
 }
@@ -56,6 +58,8 @@ type ExportCommand struct {
 	Config    config.Config
 	RedSkyAPI expapi.API
 	filename  string
+	trialName string
+	label     map[string]string
 
 	experiment *redsky.Experiment
 	trial      *redsky.Trial
@@ -76,23 +80,29 @@ func (e *ExportCommand) Run(cmd *cobra.Command, args []string) (err error) {
 		return err
 	}
 
-	// Discover all trials for a given experiment
-	trialNames, err := experiments.ParseNames(append([]string{"trials"}, args...))
-	if err != nil {
-		return err
-	}
+	switch {
+	case e.trialName != "":
+		// Discover all trials for a given experiment
+		trialNames, err := experiments.ParseNames(append([]string{"trials"}, e.trialName))
+		if err != nil {
+			return err
+		}
 
-	if len(trialNames) != 1 {
-		return fmt.Errorf("only a single trial name is supported")
-	}
+		if len(trialNames) != 1 {
+			return fmt.Errorf("only a single trial name is supported")
+		}
 
-	// Get parameters for given trial
-	trial, err := e.GetTrial(cmd.Context(), trialNames[0])
-	if err != nil {
-		return err
+		// Get parameters for given trial
+		if err := e.GetTrialByID(cmd.Context(), trialNames[0]); err != nil {
+			return err
+		}
+	case e.label != nil:
+		if err := e.GetTrialByLabel(cmd.Context(), e.label); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("a trial name or label selector must be specified")
 	}
-
-	e.trial = trial
 
 	// Render all the necessary patches defined in the experiment
 	// with the parameters from the trial
@@ -123,27 +133,14 @@ func (e *ExportCommand) ReadExperimentFile() (err error) {
 	return nil
 }
 
-func (e *ExportCommand) GetTrial(ctx context.Context, trialID experiments.Identifier) (trial *redsky.Trial, err error) {
-	if e.RedSkyAPI == nil {
-		return nil, fmt.Errorf("unable to connect to api server")
-	}
-
-	experiment, err := e.RedSkyAPI.GetExperimentByName(ctx, trialID.ExperimentName())
-	if err != nil {
-		return trial, err
-	}
-
+func (e *ExportCommand) GetTrialByID(ctx context.Context, trialID experiments.Identifier) (err error) {
 	query := &expapi.TrialListQuery{
 		Status: []expapi.TrialStatus{expapi.TrialCompleted},
 	}
 
-	if experiment.TrialsURL == "" {
-		return trial, fmt.Errorf("unable to identify trial")
-	}
-
-	trialList, err := e.RedSkyAPI.GetAllTrials(ctx, experiment.TrialsURL, query)
+	trialList, err := e.getTrials(ctx, query)
 	if err != nil {
-		return trial, err
+		return err
 	}
 
 	// Isolate the given trial we want by number
@@ -156,13 +153,49 @@ func (e *ExportCommand) GetTrial(ctx context.Context, trialID experiments.Identi
 	}
 
 	if wantedTrial == nil {
-		return trial, fmt.Errorf("trial not found")
+		return fmt.Errorf("trial not found")
 	}
 
 	// Convert api trial to kube trial
-	trial = redskyTrial(wantedTrial, trialID.ExperimentName().Name(), e.experiment.ObjectMeta.Namespace)
+	e.trial = redskyTrial(wantedTrial, trialID.ExperimentName().Name(), e.experiment.ObjectMeta.Namespace)
 
-	return trial, nil
+	return nil
+}
+
+func (e *ExportCommand) GetTrialByLabel(ctx context.Context, label map[string]string) (err error) {
+	query := &expapi.TrialListQuery{
+		Status:        []expapi.TrialStatus{expapi.TrialCompleted},
+		LabelSelector: label,
+	}
+
+	trials, err := e.getTrials(ctx, query)
+	if err != nil {
+		return err
+	}
+
+	if len(trials.Trials) != 1 {
+		return fmt.Errorf("only a single trial should be matched, got %d", len(trials.Trials))
+	}
+
+	e.trial = redskyTrial(&trials.Trials[0], e.experiment.ObjectMeta.Name, e.experiment.ObjectMeta.Namespace)
+	return err
+}
+
+func (e *ExportCommand) getTrials(ctx context.Context, query *expapi.TrialListQuery) (trialList expapi.TrialList, err error) {
+	if e.RedSkyAPI == nil {
+		return trialList, fmt.Errorf("unable to connect to api server")
+	}
+
+	experiment, err := e.RedSkyAPI.GetExperimentByName(ctx, expapi.NewExperimentName(e.experiment.ObjectMeta.Name))
+	if err != nil {
+		return trialList, err
+	}
+
+	if experiment.TrialsURL == "" {
+		return trialList, fmt.Errorf("unable to identify trial")
+	}
+
+	return e.RedSkyAPI.GetAllTrials(ctx, experiment.TrialsURL, query)
 }
 
 func redskyTrial(apiTrial *expapi.TrialItem, expName string, expNamespace string) (trial *redsky.Trial) {

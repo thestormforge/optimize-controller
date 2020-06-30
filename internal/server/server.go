@@ -113,7 +113,7 @@ func FromCluster(in *redskyv1beta1.Experiment) (redskyapi.ExperimentName, *redsk
 		})
 	}
 
-	n := redskyapi.NewExperimentName(in.Name)
+	n := redskyapi.NewExperimentName(in.ObjectMeta.Name)
 	return n, out
 }
 

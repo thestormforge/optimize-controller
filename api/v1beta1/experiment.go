@@ -50,7 +50,7 @@ func (in *Experiment) TrialSelector() *metav1.LabelSelector {
 
 	return &metav1.LabelSelector{
 		MatchLabels: map[string]string{
-			LabelExperiment: in.Name,
+			LabelExperiment: in.ObjectMeta.Name,
 		},
 	}
 }
