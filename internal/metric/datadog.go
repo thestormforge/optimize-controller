@@ -33,7 +33,7 @@ func captureDatadogMetric(aggregator, query string, startTime, completionTime ti
 
 	applicationKey := os.Getenv("DATADOG_APP_KEY")
 	if applicationKey == "" {
-		apiKey = os.Getenv("DD_APP_KEY")
+		applicationKey = os.Getenv("DD_APP_KEY")
 	}
 
 	client := datadog.NewClient(apiKey, applicationKey)
