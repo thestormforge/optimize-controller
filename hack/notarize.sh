@@ -40,6 +40,7 @@ doNotarizeInfo() {
 
 # Submit the Zip file for notarization, retain the request identifier
 REQUEST_UUID="$(doNotarizeApp "$WORKDIR/$NAME.zip" | jq -r '.RequestUUID')"
+[ "${REQUEST_UUID:-null}" != "null" ] || { echo >&2 "notarization request was not submitted"; exit 1; }
 echo >&2 "notarization request submitted id=$REQUEST_UUID"
 
 # Wait for a result

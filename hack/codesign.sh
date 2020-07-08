@@ -33,6 +33,8 @@ security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
 # Import the signing identity to the temporary keychain
 security import <(printenv AC_IDENTITY_P12 | base64 -D) -f pkcs12 -k "$KEYCHAIN" -P "$AC_IDENTITY_PASSPHRASE" -T "$(command -v codesign)" >/dev/null
 IDENTITY="$(security find-identity -v -p "codesigning" "$KEYCHAIN" | grep "1)" | awk '{print $2}')"
+[ -n "${IDENTITY:-}" ] || { echo >&2 "failed to import signing identity"; exit 1; }
+echo >&2 "signing with id=$IDENTITY"
 
 # Update the keychain search list so codesign can use it
 security list-keychains -d user -s "$KEYCHAIN"
