@@ -34,7 +34,7 @@ dockers:
       - '{{ .Env.REDSKYCTL_IMG }}'
     dockerfile: redskyctl/Dockerfile
 brews:
-  - github:
+  - tap:
       owner: redskyops
       name: homebrew-tap
     folder: Formula
