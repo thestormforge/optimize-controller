@@ -44,8 +44,8 @@ brews:
     homepage: "https://redskyops.dev/"
     description: Kubernetes Exploration
 signs:
-  - artifacts: checksum
   - id: notarization
+    # This is going to produce empty ".sig" files that will need to be manually removed from the GitHub release
     cmd: hack/notarize.sh
-    args: ["${artifact}"]
+    args: ["${artifact}", "${signature}"]
     artifacts: all

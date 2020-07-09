@@ -3,19 +3,37 @@ set -eu
 
 # Notarization
 # ============
-# This script uploads binaries to Apple to get the code signatures trusted. Like the codesign script,
-# it only makes sense to do this conditionally.
+# This script combines two painful concepts. Apple Notarization and GoReleaser Signing.
 
 FILE="${1:?missing file argument}"
-NAME="$(basename "$FILE" ".tar.gz")"
-[ "$NAME" == "redskyctl-darwin-amd64" ] || { echo >&2 "skipping notarization for file=[$1]"; exit; }
-command -v ditto >/dev/null 2>&1 || { echo >&2 "skipping notarization, ditto not present"; exit; }
-command -v xcrun >/dev/null 2>&1 || { echo >&2 "skipping notarization, xcrun not present"; exit; }
-command -v jq >/dev/null 2>&1 || { echo >&2 "skipping notarization, jq not present"; exit; }
-[ -n "${AC_USERNAME:-}" ] || { echo >&2 "skipping notarization, no credentials"; exit; }
-[ -n "${AC_PASSWORD:-}" ] || { echo >&2 "skipping notarization, no credentials"; exit; }
+OUTPUT="${2:?missing output argument}"
+
+# This script MUST produce an output file or fail.
+case "$(basename "$FILE")" in
+  "redskyctl-darwin-amd64.tar.gz")
+    # Do nothing, just fall through to the notarization bit (the "signature file" will contain the request UUID)
+    ;;
+  "checksums.txt")
+    # Sign the checksums using GPG (mimic the default GoReleaser behavior)
+    gpg --output "${OUTPUT}" --detach-sign "${FILE}"
+    exit
+    ;;
+  *)
+    # Just create an empty file to upload to the release
+    touch "${OUTPUT}"
+    exit
+    ;;
+esac
+
+# Verify we can actually do something
+command -v ditto >/dev/null 2>&1 || { echo >&2 "notarization failed, ditto not present"; exit 1; }
+command -v xcrun >/dev/null 2>&1 || { echo >&2 "notarization failed, xcrun not present"; exit 1; }
+command -v jq >/dev/null 2>&1 || { echo >&2 "notarization failed, jq not present"; exit 1; }
+[ -n "${AC_USERNAME:-}" ] || { echo >&2 "notarization failed, no credentials"; exit 1; }
+[ -n "${AC_PASSWORD:-}" ] || { echo >&2 "notarization failed, no credentials"; exit 1; }
 
 # Create a temporary location to perform notarization
+NAME="$(basename "$FILE" ".tar.gz")"
 WORKDIR="$(mktemp -d)"
 function removeWorkdir()
 {
@@ -23,7 +41,7 @@ function removeWorkdir()
 }
 trap removeWorkdir EXIT
 
-# Re-archive as a Zip
+# Re-archive as a Zip (we cannot just do code signing here and re-pack the tarball without also re-computing `checksums.txt`)
 mkdir "$WORKDIR/$NAME"
 tar -xf "$FILE" -C "$WORKDIR/$NAME"
 ditto -c -k "$WORKDIR/$NAME" "$WORKDIR/$NAME.zip"
@@ -40,8 +58,8 @@ doNotarizeInfo() {
 
 # Submit the Zip file for notarization, retain the request identifier
 REQUEST_UUID="$(doNotarizeApp "$WORKDIR/$NAME.zip" | jq -r '.RequestUUID')"
-[ "${REQUEST_UUID:-null}" != "null" ] || { echo >&2 "notarization request was not submitted"; exit 1; }
-echo >&2 "notarization request submitted id=$REQUEST_UUID"
+[ "${REQUEST_UUID:-null}" != "null" ] || { echo >&2 "notarization failed, request was not submitted"; exit 1; }
+echo "${REQUEST_UUID}" >> "${OUTPUT}"
 
 # Wait for a result
 SLEEP_TIME=10
