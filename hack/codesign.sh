@@ -45,5 +45,3 @@ trap restoreKeychain EXIT
 
 # Actually sign the supplied file
 codesign --keychain "$KEYCHAIN" --sign "$IDENTITY" --force --verbose --timestamp --options "runtime" "$FILE"
-
-exit 1
