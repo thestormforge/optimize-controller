@@ -11,7 +11,11 @@ OUTPUT="${2:?missing output argument}"
 # This script MUST produce an output file or fail.
 case "$(basename "$FILE")" in
   "redskyctl-darwin-amd64.tar.gz")
-    # Do nothing, just fall through to the notarization bit (the "signature file" will contain the request UUID)
+    # If there are no credentials, just produce an empty file (otherwise fall through)
+    if [ -n "${AC_USERNAME:-}" ] || [ -n "${AC_PASSWORD:-}" ] ; then
+      touch "${OUTPUT}"
+      exit
+    fi
     ;;
   "checksums.txt")
     # Sign the checksums using GPG (mimic the default GoReleaser behavior)
@@ -29,8 +33,6 @@ esac
 command -v ditto >/dev/null 2>&1 || { echo >&2 "notarization failed, ditto not present"; exit 1; }
 command -v xcrun >/dev/null 2>&1 || { echo >&2 "notarization failed, xcrun not present"; exit 1; }
 command -v jq >/dev/null 2>&1 || { echo >&2 "notarization failed, jq not present"; exit 1; }
-[ -n "${AC_USERNAME:-}" ] || { echo >&2 "notarization failed, no credentials"; exit 1; }
-[ -n "${AC_PASSWORD:-}" ] || { echo >&2 "notarization failed, no credentials"; exit 1; }
 
 # Create a temporary location to perform notarization
 NAME="$(basename "$FILE" ".tar.gz")"
