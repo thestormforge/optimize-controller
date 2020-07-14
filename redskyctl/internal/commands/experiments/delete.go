@@ -76,7 +76,7 @@ func (o *DeleteOptions) delete(ctx context.Context) error {
 	return nil
 }
 
-// ignoreDelete error is helper for ignoring errors that occur during deletion
+// ignoreDeleteError is a helper for ignoring errors that occur during deletion
 func (o *DeleteOptions) ignoreDeleteError(err error) error {
 	if o.IgnoreNotFound && controller.IgnoreNotFound(err) == nil {
 		return nil
@@ -84,9 +84,11 @@ func (o *DeleteOptions) ignoreDeleteError(err error) error {
 	return err
 }
 
+// deleteExperiment deletes an individual experiment by name
+//noinspection GoNilness
 func (o *DeleteOptions) deleteExperiment(ctx context.Context, name experimentsv1alpha1.ExperimentName) error {
 	exp, err := o.ExperimentsAPI.GetExperimentByName(ctx, name)
-	if err != nil {
+	if err != nil && exp.SelfURL == "" {
 		return err
 	}
 
