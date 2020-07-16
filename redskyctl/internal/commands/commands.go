@@ -90,9 +90,9 @@ func NewRedskyctlCommand() *cobra.Command {
 // authorizationIdentity returns the client identifier to use for a given authorization server (identified by it's issuer URI)
 func authorizationIdentity(issuer string) string {
 	switch issuer {
-	case "https://auth.carbonrelay.io/":
+	case "https://auth.carbonrelay.io/", "https://carbonrelay.auth0.com/":
 		return "pE3kMKdrMTdW4DOxQHesyAuFGNOWaEke"
-	case "https://carbonrelay-dev.auth0.com/":
+	case "https://auth.carbonrelay.dev/", "https://carbonrelay-dev.auth0.com/":
 		return "fmbRPm2zoQJ64hb37CUJDJVmRLHhE04Y"
 	default:
 		// OAuth specifications warning against mix-ups, instead of using a fixed environment variable name, the name
