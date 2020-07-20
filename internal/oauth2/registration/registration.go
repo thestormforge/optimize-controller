@@ -31,6 +31,7 @@ import (
 	"io/ioutil"
 	"mime"
 	"net/http"
+	"strings"
 
 	"golang.org/x/net/context/ctxhttp"
 	"golang.org/x/oauth2"
@@ -174,18 +175,7 @@ func doRegistrationRoundTrip(ctx context.Context, req *http.Request, src oauth2.
 	}
 
 	if code := r.StatusCode; code < 200 || code > 299 {
-		responseError := &ClientRegistrationErrorResponse{}
-		t, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
-		if err != nil || t != "application/json" {
-			return nil, fmt.Errorf("registration: unexpected server error (%v - %s)", code, http.StatusText(code))
-		}
-		if err := json.Unmarshal(body, responseError); err != nil {
-			return nil, fmt.Errorf("registration: invalid response: %v", err)
-		}
-		if responseError.ErrorCode == "" {
-			return nil, fmt.Errorf("registration: server error response missing error")
-		}
-		return nil, responseError
+		return nil, clientRegistrationErrorResponse(r, body)
 	} else if code != 201 {
 		return nil, fmt.Errorf("registration: server response had unexpected status: %v", code)
 	}
@@ -213,9 +203,7 @@ func doReadRoundTrip(ctx context.Context, req *http.Request, src oauth2.TokenSou
 	}
 
 	if code := r.StatusCode; code < 200 || code > 299 {
-		responseError := &ClientRegistrationErrorResponse{}
-		_ = json.Unmarshal(body, responseError)
-		return nil, responseError
+		return nil, clientRegistrationErrorResponse(r, body)
 	}
 
 	info := &ClientInformationResponse{}
@@ -223,4 +211,30 @@ func doReadRoundTrip(ctx context.Context, req *http.Request, src oauth2.TokenSou
 		return nil, err
 	}
 	return info, nil
+}
+
+func clientRegistrationErrorResponse(r *http.Response, body []byte) error {
+	responseError := &ClientRegistrationErrorResponse{}
+	t, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil {
+		t = ""
+	}
+
+	// While registration defines an error format, management does not. Try to be accepting of simple errors we may encounter
+	switch t {
+	case "application/json":
+		if err := json.Unmarshal(body, responseError); err != nil {
+			return fmt.Errorf("registration: invalid response: %w", err)
+		}
+		if responseError.ErrorCode == "" {
+			return fmt.Errorf("registration: server error response missing error")
+		}
+	case "text/plain":
+		responseError.ErrorCode = strings.ReplaceAll(strings.ToLower(http.StatusText(r.StatusCode)), " ", "_")
+		responseError.ErrorDescription = strings.TrimSpace(string(body)) // TODO Should use charset from parameters
+	default:
+		return fmt.Errorf("registration: unexpected server error (%v - %s)", r.StatusCode, http.StatusText(r.StatusCode))
+	}
+
+	return responseError
 }

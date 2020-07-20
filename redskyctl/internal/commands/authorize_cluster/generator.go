@@ -28,6 +28,7 @@ import (
 	redskyapi "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
+	"golang.org/x/oauth2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"
@@ -196,7 +197,19 @@ func (o *GeneratorOptions) clientInfo(ctx context.Context, ctrl *config.Controll
 
 	// Try to read an existing client (ignore errors and just re-register)
 	if ctrl.RegistrationClientURI != "" {
-		if info, err := registration.Read(ctx, ctrl.RegistrationClientURI, ctrl.RegistrationAccessToken); err == nil {
+		// Shadow the context in case we need to change it for the read operation
+		rctx := ctx
+
+		// Technically we are non-standard in that we can just use our normal access token as a registration token
+		if ctrl.RegistrationAccessToken == "" {
+			// Hack to get a token source
+			rt, _ := o.Config.Authorize(rctx, nil)
+			if tt, ok := rt.(*oauth2.Transport); ok {
+				rctx = context.WithValue(rctx, oauth2.HTTPClient, oauth2.NewClient(rctx, tt.Source))
+			}
+		}
+
+		if info, err := registration.Read(rctx, ctrl.RegistrationClientURI, ctrl.RegistrationAccessToken); err == nil {
 			return info, nil
 		}
 	}
