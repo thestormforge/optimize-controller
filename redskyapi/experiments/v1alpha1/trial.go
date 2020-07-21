@@ -32,13 +32,13 @@ type TrialMeta struct {
 func (m *TrialMeta) SetLocation(location string) { m.SelfURL = location }
 func (m *TrialMeta) SetLastModified(time.Time)   {}
 func (m *TrialMeta) SetLink(rel, link string) {
-	switch rel {
+	switch strings.ToLower(rel) {
 	case relationLabels:
 		m.LabelsURL = link
 	}
 
 	// Backwards compatibility with the old trial labels relation
-	if m.LabelsURL == "" && rel == "https://carbonrelay.com/rel/trialLabels" {
+	if m.LabelsURL == "" && strings.ToLower(rel) == "https://carbonrelay.com/rel/triallabels" {
 		m.LabelsURL = link
 	}
 }
