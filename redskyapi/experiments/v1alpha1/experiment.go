@@ -130,7 +130,7 @@ func (m *ExperimentMeta) SetLastModified(lastModified time.Time) {
 	m.LastModified = lastModified
 }
 func (m *ExperimentMeta) SetLink(rel, link string) {
-	switch rel {
+	switch strings.ToLower(rel) {
 	case relationSelf:
 		m.SelfURL = link
 	case relationTrials:
@@ -139,6 +139,11 @@ func (m *ExperimentMeta) SetLink(rel, link string) {
 		m.NextTrialURL = link
 	case relationLabels:
 		m.LabelsURL = link
+	}
+
+	// Backwards compatibility with the old next trial relation
+	if m.NextTrialURL == "" && strings.ToLower(rel) == "https://carbonrelay.com/rel/nexttrial" {
+		m.NextTrialURL = link
 	}
 }
 
@@ -190,7 +195,7 @@ type ExperimentListMeta struct {
 func (m *ExperimentListMeta) SetLocation(string)        {}
 func (m *ExperimentListMeta) SetLastModified(time.Time) {}
 func (m *ExperimentListMeta) SetLink(rel, link string) {
-	switch rel {
+	switch strings.ToLower(rel) {
 	case relationNext:
 		m.Next = link
 	case relationPrev, relationPrevious:

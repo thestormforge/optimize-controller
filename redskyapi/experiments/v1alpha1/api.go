@@ -36,7 +36,7 @@ const (
 	relationPrevious  = "previous"
 	relationLabels    = "https://carbonrelay.com/rel/labels"
 	relationTrials    = "https://carbonrelay.com/rel/trials"
-	relationNextTrial = "https://carbonrelay.com/rel/nextTrial"
+	relationNextTrial = "https://carbonrelay.com/rel/next-trial"
 )
 
 // Meta is used to collect resource metadata from the response
