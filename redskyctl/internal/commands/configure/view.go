@@ -17,8 +17,11 @@ limitations under the License.
 package configure
 
 import (
+	"encoding/json"
+	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/redskyops/redskyops-controller/internal/config"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
@@ -38,6 +41,8 @@ type ViewOptions struct {
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
 
+	// Output is the format to output data in
+	Output string
 	// FileOnly causes view to just dump the configuration file to out
 	FileOnly bool
 	// Minify causes the configuration to be evaluated and reduced to only the current effective configuration
@@ -55,6 +60,7 @@ func NewViewCommand(o *ViewOptions) *cobra.Command {
 		RunE:   commander.WithoutArgsE(o.view),
 	}
 
+	cmd.Flags().StringVarP(&o.Output, "output", "o", "yaml", "Output `format`. One of: yaml|json")
 	cmd.Flags().BoolVar(&o.FileOnly, "raw", false, "Display the raw configuration file without merging.")
 	cmd.Flags().BoolVar(&o.Minify, "minify", false, "Reduce information to effective values.")
 	cmd.Flags().BoolVar(&config.DecodeJWT, "decode-jwt", false, "Display JWT claims instead of raw token strings.")
@@ -88,9 +94,26 @@ func (o *ViewOptions) view() error {
 	}
 
 	// Marshal the configuration as YAML and write it out
-	output, err := yaml.Marshal(o.Config)
-	if err == nil {
-		_, err = o.Out.Write(output)
+	switch strings.ToLower(o.Output) {
+	case "yaml", "":
+		output, err := yaml.Marshal(o.Config)
+		if err != nil {
+			return err
+		}
+		if _, err := o.Out.Write(output); err != nil {
+			return err
+		}
+	case "json":
+		output, err := json.Marshal(o.Config)
+		if err != nil {
+			return err
+		}
+		if _, err := o.Out.Write(output); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("unsupported output format: %s", o.Output)
 	}
-	return err
+
+	return nil
 }
