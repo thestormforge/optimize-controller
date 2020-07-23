@@ -46,9 +46,18 @@ func TestCaptureMetric(t *testing.T) {
 	defer jsonHttpTest.Close()
 	jurl, err := url.Parse(jsonHttpTest.URL)
 	require.NoError(t, err)
-	jsonHttpTestIP, sPort, err := net.SplitHostPort(jurl.Host)
+	jsonHttpTestIP, jPort, err := net.SplitHostPort(jurl.Host)
 	require.NoError(t, err)
-	jsonHttpTestPort, err := strconv.ParseInt(sPort, 10, 32)
+	jsonHttpTestPort, err := strconv.ParseInt(jPort, 10, 32)
+	require.NoError(t, err)
+
+	promHttpTest := promHttpTestServer()
+	defer promHttpTest.Close()
+	purl, err := url.Parse(promHttpTest.URL)
+	require.NoError(t, err)
+	promHttpTestIP, pPort, err := net.SplitHostPort(purl.Host)
+	require.NoError(t, err)
+	promHttpTestPort, err := strconv.ParseInt(pPort, 10, 32)
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -87,12 +96,12 @@ func TestCaptureMetric(t *testing.T) {
 				Items: []corev1.Service{
 					{
 						Spec: corev1.ServiceSpec{
-							ClusterIP: "demo.robustperception.io",
+							ClusterIP: promHttpTestIP,
 							Ports: []corev1.ServicePort{
 								{
 									Name:     "testPort",
 									Protocol: corev1.ProtocolTCP,
-									Port:     9090,
+									Port:     int32(promHttpTestPort),
 								},
 							},
 						},
@@ -101,6 +110,17 @@ func TestCaptureMetric(t *testing.T) {
 			},
 			expected: 1,
 		},
+		{
+			desc: "prometheus url",
+			metric: &redskyv1beta1.Metric{
+				Name:  "testMetric",
+				Query: "scalar(prometheus_build_info)",
+				Type:  redskyv1beta1.MetricPrometheus,
+				URL:   promHttpTest.URL,
+			},
+			expected: 1,
+		},
+
 		{
 			desc: "default jonPath",
 			metric: &redskyv1beta1.Metric{
@@ -148,6 +168,14 @@ func jsonPathHttpTestServer() *httptest.Server {
 	response := map[string]int{"current_response_time_percentile_95": 5}
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(response)
+		return
+	}))
+}
+
+func promHttpTestServer() *httptest.Server {
+	resp := `{"status":"success","data":{"resultType":"scalar","result":[1595471900.283,"1"]}}`
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, resp)
 		return
 	}))
 }

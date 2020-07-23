@@ -75,6 +75,11 @@ func CaptureMetric(metric *redskyv1beta1.Metric, trial *redskyv1beta1.Trial, tar
 }
 
 func toURL(target runtime.Object, m *redskyv1beta1.Metric) ([]string, error) {
+	// Allow a specified URL to take precedence over a selector
+	if m.URL != "" {
+		return []string{m.URL}, nil
+	}
+
 	// Make sure we got a service list
 	// TODO We can probably handle a pod list by addressing it directly
 	list, ok := target.(*corev1.ServiceList)
