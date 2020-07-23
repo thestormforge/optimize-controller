@@ -94,9 +94,9 @@ func defaultServerEndpoints(srv *Server) error {
 
 	// Special case for the registration service which is actually part of the accounts API
 	if u, err := url.Parse(srv.RedSky.AccountsEndpoint); err != nil {
-		defaultString(&srv.Authorization.RegistrationEndpoint, api+"/accounts/clients/register")
+		defaultString(&srv.Authorization.RegistrationEndpoint, api+"/accounts/clients")
 	} else {
-		u.Path = strings.TrimRight(u.Path, "/") + "/clients/register"
+		u.Path = strings.TrimRight(u.Path, "/") + "/clients"
 		defaultString(&srv.Authorization.RegistrationEndpoint, u.String())
 	}
 
