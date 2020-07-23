@@ -21,10 +21,24 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: '1.14'
-      - name: Set up Docker
+      - name: Install minikube
+        id: install-minikube
         run: |
-          ./hack/install-docker-for-mac.sh
-          docker version
+          brew install minikube hyperkit docker
+          echo "::set-output name=cache-key::$(minikube version | md5)"
+      - name: Cache minikube
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.minikube/cache
+            ~/.minikube/bin
+          key: ${{ runner.os }}-minikube-${{ steps.install-minikube.outputs.cache-key }}
+          restore-keys: |
+            ${{ runner.os }}-minikube-
+      - name: Start minikube
+        run: |
+          minikube start --driver hyperkit --wait all
+          minikube docker-env | sed '/^#/d;s/="\(.*\)"/::\1/g;s/export /::set-env name=/g'
       - name: Cache Go Modules
         uses: actions/cache@v1
         with:
