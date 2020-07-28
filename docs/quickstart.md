@@ -29,7 +29,7 @@ $ redskyctl init
 Generally you will want to write your own experiments to run trials on your own applications. For the purposes of this guide we can use the postgres example found in the `redskyops-recipes` [repository on GitHub](https://github.com/redskyops/redskyops-recipes/tree/master/postgres):
 
 ```sh
-$ kustomize build github.com/redskyops/redskyops-recipes/postgres | kubectl apply -f -
+$ kustomize build github.com/redskyops/redskyops-recipes/postgres/application | kubectl apply -f -
 ```
 
 ## Run a Trial
