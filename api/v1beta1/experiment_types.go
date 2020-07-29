@@ -117,6 +117,10 @@ type Metric struct {
 	Port intstr.IntOrString `json:"port,omitempty"`
 	// URL path component used to collect the metric value from an endpoint (used as a prefix for the Prometheus API)
 	Path string `json:"path,omitempty"`
+	// URL to query for fetching metrics.
+	// If this parameter is specified, it will be preferred over Scheme, Selector, Port, and Path.
+	// This is only used for MetricPrometheus and MetricJSONPath metric types.
+	URL string `json:"url,omitempty"`
 }
 
 // PatchReadinessGate contains a reference to a condition
