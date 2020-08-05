@@ -38,7 +38,7 @@ manager: generate fmt vet
 	go build -ldflags '$(LDFLAGS)' -o bin/manager main.go
 
 # Build tool binary using GoReleaser in a local dev environment (in CI we just invoke GoReleaser directly)
-tool:
+tool: manifests
 	BUILD_METADATA=${BUILD_METADATA} \
 	SETUPTOOLS_IMG=${SETUPTOOLS_IMG} \
 	PULL_POLICY=${PULL_POLICY} \
@@ -87,7 +87,7 @@ generate: controller-gen conversion-gen
 docker-build: test docker-build-ci
 
 # Build the docker images
-docker-build-ci:
+docker-build-ci: manifests
 	# Build on host so we can make use of the cache
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -ldflags "${LDFLAGS}" -a -o manager main.go
 	docker build . -t ${IMG}
