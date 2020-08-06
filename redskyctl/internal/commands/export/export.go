@@ -33,28 +33,25 @@ import (
 	"sigs.k8s.io/kustomize/api/types"
 )
 
-func NewCommand(cfg config.Config) *cobra.Command {
-	ec := &ExportCommand{
-		Config: cfg,
-	}
+func NewCommand(opt *Options) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:    "export",
 		Short:  "Export trial parameters",
 		Long:   "Export trial parameters to a Kubernetes object",
-		PreRun: commander.StreamsPreRun(&ec.IOStreams),
-		RunE:   ec.Run,
+		PreRun: commander.StreamsPreRun(&opt.IOStreams),
+		RunE:   opt.Run,
 	}
 
-	cmd.Flags().StringVarP(&ec.filename, "experiment", "f", "", "path to experiment file")
-	cmd.Flags().StringVarP(&ec.trialName, "trialname", "t", "", "name of trial (ex. postgres-123)")
-	cmd.Flags().StringToStringVarP(&ec.label, "label", "l", nil, "label selector for a trial in k=v format (ex. best=true)")
-	cmd.MarkFlagRequired("experiment")
+	cmd.Flags().StringVarP(&opt.filename, "filename", "f", "", "path to experiment file")
+	cmd.Flags().StringVarP(&opt.trialName, "trialname", "t", "", "name of trial (ex. postgres-123)")
+	cmd.Flags().StringToStringVarP(&opt.label, "selector", "s", nil, "label selector for a trial in k=v format (ex. best=true)")
+	cmd.MarkFlagRequired("filename")
 
 	return cmd
 }
 
-type ExportCommand struct {
+type Options struct {
 	Config    config.Config
 	RedSkyAPI expapi.API
 	filename  string
@@ -67,7 +64,7 @@ type ExportCommand struct {
 	commander.IOStreams
 }
 
-func (e *ExportCommand) Run(cmd *cobra.Command, args []string) (err error) {
+func (e *Options) Run(cmd *cobra.Command, args []string) (err error) {
 	// Set up RSO client
 	api, err := commander.NewExperimentsAPI(cmd.Context(), e.Config)
 	if err != nil {
@@ -116,14 +113,14 @@ func (e *ExportCommand) Run(cmd *cobra.Command, args []string) (err error) {
 		return err
 	}
 
-	fmt.Fprintf(e.Out, string(resources))
+	fmt.Fprintln(e.Out, string(resources))
 
 	return nil
 }
 
-func (e *ExportCommand) ReadExperimentFile() (err error) {
+func (e *Options) ReadExperimentFile() (err error) {
 	var experimentFile *redsky.Experiment
-	experimentFile, err = util.ReadExperiment(e.filename, nil)
+	experimentFile, err = util.ReadExperiment(e.filename, e.In)
 	if err != nil {
 		return err
 	}
@@ -133,7 +130,7 @@ func (e *ExportCommand) ReadExperimentFile() (err error) {
 	return nil
 }
 
-func (e *ExportCommand) GetTrialByID(ctx context.Context, trialID experiments.Identifier) (err error) {
+func (e *Options) GetTrialByID(ctx context.Context, trialID experiments.Identifier) (err error) {
 	query := &expapi.TrialListQuery{
 		Status: []expapi.TrialStatus{expapi.TrialCompleted},
 	}
@@ -162,7 +159,7 @@ func (e *ExportCommand) GetTrialByID(ctx context.Context, trialID experiments.Id
 	return nil
 }
 
-func (e *ExportCommand) GetTrialByLabel(ctx context.Context, label map[string]string) (err error) {
+func (e *Options) GetTrialByLabel(ctx context.Context, label map[string]string) (err error) {
 	query := &expapi.TrialListQuery{
 		Status:        []expapi.TrialStatus{expapi.TrialCompleted},
 		LabelSelector: label,
@@ -181,7 +178,7 @@ func (e *ExportCommand) GetTrialByLabel(ctx context.Context, label map[string]st
 	return err
 }
 
-func (e *ExportCommand) getTrials(ctx context.Context, query *expapi.TrialListQuery) (trialList expapi.TrialList, err error) {
+func (e *Options) getTrials(ctx context.Context, query *expapi.TrialListQuery) (trialList expapi.TrialList, err error) {
 	if e.RedSkyAPI == nil {
 		return trialList, fmt.Errorf("unable to connect to api server")
 	}
@@ -219,7 +216,7 @@ type patchNTarget struct {
 	PatchName  string
 }
 
-func (e *ExportCommand) Patches(ctx context.Context) ([]*patchNTarget, error) {
+func (e *Options) Patches(ctx context.Context) ([]*patchNTarget, error) {
 	// Generate patch operations
 	patcher := patch.NewPatcher()
 	for _, patch := range e.experiment.Spec.Patches {

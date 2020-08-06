@@ -45,18 +45,18 @@ func TestReadExperiment(t *testing.T) {
 	testCases := []struct {
 		desc          string
 		expectedError bool
-		e             *ExportCommand
+		e             *Options
 	}{
 		{
 			// no filename
 			desc:          "default",
 			expectedError: true,
-			e:             &ExportCommand{},
+			e:             &Options{},
 		},
 		{
 			desc:          "default with file",
 			expectedError: false,
-			e:             &ExportCommand{filename: tmpfile.Name()},
+			e:             &Options{filename: tmpfile.Name()},
 		},
 	}
 
@@ -80,32 +80,32 @@ func TestLookupTrial(t *testing.T) {
 	testCases := []struct {
 		desc          string
 		expectedError bool
-		e             *ExportCommand
+		e             *Options
 		trialName     string
 		trialLabel    map[string]string
 	}{
 		{
 			desc:          "default",
 			expectedError: false,
-			e:             &ExportCommand{RedSkyAPI: &fakeRedSkyServer{}, experiment: exp},
+			e:             &Options{RedSkyAPI: &fakeRedSkyServer{}, experiment: exp},
 			trialName:     "test-1234", // name isnt actually used in the fake api, so this can be anything
 		},
 		{
 			desc:          "no api",
 			expectedError: true,
-			e:             &ExportCommand{experiment: exp},
+			e:             &Options{experiment: exp},
 			trialName:     "yolo-1234",
 		},
 		{
 			desc:          "bad trial",
 			expectedError: true,
-			e:             &ExportCommand{RedSkyAPI: &fakeRedSkyServer{}, experiment: exp},
+			e:             &Options{RedSkyAPI: &fakeRedSkyServer{}, experiment: exp},
 			trialName:     "test-test",
 		},
 		{
 			desc:          "trial from label",
 			expectedError: true,
-			e:             &ExportCommand{RedSkyAPI: &fakeRedSkyServer{}, experiment: exp},
+			e:             &Options{RedSkyAPI: &fakeRedSkyServer{}, experiment: exp},
 			trialLabel:    map[string]string{"best": "true"}, // label isnt actually used in the fake api, so this can be anything
 		},
 	}
@@ -158,12 +158,12 @@ func TestPatches(t *testing.T) {
 	testCases := []struct {
 		desc          string
 		expectedError bool
-		e             *ExportCommand
+		e             *Options
 	}{
 		{
 			desc:          "default",
 			expectedError: false,
-			e:             &ExportCommand{Config: &fakeClient{filename: pgfile.Name()}, trial: trial, experiment: exp},
+			e:             &Options{Config: &fakeClient{filename: pgfile.Name()}, trial: trial, experiment: exp},
 		},
 	}
 
@@ -199,12 +199,12 @@ func TestRenderPatch(t *testing.T) {
 	testCases := []struct {
 		desc          string
 		expectedError bool
-		e             *ExportCommand
+		e             *Options
 	}{
 		{
 			desc:          "default",
 			expectedError: false,
-			e:             &ExportCommand{Config: &fakeClient{filename: pgfile.Name()}, trial: trial, experiment: exp},
+			e:             &Options{Config: &fakeClient{filename: pgfile.Name()}, trial: trial, experiment: exp},
 		},
 	}
 
