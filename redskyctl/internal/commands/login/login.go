@@ -258,7 +258,7 @@ func (o *Options) takeOffline(t *oauth2.Token) error {
 	if token, err := new(jwt.Parser).Parse(t.AccessToken, getKey); err == nil {
 		if c, ok := token.Claims.(jwt.MapClaims); ok {
 			if ns := c["https://carbonrelay.com/claims/namespace"]; ns == "default" || ns == "" {
-				return fmt.Errorf("account is not activated")
+				return fmt.Errorf("your account is not ready, please check https://app.carbonrelay.io/ for more details")
 			}
 		}
 	}
@@ -288,9 +288,9 @@ func (o *Options) generateCallbackResponse(w http.ResponseWriter, r *http.Reques
 		http.Error(w, http.StatusText(status), status)
 	default:
 		// TODO Better detection of this error
-		if status == http.StatusInternalServerError && err != nil && err.Error() == "account is not activated" {
+		if status == http.StatusInternalServerError && err != nil && strings.HasPrefix(err.Error(), "your account is not ready") {
 			http.Redirect(w, r, NotActivatedURL, http.StatusSeeOther)
-			_, _ = fmt.Fprintf(o.Out, "Your account is not activated.\n")
+			_, _ = fmt.Fprintf(o.Out, "Your account is not ready.\n")
 			o.shutdown()
 			return
 		}
