@@ -53,11 +53,15 @@ func TestEngine(t *testing.T) {
 			},
 			input: &redskyv1beta1.PatchTemplate{
 				Patch: "metadata:\n  labels:\n    app: testApp\n",
-				TargetRef: &corev1.ObjectReference{
-					Kind:       "Pod",
-					Namespace:  "default",
-					Name:       "testPod",
-					APIVersion: "v1",
+				TargetRef: &metav1.PartialObjectMetadata{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Pod",
+						APIVersion: "v1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "testPod",
+						Namespace: "default",
+					},
 				},
 			},
 			expected: `{"metadata":{"labels":{"app":"testApp"}}}`,

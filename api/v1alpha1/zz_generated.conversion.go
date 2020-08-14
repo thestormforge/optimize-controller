@@ -23,6 +23,7 @@ package v1alpha1
 import (
 	v1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	conversion "k8s.io/apimachinery/pkg/conversion"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	types "k8s.io/apimachinery/pkg/types"
@@ -127,11 +128,6 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}
 	if err := s.AddGeneratedConversionFunc((*Metric)(nil), (*v1beta1.Metric)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1alpha1_Metric_To_v1beta1_Metric(a.(*Metric), b.(*v1beta1.Metric), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*v1beta1.Metric)(nil), (*Metric)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1beta1_Metric_To_v1alpha1_Metric(a.(*v1beta1.Metric), b.(*Metric), scope)
 	}); err != nil {
 		return err
 	}
@@ -310,6 +306,16 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}); err != nil {
 		return err
 	}
+	if err := s.AddConversionFunc((*v1.ObjectReference)(nil), (*metav1.PartialObjectMetadata)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1_ObjectReference_To_v1_PartialObjectMetadata(a.(*v1.ObjectReference), b.(*metav1.PartialObjectMetadata), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddConversionFunc((*metav1.PartialObjectMetadata)(nil), (*v1.ObjectReference)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1_PartialObjectMetadata_To_v1_ObjectReference(a.(*metav1.PartialObjectMetadata), b.(*v1.ObjectReference), scope)
+	}); err != nil {
+		return err
+	}
 	if err := s.AddConversionFunc((*ExperimentSpec)(nil), (*v1beta1.ExperimentSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1alpha1_ExperimentSpec_To_v1beta1_ExperimentSpec(a.(*ExperimentSpec), b.(*v1beta1.ExperimentSpec), scope)
 	}); err != nil {
@@ -327,6 +333,11 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}
 	if err := s.AddConversionFunc((*v1beta1.ExperimentSpec)(nil), (*ExperimentSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1beta1_ExperimentSpec_To_v1alpha1_ExperimentSpec(a.(*v1beta1.ExperimentSpec), b.(*ExperimentSpec), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddConversionFunc((*v1beta1.Metric)(nil), (*Metric)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1beta1_Metric_To_v1alpha1_Metric(a.(*v1beta1.Metric), b.(*Metric), scope)
 	}); err != nil {
 		return err
 	}
@@ -828,7 +839,6 @@ func autoConvert_v1beta1_Metric_To_v1alpha1_Metric(in *v1beta1.Metric, out *Metr
 	out.Selector = in.Selector
 	out.Port = in.Port
 	out.Path = in.Path
-	// NB(bradbeam): The following is okay; we will not handle down converting URL
 	// WARNING: in.URL requires manual conversion: does not exist in peer-type
 	return nil
 }
@@ -944,7 +954,9 @@ func Convert_v1beta1_ParameterSelector_To_v1alpha1_ParameterSelector(in *v1beta1
 }
 
 func autoConvert_v1alpha1_PatchOperation_To_v1beta1_PatchOperation(in *PatchOperation, out *v1beta1.PatchOperation, s conversion.Scope) error {
-	out.TargetRef = in.TargetRef
+	if err := Convert_v1_ObjectReference_To_v1_PartialObjectMetadata(&in.TargetRef, &out.TargetRef, s); err != nil {
+		return err
+	}
 	out.PatchType = types.PatchType(in.PatchType)
 	if err := conversion.Convert_Slice_byte_To_Slice_byte(&in.Data, &out.Data, s); err != nil {
 		return err
@@ -959,7 +971,9 @@ func Convert_v1alpha1_PatchOperation_To_v1beta1_PatchOperation(in *PatchOperatio
 }
 
 func autoConvert_v1beta1_PatchOperation_To_v1alpha1_PatchOperation(in *v1beta1.PatchOperation, out *PatchOperation, s conversion.Scope) error {
-	out.TargetRef = in.TargetRef
+	if err := Convert_v1_PartialObjectMetadata_To_v1_ObjectReference(&in.TargetRef, &out.TargetRef, s); err != nil {
+		return err
+	}
 	out.PatchType = types.PatchType(in.PatchType)
 	if err := conversion.Convert_Slice_byte_To_Slice_byte(&in.Data, &out.Data, s); err != nil {
 		return err
@@ -996,7 +1010,15 @@ func Convert_v1beta1_PatchReadinessGate_To_v1alpha1_PatchReadinessGate(in *v1bet
 func autoConvert_v1alpha1_PatchTemplate_To_v1beta1_PatchTemplate(in *PatchTemplate, out *v1beta1.PatchTemplate, s conversion.Scope) error {
 	out.Type = v1beta1.PatchType(in.Type)
 	out.Patch = in.Patch
-	out.TargetRef = in.TargetRef
+	if in.TargetRef != nil {
+		in, out := &in.TargetRef, &out.TargetRef
+		*out = new(metav1.PartialObjectMetadata)
+		if err := Convert_v1_ObjectReference_To_v1_PartialObjectMetadata(*in, *out, s); err != nil {
+			return err
+		}
+	} else {
+		out.TargetRef = nil
+	}
 	if in.ReadinessGates != nil {
 		in, out := &in.ReadinessGates, &out.ReadinessGates
 		*out = make([]v1beta1.PatchReadinessGate, len(*in))
@@ -1019,7 +1041,15 @@ func Convert_v1alpha1_PatchTemplate_To_v1beta1_PatchTemplate(in *PatchTemplate, 
 func autoConvert_v1beta1_PatchTemplate_To_v1alpha1_PatchTemplate(in *v1beta1.PatchTemplate, out *PatchTemplate, s conversion.Scope) error {
 	out.Type = PatchType(in.Type)
 	out.Patch = in.Patch
-	out.TargetRef = in.TargetRef
+	if in.TargetRef != nil {
+		in, out := &in.TargetRef, &out.TargetRef
+		*out = new(v1.ObjectReference)
+		if err := Convert_v1_PartialObjectMetadata_To_v1_ObjectReference(*in, *out, s); err != nil {
+			return err
+		}
+	} else {
+		out.TargetRef = nil
+	}
 	if in.ReadinessGates != nil {
 		in, out := &in.ReadinessGates, &out.ReadinessGates
 		*out = make([]PatchReadinessGate, len(*in))
@@ -1040,7 +1070,9 @@ func Convert_v1beta1_PatchTemplate_To_v1alpha1_PatchTemplate(in *v1beta1.PatchTe
 }
 
 func autoConvert_v1alpha1_ReadinessCheck_To_v1beta1_ReadinessCheck(in *ReadinessCheck, out *v1beta1.ReadinessCheck, s conversion.Scope) error {
-	out.TargetRef = in.TargetRef
+	if err := Convert_v1_ObjectReference_To_v1_PartialObjectMetadata(&in.TargetRef, &out.TargetRef, s); err != nil {
+		return err
+	}
 	out.Selector = in.Selector
 	out.ConditionTypes = in.ConditionTypes
 	out.InitialDelaySeconds = in.InitialDelaySeconds
@@ -1056,7 +1088,9 @@ func Convert_v1alpha1_ReadinessCheck_To_v1beta1_ReadinessCheck(in *ReadinessChec
 }
 
 func autoConvert_v1beta1_ReadinessCheck_To_v1alpha1_ReadinessCheck(in *v1beta1.ReadinessCheck, out *ReadinessCheck, s conversion.Scope) error {
-	out.TargetRef = in.TargetRef
+	if err := Convert_v1_PartialObjectMetadata_To_v1_ObjectReference(&in.TargetRef, &out.TargetRef, s); err != nil {
+		return err
+	}
 	out.Selector = in.Selector
 	out.ConditionTypes = in.ConditionTypes
 	out.InitialDelaySeconds = in.InitialDelaySeconds
@@ -1342,7 +1376,15 @@ func Convert_v1beta1_TrialReadinessGate_To_v1alpha1_TrialReadinessGate(in *v1bet
 }
 
 func autoConvert_v1alpha1_TrialSpec_To_v1beta1_TrialSpec(in *TrialSpec, out *v1beta1.TrialSpec, s conversion.Scope) error {
-	out.ExperimentRef = in.ExperimentRef
+	if in.ExperimentRef != nil {
+		in, out := &in.ExperimentRef, &out.ExperimentRef
+		*out = new(metav1.PartialObjectMetadata)
+		if err := Convert_v1_ObjectReference_To_v1_PartialObjectMetadata(*in, *out, s); err != nil {
+			return err
+		}
+	} else {
+		out.ExperimentRef = nil
+	}
 	if in.Assignments != nil {
 		in, out := &in.Assignments, &out.Assignments
 		*out = make([]v1beta1.Assignment, len(*in))
@@ -1404,7 +1446,15 @@ func autoConvert_v1alpha1_TrialSpec_To_v1beta1_TrialSpec(in *TrialSpec, out *v1b
 }
 
 func autoConvert_v1beta1_TrialSpec_To_v1alpha1_TrialSpec(in *v1beta1.TrialSpec, out *TrialSpec, s conversion.Scope) error {
-	out.ExperimentRef = in.ExperimentRef
+	if in.ExperimentRef != nil {
+		in, out := &in.ExperimentRef, &out.ExperimentRef
+		*out = new(v1.ObjectReference)
+		if err := Convert_v1_PartialObjectMetadata_To_v1_ObjectReference(*in, *out, s); err != nil {
+			return err
+		}
+	} else {
+		out.ExperimentRef = nil
+	}
 	if in.Assignments != nil {
 		in, out := &in.Assignments, &out.Assignments
 		*out = make([]Assignment, len(*in))

@@ -251,9 +251,11 @@ func (o *RBACOptions) appendRules(rules []*rbacv1.PolicyRule, exp *redskyv1beta1
 	for i := range exp.Spec.TrialTemplate.Spec.ReadinessGates {
 		rg := &exp.Spec.TrialTemplate.Spec.ReadinessGates[i]
 		if rg.Name == "" {
-			ref := &corev1.ObjectReference{
-				Kind:       rg.Kind,
-				APIVersion: rg.APIVersion,
+			ref := &metav1.PartialObjectMetadata{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       rg.Kind,
+					APIVersion: rg.APIVersion,
+				},
 			}
 			rules = append(rules, o.newPolicyRule(ref, "list"))
 		}
@@ -263,7 +265,12 @@ func (o *RBACOptions) appendRules(rules []*rbacv1.PolicyRule, exp *redskyv1beta1
 	for i := range exp.Spec.TrialTemplate.Spec.ReadinessGates {
 		r := &exp.Spec.TrialTemplate.Spec.ReadinessGates[i]
 		if r.Name == "" {
-			ref := &corev1.ObjectReference{Kind: r.Kind, APIVersion: r.APIVersion}
+			ref := &metav1.PartialObjectMetadata{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       r.Kind,
+					APIVersion: r.APIVersion,
+				},
+			}
 			rules = append(rules, o.newPolicyRule(ref, "list"))
 		}
 	}
@@ -272,7 +279,7 @@ func (o *RBACOptions) appendRules(rules []*rbacv1.PolicyRule, exp *redskyv1beta1
 }
 
 // newPolicyRule creates a new policy rule for the specified object reference and list of verbs
-func (o *RBACOptions) newPolicyRule(ref *corev1.ObjectReference, verbs ...string) *rbacv1.PolicyRule {
+func (o *RBACOptions) newPolicyRule(ref *metav1.PartialObjectMetadata, verbs ...string) *rbacv1.PolicyRule {
 	// Start with the requested verbs
 	r := &rbacv1.PolicyRule{
 		Verbs: verbs,

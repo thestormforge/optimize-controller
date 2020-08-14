@@ -18,7 +18,6 @@ package experiment
 
 import (
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -45,9 +44,11 @@ func PopulateTrialFromTemplate(exp *redskyv1beta1.Experiment, t *redskyv1beta1.T
 
 	// Record the experiment
 	t.Labels[redskyv1beta1.LabelExperiment] = exp.Name
-	t.Spec.ExperimentRef = &corev1.ObjectReference{
-		Name:      exp.Name,
-		Namespace: exp.Namespace,
+	t.Spec.ExperimentRef = &metav1.PartialObjectMetadata{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      exp.Name,
+			Namespace: exp.Namespace,
+		},
 	}
 
 	// Default trial name is the experiment name with a random suffix

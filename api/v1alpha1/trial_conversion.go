@@ -18,6 +18,8 @@ package v1alpha1
 
 import (
 	"github.com/redskyops/redskyops-controller/api/v1beta1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/conversion"
 	conv "sigs.k8s.io/controller-runtime/pkg/conversion"
 )
@@ -46,6 +48,7 @@ func Convert_v1alpha1_Trial_To_v1beta1_Trial(in *Trial, out *v1beta1.Trial, s co
 		in, out := &in.Spec.PatchOperations, &out.Status.PatchOperations
 		*out = make([]v1beta1.PatchOperation, len(*in))
 		for i := range *in {
+
 			if err := Convert_v1alpha1_PatchOperation_To_v1beta1_PatchOperation(&(*in)[i], &(*out)[i], s); err != nil {
 				return err
 			}
@@ -123,4 +126,32 @@ func Convert_v1beta1_TrialStatus_To_v1alpha1_TrialStatus(in *v1beta1.TrialStatus
 
 	// Continue
 	return autoConvert_v1beta1_TrialStatus_To_v1alpha1_TrialStatus(in, out, s)
+}
+
+func Convert_v1_ObjectReference_To_v1_PartialObjectMetadata(in *corev1.ObjectReference, out *metav1.PartialObjectMetadata, s conversion.Scope) error {
+	if in == nil {
+		out = nil
+		return nil
+	}
+
+	out.APIVersion = in.APIVersion
+	out.Kind = in.Kind
+	out.Name = in.Name
+	out.Namespace = in.Namespace
+
+	return nil
+}
+
+func Convert_v1_PartialObjectMetadata_To_v1_ObjectReference(in *metav1.PartialObjectMetadata, out *corev1.ObjectReference, s conversion.Scope) error {
+	if in == nil {
+		out = nil
+		return nil
+	}
+
+	out.APIVersion = in.TypeMeta.APIVersion
+	out.Kind = in.TypeMeta.Kind
+	out.Name = in.ObjectMeta.Name
+	out.Namespace = in.ObjectMeta.Namespace
+
+	return nil
 }

@@ -211,7 +211,7 @@ func (r *PatchReconciler) applyPatches(ctx context.Context, t *redskyv1beta1.Tri
 }
 
 // renderTemplate determines the patch target and renders the patch template
-func (r *PatchReconciler) renderTemplate(te *template.Engine, t *redskyv1beta1.Trial, p *redskyv1beta1.PatchTemplate) (*corev1.ObjectReference, []byte, error) {
+func (r *PatchReconciler) renderTemplate(te *template.Engine, t *redskyv1beta1.Trial, p *redskyv1beta1.PatchTemplate) (*metav1.PartialObjectMetadata, []byte, error) {
 	// Render the actual patch data
 	data, err := te.RenderPatch(p, t)
 	if err != nil {
@@ -219,19 +219,12 @@ func (r *PatchReconciler) renderTemplate(te *template.Engine, t *redskyv1beta1.T
 	}
 
 	// Determine the reference, possibly extracting it from the rendered data
-	ref := &corev1.ObjectReference{}
+	ref := &metav1.PartialObjectMetadata{}
 	if p.TargetRef != nil {
 		p.TargetRef.DeepCopyInto(ref)
 	} else if p.Type == redskyv1beta1.PatchStrategic || p.Type == "" {
-		m := &struct {
-			metav1.TypeMeta   `json:",inline"`
-			metav1.ObjectMeta `json:"metadata,omitempty"`
-		}{}
-		if err := json.Unmarshal(data, m); err == nil {
-			ref.APIVersion = m.APIVersion
-			ref.Kind = m.Kind
-			ref.Name = m.Name
-			ref.Namespace = m.Namespace
+		if err := json.Unmarshal(data, ref); err != nil {
+			return nil, nil, err
 		}
 	}
 
@@ -249,7 +242,7 @@ func (r *PatchReconciler) renderTemplate(te *template.Engine, t *redskyv1beta1.T
 }
 
 // createPatchOperation creates a new patch operation from a patch template and it's (fully rendered) patch data
-func (r *PatchReconciler) createPatchOperation(t *redskyv1beta1.Trial, p *redskyv1beta1.PatchTemplate, ref *corev1.ObjectReference, data []byte) (*redskyv1beta1.PatchOperation, error) {
+func (r *PatchReconciler) createPatchOperation(t *redskyv1beta1.Trial, p *redskyv1beta1.PatchTemplate, ref *metav1.PartialObjectMetadata, data []byte) (*redskyv1beta1.PatchOperation, error) {
 	po := &redskyv1beta1.PatchOperation{
 		TargetRef:         *ref,
 		Data:              data,
@@ -285,7 +278,7 @@ func (r *PatchReconciler) createPatchOperation(t *redskyv1beta1.Trial, p *redsky
 }
 
 // createReadinessCheck creates a readiness check for a patch operation
-func (r *PatchReconciler) createReadinessCheck(t *redskyv1beta1.Trial, p *redskyv1beta1.PatchTemplate, ref *corev1.ObjectReference) (*redskyv1beta1.ReadinessCheck, error) {
+func (r *PatchReconciler) createReadinessCheck(t *redskyv1beta1.Trial, p *redskyv1beta1.PatchTemplate, ref *metav1.PartialObjectMetadata) (*redskyv1beta1.ReadinessCheck, error) {
 	// Do not create a readiness check on the trial job
 	if trial.IsTrialJobReference(t, ref) {
 		return nil, nil

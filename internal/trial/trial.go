@@ -62,7 +62,7 @@ func IsActive(t *redskyv1beta1.Trial) bool {
 
 // IsTrialJobReference checks to see if the supplied reference likely points to the job of a trial. This is
 // used primarily to give special handling to patch operations so they can refer to trial job before it exists.
-func IsTrialJobReference(t *redskyv1beta1.Trial, ref *corev1.ObjectReference) bool {
+func IsTrialJobReference(t *redskyv1beta1.Trial, ref *metav1.PartialObjectMetadata) bool {
 	// Kind _must_ be job
 	if ref.Kind != "Job" {
 		return false

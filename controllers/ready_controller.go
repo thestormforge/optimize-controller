@@ -119,11 +119,15 @@ func (r *ReadyReconciler) evaluateReadinessChecks(ctx context.Context, t *redsky
 	for i := range t.Spec.ReadinessGates {
 		c := &t.Spec.ReadinessGates[i]
 		rc := redskyv1beta1.ReadinessCheck{
-			TargetRef: corev1.ObjectReference{
-				Kind:       c.Kind,
-				Namespace:  t.Namespace,
-				Name:       c.Name,
-				APIVersion: c.APIVersion,
+			TargetRef: metav1.PartialObjectMetadata{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       c.Kind,
+					APIVersion: c.APIVersion,
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: t.Namespace,
+					Name:      c.Name,
+				},
 			},
 			Selector:            c.Selector,
 			ConditionTypes:      c.ConditionTypes,

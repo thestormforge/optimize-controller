@@ -125,7 +125,7 @@ type SetupTask struct {
 // parameter assignments as necessary
 type PatchOperation struct {
 	// The reference to the object that the patched should be applied to
-	TargetRef corev1.ObjectReference `json:"targetRef"`
+	TargetRef metav1.PartialObjectMetadata `json:"targetRef"`
 	// The patch content type, must be a type supported by the Kubernetes API server
 	PatchType types.PatchType `json:"patchType"`
 	// The raw data representing the patch to be applied
@@ -139,7 +139,7 @@ type PatchOperation struct {
 // safe to start the trial run job
 type ReadinessCheck struct {
 	// TargetRef is the reference to the object to test the readiness of
-	TargetRef corev1.ObjectReference `json:"targetRef"`
+	TargetRef metav1.PartialObjectMetadata `json:"targetRef"`
 	// Selector may be used to trigger a search for multiple related objects to search; this may have RBAC implications,
 	// in particular "list" permissions are required
 	Selector *metav1.LabelSelector `json:"selector,omitempty"`
@@ -212,7 +212,7 @@ type TrialCondition struct {
 type TrialSpec struct {
 	// ExperimentRef is the reference to the experiment that contains the definitions to use for this trial,
 	// defaults to an experiment in the same namespace with the same name
-	ExperimentRef *corev1.ObjectReference `json:"experimentRef,omitempty"`
+	ExperimentRef *metav1.PartialObjectMetadata `json:"experimentRef,omitempty"`
 	// Assignments are used to patch the cluster state prior to the trial run
 	Assignments []Assignment `json:"assignments,omitempty"`
 	// Selector matches the job representing the trial run
