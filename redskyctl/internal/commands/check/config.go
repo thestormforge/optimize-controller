@@ -18,6 +18,7 @@ package check
 
 import (
 	"context"
+	"crypto/sha1"
 	"fmt"
 
 	"github.com/dgrijalva/jwt-go"
@@ -78,7 +79,8 @@ func (o *ConfigOptions) checkConfig(ctx context.Context) error {
 		return err
 	}
 	if tenant != "" {
-		_, _ = fmt.Fprintf(o.Out, "Success, configuration is valid for tenant '%s'.\n", tenant)
+		th := sha1.Sum([]byte(tenant))
+		_, _ = fmt.Fprintf(o.Out, "Success, configuration is valid for tenant '%x'.\n", th[0:4])
 	} else {
 		_, _ = fmt.Fprintf(o.Out, "Success.\n")
 	}
