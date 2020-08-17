@@ -181,6 +181,8 @@ func WithAPI(o bool) Option {
 			return nil
 		}
 
+		// Since we've already generated the base assets with the `redsky` prefix
+		// all of these resources need to reference that
 		controllerEnvPatch := []byte(`
 apiVersion: apps/v1
 kind: Deployment
