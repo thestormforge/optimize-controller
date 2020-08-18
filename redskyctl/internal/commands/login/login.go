@@ -40,8 +40,11 @@ var (
 	// SuccessURL is the URL where users are redirected after a successful login
 	SuccessURL = "https://redskyops.dev/api/auth_success/"
 
-	// NotActivatedURL is the URL where users are redirected if they do not have a valid namespace claim in their access token
-	NotActivatedURL = "https://redskyops.dev/api/auth_not_activated/"
+	// MissingNamespaceClaimURL is the URL where users are redirected if they do not have a valid namespace claim in their access token
+	MissingNamespaceClaimURL = "https://app.carbonrelay.io/"
+
+	// errMissingNamespaceClaim is an error that indicates the namespace claim is missing
+	errMissingNamespaceClaim = fmt.Errorf("your account is not ready, please check %s for more details", MissingNamespaceClaimURL)
 )
 
 const (
@@ -258,7 +261,7 @@ func (o *Options) takeOffline(t *oauth2.Token) error {
 	if token, err := new(jwt.Parser).Parse(t.AccessToken, getKey); err == nil {
 		if c, ok := token.Claims.(jwt.MapClaims); ok {
 			if ns := c["https://carbonrelay.com/claims/namespace"]; ns == "default" || ns == "" {
-				return fmt.Errorf("your account is not ready, please check https://app.carbonrelay.io/ for more details")
+				return errMissingNamespaceClaim
 			}
 		}
 	}
@@ -287,9 +290,8 @@ func (o *Options) generateCallbackResponse(w http.ResponseWriter, r *http.Reques
 		// Ignorable error codes, e.g. browser requests for '/favicon.ico'
 		http.Error(w, http.StatusText(status), status)
 	default:
-		// TODO Better detection of this error
-		if status == http.StatusInternalServerError && err != nil && strings.HasPrefix(err.Error(), "your account is not ready") {
-			http.Redirect(w, r, NotActivatedURL, http.StatusSeeOther)
+		if err == errMissingNamespaceClaim {
+			http.Redirect(w, r, MissingNamespaceClaimURL, http.StatusSeeOther)
 			_, _ = fmt.Fprintf(o.Out, "Your account is not ready.\n")
 			o.shutdown()
 			return
