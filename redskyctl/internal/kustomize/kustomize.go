@@ -42,20 +42,6 @@ type Kustomize struct {
 func NewKustomization(setters ...Option) (k *Kustomize, err error) {
 	k = defaultOptions()
 
-	// Write out all assets to in memory filesystem
-	for name, asset := range Assets {
-		k.kustomize.Resources = append(k.kustomize.Resources, name)
-
-		var assetBytes []byte
-		if assetBytes, err = asset.Bytes(); err != nil {
-			return k, err
-		}
-
-		if err = k.fs.WriteFile(filepath.Join(k.Base, name), assetBytes); err != nil {
-			return k, err
-		}
-	}
-
 	// Update settings for kustomization
 	for _, setter := range setters {
 		if err = setter(k); err != nil {

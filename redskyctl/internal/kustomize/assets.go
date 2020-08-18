@@ -35,8 +35,8 @@ type Asset struct {
 	bytes []byte
 }
 
-var Assets = map[string]Asset{
-	"stock": kustomizeBase,
+var Assets = map[string]*Asset{
+	"stock": &kustomizeBase,
 }
 
 // Reader is a convenience function to provide an io.Reader interface for the
@@ -88,4 +88,10 @@ func (a *Asset) decode() (err error) {
 	a.bytes = output.Bytes()
 
 	return nil
+}
+
+func NewAssetFromBytes(b []byte) *Asset {
+	return &Asset{
+		bytes: b,
+	}
 }

@@ -77,6 +77,7 @@ func (o *GeneratorOptions) generate(ctx context.Context) error {
 	}
 
 	yamls, err := kustomize.Yamls(
+		kustomize.WithInstall(),
 		kustomize.WithImage(o.Image),
 		kustomize.WithNamespace(ctrl.Namespace),
 		kustomize.WithAPI(apiEnabled),

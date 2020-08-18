@@ -145,6 +145,7 @@ func (o *Options) generateInstall(ctx context.Context) (io.Reader, error) {
 	}
 
 	yamls, err := kustomize.Yamls(
+		kustomize.WithInstall(),
 		kustomize.WithNamespace(ctrl.Namespace),
 		kustomize.WithImage(o.Image),
 		kustomize.WithLabels(map[string]string{
