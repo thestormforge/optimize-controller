@@ -79,8 +79,7 @@ func (o *ConfigOptions) checkConfig(ctx context.Context) error {
 		return err
 	}
 	if tenant != "" {
-		th := sha1.Sum([]byte(tenant))
-		_, _ = fmt.Fprintf(o.Out, "Success, configuration is valid for tenant '%x'.\n", th[0:4])
+		_, _ = fmt.Fprintf(o.Out, "Success, configuration is valid for tenant '%s'.\n", tenant)
 	} else {
 		_, _ = fmt.Fprintf(o.Out, "Success.\n")
 	}
@@ -100,7 +99,8 @@ func tenantID(r config.Reader) (string, error) {
 		return "", err
 	}
 	if tenant, ok := mc["https://carbonrelay.com/claims/namespace"].(string); ok {
-		return tenant, nil
+		th := sha1.Sum([]byte(tenant))
+		return fmt.Sprintf("%x", th[0:4]), nil
 	}
 	return "", fmt.Errorf("unable to determine tenant identifier")
 }
