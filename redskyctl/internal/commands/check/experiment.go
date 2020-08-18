@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
+	"github.com/redskyops/redskyops-controller/internal/metric"
 	"github.com/redskyops/redskyops-controller/internal/template"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
@@ -152,29 +153,29 @@ func checkMetrics(lint Linter, metrics []redskyv1beta1.Metric) {
 
 }
 
-func checkMetric(lint Linter, metric *redskyv1beta1.Metric) {
+func checkMetric(lint Linter, m *redskyv1beta1.Metric) {
 
-	if metric.Query == "" {
+	if m.Query == "" {
 		lint.Error().Missing("query")
 	}
 
-	if metric.Type == redskyv1beta1.MetricPrometheus && metric.Selector == nil {
-		lint.Error().Missing("selector for Prometheus metric")
+	u, err := metric.ParseURL(m.URL)
+	if err != nil {
+		lint.Error().Failed("url", err)
 	}
 
-	if metric.Type == redskyv1beta1.MetricJSONPath {
-		// TODO We need to render the template first
-		if !strings.Contains(metric.Query, "{") {
-			lint.Error().Invalid("query", metric.Query)
-		}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		lint.Error().Invalid("url.scheme", u.Scheme, "http", "https")
 	}
 
-	if metric.Scheme != "" && strings.ToLower(metric.Scheme) == "http" && strings.ToLower(metric.Scheme) != "https" {
-		lint.Error().Invalid("scheme", metric.Scheme, "http", "https")
-	}
-
-	if _, _, err := template.New().RenderMetricQueries(metric, &redskyv1beta1.Trial{}, nil); err != nil {
+	q, _, err := template.New().RenderMetricQueries(m, &redskyv1beta1.Trial{}, nil)
+	if err != nil {
 		lint.Error().Failed("query", err)
+	}
+
+	// JSON path queries must have at least one curley brace
+	if m.Type == redskyv1beta1.MetricJSONPath && !strings.Contains(q, "{") {
+		lint.Error().Invalid("query", m.Query)
 	}
 
 }
