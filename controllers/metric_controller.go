@@ -41,6 +41,8 @@ type MetricReconciler struct {
 	Scheme *runtime.Scheme
 }
 
+// TODO We should move list services to the extra permissions now that you can just specify the URL
+
 // +kubebuilder:rbac:groups=redskyops.dev,resources=experiments,verbs=get;list;watch
 // +kubebuilder:rbac:groups=redskyops.dev,resources=trials,verbs=get;list;watch;update
 // +kubebuilder:rbac:groups="",resources=pods,verbs=list
@@ -159,7 +161,7 @@ func (r *MetricReconciler) collectMetrics(ctx context.Context, t *redskyv1beta1.
 		var captureError error
 		if target, err := r.target(ctx, t.Namespace, metrics[v.Name]); err != nil {
 			captureError = err
-		} else if value, stddev, err := metric.CaptureMetric(ctx, metrics[v.Name], t, target); err != nil {
+		} else if value, stddev, err := metric.Capture(ctx, metrics[v.Name], t, target); err != nil {
 			if merr, ok := err.(*metric.CaptureError); ok && merr.RetryAfter > 0 {
 				// Do not count retries against the remaining attempts
 				return &ctrl.Result{RequeueAfter: merr.RetryAfter}, nil
@@ -198,32 +200,41 @@ func (r *MetricReconciler) collectMetrics(ctx context.Context, t *redskyv1beta1.
 }
 
 func (r *MetricReconciler) target(ctx context.Context, namespace string, m *redskyv1beta1.Metric) (runtime.Object, error) {
+
 	switch m.Type {
+
 	case redskyv1beta1.MetricPods:
 		// Use the selector to get a list of pods
 		target := &corev1.PodList{}
-		if sel, err := meta.MatchingSelector(m.Selector); err != nil {
+		if sel, err := targetSelector(m); err != nil {
 			return nil, err
 		} else if err := r.List(ctx, target, client.InNamespace(namespace), sel); err != nil {
 			return nil, err
 		}
 		return target, nil
+
 	case redskyv1beta1.MetricPrometheus, redskyv1beta1.MetricJSONPath:
 		// Both Prometheus and JSONPath target a service
 		target := &corev1.ServiceList{}
-
-		if m.URL != "" {
-			return target, nil
-		}
-
-		if sel, err := meta.MatchingSelector(m.Selector); err != nil {
+		if sel, err := targetSelector(m); err != nil {
 			return nil, err
 		} else if err := r.List(ctx, target, client.InNamespace(namespace), sel); err != nil {
 			return nil, err
 		}
 		return target, nil
-	default:
-		// Assume no target is necessary
-		return nil, nil
 	}
+
+	// Assume no target is necessary
+	return nil, nil
+}
+
+// targetSelector returns a controller-runtime client list option for limiting to a selector match
+func targetSelector(m *redskyv1beta1.Metric) (client.ListOption, error) {
+	u, err := metric.ParseURL(m.URL)
+	if err != nil {
+		return nil, err
+	}
+
+	// NOTE: Forcing the selector if only a host is given matches on the internal host name label (i.e. generally empty)
+	return meta.MatchingSelector(u.ForceSelector())
 }
