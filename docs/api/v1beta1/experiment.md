@@ -96,10 +96,7 @@ Metric represents an observable outcome from a trial run
 | `type` | The metric collection type, one of: local\|pods\|prometheus\|datadog\|jsonpath, default: local | _MetricType_ | false |
 | `query` | Collection type specific query, e.g. Go template for "local", PromQL for "prometheus" or a JSON pointer expression (with curly braces) for "jsonpath" | _string_ | true |
 | `errorQuery` | Collection type specific query for the error associated with collected metric value | _string_ | false |
-| `scheme` | The scheme to use when collecting metrics | _string_ | false |
-| `selector` | Selector matching services to collect this metric from, only the first matched service to provide a value is used | _*[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#labelselector-v1-meta)_ | false |
-| `port` | The port number or name on the matched service to collect the metric value from | _intstr.IntOrString_ | false |
-| `path` | URL path component used to collect the metric value from an endpoint (used as a prefix for the Prometheus API) | _string_ | false |
+| `url` | URL to query for fetching metrics. This is only used for MetricPrometheus and MetricJSONPath metric types. | _string_ | false |
 
 [Back to TOC](#table-of-contents)
 
