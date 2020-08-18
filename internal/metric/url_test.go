@@ -36,6 +36,13 @@ func TestURL_String(t *testing.T) {
 			url:  &URL{},
 		},
 		{
+			desc: "scheme",
+			url: &URL{
+				Scheme: "https",
+			},
+			expected: "https:",
+		},
+		{
 			desc: "host",
 			url: &URL{
 				Host: "example.com",
@@ -91,6 +98,13 @@ func TestParseURL(t *testing.T) {
 	}{
 		{
 			desc: "empty",
+		},
+		{
+			desc:  "scheme",
+			input: "https:",
+			expected: URL{
+				Scheme: "https",
+			},
 		},
 		{
 			desc:  "scheme and host",

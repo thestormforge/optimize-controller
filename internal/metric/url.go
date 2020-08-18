@@ -83,8 +83,10 @@ func (u *URL) String() string {
 	uu := u.newURL()
 
 	// If we only have a path and/or query, use the standard string construction
-	if u.Scheme == "" && u.Host == "" && u.Port.StrVal == "" && u.Port.IntVal == 0 && u.Selector == nil {
-		uu.Scheme = ""
+	if u.Host == "" && u.Port.StrVal == "" && u.Port.IntVal == 0 && u.Selector == nil {
+		if u.Scheme == "" {
+			uu.Scheme = ""
+		}
 		return uu.String()
 	}
 
