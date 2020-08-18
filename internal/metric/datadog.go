@@ -17,15 +17,15 @@ limitations under the License.
 package metric
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"os"
-	"time"
 
-	datadog "github.com/zorkian/go-datadog-api"
+	"github.com/zorkian/go-datadog-api"
 )
 
-func captureDatadogMetric(aggregator, query string, startTime, completionTime time.Time) (float64, float64, error) {
+func captureDatadogMetric(_ context.Context, in *Input) (float64, float64, error) {
 	apiKey := os.Getenv("DATADOG_API_KEY")
 	if apiKey == "" {
 		apiKey = os.Getenv("DD_API_KEY")
@@ -38,7 +38,7 @@ func captureDatadogMetric(aggregator, query string, startTime, completionTime ti
 
 	client := datadog.NewClient(apiKey, applicationKey)
 
-	metrics, err := client.QueryMetrics(startTime.Unix(), completionTime.Unix(), query)
+	metrics, err := client.QueryMetrics(in.StartTime.Unix(), in.CompletionTime.Unix(), in.Query)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -47,6 +47,7 @@ func captureDatadogMetric(aggregator, query string, startTime, completionTime ti
 		return 0, 0, fmt.Errorf("expected one series")
 	}
 
+	aggregator := in.MetricURL.Query().Get("aggregator")
 	var value, n float64
 	for _, p := range metrics[0].Points {
 		if p[1] == nil {

@@ -17,6 +17,7 @@ limitations under the License.
 package metric
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -157,7 +158,7 @@ func TestCaptureMetric(t *testing.T) {
 				},
 			}
 
-			duration, _, err := CaptureMetric(tc.metric, trial, tc.obj)
+			duration, _, err := Capture(context.TODO(), tc.metric, trial, tc.obj)
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expected, duration)
 		})

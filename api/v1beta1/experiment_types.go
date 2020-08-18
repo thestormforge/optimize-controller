@@ -20,7 +20,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // Optimization is a configuration setting for the optimizer
@@ -109,16 +108,7 @@ type Metric struct {
 	// Collection type specific query for the error associated with collected metric value
 	ErrorQuery string `json:"errorQuery,omitempty"`
 
-	// The scheme to use when collecting metrics
-	Scheme string `json:"scheme,omitempty"`
-	// Selector matching services to collect this metric from, only the first matched service to provide a value is used
-	Selector *metav1.LabelSelector `json:"selector,omitempty"`
-	// The port number or name on the matched service to collect the metric value from
-	Port intstr.IntOrString `json:"port,omitempty"`
-	// URL path component used to collect the metric value from an endpoint (used as a prefix for the Prometheus API)
-	Path string `json:"path,omitempty"`
 	// URL to query for fetching metrics.
-	// If this parameter is specified, it will be preferred over Scheme, Selector, Port, and Path.
 	// This is only used for MetricPrometheus and MetricJSONPath metric types.
 	URL string `json:"url,omitempty"`
 }

@@ -17,16 +17,40 @@ limitations under the License.
 package metric
 
 import (
+	"context"
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/internal/template"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
+
+// Source represents a source of metric data
+type Source interface {
+	// Capture queries a metric source for a value
+	Capture(ctx context.Context, in *Input) (value float64, stddev float64, err error)
+}
+
+// Input represents all of the information available when capturing metrics
+type Input struct {
+	// The name of the metric being captured
+	Name string
+	// The configuration URL for the metric
+	MetricURL URL
+	// The beginning of the capture window
+	StartTime time.Time
+	// The end of the capture window
+	CompletionTime time.Time
+	// The metric value query
+	Query string
+	// The metric standard deviation query
+	ErrorQuery string
+
+	// An input also acts as metric URL resolver, i.e. specific to a target runtime object
+	Resolver
+}
 
 // CaptureError describes problems that arise while capturing metric values
 type CaptureError struct {
@@ -46,87 +70,80 @@ func (e *CaptureError) Error() string {
 	return e.Message
 }
 
-// CaptureMetric captures a point-in-time metric value and it's error (standard deviation)
-func CaptureMetric(metric *redskyv1beta1.Metric, trial *redskyv1beta1.Trial, target runtime.Object) (float64, float64, error) {
-	// Work on a copy so we can render the queries in place
-	metric = metric.DeepCopy()
+// FindSource returns the metric source associated with the specified type
+func FindSource(mt redskyv1beta1.MetricType) (Source, error) {
+	switch mt {
 
-	// Execute the query as a template against the current state of the trial
-	var err error
-	if metric.Query, metric.ErrorQuery, err = template.New().RenderMetricQueries(metric, trial, target); err != nil {
-		return 0, 0, err
-	}
-
-	// Capture the value based on the metric type
-	switch metric.Type {
 	case redskyv1beta1.MetricLocal, redskyv1beta1.MetricPods, "":
-		// Just parse the query as a float
-		value, err := strconv.ParseFloat(metric.Query, 64)
-		return value, 0, err
+		return sourceFunc(captureLocalMetric), nil
+
 	case redskyv1beta1.MetricPrometheus:
-		return capturePrometheusMetric(metric, target, trial.Status.CompletionTime.Time)
+		return sourceFunc(capturePrometheusMetric), nil
+
 	case redskyv1beta1.MetricDatadog:
-		return captureDatadogMetric(metric.Scheme, metric.Query, trial.Status.StartTime.Time, trial.Status.CompletionTime.Time)
+		return sourceFunc(captureDatadogMetric), nil
+
 	case redskyv1beta1.MetricJSONPath:
-		return captureJSONPathMetric(metric, target)
+		return sourceFunc(captureJSONPathMetric), nil
+
 	default:
-		return 0, 0, fmt.Errorf("unknown metric type: %s", metric.Type)
+		return nil, fmt.Errorf("unknown metric type: %s", mt)
 	}
 }
 
-func toURL(target runtime.Object, m *redskyv1beta1.Metric) ([]string, error) {
-	// Allow a specified URL to take precedence over a selector
-	if m.URL != "" {
-		return []string{m.URL}, nil
+// Capture captures a point-in-time metric value and it's error (standard deviation)
+func Capture(ctx context.Context, metric *redskyv1beta1.Metric, trial *redskyv1beta1.Trial, target runtime.Object) (value float64, stddev float64, err error) {
+	// Create a new metric capture input
+	in := &Input{
+		Name:           metric.Name,
+		StartTime:      trial.Status.StartTime.Time,
+		CompletionTime: trial.Status.CompletionTime.Time,
+		Resolver:       NewResolver(target),
 	}
 
-	// Make sure we got a service list
-	// TODO We can probably handle a pod list by addressing it directly
-	list, ok := target.(*corev1.ServiceList)
-	if !ok {
-		return nil, fmt.Errorf("expected target to be a service list")
+	// Execute the query as a template against the current state of the trial
+	if in.Query, in.ErrorQuery, err = template.New().RenderMetricQueries(metric, trial, target); err != nil {
+		return value, stddev, err
 	}
 
-	// Get URL components
-	scheme := strings.ToLower(m.Scheme)
-	if scheme == "" {
-		scheme = "http"
-	} else if scheme != "http" && scheme != "https" {
-		return nil, fmt.Errorf("scheme must be 'http' or 'https': %s", scheme)
-	}
-	path := "/" + strings.TrimLeft(m.Path, "/")
-
-	// Construct a URL for each service (use IP literals instead of host names to avoid DNS lookups)
-	var urls []string
-	for _, s := range list.Items {
-		// When debugging in minikube, use `minikube tunnel` to expose the cluster IP on the host
-		// TODO How do we setup port forwarding in GCP?
-		host := s.Spec.ClusterIP
-		if host == "None" {
-			// Only actual clusterIPs are support
-			continue
-		}
-		port := m.Port.IntValue()
-
-		if port < 1 {
-			portName := m.Port.StrVal
-			// TODO Default an empty portName to scheme?
-			for _, sp := range s.Spec.Ports {
-				if sp.Name == portName || len(s.Spec.Ports) == 1 {
-					port = int(sp.Port)
-				}
-			}
-		}
-
-		if port < 1 {
-			return nil, fmt.Errorf("metric '%s' has unresolvable port: %s", m.Name, m.Port.String())
-		}
-
-		urls = append(urls, fmt.Sprintf("%s://%s:%d%s", scheme, host, port, path))
+	// Parse the metric URL
+	if in.MetricURL, err = ParseURL(metric.URL); err != nil {
+		return value, stddev, err
 	}
 
-	if len(urls) == 0 {
-		return nil, fmt.Errorf("unable to find metric targets for '%s'", m.Name)
+	// Find the metric source and use it to capture the metric value
+	src, err := FindSource(metric.Type)
+	if err != nil {
+		return value, stddev, err
+	}
+	return src.Capture(ctx, in)
+}
+
+// TODO We can probably clean this up later and make the sources actual types (especially for types which make use of a reusable client)
+
+type sourceFunc func(ctx context.Context, in *Input) (value float64, stddev float64, err error)
+
+func (sf sourceFunc) Capture(ctx context.Context, in *Input) (value float64, stddev float64, err error) {
+	return sf(ctx, in)
+}
+
+func captureLocalMetric(_ context.Context, in *Input) (value float64, stddev float64, err error) {
+	value, err = strconv.ParseFloat(in.Query, 64)
+	// TODO Parse the error query if it is not empty?
+	return value, stddev, err
+}
+
+// lookupURLs returns a list of real URLs given a metric URL and a resolver
+func lookupURLs(u *URL, r Resolver) ([]string, error) {
+	a, err := r.LookupAuthority(u.Scheme, u.Host, u.Port)
+	if err != nil {
+		return nil, err
+	}
+	urls := make([]string, len(a))
+	for i := range a {
+		uu := u.newURL()
+		uu.Host = a[i]
+		urls[i] = uu.String()
 	}
 	return urls, nil
 }

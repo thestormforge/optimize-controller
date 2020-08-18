@@ -25,8 +25,6 @@ import (
 	"strconv"
 	"time"
 
-	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/util/jsonpath"
 )
 
@@ -34,32 +32,29 @@ import (
 // TODO Combine it with the Prometheus clients?
 var httpClient = &http.Client{Timeout: 10 * time.Second}
 
-func captureJSONPathMetric(m *redskyv1beta1.Metric, target runtime.Object) (value float64, stddev float64, err error) {
-	var urls []string
-
-	if urls, err = toURL(target, m); err != nil {
+func captureJSONPathMetric(ctx context.Context, in *Input) (value float64, stddev float64, err error) {
+	urls, err := lookupURLs(&in.MetricURL, in.Resolver)
+	if err != nil {
 		return value, stddev, err
 	}
 
 	for _, u := range urls {
-		if value, stddev, err = captureOneJSONPathMetric(u, m.Name, m.Query); err != nil {
-			continue
+		value, stddev, err = captureOneJSONPathMetric(ctx, u, in.Name, in.Query)
+		if err == nil {
+			break
 		}
-
-		return value, stddev, nil
 	}
-
 	return value, stddev, err
 }
 
-func captureOneJSONPathMetric(url, name, query string) (float64, float64, error) {
+func captureOneJSONPathMetric(ctx context.Context, url, name, query string) (float64, float64, error) {
 	// Fetch the URL
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return 0, 0, err
 	}
 	req.Header.Set("Accept", "application/json")
-	resp, err := httpClient.Do(req.WithContext(context.TODO()))
+	resp, err := httpClient.Do(req.WithContext(ctx))
 	if err != nil {
 		return 0, 0, err
 	}
