@@ -32,6 +32,7 @@ func Test(t *testing.T) {
 		expected struct {
 			Namespace string
 			Image     string
+			Secret    bool
 		}
 	}{
 		{
@@ -40,6 +41,7 @@ func Test(t *testing.T) {
 			expected: struct {
 				Namespace string
 				Image     string
+				Secret    bool
 			}{
 				Namespace: "redsky-system",
 				Image:     BuildImage,
@@ -51,6 +53,7 @@ func Test(t *testing.T) {
 			expected: struct {
 				Namespace string
 				Image     string
+				Secret    bool
 			}{
 				Namespace: "trololololo",
 				Image:     BuildImage,
@@ -62,15 +65,32 @@ func Test(t *testing.T) {
 			expected: struct {
 				Namespace string
 				Image     string
+				Secret    bool
 			}{
 				Namespace: "redsky-system",
 				Image:     "mycoolregistry.com/image:tag",
+			},
+		},
+		{
+			desc:    "with api",
+			options: []Option{WithInstall(), WithAPI(true)},
+			expected: struct {
+				Namespace string
+				Image     string
+				Secret    bool
+			}{
+				Namespace: "redsky-system",
+				Image:     BuildImage,
+				Secret:    true,
 			},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("%q", tc.desc), func(t *testing.T) {
+			if tc.desc != "with api" {
+				return
+			}
 			k, err := NewKustomization(tc.options...)
 			assert.NoError(t, err)
 
@@ -85,6 +105,10 @@ func Test(t *testing.T) {
 
 			if tc.expected.Image != "" {
 				assert.Contains(t, r[0].String(), tc.expected.Image)
+			}
+			if tc.expected.Secret {
+				assert.Contains(t, r[0].String(), "envFrom")
+				assert.Contains(t, r[0].String(), "secretRef")
 			}
 		})
 	}
