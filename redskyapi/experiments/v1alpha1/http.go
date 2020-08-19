@@ -426,7 +426,7 @@ func newError(t ErrorType, resp *http.Response, body []byte) error {
 		case http.StatusPaymentRequired:
 			err.Type = ErrUnauthorized
 			if err.Message == "" {
-				err.Message = "your account is not ready, please check https://app.carbonrelay.io/ for more details"
+				err.Message = "your account is not ready"
 			}
 		default:
 			if err.Message == "" {
