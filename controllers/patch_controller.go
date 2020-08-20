@@ -18,12 +18,11 @@ package controllers
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 
 	"github.com/go-logr/logr"
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/internal/controller"
+	"github.com/redskyops/redskyops-controller/internal/patch"
 	"github.com/redskyops/redskyops-controller/internal/ready"
 	"github.com/redskyops/redskyops-controller/internal/template"
 	"github.com/redskyops/redskyops-controller/internal/trial"
@@ -32,7 +31,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -140,13 +138,13 @@ func (r *PatchReconciler) evaluatePatchOperations(ctx context.Context, t *redsky
 		p := &exp.Spec.Patches[i]
 
 		// Render the patch template
-		ref, data, err := r.renderTemplate(te, t, p)
+		ref, data, err := patch.RenderTemplate(te, t, p)
 		if err != nil {
 			return &ctrl.Result{}, err
 		}
 
 		// Add a patch operation if necessary
-		if po, err := r.createPatchOperation(t, p, ref, data); err != nil {
+		if po, err := patch.CreatePatchOperation(t, p, ref, data); err != nil {
 			return &ctrl.Result{}, err
 		} else if po != nil {
 			t.Status.PatchOperations = append(t.Status.PatchOperations, *po)
@@ -208,80 +206,6 @@ func (r *PatchReconciler) applyPatches(ctx context.Context, t *redskyv1beta1.Tri
 	trial.ApplyCondition(&t.Status, redskyv1beta1.TrialPatched, corev1.ConditionTrue, "", "", probeTime)
 	err := r.Update(ctx, t)
 	return controller.RequeueConflict(err)
-}
-
-// renderTemplate determines the patch target and renders the patch template
-func (r *PatchReconciler) renderTemplate(te *template.Engine, t *redskyv1beta1.Trial, p *redskyv1beta1.PatchTemplate) (*corev1.ObjectReference, []byte, error) {
-	// Render the actual patch data
-	data, err := te.RenderPatch(p, t)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Determine the reference, possibly extracting it from the rendered data
-	ref := &corev1.ObjectReference{}
-	if p.TargetRef != nil {
-		p.TargetRef.DeepCopyInto(ref)
-	} else if p.Type == redskyv1beta1.PatchStrategic || p.Type == "" {
-		m := &struct {
-			metav1.TypeMeta   `json:",inline"`
-			metav1.ObjectMeta `json:"metadata,omitempty"`
-		}{}
-		if err := json.Unmarshal(data, m); err == nil {
-			ref.APIVersion = m.APIVersion
-			ref.Kind = m.Kind
-			ref.Name = m.Name
-			ref.Namespace = m.Namespace
-		}
-	}
-
-	// Default the namespace to the trial namespace
-	if ref.Namespace == "" {
-		ref.Namespace = t.Namespace
-	}
-
-	// Validate the reference
-	if ref.Name == "" || ref.Kind == "" {
-		return nil, nil, fmt.Errorf("invalid patch reference")
-	}
-
-	return ref, data, nil
-}
-
-// createPatchOperation creates a new patch operation from a patch template and it's (fully rendered) patch data
-func (r *PatchReconciler) createPatchOperation(t *redskyv1beta1.Trial, p *redskyv1beta1.PatchTemplate, ref *corev1.ObjectReference, data []byte) (*redskyv1beta1.PatchOperation, error) {
-	po := &redskyv1beta1.PatchOperation{
-		TargetRef:         *ref,
-		Data:              data,
-		AttemptsRemaining: 3,
-	}
-
-	// If the patch is effectively null, we do not need to evaluate it
-	if len(po.Data) == 0 || string(po.Data) == "null" {
-		return nil, nil
-	}
-
-	// Determine the patch type
-	switch p.Type {
-	case redskyv1beta1.PatchStrategic, "":
-		po.PatchType = types.StrategicMergePatchType
-	case redskyv1beta1.PatchMerge:
-		po.PatchType = types.MergePatchType
-	case redskyv1beta1.PatchJSON:
-		po.PatchType = types.JSONPatchType
-	default:
-		return nil, fmt.Errorf("unknown patch type: %s", p.Type)
-	}
-
-	// If the patch is for the trial job itself, it cannot be applied (since the job won't exist until well after patches are applied)
-	if trial.IsTrialJobReference(t, &po.TargetRef) {
-		po.AttemptsRemaining = 0
-		if po.PatchType != types.StrategicMergePatchType {
-			return nil, fmt.Errorf("trial job patch must be a strategic merge patch")
-		}
-	}
-
-	return po, nil
 }
 
 // createReadinessCheck creates a readiness check for a patch operation

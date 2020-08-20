@@ -101,9 +101,8 @@ type Engine struct {
 
 // New creates a new template engine
 func New() *Engine {
-	f := FuncMap()
 	return &Engine{
-		FuncMap: f,
+		FuncMap: FuncMap(),
 	}
 }
 
