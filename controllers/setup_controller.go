@@ -43,7 +43,7 @@ type SetupReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=redskyops.dev,resources=trials,verbs=get;list;watch;update
+// +kubebuilder:rbac:groups=redskyops.dev,resources=trials;trials/finalizers,verbs=get;list;watch;update
 // +kubebuilder:rbac:groups="",resources=pods,verbs=list
 // +kubebuilder:rbac:groups=batch;extensions,resources=jobs,verbs=list;watch;create
 
