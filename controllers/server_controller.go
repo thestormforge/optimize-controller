@@ -53,8 +53,8 @@ type ServerReconciler struct {
 	trialCreation *rate.Limiter
 }
 
-// +kubebuilder:rbac:groups=redskyops.dev,resources=experiments;experiments/finalizers,verbs=get;list;watch;update
-// +kubebuilder:rbac:groups=redskyops.dev,resources=trials;trials/finalizers,verbs=list;watch;create;update
+// +kubebuilder:rbac:groups=redskyops.dev,resources=experiments,verbs=get;list;watch;update
+// +kubebuilder:rbac:groups=redskyops.dev,resources=trials,verbs=list;watch;create;update
 // +kubebuilder:rbac:groups="",resources=namespaces,verbs=list
 
 func (r *ServerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {

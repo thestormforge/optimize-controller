@@ -41,8 +41,8 @@ type MetricReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=redskyops.dev,resources=experiments;experiments/finalizers,verbs=get;list;watch
-// +kubebuilder:rbac:groups=redskyops.dev,resources=trials;trials/finalizers,verbs=get;list;watch;update
+// +kubebuilder:rbac:groups=redskyops.dev,resources=experiments,verbs=get;list;watch
+// +kubebuilder:rbac:groups=redskyops.dev,resources=trials,verbs=get;list;watch;update
 // +kubebuilder:rbac:groups="",resources=pods,verbs=list
 // +kubebuilder:rbac:groups="",resources=services,verbs=list
 

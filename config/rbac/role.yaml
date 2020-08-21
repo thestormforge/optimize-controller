@@ -38,6 +38,15 @@ rules:
   - redskyops.dev
   resources:
   - experiments
+  verbs:
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - redskyops.dev
+  resources:
+  - experiments
   - experiments/finalizers
   verbs:
   - get
@@ -48,10 +57,19 @@ rules:
   - redskyops.dev
   resources:
   - trials
-  - trials/finalizers
   verbs:
   - create
   - delete
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - redskyops.dev
+  resources:
+  - trials
+  - trials/finalizers
+  verbs:
   - get
   - list
   - update

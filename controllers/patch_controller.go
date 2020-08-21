@@ -42,8 +42,8 @@ type PatchReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=redskyops.dev,resources=experiments;experiments/finalizers,verbs=get;list;watch
-// +kubebuilder:rbac:groups=redskyops.dev,resources=trials;trials/finalizers,verbs=get;list;watch;update
+// +kubebuilder:rbac:groups=redskyops.dev,resources=experiments,verbs=get;list;watch
+// +kubebuilder:rbac:groups=redskyops.dev,resources=trials,verbs=get;list;watch;update
 
 // Reconcile inspects a trial to see if patches need to be applied. The "trial patched" status condition
 // is used to control what actions need to be taken. If the status is "unknown" then the experiment is fetched

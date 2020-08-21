@@ -47,7 +47,7 @@ type ReadyReconciler struct {
 	apiReader client.Reader
 }
 
-// +kubebuilder:rbac:groups=redskyops.dev,resources=trials;trials/finalizers,verbs=get;list;watch;update
+// +kubebuilder:rbac:groups=redskyops.dev,resources=trials,verbs=get;list;watch;update
 // +kubebuilder:rbac:groups="",resources=pods,verbs=list
 
 // Reconcile inspects a trial to see if the patched objects are ready for the trial job to start
