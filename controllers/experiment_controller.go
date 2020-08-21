@@ -41,7 +41,7 @@ type ExperimentReconciler struct {
 }
 
 // +kubebuilder:rbac:groups=redskyops.dev,resources=experiments;experiments/finalizers,verbs=get;list;watch;update
-// +kubebuilder:rbac:groups=redskyops.dev,resources=trials,verbs=list;watch;update;delete
+// +kubebuilder:rbac:groups=redskyops.dev,resources=trials;trials/finalizers,verbs=list;watch;update;delete
 
 func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()

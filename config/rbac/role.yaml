@@ -38,6 +38,7 @@ rules:
   - redskyops.dev
   resources:
   - experiments
+  - experiments/finalizers
   verbs:
   - get
   - list
@@ -47,6 +48,7 @@ rules:
   - redskyops.dev
   resources:
   - trials
+  - trials/finalizers
   verbs:
   - create
   - delete

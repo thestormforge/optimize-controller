@@ -41,7 +41,7 @@ type TrialJobReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=redskyops.dev,resources=trials,verbs=get;list;watch;update
+// +kubebuilder:rbac:groups=redskyops.dev,resources=trials;trials/finalizers,verbs=get;list;watch;update
 // +kubebuilder:rbac:groups=batch;extensions,resources=jobs,verbs=get;list;watch;create
 // +kubebuilder:rbac:groups="",resources=pods,verbs=list
 
