@@ -23,6 +23,7 @@ import (
 	"time"
 
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
+	"github.com/redskyops/redskyops-controller/internal/metric/prometheus"
 	"github.com/redskyops/redskyops-controller/internal/template"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -30,7 +31,7 @@ import (
 // Source represents a source of metric data
 type Source interface {
 	// Capture queries a metric source for a value
-	Capture(ctx context.Context, in *Input) (value float64, stddev float64, err error)
+	Capture(ctx context.Context) (value float64, stddev float64, err error)
 }
 
 // Input represents all of the information available when capturing metrics
@@ -70,15 +71,48 @@ func (e *CaptureError) Error() string {
 	return e.Message
 }
 
-// FindSource returns the metric source associated with the specified type
-func FindSource(mt redskyv1beta1.MetricType) (Source, error) {
+// Not sure what the approriate constructor looks like for this yet
+// Initially I was thinking we'd have Input contain everything, but in it's current state
+// Input relies on generated data that we handle internally. So we can change
+// it to be similar to the Capture call below --  (ctx, trial, target) or look at
+// changing around how Input is used.
+func NewSource(mt redskyv1beta1.MetricType, input *Input) (Source, error) {
+	// Handle all of the parsing/translation that needs to be done from the metric definition
+
+	// Execute the query as a template against the current state of the trial
+	if in.Query, in.ErrorQuery, err = template.New().RenderMetricQueries(metric, trial, target); err != nil {
+		return value, stddev, err
+	}
+
+	// Parse the metric URL
+	if in.MetricURL, err = ParseURL(metric.URL); err != nil {
+		return value, stddev, err
+	}
+
+	// Handle resolution of input MetricURL
+	targets := lookupURLs(input.MetricURL, NewResolver(target))
+
 	switch mt {
 
 	case redskyv1beta1.MetricLocal, redskyv1beta1.MetricPods, "":
 		return sourceFunc(captureLocalMetric), nil
 
 	case redskyv1beta1.MetricPrometheus:
-		return sourceFunc(capturePrometheusMetric), nil
+		if len(targets) != 1 {
+			return nil, fmt.Errorf("only a single prometheus server is supported, we discovered %d", len(targets))
+		}
+
+		// NewCollector implements the Source interface
+		// The source interface definition changes from Capture(ctx, input) to Capture(ctx)
+		// to prevent cyclical imports.
+		return prometheus.NewCollector(
+			targets[0],
+			in.Name,
+			in.Query,
+			in.ErrorQuery,
+			in.StartTime,
+			in.CompleteTime,
+		)
 
 	case redskyv1beta1.MetricDatadog:
 		return sourceFunc(captureDatadogMetric), nil
