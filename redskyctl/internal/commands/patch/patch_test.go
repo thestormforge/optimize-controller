@@ -19,8 +19,8 @@ package patch_test
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
@@ -30,8 +30,7 @@ import (
 )
 
 func TestPatch(t *testing.T) {
-	//	_, expBytes, expFile := createTempExperimentFile(t)
-	_, _, expFile := createTempExperimentFile(t)
+	_, expBytes, expFile := createTempExperimentFile(t)
 	defer os.Remove(expFile.Name())
 
 	manifestFile := createTempManifests(t)
@@ -40,26 +39,34 @@ func TestPatch(t *testing.T) {
 	testCases := []struct {
 		desc  string
 		args  []string
-		stdin string
+		stdin io.Reader
 	}{
 		{
-			desc: "default from file",
+			desc: "exp file manifest file",
 			args: []string{
 				"--file", expFile.Name(),
 				"--file", manifestFile.Name(),
 				"--trialnumber", "1234",
 			},
 		},
-		/*
-			{
-				desc: "default from stdin",
-				args: []string{
-					"--file", "-",
-					"--trialnumber", "1234",
-				},
-				stdin: string(expBytes),
+		{
+			desc: "exp stdin manifest file",
+			args: []string{
+				"--file", "-",
+				"--file", manifestFile.Name(),
+				"--trialnumber", "1234",
 			},
-		*/
+			stdin: bytes.NewReader(expBytes),
+		},
+		{
+			desc: "exp file manifest stdin",
+			args: []string{
+				"--file", expFile.Name(),
+				"--file", "-",
+				"--trialnumber", "1234",
+			},
+			stdin: bytes.NewReader(pgDeployment),
+		},
 	}
 
 	for _, tc := range testCases {
@@ -75,9 +82,8 @@ func TestPatch(t *testing.T) {
 			cmd.SetOut(&b)
 
 			// setup input
-			if tc.stdin != "" {
-				// Double check this is correct, i'm not sure it is
-				cmd.SetIn(strings.NewReader(tc.stdin))
+			if tc.stdin != nil {
+				cmd.SetIn(tc.stdin)
 			}
 
 			// set command args
