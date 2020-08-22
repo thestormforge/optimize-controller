@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package metric
+package prometheus
 
 import (
 	"context"
@@ -28,32 +28,45 @@ import (
 	"github.com/prometheus/common/model"
 )
 
-func capturePrometheusMetric(ctx context.Context, in *Input) (value float64, stddev float64, err error) {
-	urls, err := lookupURLs(&in.MetricURL, in.Resolver)
-	if err != nil {
-		return value, stddev, err
-	}
-
-	for _, u := range urls {
-		value, stddev, err = captureOnePrometheusMetric(ctx, u, in.Query, in.ErrorQuery, in.CompletionTime)
-		if err == nil {
-			break
-		}
-	}
-	return value, stddev, err
+// PrometheusCollector implements the Source interface and contains all of the
+// necessary metadata to query a prometheus endpoint.
+type PrometheusCollector struct {
+	api  promv1.API
+	name string
+	// this name sucks but i cant think of a more appropriate one right now
+	resultQuery    string
+	errorQuery     string
+	startTime      time.Time
+	completionTime time.Time
 }
 
-func captureOnePrometheusMetric(ctx context.Context, address, query, errorQuery string, completionTime time.Time) (float64, float64, error) {
-	// Get the Prometheus client based on the metric URL
-	// TODO Cache these by URL
-	c, err := prom.NewClient(prom.Config{Address: address})
+func NewCollector(url, name, query, errorQuery string, startTime, endTime time.Time) (*PrometheusCollector, error) {
+	// Nothing fancy here
+	c, err := prom.NewClient(prom.Config{Address: url})
 	if err != nil {
-		return 0, 0, err
+		return nil, err
 	}
-	promAPI := promv1.NewAPI(c)
 
+	return &PrometheusCollector{
+		api:            promv1.NewAPI(c),
+		name:           name,
+		resultQuery:    query,
+		errorQuery:     errorQuery,
+		startTime:      startTime,
+		completionTime: endTime,
+	}, nil
+}
+
+// Tried to leave as much of the original in place to reduce the changes for discussion since it's not super
+// relevant right now. I did get carried away on the commit before this, so I added this second commit to keep
+// things straight and not lose out on the previous work :D
+func (p *PrometheusCollector) Capture(ctx context.Context) (value float64, stddev float64, err error) {
+	return p.captureOnePrometheusMetric(ctx)
+}
+
+func (p *PrometheusCollector) captureOnePrometheusMetric(ctx context.Context) (float64, float64, error) {
 	// Make sure Prometheus is ready
-	targets, err := promAPI.Targets(ctx)
+	targets, err := p.api.Targets(ctx)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -63,14 +76,23 @@ func captureOnePrometheusMetric(ctx context.Context, address, query, errorQuery 
 			continue
 		}
 
-		if target.LastScrape.Before(completionTime) {
+		if target.LastScrape.Before(p.completionTime) {
+			// We do run into an importing issue (cyclical) with trying to have well defined errors being used here.
+			// To address the import issues
+			//   - We could move this to a `internal/errors` but I'm unsure how I feel about a large errors package;
+			//		 feels appropraite to be locally scoped here
+			//   - We could drop CaptureError altogether. CaptureError.RetryAfter is used to signal the controller to requeue
+			//     which we could instead handle here considering this portion of the CaptureError does not impact the
+			//     remaining attempts. This would simplify the error type we return ( just a regular error )
+			//     and prevent another reconcile loop.
+
 			// TODO Can we make a more informed delay?
 			return 0, 0, &CaptureError{RetryAfter: 5 * time.Second}
 		}
 	}
 
 	// Execute query
-	v, _, err := promAPI.Query(ctx, query, completionTime)
+	v, _, err := p.api.Query(ctx, p.resultQuery, p.completionTime)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -83,8 +105,8 @@ func captureOnePrometheusMetric(ctx context.Context, address, query, errorQuery 
 	// Scalar result
 	result := float64(v.(*model.Scalar).Value)
 	if math.IsNaN(result) {
-		err := &CaptureError{Message: "metric data not available", Address: address, Query: query, CompletionTime: completionTime}
-		if strings.HasPrefix(query, "scalar(") {
+		err := &CaptureError{Message: "metric data not available", Address: "", Query: p.resultQuery, CompletionTime: p.completionTime}
+		if strings.HasPrefix(p.resultQuery, "scalar(") {
 			err.Message += " (the scalar function may have received an input vector whose size is not 1)"
 		}
 		return 0, 0, err
@@ -92,8 +114,8 @@ func captureOnePrometheusMetric(ctx context.Context, address, query, errorQuery 
 
 	// Execute the error query (if configured)
 	var errorResult float64
-	if errorQuery != "" {
-		ev, _, err := promAPI.Query(ctx, errorQuery, completionTime)
+	if p.errorQuery != "" {
+		ev, _, err := p.api.Query(ctx, p.errorQuery, p.completionTime)
 		if err != nil {
 			return 0, 0, err
 		}
