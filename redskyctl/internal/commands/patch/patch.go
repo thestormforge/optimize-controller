@@ -61,6 +61,7 @@ func NewCommand(o *Options) *cobra.Command {
 		//PreRun: commander.StreamsPreRun(&o.IOStreams),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			commander.SetStreams(&o.IOStreams, cmd)
+
 			var err error
 			if o.ExperimentsAPI == nil {
 				err = commander.SetExperimentsAPI(&o.ExperimentsAPI, o.Config, cmd)
@@ -87,6 +88,7 @@ func (o *Options) patch(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+		defer r.Close()
 		if err := rr.ReadInto(r, exp); err == nil {
 			o.inputFiles = append(o.inputFiles[:idx], o.inputFiles[idx+1:]...)
 			break
@@ -112,6 +114,11 @@ func (o *Options) patch(ctx context.Context) error {
 
 		if data, err = ioutil.ReadAll(input); err != nil {
 			return err
+		}
+
+		if len(data) == 0 {
+			fmt.Println("warning, read empty file", filename)
+			continue
 		}
 
 		asset := kustomize.NewAssetFromBytes(data)
