@@ -18,10 +18,7 @@ package patch_test
 
 import (
 	"context"
-	"net/http"
-	"os/exec"
 
-	"github.com/redskyops/redskyops-go/pkg/config"
 	experimentsapi "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
 	"github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1/numstr"
 )
@@ -42,23 +39,6 @@ var wannabeTrial = experimentsapi.TrialItem{
 	},
 	Number: 1234,
 	Status: experimentsapi.TrialCompleted,
-}
-
-type fakeClient struct {
-	filename string
-}
-
-func (f *fakeClient) Endpoints() (config.Endpoints, error) { return nil, nil }
-
-func (f *fakeClient) Authorize(ctx context.Context, transport http.RoundTripper) (http.RoundTripper, error) {
-	return nil, nil
-}
-
-func (f *fakeClient) SystemNamespace() (string, error) { return "", nil }
-
-func (f *fakeClient) Kubectl(ctx context.Context, arg ...string) (*exec.Cmd, error) {
-	cmd := exec.CommandContext(ctx, "/usr/bin/paste", f.filename)
-	return cmd, nil
 }
 
 // Implement the api interface

@@ -104,7 +104,9 @@ func WithInstall() Option {
 		}
 
 		// Pull in the default bundled resources
-		WithResources(Assets)(k)
+		if err := WithResources(Assets)(k); err != nil {
+			return err
+		}
 
 		return nil
 	}

@@ -67,6 +67,14 @@ func TestPatch(t *testing.T) {
 			},
 			stdin: bytes.NewReader(pgDeployment),
 		},
+		{
+			desc: "exp stdin manifest stdin",
+			args: []string{
+				"--file", "-",
+				"--trialnumber", "1234",
+			},
+			stdin: bytes.NewReader(append(expBytes, pgDeployment...)),
+		},
 	}
 
 	for _, tc := range testCases {
