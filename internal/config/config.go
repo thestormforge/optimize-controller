@@ -133,6 +133,14 @@ func (rsc *RedSkyConfig) Reader() Reader {
 	return &overrideReader{overrides: &rsc.Overrides, delegate: &defaultReader{cfg: &rsc.data}}
 }
 
+// Environment returns the name of the execution environment
+func (rsc *RedSkyConfig) Environment() string {
+	if env := rsc.data.Environment; env != "" {
+		return env
+	}
+	return "production"
+}
+
 // SystemNamespace returns the namespace where the Red Sky controller is/should be installed
 func (rsc *RedSkyConfig) SystemNamespace() (string, error) {
 	ctrl, err := CurrentController(rsc.Reader())

@@ -26,13 +26,13 @@ import (
 
 // SaveServer is a configuration change that persists the supplied server configuration. If the server exists,
 // it is overwritten; otherwise a new named server is created.
-func SaveServer(name string, srv *Server) Change {
+func SaveServer(name string, srv *Server, env string) Change {
 	return func(cfg *Config) error {
 		mergeServers(cfg, []NamedServer{{Name: name, Server: *srv}})
 		mergeAuthorizations(cfg, []NamedAuthorization{{Name: name}})
 
 		// Make sure we capture the current value of the default server roots
-		return defaultServerRoots(cfg, findServer(cfg.Servers, name))
+		return defaultServerRoots(env, findServer(cfg.Servers, name))
 	}
 }
 

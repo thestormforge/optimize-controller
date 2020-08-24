@@ -169,7 +169,7 @@ func (o *Options) LoadConfig() error {
 		}
 
 		// We need to save the server in the loader so default values are loaded on top of them
-		if err := o.Config.Update(config.SaveServer(o.Name, &config.Server{Identifier: o.Server, Authorization: config.AuthorizationServer{Issuer: o.Issuer}})); err != nil {
+		if err := o.Config.Update(config.SaveServer(o.Name, &config.Server{Identifier: o.Server, Authorization: config.AuthorizationServer{Issuer: o.Issuer}}, cfg.Environment())); err != nil {
 			return err
 		}
 
