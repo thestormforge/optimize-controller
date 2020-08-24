@@ -136,14 +136,6 @@ func (o *Options) complete() error {
 		}
 	}
 
-	// Normalize execution environment name
-	switch strings.ToLower(o.Environment) {
-	case "production", "prod":
-		o.Environment = "production"
-	case "development", "dev":
-		o.Environment = "development"
-	}
-
 	// If the server is not blank, make sure it is a URL
 	if o.Server != "" {
 		if u, err := url.Parse(o.Server); err != nil {
@@ -176,28 +168,23 @@ func (o *Options) LoadConfig() error {
 
 	return o.Config.Load(func(cfg *config.RedSkyConfig) error {
 		// Abuse "Update" to validate the configuration does not already have an authorization
-		if err := o.Config.Update(o.requireForceIfNameExists); err != nil {
+		if err := cfg.Update(o.requireForceIfNameExists); err != nil {
 			return err
 		}
 
-		// If there was an explicit environment name, set it before saving the server roots
-		if env := o.Environment; env != "" {
-			// Overwrite the default value with an empty string so it isn't persisted
-			if env == "production" {
-				env = ""
-			}
-			if err := o.Config.Update(config.SetProperty("env", env)); err != nil {
-				return err
-			}
+		// Set the execution environment name before saving the server roots
+		if err := cfg.Update(config.SetExecutionEnvironment(o.Environment)); err != nil {
+			return err
 		}
 
 		// We need to save the server in the loader so default values are loaded on top of them
-		if err := o.Config.Update(config.SaveServer(o.Name, &config.Server{Identifier: o.Server, Authorization: config.AuthorizationServer{Issuer: o.Issuer}}, cfg.Environment())); err != nil {
+		srv := &config.Server{Identifier: o.Server, Authorization: config.AuthorizationServer{Issuer: o.Issuer}}
+		if err := cfg.Update(config.SaveServer(o.Name, srv, cfg.Environment())); err != nil {
 			return err
 		}
 
 		// We need change the current context here to ensure the value is correct when we try to read the configuration out later
-		if err := o.Config.Update(config.ApplyCurrentContext(o.Name, o.Name, o.Name, "")); err != nil {
+		if err := cfg.Update(config.ApplyCurrentContext(o.Name, o.Name, o.Name, "")); err != nil {
 			return err
 		}
 

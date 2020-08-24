@@ -90,15 +90,39 @@ func ApplyCurrentContext(contextName, serverName, authorizationName, clusterName
 	}
 }
 
+// SetExecutionEnvironment is a configuration change that updates the execution environment
+func SetExecutionEnvironment(env string) Change {
+	return func(cfg *Config) error {
+		// Normalize and validate the execution environment name
+		if env != "" {
+			switch strings.ToLower(env) {
+			case "production", "prod":
+				env = "production"
+			case "development", "dev":
+				env = "development"
+			default:
+				return fmt.Errorf("unknown environment: %s", env)
+			}
+		}
+
+		// Do not explicitly persist the "production" value
+		mergeString(&cfg.Environment, env)
+		if cfg.Environment == "production" {
+			cfg.Environment = ""
+		}
+		return nil
+	}
+}
+
 // SetProperty is a configuration change that updates a single property using a dotted name notation.
 func SetProperty(name, value string) Change {
+	if name == "env" {
+		return SetExecutionEnvironment(value)
+	}
 	// TODO This is a giant hack. Consider not even supporting `redskyctl config set` generically
 	return func(cfg *Config) error {
 		path := strings.Split(name, ".")
 		switch path[0] {
-		case "env":
-			cfg.Environment = value
-			return nil
 		case "current-context":
 			cfg.CurrentContext = value
 			return nil
