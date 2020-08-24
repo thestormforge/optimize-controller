@@ -96,6 +96,9 @@ func SetProperty(name, value string) Change {
 	return func(cfg *Config) error {
 		path := strings.Split(name, ".")
 		switch path[0] {
+		case "env":
+			cfg.Environment = value
+			return nil
 		case "current-context":
 			cfg.CurrentContext = value
 			return nil

@@ -135,6 +135,9 @@ func (rsc *RedSkyConfig) Reader() Reader {
 
 // Environment returns the name of the execution environment
 func (rsc *RedSkyConfig) Environment() string {
+	if env := rsc.Overrides.Environment; env != "" {
+		return env
+	}
 	if env := rsc.data.Environment; env != "" {
 		return env
 	}
