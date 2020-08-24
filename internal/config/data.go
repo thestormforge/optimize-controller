@@ -33,6 +33,8 @@ var (
 
 // Config is the top level configuration structure for Red Sky
 type Config struct {
+	// Environment identifies the service environment to prefer
+	Environment string `json:"env,omitempty"`
 	// Servers is a named list of server configurations
 	Servers []NamedServer `json:"servers,omitempty"`
 	// Authorizations is a named list of authorizations configurations

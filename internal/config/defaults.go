@@ -27,11 +27,6 @@ import (
 
 // The default loader must NEVER make changes via RedSkyConfig.Update or RedSkyConfig.unpersisted
 
-var (
-	// DefaultServerIdentifier is the default entrypoint to the remote application
-	DefaultServerIdentifier = "https://api.carbonrelay.io/v1/"
-)
-
 func defaultLoader(cfg *RedSkyConfig) error {
 	// NOTE: Any errors reported here are effectively fatal errors for a program that needs configuration since they will
 	// not be able to load the configuration. Errors should be limited to unusable configurations.
@@ -66,6 +61,21 @@ func defaultString(s1 *string, s2 string) {
 	if *s1 == "" {
 		*s1 = s2
 	}
+}
+
+func defaultServerRoots(cfg *Config, srv *Server) error {
+	// The environment corresponds to deployment details of the proprietary backend
+	switch cfg.Environment {
+	case "production", "":
+		defaultString(&srv.Identifier, "https://api.carbonrelay.io/v1/")
+		defaultString(&srv.Authorization.Issuer, "https://auth.carbonrelay.io/")
+	case "development":
+		defaultString(&srv.Identifier, "https://api.carbonrelay.dev/v1/")
+		defaultString(&srv.Authorization.Issuer, "https://auth.carbonrelay.dev/")
+	default:
+		return fmt.Errorf("unknown environment: %s", cfg.Environment)
+	}
+	return nil
 }
 
 func defaultServerEndpoints(srv *Server) error {
@@ -134,8 +144,9 @@ func (d *defaults) applyServerDefaults() error {
 	for i := range d.cfg.Servers {
 		srv := &d.cfg.Servers[i].Server
 
-		defaultString(&srv.Identifier, DefaultServerIdentifier)
-		defaultString(&srv.Authorization.Issuer, "https://auth.carbonrelay.io/")
+		if err := defaultServerRoots(d.cfg, srv); err != nil {
+			return err
+		}
 
 		if err := defaultServerEndpoints(srv); err != nil {
 			return err

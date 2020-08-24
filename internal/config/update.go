@@ -31,9 +31,8 @@ func SaveServer(name string, srv *Server) Change {
 		mergeServers(cfg, []NamedServer{{Name: name, Server: *srv}})
 		mergeAuthorizations(cfg, []NamedAuthorization{{Name: name}})
 
-		// Make sure we capture the current value of the default server identifier
-		defaultString(&findServer(cfg.Servers, name).Identifier, DefaultServerIdentifier)
-		return nil
+		// Make sure we capture the current value of the default server roots
+		return defaultServerRoots(cfg, findServer(cfg.Servers, name))
 	}
 }
 
