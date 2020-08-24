@@ -40,7 +40,7 @@ type ExperimentReconciler struct {
 	Log logr.Logger
 }
 
-// +kubebuilder:rbac:groups=redskyops.dev,resources=experiments,verbs=get;list;watch;update
+// +kubebuilder:rbac:groups=redskyops.dev,resources=experiments;experiments/finalizers,verbs=get;list;watch;update
 // +kubebuilder:rbac:groups=redskyops.dev,resources=trials,verbs=list;watch;update;delete
 
 func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
