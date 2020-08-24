@@ -76,6 +76,8 @@ type Options struct {
 
 	// Name is the key assigned to this login in the configuration
 	Name string
+	// Environment overrides the default execution environment
+	Environment string
 	// Server overrides the default server identifier
 	Server string
 	// Issuer overrides the default authorization server issuer
@@ -104,12 +106,14 @@ func NewCommand(o *Options) *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&o.Name, "name", "", "Name of the server configuration to authorize.")
+	cmd.Flags().StringVar(&o.Environment, "env", "", "Override the execution environment.")
 	cmd.Flags().StringVar(&o.Server, "server", "", "Override the Red Sky API server identifier.")
 	cmd.Flags().StringVar(&o.Issuer, "issuer", "", "Override the authorization server identifier.")
 	cmd.Flags().BoolVar(&o.DisplayURL, "url", false, "Display the URL instead of opening a browser.")
 	cmd.Flags().BoolVar(&o.DisplayQR, "qr", false, "Display a QR code instead of opening a browser.")
 	cmd.Flags().BoolVar(&o.Force, "force", false, "Overwrite existing configuration.")
 
+	_ = cmd.Flags().MarkHidden("env")
 	_ = cmd.Flags().MarkHidden("server")
 	_ = cmd.Flags().MarkHidden("issuer")
 
@@ -130,6 +134,14 @@ func (o *Options) complete() error {
 			o.Name = strings.ReplaceAll(o.Name, ".", "_")
 			o.Name = strings.ReplaceAll(o.Name, "/", "_")
 		}
+	}
+
+	// Normalize execution environment name
+	switch strings.ToLower(o.Environment) {
+	case "production", "prod":
+		o.Environment = "production"
+	case "development", "dev":
+		o.Environment = "development"
 	}
 
 	// If the server is not blank, make sure it is a URL
@@ -166,6 +178,17 @@ func (o *Options) LoadConfig() error {
 		// Abuse "Update" to validate the configuration does not already have an authorization
 		if err := o.Config.Update(o.requireForceIfNameExists); err != nil {
 			return err
+		}
+
+		// If there was an explicit environment name, set it before saving the server roots
+		if env := o.Environment; env != "" {
+			// Overwrite the default value with an empty string so it isn't persisted
+			if env == "production" {
+				env = ""
+			}
+			if err := o.Config.Update(config.SetProperty("env", env)); err != nil {
+				return err
+			}
 		}
 
 		// We need to save the server in the loader so default values are loaded on top of them
