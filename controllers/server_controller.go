@@ -146,7 +146,7 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			}
 		}
 
-		c, err := redskyapi.NewClient(ctx, cfg, version.UserAgent("RedSkyController", comment, nil))
+		c, err := redskyapi.NewClient(ctx, cfg, version.UserAgent("redskyops-controller", comment, nil))
 		if err != nil {
 			return err
 		}
