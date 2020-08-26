@@ -39,8 +39,7 @@ func NewCommand(o *Options) *cobra.Command {
 	cmd.AddCommand(NewExperimentCommand(&ExperimentOptions{}))
 	cmd.AddCommand(NewServerCommand(&ServerOptions{Config: o.Config}))
 	cmd.AddCommand(NewVersionCommand(&VersionOptions{}))
-
-	// TODO Add a controller check?
+	cmd.AddCommand(NewControllerCommand(&ControllerOptions{Config: o.Config}))
 
 	return cmd
 }
