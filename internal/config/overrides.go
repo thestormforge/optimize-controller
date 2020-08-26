@@ -18,6 +18,8 @@ package config
 
 // Overrides represent information which can be overridden in the configuration
 type Overrides struct {
+	// Environment overrides the execution environment name
+	Environment string
 	// Context overrides the current Red Sky context name (_not_ the KubeConfig context)
 	Context string
 	// SystemNamespace overrides the current controller namespace (_not_ the Kube namespace)

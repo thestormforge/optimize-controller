@@ -76,6 +76,8 @@ type Options struct {
 
 	// Name is the key assigned to this login in the configuration
 	Name string
+	// Environment overrides the default execution environment
+	Environment string
 	// Server overrides the default server identifier
 	Server string
 	// Issuer overrides the default authorization server issuer
@@ -104,12 +106,14 @@ func NewCommand(o *Options) *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&o.Name, "name", "", "Name of the server configuration to authorize.")
+	cmd.Flags().StringVar(&o.Environment, "env", "", "Override the execution environment.")
 	cmd.Flags().StringVar(&o.Server, "server", "", "Override the Red Sky API server identifier.")
 	cmd.Flags().StringVar(&o.Issuer, "issuer", "", "Override the authorization server identifier.")
 	cmd.Flags().BoolVar(&o.DisplayURL, "url", false, "Display the URL instead of opening a browser.")
 	cmd.Flags().BoolVar(&o.DisplayQR, "qr", false, "Display a QR code instead of opening a browser.")
 	cmd.Flags().BoolVar(&o.Force, "force", false, "Overwrite existing configuration.")
 
+	_ = cmd.Flags().MarkHidden("env")
 	_ = cmd.Flags().MarkHidden("server")
 	_ = cmd.Flags().MarkHidden("issuer")
 
@@ -164,17 +168,23 @@ func (o *Options) LoadConfig() error {
 
 	return o.Config.Load(func(cfg *config.RedSkyConfig) error {
 		// Abuse "Update" to validate the configuration does not already have an authorization
-		if err := o.Config.Update(o.requireForceIfNameExists); err != nil {
+		if err := cfg.Update(o.requireForceIfNameExists); err != nil {
+			return err
+		}
+
+		// Set the execution environment name before saving the server roots
+		if err := cfg.Update(config.SetExecutionEnvironment(o.Environment)); err != nil {
 			return err
 		}
 
 		// We need to save the server in the loader so default values are loaded on top of them
-		if err := o.Config.Update(config.SaveServer(o.Name, &config.Server{Identifier: o.Server, Authorization: config.AuthorizationServer{Issuer: o.Issuer}})); err != nil {
+		srv := &config.Server{Identifier: o.Server, Authorization: config.AuthorizationServer{Issuer: o.Issuer}}
+		if err := cfg.Update(config.SaveServer(o.Name, srv, cfg.Environment())); err != nil {
 			return err
 		}
 
 		// We need change the current context here to ensure the value is correct when we try to read the configuration out later
-		if err := o.Config.Update(config.ApplyCurrentContext(o.Name, o.Name, o.Name, "")); err != nil {
+		if err := cfg.Update(config.ApplyCurrentContext(o.Name, o.Name, o.Name, "")); err != nil {
 			return err
 		}
 

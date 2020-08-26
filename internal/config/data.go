@@ -45,6 +45,8 @@ type Config struct {
 	Contexts []NamedContext `json:"contexts,omitempty"`
 	// CurrentContext is the name of the default context
 	CurrentContext string `json:"current-context,omitempty"`
+	// Environment identifies the current execution environment
+	Environment string `json:"env,omitempty"`
 }
 
 // Server contains information about how to communicate with a Red Sky API Server

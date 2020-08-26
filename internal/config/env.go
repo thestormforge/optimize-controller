@@ -20,6 +20,7 @@ import "os"
 
 // envLoader adds environment variable overrides to the configuration
 func envLoader(cfg *RedSkyConfig) error {
+	defaultString(&cfg.Overrides.Environment, os.Getenv("REDSKY_ENV"))
 	defaultString(&cfg.Overrides.ServerIdentifier, os.Getenv("REDSKY_SERVER_IDENTIFIER"))
 	defaultString(&cfg.Overrides.ServerIssuer, os.Getenv("REDSKY_SERVER_ISSUER"))
 	defaultString(&cfg.Overrides.Credential.ClientID, os.Getenv("REDSKY_AUTHORIZATION_CLIENT_ID"))

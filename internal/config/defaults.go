@@ -27,16 +27,11 @@ import (
 
 // The default loader must NEVER make changes via RedSkyConfig.Update or RedSkyConfig.unpersisted
 
-var (
-	// DefaultServerIdentifier is the default entrypoint to the remote application
-	DefaultServerIdentifier = "https://api.carbonrelay.io/v1/"
-)
-
 func defaultLoader(cfg *RedSkyConfig) error {
 	// NOTE: Any errors reported here are effectively fatal errors for a program that needs configuration since they will
 	// not be able to load the configuration. Errors should be limited to unusable configurations.
 
-	d := &defaults{cfg: &cfg.data, clusterName: "default"}
+	d := &defaults{cfg: &cfg.data, env: cfg.Environment(), clusterName: "default"}
 
 	// This constitutes a "bootstrap" invocation of "kubectl", we can't use the configuration because we are actually creating it
 	cmd := exec.Command("kubectl", "config", "view", "--minify", "--output", "jsonpath={.clusters[0].name}")
@@ -66,6 +61,21 @@ func defaultString(s1 *string, s2 string) {
 	if *s1 == "" {
 		*s1 = s2
 	}
+}
+
+func defaultServerRoots(env string, srv *Server) error {
+	// The environment corresponds to deployment details of the proprietary backend
+	switch env {
+	case "production":
+		defaultString(&srv.Identifier, "https://api.carbonrelay.io/v1/")
+		defaultString(&srv.Authorization.Issuer, "https://auth.carbonrelay.io/")
+	case "development":
+		defaultString(&srv.Identifier, "https://api.carbonrelay.dev/v1/")
+		defaultString(&srv.Authorization.Issuer, "https://auth.carbonrelay.dev/")
+	default:
+		return fmt.Errorf("unknown environment: '%s'", env)
+	}
+	return nil
 }
 
 func defaultServerEndpoints(srv *Server) error {
@@ -105,6 +115,7 @@ func defaultServerEndpoints(srv *Server) error {
 
 type defaults struct {
 	cfg         *Config
+	env         string
 	clusterName string
 }
 
@@ -134,8 +145,9 @@ func (d *defaults) applyServerDefaults() error {
 	for i := range d.cfg.Servers {
 		srv := &d.cfg.Servers[i].Server
 
-		defaultString(&srv.Identifier, DefaultServerIdentifier)
-		defaultString(&srv.Authorization.Issuer, "https://auth.carbonrelay.io/")
+		if err := defaultServerRoots(d.env, srv); err != nil {
+			return err
+		}
 
 		if err := defaultServerEndpoints(srv); err != nil {
 			return err

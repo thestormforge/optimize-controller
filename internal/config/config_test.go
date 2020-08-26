@@ -39,9 +39,9 @@ func TestRedSkyConfig_Endpoints(t *testing.T) {
 	rss := &cfg.data.Servers[0].Server.RedSky
 	ep, err := cfg.Endpoints()
 	g.Expect(err).ShouldNot(HaveOccurred())
-	g.Expect(ep.Resolve(exp).String()).To(Equal(DefaultServerIdentifier + "experiments/"))
-	g.Expect(ep.Resolve(expFooBar).String()).To(Equal(DefaultServerIdentifier + "experiments/foo_bar"))
-	g.Expect(ep.Resolve(expFooBarTrials).String()).To(Equal(DefaultServerIdentifier + "experiments/foo_bar/trials/"))
+	g.Expect(ep.Resolve(exp).String()).To(Equal("https://api.carbonrelay.io/v1/experiments/"))
+	g.Expect(ep.Resolve(expFooBar).String()).To(Equal("https://api.carbonrelay.io/v1/experiments/foo_bar"))
+	g.Expect(ep.Resolve(expFooBarTrials).String()).To(Equal("https://api.carbonrelay.io/v1/experiments/foo_bar/trials/"))
 
 	// Change inside the path
 	rss.ExperimentsEndpoint = "http://example.com/api/experiments/"
