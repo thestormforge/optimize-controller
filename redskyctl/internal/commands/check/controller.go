@@ -50,7 +50,7 @@ func NewControllerCommand(o *ControllerOptions) *cobra.Command {
 		RunE:   commander.WithContextE(o.checkController),
 	}
 
-	cmd.Flags().BoolVar(&o.Wait, "wait", o.Wait, "Wait for controller to be ready before returning.")
+	cmd.Flags().BoolVar(&o.Wait, "wait", o.Wait, "Wait for the controller to be ready before returning.")
 
 	commander.ExitOnError(cmd)
 	return cmd

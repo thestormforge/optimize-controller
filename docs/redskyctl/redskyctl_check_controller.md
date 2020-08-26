@@ -14,7 +14,7 @@ redskyctl check controller [flags]
 
 ```
   -h, --help   help for controller
-      --wait   Wait for controller to be ready before returning.
+      --wait   Wait for the controller to be ready before returning.
 ```
 
 ### Options inherited from parent commands
