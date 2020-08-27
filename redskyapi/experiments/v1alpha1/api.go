@@ -139,7 +139,7 @@ type API interface {
 	CreateExperiment(context.Context, ExperimentName, Experiment) (Experiment, error)
 	DeleteExperiment(context.Context, string) error
 	GetAllTrials(context.Context, string, *TrialListQuery) (TrialList, error)
-	CreateTrial(context.Context, string, TrialAssignments) (string, error) // TODO Should this return TrialAssignments?
+	CreateTrial(context.Context, string, TrialAssignments) (TrialAssignments, error)
 	NextTrial(context.Context, string) (TrialAssignments, error)
 	ReportTrial(context.Context, string, TrialValues) error
 	AbandonRunningTrial(context.Context, string) error

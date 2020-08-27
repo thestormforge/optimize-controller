@@ -223,29 +223,30 @@ func (h *httpAPI) GetAllTrials(ctx context.Context, u string, q *TrialListQuery)
 	}
 }
 
-func (h *httpAPI) CreateTrial(ctx context.Context, u string, asm TrialAssignments) (string, error) {
+func (h *httpAPI) CreateTrial(ctx context.Context, u string, asm TrialAssignments) (TrialAssignments, error) {
 	ta := TrialAssignments{}
 
 	req, err := httpNewJSONRequest(http.MethodPost, u, asm)
 	if err != nil {
-		return ta.SelfURL, err
+		return ta, err
 	}
 
 	resp, body, err := h.client.Do(ctx, req)
 	if err != nil {
-		return ta.SelfURL, err
+		return ta, err
 	}
 
 	switch resp.StatusCode {
 	case http.StatusCreated:
 		metaUnmarshal(resp.Header, &ta.TrialMeta)
-		return ta.SelfURL, nil
+		err = json.Unmarshal(body, &ta)
+		return ta, nil // TODO Stop ignoring this when the server starts sending a response body
 	case http.StatusConflict:
-		return ta.SelfURL, newError(ErrExperimentStopped, resp, body)
+		return ta, newError(ErrExperimentStopped, resp, body)
 	case http.StatusUnprocessableEntity:
-		return ta.SelfURL, newError(ErrTrialInvalid, resp, body)
+		return ta, newError(ErrTrialInvalid, resp, body)
 	default:
-		return ta.SelfURL, newError(ErrUnexpected, resp, body)
+		return ta, newError(ErrUnexpected, resp, body)
 	}
 }
 
