@@ -93,6 +93,9 @@ const (
 	MetricDatadog MetricType = "datadog"
 	// MetricJSONPath metrics fetch a JSON resource from the matched service. Queries are JSON path expression evaluated against the resource.
 	MetricJSONPath MetricType = "jsonpath"
+	// MetricBuiltIn metrics are a built in metric type that is used to collect a common set of metrics for all experiments.
+	// This includes things like cpu and memory.
+	MetricBuiltIn MetricType = "builtin"
 )
 
 // Metric represents an observable outcome from a trial run
