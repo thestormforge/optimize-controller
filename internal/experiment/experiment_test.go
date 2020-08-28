@@ -17,53 +17,157 @@ limitations under the License.
 package experiment
 
 import (
+	"fmt"
+	"path"
 	"testing"
 
-	. "github.com/onsi/gomega"
+	redsky "github.com/redskyops/redskyops-controller/api/v1beta1"
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
+	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestSummarize(t *testing.T) {
-	g := NewGomegaWithT(t)
-	now := metav1.Now()
-	paused := int32(0)
-	exp := &redskyv1beta1.Experiment{}
-	exp.Annotations = map[string]string{}
+	var (
+		experimentURL           = "http://example.com/experiment"
+		nextExperimentURL       = path.Join(experimentURL, "next")
+		now                     = metav1.Now()
+		oneReplica        int32 = 1
+		zeroReplicas      int32 = 0
+	)
 
-	// Initial phase is "empty" or created
-	setupExperiment(exp, nil, "", "", nil)
-	g.Expect(summarize(exp, 0, 0)).To(Equal(PhaseEmpty))
-	setupExperiment(exp, nil, "http://example.com/experiment", "", nil)
-	g.Expect(summarize(exp, 0, 0)).To(Equal(PhaseCreated))
+	testCases := []struct {
+		desc          string
+		experiment    *redsky.Experiment
+		expectedPhase string
+		activeTrials  int32
+		totalTrials   int
+	}{
+		{
+			desc:          "empty",
+			experiment:    &redsky.Experiment{},
+			expectedPhase: PhaseEmpty,
+		},
+		{
+			desc: "created",
+			experiment: &redsky.Experiment{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						redsky.AnnotationExperimentURL: experimentURL,
+					},
+				},
+			},
+			expectedPhase: PhaseCreated,
+		},
+		{
+			desc: "deleted",
+			experiment: &redsky.Experiment{
+				ObjectMeta: metav1.ObjectMeta{
+					DeletionTimestamp: &now,
+				},
+			},
+			expectedPhase: PhaseDeleted,
+		},
+		{
+			desc: "deleted ignore active trials",
+			experiment: &redsky.Experiment{
+				ObjectMeta: metav1.ObjectMeta{
+					DeletionTimestamp: &now,
+				},
+			},
+			expectedPhase: PhaseDeleted,
+			activeTrials:  1,
+		},
+		{
+			desc: "deleted ignore replicas",
+			experiment: &redsky.Experiment{
+				ObjectMeta: metav1.ObjectMeta{
+					DeletionTimestamp: &now,
+				},
+				Spec: redsky.ExperimentSpec{
+					Replicas: &oneReplica,
+				},
+			},
+			expectedPhase: PhaseDeleted,
+		},
+		{
+			desc: "paused no active trials",
+			experiment: &redsky.Experiment{
+				Spec: redsky.ExperimentSpec{
+					Replicas: &zeroReplicas,
+				},
+			},
+			expectedPhase: PhasePaused,
+		},
+		{
+			desc: "paused active trials",
+			experiment: &redsky.Experiment{
+				Spec: redsky.ExperimentSpec{
+					Replicas: &oneReplica,
+				},
+			},
+			expectedPhase: PhaseRunning,
+			activeTrials:  1,
+		},
+		{
+			desc: "paused budget done",
+			experiment: &redsky.Experiment{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						redsky.AnnotationExperimentURL: experimentURL,
+					},
+				},
+				Spec: redsky.ExperimentSpec{
+					Replicas: &zeroReplicas,
+				},
+			},
+			expectedPhase: PhaseCompleted,
+		},
+		{
+			desc: "paused budget",
+			experiment: &redsky.Experiment{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						redsky.AnnotationExperimentURL: experimentURL,
+						redsky.AnnotationNextTrialURL:  nextExperimentURL,
+					},
+				},
+				Spec: redsky.ExperimentSpec{
+					Replicas: &zeroReplicas,
+				},
+			},
+			expectedPhase: PhasePaused,
+		},
+		{
+			desc:          "idle not synced",
+			experiment:    &redsky.Experiment{},
+			expectedPhase: PhaseIdle,
+			totalTrials:   1,
+		},
+		{
+			desc: "idle synced",
+			experiment: &redsky.Experiment{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						redsky.AnnotationExperimentURL: experimentURL,
+					},
+				},
+			},
+			totalTrials:   1,
+			expectedPhase: PhaseIdle,
+		},
+	}
 
-	// Once deleted, phase should ignore replica/active trials
-	setupExperiment(exp, nil, "", "", &now)
-	g.Expect(summarize(exp, 0, 0)).To(Equal(PhaseDeleted))
-	g.Expect(summarize(exp, 1, 0)).To(Equal(PhaseDeleted))
-	setupExperiment(exp, &paused, "", "", &now)
-	g.Expect(summarize(exp, 1, 0)).To(Equal(PhaseDeleted))
-
-	// Even when paused, phase should reflect active trials
-	setupExperiment(exp, &paused, "", "", nil)
-	g.Expect(summarize(exp, 0, 0)).To(Equal(PhasePaused))
-	g.Expect(summarize(exp, 1, 0)).To(Equal(PhaseRunning))
-
-	// When the experiment is synchronized remotely the "paused" state accounts for the experiment exceeding the budget
-	setupExperiment(exp, &paused, "http://example.com/experiment", "", nil)
-	g.Expect(summarize(exp, 0, 0)).To(Equal(PhaseCompleted))
-	setupExperiment(exp, &paused, "http://example.com/experiment", "http://example.com/experiment/next", nil)
-	g.Expect(summarize(exp, 0, 0)).To(Equal(PhasePaused))
-
-	// Idle occurs when there are trials
-	setupExperiment(exp, nil, "", "", nil)
-	g.Expect(summarize(exp, 0, 1)).To(Equal(PhaseIdle))
-	setupExperiment(exp, nil, "http://example.com/experiment", "", nil)
-	g.Expect(summarize(exp, 0, 1)).To(Equal(PhaseIdle))
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("%q", tc.desc), func(t *testing.T) {
+			summary := summarize(tc.experiment, tc.activeTrials, tc.totalTrials)
+			assert.Equal(t, tc.expectedPhase, summary)
+		})
+	}
 }
 
 // Explicitly sets the state of the fields consider when computing the phase
-func setupExperiment(exp *redskyv1beta1.Experiment, replicas *int32, experimentURL, nextTrialURL string, deletionTimestamp *metav1.Time) {
+func setupExperiment(exp *redsky.Experiment, replicas *int32, experimentURL, nextTrialURL string, deletionTimestamp *metav1.Time) {
 	exp.Spec.Replicas = replicas
 
 	if experimentURL != "" {
