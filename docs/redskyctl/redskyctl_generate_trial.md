@@ -18,6 +18,7 @@ redskyctl generate trial [flags]
   -f, --filename string         File that contains the experiment to generate trials for.
   -h, --help                    help for trial
       --interactive             Allow interactive prompts for unspecified parameter assignments.
+  -l, --labels string           Comma separated labels to apply to the trial.
   -o, --output format           Output format. One of: json|yaml (default "yaml")
 ```
 

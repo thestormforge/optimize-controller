@@ -17,6 +17,7 @@ redskyctl suggest NAME [flags]
       --default string          Select the behavior for default values; one of: none|min|max|rand.
   -h, --help                    help for suggest
       --interactive             Allow interactive prompts for unspecified parameter assignments.
+  -l, --labels string           Comma separated labels to apply to the trial.
 ```
 
 ### Options inherited from parent commands
