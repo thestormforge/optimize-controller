@@ -3929,8 +3929,6 @@ spec:
                             type: string
                     type:
                       type: string
-                    url:
-                      type: string
               namespaceSelector:
                 type: object
                 properties:
