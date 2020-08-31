@@ -41,7 +41,7 @@ var (
 	SuccessURL = "https://redskyops.dev/api/auth_success/"
 
 	// NotActivatedURL is the URL where users are redirected if they do not have a valid namespace claim in their access token
-	NotActivatedURL = "https://redskyops.dev/api/auth_not_activated/"
+	NotActivatedURL = "https://app.carbonrelay.io/"
 )
 
 const (
