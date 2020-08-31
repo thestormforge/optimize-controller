@@ -120,7 +120,7 @@ type Metric struct {
 	// URL to query for fetching metrics.
 	// If this parameter is specified, it will be preferred over Scheme, Selector, Port, and Path.
 	// This is only used for MetricPrometheus and MetricJSONPath metric types.
-	URL string `json:"url,omitempty"`
+	URL string `json:"-"`
 }
 
 // PatchReadinessGate contains a reference to a condition
