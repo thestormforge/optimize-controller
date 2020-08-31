@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"math/rand"
 	"strconv"
+	"strings"
 
 	experimentsv1alpha1 "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
@@ -38,6 +39,7 @@ type SuggestOptions struct {
 	Assignments      map[string]string
 	AllowInteractive bool
 	DefaultBehavior  string
+	Labels           string
 }
 
 // NewSuggestCommand creates a new suggestion command
@@ -60,6 +62,7 @@ func NewSuggestCommand(o *SuggestOptions) *cobra.Command {
 	cmd.Flags().StringToStringVarP(&o.Assignments, "assign", "A", nil, "Assign an explicit value to a parameter.")
 	cmd.Flags().BoolVar(&o.AllowInteractive, "interactive", false, "Allow interactive prompts for unspecified parameter assignments.")
 	cmd.Flags().StringVar(&o.DefaultBehavior, "default", "", "Select the behavior for default values; one of: none|min|max|rand.")
+	cmd.Flags().StringVarP(&o.Labels, "labels", "l", "", "Comma separated labels to apply to the trial.")
 
 	commander.ExitOnError(cmd)
 	return cmd
@@ -76,8 +79,19 @@ func (o *SuggestOptions) suggest(ctx context.Context) error {
 		return err
 	}
 
-	_, err = o.ExperimentsAPI.CreateTrial(ctx, exp.TrialsURL, *ta)
-	return err
+	t, err := o.ExperimentsAPI.CreateTrial(ctx, exp.TrialsURL, *ta)
+	if err != nil {
+		return err
+	}
+
+	if tl := o.trialLabels(); tl != nil && t.LabelsURL != "" {
+		err := o.ExperimentsAPI.LabelTrial(ctx, t.LabelsURL, *tl)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // SuggestAssignments creates new assignments object based on the parameters of the supplied experiment
@@ -117,6 +131,22 @@ func (o *SuggestOptions) assign(p *experimentsv1alpha1.Parameter) (json.Number, 
 	}
 
 	return "0", fmt.Errorf("no assignment for parameter: %s", p.Name)
+}
+
+func (o *SuggestOptions) trialLabels() *experimentsv1alpha1.TrialLabels {
+	if o.Labels == "" {
+		return nil
+	}
+
+	tl := &experimentsv1alpha1.TrialLabels{Labels: make(map[string]string)}
+	for _, l := range strings.Split(o.Labels, ",") {
+		if p := strings.SplitN(l, "=", 2); len(p) == 2 {
+			tl.Labels[p[0]] = p[1]
+		} else if strings.HasSuffix(l, "-") && strings.Trim(l, "-") != "" {
+			tl.Labels[strings.TrimSuffix(l, "-")] = ""
+		}
+	}
+	return tl
 }
 
 func (o *SuggestOptions) defaultValue(p *experimentsv1alpha1.Parameter) (*json.Number, error) {

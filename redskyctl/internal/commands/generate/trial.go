@@ -18,6 +18,7 @@ package generate
 
 import (
 	"fmt"
+	"strings"
 
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/internal/experiment"
@@ -31,6 +32,7 @@ type TrialOptions struct {
 	experiments.SuggestOptions
 
 	Filename string
+	Labels   string
 }
 
 func NewTrialCommand(o *TrialOptions) *cobra.Command {
@@ -50,6 +52,7 @@ func NewTrialCommand(o *TrialOptions) *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&o.Filename, "filename", "f", o.Filename, "File that contains the experiment to generate trials for.")
+	cmd.Flags().StringVarP(&o.Labels, "labels", "l", "", "Comma separated labels to apply to the trial.")
 
 	cmd.Flags().StringToStringVarP(&o.Assignments, "assign", "A", nil, "Assign an explicit value to a parameter.")
 	cmd.Flags().BoolVar(&o.AllowInteractive, "interactive", o.AllowInteractive, "Allow interactive prompts for unspecified parameter assignments.")
@@ -85,6 +88,12 @@ func (o *TrialOptions) generate() error {
 		return err
 	}
 
+	// Augment trial labels in the template
+	exp.Spec.TrialTemplate.Labels, err = appendLabels(exp.Spec.TrialTemplate.Labels, o.Labels)
+	if err != nil {
+		return err
+	}
+
 	// Build the trial
 	t := &redskyv1beta1.Trial{}
 	experiment.PopulateTrialFromTemplate(exp, t)
@@ -97,4 +106,23 @@ func (o *TrialOptions) generate() error {
 	t.Annotations = nil
 
 	return o.Printer.PrintObj(t, o.Out)
+}
+
+func appendLabels(labels map[string]string, labelString string) (map[string]string, error) {
+	// Similar to something like https://github.com/kubernetes/kubernetes/blob/c631e78173bf6b35d00c18d31fdf147684e89136/staging/src/k8s.io/kubectl/pkg/generate/generate.go#L178
+	if labelString == "" {
+		return nil, nil
+	}
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+	labelSpecs := strings.Split(labelString, ",")
+	for _, ls := range labelSpecs {
+		labelSpec := strings.Split(ls, "=")
+		if len(labelSpec) != 2 || labelSpec[0] == "" {
+			return nil, fmt.Errorf("unexpected label: %s", ls)
+		}
+		labels[labelSpec[0]] = labelSpec[1]
+	}
+	return labels, nil
 }
