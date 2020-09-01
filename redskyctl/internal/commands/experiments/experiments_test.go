@@ -35,19 +35,28 @@ func TestParseNames(t *testing.T) {
 			names: []name{{Type: typeExperiment, Number: -1}},
 		},
 		{
-			desc:  "SharedType",
-			args:  []string{"experiment", "foo", "bar"},
-			names: []name{{Type: typeExperiment, Name: "foo", Number: -1}, {Type: typeExperiment, Name: "bar", Number: -1}},
+			desc: "SharedType",
+			args: []string{"experiment", "foo", "bar"},
+			names: []name{
+				{Type: typeExperiment, Name: "foo", Number: -1},
+				{Type: typeExperiment, Name: "bar", Number: -1},
+			},
 		},
 		{
-			desc:  "IndividualType",
-			args:  []string{"experiment/foo", "trial/bar"},
-			names: []name{{Type: typeExperiment, Name: "foo", Number: -1}, {Type: typeTrial, Name: "bar", Number: -1}},
+			desc: "IndividualType",
+			args: []string{"experiment/foo", "trial/bar"},
+			names: []name{
+				{Type: typeExperiment, Name: "foo", Number: -1},
+				{Type: typeTrial, Name: "bar", Number: -1},
+			},
 		},
 		{
-			desc:  "OverrideSharedType",
-			args:  []string{"experiment", "foo", "trial/bar"},
-			names: []name{{Type: typeExperiment, Name: "foo", Number: -1}, {Type: typeTrial, Name: "bar", Number: -1}},
+			desc: "OverrideSharedType",
+			args: []string{"experiment", "foo", "trial/bar"},
+			names: []name{
+				{Type: typeExperiment, Name: "foo", Number: -1},
+				{Type: typeTrial, Name: "bar", Number: -1},
+			},
 		},
 		{
 			desc: "SharedTypeNumbered",
@@ -86,6 +95,23 @@ func TestParseNames(t *testing.T) {
 			names: nil,
 			err:   "unknown resource type \"foo\"",
 		},
+		{
+			desc: "experiment with trailing number",
+			args: []string{"experiment", "foo-1"},
+			names: []name{
+				{Type: typeExperiment, Name: "foo-1", Number: -1},
+			},
+		},
+		{
+			desc: "dumb names (experiment)",
+			args: []string{"experiment/experiment"},
+			err:  "invalid name: experiment (name is reserved)",
+		},
+		{
+			desc: "dumb names (trial)",
+			args: []string{"trial/trial"},
+			err:  "invalid name: trial (name is reserved)",
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
@@ -93,7 +119,7 @@ func TestParseNames(t *testing.T) {
 			if c.err != "" {
 				assert.EqualError(t, err, c.err)
 			} else if assert.NoError(t, err) {
-				assert.Equal(t, names, c.names)
+				assert.Equal(t, c.names, names)
 			}
 		})
 	}

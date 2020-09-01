@@ -39,6 +39,8 @@ const (
 	typeTrial resourceType = "trial"
 )
 
+const defaultTrialNumber int64 = -1
+
 // validTypes returns the supported object types as strings
 func validTypes() []string {
 	return []string{string(typeExperiment), string(typeTrial)}
@@ -106,40 +108,117 @@ var numberSuffixPattern = regexp.MustCompile(`(.*?)(?:[/\-]([[:digit:]]+))?$`)
 
 // parseNames parses a list of arguments into structured names
 func parseNames(args []string) ([]name, error) {
-	var t resourceType
 	names := make([]name, 0, len(args))
+
+	var t resourceType
 	for _, arg := range args {
-		n := name{Type: t, Name: arg, Number: -1}
-		if sm := numberSuffixPattern.FindStringSubmatch(n.Name); sm != nil && sm[2] != "" {
-			n.Number, _ = strconv.ParseInt(sm[2], 10, 64)
-			n.Name = sm[1]
+		nameParts := strings.Split(arg, "/")
+
+		resType, err := normalizeType(nameParts[0])
+		if resType != "" {
+			t = resType
 		}
 
-		p := strings.SplitN(n.Name, "/", 2)
-		if len(p) > 1 || t == "" {
-			nt, err := normalizeType(p[0])
-			if err != nil {
-				return nil, err
-			}
-			if len(p) > 1 {
-				n.Type = nt
-				n.Name = p[1]
-			} else if t == "" {
-				t = nt
-				continue
-			}
+		// pop trial or experiment prefix
+		if err == nil {
+			nameParts = append([]string{}, nameParts[1:]...)
 		}
-		names = append(names, n)
+
+		// arg == "experiment" || arg == "trial"
+		if len(nameParts) == 0 && (resType == typeExperiment || resType == typeTrial) {
+			continue
+		}
+
+		switch t {
+		case typeExperiment:
+			expName, err := parseExperimentName(nameParts)
+			if err != nil {
+				return []name{}, err
+			}
+
+			names = append(names, name{Type: t, Name: expName, Number: defaultTrialNumber})
+		case typeTrial:
+			trialName, trialNumber, err := parseTrialName(nameParts)
+			if err != nil {
+				return []name{}, err
+			}
+
+			names = append(names, name{Type: t, Name: trialName, Number: trialNumber})
+		default:
+			return names, err
+		}
+	}
+
+	// allow for `list` type operations
+	if len(args) == 1 {
+		names = append(names, name{Type: t, Number: defaultTrialNumber})
 	}
 
 	if len(names) == 0 {
-		if t == "" {
-			return nil, fmt.Errorf("required resource not specified")
-		}
-		names = append(names, name{Type: t, Number: -1})
+		return names, fmt.Errorf("required resource not specified")
 	}
 
 	return names, nil
+}
+
+// parseExperimentName handles evaluation of the arguments for an experiment.
+func parseExperimentName(nameParts []string) (expName string, err error) {
+	switch len(nameParts) {
+	case 1:
+		// experiment name by itself
+		expName = nameParts[0]
+	case 2:
+		// experiment/name
+		expName = nameParts[1]
+	default:
+		return expName, fmt.Errorf("invalid name: %s", strings.Join(nameParts, "/"))
+	}
+
+	if expName == string(typeExperiment) {
+		return expName, fmt.Errorf("invalid name: %s (name is reserved)", expName)
+	}
+
+	return expName, nil
+}
+
+// parseTrialName handles evaluation of the arguments for a trial. This includes
+// handling a trial number if present.
+func parseTrialName(nameParts []string) (trialName string, trialNumber int64, err error) {
+	trialNumber = defaultTrialNumber
+	trialName = nameParts[0]
+
+	switch len(nameParts) {
+	case 1:
+		// trial name and possibly number by itself
+		trialSuffixMatch := numberSuffixPattern.FindStringSubmatch(trialName)
+
+		// try to identify trial number (name-number+$)
+		if len(trialSuffixMatch) != 3 {
+			break
+		}
+
+		trialName = trialSuffixMatch[1]
+
+		if trialSuffixMatch[2] != "" {
+			if trialNumber, err = strconv.ParseInt(trialSuffixMatch[2], 10, 64); err != nil {
+				return trialName, trialNumber, err
+			}
+		}
+
+	case 2:
+		// trial/number
+		if trialNumber, err = strconv.ParseInt(nameParts[1], 10, 64); err != nil {
+			return trialName, trialNumber, err
+		}
+	default:
+		return trialName, trialNumber, fmt.Errorf("invalid name: %s", strings.Join(nameParts, "/"))
+	}
+
+	if trialName == string(typeTrial) {
+		return trialName, trialNumber, fmt.Errorf("invalid name: %s (name is reserved)", trialName)
+	}
+
+	return trialName, trialNumber, err
 }
 
 // verbPrinter
