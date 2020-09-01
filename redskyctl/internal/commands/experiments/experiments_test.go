@@ -86,6 +86,37 @@ func TestParseNames(t *testing.T) {
 			names: nil,
 			err:   "unknown resource type \"foo\"",
 		},
+		{
+			desc:  "ExperimentNumbered",
+			args:  []string{"experiment/foo-2"},
+			names: []name{{Type: typeExperiment, Name: "foo-2", Number: -1}},
+		},
+		{
+			desc: "LateType",
+			args: []string{"experiment/foo", "trial", "foo-2"},
+			names: []name{
+				{Type: typeExperiment, Name: "foo", Number: -1},
+				{Type: typeTrial, Name: "foo", Number: 2},
+			},
+		},
+		{
+			desc: "NameIsExperiment",
+			args: []string{"experiment", "experiment", "experiment/experiment", "trial/experiment"},
+			names: []name{
+				{Type: typeExperiment, Name: "experiment", Number: -1},
+				{Type: typeExperiment, Name: "experiment", Number: -1},
+				{Type: typeTrial, Name: "experiment", Number: -1},
+			},
+		},
+		{
+			desc: "NameIsTrial",
+			args: []string{"trial", "trial", "trial/trial", "experiment/trial"},
+			names: []name{
+				{Type: typeTrial, Name: "trial", Number: -1},
+				{Type: typeTrial, Name: "trial", Number: -1},
+				{Type: typeExperiment, Name: "trial", Number: -1},
+			},
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {

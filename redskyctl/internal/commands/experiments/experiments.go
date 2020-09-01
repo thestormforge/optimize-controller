@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io"
 	"reflect"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -101,45 +100,81 @@ func (n *name) experimentName() experimentsv1alpha1.ExperimentName {
 	return experimentsv1alpha1.NewExperimentName(n.Name)
 }
 
-// numberSuffixPattern matches the trailing digits, for example the number on the end of a trial name
-var numberSuffixPattern = regexp.MustCompile(`(.*?)(?:[/\-]([[:digit:]]+))?$`)
-
 // parseNames parses a list of arguments into structured names
 func parseNames(args []string) ([]name, error) {
-	var t resourceType
 	names := make([]name, 0, len(args))
+
+	var defaultType resourceType
 	for _, arg := range args {
-		n := name{Type: t, Name: arg, Number: -1}
-		if sm := numberSuffixPattern.FindStringSubmatch(n.Name); sm != nil && sm[2] != "" {
-			n.Number, _ = strconv.ParseInt(sm[2], 10, 64)
-			n.Name = sm[1]
+		argType, argName, argNumber := splitArg(arg, string(defaultType))
+
+		// Normalize the type, if no name was supplied just update the default type
+		normalType, err := normalizeType(argType)
+		if err != nil {
+			return nil, err
+		}
+		if defaultType == "" && argName == "" && argNumber == "" {
+			defaultType = normalType
+			continue
 		}
 
-		p := strings.SplitN(n.Name, "/", 2)
-		if len(p) > 1 || t == "" {
-			nt, err := normalizeType(p[0])
+		// Create a new name, apply some type specific special cases
+		n := name{Type: normalType, Name: argName, Number: -1}
+		switch n.Type {
+		case typeTrial:
+			// Special case where trial can alternatively end with "-<NUM>" instead of "/<NUM>"
+			if pos := strings.LastIndex(argName, "-"); pos > 0 && argNumber == "" {
+				n.Name, argNumber = argName[0:pos], argName[pos+1:]
+			}
+		default:
+			if argNumber != "" {
+				return nil, fmt.Errorf("%s name cannot include a number: %s", n.Type, arg)
+			}
+		}
+
+		// Parse the number, if present
+		if argNumber != "" {
+			n.Number, err = strconv.ParseInt(argNumber, 10, 64)
 			if err != nil {
 				return nil, err
 			}
-			if len(p) > 1 {
-				n.Type = nt
-				n.Name = p[1]
-			} else if t == "" {
-				t = nt
-				continue
-			}
 		}
+
 		names = append(names, n)
 	}
 
 	if len(names) == 0 {
-		if t == "" {
+		if defaultType == "" {
 			return nil, fmt.Errorf("required resource not specified")
 		}
-		names = append(names, name{Type: t, Number: -1})
+		names = append(names, name{Type: defaultType, Number: -1})
 	}
 
 	return names, nil
+}
+
+func splitArg(arg, defType string) (string, string, string) {
+	p := strings.Split(arg, "/")
+	switch len(p) {
+	case 1:
+		// type | name
+		if defType != "" {
+			return defType, p[0], ""
+		}
+		return p[0], "", ""
+	case 2:
+		// type/name | name/number
+		if _, err := strconv.ParseInt(p[1], 10, 64); err != nil {
+			return p[0], p[1], ""
+		}
+		return defType, p[0], p[1]
+	case 3:
+		// type/name/number
+		return p[0], p[1], p[2]
+	default:
+		// likely invalid name
+		return p[0], strings.Join(p[1:], "/"), ""
+	}
 }
 
 // verbPrinter
