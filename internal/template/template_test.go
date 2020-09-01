@@ -109,6 +109,23 @@ func TestEngine(t *testing.T) {
 			expected: "5",
 		},
 		{
+			desc: "default prom url",
+			trial: &redskyv1beta1.Trial{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "my-trial",
+				},
+				Spec: redskyv1beta1.TrialSpec{
+					ExperimentRef: &corev1.ObjectReference{
+						Name: "my-experiment",
+					},
+				},
+			},
+			input: &redskyv1beta1.Metric{
+				Type: redskyv1beta1.MetricBuiltIn,
+			},
+			expected: "http://prom-my-experiment:9090",
+		},
+		{
 			desc: "default metric (weighted)",
 			trial: &redskyv1beta1.Trial{
 				Status: redskyv1beta1.TrialStatus{
@@ -156,14 +173,18 @@ func TestEngine(t *testing.T) {
 				got     string
 			)
 
-			switch tc.input.(type) {
+			switch inputType := tc.input.(type) {
 			case *redskyv1beta1.PatchTemplate:
-				boutput, err = eng.RenderPatch(tc.input.(*redskyv1beta1.PatchTemplate), tc.trial)
+				boutput, err = eng.RenderPatch(inputType, tc.trial)
 				got = string(boutput)
 			case *redskyv1beta1.HelmValue:
-				got, err = eng.RenderHelmValue(tc.input.(*redskyv1beta1.HelmValue), tc.trial)
+				got, err = eng.RenderHelmValue(inputType, tc.trial)
 			case *redskyv1beta1.Metric:
-				got, _, err = eng.RenderMetricQueries(tc.input.(*redskyv1beta1.Metric), tc.trial, tc.obj)
+				if inputType.Type == redskyv1beta1.MetricBuiltIn {
+					got, err = eng.RenderPrometheusURL(inputType, tc.trial)
+				} else {
+					got, _, err = eng.RenderMetricQueries(inputType, tc.trial, tc.obj)
+				}
 			}
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expected, got)

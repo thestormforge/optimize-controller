@@ -25,6 +25,7 @@ import (
 
 	"github.com/Masterminds/sprig"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // FuncMap returns the functions used for template evaluation
@@ -37,6 +38,7 @@ func FuncMap() template.FuncMap {
 		"duration":         duration,
 		"percent":          percent,
 		"resourceRequests": resourceRequests,
+		"promServer":       promServer,
 	}
 
 	for k, v := range extra {
@@ -81,4 +83,8 @@ func resourceRequests(pods corev1.PodList, weights string) (float64, error) {
 		}
 	}
 	return totalResources, nil
+}
+
+func promServer(expName types.NamespacedName) string {
+	return fmt.Sprintf("prom-%s", expName.Name)
 }

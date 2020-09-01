@@ -27,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
@@ -52,6 +53,8 @@ type MetricData struct {
 	Values map[string]int64
 	// List of pods from the trial namespace (only available for "pods" type metrics)
 	Pods *corev1.PodList
+	// The experiment identifier
+	ExperimentNamespacedName types.NamespacedName
 }
 
 func newPatchData(t *redskyv1beta1.Trial) *PatchData {
@@ -90,6 +93,8 @@ func newMetricData(t *redskyv1beta1.Trial, target runtime.Object) *MetricData {
 	}
 
 	d.Range = fmt.Sprintf("%.0fs", math.Max(d.CompletionTime.Sub(d.StartTime).Seconds(), 0))
+
+	d.ExperimentNamespacedName = t.ExperimentNamespacedName()
 
 	return d
 }
@@ -142,6 +147,17 @@ func (e *Engine) RenderMetricQueries(metric *redskyv1beta1.Metric, trial *redsky
 		return "", "", err
 	}
 	return b1.String(), b2.String(), nil
+}
+
+const rsoProm = "http://{{ promServer .ExperimentNamespacedName }}:9090"
+
+// RenderPrometheusURL returns the URL for the RSO managed prometheus instance
+func (e *Engine) RenderPrometheusURL(metric *redskyv1beta1.Metric, trial *redskyv1beta1.Trial) (string, error) {
+	data := newMetricData(trial, nil)
+
+	urlBytes, err := e.render("url", rsoProm, data)
+
+	return urlBytes.String(), err
 }
 
 func (e *Engine) render(name, text string, data interface{}) (*bytes.Buffer, error) {
