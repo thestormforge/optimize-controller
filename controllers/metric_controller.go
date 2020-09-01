@@ -119,7 +119,7 @@ func (r *MetricReconciler) evaluateMetrics(ctx context.Context, t *redskyv1beta1
 	}
 
 	// Evaluate the metrics
-	for _, m := range exp.Spec.Metrics {
+	for _, m := range append(exp.Spec.Metrics, metric.BuiltIn...) {
 		t.Spec.Values = append(t.Spec.Values, redskyv1beta1.Value{
 			Name:              m.Name,
 			AttemptsRemaining: 3,
@@ -142,8 +142,8 @@ func (r *MetricReconciler) collectMetrics(ctx context.Context, t *redskyv1beta1.
 	if err := r.Get(ctx, t.ExperimentNamespacedName(), exp); err != nil {
 		return &ctrl.Result{}, err
 	}
-	metrics := make(map[string]*redskyv1beta1.Metric, len(exp.Spec.Metrics))
-	for i := range exp.Spec.Metrics {
+	metrics := make(map[string]*redskyv1beta1.Metric, len(exp.Spec.Metrics)+len(metric.BuiltIn))
+	for i := range append(exp.Spec.Metrics, metric.BuiltIn...) {
 		metrics[exp.Spec.Metrics[i].Name] = &exp.Spec.Metrics[i]
 	}
 
