@@ -34,6 +34,10 @@ jobs:
         run: |
           hack/install_kustomize.sh
           make test
+      - name: Verify docs have been generated
+        run: |
+          make generate-docs
+          git diff-files --exit-code
   build:
     name: Build and Deploy
     runs-on: ubuntu-latest
