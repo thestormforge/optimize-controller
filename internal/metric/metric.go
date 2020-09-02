@@ -69,6 +69,11 @@ func CaptureMetric(metric *redskyv1beta1.Metric, trial *redskyv1beta1.Trial, tar
 		return captureDatadogMetric(metric.Scheme, metric.Query, trial.Status.StartTime.Time, trial.Status.CompletionTime.Time)
 	case redskyv1beta1.MetricJSONPath:
 		return captureJSONPathMetric(metric, target)
+	case redskyv1beta1.MetricBuiltIn:
+		if metric.URL, err = template.New().RenderPrometheusURL(metric, trial); err != nil {
+			return 0, 0, err
+		}
+		return capturePrometheusMetric(metric, target, trial.Status.CompletionTime.Time)
 	default:
 		return 0, 0, fmt.Errorf("unknown metric type: %s", metric.Type)
 	}
