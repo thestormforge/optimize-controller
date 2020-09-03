@@ -82,8 +82,8 @@ func SetExperimentsAPI(api *experimentsv1alpha1.API, cfg config.Config, cmd *cob
 }
 
 // SetPrinter assigns the resource printer during the pre-run of the supplied command
-func SetPrinter(meta TableMeta, printer *ResourcePrinter, cmd *cobra.Command) {
-	pf := newPrintFlags(meta, cmd.Annotations)
+func SetPrinter(meta TableMeta, printer *ResourcePrinter, cmd *cobra.Command, additionalFormats map[string]AdditionalFormat) {
+	pf := newPrintFlags(meta, cmd.Annotations, additionalFormats)
 	pf.addFlags(cmd)
 	AddPreRunE(cmd, func(*cobra.Command, []string) error {
 		return pf.toPrinter(printer)
@@ -91,12 +91,12 @@ func SetPrinter(meta TableMeta, printer *ResourcePrinter, cmd *cobra.Command) {
 }
 
 // SetKubePrinter assigns a client-go enabled resource printer during the pre-run of the supplied command
-func SetKubePrinter(printer *ResourcePrinter, cmd *cobra.Command) {
+func SetKubePrinter(printer *ResourcePrinter, cmd *cobra.Command, additionalFormats map[string]AdditionalFormat) {
 	kp := &kubePrinter{scheme: runtime.NewScheme()}
 	_ = clientgoscheme.AddToScheme(kp.scheme)
 	_ = redskyv1alpha1.AddToScheme(kp.scheme)
 	_ = redskyv1beta1.AddToScheme(kp.scheme)
-	pf := newPrintFlags(kp, cmd.Annotations)
+	pf := newPrintFlags(kp, cmd.Annotations, additionalFormats)
 	pf.addFlags(cmd)
 	AddPreRunE(cmd, func(*cobra.Command, []string) error {
 		if err := pf.toPrinter(&kp.printer); err != nil {

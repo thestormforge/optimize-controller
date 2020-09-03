@@ -85,7 +85,7 @@ func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 
 	o.addFlags(cmd)
 
-	commander.SetKubePrinter(&o.Printer, cmd)
+	commander.SetKubePrinter(&o.Printer, cmd, nil)
 	commander.ExitOnError(cmd)
 	return cmd
 }
@@ -157,7 +157,7 @@ func (o *GeneratorOptions) generate(ctx context.Context) error {
 
 	// Use an alternate printer just for Helm values
 	if o.HelmValues {
-		o.Printer = &helmValuesPrinter{}
+		o.Printer = commander.ResourcePrinterFunc(printHelmValues)
 	}
 
 	return o.Printer.PrintObj(secret, o.Out)
@@ -246,11 +246,8 @@ func localClientInformation(ctrl *config.Controller) *registration.ClientInforma
 	return resp
 }
 
-type helmValuesPrinter struct {
-}
-
-func (h helmValuesPrinter) PrintObj(i interface{}, w io.Writer) error {
-	secret, ok := i.(*corev1.Secret)
+func printHelmValues(obj interface{}, w io.Writer) error {
+	secret, ok := obj.(*corev1.Secret)
 	if !ok {
 		return nil
 	}
