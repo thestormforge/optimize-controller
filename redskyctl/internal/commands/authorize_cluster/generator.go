@@ -31,6 +31,7 @@ import (
 	"golang.org/x/oauth2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
 )
 
@@ -55,8 +56,6 @@ type GeneratorOptions struct {
 	ClientName string
 	// AllowUnauthorized generates a secret with no authorization information
 	AllowUnauthorized bool
-	// HelmValues indicates that instead of generating a Kubernetes secret, we should generate a Helm values file
-	HelmValues bool
 }
 
 // NewGeneratorCommand creates a command for generating the cluster authorization secret
@@ -67,7 +66,7 @@ func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 		Long:  "Generate authorization secret for Red Sky Ops",
 
 		Annotations: map[string]string{
-			commander.PrinterAllowedFormats: "json,yaml",
+			commander.PrinterAllowedFormats: "json,yaml,helm",
 			commander.PrinterOutputFormat:   "yaml",
 		},
 
@@ -85,7 +84,9 @@ func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 
 	o.addFlags(cmd)
 
-	commander.SetKubePrinter(&o.Printer, cmd, nil)
+	commander.SetKubePrinter(&o.Printer, cmd, map[string]commander.AdditionalFormat{
+		"helm": commander.ResourcePrinterFunc(printHelmValues),
+	})
 	commander.ExitOnError(cmd)
 	return cmd
 }
@@ -101,7 +102,6 @@ func clusterName() string {
 
 func (o *GeneratorOptions) addFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&o.ClientName, "client-name", o.ClientName, "Client name to use for registration.")
-	cmd.Flags().BoolVar(&o.HelmValues, "helm-values", o.HelmValues, "Generate a Helm values file instead of a secret.")
 	cmd.Flags().BoolVar(&o.AllowUnauthorized, "allow-unauthorized", o.AllowUnauthorized, "Generate a secret without authorization, if necessary.")
 	_ = cmd.Flags().MarkHidden("allow-unauthorized")
 }
@@ -154,11 +154,6 @@ func (o *GeneratorOptions) generate(ctx context.Context) error {
 	// Overwrite the client credentials in the secret
 	mergeString(secret.Data, "REDSKY_AUTHORIZATION_CLIENT_ID", info.ClientID)
 	mergeString(secret.Data, "REDSKY_AUTHORIZATION_CLIENT_SECRET", info.ClientSecret)
-
-	// Use an alternate printer just for Helm values
-	if o.HelmValues {
-		o.Printer = commander.ResourcePrinterFunc(printHelmValues)
-	}
 
 	return o.Printer.PrintObj(secret, o.Out)
 }
@@ -247,9 +242,11 @@ func localClientInformation(ctrl *config.Controller) *registration.ClientInforma
 }
 
 func printHelmValues(obj interface{}, w io.Writer) error {
-	secret, ok := obj.(*corev1.Secret)
-	if !ok {
-		return nil
+	secret := &corev1.Secret{}
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+	if err := scheme.Convert(obj, secret, nil); err != nil {
+		return err
 	}
 
 	vals := map[string]interface{}{
