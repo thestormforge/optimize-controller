@@ -17,21 +17,75 @@ limitations under the License.
 package discovery
 
 import (
+	"fmt"
 	"testing"
 
-	. "github.com/onsi/gomega"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestWellKnownURI(t *testing.T) {
-	g := NewWithT(t)
+	baseURL := "http://example.com"
+	name := "foo"
 
-	g.Expect(WellKnownURI("http://example.com", "")).To(Equal("http://example.com/.well-known/"))
-	g.Expect(WellKnownURI("http://example.com", "foo")).To(Equal("http://example.com/.well-known/foo"))
-	g.Expect(WellKnownURI("http://example.com/", "foo")).To(Equal("http://example.com/.well-known/foo"))
-	g.Expect(WellKnownURI("http://example.com/x", "foo")).To(Equal("http://example.com/.well-known/foo/x"))
+	testCases := []struct {
+		desc     string
+		id       string
+		name     string
+		expected string
+	}{
+		{
+			desc:     "default",
+			id:       baseURL,
+			name:     "",
+			expected: "http://example.com/.well-known/",
+		},
+		{
+			desc:     "default",
+			id:       baseURL,
+			name:     name,
+			expected: "http://example.com/.well-known/foo",
+		},
+		{
+			desc:     "default",
+			id:       baseURL + "/",
+			name:     name,
+			expected: "http://example.com/.well-known/foo",
+		},
+		{
+			desc:     "default",
+			id:       baseURL + "/x",
+			name:     name,
+			expected: "http://example.com/.well-known/foo/x",
+		},
+		{
+			desc:     "default",
+			id:       "",
+			name:     "",
+			expected: "/.well-known/",
+		},
+		{
+			desc:     "default",
+			id:       "",
+			name:     name,
+			expected: "/.well-known/foo",
+		},
+		{
+			desc:     "default",
+			id:       "/",
+			name:     name,
+			expected: "/.well-known/foo",
+		},
+		{
+			desc:     "default",
+			id:       "/x",
+			name:     name,
+			expected: "/.well-known/foo/x",
+		},
+	}
 
-	g.Expect(WellKnownURI("", "")).To(Equal("/.well-known/"))
-	g.Expect(WellKnownURI("", "foo")).To(Equal("/.well-known/foo"))
-	g.Expect(WellKnownURI("/", "foo")).To(Equal("/.well-known/foo"))
-	g.Expect(WellKnownURI("/x", "foo")).To(Equal("/.well-known/foo/x"))
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("%q", tc.desc), func(t *testing.T) {
+			assert.Equal(t, tc.expected, WellKnownURI(tc.id, tc.name))
+		})
+	}
 }
