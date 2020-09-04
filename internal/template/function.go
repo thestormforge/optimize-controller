@@ -86,5 +86,5 @@ func resourceRequests(pods corev1.PodList, weights string) (float64, error) {
 }
 
 func promServer(expName types.NamespacedName) string {
-	return fmt.Sprintf("prom-%s", expName.Name)
+	return fmt.Sprintf("prom-%s.%s", expName.Name, expName.Namespace)
 }

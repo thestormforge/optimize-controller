@@ -74,6 +74,7 @@ func captureOnePrometheusMetric(address, query, errorQuery string, completionTim
 		}
 	}
 
+	fmt.Println("prom query:", query, completionTime)
 	// Execute query
 	v, _, err := promAPI.Query(context.TODO(), query, completionTime)
 	if err != nil {

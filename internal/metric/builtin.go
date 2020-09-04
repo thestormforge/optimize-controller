@@ -30,23 +30,25 @@ var cpuUtilizationMetric = redskyv1beta1.Metric{
 }
 
 var cpuUtilizationQuery = `
-(
-  sum(
-    sum(kube_pod_container_status_running == 1) by (pod)
+scalar(
+  (
+    sum(
+      sum(kube_pod_container_status_running == 1) by (pod)
+      *
+      on (pod) group_left kube_pod_labels{label_component="postgres"}
+    ) by (pod)
     *
-    on (pod) group_left kube_pod_labels{label_component="postgres"}
-  ) by (pod)
-  *
-  on (pod) group_right max(container_cpu_usage_seconds_total{container="", image=""}) by (pod)
-)
-/
-(
-  sum(
-    sum(kube_pod_container_status_running == 1) by (pod)
+    on (pod) group_right max(container_cpu_usage_seconds_total{container="", image=""}) by (pod)
+  )
+  /
+  (
+    sum(
+      sum(kube_pod_container_status_running == 1) by (pod)
+      *
+      on (pod) group_left kube_pod_labels{label_component="postgres"}
+    ) by (pod)
     *
-    on (pod) group_left kube_pod_labels{label_component="postgres"}
-  ) by (pod)
-  *
-  on (pod) group_left sum_over_time(kube_pod_container_resource_limits_cpu_cores[1h])
+    on (pod) group_left sum_over_time(kube_pod_container_resource_limits_cpu_cores[1h:1s])
+  )
 )
 `

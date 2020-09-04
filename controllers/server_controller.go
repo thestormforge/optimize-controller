@@ -27,6 +27,7 @@ import (
 	"github.com/redskyops/redskyops-controller/internal/controller"
 	"github.com/redskyops/redskyops-controller/internal/experiment"
 	"github.com/redskyops/redskyops-controller/internal/meta"
+	"github.com/redskyops/redskyops-controller/internal/metric"
 	"github.com/redskyops/redskyops-controller/internal/server"
 	"github.com/redskyops/redskyops-controller/internal/trial"
 	"github.com/redskyops/redskyops-controller/internal/validation"
@@ -193,15 +194,30 @@ func (r *ServerReconciler) listTrials(ctx context.Context, trialList *redskyv1be
 // createExperiment will create a new experiment on the server using the cluster state; any default values from the
 // server will be copied back into cluster along with the URLs needed for future interactions with server.
 func (r *ServerReconciler) createExperiment(ctx context.Context, log logr.Logger, exp *redskyv1beta1.Experiment) (*ctrl.Result, error) {
+	localExp := *exp
+	localExp.Spec.Metrics = append(localExp.Spec.Metrics, metric.BuiltIn...)
+
 	// Convert the cluster state into a server representation
-	n, e := server.FromCluster(exp)
+	n, e := server.FromCluster(&localExp)
+
+	/*
+		// Add in builtin metrics
+		r.Log.Info("exp metrics before", "payload", fmt.Sprintf("%+v\n", e.Metrics))
+		r.Log.Info("Adding builtin metrics")
+		for _, builtInMetric := range metric.BuiltIn {
+			r.Log.Info("Added", "name", builtInMetric.Name)
+			e.Metrics = append(e.Metrics, experimentsv1alpha1.Metric{Name: builtInMetric.Name})
+		}
+		r.Log.Info("exp metrics", "payload", fmt.Sprintf("%+v\n", e.Metrics))
+	*/
+
 	ee, err := r.ExperimentsAPI.CreateExperiment(ctx, n, *e)
 	if err != nil {
 		return &ctrl.Result{}, err
 	}
 
 	// Check that the server and the cluster have a compatible experiment definition
-	if err := validation.CheckDefinition(exp, &ee); err != nil {
+	if err := validation.CheckDefinition(&localExp, &ee); err != nil {
 		return &ctrl.Result{}, err
 	}
 
