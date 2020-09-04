@@ -17,31 +17,58 @@ limitations under the License.
 package authorizationcode
 
 import (
+	"fmt"
 	"net/url"
 	"testing"
 
-	. "github.com/onsi/gomega"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestConfig_AuthCodeURLWithPKCE(t *testing.T) {
-	g := NewWithT(t)
-	c := Config{}
+func TestAuthorization(t *testing.T) {
+	testCases := []struct {
+		desc                string
+		vb                  []byte
+		verifierb64         string
+		verifierText        string
+		codeChallengeMethod string
+		codeChallenge       string
+	}{
+		{
+			desc: "Example for the S256 code_challenge_method",
+			vb: []byte{116, 24, 223, 180, 151, 153, 224, 37, 79, 250, 96, 125, 216, 173,
+				187, 186, 22, 212, 37, 77, 105, 214, 191, 240, 91, 88, 5, 88, 83,
+				132, 141, 121},
+			verifierb64:         "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+			codeChallengeMethod: "S256",
+			codeChallenge:       "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+		},
+	}
 
-	// https://tools.ietf.org/html/rfc7636#appendix-B
-	vb := []byte{116, 24, 223, 180, 151, 153, 224, 37, 79, 250, 96, 125, 216, 173,
-		187, 186, 22, 212, 37, 77, 105, 214, 191, 240, 91, 88, 5, 88, 83,
-		132, 141, 121}
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("%q", tc.desc), func(t *testing.T) {
+			var err error
+			assert.NoError(t, err)
 
-	// Make sure we used the correct encoding for the example
-	c.setVerifier(vb)
-	g.Expect(c.verifier).To(Equal("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"), "Example verifier")
+			c, err := NewAuthorizationCodeFlowWithPKCE()
+			assert.NoError(t, err)
 
-	// Even though we did not provide an Endpoint.AuthURL, this should still produce a parsable URL
-	u, err := url.Parse(c.AuthCodeURLWithPKCE())
-	g.Expect(err).ShouldNot(HaveOccurred())
+			// Override verifier
+			c.setVerifier(tc.vb)
 
-	// Make sure we get the expected code challenge
-	v := u.Query()
-	g.Expect(v.Get("code_challenge_method")).To(Equal("S256"), "Code Challenge Method")
-	g.Expect(v.Get("code_challenge")).To(Equal("E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"), "Code Challenge")
+			assert.Equal(t, tc.verifierb64, c.verifier)
+
+			u, err := url.Parse(c.AuthCodeURLWithPKCE())
+			assert.NoError(t, err)
+
+			v := u.Query()
+			assert.Equal(t, tc.codeChallengeMethod, v.Get("code_challenge_method"))
+			assert.Equal(t, tc.codeChallenge, v.Get("code_challenge"))
+
+			// Cant do exchange without a test server
+			// May want to look at implementing something like
+			// https://github.com/golang/oauth2/blob/master/oauth2_test.go#L140
+			// _, err = c.ExchangeWithPKCE(context.Background(), "1234")
+			// assert.NoError(t, err)
+		})
+	}
 }
