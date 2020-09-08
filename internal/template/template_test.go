@@ -116,14 +116,15 @@ func TestEngine(t *testing.T) {
 				},
 				Spec: redskyv1beta1.TrialSpec{
 					ExperimentRef: &corev1.ObjectReference{
-						Name: "my-experiment",
+						Name:      "my-experiment",
+						Namespace: "default",
 					},
 				},
 			},
 			input: &redskyv1beta1.Metric{
 				Type: redskyv1beta1.MetricBuiltIn,
 			},
-			expected: "http://prom-my-experiment:9090",
+			expected: "http://prom-my-experiment.default:9090",
 		},
 		{
 			desc: "default metric (weighted)",
