@@ -111,6 +111,6 @@ jobs:
         with:
           name: redskyctl_linux_amd64
           path: dist/redskyctl-linux-amd64.tar.gz
-      - name: redsky quickstart
-        run: |
-          hack/integration.sh
+#      - name: redsky quickstart
+#        run: |
+#          hack/integration.sh
