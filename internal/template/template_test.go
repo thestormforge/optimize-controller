@@ -124,7 +124,7 @@ func TestEngine(t *testing.T) {
 			input: &redskyv1beta1.Metric{
 				Type: redskyv1beta1.MetricBuiltIn,
 			},
-			expected: "http://prom-my-experiment.default:9090",
+			expected: fmt.Sprintf("http://%s.default:9090", PrometheusServiceName),
 		},
 		{
 			desc: "default metric (weighted)",

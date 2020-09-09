@@ -88,8 +88,10 @@ func resourceRequests(pods corev1.PodList, weights string) (float64, error) {
 	return totalResources, nil
 }
 
+const PrometheusServiceName = "rso-prometheus"
+
 func promServer(expName types.NamespacedName) string {
-	return fmt.Sprintf("prom-%s.%s", expName.Name, expName.Namespace)
+	return fmt.Sprintf("%s.%s", PrometheusServiceName, expName.Namespace)
 }
 
 func rsoTargetLabel(tm metav1.ObjectMeta) string {
