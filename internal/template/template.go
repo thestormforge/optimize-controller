@@ -160,6 +160,14 @@ func (e *Engine) RenderPrometheusURL(metric *redskyv1beta1.Metric, trial *redsky
 	return urlBytes.String(), err
 }
 
+func (e *Engine) RenderAnnotationTarget(metric *redskyv1beta1.Metric, trial *redskyv1beta1.Trial) (string, error) {
+	data := newMetricData(trial, nil)
+
+	labelPairBytes, err := e.render("annotation", metric.Query, data)
+
+	return labelPairBytes.String(), err
+}
+
 func (e *Engine) render(name, text string, data interface{}) (*bytes.Buffer, error) {
 	tmpl, err := template.New(name).Funcs(e.FuncMap).Parse(text)
 	if err != nil {

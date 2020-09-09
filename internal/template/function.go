@@ -24,7 +24,9 @@ import (
 	"time"
 
 	"github.com/Masterminds/sprig"
+	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -39,6 +41,7 @@ func FuncMap() template.FuncMap {
 		"percent":          percent,
 		"resourceRequests": resourceRequests,
 		"promServer":       promServer,
+		"rsoTargetLabel":   rsoTargetLabel,
 	}
 
 	for k, v := range extra {
@@ -87,4 +90,19 @@ func resourceRequests(pods corev1.PodList, weights string) (float64, error) {
 
 func promServer(expName types.NamespacedName) string {
 	return fmt.Sprintf("prom-%s.%s", expName.Name, expName.Namespace)
+}
+
+func rsoTargetLabel(tm metav1.ObjectMeta) string {
+
+	labelPair, ok := tm.Annotations[redskyv1beta1.AnnotationMetricTarget]
+	if !ok {
+		return ""
+	}
+
+	labels := strings.Split(labelPair, "=")
+	if len(labels) != 2 {
+		return ""
+	}
+
+	return fmt.Sprintf("{label_%s=\"%s\"}", labels[0], labels[1])
 }

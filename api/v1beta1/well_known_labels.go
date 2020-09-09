@@ -25,6 +25,8 @@ const (
 	AnnotationNextTrialURL = "redskyops.dev/next-trial-url"
 	// AnnotationReportTrialURL is the URL used to report trial observations
 	AnnotationReportTrialURL = "redskyops.dev/report-trial-url"
+	// AnnotationMetricTarget is the label selector for the target pod(s) to get metrics from
+	AnnotationMetricTarget = "redskyops.dev/metric-target"
 
 	// LabelExperiment is the name of the experiment associated with an object
 	LabelExperiment = "redskyops.dev/experiment"

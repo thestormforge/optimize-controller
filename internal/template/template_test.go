@@ -164,6 +164,47 @@ func TestEngine(t *testing.T) {
 			},
 			expected: "25010",
 		},
+		{
+			desc: "default annotation target",
+			trial: &redskyv1beta1.Trial{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "my-trial",
+					Annotations: map[string]string{
+						redskyv1beta1.AnnotationMetricTarget: "component=postgres",
+					},
+				},
+				Spec: redskyv1beta1.TrialSpec{
+					ExperimentRef: &corev1.ObjectReference{
+						Name:      "my-experiment",
+						Namespace: "default",
+					},
+				},
+			},
+			input: &redskyv1beta1.Metric{
+				Type:  redskyv1beta1.MetricBuiltIn,
+				Query: "kube_pod_labels{{rsoTargetLabel .Trial}}",
+			},
+			expected: "kube_pod_labels{label_component=\"postgres\"}",
+		},
+		{
+			desc: "no annotation target",
+			trial: &redskyv1beta1.Trial{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "my-trial",
+				},
+				Spec: redskyv1beta1.TrialSpec{
+					ExperimentRef: &corev1.ObjectReference{
+						Name:      "my-experiment",
+						Namespace: "default",
+					},
+				},
+			},
+			input: &redskyv1beta1.Metric{
+				Type:  redskyv1beta1.MetricBuiltIn,
+				Query: "kube_pod_labels{{rsoTargetLabel .Trial}}",
+			},
+			expected: "kube_pod_labels",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -181,7 +222,8 @@ func TestEngine(t *testing.T) {
 			case *redskyv1beta1.HelmValue:
 				got, err = eng.RenderHelmValue(inputType, tc.trial)
 			case *redskyv1beta1.Metric:
-				if inputType.Type == redskyv1beta1.MetricBuiltIn {
+				// Not sure of a better way to handle this
+				if tc.desc == "default prom url" {
 					got, err = eng.RenderPrometheusURL(inputType, tc.trial)
 				} else {
 					got, _, err = eng.RenderMetricQueries(inputType, tc.trial, tc.obj)

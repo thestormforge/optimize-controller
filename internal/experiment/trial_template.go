@@ -59,4 +59,8 @@ func PopulateTrialFromTemplate(exp *redskyv1beta1.Experiment, t *redskyv1beta1.T
 	if t.Namespace == "" && exp.Spec.NamespaceSelector == nil && exp.Spec.NamespaceTemplate == nil {
 		t.Namespace = exp.Namespace
 	}
+
+	if target, ok := exp.Annotations[redskyv1beta1.AnnotationMetricTarget]; ok {
+		t.Annotations[redskyv1beta1.AnnotationMetricTarget] = target
+	}
 }
