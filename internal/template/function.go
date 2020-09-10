@@ -57,7 +57,7 @@ func duration(start, completion time.Time) float64 {
 }
 
 // percent returns a percentage of an integer value using an integer (0-100) percentage
-func percent(value int64, percent int64) string {
+func percent(value int32, percent int32) string {
 	return fmt.Sprintf("%d", int64(float64(value)*(float64(percent)/100.0)))
 }
 
