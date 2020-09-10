@@ -39,7 +39,7 @@ func TestEngine_RenderPatch(t *testing.T) {
 		expected      []byte
 	}{
 		{
-			desc: "default patch",
+			desc: "static patch",
 			patchTemplate: redskyv1beta1.PatchTemplate{
 				Patch: "metadata:\n  labels:\n    app: testApp\n",
 				TargetRef: &corev1.ObjectReference{
@@ -72,12 +72,11 @@ func TestEngine_RenderHelmValue(t *testing.T) {
 		expected  string
 	}{
 		{
-			desc: "default helm",
+			desc: "static string",
 			helmValue: redskyv1beta1.HelmValue{
-				Name:  "name",
-				Value: intstr.FromString("testName"),
+				Value: intstr.FromString("testing"),
 			},
-			expected: "testName",
+			expected: "testing",
 		},
 	}
 	for _, c := range cases {
@@ -103,7 +102,7 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 		expectedErrorQuery string
 	}{
 		{
-			desc: "default metric (duration)",
+			desc: "function duration",
 			metric: redskyv1beta1.Metric{
 				Name:  "testMetric",
 				Query: "{{duration .StartTime .CompletionTime}}",
@@ -118,8 +117,9 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 			target:        &corev1.Pod{},
 			expectedQuery: "5",
 		},
+
 		{
-			desc: "default metric (percent)",
+			desc: "function percent",
 			metric: redskyv1beta1.Metric{
 				Name:  "testMetric",
 				Query: "{{percent 100 5}}",
@@ -128,8 +128,9 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 			target:        &corev1.Pod{},
 			expectedQuery: "5",
 		},
+
 		{
-			desc: "default metric (weighted)",
+			desc: "function resourceRequests",
 			metric: redskyv1beta1.Metric{
 				Name:  "testMetric",
 				Query: `{{resourceRequests .Pods "cpu=0.05,memory=0.005"}}`,
