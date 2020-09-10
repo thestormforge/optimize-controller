@@ -39,7 +39,7 @@ type Parameter struct {
 	Min int32 `json:"min,omitempty"`
 	// The inclusive maximum value of the parameter
 	Max int32 `json:"max,omitempty"`
-	// The discrete allowed values of the parameter
+	// Internal use only
 	Values []string `json:"values,omitempty"`
 }
 
