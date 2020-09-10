@@ -97,7 +97,7 @@ func TestFromCluster(t *testing.T) {
 					{
 						Type: redskyapi.ParameterTypeInteger,
 						Name: "one",
-						Bounds: redskyapi.Bounds{
+						Bounds: &redskyapi.Bounds{
 							Min: json.Number(strconv.FormatInt(111, 10)),
 							Max: json.Number(strconv.FormatInt(222, 10)),
 						},
@@ -105,7 +105,7 @@ func TestFromCluster(t *testing.T) {
 					{
 						Type: redskyapi.ParameterTypeInteger,
 						Name: "two",
-						Bounds: redskyapi.Bounds{
+						Bounds: &redskyapi.Bounds{
 							Min: json.Number(strconv.FormatInt(1111, 10)),
 							Max: json.Number(strconv.FormatInt(2222, 10)),
 						},
@@ -113,7 +113,7 @@ func TestFromCluster(t *testing.T) {
 					{
 						Type: redskyapi.ParameterTypeInteger,
 						Name: "three",
-						Bounds: redskyapi.Bounds{
+						Bounds: &redskyapi.Bounds{
 							Min: json.Number(strconv.FormatInt(11111, 10)),
 							Max: json.Number(strconv.FormatInt(22222, 10)),
 						},

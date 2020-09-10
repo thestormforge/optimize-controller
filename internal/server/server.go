@@ -62,7 +62,7 @@ func FromCluster(in *redskyv1beta1.Experiment) (redskyapi.ExperimentName, *redsk
 		out.Parameters = append(out.Parameters, redskyapi.Parameter{
 			Type: redskyapi.ParameterTypeInteger,
 			Name: p.Name,
-			Bounds: redskyapi.Bounds{
+			Bounds: &redskyapi.Bounds{
 				Min: json.Number(strconv.FormatInt(int64(p.Min), 10)),
 				Max: json.Number(strconv.FormatInt(int64(p.Max), 10)),
 			},

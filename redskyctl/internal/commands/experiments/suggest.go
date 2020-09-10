@@ -194,7 +194,7 @@ func (o *SuggestOptions) assignInteractive(p *experimentsv1alpha1.Parameter, def
 func checkValue(p *experimentsv1alpha1.Parameter, n json.Number) (json.Number, error) {
 	switch p.Type {
 	case experimentsv1alpha1.ParameterTypeInteger:
-		min, max, err := intBounds(&p.Bounds)
+		min, max, err := intBounds(p.Bounds)
 		if err != nil {
 			return "0", err
 		}
@@ -206,7 +206,7 @@ func checkValue(p *experimentsv1alpha1.Parameter, n json.Number) (json.Number, e
 			return "0", fmt.Errorf("value is not within experiment bounds [%d-%d]: %d", min, max, v)
 		}
 	case experimentsv1alpha1.ParameterTypeDouble:
-		min, max, err := floatBounds(&p.Bounds)
+		min, max, err := floatBounds(p.Bounds)
 		if err != nil {
 			return "0.0", err
 		}
@@ -224,14 +224,14 @@ func checkValue(p *experimentsv1alpha1.Parameter, n json.Number) (json.Number, e
 func randomValue(p *experimentsv1alpha1.Parameter) (*json.Number, error) {
 	switch p.Type {
 	case experimentsv1alpha1.ParameterTypeInteger:
-		min, max, err := intBounds(&p.Bounds)
+		min, max, err := intBounds(p.Bounds)
 		if err != nil {
 			return nil, err
 		}
 		r := json.Number(strconv.FormatInt(rand.Int63n(max-min)+min, 10))
 		return &r, nil
 	case experimentsv1alpha1.ParameterTypeDouble:
-		min, max, err := floatBounds(&p.Bounds)
+		min, max, err := floatBounds(p.Bounds)
 		if err != nil {
 			return nil, err
 		}

@@ -200,7 +200,7 @@ func generateExperiment(o *ServerOptions) *experimentsv1alpha1.Experiment {
 		e.Parameters = append(e.Parameters, experimentsv1alpha1.Parameter{
 			Name:   getUnique(used, getRandomParameter),
 			Type:   experimentsv1alpha1.ParameterTypeInteger,
-			Bounds: *generateBounds(),
+			Bounds: generateBounds(),
 		})
 	}
 
