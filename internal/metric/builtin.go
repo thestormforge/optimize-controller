@@ -24,8 +24,9 @@ import (
 	prom "github.com/prometheus/client_golang/api"
 	promv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
-	"github.com/redskyops/redskyops-controller/internal/template"
 )
+
+const PrometheusServiceName = "rso-prometheus"
 
 var BuiltIn = []redskyv1beta1.Metric{cpuUtilizationMetric}
 
@@ -33,6 +34,7 @@ var cpuUtilizationMetric = redskyv1beta1.Metric{
 	Name:  "rso cpu utilization",
 	Type:  redskyv1beta1.MetricBuiltIn,
 	Query: cpuUtilizationQuery,
+	URL:   fmt.Sprintf("http://%s.%s:9090", PrometheusServiceName, "{{ .Trial.Namespace }}"),
 }
 
 var cpuUtilizationQuery = `
@@ -62,7 +64,7 @@ scalar(
 // Flush will delete all the time series that are used by the builtin metric queries.
 // This should effectively be starting over from a fresh Prometheus instance.
 func Flush(ctx context.Context, namespace string) error {
-	address := fmt.Sprintf("http://%s.%s:9090", template.PrometheusServiceName, namespace)
+	address := fmt.Sprintf("http://%s.%s:9090", PrometheusServiceName, namespace)
 
 	c, err := prom.NewClient(prom.Config{Address: address})
 	if err != nil {

@@ -112,19 +112,16 @@ func TestEngine(t *testing.T) {
 			desc: "default prom url",
 			trial: &redskyv1beta1.Trial{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "my-trial",
-				},
-				Spec: redskyv1beta1.TrialSpec{
-					ExperimentRef: &corev1.ObjectReference{
-						Name:      "my-experiment",
-						Namespace: "default",
-					},
+					Name:      "my-trial",
+					Namespace: "default",
 				},
 			},
 			input: &redskyv1beta1.Metric{
 				Type: redskyv1beta1.MetricBuiltIn,
+				Name: "testMetric",
+				URL:  fmt.Sprintf("http://%s.%s:9090", "rso-prometheus", "{{ .Trial.Namespace }}"),
 			},
-			expected: fmt.Sprintf("http://%s.default:9090", PrometheusServiceName),
+			expected: fmt.Sprintf("http://%s.default:9090", "rso-prometheus"),
 		},
 		{
 			desc: "default metric (weighted)",

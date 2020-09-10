@@ -27,7 +27,6 @@ import (
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 // FuncMap returns the functions used for template evaluation
@@ -40,7 +39,6 @@ func FuncMap() template.FuncMap {
 		"duration":         duration,
 		"percent":          percent,
 		"resourceRequests": resourceRequests,
-		"promServer":       promServer,
 		"rsoTargetLabel":   rsoTargetLabel,
 	}
 
@@ -86,12 +84,6 @@ func resourceRequests(pods corev1.PodList, weights string) (float64, error) {
 		}
 	}
 	return totalResources, nil
-}
-
-const PrometheusServiceName = "rso-prometheus"
-
-func promServer(expName types.NamespacedName) string {
-	return fmt.Sprintf("%s.%s", PrometheusServiceName, expName.Namespace)
 }
 
 func rsoTargetLabel(tm metav1.ObjectMeta) string {
