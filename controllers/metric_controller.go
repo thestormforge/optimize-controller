@@ -126,8 +126,6 @@ func (r *MetricReconciler) evaluateMetrics(ctx context.Context, t *redskyv1beta1
 		})
 	}
 
-	r.Log.Info("evaluated metrics", "metrics", fmt.Sprintf("%+v", t.Spec.Values))
-
 	// Update the status to indicate that we will be collecting metrics
 	if len(t.Spec.Values) > 0 {
 		trial.ApplyCondition(&t.Status, redskyv1beta1.TrialObserved, corev1.ConditionUnknown, "", "", probeTime)
@@ -144,13 +142,14 @@ func (r *MetricReconciler) collectMetrics(ctx context.Context, t *redskyv1beta1.
 	if err := r.Get(ctx, t.ExperimentNamespacedName(), exp); err != nil {
 		return &ctrl.Result{}, err
 	}
-	log := r.Log.WithValues("trial", fmt.Sprintf("%s/%s", t.Namespace, t.Name))
+
 	metrics := make(map[string]*redskyv1beta1.Metric, len(exp.Spec.Metrics)+len(metric.BuiltIn))
 	for _, metricSpec := range append(exp.Spec.Metrics, metric.BuiltIn...) {
 		metricSpec := metricSpec
-		log.Info("found metric", "name", metricSpec.Name, "spec", fmt.Sprintf("%+v", metricSpec))
 		metrics[metricSpec.Name] = &metricSpec
 	}
+
+	log := r.Log.WithValues("trial", fmt.Sprintf("%s/%s", t.Namespace, t.Name))
 
 	// Iterate over the metric values, looking for remaining attempts
 	for i := range t.Spec.Values {
@@ -159,7 +158,6 @@ func (r *MetricReconciler) collectMetrics(ctx context.Context, t *redskyv1beta1.
 			continue
 		}
 
-		log.Info("capturing metric", "name", v.Name, "query", metrics[v.Name].Query)
 		// Capture the metric
 		var captureError error
 		if target, err := r.target(ctx, t.Namespace, metrics[v.Name]); err != nil {

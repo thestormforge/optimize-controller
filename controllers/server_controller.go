@@ -200,17 +200,6 @@ func (r *ServerReconciler) createExperiment(ctx context.Context, log logr.Logger
 	// Convert the cluster state into a server representation
 	n, e := server.FromCluster(&localExp)
 
-	/*
-		// Add in builtin metrics
-		r.Log.Info("exp metrics before", "payload", fmt.Sprintf("%+v\n", e.Metrics))
-		r.Log.Info("Adding builtin metrics")
-		for _, builtInMetric := range metric.BuiltIn {
-			r.Log.Info("Added", "name", builtInMetric.Name)
-			e.Metrics = append(e.Metrics, experimentsv1alpha1.Metric{Name: builtInMetric.Name})
-		}
-		r.Log.Info("exp metrics", "payload", fmt.Sprintf("%+v\n", e.Metrics))
-	*/
-
 	ee, err := r.ExperimentsAPI.CreateExperiment(ctx, n, *e)
 	if err != nil {
 		return &ctrl.Result{}, err

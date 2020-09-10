@@ -30,9 +30,8 @@ import (
 var BuiltIn = []redskyv1beta1.Metric{cpuUtilizationMetric}
 
 var cpuUtilizationMetric = redskyv1beta1.Metric{
-	Name: "rso cpu utilization",
-	Type: redskyv1beta1.MetricBuiltIn,
-	// TODO figure out how we want to inject labels
+	Name:  "rso cpu utilization",
+	Type:  redskyv1beta1.MetricBuiltIn,
 	Query: cpuUtilizationQuery,
 }
 
