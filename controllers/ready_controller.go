@@ -23,6 +23,7 @@ import (
 	"github.com/go-logr/logr"
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/internal/controller"
+	"github.com/redskyops/redskyops-controller/internal/metric"
 	"github.com/redskyops/redskyops-controller/internal/ready"
 	"github.com/redskyops/redskyops-controller/internal/trial"
 	corev1 "k8s.io/api/core/v1"
@@ -194,8 +195,16 @@ func (r *ReadyReconciler) checkReadiness(ctx context.Context, t *redskyv1beta1.T
 
 	// Update the trial (and the status, if all the checks are complete)
 	if checker.ready {
+		// Flush time series used with builtIn metrics.
+		// This is done at trial creation time to ensure we dont have
+		// any lingering data from prior trials.
+		if err := metric.Flush(ctx, t.Namespace); err != nil {
+			return nil, err
+		}
+
 		trial.ApplyCondition(&t.Status, redskyv1beta1.TrialReady, corev1.ConditionTrue, "", "", probeTime)
 	}
+
 	err := r.Update(ctx, t)
 	return controller.RequeueConflict(err)
 }

@@ -17,7 +17,14 @@ limitations under the License.
 package metric
 
 import (
+	"context"
+	"fmt"
+	"time"
+
+	prom "github.com/prometheus/client_golang/api"
+	promv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
+	"github.com/redskyops/redskyops-controller/internal/template"
 )
 
 var BuiltIn = []redskyv1beta1.Metric{cpuUtilizationMetric}
@@ -52,3 +59,27 @@ scalar(
   )
 )
 `
+
+// Flush will delete all the time series that are used by the builtin metric queries.
+// This should effectively be starting over from a fresh Prometheus instance.
+func Flush(ctx context.Context, namespace string) error {
+	address := fmt.Sprintf("http://%s.%s:9090", template.PrometheusServiceName, namespace)
+
+	c, err := prom.NewClient(prom.Config{Address: address})
+	if err != nil {
+		return err
+	}
+	promAPI := promv1.NewAPI(c)
+
+	matches := []string{
+		"kube_pod_labels",
+		"container_cpu_usage_seconds_total",
+		"kube_pod_container_resource_limits_cpu_cores",
+	}
+
+	if err := promAPI.DeleteSeries(ctx, matches, time.Time{}, time.Now()); err != nil {
+		return err
+	}
+
+	return nil
+}
