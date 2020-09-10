@@ -84,15 +84,19 @@ After the trial is complete, you will be able to view the parameters and the met
 
 ## Add the Current Configuration as a Baseline
 
-Optionally, you can compare Red Sky Ops results to a baseline by running a trial with the parameters that are currently set in the the application manifests.
+Optionally, you can compare Red Sky Ops results to a baseline by running a trial with the parameters that are currently set in the application manifests.
 While your experiment is still running, use the following command to suggest a trial.
 
 ```sh
-redskyctl suggest postgres-example --interactive --labels 'baseline=true'
+$ redskyctl suggest postgres-example --assign memory=2000 --assign cpu=1000 --labels 'baseline=true'
 ```
 
-You will be prompted to fill in integer values for each parameter in the experiment file.
-Set memory=2000 and CPU=1000.
+Alternatively, you can use `--interactive` which will prompt you to fill in integer values for each parameter in the experiment file. Set memory=2000 and CPU=1000.
+
+```sh
+$ redskyctl suggest postgres-example --interactive --labels 'baseline=true'
+```
+
 This will schedule a trial with the suggested parameters and collect duration and cost.
 This trial will be counted as part of the experiment budget.
 When the experiment finishes, the baseline trial will be displayed as a triangle on the results page along with your experiment results.
