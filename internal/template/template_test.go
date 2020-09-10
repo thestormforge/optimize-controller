@@ -17,7 +17,6 @@ limitations under the License.
 package template
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -30,28 +29,18 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func TestEngine(t *testing.T) {
-	now := metav1.NewTime(time.Now().Add(time.Duration(-10) * time.Minute))
-	later := metav1.NewTime(now.Add(5 * time.Second))
-
+func TestEngine_RenderPatch(t *testing.T) {
 	eng := New()
 
-	testCases := []struct {
-		desc     string
-		trial    *redskyv1beta1.Trial
-		input    interface{}
-		obj      runtime.Object
-		expected string
+	cases := []struct {
+		desc          string
+		patchTemplate redskyv1beta1.PatchTemplate
+		trial         redskyv1beta1.Trial
+		expected      []byte
 	}{
 		{
 			desc: "default patch",
-			trial: &redskyv1beta1.Trial{
-				Status: redskyv1beta1.TrialStatus{
-					StartTime:      &now,
-					CompletionTime: &later,
-				},
-			},
-			input: &redskyv1beta1.PatchTemplate{
+			patchTemplate: redskyv1beta1.PatchTemplate{
 				Patch: "metadata:\n  labels:\n    app: testApp\n",
 				TargetRef: &corev1.ObjectReference{
 					Kind:       "Pod",
@@ -60,68 +49,93 @@ func TestEngine(t *testing.T) {
 					APIVersion: "v1",
 				},
 			},
-			expected: `{"metadata":{"labels":{"app":"testApp"}}}`,
+			expected: []byte(`{"metadata":{"labels":{"app":"testApp"}}}`),
 		},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			actual, err := eng.RenderPatch(&c.patchTemplate, &c.trial)
+			if assert.NoError(t, err) {
+				assert.Equal(t, c.expected, actual)
+			}
+		})
+	}
+}
+
+func TestEngine_RenderHelmValue(t *testing.T) {
+	eng := New()
+
+	cases := []struct {
+		desc      string
+		helmValue redskyv1beta1.HelmValue
+		trial     redskyv1beta1.Trial
+		expected  string
+	}{
 		{
 			desc: "default helm",
-			trial: &redskyv1beta1.Trial{
-				Status: redskyv1beta1.TrialStatus{
-					StartTime:      &now,
-					CompletionTime: &later,
-				},
-			},
-			input: &redskyv1beta1.HelmValue{
+			helmValue: redskyv1beta1.HelmValue{
 				Name:  "name",
 				Value: intstr.FromString("testName"),
 			},
 			expected: "testName",
 		},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			actual, err := eng.RenderHelmValue(&c.helmValue, &c.trial)
+			if assert.NoError(t, err) {
+				assert.Equal(t, c.expected, actual)
+			}
+		})
+	}
+}
+
+func TestEngine_RenderMetricQueries(t *testing.T) {
+	eng := New()
+	now := metav1.Now()
+
+	cases := []struct {
+		desc               string
+		metric             redskyv1beta1.Metric
+		trial              redskyv1beta1.Trial
+		target             runtime.Object
+		expectedQuery      string
+		expectedErrorQuery string
+	}{
 		{
 			desc: "default metric (duration)",
-			trial: &redskyv1beta1.Trial{
-				Status: redskyv1beta1.TrialStatus{
-					StartTime:      &now,
-					CompletionTime: &later,
-				},
-			},
-			input: &redskyv1beta1.Metric{
+			metric: redskyv1beta1.Metric{
 				Name:  "testMetric",
 				Query: "{{duration .StartTime .CompletionTime}}",
 				Type:  redskyv1beta1.MetricLocal,
 			},
-			obj:      &corev1.Pod{},
-			expected: "5",
+			trial: redskyv1beta1.Trial{
+				Status: redskyv1beta1.TrialStatus{
+					StartTime:      &metav1.Time{Time: now.Add(-5 * time.Second)},
+					CompletionTime: &now,
+				},
+			},
+			target:        &corev1.Pod{},
+			expectedQuery: "5",
 		},
 		{
 			desc: "default metric (percent)",
-			trial: &redskyv1beta1.Trial{
-				Status: redskyv1beta1.TrialStatus{
-					StartTime:      &now,
-					CompletionTime: &later,
-				},
-			},
-			input: &redskyv1beta1.Metric{
+			metric: redskyv1beta1.Metric{
 				Name:  "testMetric",
 				Query: "{{percent 100 5}}",
 				Type:  redskyv1beta1.MetricLocal,
 			},
-			obj:      &corev1.Pod{},
-			expected: "5",
+			target:        &corev1.Pod{},
+			expectedQuery: "5",
 		},
 		{
 			desc: "default metric (weighted)",
-			trial: &redskyv1beta1.Trial{
-				Status: redskyv1beta1.TrialStatus{
-					StartTime:      &now,
-					CompletionTime: &later,
-				},
-			},
-			input: &redskyv1beta1.Metric{
+			metric: redskyv1beta1.Metric{
 				Name:  "testMetric",
 				Query: `{{resourceRequests .Pods "cpu=0.05,memory=0.005"}}`,
 				Type:  redskyv1beta1.MetricLocal,
 			},
-			obj: &corev1.PodList{
+			target: &corev1.PodList{
 				Items: []corev1.Pod{
 					{
 						ObjectMeta: metav1.ObjectMeta{
@@ -144,29 +158,16 @@ func TestEngine(t *testing.T) {
 					},
 				},
 			},
-			expected: "25010",
+			expectedQuery: "25010",
 		},
 	}
-
-	for _, tc := range testCases {
-		t.Run(fmt.Sprintf("%q", tc.desc), func(t *testing.T) {
-			var (
-				err     error
-				boutput []byte
-				got     string
-			)
-
-			switch tc.input.(type) {
-			case *redskyv1beta1.PatchTemplate:
-				boutput, err = eng.RenderPatch(tc.input.(*redskyv1beta1.PatchTemplate), tc.trial)
-				got = string(boutput)
-			case *redskyv1beta1.HelmValue:
-				got, err = eng.RenderHelmValue(tc.input.(*redskyv1beta1.HelmValue), tc.trial)
-			case *redskyv1beta1.Metric:
-				got, _, err = eng.RenderMetricQueries(tc.input.(*redskyv1beta1.Metric), tc.trial, tc.obj)
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			actualQuery, actualErrorQuery, err := eng.RenderMetricQueries(&c.metric, &c.trial, c.target)
+			if assert.NoError(t, err) {
+				assert.Equal(t, c.expectedQuery, actualQuery)
+				assert.Equal(t, c.expectedErrorQuery, actualErrorQuery)
 			}
-			assert.NoError(t, err)
-			assert.Equal(t, tc.expected, got)
 		})
 	}
 }
