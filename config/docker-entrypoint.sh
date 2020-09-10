@@ -1,19 +1,22 @@
 #!/bin/sh
-set -e
+set -ex
 
-
-# Generate installation manifests
-if [ "$1" = "install" ] ; then
+case "$1" in
+  install)
+    # Generate installation manifests
     shift && /workspace/install/install.sh "$@"
     exit $?
-fi
-
-
-# Package the Helm chart
-if [ "$1" = "chart" ] ; then
+  ;;
+  chart)
+    # Package the Helm chart
     shift && /workspace/chart/build.sh "$@"
     exit $?
-fi
+  ;;
+  prometheus)
+    # Generate prometheus manifests
+    shift && cd /workspace/rso
+  ;;
+esac
 
 
 # Create the "base" root
@@ -31,6 +34,8 @@ fi
 
 # Add trial labels to the resulting manifests so they can be more easily located
 if [ -n "$TRIAL" ]; then
+    # Note, this heredoc block must be indented with tabs
+    # <<- allows for indentation via tabs, if spaces are used it is no good.
     cat <<-EOF >"trial_labels.yaml"
 		apiVersion: konjure.carbonrelay.com/v1beta1
 		kind: LabelTransformer

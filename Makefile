@@ -83,14 +83,20 @@ generate: controller-gen conversion-gen
 	$(CONVERSION_GEN) --go-header-file "./hack/boilerplate.go.txt" --input-dirs "./api/v1alpha1" \
 		--output-base "." --output-file-base="zz_generated.conversion" --skip-unsafe=true
 
+build: manifests
+	# Build on host so we can make use of the cache
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -ldflags "${LDFLAGS}" -a -o manager main.go
+
 # Build the docker images
 docker-build: test docker-build-ci
 
 # Build the docker images
-docker-build-ci: manifests
-	# Build on host so we can make use of the cache
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -ldflags "${LDFLAGS}" -a -o manager main.go
+docker-build-ci: build docker-build-controller docker-build-setuptools
+
+docker-build-controller:
 	docker build . -t ${IMG}
+
+docker-build-setuptools:
 	docker build config -t ${SETUPTOOLS_IMG} --build-arg IMG='${IMG}' --build-arg PULL_POLICY='${PULL_POLICY}' --build-arg VERSION='${VERSION}'
 
 # Push the docker images
