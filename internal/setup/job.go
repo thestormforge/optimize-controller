@@ -28,6 +28,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/yaml"
 )
 
@@ -148,7 +149,11 @@ func NewJob(t *redskyv1beta1.Trial, mode string) (*batchv1.Job, error) {
 						if !ok {
 							return nil, fmt.Errorf("invalid parameter reference '%s' for Helm value '%s'", hv.ValueFrom.ParameterRef.Name, hv.Name)
 						}
-						hgv.Value = v
+						if v.Type == intstr.String {
+							hgv.Value = v.StrVal
+						} else {
+							hgv.Value = v.IntVal
+						}
 
 					default:
 						return nil, fmt.Errorf("unknown source for Helm value '%s'", hv.Name)

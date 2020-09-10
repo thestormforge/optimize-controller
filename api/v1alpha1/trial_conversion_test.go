@@ -95,11 +95,11 @@ func TestTrial_ConvertRoundTrip(t *testing.T) {
 					Assignments: []Assignment{
 						{
 							Name:  "tp",
-							Value: 1,
+							Value: intstr.FromInt(1),
 						},
 						{
 							Name:  "tp2",
-							Value: 2,
+							Value: intstr.FromInt(2),
 						},
 					},
 				},

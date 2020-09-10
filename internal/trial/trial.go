@@ -17,7 +17,6 @@ limitations under the License.
 package trial
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -95,7 +94,7 @@ func IsTrialJobReference(t *redskyv1beta1.Trial, ref *corev1.ObjectReference) bo
 func AppendAssignmentEnv(t *redskyv1beta1.Trial, env []corev1.EnvVar) []corev1.EnvVar {
 	for _, a := range t.Spec.Assignments {
 		name := strings.ReplaceAll(strings.ToUpper(a.Name), ".", "_")
-		env = append(env, corev1.EnvVar{Name: name, Value: fmt.Sprintf("%d", a.Value)})
+		env = append(env, corev1.EnvVar{Name: name, Value: a.Value.String()})
 	}
 	return env
 }

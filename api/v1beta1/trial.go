@@ -21,6 +21,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // ExperimentNamespacedName returns the namespaced name of the experiment for this trial
@@ -46,13 +47,13 @@ func (in *Trial) HasInitializer() bool {
 }
 
 // GetAssignment returns an assignment value by name
-func (in *Trial) GetAssignment(name string) (int64, bool) {
+func (in *Trial) GetAssignment(name string) (intstr.IntOrString, bool) {
 	for i := range in.Spec.Assignments {
 		if in.Spec.Assignments[i].Name == name {
 			return in.Spec.Assignments[i].Value, true
 		}
 	}
-	return 0, false
+	return intstr.FromInt(0), false
 }
 
 // GetJobSelector returns the job selector

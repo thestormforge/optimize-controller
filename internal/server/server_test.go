@@ -28,6 +28,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func TestFromCluster(t *testing.T) {
@@ -319,9 +320,9 @@ func TestToClusterTrial(t *testing.T) {
 				},
 				Spec: redskyv1beta1.TrialSpec{
 					Assignments: []redskyv1beta1.Assignment{
-						{Name: "one", Value: 111},
-						{Name: "two", Value: 222},
-						{Name: "three", Value: 333},
+						{Name: "one", Value: intstr.FromInt(111)},
+						{Name: "two", Value: intstr.FromInt(222)},
+						{Name: "three", Value: intstr.FromInt(333)},
 					},
 				},
 			},
@@ -361,9 +362,9 @@ func TestToClusterTrial(t *testing.T) {
 				},
 				Spec: redskyv1beta1.TrialSpec{
 					Assignments: []redskyv1beta1.Assignment{
-						{Name: "one", Value: 111},
-						{Name: "two", Value: 222},
-						{Name: "three", Value: 333},
+						{Name: "one", Value: intstr.FromInt(111)},
+						{Name: "two", Value: intstr.FromInt(222)},
+						{Name: "three", Value: intstr.FromInt(333)},
 					},
 				},
 			},

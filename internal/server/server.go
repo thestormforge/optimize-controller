@@ -26,6 +26,7 @@ import (
 	"github.com/redskyops/redskyops-controller/internal/trial"
 	redskyapi "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -62,8 +63,8 @@ func FromCluster(in *redskyv1beta1.Experiment) (redskyapi.ExperimentName, *redsk
 			Type: redskyapi.ParameterTypeInteger,
 			Name: p.Name,
 			Bounds: redskyapi.Bounds{
-				Min: json.Number(strconv.FormatInt(p.Min, 10)),
-				Max: json.Number(strconv.FormatInt(p.Max, 10)),
+				Min: json.Number(strconv.FormatInt(int64(p.Min), 10)),
+				Max: json.Number(strconv.FormatInt(int64(p.Max), 10)),
 			},
 		})
 	}
@@ -152,10 +153,11 @@ func ToClusterTrial(t *redskyv1beta1.Trial, suggestion *redskyapi.TrialAssignmen
 	}
 
 	for _, a := range suggestion.Assignments {
-		if v, err := a.Value.Int64(); err == nil {
+		// TODO Where is server support for categorical values?
+		if v, err := strconv.ParseInt(string(a.Value), 10, 32); err == nil {
 			t.Spec.Assignments = append(t.Spec.Assignments, redskyv1beta1.Assignment{
 				Name:  a.ParameterName,
-				Value: v,
+				Value: intstr.FromInt(int(v)),
 			})
 		}
 	}
