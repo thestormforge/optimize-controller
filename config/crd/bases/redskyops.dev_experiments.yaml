@@ -190,6 +190,10 @@ spec:
                       format: int32
                     name:
                       type: string
+                    values:
+                      type: array
+                      items:
+                        type: string
               patches:
                 type: array
                 items:
@@ -4000,6 +4004,10 @@ spec:
                       format: int32
                     name:
                       type: string
+                    values:
+                      type: array
+                      items:
+                        type: string
               patches:
                 type: array
                 items:

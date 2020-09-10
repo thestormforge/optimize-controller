@@ -57,8 +57,9 @@ func CheckAssignments(t *redskyv1beta1.Trial, exp *redskyv1beta1.Experiment) err
 	for _, p := range exp.Spec.Parameters {
 		if a, ok := assignments[p.Name]; ok {
 			if a.Type == intstr.String {
-				// TODO Check against valid string values
-				err.OutOfBounds = append(err.OutOfBounds, p.Name)
+				if !contains(p.Values, a.StrVal) {
+					err.OutOfBounds = append(err.OutOfBounds, p.Name)
+				}
 			} else if a.IntVal < p.Min || a.IntVal > p.Max {
 				err.OutOfBounds = append(err.OutOfBounds, p.Name)
 			}
@@ -76,4 +77,13 @@ func CheckAssignments(t *redskyv1beta1.Trial, exp *redskyv1beta1.Experiment) err
 		return nil
 	}
 	return err
+}
+
+func contains(values []string, strVal string) bool {
+	for _, c := range values {
+		if strVal == c {
+			return true
+		}
+	}
+	return false
 }

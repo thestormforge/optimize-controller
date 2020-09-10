@@ -902,6 +902,7 @@ func autoConvert_v1alpha1_Parameter_To_v1beta1_Parameter(in *Parameter, out *v1b
 	out.Name = in.Name
 	out.Min = in.Min
 	out.Max = in.Max
+	out.Values = in.Values
 	return nil
 }
 
@@ -914,6 +915,7 @@ func autoConvert_v1beta1_Parameter_To_v1alpha1_Parameter(in *v1beta1.Parameter, 
 	out.Name = in.Name
 	out.Min = in.Min
 	out.Max = in.Max
+	out.Values = in.Values
 	return nil
 }
 
