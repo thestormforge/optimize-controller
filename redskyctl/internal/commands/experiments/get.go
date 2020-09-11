@@ -276,10 +276,12 @@ func (o *GetOptions) filterAndSortTrials(l *experimentsv1alpha1.TrialList) error
 
 // sortableTrialData slightly modifies the schema of the trial item to make it easier to specify sort orders
 func sortableTrialData(item *experimentsv1alpha1.TrialItem) map[string]interface{} {
-	assignments := make(map[string]int64, len(item.Assignments))
+	assignments := make(map[string]interface{}, len(item.Assignments))
 	for i := range item.Assignments {
-		if a, err := item.Assignments[i].Value.Int64(); err == nil {
-			assignments[item.Assignments[i].ParameterName] = a
+		if v := item.Assignments[i].Value; v.IsString {
+			assignments[item.Assignments[i].ParameterName] = v.String()
+		} else {
+			assignments[item.Assignments[i].ParameterName] = v.Int64Value()
 		}
 	}
 

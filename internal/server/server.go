@@ -55,18 +55,26 @@ func FromCluster(in *redskyv1beta1.Experiment) (redskyapi.ExperimentName, *redsk
 	out.Parameters = nil
 	for _, p := range in.Spec.Parameters {
 		// This is a special case to omit parameters client side
-		if p.Min == p.Max {
+		if p.Min == p.Max && len(p.Values) == 0 {
 			continue
 		}
 
-		out.Parameters = append(out.Parameters, redskyapi.Parameter{
-			Type: redskyapi.ParameterTypeInteger,
-			Name: p.Name,
-			Bounds: &redskyapi.Bounds{
-				Min: json.Number(strconv.FormatInt(int64(p.Min), 10)),
-				Max: json.Number(strconv.FormatInt(int64(p.Max), 10)),
-			},
-		})
+		if len(p.Values) > 0 {
+			out.Parameters = append(out.Parameters, redskyapi.Parameter{
+				Type:   redskyapi.ParameterTypeCategorical,
+				Name:   p.Name,
+				Values: p.Values,
+			})
+		} else {
+			out.Parameters = append(out.Parameters, redskyapi.Parameter{
+				Type: redskyapi.ParameterTypeInteger,
+				Name: p.Name,
+				Bounds: &redskyapi.Bounds{
+					Min: json.Number(strconv.FormatInt(int64(p.Min), 10)),
+					Max: json.Number(strconv.FormatInt(int64(p.Max), 10)),
+				},
+			})
+		}
 	}
 
 	out.Constraints = nil
@@ -153,13 +161,17 @@ func ToClusterTrial(t *redskyv1beta1.Trial, suggestion *redskyapi.TrialAssignmen
 	}
 
 	for _, a := range suggestion.Assignments {
-		// TODO Where is server support for categorical values?
-		if v, err := strconv.ParseInt(string(a.Value), 10, 32); err == nil {
-			t.Spec.Assignments = append(t.Spec.Assignments, redskyv1beta1.Assignment{
-				Name:  a.ParameterName,
-				Value: intstr.FromInt(int(v)),
-			})
+		var v intstr.IntOrString
+		if a.Value.IsString {
+			v = intstr.FromString(a.Value.StrVal)
+		} else {
+			v = intstr.FromInt(int(a.Value.Int64Value()))
 		}
+
+		t.Spec.Assignments = append(t.Spec.Assignments, redskyv1beta1.Assignment{
+			Name:  a.ParameterName,
+			Value: v,
+		})
 	}
 
 	if len(suggestion.Labels) > 0 {

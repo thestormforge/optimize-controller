@@ -298,9 +298,9 @@ func TestToClusterTrial(t *testing.T) {
 					SelfURL: "some/path/1",
 				},
 				Assignments: []redskyapi.Assignment{
-					{ParameterName: "one", Value: json.Number("111")},
-					{ParameterName: "two", Value: json.Number("222")},
-					{ParameterName: "three", Value: json.Number("333")},
+					{ParameterName: "one", Value: redskyapi.NumberOrString{NumVal: json.Number("111")}},
+					{ParameterName: "two", Value: redskyapi.NumberOrString{NumVal: json.Number("222")}},
+					{ParameterName: "three", Value: redskyapi.NumberOrString{NumVal: json.Number("333")}},
 				},
 			},
 			trialOut: &redskyv1beta1.Trial{
@@ -340,9 +340,9 @@ func TestToClusterTrial(t *testing.T) {
 					SelfURL: "some/path/one",
 				},
 				Assignments: []redskyapi.Assignment{
-					{ParameterName: "one", Value: json.Number("111")},
-					{ParameterName: "two", Value: json.Number("222")},
-					{ParameterName: "three", Value: json.Number("333")},
+					{ParameterName: "one", Value: redskyapi.NumberOrString{NumVal: json.Number("111")}},
+					{ParameterName: "two", Value: redskyapi.NumberOrString{NumVal: json.Number("222")}},
+					{ParameterName: "three", Value: redskyapi.NumberOrString{NumVal: json.Number("333")}},
 				},
 			},
 			trialOut: &redskyv1beta1.Trial{

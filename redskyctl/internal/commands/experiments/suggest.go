@@ -98,7 +98,10 @@ func (o *SuggestOptions) SuggestAssignments(exp *experimentsv1alpha1.Experiment,
 		if err != nil {
 			return err
 		}
-		ta.Assignments = append(ta.Assignments, experimentsv1alpha1.Assignment{ParameterName: p.Name, Value: v})
+		ta.Assignments = append(ta.Assignments, experimentsv1alpha1.Assignment{
+			ParameterName: p.Name,
+			Value:         experimentsv1alpha1.NumberOrString{NumVal: v},
+		})
 	}
 	return nil
 }
