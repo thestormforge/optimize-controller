@@ -35,6 +35,7 @@ func NewCommand(o *Options) *cobra.Command {
 		Long:  "Modify or view the Red Sky Configuration file",
 	}
 
+	cmd.AddCommand(NewCurrentContextCommand(&CurrentContextOptions{Config: o.Config}))
 	cmd.AddCommand(NewEnvCommand(&EnvOptions{Config: o.Config}))
 	cmd.AddCommand(NewSetCommand(&SetOptions{Config: o.Config}))
 	cmd.AddCommand(NewViewCommand(&ViewOptions{Config: o.Config}))
