@@ -98,7 +98,7 @@ $ redskyctl suggest postgres-example --interactive --labels 'baseline=true'
 ```
 
 This will schedule a trial with the suggested parameters and collect duration and cost.
-This trial will be counted as part of the experiment budget.
+This trial will be counted towards the total number of trials allotted for the experiment.
 When the experiment finishes, the baseline trial will be displayed as a triangle on the results page along with your experiment results.
 
 ## View the Results
