@@ -19,14 +19,13 @@ package experiments
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
 	"math/rand"
-	"strconv"
 	"strings"
 
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	experimentsv1alpha1 "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
+	"github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1/numstr"
 	"github.com/spf13/cobra"
 )
 
@@ -100,22 +99,22 @@ func (o *SuggestOptions) SuggestAssignments(exp *experimentsv1alpha1.Experiment,
 		}
 		ta.Assignments = append(ta.Assignments, experimentsv1alpha1.Assignment{
 			ParameterName: p.Name,
-			Value:         experimentsv1alpha1.NumberOrString{NumVal: v},
+			Value:         *v,
 		})
 	}
 	return nil
 }
 
-func (o *SuggestOptions) assign(p *experimentsv1alpha1.Parameter) (json.Number, error) {
+func (o *SuggestOptions) assign(p *experimentsv1alpha1.Parameter) (*numstr.NumberOrString, error) {
 	// Look for explicit assignments
 	if a, ok := o.Assignments[p.Name]; ok {
-		return checkValue(p, json.Number(a))
+		return checkValue(p, a)
 	}
 
 	// Compute a default value (may be needed for interactive prompt)
 	def, err := o.defaultValue(p)
 	if err != nil {
-		return "0", err
+		return nil, err
 	}
 
 	// Collect the value interactively
@@ -125,10 +124,10 @@ func (o *SuggestOptions) assign(p *experimentsv1alpha1.Parameter) (json.Number, 
 
 	// Use the default
 	if def != nil {
-		return *def, nil
+		return def, nil
 	}
 
-	return "0", fmt.Errorf("no assignment for parameter: %s", p.Name)
+	return nil, fmt.Errorf("no assignment for parameter: %s", p.Name)
 }
 
 func (o *SuggestOptions) AddLabels(ta *experimentsv1alpha1.TrialAssignments) error {
@@ -147,22 +146,21 @@ func (o *SuggestOptions) AddLabels(ta *experimentsv1alpha1.TrialAssignments) err
 	return nil
 }
 
-func (o *SuggestOptions) defaultValue(p *experimentsv1alpha1.Parameter) (*json.Number, error) {
+func (o *SuggestOptions) defaultValue(p *experimentsv1alpha1.Parameter) (*numstr.NumberOrString, error) {
 	switch o.DefaultBehavior {
 	case "none":
 		return nil, nil
 	case "min":
-		return &p.Bounds.Min, nil
+		return p.LowerBound()
 	case "max":
-		return &p.Bounds.Max, nil
+		return p.UpperBound()
 	case "rand":
 		return randomValue(p)
 	}
-	// TODO If we ever have a "status quo" or "default" value on the parameter, return it here
 	return nil, nil
 }
 
-func (o *SuggestOptions) assignInteractive(p *experimentsv1alpha1.Parameter, def *json.Number) (json.Number, error) {
+func (o *SuggestOptions) assignInteractive(p *experimentsv1alpha1.Parameter, def *numstr.NumberOrString) (*numstr.NumberOrString, error) {
 	if def != nil {
 		_, _ = fmt.Fprintf(o.ErrOut, "Assignment for %v parameter '%s' [%v,%v] (%v): ", p.Type, p.Name, p.Bounds.Min, p.Bounds.Max, *def)
 	} else {
@@ -179,66 +177,51 @@ func (o *SuggestOptions) assignInteractive(p *experimentsv1alpha1.Parameter, def
 		}
 		text := s.Text()
 		if text == "" && def != nil {
-			return *def, nil
+			return def, nil
 		}
-		number, err := checkValue(p, json.Number(text))
+		result, err := checkValue(p, text)
 		if err != nil {
 			continue
 		}
-		return number, nil
+		return result, nil
 	}
 
 	if err := s.Err(); err != nil {
-		return "0", err
+		return nil, err
 	}
-	return "0", fmt.Errorf("no assignment for parameter: %s", p.Name)
+	return nil, fmt.Errorf("no assignment for parameter: %s", p.Name)
 }
 
-func checkValue(p *experimentsv1alpha1.Parameter, n json.Number) (json.Number, error) {
-	switch p.Type {
-	case experimentsv1alpha1.ParameterTypeInteger:
-		min, max, err := intBounds(p.Bounds)
-		if err != nil {
-			return "0", err
-		}
-		v, err := n.Int64()
-		if err != nil {
-			return "0", err
-		}
-		if v < min || v > max {
-			return "0", fmt.Errorf("value is not within experiment bounds [%d-%d]: %d", min, max, v)
-		}
-	case experimentsv1alpha1.ParameterTypeDouble:
-		min, max, err := floatBounds(p.Bounds)
-		if err != nil {
-			return "0.0", err
-		}
-		v, err := n.Float64()
-		if err != nil {
-			return "0.0", err
-		}
-		if v < min || v > max {
-			return "0.0", fmt.Errorf("value is not within experiment bounds [%f-%f]: %f", min, max, v)
-		}
+func checkValue(p *experimentsv1alpha1.Parameter, s string) (*numstr.NumberOrString, error) {
+	v, err := p.ParseValue(s)
+	if err != nil {
+		return nil, err
 	}
-	return n, nil
+	err = experimentsv1alpha1.CheckParameterValue(p, v)
+	if err != nil {
+		return nil, err
+	}
+	return v, nil
 }
 
-func randomValue(p *experimentsv1alpha1.Parameter) (*json.Number, error) {
+func randomValue(p *experimentsv1alpha1.Parameter) (*numstr.NumberOrString, error) {
 	switch p.Type {
 	case experimentsv1alpha1.ParameterTypeInteger:
 		min, max, err := intBounds(p.Bounds)
 		if err != nil {
 			return nil, err
 		}
-		r := json.Number(strconv.FormatInt(rand.Int63n(max-min)+min, 10))
+		r := numstr.FromInt64(rand.Int63n(max-min) + min)
 		return &r, nil
 	case experimentsv1alpha1.ParameterTypeDouble:
 		min, max, err := floatBounds(p.Bounds)
 		if err != nil {
 			return nil, err
 		}
-		r := json.Number(strconv.FormatFloat(rand.Float64()*max+min, 'f', -1, 64))
+		r := numstr.FromFloat64(rand.Float64()*max + min)
+		return &r, nil
+	case experimentsv1alpha1.ParameterTypeCategorical:
+		r := numstr.FromString(p.Values[rand.Intn(len(p.Values))])
 		return &r, nil
 	}
 	return nil, fmt.Errorf("unable to produce random %v", p.Type)

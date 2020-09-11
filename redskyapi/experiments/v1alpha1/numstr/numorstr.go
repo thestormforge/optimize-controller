@@ -14,20 +14,38 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package numstr
 
 import (
 	"encoding/json"
 	"strconv"
 )
 
-// NOTE: Before adding any global functions here, this should be moved to it's own 'numstr' package.
-
 // NumberOrString is value that can a JSON number or string.
 type NumberOrString struct {
 	IsString bool
 	NumVal   json.Number
 	StrVal   string
+}
+
+// FromInt64 returns the supplied value as a NumberOrString
+func FromInt64(val int64) NumberOrString {
+	return NumberOrString{NumVal: json.Number(strconv.FormatInt(val, 10))}
+}
+
+// FromFloat64 returns the supplied value as a NumberOrString
+func FromFloat64(val float64) NumberOrString {
+	return NumberOrString{NumVal: json.Number(strconv.FormatFloat(val, 'f', -1, 64))}
+}
+
+// FromNumber returns the supplied value as a NumberOrString
+func FromNumber(val json.Number) NumberOrString {
+	return NumberOrString{NumVal: val}
+}
+
+// FromString returns the supplied value as a NumberOrString
+func FromString(val string) NumberOrString {
+	return NumberOrString{StrVal: val, IsString: true}
 }
 
 // String coerces the value to a string.

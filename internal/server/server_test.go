@@ -24,6 +24,7 @@ import (
 
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	redskyapi "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
+	"github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1/numstr"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -298,9 +299,9 @@ func TestToClusterTrial(t *testing.T) {
 					SelfURL: "some/path/1",
 				},
 				Assignments: []redskyapi.Assignment{
-					{ParameterName: "one", Value: redskyapi.NumberOrString{NumVal: json.Number("111")}},
-					{ParameterName: "two", Value: redskyapi.NumberOrString{NumVal: json.Number("222")}},
-					{ParameterName: "three", Value: redskyapi.NumberOrString{NumVal: json.Number("333")}},
+					{ParameterName: "one", Value: numstr.FromInt64(111)},
+					{ParameterName: "two", Value: numstr.FromInt64(222)},
+					{ParameterName: "three", Value: numstr.FromInt64(333)},
 				},
 			},
 			trialOut: &redskyv1beta1.Trial{
@@ -340,9 +341,9 @@ func TestToClusterTrial(t *testing.T) {
 					SelfURL: "some/path/one",
 				},
 				Assignments: []redskyapi.Assignment{
-					{ParameterName: "one", Value: redskyapi.NumberOrString{NumVal: json.Number("111")}},
-					{ParameterName: "two", Value: redskyapi.NumberOrString{NumVal: json.Number("222")}},
-					{ParameterName: "three", Value: redskyapi.NumberOrString{NumVal: json.Number("333")}},
+					{ParameterName: "one", Value: numstr.FromInt64(111)},
+					{ParameterName: "two", Value: numstr.FromInt64(222)},
+					{ParameterName: "three", Value: numstr.FromInt64(333)},
 				},
 			},
 			trialOut: &redskyv1beta1.Trial{

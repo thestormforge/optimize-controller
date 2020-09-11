@@ -23,7 +23,6 @@ import (
 	"io"
 	"math/rand"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
@@ -317,55 +316,8 @@ func checkTrialAssignments(exp *experimentsv1alpha1.Experiment, t *experimentsv1
 	}
 	for _, a := range t.Assignments {
 		if p, ok := params[a.ParameterName]; ok {
-			switch p.Type {
-			case experimentsv1alpha1.ParameterTypeInteger:
-				if a.Value.IsString {
-					return fmt.Errorf("server returned wrong assignment type: string (expected: numeric)")
-				}
-				v := a.Value.Int64Value()
-				min, err := p.Bounds.Min.Int64()
-				if err != nil {
-					return err
-				}
-				max, err := p.Bounds.Max.Int64()
-				if err != nil {
-					return err
-				}
-				if v < min || v > max {
-					return fmt.Errorf("server return out of bounds assignment: %s = %s (expected [%s,%s])", a.ParameterName, &a.Value, p.Bounds.Min, p.Bounds.Max)
-				}
-			case experimentsv1alpha1.ParameterTypeDouble:
-				if a.Value.IsString {
-					return fmt.Errorf("server returned wrong assignment type: string (expected: numeric)")
-				}
-				v := a.Value.Float64Value()
-				min, err := p.Bounds.Min.Float64()
-				if err != nil {
-					return err
-				}
-				max, err := p.Bounds.Max.Float64()
-				if err != nil {
-					return err
-				}
-				if v < min || v > max {
-					return fmt.Errorf("server return out of bounds assignment: %s = %s (expected [%s,%s])", a.ParameterName, &a.Value, p.Bounds.Min, p.Bounds.Max)
-				}
-			case experimentsv1alpha1.ParameterTypeCategorical:
-				if !a.Value.IsString {
-					return fmt.Errorf("server returned wrong assignment type: numeric (expected: string)")
-				}
-				found := false
-				for _, c := range p.Values {
-					if c == a.Value.String() {
-						found = true
-						break
-					}
-				}
-				if !found {
-					return fmt.Errorf("server return out of bounds assignment: %s = %s (expected %s)", a.ParameterName, &a.Value, strings.Join(p.Values, ", "))
-				}
-			default:
-				return fmt.Errorf("unknown parameter type: %s", p.Type)
+			if err := experimentsv1alpha1.CheckParameterValue(p, &a.Value); err != nil {
+				return err
 			}
 		} else {
 			return fmt.Errorf("server returned unexpected assignment: %s", a.ParameterName)
