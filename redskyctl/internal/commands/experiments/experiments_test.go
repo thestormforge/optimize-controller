@@ -117,6 +117,20 @@ func TestParseNames(t *testing.T) {
 				{Type: typeExperiment, Name: "trial", Number: -1},
 			},
 		},
+		{
+			desc: "ExperimentForListHasNumber",
+			args: []string{"trials/foo-2"},
+			names: []name{
+				{Type: typeTrial, Name: "foo-2", Number: -1},
+			},
+		},
+		{
+			desc: "TheOneThatGotAway", // Nooooo.....
+			args: []string{"trials", "foo-2"},
+			names: []name{
+				{Type: typeTrial, Name: "foo", Number: 2},
+			},
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {

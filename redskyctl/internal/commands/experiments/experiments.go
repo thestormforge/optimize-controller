@@ -44,14 +44,18 @@ func validTypes() []string {
 }
 
 // normalizeType returns a consistent value based on a user entered type
-func normalizeType(t string) (resourceType, error) {
+func normalizeType(t string) (resourceType, bool, error) {
 	switch strings.ToLower(t) {
-	case "experiment", "experiments", "exp":
-		return typeExperiment, nil
-	case "trial", "trials", "tr":
-		return typeTrial, nil
+	case "experiment", "exp":
+		return typeExperiment, false, nil
+	case "experiments":
+		return typeExperiment, true, nil
+	case "trial", "tr":
+		return typeTrial, false, nil
+	case "trials":
+		return typeTrial, true, nil
 	}
-	return "", fmt.Errorf("unknown resource type \"%s\"", t)
+	return "", false, fmt.Errorf("unknown resource type \"%s\"", t)
 }
 
 // Options are the common options for interacting with the Red Sky Experiments API
@@ -109,7 +113,7 @@ func parseNames(args []string) ([]name, error) {
 		argType, argName, argNumber := splitArg(arg, string(defaultType))
 
 		// Normalize the type, if no name was supplied just update the default type
-		normalType, err := normalizeType(argType)
+		normalType, plural, err := normalizeType(argType)
 		if err != nil {
 			return nil, err
 		}
@@ -123,7 +127,7 @@ func parseNames(args []string) ([]name, error) {
 		switch n.Type {
 		case typeTrial:
 			// Special case where trial can alternatively end with "-<NUM>" instead of "/<NUM>"
-			if pos := strings.LastIndex(argName, "-"); pos > 0 && argNumber == "" {
+			if pos := strings.LastIndex(argName, "-"); pos > 0 && argNumber == "" && !plural {
 				n.Name, argNumber = argName[0:pos], argName[pos+1:]
 			}
 		default:
