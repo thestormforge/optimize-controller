@@ -47,8 +47,8 @@ var (
 // ":latest". To address this we always explicitly specify the pull policy corresponding to the image.
 // Finally, when using digests, the default of "IfNotPresent" is acceptable as it is unambiguous.
 
-// NewJob returns a new setup job for either create or delete
-func NewJob(t *redskyv1beta1.Trial, mode string) (*batchv1.Job, error) {
+// NewTrialJob returns a new setup job for either create or delete
+func NewTrialJob(t *redskyv1beta1.Trial, mode string) (*batchv1.Job, error) {
 	job := &batchv1.Job{}
 	job.Namespace = t.Namespace
 	job.Name = fmt.Sprintf("%s-%s", t.Name, mode)

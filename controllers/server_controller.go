@@ -29,18 +29,21 @@ import (
 	"github.com/redskyops/redskyops-controller/internal/meta"
 	"github.com/redskyops/redskyops-controller/internal/metric"
 	"github.com/redskyops/redskyops-controller/internal/server"
+	"github.com/redskyops/redskyops-controller/internal/setup"
 	"github.com/redskyops/redskyops-controller/internal/trial"
 	"github.com/redskyops/redskyops-controller/internal/validation"
 	"github.com/redskyops/redskyops-controller/internal/version"
 	"github.com/redskyops/redskyops-controller/redskyapi"
 	experimentsv1alpha1 "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	"golang.org/x/time/rate"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/discovery"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 )
 
@@ -109,6 +112,10 @@ func (r *ServerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				trialHasFinalizer = true
 			}
 		}
+	}
+
+	if err := r.deployPrometheus(ctx, exp); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	// Create a new trial if necessary
@@ -351,4 +358,46 @@ func (r *ServerReconciler) abandonTrial(ctx context.Context, log logr.Logger, t 
 
 	log.Info("Abandoned trial")
 	return nil, nil
+}
+
+func (r *ServerReconciler) deployPrometheus(ctx context.Context, exp *redskyv1beta1.Experiment) error {
+	list := &batchv1.JobList{}
+	setupJobLabels := map[string]string{redskyv1beta1.LabelExperiment: exp.Name}
+	if err := r.List(ctx, list, client.InNamespace(exp.Namespace), client.MatchingLabels(setupJobLabels)); err != nil {
+		return err
+	}
+
+	// Nothing to do
+	if len(list.Items) == 1 {
+		return nil
+	}
+
+	setupJob, err := setup.NewExperimentJob(exp, setup.ModeCreate)
+	if err != nil {
+		return err
+	}
+
+	if err := controllerutil.SetControllerReference(exp, setupJob, r.Scheme); err != nil {
+		return err
+	}
+
+	return controller.IgnoreAlreadyExists(r.Create(ctx, setupJob))
+}
+
+// inspectSetupJobPods will do further inspection on a job's pods to determine its current state
+func (r *ServerReconciler) inspectSetupJobPods(ctx context.Context, j *batchv1.Job) (corev1.ConditionStatus, string) {
+	list := &corev1.PodList{}
+	if matchingSelector, err := meta.MatchingSelector(j.Spec.Selector); err == nil {
+		_ = r.List(ctx, list, client.InNamespace(j.Namespace), matchingSelector)
+	}
+
+	for i := range list.Items {
+		for _, cs := range list.Items[i].Status.ContainerStatuses {
+			if !cs.Ready && cs.State.Terminated != nil && cs.State.Terminated.ExitCode != 0 {
+				return corev1.ConditionTrue, "Setup job has a failed container"
+			}
+		}
+	}
+
+	return corev1.ConditionFalse, ""
 }

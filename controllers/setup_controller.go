@@ -194,7 +194,7 @@ func (r *SetupReconciler) createSetupJob(ctx context.Context, t *redskyv1beta1.T
 
 	// Create a setup job if necessary
 	if mode != "" {
-		job, err := setup.NewJob(t, mode)
+		job, err := setup.NewTrialJob(t, mode)
 		if err != nil {
 			return &ctrl.Result{}, err
 		}
