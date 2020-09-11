@@ -161,12 +161,7 @@ func (o *SuggestOptions) defaultValue(p *experimentsv1alpha1.Parameter) (*numstr
 }
 
 func (o *SuggestOptions) assignInteractive(p *experimentsv1alpha1.Parameter, def *numstr.NumberOrString) (*numstr.NumberOrString, error) {
-	if def != nil {
-		_, _ = fmt.Fprintf(o.ErrOut, "Assignment for %v parameter '%s' [%v,%v] (%v): ", p.Type, p.Name, p.Bounds.Min, p.Bounds.Max, *def)
-	} else {
-		_, _ = fmt.Fprintf(o.ErrOut, "Assignment for %v parameter '%s' [%v,%v]: ", p.Type, p.Name, p.Bounds.Min, p.Bounds.Max)
-	}
-
+	_, _ = fmt.Fprint(o.ErrOut, prompt(p, def))
 	s := bufio.NewScanner(o.In)
 	for attempts := 0; attempts < 3; attempts++ {
 		if attempts > 0 {
@@ -190,6 +185,26 @@ func (o *SuggestOptions) assignInteractive(p *experimentsv1alpha1.Parameter, def
 		return nil, err
 	}
 	return nil, fmt.Errorf("no assignment for parameter: %s", p.Name)
+}
+
+func prompt(p *experimentsv1alpha1.Parameter, def *numstr.NumberOrString) string {
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("Assignment for %v parameter '%s'", p.Type, p.Name))
+
+	// Add the bounds
+	if p.Type == experimentsv1alpha1.ParameterTypeCategorical {
+		b.WriteString(fmt.Sprintf(" [%s]", strings.Join(p.Values, ", ")))
+	} else if p.Bounds != nil {
+		b.WriteString(fmt.Sprintf(" [%v,%v]", p.Bounds.Min, p.Bounds.Max))
+	}
+
+	// Add the default
+	if def != nil {
+		b.WriteString(fmt.Sprintf(" (%s)", def.String()))
+	}
+
+	b.WriteString(": ")
+	return b.String()
 }
 
 func checkValue(p *experimentsv1alpha1.Parameter, s string) (*numstr.NumberOrString, error) {
