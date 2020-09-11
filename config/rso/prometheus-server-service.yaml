@@ -1,0 +1,36 @@
+---
+# Source: prometheus/templates/services/server.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: prometheus
+  name: prometheus-server
+spec:
+  ports:
+    - name: http
+      port: 9090
+      protocol: TCP
+      targetPort: 9090
+  selector:
+    app: prometheus
+  sessionAffinity: None
+  type: "ClusterIP"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: prometheus
+  name: rso-prometheus
+  namespace: default
+spec:
+  ports:
+  - name: http
+    port: 9090
+    protocol: TCP
+    targetPort: 9090
+  selector:
+    app: prometheus
+  sessionAffinity: None
+  type: ClusterIP

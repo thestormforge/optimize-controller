@@ -1,19 +1,22 @@
 #!/bin/sh
 set -e
 
-
-# Generate installation manifests
-if [ "$1" = "install" ] ; then
+case "$1" in
+  install)
+    # Generate installation manifests
     shift && /workspace/install/install.sh "$@"
     exit $?
-fi
-
-
-# Package the Helm chart
-if [ "$1" = "chart" ] ; then
+  ;;
+  chart)
+    # Package the Helm chart
     shift && /workspace/chart/build.sh "$@"
     exit $?
-fi
+  ;;
+  prometheus)
+    # Generate prometheus manifests
+    shift && cd /workspace/rso
+  ;;
+esac
 
 
 # Create the "base" root
@@ -31,6 +34,8 @@ fi
 
 # Add trial labels to the resulting manifests so they can be more easily located
 if [ -n "$TRIAL" ]; then
+    # Note, this heredoc block must be indented with tabs
+    # <<- allows for indentation via tabs, if spaces are used it is no good.
     cat <<-EOF >"trial_labels.yaml"
 		apiVersion: konjure.carbonrelay.com/v1beta1
 		kind: LabelTransformer
@@ -44,12 +49,29 @@ if [ -n "$TRIAL" ]; then
 fi
 
 
+# Add experiment labels to the resulting manifests so they can be more easily located
+if [ -n "$EXPERIMENT" ]; then
+    # Note, this heredoc block must be indented with tabs
+    # <<- allows for indentation via tabs, if spaces are used it is no good.
+    cat <<-EOF >"experiment_labels.yaml"
+		apiVersion: konjure.carbonrelay.com/v1beta1
+		kind: LabelTransformer
+		metadata:
+		  name: experiment-labels
+		labels:
+		  "redskyops.dev/experiment": $EXPERIMENT
+		  "redskyops.dev/experiment": experimentResource
+		EOF
+    konjure kustomize edit add transformer experiment_labels.yaml
+fi
+
+
 # Process arguments
 while [ "$#" != "0" ] ; do
     case "$1" in
     create)
         handle () {
-            kubectl create -f -
+            kubectl apply -f -
             #if [ -n "$TRIAL" ] && [ -n "$NAMESPACE" ] ; then
             #    kubectl get sts,deploy,ds --namespace "$NAMESPACE" --selector "redskyops.dev/trial=$TRIAL,redskyops.dev/trial-role=trialResource" -o name | xargs -n 1 kubectl rollout status --namespace "$NAMESPACE"
             #fi
@@ -61,6 +83,9 @@ while [ "$#" != "0" ] ; do
             kubectl delete -f -
             if [ -n "$TRIAL" ] && [ -n "$NAMESPACE" ] ; then
                 kubectl wait pods --for=delete --namespace "$NAMESPACE" --selector "redskyops.dev/trial=$TRIAL,redskyops.dev/trial-role=trialResource"
+            fi
+            if [ -n "$EXPERIMENT" ] && [ -n "$NAMESPACE" ] ; then
+                kubectl wait pods --for=delete --namespace "$NAMESPACE" --selector "redskyops.dev/experiment=$EXPERIMENT,redskyops.dev/experiment-role=experimentResource"
             fi
         }
         shift
