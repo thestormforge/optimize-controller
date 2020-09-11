@@ -30,6 +30,8 @@ const (
 
 	// LabelExperiment is the name of the experiment associated with an object
 	LabelExperiment = "redskyops.dev/experiment"
+	// LabelExperimentRole contains the role in experiment execution
+	LabelExperimentRole = "redskyops.dev/experiment-role"
 )
 
 // Trial labels and annotations

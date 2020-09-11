@@ -39,14 +39,14 @@ func NewExperimentJob(exp *redskyv1beta1.Experiment, mode string) (*batchv1.Job,
 	job.Namespace = exp.Namespace
 	job.Name = fmt.Sprintf("%s-%s", exp.Name, mode)
 
-	// May want to add in an experiment specific label
 	job.Labels = map[string]string{
 		redskyv1beta1.LabelExperiment: exp.Name,
 	}
 
 	job.Spec.BackoffLimit = new(int32)
 	job.Spec.Template.Labels = map[string]string{
-		redskyv1beta1.LabelExperiment: exp.Name,
+		redskyv1beta1.LabelExperiment:     exp.Name,
+		redskyv1beta1.LabelExperimentRole: "experimentSetup",
 	}
 	job.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyNever
 
@@ -71,6 +71,7 @@ func NewExperimentJob(exp *redskyv1beta1.Experiment, mode string) (*batchv1.Job,
 		Env: []corev1.EnvVar{
 			{Name: "NAMESPACE", Value: exp.Namespace},
 			{Name: "NAME", Value: fmt.Sprintf("%s-%s", job.Name, "prometheus-setup")},
+			{Name: "EXPERIMENT", Value: exp.Name},
 		},
 		SecurityContext: &corev1.SecurityContext{
 			RunAsUser:                &id,

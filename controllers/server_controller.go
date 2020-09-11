@@ -38,6 +38,7 @@ import (
 	"golang.org/x/time/rate"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/discovery"
@@ -115,7 +116,7 @@ func (r *ServerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	if err := r.deployPrometheus(ctx, exp); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, controller.IgnoreAlreadyExists(err)
 	}
 
 	// Create a new trial if necessary
@@ -125,15 +126,30 @@ func (r *ServerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		}
 	}
 
+	// Nothing left to do
+	if exp.DeletionTimestamp.IsZero() {
+		return ctrl.Result{}, nil
+	}
+
 	// Unlink the experiment from the server (only when all trial finalizers are removed)
-	if !exp.DeletionTimestamp.IsZero() && !trialHasFinalizer {
+	if !trialHasFinalizer {
 		if result, err := r.unlinkExperiment(ctx, log, exp); result != nil {
 			return *result, err
 		}
 	}
+	// Handle cleanup of any experiment jobs
+	setupJob, err := setup.NewExperimentJob(exp, setup.ModeDelete)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 
-	// Nothing to do
-	return ctrl.Result{}, nil
+	err = r.Create(ctx, setupJob)
+	// Forbidden for a delete job indicates that namespace was probably deleted
+	if apierrs.IsForbidden(err) {
+		return ctrl.Result{}, nil
+	}
+
+	return ctrl.Result{}, controller.IgnoreAlreadyExists(err)
 }
 
 func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -362,7 +378,7 @@ func (r *ServerReconciler) abandonTrial(ctx context.Context, log logr.Logger, t 
 
 func (r *ServerReconciler) deployPrometheus(ctx context.Context, exp *redskyv1beta1.Experiment) error {
 	list := &batchv1.JobList{}
-	setupJobLabels := map[string]string{redskyv1beta1.LabelExperiment: exp.Name}
+	setupJobLabels := map[string]string{redskyv1beta1.LabelExperiment: exp.Name, redskyv1beta1.LabelExperimentRole: "experimentSetup"}
 	if err := r.List(ctx, list, client.InNamespace(exp.Namespace), client.MatchingLabels(setupJobLabels)); err != nil {
 		return err
 	}
