@@ -35,19 +35,28 @@ func TestParseNames(t *testing.T) {
 			names: []name{{Type: typeExperiment, Number: -1}},
 		},
 		{
-			desc:  "SharedType",
-			args:  []string{"experiment", "foo", "bar"},
-			names: []name{{Type: typeExperiment, Name: "foo", Number: -1}, {Type: typeExperiment, Name: "bar", Number: -1}},
+			desc: "SharedType",
+			args: []string{"experiment", "foo", "bar"},
+			names: []name{
+				{Type: typeExperiment, Name: "foo", Number: -1},
+				{Type: typeExperiment, Name: "bar", Number: -1},
+			},
 		},
 		{
-			desc:  "IndividualType",
-			args:  []string{"experiment/foo", "trial/bar"},
-			names: []name{{Type: typeExperiment, Name: "foo", Number: -1}, {Type: typeTrial, Name: "bar", Number: -1}},
+			desc: "IndividualType",
+			args: []string{"experiment/foo", "trial/bar"},
+			names: []name{
+				{Type: typeExperiment, Name: "foo", Number: -1},
+				{Type: typeTrial, Name: "bar", Number: -1},
+			},
 		},
 		{
-			desc:  "OverrideSharedType",
-			args:  []string{"experiment", "foo", "trial/bar"},
-			names: []name{{Type: typeExperiment, Name: "foo", Number: -1}, {Type: typeTrial, Name: "bar", Number: -1}},
+			desc: "OverrideSharedType",
+			args: []string{"experiment", "foo", "trial/bar"},
+			names: []name{
+				{Type: typeExperiment, Name: "foo", Number: -1},
+				{Type: typeTrial, Name: "bar", Number: -1},
+			},
 		},
 		{
 			desc: "SharedTypeNumbered",
@@ -70,9 +79,11 @@ func TestParseNames(t *testing.T) {
 			},
 		},
 		{
-			desc:  "Spaced",
-			args:  []string{"experiment", "Foo Bar"},
-			names: []name{{Type: typeExperiment, Name: "Foo Bar", Number: -1}},
+			desc: "Spaced",
+			args: []string{"experiment", "Foo Bar"},
+			names: []name{
+				{Type: typeExperiment, Name: "Foo Bar", Number: -1},
+			},
 		},
 		{
 			desc:  "NotSpecified",
@@ -87,9 +98,11 @@ func TestParseNames(t *testing.T) {
 			err:   "unknown resource type \"foo\"",
 		},
 		{
-			desc:  "ExperimentNumbered",
-			args:  []string{"experiment/foo-2"},
-			names: []name{{Type: typeExperiment, Name: "foo-2", Number: -1}},
+			desc: "ExperimentNumbered",
+			args: []string{"experiment/foo-2"},
+			names: []name{
+				{Type: typeExperiment, Name: "foo-2", Number: -1},
+			},
 		},
 		{
 			desc: "LateType",
@@ -138,7 +151,7 @@ func TestParseNames(t *testing.T) {
 			if c.err != "" {
 				assert.EqualError(t, err, c.err)
 			} else if assert.NoError(t, err) {
-				assert.Equal(t, names, c.names)
+				assert.Equal(t, c.names, names)
 			}
 		})
 	}
