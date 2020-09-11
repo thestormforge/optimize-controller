@@ -132,16 +132,10 @@ func TestParseNames(t *testing.T) {
 		},
 		{
 			desc: "ExperimentForListHasNumber",
-			args: []string{"trials/foo-2"},
+			args: []string{"trials", "foo-2", "trials/foo-2"},
 			names: []name{
 				{Type: typeTrial, Name: "foo-2", Number: -1},
-			},
-		},
-		{
-			desc: "TheOneThatGotAway", // Nooooo.....
-			args: []string{"trials", "foo-2"},
-			names: []name{
-				{Type: typeTrial, Name: "foo", Number: 2},
+				{Type: typeTrial, Name: "foo-2", Number: -1},
 			},
 		},
 	}

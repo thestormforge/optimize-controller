@@ -108,9 +108,9 @@ func (n *name) experimentName() experimentsv1alpha1.ExperimentName {
 func parseNames(args []string) ([]name, error) {
 	names := make([]name, 0, len(args))
 
-	var defaultType resourceType
+	var defaultType string
 	for _, arg := range args {
-		argType, argName, argNumber := splitArg(arg, string(defaultType))
+		argType, argName, argNumber := splitArg(arg, defaultType)
 
 		// Normalize the type, if no name was supplied just update the default type
 		normalType, plural, err := normalizeType(argType)
@@ -118,7 +118,11 @@ func parseNames(args []string) ([]name, error) {
 			return nil, err
 		}
 		if defaultType == "" && argName == "" && argNumber == "" {
-			defaultType = normalType
+			defaultType = string(normalType)
+			if plural {
+				// Suspect.
+				defaultType += "s"
+			}
 			continue
 		}
 
@@ -151,7 +155,11 @@ func parseNames(args []string) ([]name, error) {
 		if defaultType == "" {
 			return nil, fmt.Errorf("required resource not specified")
 		}
-		names = append(names, name{Type: defaultType, Number: -1})
+		normalType, _, err := normalizeType(defaultType)
+		if err != nil {
+			return nil, err
+		}
+		names = append(names, name{Type: normalType, Number: -1})
 	}
 
 	return names, nil
