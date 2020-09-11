@@ -71,7 +71,7 @@ while [ "$#" != "0" ] ; do
     case "$1" in
     create)
         handle () {
-            kubectl create -f -
+            kubectl apply -f -
             #if [ -n "$TRIAL" ] && [ -n "$NAMESPACE" ] ; then
             #    kubectl get sts,deploy,ds --namespace "$NAMESPACE" --selector "redskyops.dev/trial=$TRIAL,redskyops.dev/trial-role=trialResource" -o name | xargs -n 1 kubectl rollout status --namespace "$NAMESPACE"
             #fi
