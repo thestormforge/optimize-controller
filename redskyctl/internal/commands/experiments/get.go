@@ -83,11 +83,11 @@ func (o *GetOptions) get(ctx context.Context) error {
 			e = append(e, n.experimentName())
 
 		case typeTrial:
-			if n.Number < 0 {
+			if n.trialNumber() < 0 {
 				return o.getTrialList(ctx, n.experimentName(), o.trialListQuery())
 			}
 			key := n.experimentName()
-			t[key] = append(t[key], n.Number)
+			t[key] = append(t[key], n.trialNumber())
 
 		default:
 			return fmt.Errorf("cannot get %s", n.Type)

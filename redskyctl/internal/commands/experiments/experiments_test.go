@@ -30,24 +30,35 @@ func TestParseNames(t *testing.T) {
 		err   string
 	}{
 		{
-			desc:  "ListType",
-			args:  []string{"exp"},
-			names: []name{{Type: typeExperiment, Number: -1}},
+			desc: "ListType",
+			args: []string{"exp"},
+			names: []name{
+				{Type: typeExperiment, Number: -1},
+			},
 		},
 		{
-			desc:  "SharedType",
-			args:  []string{"experiment", "foo", "bar"},
-			names: []name{{Type: typeExperiment, Name: "foo", Number: -1}, {Type: typeExperiment, Name: "bar", Number: -1}},
+			desc: "SharedType",
+			args: []string{"experiment", "foo", "bar"},
+			names: []name{
+				{Type: typeExperiment, Name: "foo", Number: -1},
+				{Type: typeExperiment, Name: "bar", Number: -1},
+			},
 		},
 		{
-			desc:  "IndividualType",
-			args:  []string{"experiment/foo", "trial/bar"},
-			names: []name{{Type: typeExperiment, Name: "foo", Number: -1}, {Type: typeTrial, Name: "bar", Number: -1}},
+			desc: "IndividualType",
+			args: []string{"experiment/foo", "trial/bar"},
+			names: []name{
+				{Type: typeExperiment, Name: "foo", Number: -1},
+				{Type: typeTrial, Name: "bar", Number: -1},
+			},
 		},
 		{
-			desc:  "OverrideSharedType",
-			args:  []string{"experiment", "foo", "trial/bar"},
-			names: []name{{Type: typeExperiment, Name: "foo", Number: -1}, {Type: typeTrial, Name: "bar", Number: -1}},
+			desc: "OverrideSharedType",
+			args: []string{"experiment", "foo", "trial/bar"},
+			names: []name{
+				{Type: typeExperiment, Name: "foo", Number: -1},
+				{Type: typeTrial, Name: "bar", Number: -1},
+			},
 		},
 		{
 			desc: "SharedTypeNumbered",
@@ -70,9 +81,11 @@ func TestParseNames(t *testing.T) {
 			},
 		},
 		{
-			desc:  "Spaced",
-			args:  []string{"experiment", "Foo Bar"},
-			names: []name{{Type: typeExperiment, Name: "Foo Bar", Number: -1}},
+			desc: "Spaced",
+			args: []string{"experiment", "Foo Bar"},
+			names: []name{
+				{Type: typeExperiment, Name: "Foo Bar", Number: -1},
+			},
 		},
 		{
 			desc:  "NotSpecified",
@@ -86,6 +99,51 @@ func TestParseNames(t *testing.T) {
 			names: nil,
 			err:   "unknown resource type \"foo\"",
 		},
+		{
+			desc: "ExperimentNumbered",
+			args: []string{"experiment/foo-2"},
+			names: []name{
+				{Type: typeExperiment, Name: "foo-2", Number: -1},
+			},
+		},
+		{
+			desc: "LateType",
+			args: []string{"experiment/foo", "trial", "foo-2"},
+			names: []name{
+				{Type: typeExperiment, Name: "foo", Number: -1},
+				{Type: typeTrial, Name: "foo", Number: 2},
+			},
+		},
+		{
+			desc: "NameIsExperiment",
+			args: []string{"experiment", "experiment", "experiment/experiment", "trial/experiment"},
+			names: []name{
+				{Type: typeExperiment, Name: "experiment", Number: -1},
+				{Type: typeExperiment, Name: "experiment", Number: -1},
+				{Type: typeTrial, Name: "experiment", Number: -1},
+			},
+		},
+		{
+			desc: "NameIsTrial",
+			args: []string{"trial", "trial", "trial/trial", "experiment/trial"},
+			names: []name{
+				{Type: typeTrial, Name: "trial", Number: -1},
+				{Type: typeTrial, Name: "trial", Number: -1},
+				{Type: typeExperiment, Name: "trial", Number: -1},
+			},
+		},
+		{
+			// Remember with `get [trials|trial|tr] NAME` the name is the experiment name
+			// We can make an educated guess when the type is plural, otherwise we need the trailing slash
+			desc: "ExperimentForListHasNumber",
+			args: []string{"trials", "foo-2", "trials/foo-2", "trial/foo-2/", "tr/foo-2/"},
+			names: []name{
+				{Type: typeTrial, Name: "foo-2", Number: -1},
+				{Type: typeTrial, Name: "foo-2", Number: -1},
+				{Type: typeTrial, Name: "foo-2", Number: -1},
+				{Type: typeTrial, Name: "foo-2", Number: -1},
+			},
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
@@ -93,7 +151,7 @@ func TestParseNames(t *testing.T) {
 			if c.err != "" {
 				assert.EqualError(t, err, c.err)
 			} else if assert.NoError(t, err) {
-				assert.Equal(t, names, c.names)
+				assert.Equal(t, c.names, names)
 			}
 		})
 	}

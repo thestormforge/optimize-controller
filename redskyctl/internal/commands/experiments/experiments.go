@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io"
 	"reflect"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -44,15 +43,21 @@ func validTypes() []string {
 	return []string{string(typeExperiment), string(typeTrial)}
 }
 
-// normalizeType returns a consistent value based on a user entered type
-func normalizeType(t string) (resourceType, error) {
+// normalizeType returns a consistent value based on a user entered type. The returned plural type only
+// preserves the plural form of the input.
+func normalizeType(t string) (normalType resourceType, pluralType string, err error) {
+	// NOTE: We always return one of the `resourceType` constants, even if the input is plural
 	switch strings.ToLower(t) {
-	case "experiment", "experiments", "exp":
-		return typeExperiment, nil
-	case "trial", "trials", "tr":
-		return typeTrial, nil
+	case "experiment", "exp":
+		return typeExperiment, string(typeExperiment), nil
+	case "experiments":
+		return typeExperiment, string(typeExperiment) + "s", nil
+	case "trial", "tr":
+		return typeTrial, string(typeTrial), nil
+	case "trials":
+		return typeTrial, string(typeTrial) + "s", nil
 	}
-	return "", fmt.Errorf("unknown resource type \"%s\"", t)
+	return "", "", fmt.Errorf("unknown resource type \"%s\"", t)
 }
 
 // Options are the common options for interacting with the Red Sky Experiments API
@@ -101,45 +106,101 @@ func (n *name) experimentName() experimentsv1alpha1.ExperimentName {
 	return experimentsv1alpha1.NewExperimentName(n.Name)
 }
 
-// numberSuffixPattern matches the trailing digits, for example the number on the end of a trial name
-var numberSuffixPattern = regexp.MustCompile(`(.*?)(?:[/\-]([[:digit:]]+))?$`)
+// trialNumber returns the trial number extracted from the name, values less then zero indicate no
+// number is present.
+func (n *name) trialNumber() int64 {
+	return n.Number
+}
 
 // parseNames parses a list of arguments into structured names
 func parseNames(args []string) ([]name, error) {
-	var t resourceType
 	names := make([]name, 0, len(args))
+
+	var defaultType string
 	for _, arg := range args {
-		n := name{Type: t, Name: arg, Number: -1}
-		if sm := numberSuffixPattern.FindStringSubmatch(n.Name); sm != nil && sm[2] != "" {
-			n.Number, _ = strconv.ParseInt(sm[2], 10, 64)
-			n.Name = sm[1]
+		// Split the argument into type/name/number
+		argType, argName, argNumber := splitArg(arg, defaultType)
+		if argType == "" && argName == "" && argNumber == "" {
+			return nil, fmt.Errorf("invalid name: %s", arg)
+		}
+		argIsTypeOnly := argName == "" && argNumber == ""
+
+		// Normalize the type (note: the plural type only preserves plurality)
+		normalType, pluralType, err := normalizeType(argType)
+		if err != nil {
+			return nil, err
+		}
+		typeIsPlural := string(normalType) != pluralType
+
+		// Set the default type if it hasn't been set and no name was supplied
+		if defaultType == "" && argIsTypeOnly {
+			defaultType = pluralType
+			continue
 		}
 
-		p := strings.SplitN(n.Name, "/", 2)
-		if len(p) > 1 || t == "" {
-			nt, err := normalizeType(p[0])
+		// Create a new name
+		n := name{Type: normalType, Name: argName, Number: -1}
+
+		// Special case where trial can alternatively end with "-<NUM>" instead of "/<NUM>"
+		if n.Type == typeTrial && argNumber == "" && !typeIsPlural {
+			if pos := strings.LastIndex(argName, "-"); pos > 0 {
+				n.Name, argNumber = argName[0:pos], argName[pos+1:]
+			}
+		}
+
+		// Parse the number, if present
+		if argNumber != "" {
+			if n.Type != typeTrial {
+				return nil, fmt.Errorf("%s name cannot include a number: %s", n.Type, arg)
+			}
+			n.Number, err = strconv.ParseInt(argNumber, 10, 64)
 			if err != nil {
 				return nil, err
 			}
-			if len(p) > 1 {
-				n.Type = nt
-				n.Name = p[1]
-			} else if t == "" {
-				t = nt
-				continue
-			}
 		}
+
 		names = append(names, n)
 	}
 
+	// If no names were generated we can just use the default type
 	if len(names) == 0 {
-		if t == "" {
+		if defaultType == "" {
 			return nil, fmt.Errorf("required resource not specified")
 		}
-		names = append(names, name{Type: t, Number: -1})
+		normalType, _, err := normalizeType(defaultType)
+		if err != nil {
+			return nil, err
+		}
+		names = append(names, name{Type: normalType, Number: -1})
 	}
 
 	return names, nil
+}
+
+func splitArg(arg, defType string) (parsedType string, parsedName string, parsedNumber string) {
+	p := strings.Split(arg, "/")
+	switch len(p) {
+	case 1:
+		// type | name
+		if defType != "" {
+			return defType, p[0], ""
+		}
+		return p[0], "", ""
+	case 2:
+		// type/name | name/number
+		if _, err := strconv.ParseInt(p[1], 10, 64); err != nil {
+			return p[0], p[1], ""
+		}
+		return defType, p[0], p[1]
+	case 3:
+		// type/name/number
+		if p[2] == "" {
+			p[2] = "-1"
+		}
+		return p[0], p[1], p[2]
+	default:
+		return "", "", ""
+	}
 }
 
 // verbPrinter
