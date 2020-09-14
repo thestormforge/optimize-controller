@@ -145,6 +145,25 @@ type TrialTemplateSpec struct {
 	Spec TrialSpec `json:"spec,omitempty"`
 }
 
+// ExperimentConditionType represents the possible observable conditions for an experiment
+type ExperimentConditionType string
+
+// ExperimentCondition represents an observed condition of an experiment
+type ExperimentCondition struct {
+	// The condition type
+	Type ExperimentConditionType `json:"type"`
+	// The status of the condition, one of "True", "False", or "Unknown
+	Status corev1.ConditionStatus `json:"status"`
+	// The last known time the condition was checked
+	LastProbeTime metav1.Time `json:"lastProbeTime"`
+	// The time at which the condition last changed status
+	LastTransitionTime metav1.Time `json:"lastTransitionTime"`
+	// A reason code describing the why the condition occurred
+	Reason string `json:"reason,omitempty"`
+	// A human readable message describing the transition
+	Message string `json:"message,omitempty"`
+}
+
 // ExperimentSpec defines the desired state of Experiment
 type ExperimentSpec struct {
 	// Replicas is the number of trials to execute concurrently, defaults to 1
@@ -179,7 +198,8 @@ type ExperimentStatus struct {
 	Phase string `json:"phase"`
 	// ActiveTrials is the observed number of running trials
 	ActiveTrials int32 `json:"activeTrials"`
-	// TODO Number of trials: Succeeded, Failed int32 (this would need to be fetch remotely, falling back to the in cluster count)
+	// Conditions is the current state of the experiment
+	Conditions []ExperimentCondition `json:"conditions,omitempty"`
 }
 
 // +genclient

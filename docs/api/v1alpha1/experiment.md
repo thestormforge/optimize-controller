@@ -6,6 +6,7 @@
 ## Table of Contents
 * [Constraint](#constraint)
 * [Experiment](#experiment)
+* [ExperimentCondition](#experimentcondition)
 * [ExperimentList](#experimentlist)
 * [ExperimentSpec](#experimentspec)
 * [ExperimentStatus](#experimentstatus)
@@ -41,6 +42,21 @@ Experiment is the Schema for the experiments API
 | `metadata` | Standard object metadata | _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#objectmeta-v1-meta)_ | false |
 | `spec` | Specification of the desired behavior for an experiment | _[ExperimentSpec](#experimentspec)_ | false |
 | `status` | Current status of an experiment | _[ExperimentStatus](#experimentstatus)_ | false |
+
+[Back to TOC](#table-of-contents)
+
+## ExperimentCondition
+
+ExperimentCondition represents an observed condition of an experiment
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| `type` | The condition type | _ExperimentConditionType_ | true |
+| `status` | The status of the condition, one of "True", "False", or "Unknown | _corev1.ConditionStatus_ | true |
+| `lastProbeTime` | The last known time the condition was checked | _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#time-v1-meta)_ | true |
+| `lastTransitionTime` | The time at which the condition last changed status | _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#time-v1-meta)_ | true |
+| `reason` | A reason code describing the why the condition occurred | _string_ | false |
+| `message` | A human readable message describing the transition | _string_ | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -82,6 +98,7 @@ ExperimentStatus defines the observed state of Experiment
 | ----- | ----------- | ------ | -------- |
 | `phase` | Phase is a brief human readable description of the experiment status | _string_ | true |
 | `activeTrials` | ActiveTrials is the observed number of running trials | _int32_ | true |
+| `conditions` | Conditions is the current state of the experiment | _[][ExperimentCondition](#experimentcondition)_ | false |
 
 [Back to TOC](#table-of-contents)
 

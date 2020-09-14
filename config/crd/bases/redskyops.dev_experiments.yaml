@@ -3828,6 +3828,30 @@ spec:
               activeTrials:
                 type: integer
                 format: int32
+              conditions:
+                type: array
+                items:
+                  type: object
+                  required:
+                  - lastProbeTime
+                  - lastTransitionTime
+                  - status
+                  - type
+                  properties:
+                    lastProbeTime:
+                      type: string
+                      format: date-time
+                    lastTransitionTime:
+                      type: string
+                      format: date-time
+                    message:
+                      type: string
+                    reason:
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      type: string
               phase:
                 type: string
   - name: v1beta1
@@ -7541,6 +7565,30 @@ spec:
               activeTrials:
                 type: integer
                 format: int32
+              conditions:
+                type: array
+                items:
+                  type: object
+                  required:
+                  - lastProbeTime
+                  - lastTransitionTime
+                  - status
+                  - type
+                  properties:
+                    lastProbeTime:
+                      type: string
+                      format: date-time
+                    lastTransitionTime:
+                      type: string
+                      format: date-time
+                    message:
+                      type: string
+                    reason:
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      type: string
               phase:
                 type: string
 status:
