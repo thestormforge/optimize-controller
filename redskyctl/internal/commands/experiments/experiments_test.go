@@ -30,9 +30,11 @@ func TestParseNames(t *testing.T) {
 		err   string
 	}{
 		{
-			desc:  "ListType",
-			args:  []string{"exp"},
-			names: []name{{Type: typeExperiment, Number: -1}},
+			desc: "ListType",
+			args: []string{"exp"},
+			names: []name{
+				{Type: typeExperiment, Number: -1},
+			},
 		},
 		{
 			desc: "SharedType",
@@ -131,17 +133,14 @@ func TestParseNames(t *testing.T) {
 			},
 		},
 		{
+			// Remember with `get [trials|trial|tr] NAME` the name is the experiment name
+			// We can make an educated guess when the type is plural, otherwise we need the trailing slash
 			desc: "ExperimentForListHasNumber",
-			args: []string{"trials", "foo-2", "trials/foo-2"},
+			args: []string{"trials", "foo-2", "trials/foo-2", "trial/foo-2/", "tr/foo-2/"},
 			names: []name{
 				{Type: typeTrial, Name: "foo-2", Number: -1},
 				{Type: typeTrial, Name: "foo-2", Number: -1},
-			},
-		},
-		{
-			desc: "ForceExperimentName",
-			args: []string{"trial/foo-2/"},
-			names: []name{
+				{Type: typeTrial, Name: "foo-2", Number: -1},
 				{Type: typeTrial, Name: "foo-2", Number: -1},
 			},
 		},
