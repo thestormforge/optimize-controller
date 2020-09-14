@@ -78,8 +78,9 @@ func (o *SuggestOptions) suggest(ctx context.Context) error {
 	if err := o.SuggestAssignments(&exp, &ta); err != nil {
 		return err
 	}
-
-	o.addLabels(&ta)
+	if err := o.AddLabels(&ta); err != nil {
+		return err
+	}
 
 	_, err = o.ExperimentsAPI.CreateTrial(ctx, exp.TrialsURL, ta)
 	if err != nil {
@@ -127,9 +128,9 @@ func (o *SuggestOptions) assign(p *experimentsv1alpha1.Parameter) (json.Number, 
 	return "0", fmt.Errorf("no assignment for parameter: %s", p.Name)
 }
 
-func (o *SuggestOptions) addLabels(ta *experimentsv1alpha1.TrialAssignments) {
+func (o *SuggestOptions) AddLabels(ta *experimentsv1alpha1.TrialAssignments) error {
 	if o.Labels == "" {
-		return
+		return nil
 	}
 
 	ta.Labels = make(map[string]string)
@@ -140,6 +141,7 @@ func (o *SuggestOptions) addLabels(ta *experimentsv1alpha1.TrialAssignments) {
 			ta.Labels[strings.TrimSuffix(l, "-")] = ""
 		}
 	}
+	return nil
 }
 
 func (o *SuggestOptions) defaultValue(p *experimentsv1alpha1.Parameter) (*json.Number, error) {

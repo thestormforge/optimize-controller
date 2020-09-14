@@ -18,11 +18,11 @@ package generate
 
 import (
 	"fmt"
-	"strings"
 
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/internal/experiment"
 	"github.com/redskyops/redskyops-controller/internal/server"
+	experimentsv1alpha1 "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/experiments"
 	"github.com/spf13/cobra"
@@ -32,7 +32,6 @@ type TrialOptions struct {
 	experiments.SuggestOptions
 
 	Filename string
-	Labels   string
 }
 
 func NewTrialCommand(o *TrialOptions) *cobra.Command {
@@ -83,21 +82,18 @@ func (o *TrialOptions) generate() error {
 
 	// Convert the experiment so we can use it to collect the suggested assignments
 	_, serverExperiment := server.FromCluster(exp)
-	sug, err := o.SuggestAssignments(serverExperiment)
-	if err != nil {
+	ta := experimentsv1alpha1.TrialAssignments{}
+	if err := o.SuggestAssignments(serverExperiment, &ta); err != nil {
 		return err
 	}
-
-	// Augment trial labels in the template
-	exp.Spec.TrialTemplate.Labels, err = appendLabels(exp.Spec.TrialTemplate.Labels, o.Labels)
-	if err != nil {
+	if err := o.AddLabels(&ta); err != nil {
 		return err
 	}
 
 	// Build the trial
 	t := &redskyv1beta1.Trial{}
 	experiment.PopulateTrialFromTemplate(exp, t)
-	server.ToClusterTrial(t, sug)
+	server.ToClusterTrial(t, &ta)
 
 	// NOTE: Leaving the trial name empty and generateName non-empty means that you MUST use `kubectl create` and not `apply`
 
@@ -106,23 +102,4 @@ func (o *TrialOptions) generate() error {
 	t.Annotations = nil
 
 	return o.Printer.PrintObj(t, o.Out)
-}
-
-func appendLabels(labels map[string]string, labelString string) (map[string]string, error) {
-	// Similar to something like https://github.com/kubernetes/kubernetes/blob/c631e78173bf6b35d00c18d31fdf147684e89136/staging/src/k8s.io/kubectl/pkg/generate/generate.go#L178
-	if labelString == "" {
-		return nil, nil
-	}
-	if labels == nil {
-		labels = make(map[string]string)
-	}
-	labelSpecs := strings.Split(labelString, ",")
-	for _, ls := range labelSpecs {
-		labelSpec := strings.Split(ls, "=")
-		if len(labelSpec) != 2 || labelSpec[0] == "" {
-			return nil, fmt.Errorf("unexpected label: %s", ls)
-		}
-		labels[labelSpec[0]] = labelSpec[1]
-	}
-	return labels, nil
 }
