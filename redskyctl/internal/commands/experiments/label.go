@@ -85,7 +85,7 @@ func (o *LabelOptions) label(ctx context.Context) error {
 
 		case typeTrial:
 			key := n.experimentName()
-			t[key] = append(t[key], n.Number)
+			t[key] = append(t[key], n.trialNumber())
 
 		default:
 			return fmt.Errorf("cannot label %s", n.Type)

@@ -43,19 +43,20 @@ func validTypes() []string {
 	return []string{string(typeExperiment), string(typeTrial)}
 }
 
-// normalizeType returns a consistent value based on a user entered type
-func normalizeType(t string) (resourceType, bool, error) {
+// normalizeType returns a consistent value based on a user entered type.
+func normalizeType(t string) (normalType resourceType, pluralType string, err error) {
+	// NOTE: We always return one of the `resourceType` constants, even if the input is plural
 	switch strings.ToLower(t) {
 	case "experiment", "exp":
-		return typeExperiment, false, nil
+		return typeExperiment, string(typeExperiment), nil
 	case "experiments":
-		return typeExperiment, true, nil
+		return typeExperiment, string(typeExperiment) + "s", nil
 	case "trial", "tr":
-		return typeTrial, false, nil
+		return typeTrial, string(typeTrial), nil
 	case "trials":
-		return typeTrial, true, nil
+		return typeTrial, string(typeTrial) + "s", nil
 	}
-	return "", false, fmt.Errorf("unknown resource type \"%s\"", t)
+	return "", "", fmt.Errorf("unknown resource type \"%s\"", t)
 }
 
 // Options are the common options for interacting with the Red Sky Experiments API
@@ -104,44 +105,49 @@ func (n *name) experimentName() experimentsv1alpha1.ExperimentName {
 	return experimentsv1alpha1.NewExperimentName(n.Name)
 }
 
+// trialNumber returns the trial number extracted from the name, values less then zero indicate no
+// number is present.
+func (n *name) trialNumber() int64 {
+	return n.Number
+}
+
 // parseNames parses a list of arguments into structured names
 func parseNames(args []string) ([]name, error) {
 	names := make([]name, 0, len(args))
 
 	var defaultType string
 	for _, arg := range args {
+		// Split the argument into type/name/number
 		argType, argName, argNumber := splitArg(arg, defaultType)
+		argIsTypeOnly := argName == "" && argNumber == ""
 
-		// Normalize the type, if no name was supplied just update the default type
-		normalType, plural, err := normalizeType(argType)
+		// Normalize the type
+		normalType, pluralType, err := normalizeType(argType)
 		if err != nil {
 			return nil, err
 		}
-		if defaultType == "" && argName == "" && argNumber == "" {
-			defaultType = string(normalType)
-			if plural {
-				// Suspect.
-				defaultType += "s"
-			}
+
+		// Set the default type if it hasn't been set and no name was supplied
+		if defaultType == "" && argIsTypeOnly {
+			defaultType = pluralType
 			continue
 		}
 
-		// Create a new name, apply some type specific special cases
+		// Create a new name
 		n := name{Type: normalType, Name: argName, Number: -1}
-		switch n.Type {
-		case typeTrial:
-			// Special case where trial can alternatively end with "-<NUM>" instead of "/<NUM>"
-			if pos := strings.LastIndex(argName, "-"); pos > 0 && argNumber == "" && !plural {
+
+		// Special case where trial can alternatively end with "-<NUM>" instead of "/<NUM>"
+		if n.Type == typeTrial && argNumber == "" && pluralType == string(normalType) {
+			if pos := strings.LastIndex(argName, "-"); pos > 0 {
 				n.Name, argNumber = argName[0:pos], argName[pos+1:]
-			}
-		default:
-			if argNumber != "" {
-				return nil, fmt.Errorf("%s name cannot include a number: %s", n.Type, arg)
 			}
 		}
 
 		// Parse the number, if present
 		if argNumber != "" {
+			if n.Type != typeTrial {
+				return nil, fmt.Errorf("%s name cannot include a number: %s", n.Type, arg)
+			}
 			n.Number, err = strconv.ParseInt(argNumber, 10, 64)
 			if err != nil {
 				return nil, err
@@ -151,6 +157,7 @@ func parseNames(args []string) ([]name, error) {
 		names = append(names, n)
 	}
 
+	// If no names were generated we can just use the default type
 	if len(names) == 0 {
 		if defaultType == "" {
 			return nil, fmt.Errorf("required resource not specified")
@@ -159,13 +166,13 @@ func parseNames(args []string) ([]name, error) {
 		if err != nil {
 			return nil, err
 		}
-		names = append(names, name{Type: normalType, Number: -1})
+		return []name{{Type: normalType, Number: -1}}, nil
 	}
 
 	return names, nil
 }
 
-func splitArg(arg, defType string) (string, string, string) {
+func splitArg(arg, defType string) (parsedType string, parsedName string, parsedNumber string) {
 	p := strings.Split(arg, "/")
 	switch len(p) {
 	case 1:
