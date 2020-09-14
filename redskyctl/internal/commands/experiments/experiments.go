@@ -189,6 +189,9 @@ func splitArg(arg, defType string) (parsedType string, parsedName string, parsed
 		return defType, p[0], p[1]
 	case 3:
 		// type/name/number
+		if p[2] == "" {
+			p[2] = "-1"
+		}
 		return p[0], p[1], p[2]
 	default:
 		// likely invalid name
