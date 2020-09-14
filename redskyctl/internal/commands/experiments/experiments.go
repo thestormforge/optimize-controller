@@ -43,7 +43,8 @@ func validTypes() []string {
 	return []string{string(typeExperiment), string(typeTrial)}
 }
 
-// normalizeType returns a consistent value based on a user entered type.
+// normalizeType returns a consistent value based on a user entered type. The returned plural type only
+// preserves the plural form of the input.
 func normalizeType(t string) (normalType resourceType, pluralType string, err error) {
 	// NOTE: We always return one of the `resourceType` constants, even if the input is plural
 	switch strings.ToLower(t) {
@@ -119,13 +120,17 @@ func parseNames(args []string) ([]name, error) {
 	for _, arg := range args {
 		// Split the argument into type/name/number
 		argType, argName, argNumber := splitArg(arg, defaultType)
+		if argType == "" && argName == "" && argNumber == "" {
+			return nil, fmt.Errorf("invalid name: %s", arg)
+		}
 		argIsTypeOnly := argName == "" && argNumber == ""
 
-		// Normalize the type
+		// Normalize the type (note: the plural type only preserves plurality)
 		normalType, pluralType, err := normalizeType(argType)
 		if err != nil {
 			return nil, err
 		}
+		typeIsPlural := string(normalType) != pluralType
 
 		// Set the default type if it hasn't been set and no name was supplied
 		if defaultType == "" && argIsTypeOnly {
@@ -137,7 +142,7 @@ func parseNames(args []string) ([]name, error) {
 		n := name{Type: normalType, Name: argName, Number: -1}
 
 		// Special case where trial can alternatively end with "-<NUM>" instead of "/<NUM>"
-		if n.Type == typeTrial && argNumber == "" && pluralType == string(normalType) {
+		if n.Type == typeTrial && argNumber == "" && !typeIsPlural {
 			if pos := strings.LastIndex(argName, "-"); pos > 0 {
 				n.Name, argNumber = argName[0:pos], argName[pos+1:]
 			}
@@ -166,7 +171,7 @@ func parseNames(args []string) ([]name, error) {
 		if err != nil {
 			return nil, err
 		}
-		return []name{{Type: normalType, Number: -1}}, nil
+		names = append(names, name{Type: normalType, Number: -1})
 	}
 
 	return names, nil
@@ -194,8 +199,7 @@ func splitArg(arg, defType string) (parsedType string, parsedName string, parsed
 		}
 		return p[0], p[1], p[2]
 	default:
-		// likely invalid name
-		return p[0], strings.Join(p[1:], "/"), ""
+		return "", "", ""
 	}
 }
 
