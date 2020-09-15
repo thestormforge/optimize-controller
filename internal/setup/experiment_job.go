@@ -36,7 +36,8 @@ import (
 // NewTrialJob returns a new setup job for either create or delete
 func NewExperimentJob(exp *redskyv1beta1.Experiment, mode string) (*batchv1.Job, error) {
 	job := &batchv1.Job{}
-	job.Namespace = exp.Namespace
+	// TODO need a better way to get this
+	job.Namespace = "redsky-system"
 	job.Name = fmt.Sprintf("%s-%s", exp.Name, mode)
 
 	job.Labels = map[string]string{
@@ -50,11 +51,8 @@ func NewExperimentJob(exp *redskyv1beta1.Experiment, mode string) (*batchv1.Job,
 	}
 	job.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyNever
 
-	// TODO: not sure which service account we want to use with this,
-	// maybe piggyback off trial spec service account?
-	if exp.Spec.TrialTemplate.Spec.SetupServiceAccountName != "" {
-		job.Spec.Template.Spec.ServiceAccountName = exp.Spec.TrialTemplate.Spec.SetupServiceAccountName
-	}
+	// Use rso builtin service account
+	job.Spec.Template.Spec.ServiceAccountName = "builtin"
 
 	runAsNonRoot := true
 	job.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{
@@ -69,7 +67,8 @@ func NewExperimentJob(exp *redskyv1beta1.Experiment, mode string) (*batchv1.Job,
 		Name: fmt.Sprintf("%s-%s", job.Name, "prometheus-setup"),
 		Args: []string{"prometheus", mode},
 		Env: []corev1.EnvVar{
-			{Name: "NAMESPACE", Value: exp.Namespace},
+			// TODO need a better way to get this
+			{Name: "NAMESPACE", Value: "redsky-system"},
 			{Name: "NAME", Value: fmt.Sprintf("%s-%s", job.Name, "prometheus-setup")},
 			{Name: "EXPERIMENT", Value: exp.Name},
 		},

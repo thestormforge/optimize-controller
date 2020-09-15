@@ -47,6 +47,8 @@ type GeneratorOptions struct {
 	NamespaceSelector string
 	// IncludeManagerRole generates an additional binding to the manager role for each matched namespace
 	IncludeManagerRole bool
+	// SkipBuiltin bypasses the permissions for prometheus
+	SkipBuiltin bool
 }
 
 // NewGeneratorCommand creates a command for generating the controller role definitions
@@ -77,98 +79,179 @@ func (o *GeneratorOptions) addFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolVar(&o.CreateTrialNamespaces, "create-trial-namespace", o.CreateTrialNamespaces, "Include trial namespace creation permissions.")
 	cmd.Flags().StringVar(&o.NamespaceSelector, "ns-selector", o.NamespaceSelector, "Bind to matching namespaces.")
 	cmd.Flags().BoolVar(&o.IncludeManagerRole, "include-manager", o.IncludeManagerRole, "Bind manager to matching namespaces.")
+	cmd.Flags().BoolVar(&o.SkipBuiltin, "skip-builtin", o.SkipBuiltin, "Skip builtin permissions.")
 }
+
+const (
+	defaultServiceAccount = "default"
+	defaultClusterRole    = "redsky-patching-role"
+
+	builtinServiceAccount = "builtin"
+	builtinClusterRole    = "redsky-builtin-role"
+)
 
 func (o *GeneratorOptions) generate(ctx context.Context) error {
 	result := &corev1.List{}
 
-	// Determine the binding targets
-	roleRef, subject, err := o.bindingTargets()
-	if err != nil {
-		return err
+	var serviceAccounts []string
+	if !o.SkipDefault {
+		serviceAccounts = append(serviceAccounts, defaultServiceAccount)
 	}
 
-	// Generate the cluster role
-	if clusterRole := o.generateClusterRole(roleRef); clusterRole != nil {
+	if !o.SkipBuiltin {
+		serviceAccounts = append(serviceAccounts, builtinServiceAccount)
+	}
+
+	for _, serviceAccount := range serviceAccounts {
+		if serviceAccount != defaultServiceAccount {
+			svcAccount, err := o.generateServiceAccount(serviceAccount)
+			if err != nil {
+				return err
+			}
+
+			result.Items = append(result.Items, runtime.RawExtension{Object: svcAccount})
+		}
+
+		// Determine the binding targets
+		roleRef, subject, err := o.bindingTargets(serviceAccount)
+		if err != nil {
+			return err
+		}
+
+		// Generate the cluster role
+		clusterRole := o.generateClusterRole(roleRef)
+		if clusterRole == nil {
+			// Do not generate bindings if we didn't end up creating a role
+			continue
+		}
+
 		result.Items = append(result.Items, runtime.RawExtension{Object: clusterRole})
-	} else {
-		// Do not generate bindings if we didn't end up creating a role
-		roleRef = nil
-	}
 
-	// Generate the cluster role binding
-	if clusterRoleBinding := o.generateClusterRoleBinding(roleRef, subject); clusterRoleBinding != nil {
-		result.Items = append(result.Items, runtime.RawExtension{Object: clusterRoleBinding})
-	}
+		switch o.NamespaceSelector {
+		case "":
+			// Generate the cluster role binding
+			if clusterRoleBinding := o.generateClusterRoleBinding(roleRef, subject); clusterRoleBinding != nil {
+				result.Items = append(result.Items, runtime.RawExtension{Object: clusterRoleBinding})
+			}
+		default:
+			// Generate the role bindings
+			// TODO need to look more into if/how we'd want to handle this for builtin
+			roleBindings, err := o.generateRoleBindings(ctx, roleRef, subject)
+			if err != nil {
+				return err
+			}
 
-	// Generate the role bindings
-	roleBindings, err := o.generateRoleBindings(ctx, roleRef, subject)
-	if err != nil {
-		return err
-	}
-	for _, rb := range roleBindings {
-		result.Items = append(result.Items, runtime.RawExtension{Object: rb})
+			for _, rb := range roleBindings {
+				result.Items = append(result.Items, runtime.RawExtension{Object: rb})
+			}
+		}
 	}
 
 	// Print the result
 	if len(result.Items) == 0 {
 		return nil
 	}
+
 	return o.Printer.PrintObj(result, o.Out)
 }
 
-func (o *GeneratorOptions) bindingTargets() (*rbacv1.RoleRef, *rbacv1.Subject, error) {
+func (o *GeneratorOptions) bindingTargets(serviceAccount string) (*rbacv1.RoleRef, *rbacv1.Subject, error) {
 	// Get the namespace of the controller from the configuration
 	ctrl, err := config.CurrentController(o.Config.Reader())
 	if err != nil {
 		return nil, nil, err
 	}
 
+	rr := &rbacv1.RoleRef{
+		APIGroup: "rbac.authorization.k8s.io",
+		Kind:     "ClusterRole",
+	}
+
+	switch serviceAccount {
+	case defaultServiceAccount:
+		rr.Name = defaultClusterRole
+	case builtinServiceAccount:
+		rr.Name = builtinClusterRole
+	}
+
 	// The manager runs as the default service account
-	return &rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
-			Name:     "redsky-patching-role",
-		},
+	return rr,
 		&rbacv1.Subject{
 			Kind:      "ServiceAccount",
-			Name:      "default",
+			Name:      serviceAccount,
 			Namespace: ctrl.Namespace,
 		}, nil
 }
 
 func (o *GeneratorOptions) generateClusterRole(roleRef *rbacv1.RoleRef) *rbacv1.ClusterRole {
-	if roleRef == nil || (o.SkipDefault && !o.CreateTrialNamespaces) {
+	if roleRef == nil {
 		return nil
 	}
 
 	clusterRole := &rbacv1.ClusterRole{}
 	clusterRole.Name = roleRef.Name
 
-	// Include the default rules
-	if !o.SkipDefault {
-		clusterRole.Rules = append(clusterRole.Rules,
-			rbacv1.PolicyRule{
-				Verbs:     []string{"get", "patch"},
-				APIGroups: []string{""},
-				Resources: []string{"configmaps"},
-			},
-			rbacv1.PolicyRule{
-				Verbs:     []string{"get", "patch"},
-				APIGroups: []string{"apps", "extensions"},
-				Resources: []string{"deployments", "statefulsets"},
-			})
-	}
+	switch roleRef.Name {
+	case defaultClusterRole:
+		// Include the default rules
+		if !o.SkipDefault {
+			clusterRole.Rules = append(clusterRole.Rules,
+				rbacv1.PolicyRule{
+					Verbs:     []string{"get", "patch"},
+					APIGroups: []string{""},
+					Resources: []string{"configmaps"},
+				},
+				rbacv1.PolicyRule{
+					Verbs:     []string{"get", "patch"},
+					APIGroups: []string{"apps", "extensions"},
+					Resources: []string{"deployments", "statefulsets"},
+				})
+		}
 
-	// Trial namespace creation requires extra permissions
-	if o.CreateTrialNamespaces {
-		clusterRole.Rules = append(clusterRole.Rules,
-			rbacv1.PolicyRule{
-				Verbs:     []string{"create"},
-				APIGroups: []string{""},
-				Resources: []string{"namespaces,serviceaccounts"},
-			},
-		)
+		// Trial namespace creation requires extra permissions
+		if o.CreateTrialNamespaces {
+			clusterRole.Rules = append(clusterRole.Rules,
+				rbacv1.PolicyRule{
+					Verbs:     []string{"create"},
+					APIGroups: []string{""},
+					Resources: []string{"namespaces,serviceaccounts"},
+				},
+			)
+		}
+	case builtinClusterRole:
+		// Include necessary permissions for prometheus and kube state metrics
+		// deployment
+		if !o.SkipBuiltin {
+			clusterRole.Rules = append(clusterRole.Rules,
+				rbacv1.PolicyRule{
+					Verbs:     []string{"get", "create", "delete"},
+					APIGroups: []string{""},
+					Resources: []string{"serviceaccounts", "services", "configmaps"},
+				},
+				rbacv1.PolicyRule{
+					Verbs:     []string{"get", "create", "delete", "patch"},
+					APIGroups: []string{"apps"},
+					Resources: []string{"deployments"},
+				},
+				rbacv1.PolicyRule{
+					Verbs:     []string{"get", "create", "delete"},
+					APIGroups: []string{"rbac.authorization.k8s.io"},
+					Resources: []string{"clusterroles", "clusterrolebindings"},
+				},
+				// Kube-state-metrics
+				rbacv1.PolicyRule{
+					Verbs:     []string{"list", "watch"},
+					APIGroups: []string{""},
+					Resources: []string{"pods"},
+				},
+				// Prom
+				rbacv1.PolicyRule{
+					Verbs:     []string{"list", "watch", "get"},
+					APIGroups: []string{""},
+					Resources: []string{"nodes", "nodes/metrics", "nodes/proxy", "services"},
+				},
+			)
+		}
 	}
 
 	return clusterRole
@@ -189,7 +272,7 @@ func (o *GeneratorOptions) generateClusterRoleBinding(roleRef *rbacv1.RoleRef, s
 }
 
 func (o *GeneratorOptions) generateRoleBindings(ctx context.Context, roleRef *rbacv1.RoleRef, subject *rbacv1.Subject) ([]*rbacv1.RoleBinding, error) {
-	if o.NamespaceSelector == "" || subject == nil {
+	if subject == nil {
 		return nil, nil
 	}
 
@@ -198,6 +281,7 @@ func (o *GeneratorOptions) generateRoleBindings(ctx context.Context, roleRef *rb
 	if err != nil {
 		return nil, err
 	}
+
 	getCmd.Stderr = o.ErrOut
 	out, err := getCmd.Output()
 	if err != nil {
@@ -237,4 +321,19 @@ func (o *GeneratorOptions) generateRoleBindings(ctx context.Context, roleRef *rb
 		}
 	}
 	return roleBindings, nil
+}
+
+func (o *GeneratorOptions) generateServiceAccount(serviceAccount string) (*corev1.ServiceAccount, error) {
+	// Get the namespace of the controller from the configuration
+	ctrl, err := config.CurrentController(o.Config.Reader())
+	if err != nil {
+		return nil, err
+	}
+
+	return &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      serviceAccount,
+			Namespace: ctrl.Namespace,
+		},
+	}, nil
 }

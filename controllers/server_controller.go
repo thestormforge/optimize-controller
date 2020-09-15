@@ -44,7 +44,6 @@ import (
 	"k8s.io/client-go/discovery"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 )
 
@@ -393,9 +392,11 @@ func (r *ServerReconciler) deployPrometheus(ctx context.Context, exp *redskyv1be
 		return err
 	}
 
-	if err := controllerutil.SetControllerReference(exp, setupJob, r.Scheme); err != nil {
-		return err
-	}
+	// Cant do cross namespace owner link; need this job to run in redsky-system so we can
+	// use appropriate service account
+	//if err := controllerutil.SetControllerReference(exp, setupJob, r.Scheme); err != nil {
+	//	return err
+	//}
 
 	return controller.IgnoreAlreadyExists(r.Create(ctx, setupJob))
 }
