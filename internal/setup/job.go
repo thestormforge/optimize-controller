@@ -88,7 +88,7 @@ func NewJob(t *redskyv1beta1.Trial, mode string) (*batchv1.Job, error) {
 		c := corev1.Container{
 			Name:  fmt.Sprintf("%s-%s", job.Name, task.Name),
 			Image: task.Image,
-			Args:  []string{mode},
+			Args:  task.Args,
 			Env: []corev1.EnvVar{
 				{Name: "NAMESPACE", Value: t.Namespace},
 				{Name: "NAME", Value: task.Name},
@@ -99,6 +99,14 @@ func NewJob(t *redskyv1beta1.Trial, mode string) (*batchv1.Job, error) {
 				RunAsGroup:               &id,
 				AllowPrivilegeEscalation: &allowPrivilegeEscalation,
 			},
+		}
+
+		if len(c.Args) == 0 {
+			c.Args = []string{mode}
+		}
+
+		if len(task.Command) > 0 && c.Image != "" {
+			c.Command = task.Command
 		}
 
 		// Check the environment for a default setup tools image name

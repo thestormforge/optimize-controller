@@ -122,6 +122,8 @@ SetupTask represents the configuration necessary to apply application state to t
 | ----- | ----------- | ------ | -------- |
 | `name` | The name that uniquely identifies the setup task | _string_ | true |
 | `image` | Override the default image used for performing setup tasks | _string_ | false |
+| `command` | Override the default command for the container | _[]string_ | false |
+| `args` | Override the default args for the container | _[]string_ | false |
 | `skipCreate` | Flag to indicate the creation part of the task can be skipped | _bool_ | false |
 | `skipDelete` | Flag to indicate the deletion part of the task can be skipped | _bool_ | false |
 | `volumeMounts` | Volume mounts for the setup task | _[][VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#volumemount-v1-core)_ | false |

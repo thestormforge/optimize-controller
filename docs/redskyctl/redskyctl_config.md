@@ -24,6 +24,7 @@ Modify or view the Red Sky Configuration file
 ### SEE ALSO
 
 * [redskyctl](redskyctl.md)	 - Kubernetes Exploration
+* [redskyctl config current-context](redskyctl_config_current-context.md)	 - Displays the current context
 * [redskyctl config env](redskyctl_config_env.md)	 - Generate environment variables from configuration
 * [redskyctl config set](redskyctl_config_set.md)	 - Modify the configuration file
 * [redskyctl config view](redskyctl_config_view.md)	 - View the configuration file
