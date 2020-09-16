@@ -36,7 +36,6 @@ spec:
             - --web.console.libraries=/etc/prometheus/console_libraries
             - --web.console.templates=/etc/prometheus/consoles
             - --web.enable-lifecycle
-            - --web.enable-admin-api
           ports:
             - containerPort: 9090
           readinessProbe:

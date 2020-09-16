@@ -23,7 +23,6 @@ metadata:
   labels:
     app: prometheus
   name: rso-prometheus
-  namespace: default
 spec:
   ports:
   - name: http

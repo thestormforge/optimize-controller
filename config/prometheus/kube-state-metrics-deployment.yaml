@@ -4,7 +4,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: kube-state-metrics
-  namespace: default
   labels:
     app.kubernetes.io/name: kube-state-metrics
 spec:
