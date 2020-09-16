@@ -34,7 +34,7 @@ var cpuUtilizationMetric = redskyv1beta1.Metric{
 	Name:  "rso cpu utilization",
 	Type:  redskyv1beta1.MetricBuiltIn,
 	Query: cpuUtilizationQuery,
-	URL:   fmt.Sprintf("http://%s:9090", PrometheusServiceName),
+	URL:   fmt.Sprintf("http://%s.%s:9090", PrometheusServiceName, "{{ .Trial.Namespace }}"),
 }
 
 var cpuUtilizationQuery = `

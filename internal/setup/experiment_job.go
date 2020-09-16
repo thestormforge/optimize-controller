@@ -67,8 +67,7 @@ func NewExperimentJob(exp *redskyv1beta1.Experiment, mode string) (*batchv1.Job,
 		Name: fmt.Sprintf("%s-%s", job.Name, "prometheus-setup"),
 		Args: []string{"prometheus", mode},
 		Env: []corev1.EnvVar{
-			// TODO need a better way to get this
-			{Name: "NAMESPACE", Value: "redsky-system"},
+			{Name: "NAMESPACE", Value: exp.Namespace},
 			{Name: "NAME", Value: fmt.Sprintf("%s-%s", job.Name, "prometheus-setup")},
 			{Name: "EXPERIMENT", Value: exp.Name},
 		},
