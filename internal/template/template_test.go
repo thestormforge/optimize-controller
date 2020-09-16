@@ -161,6 +161,44 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 			},
 			expectedQuery: "25010",
 		},
+
+		{
+			desc: "function cpuUtilization with parameters",
+			metric: redskyv1beta1.Metric{
+				Name:  "testMetric",
+				Query: `{{cpuUtilization . "component=bob,component=tom"}}`,
+				Type:  redskyv1beta1.MetricLocal,
+			},
+			trial: redskyv1beta1.Trial{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+				},
+				Status: redskyv1beta1.TrialStatus{
+					StartTime:      &metav1.Time{Time: now.Add(-5 * time.Second)},
+					CompletionTime: &now,
+				},
+			},
+			expectedQuery: expectedCPUUtilizationQueryWithParams,
+		},
+
+		{
+			desc: "function cpuUtilization without parameters",
+			metric: redskyv1beta1.Metric{
+				Name:  "testMetric",
+				Query: `{{cpuUtilization .}}`,
+				Type:  redskyv1beta1.MetricLocal,
+			},
+			trial: redskyv1beta1.Trial{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+				},
+				Status: redskyv1beta1.TrialStatus{
+					StartTime:      &metav1.Time{Time: now.Add(-5 * time.Second)},
+					CompletionTime: &now,
+				},
+			},
+			expectedQuery: expectedCPUUtilizationQueryWithoutParams,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
@@ -172,3 +210,35 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 		})
 	}
 }
+
+var (
+	expectedCPUUtilizationQueryWithParams = `
+scalar(
+  sum(
+    increase(container_cpu_usage_seconds_total{container="", image=""}[5s]) by (pod)
+    *
+    on (pod) group_left kube_pod_labels{label_component="bob",label_component="tom"}
+  )
+  /
+  sum(
+    sum_over_time(kube_pod_container_resource_limits_cpu_cores[5s:1s])
+    *
+    on (pod) group_left kube_pod_labels{label_component="bob",label_component="tom"}
+  )
+)`
+
+	expectedCPUUtilizationQueryWithoutParams = `
+scalar(
+  sum(
+    increase(container_cpu_usage_seconds_total{container="", image=""}[5s]) by (pod)
+    *
+    on (pod) group_left kube_pod_labels{namespace="default"}
+  )
+  /
+  sum(
+    sum_over_time(kube_pod_container_resource_limits_cpu_cores[5s:1s])
+    *
+    on (pod) group_left kube_pod_labels{namespace="default"}
+  )
+)`
+)
