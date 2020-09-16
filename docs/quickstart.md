@@ -6,6 +6,7 @@ We will cover:
 - Initializing Red Sky Ops in your cluster
 - Deploying the Postgres experiment to your cluster
 - Running trials using machine learning (ML) to determine the best configuration
+- Comparing Red Sky Ops results to a baseline configuration
 
 If you encounter any issues or require assistance, please reach out to us via [Slack][rso slack] or [contact us][contact us].
 
@@ -79,8 +80,28 @@ postgres-example-008   Waiting     cpu=1198, memory=2701
 
 The trials will run until the `experimentBudget` is satisfied. In this example, there will be 40 trials that run.
 While the trial is running, there may be assignment combinations that are unstable and result in a failure.
-
 After the trial is complete, you will be able to view the parameters and the metrics generated from the trial.
+
+## Add the Current Configuration as a Baseline
+
+Optionally, you can compare Red Sky Ops results to a baseline by running a trial with the parameters that are currently set in the application manifests.
+While your experiment is still running, use the following command to suggest a trial.
+
+```sh
+$ redskyctl suggest postgres-example --assign memory=4000 --assign cpu=4000 --labels 'baseline=true'
+```
+
+Alternatively, you can use `--interactive` which will prompt you to fill in integer values for each parameter in the experiment file. Set CPU=4000 and memory=4000.
+
+```sh
+$ redskyctl suggest postgres-example --interactive --labels 'baseline=true'
+```
+
+This will schedule a trial with the suggested parameters and collect duration and cost.
+This trial will be counted towards the total number of trials allotted for the experiment.
+When the experiment finishes, the baseline trial will be displayed as a triangle on the results page along with your experiment results.
+
+## View the Results
 The results can be reviewed as a visualization by running the following command:
 
 ```sh
@@ -95,11 +116,12 @@ There is a filter on the upper right hand side where you can narrow your results
 These are the trials with the best possible combination of cost and duration, meaning if you hold cost fixed at a given value, we have found the best possible duration.
 You can choose any `best` configuration that works for your cost and duration preferences.
 Often you find that since the metrics are not linearly related, there are some points that give a bigger boost in duration at a similar cost, so it is useful to explore all of the options to find the best one for you.
+Once you have chosen an optimized configuration, click on the point to display the parameters to use in the application manifests.
 
 Congratulations! You just ran your first experiment.
 Now that you've got an idea of the basics, learn more about the experiment [lifecycle][lifecycle] or experiment [concepts][concepts].
 
-## Removing the Experiment
+## Remove the Experiment
 
 To clean up the data from your experiment, simply delete the experiment. The delete will cascade to the associated trials and other Kubernetes objects:
 
