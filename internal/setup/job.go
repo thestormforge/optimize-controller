@@ -105,7 +105,7 @@ func NewJob(t *redskyv1beta1.Trial, mode string) (*batchv1.Job, error) {
 			c.Args = []string{mode}
 		}
 
-		if len(task.Command) > 0 {
+		if len(task.Command) > 0 && c.Image != "" {
 			c.Command = task.Command
 		}
 
