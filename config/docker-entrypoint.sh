@@ -1,25 +1,36 @@
 #!/bin/sh
 set -e
 
-
-# Generate installation manifests
-if [ "$1" = "install" ] ; then
+case "$1" in
+  install)
+    # Generate installation manifests
     shift && /workspace/install/install.sh "$@"
     exit $?
-fi
-
-
-# Package the Helm chart
-if [ "$1" = "chart" ] ; then
+  ;;
+  chart)
+    # Package the Helm chart
     shift && /workspace/chart/build.sh "$@"
     exit $?
-fi
+  ;;
+  prometheus)
+    # Generate prometheus manifests
+    shift && cd /workspace/prometheus
+  ;;
+esac
 
 
 # Create the "base" root
-kustomize create --namespace "$NAMESPACE"
-# TODO --autodetect fails with symlinked directories
-find . -type f -name "*.yaml" ! -name "kustomization.yaml" -exec kustomize edit add resource {} +
+if [ ! -f kustomization.yaml ]; then
+  kustomize create
+
+  # TODO --autodetect fails with symlinked directories
+  find . -type f -name "*.yaml" ! -name "kustomization.yaml" -exec kustomize edit add resource {} +
+fi
+
+
+if [ -n "$NAMESPACE" ]; then
+  kustomize edit set namespace "$NAMESPACE"
+fi
 
 
 # Add Helm configuration
@@ -31,6 +42,8 @@ fi
 
 # Add trial labels to the resulting manifests so they can be more easily located
 if [ -n "$TRIAL" ]; then
+    # Note, this heredoc block must be indented with tabs
+    # <<- allows for indentation via tabs, if spaces are used it is no good.
     cat <<-EOF >"trial_labels.yaml"
 		apiVersion: konjure.carbonrelay.com/v1beta1
 		kind: LabelTransformer
@@ -49,6 +62,7 @@ while [ "$#" != "0" ] ; do
     case "$1" in
     create)
         handle () {
+            # Note, this *must* be create for `generateName` to work properly
             kubectl create -f -
             #if [ -n "$TRIAL" ] && [ -n "$NAMESPACE" ] ; then
             #    kubectl get sts,deploy,ds --namespace "$NAMESPACE" --selector "redskyops.dev/trial=$TRIAL,redskyops.dev/trial-role=trialResource" -o name | xargs -n 1 kubectl rollout status --namespace "$NAMESPACE"
