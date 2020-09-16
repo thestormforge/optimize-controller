@@ -20,9 +20,17 @@ esac
 
 
 # Create the "base" root
-kustomize create --namespace "$NAMESPACE"
-# TODO --autodetect fails with symlinked directories
-find . -type f -name "*.yaml" ! -name "kustomization.yaml" -exec kustomize edit add resource {} +
+if [ ! -f kustomization.yaml ]; then
+  kustomize create
+
+  # TODO --autodetect fails with symlinked directories
+  find . -type f -name "*.yaml" ! -name "kustomization.yaml" -exec kustomize edit add resource {} +
+fi
+
+
+if [ -n "$NAMESPACE" ]; then
+  kustomize edit set namespace "$NAMESPACE"
+fi
 
 
 # Add Helm configuration
