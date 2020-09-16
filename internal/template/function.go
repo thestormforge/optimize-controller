@@ -85,20 +85,20 @@ func resourceRequests(pods corev1.PodList, weights string) (float64, error) {
 	return totalResources, nil
 }
 
-func cpuUtilization(labelArgs ...string) (string, error) {
+func cpuUtilization(data MetricData, labelArgs ...string) (string, error) {
 
 	cpuUtilizationQueryTemplate := `
 scalar(
   sum(
-    increase(container_cpu_usage_seconds_total{container="", image=""}[1h]) by (pod)
+    increase(container_cpu_usage_seconds_total{container="", image=""}[{{ .Range }}]) by (pod)
     *
-    on (pod) group_left kube_pod_labels{{ . }}
+    on (pod) group_left kube_pod_labels{{ .Labels }}
   )
   /
   sum(
-    sum_over_time(kube_pod_container_resource_limits_cpu_cores[1h:1s])
+    sum_over_time(kube_pod_container_resource_limits_cpu_cores[{{ .Range }}:1s])
     *
-    on (pod) group_left kube_pod_labels{{ . }}
+    on (pod) group_left kube_pod_labels{{ .Labels }}
   )
 )`
 
@@ -118,13 +118,20 @@ scalar(
 		labels = append(labels, fmt.Sprintf("label_%s=\"%s\"", kvpair[0], kvpair[1]))
 	}
 
-	var labelParam string
-	if len(labels) > 0 {
-		labelParam = fmt.Sprintf("{%s}", strings.Join(labels, ","))
+	if len(labels) == 0 {
+		labels = append(labels, fmt.Sprintf("namespace=\"%s\"", data.Trial.Namespace))
+	}
+
+	input := struct {
+		MetricData
+		Labels string
+	}{
+		data,
+		fmt.Sprintf("{%s}", strings.Join(labels, ",")),
 	}
 
 	var output bytes.Buffer
-	if err := tmpl.Execute(&output, labelParam); err != nil {
+	if err := tmpl.Execute(&output, input); err != nil {
 		return "", err
 	}
 
