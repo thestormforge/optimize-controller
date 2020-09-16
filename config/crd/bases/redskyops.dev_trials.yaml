@@ -284,6 +284,14 @@ spec:
                   required:
                   - name
                   properties:
+                    args:
+                      type: array
+                      items:
+                        type: string
+                    command:
+                      type: array
+                      items:
+                        type: string
                     helmChart:
                       type: string
                     helmChartVersion:
@@ -6436,6 +6444,14 @@ spec:
                   required:
                   - name
                   properties:
+                    args:
+                      type: array
+                      items:
+                        type: string
+                    command:
+                      type: array
+                      items:
+                        type: string
                     helmChart:
                       type: string
                     helmChartVersion:

@@ -130,11 +130,6 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}); err != nil {
 		return err
 	}
-	if err := s.AddGeneratedConversionFunc((*v1beta1.Metric)(nil), (*Metric)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1beta1_Metric_To_v1alpha1_Metric(a.(*v1beta1.Metric), b.(*Metric), scope)
-	}); err != nil {
-		return err
-	}
 	if err := s.AddGeneratedConversionFunc((*NamespaceTemplateSpec)(nil), (*v1beta1.NamespaceTemplateSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1alpha1_NamespaceTemplateSpec_To_v1beta1_NamespaceTemplateSpec(a.(*NamespaceTemplateSpec), b.(*v1beta1.NamespaceTemplateSpec), scope)
 	}); err != nil {
@@ -327,6 +322,11 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}
 	if err := s.AddConversionFunc((*v1beta1.ExperimentSpec)(nil), (*ExperimentSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1beta1_ExperimentSpec_To_v1alpha1_ExperimentSpec(a.(*v1beta1.ExperimentSpec), b.(*ExperimentSpec), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddConversionFunc((*v1beta1.Metric)(nil), (*Metric)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1beta1_Metric_To_v1alpha1_Metric(a.(*v1beta1.Metric), b.(*Metric), scope)
 	}); err != nil {
 		return err
 	}
@@ -828,7 +828,6 @@ func autoConvert_v1beta1_Metric_To_v1alpha1_Metric(in *v1beta1.Metric, out *Metr
 	out.Selector = in.Selector
 	out.Port = in.Port
 	out.Path = in.Path
-	// NB(bradbeam): The following is okay; we will not handle down converting URL
 	// WARNING: in.URL requires manual conversion: does not exist in peer-type
 	return nil
 }
@@ -1074,6 +1073,8 @@ func Convert_v1beta1_ReadinessCheck_To_v1alpha1_ReadinessCheck(in *v1beta1.Readi
 func autoConvert_v1alpha1_SetupTask_To_v1beta1_SetupTask(in *SetupTask, out *v1beta1.SetupTask, s conversion.Scope) error {
 	out.Name = in.Name
 	out.Image = in.Image
+	out.Command = in.Command
+	out.Args = in.Args
 	out.SkipCreate = in.SkipCreate
 	out.SkipDelete = in.SkipDelete
 	out.VolumeMounts = in.VolumeMounts
@@ -1112,6 +1113,8 @@ func Convert_v1alpha1_SetupTask_To_v1beta1_SetupTask(in *SetupTask, out *v1beta1
 func autoConvert_v1beta1_SetupTask_To_v1alpha1_SetupTask(in *v1beta1.SetupTask, out *SetupTask, s conversion.Scope) error {
 	out.Name = in.Name
 	out.Image = in.Image
+	out.Command = in.Command
+	out.Args = in.Args
 	out.SkipCreate = in.SkipCreate
 	out.SkipDelete = in.SkipDelete
 	out.VolumeMounts = in.VolumeMounts

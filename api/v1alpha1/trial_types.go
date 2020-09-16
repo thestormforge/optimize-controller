@@ -105,6 +105,10 @@ type SetupTask struct {
 	Name string `json:"name"`
 	// Override the default image used for performing setup tasks
 	Image string `json:"image,omitempty"`
+	// Override the default command for the container
+	Command []string `json:"command,omitempty"`
+	// Override the default args for the container
+	Args []string `json:"args,omitempty"`
 	// Flag to indicate the creation part of the task can be skipped
 	SkipCreate bool `json:"skipCreate,omitempty"`
 	// Flag to indicate the deletion part of the task can be skipped
