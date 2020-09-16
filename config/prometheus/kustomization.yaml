@@ -3,6 +3,8 @@ kind: Kustomization
 
 namespace: default
 
+namePrefix: redsky-
+
 resources:
 - ./kube-state-metrics-deployment.yaml
 - ./kube-state-metrics-rbac.yaml
