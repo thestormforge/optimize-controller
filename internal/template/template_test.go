@@ -161,6 +161,26 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 			},
 			expectedQuery: "25010",
 		},
+
+		{
+			desc: "function cpuUtilization with parameters",
+			metric: redskyv1beta1.Metric{
+				Name:  "testMetric",
+				Query: `{{cpuUtilization "component=bob,component=tom"}}`,
+				Type:  redskyv1beta1.MetricLocal,
+			},
+			expectedQuery: expectedCPUUtilizationQueryWithParams,
+		},
+
+		{
+			desc: "function cpuUtilization without parameters",
+			metric: redskyv1beta1.Metric{
+				Name:  "testMetric",
+				Query: `{{cpuUtilization}}`,
+				Type:  redskyv1beta1.MetricLocal,
+			},
+			expectedQuery: expectedCPUUtilizationQueryWithoutParams,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
@@ -172,3 +192,35 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 		})
 	}
 }
+
+var (
+	expectedCPUUtilizationQueryWithParams = `
+scalar(
+  sum(
+    max(container_cpu_usage_seconds_total{container="", image=""}) by (pod)
+    *
+    on (pod) group_left kube_pod_labels{label_component="bob",label_component="tom"}
+  )
+  /
+  sum(
+    sum_over_time(kube_pod_container_resource_limits_cpu_cores[1h:1s])
+    *
+    on (pod) group_left kube_pod_labels{label_component="bob",label_component="tom"}
+  )
+)`
+
+	expectedCPUUtilizationQueryWithoutParams = `
+scalar(
+  sum(
+    max(container_cpu_usage_seconds_total{container="", image=""}) by (pod)
+    *
+    on (pod) group_left kube_pod_labels
+  )
+  /
+  sum(
+    sum_over_time(kube_pod_container_resource_limits_cpu_cores[1h:1s])
+    *
+    on (pod) group_left kube_pod_labels
+  )
+)`
+)
