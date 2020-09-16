@@ -59,6 +59,8 @@ spec:
           volumeMounts:
             - name: config-volume
               mountPath: /etc/config
+            - name: storage-volume
+              mountPath: /data
       securityContext:
         fsGroup: 65534
         runAsGroup: 65534
@@ -69,4 +71,6 @@ spec:
         - name: config-volume
           configMap:
             name: prometheus-server
-
+        - name: storage-volume
+          emptyDir:
+            sizeLimit: 100Mi
