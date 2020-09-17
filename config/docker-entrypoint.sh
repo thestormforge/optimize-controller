@@ -15,6 +15,10 @@ case "$1" in
   prometheus)
     # Generate prometheus manifests
     shift && cd /workspace/prometheus
+
+    if [ -n "$NAMESPACE" ]; then
+      kustomize edit set nameprefix redsky-$NAMESPACE-
+    fi
   ;;
 esac
 
