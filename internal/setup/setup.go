@@ -86,10 +86,13 @@ func UpdateStatus(t *redskyv1beta1.Trial, probeTime *metav1.Time) bool {
 
 // GetTrialConditionType returns the trial condition type used to report status for the specified job
 func GetTrialConditionType(j *batchv1.Job) (redskyv1beta1.TrialConditionType, error) {
-	// TODO This should just be a label or annotation on the job
 	for _, c := range j.Spec.Template.Spec.Containers {
-		if len(c.Args) > 0 {
-			switch c.Args[0] {
+		for _, env := range c.Env {
+			if env.Name != "MODE" {
+				continue
+			}
+
+			switch env.Value {
 			case ModeCreate:
 				return redskyv1beta1.TrialSetupCreated, nil
 			case ModeDelete:

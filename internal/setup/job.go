@@ -93,6 +93,7 @@ func NewJob(t *redskyv1beta1.Trial, mode string) (*batchv1.Job, error) {
 				{Name: "NAMESPACE", Value: t.Namespace},
 				{Name: "NAME", Value: task.Name},
 				{Name: "TRIAL", Value: t.Name},
+				{Name: "MODE", Value: mode},
 			},
 			SecurityContext: &corev1.SecurityContext{
 				RunAsUser:                &id,

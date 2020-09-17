@@ -215,7 +215,9 @@ var (
 	expectedCPUUtilizationQueryWithParams = `
 scalar(
   sum(
-    increase(container_cpu_usage_seconds_total{container="", image=""}[5s]) by (pod)
+    sum(
+      increase(container_cpu_usage_seconds_total{container="", image=""}[5s])
+    ) by (pod)
     *
     on (pod) group_left kube_pod_labels{label_component="bob",label_component="tom"}
   )
@@ -230,7 +232,9 @@ scalar(
 	expectedCPUUtilizationQueryWithoutParams = `
 scalar(
   sum(
-    increase(container_cpu_usage_seconds_total{container="", image=""}[5s]) by (pod)
+    sum(
+      increase(container_cpu_usage_seconds_total{container="", image=""}[5s])
+    ) by (pod)
     *
     on (pod) group_left kube_pod_labels{namespace="default"}
   )
