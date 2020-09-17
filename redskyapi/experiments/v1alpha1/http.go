@@ -237,7 +237,7 @@ func (h *httpAPI) CreateTrial(ctx context.Context, u string, asm TrialAssignment
 	}
 
 	switch resp.StatusCode {
-	case http.StatusCreated:
+	case http.StatusCreated, http.StatusAccepted:
 		metaUnmarshal(resp.Header, &ta.TrialMeta)
 		err = json.Unmarshal(body, &ta)
 		return ta, nil // TODO Stop ignoring this when the server starts sending a response body
