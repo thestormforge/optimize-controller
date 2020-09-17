@@ -90,7 +90,9 @@ func cpuUtilization(data MetricData, labelArgs ...string) (string, error) {
 	cpuUtilizationQueryTemplate := `
 scalar(
   sum(
-    increase(container_cpu_usage_seconds_total{container="", image=""}[{{ .Range }}]) by (pod)
+    sum(
+      increase(container_cpu_usage_seconds_total{container="", image=""}[{{ .Range }}])
+    ) by (pod)
     *
     on (pod) group_left kube_pod_labels{{ .Labels }}
   )
