@@ -160,6 +160,19 @@ func ToClusterTrial(t *redskyv1beta1.Trial, suggestion *redskyapi.TrialAssignmen
 		}
 	}
 
+	if len(suggestion.Labels) > 0 {
+		if t.Labels == nil {
+			t.Labels = make(map[string]string, len(suggestion.Labels))
+		}
+		for k, v := range suggestion.Labels {
+			if v != "" {
+				t.Labels[k] = v
+			} else {
+				delete(t.Labels, k)
+			}
+		}
+	}
+
 	trial.UpdateStatus(t)
 
 	controllerutil.AddFinalizer(t, Finalizer)

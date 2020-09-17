@@ -74,38 +74,33 @@ func (o *SuggestOptions) suggest(ctx context.Context) error {
 		return err
 	}
 
-	ta, err := o.SuggestAssignments(&exp)
-	if err != nil {
+	ta := experimentsv1alpha1.TrialAssignments{}
+	if err := o.SuggestAssignments(&exp, &ta); err != nil {
+		return err
+	}
+	if err := o.AddLabels(&ta); err != nil {
 		return err
 	}
 
-	t, err := o.ExperimentsAPI.CreateTrial(ctx, exp.TrialsURL, *ta)
+	_, err = o.ExperimentsAPI.CreateTrial(ctx, exp.TrialsURL, ta)
 	if err != nil {
 		return err
-	}
-
-	if tl := o.trialLabels(); tl != nil && t.LabelsURL != "" {
-		err := o.ExperimentsAPI.LabelTrial(ctx, t.LabelsURL, *tl)
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil
 }
 
 // SuggestAssignments creates new assignments object based on the parameters of the supplied experiment
-func (o *SuggestOptions) SuggestAssignments(exp *experimentsv1alpha1.Experiment) (*experimentsv1alpha1.TrialAssignments, error) {
-	ta := &experimentsv1alpha1.TrialAssignments{}
+func (o *SuggestOptions) SuggestAssignments(exp *experimentsv1alpha1.Experiment, ta *experimentsv1alpha1.TrialAssignments) error {
 	for i := range exp.Parameters {
 		p := &exp.Parameters[i]
 		v, err := o.assign(p)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		ta.Assignments = append(ta.Assignments, experimentsv1alpha1.Assignment{ParameterName: p.Name, Value: v})
 	}
-	return ta, nil
+	return nil
 }
 
 func (o *SuggestOptions) assign(p *experimentsv1alpha1.Parameter) (json.Number, error) {
@@ -133,20 +128,20 @@ func (o *SuggestOptions) assign(p *experimentsv1alpha1.Parameter) (json.Number, 
 	return "0", fmt.Errorf("no assignment for parameter: %s", p.Name)
 }
 
-func (o *SuggestOptions) trialLabels() *experimentsv1alpha1.TrialLabels {
+func (o *SuggestOptions) AddLabels(ta *experimentsv1alpha1.TrialAssignments) error {
 	if o.Labels == "" {
 		return nil
 	}
 
-	tl := &experimentsv1alpha1.TrialLabels{Labels: make(map[string]string)}
+	ta.Labels = make(map[string]string)
 	for _, l := range strings.Split(o.Labels, ",") {
 		if p := strings.SplitN(l, "=", 2); len(p) == 2 {
-			tl.Labels[p[0]] = p[1]
+			ta.Labels[p[0]] = p[1]
 		} else if strings.HasSuffix(l, "-") && strings.Trim(l, "-") != "" {
-			tl.Labels[strings.TrimSuffix(l, "-")] = ""
+			ta.Labels[strings.TrimSuffix(l, "-")] = ""
 		}
 	}
-	return tl
+	return nil
 }
 
 func (o *SuggestOptions) defaultValue(p *experimentsv1alpha1.Parameter) (*json.Number, error) {

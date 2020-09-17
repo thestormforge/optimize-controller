@@ -55,6 +55,8 @@ type TrialAssignments struct {
 
 	// The list of parameter names and their assigned values.
 	Assignments []Assignment `json:"assignments"`
+	// Labels for this trial.
+	Labels map[string]string `json:"labels,omitempty"`
 }
 
 type Value struct {
