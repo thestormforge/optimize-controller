@@ -26,7 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func Test(t *testing.T) {
+func TestNewJob(t *testing.T) {
 	testCases := []struct {
 		desc    string
 		trial   *redsky.Trial
