@@ -16,9 +16,17 @@ case "$1" in
     # Generate prometheus manifests
     shift && cd /workspace/prometheus
 
+    namePrefix="redsky-"
     if [ -n "$NAMESPACE" ]; then
-      kustomize edit set nameprefix redsky-$NAMESPACE-
+      namePrefix="redsky-$NAMESPACE-"
     fi
+
+    kustomize edit set nameprefix $namePrefix
+
+    # Update static scrape target
+    ## janky busybox sed
+    sed -i -re 's/- (kube-state-metrics:8080)/- '$namePrefix'\1/' prometheus-server-configmap.yaml
+
   ;;
 esac
 

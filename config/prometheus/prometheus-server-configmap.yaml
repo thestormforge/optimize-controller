@@ -53,7 +53,7 @@ data:
       scheme: http
       static_configs:
       - targets:
-        - redsky-kube-state-metrics:8080
+        - kube-state-metrics:8080
 
   recording_rules.yml: |
     {}
