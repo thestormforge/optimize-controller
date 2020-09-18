@@ -23,9 +23,8 @@ import (
 	"text/template"
 )
 
-func cpuUtilization(data MetricData, labelArgs ...string) (string, error) {
-
-	cpuUtilizationQueryTemplate := `
+var (
+	cpuUtilizationQueryTemplate = `
 scalar(
   round(
     (
@@ -46,11 +45,7 @@ scalar(
   * 100, 0.0001)
 )`
 
-	return renderUtilization(cpuUtilizationQueryTemplate, data, labelArgs...)
-}
-
-func memoryUtilization(data MetricData, labelArgs ...string) (string, error) {
-	memoryUtilizationQueryTemplate := `
+	memoryUtilizationQueryTemplate = `
 scalar(
   round(
     (
@@ -68,10 +63,21 @@ scalar(
     )
   * 100, 0.0001)
 )`
+)
 
+func cpuUtilization(data MetricData, labelArgs ...string) (string, error) {
+	return renderUtilization(cpuUtilizationQueryTemplate, data, labelArgs...)
+}
+
+func memoryUtilization(data MetricData, labelArgs ...string) (string, error) {
 	return renderUtilization(memoryUtilizationQueryTemplate, data, labelArgs...)
 }
 
+func avgUtilization(data MetricData, labelArgs ...string) (string, error) {
+	avgQuery := fmt.Sprintf("\n(%s\n+%s\n)\n/2", cpuUtilizationQueryTemplate, memoryUtilizationQueryTemplate)
+
+	return renderUtilization(avgQuery, data, labelArgs...)
+}
 func renderUtilization(query string, data MetricData, labelArgs ...string) (string, error) {
 	tmpl := template.Must(template.New("query").Parse(query))
 

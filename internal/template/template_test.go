@@ -237,6 +237,25 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 			},
 			expectedQuery: expectedMemoryUtilizationQueryWithoutParams,
 		},
+
+		{
+			desc: "function avgUtilization with parameters",
+			metric: redskyv1beta1.Metric{
+				Name:  "testMetric",
+				Query: `{{avgUtilization . "component=bob,component=tom"}}`,
+				Type:  redskyv1beta1.MetricLocal,
+			},
+			trial: redskyv1beta1.Trial{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+				},
+				Status: redskyv1beta1.TrialStatus{
+					StartTime:      &metav1.Time{Time: now.Add(-5 * time.Second)},
+					CompletionTime: &now,
+				},
+			},
+			expectedQuery: expectedAvgUtilizationQueryWithParams,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
@@ -329,4 +348,46 @@ scalar(
     )
   * 100, 0.0001)
 )`
+
+	expectedAvgUtilizationQueryWithParams = `
+(
+scalar(
+  round(
+    (
+      sum(
+        sum(
+          increase(container_cpu_usage_seconds_total{container="", image=""}[5s])
+        ) by (pod)
+        *
+        on (pod) group_left kube_pod_labels{label_component="bob",label_component="tom"}
+      )
+      /
+      sum(
+        sum_over_time(kube_pod_container_resource_limits_cpu_cores[5s:1s])
+        *
+        on (pod) group_left kube_pod_labels{label_component="bob",label_component="tom"}
+      )
+    )
+  * 100, 0.0001)
+)
++
+scalar(
+  round(
+    (
+      avg(
+        max(
+          container_memory_max_usage_bytes
+        ) by (pod)
+        *
+        on (pod) group_left kube_pod_labels{label_component="bob",label_component="tom"}
+        /
+        sum(
+          kube_pod_container_resource_limits_memory_bytes
+        ) by (pod)
+      )
+    )
+  * 100, 0.0001)
+)
+)
+/2`
 )
