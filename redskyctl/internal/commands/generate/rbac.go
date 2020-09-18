@@ -81,7 +81,7 @@ func NewRBACCommand(o *RBACOptions) *cobra.Command {
 
 	_ = cmd.MarkFlagFilename("filename", "yml", "yaml")
 
-	commander.SetKubePrinter(&o.Printer, cmd)
+	commander.SetKubePrinter(&o.Printer, cmd, nil)
 	commander.ExitOnError(cmd)
 	return cmd
 }

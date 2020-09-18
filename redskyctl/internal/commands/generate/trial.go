@@ -60,7 +60,7 @@ func NewTrialCommand(o *TrialOptions) *cobra.Command {
 	_ = cmd.MarkFlagFilename("filename", "yml", "yaml")
 	_ = cmd.MarkFlagRequired("filename")
 
-	commander.SetKubePrinter(&o.Printer, cmd)
+	commander.SetKubePrinter(&o.Printer, cmd, nil)
 	commander.ExitOnError(cmd)
 	return cmd
 }

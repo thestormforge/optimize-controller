@@ -61,7 +61,7 @@ func NewGetCommand(o *GetOptions) *cobra.Command {
 
 	_ = cmd.MarkZshCompPositionalArgumentWords(1, validTypes()...)
 
-	commander.SetPrinter(&experimentsMeta{}, &o.Printer, cmd)
+	commander.SetPrinter(&experimentsMeta{}, &o.Printer, cmd, nil)
 	commander.ExitOnError(cmd)
 	return cmd
 }

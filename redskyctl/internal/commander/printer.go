@@ -58,6 +58,22 @@ type ResourcePrinter interface {
 	PrintObj(interface{}, io.Writer) error
 }
 
+// AdditionalFormat is a factory function for registering new formats
+type AdditionalFormat interface {
+	NewPrinter(columns []string, noHeader, showLabels bool) (ResourcePrinter, error)
+}
+
+// ResourcePrinterFunc allows a simple function to be used as resource printer
+type ResourcePrinterFunc func(interface{}, io.Writer) error
+
+func (rpf ResourcePrinterFunc) PrintObj(obj interface{}, w io.Writer) error {
+	return rpf(obj, w)
+}
+
+func (rpf ResourcePrinterFunc) NewPrinter([]string, bool, bool) (ResourcePrinter, error) {
+	return rpf, nil
+}
+
 // TableMeta is used to inspect objects for formatting
 type TableMeta interface {
 	// ExtractList accepts a single object (which possibly represents a list) and returns a slice to iterate over; this
@@ -108,14 +124,16 @@ type printFlags struct {
 	noHeader bool
 	// showLabels includes labels in supported formats
 	showLabels bool
+	// additionalFormats allow additional resource printers to be registered
+	additionalFormats map[string]AdditionalFormat
 }
 
 // printFlagsFieldSep checks for the field separator when parsing configuration values
 func printFlagsFieldSep(c rune) bool { return c == ',' }
 
 // newPrintFlags returns a new print flags instance with settings parsed from a map of name/value configuration pairs
-func newPrintFlags(meta TableMeta, config map[string]string) *printFlags {
-	pf := &printFlags{meta: meta}
+func newPrintFlags(meta TableMeta, config map[string]string, additionalFormats map[string]AdditionalFormat) *printFlags {
+	pf := &printFlags{meta: meta, additionalFormats: additionalFormats}
 
 	// Hide status of Kube objects
 	if kp, ok := meta.(*kubePrinter); ok {
@@ -141,12 +159,20 @@ func newPrintFlags(meta TableMeta, config map[string]string) *printFlags {
 	if len(allowedFormats) == 0 {
 		allowedFormats = []string{"json", "yaml", "name", "wide", "csv", ""}
 	}
+	for f := range pf.additionalFormats {
+		allowedFormats = append(allowedFormats, strings.ToLower(f))
+	}
 
+	seen := make(map[string]struct{}, len(allowedFormats))
 	for _, allowedFormat := range allowedFormats {
 		if requiresMeta(allowedFormat) && pf.meta == nil {
 			continue
 		}
+		if _, ok := seen[allowedFormat]; ok {
+			continue
+		}
 		pf.allowedFormats = append(pf.allowedFormats, allowedFormat)
+		seen[allowedFormat] = struct{}{}
 
 		// Only set the output format if it is allowed
 		if outputFormat == allowedFormat {
@@ -206,6 +232,14 @@ func (f *printFlags) toPrinter(printer *ResourcePrinter) error {
 			case "csv":
 				*printer = &csvPrinter{meta: f.meta, headers: !f.noHeader, showLabels: f.showLabels}
 				return nil
+			default:
+				if af := f.additionalFormats[outputFormat]; af != nil {
+					p, err := af.NewPrinter(f.columns, f.noHeader, f.showLabels)
+					if err == nil {
+						*printer = p
+					}
+					return err
+				}
 			}
 		}
 	}
