@@ -17,7 +17,6 @@ limitations under the License.
 package template
 
 import (
-	"bytes"
 	"fmt"
 	"strconv"
 	"strings"
@@ -35,10 +34,11 @@ func FuncMap() template.FuncMap {
 	delete(f, "expandenv")
 
 	extra := template.FuncMap{
-		"duration":         duration,
-		"percent":          percent,
-		"resourceRequests": resourceRequests,
-		"cpuUtilization":   cpuUtilization,
+		"duration":          duration,
+		"percent":           percent,
+		"resourceRequests":  resourceRequests,
+		"cpuUtilization":    cpuUtilization,
+		"memoryUtilization": memoryUtilization,
 	}
 
 	for k, v := range extra {
@@ -83,59 +83,4 @@ func resourceRequests(pods corev1.PodList, weights string) (float64, error) {
 		}
 	}
 	return totalResources, nil
-}
-
-func cpuUtilization(data MetricData, labelArgs ...string) (string, error) {
-
-	cpuUtilizationQueryTemplate := `
-scalar(
-  sum(
-    sum(
-      increase(container_cpu_usage_seconds_total{container="", image=""}[{{ .Range }}])
-    ) by (pod)
-    *
-    on (pod) group_left kube_pod_labels{{ .Labels }}
-  )
-  /
-  sum(
-    sum_over_time(kube_pod_container_resource_limits_cpu_cores[{{ .Range }}:1s])
-    *
-    on (pod) group_left kube_pod_labels{{ .Labels }}
-  )
-)`
-
-	tmpl := template.Must(template.New("query").Parse(cpuUtilizationQueryTemplate))
-
-	var labels []string
-	for _, label := range strings.Split(strings.Join(labelArgs, ","), ",") {
-		if label == "" {
-			continue
-		}
-
-		kvpair := strings.Split(label, "=")
-		if len(kvpair) != 2 {
-			return "", fmt.Errorf("invalid label for `cpuUtilization`, expected key=value, got: %s", label)
-		}
-
-		labels = append(labels, fmt.Sprintf("label_%s=\"%s\"", kvpair[0], kvpair[1]))
-	}
-
-	if len(labels) == 0 {
-		labels = append(labels, fmt.Sprintf("namespace=\"%s\"", data.Trial.Namespace))
-	}
-
-	input := struct {
-		MetricData
-		Labels string
-	}{
-		data,
-		fmt.Sprintf("{%s}", strings.Join(labels, ",")),
-	}
-
-	var output bytes.Buffer
-	if err := tmpl.Execute(&output, input); err != nil {
-		return "", err
-	}
-
-	return output.String(), nil
 }
