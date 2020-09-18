@@ -199,6 +199,44 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 			},
 			expectedQuery: expectedCPUUtilizationQueryWithoutParams,
 		},
+
+		{
+			desc: "function memoryUtilization with parameters",
+			metric: redskyv1beta1.Metric{
+				Name:  "testMetric",
+				Query: `{{memoryUtilization . "component=bob,component=tom"}}`,
+				Type:  redskyv1beta1.MetricLocal,
+			},
+			trial: redskyv1beta1.Trial{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+				},
+				Status: redskyv1beta1.TrialStatus{
+					StartTime:      &metav1.Time{Time: now.Add(-5 * time.Second)},
+					CompletionTime: &now,
+				},
+			},
+			expectedQuery: expectedMemoryUtilizationQueryWithParams,
+		},
+
+		{
+			desc: "function memoryUtilization without parameters",
+			metric: redskyv1beta1.Metric{
+				Name:  "testMetric",
+				Query: `{{memoryUtilization .}}`,
+				Type:  redskyv1beta1.MetricLocal,
+			},
+			trial: redskyv1beta1.Trial{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+				},
+				Status: redskyv1beta1.TrialStatus{
+					StartTime:      &metav1.Time{Time: now.Add(-5 * time.Second)},
+					CompletionTime: &now,
+				},
+			},
+			expectedQuery: expectedMemoryUtilizationQueryWithoutParams,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
@@ -249,6 +287,44 @@ scalar(
         sum_over_time(kube_pod_container_resource_limits_cpu_cores[5s:1s])
         *
         on (pod) group_left kube_pod_labels{namespace="default"}
+      )
+    )
+  * 100, 0.0001)
+)`
+
+	expectedMemoryUtilizationQueryWithParams = `
+scalar(
+  round(
+    (
+      avg(
+        max(
+          container_memory_max_usage_bytes
+        ) by (pod)
+        *
+        on (pod) group_left kube_pod_labels{label_component="bob",label_component="tom"}
+        /
+        sum(
+          kube_pod_container_resource_limits_memory_bytes
+        ) by (pod)
+      )
+    )
+  * 100, 0.0001)
+)`
+
+	expectedMemoryUtilizationQueryWithoutParams = `
+scalar(
+  round(
+    (
+      avg(
+        max(
+          container_memory_max_usage_bytes
+        ) by (pod)
+        *
+        on (pod) group_left kube_pod_labels{namespace="default"}
+        /
+        sum(
+          kube_pod_container_resource_limits_memory_bytes
+        ) by (pod)
       )
     )
   * 100, 0.0001)
