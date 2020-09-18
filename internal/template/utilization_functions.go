@@ -27,19 +27,23 @@ func cpuUtilization(data MetricData, labelArgs ...string) (string, error) {
 
 	cpuUtilizationQueryTemplate := `
 scalar(
-  sum(
-    sum(
-      increase(container_cpu_usage_seconds_total{container="", image=""}[{{ .Range }}])
-    ) by (pod)
-    *
-    on (pod) group_left kube_pod_labels{{ .Labels }}
-  )
-  /
-  sum(
-    sum_over_time(kube_pod_container_resource_limits_cpu_cores[{{ .Range }}:1s])
-    *
-    on (pod) group_left kube_pod_labels{{ .Labels }}
-  )
+  round(
+    (
+      sum(
+        sum(
+          increase(container_cpu_usage_seconds_total{container="", image=""}[{{ .Range }}])
+        ) by (pod)
+        *
+        on (pod) group_left kube_pod_labels{{ .Labels }}
+      )
+      /
+      sum(
+        sum_over_time(kube_pod_container_resource_limits_cpu_cores[{{ .Range }}:1s])
+        *
+        on (pod) group_left kube_pod_labels{{ .Labels }}
+      )
+    )
+  * 100, 0.0001)
 )`
 
 	return renderUtilization(cpuUtilizationQueryTemplate, data, labelArgs...)
@@ -48,17 +52,21 @@ scalar(
 func memoryUtilization(data MetricData, labelArgs ...string) (string, error) {
 	memoryUtilizationQueryTemplate := `
 scalar(
-  avg(
-    sum(
-      container_memory_max_usage_bytes
-    ) by (pod)
-    *
-    on (pod) group_left kube_pod_labels{{ .Labels }}
-    /
-    sum(
-      kube_pod_container_resource_limits_memory_bytes
-    ) by (pod)
-  )
+  round(
+    (
+      avg(
+        max(
+          container_memory_max_usage_bytes
+        ) by (pod)
+        *
+        on (pod) group_left kube_pod_labels{{ .Labels }}
+        /
+        sum(
+          kube_pod_container_resource_limits_memory_bytes
+        ) by (pod)
+      )
+    )
+  * 100, 0.0001)
 )`
 
 	return renderUtilization(memoryUtilizationQueryTemplate, data, labelArgs...)
