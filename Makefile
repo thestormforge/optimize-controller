@@ -47,7 +47,7 @@ tool: manifests
 	goreleaser release --snapshot --skip-sign --rm-dist
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
-run: generate fmt vet manifests
+run: generate manifests fmt vet
 	go run ./main.go
 
 # Install CRDs into a cluster
