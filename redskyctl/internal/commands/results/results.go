@@ -27,7 +27,7 @@ import (
 
 	"github.com/pkg/browser"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/config"
+	"github.com/redskyops/redskyops-go/pkg/redskyapi"
 	"github.com/redskyops/redskyops-ui/v2/ui"
 	"github.com/spf13/cobra"
 )
@@ -35,7 +35,7 @@ import (
 // Options is the configuration for displaying the results UI
 type Options struct {
 	// Config is the Red Sky Configuration to proxy
-	Config config.Config
+	Config redskyapi.Config
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
 

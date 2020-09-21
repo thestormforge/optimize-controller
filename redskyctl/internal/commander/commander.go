@@ -25,7 +25,6 @@ import (
 
 	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/config"
 	internalconfig "github.com/redskyops/redskyops-go/pkg/config"
 	"github.com/redskyops/redskyops-go/pkg/redskyapi"
 	experimentsv1alpha1 "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
@@ -67,7 +66,7 @@ func StreamsPreRun(streams *IOStreams) func(cmd *cobra.Command, args []string) {
 }
 
 // SetExperimentsAPI creates a new experiments API interface from the supplied configuration
-func SetExperimentsAPI(api *experimentsv1alpha1.API, cfg config.Config, cmd *cobra.Command) error {
+func SetExperimentsAPI(api *experimentsv1alpha1.API, cfg redskyapi.Config, cmd *cobra.Command) error {
 	ctx := cmd.Context()
 
 	// Reuse the OAuth2 base transport for the API calls
