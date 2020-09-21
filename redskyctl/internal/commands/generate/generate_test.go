@@ -23,10 +23,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/redskyops/redskyops-controller/internal/config"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/generate"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/kustomize"
+	"github.com/redskyops/redskyops-go/pkg/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -25,10 +25,10 @@ import (
 
 	"github.com/redskyops/redskyops-controller/internal/setup"
 	"github.com/redskyops/redskyops-controller/internal/version"
-	experimentsv1alpha1 "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/config"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/kustomize"
+	experimentsv1alpha1 "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
 	"github.com/spf13/cobra"
 )
 

@@ -17,7 +17,7 @@ limitations under the License.
 package configure
 
 import (
-	"github.com/redskyops/redskyops-controller/internal/config"
+	"github.com/redskyops/redskyops-go/pkg/config"
 	"github.com/spf13/cobra"
 )
 

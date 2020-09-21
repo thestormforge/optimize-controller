@@ -20,7 +20,7 @@ import (
 	"context"
 	"os/exec"
 
-	"github.com/redskyops/redskyops-controller/redskyapi"
+	"github.com/redskyops/redskyops-go/pkg/redskyapi"
 )
 
 // Config provides read-only access to the Red Sky configuration for commands

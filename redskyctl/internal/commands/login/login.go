@@ -28,9 +28,9 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/mdp/qrterminal/v3"
 	"github.com/pkg/browser"
-	"github.com/redskyops/redskyops-controller/internal/config"
-	"github.com/redskyops/redskyops-controller/internal/oauth2/authorizationcode"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
+	"github.com/redskyops/redskyops-go/pkg/config"
+	"github.com/redskyops/redskyops-go/pkg/oauth2/authorizationcode"
 	"github.com/spf13/cobra"
 	"golang.org/x/oauth2"
 )

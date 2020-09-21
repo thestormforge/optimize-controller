@@ -21,10 +21,10 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/redskyops/redskyops-controller/internal/config"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/grant_permissions"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/initialize"
+	"github.com/redskyops/redskyops-go/pkg/config"
 	"github.com/spf13/cobra"
 )
 
