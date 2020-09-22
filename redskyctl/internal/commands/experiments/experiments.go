@@ -23,9 +23,9 @@ import (
 	"strconv"
 	"strings"
 
-	experimentsv1alpha1 "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/config"
+	"github.com/redskyops/redskyops-go/pkg/redskyapi"
+	experimentsv1alpha1 "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
 	"k8s.io/client-go/util/jsonpath"
 )
 
@@ -63,7 +63,7 @@ func normalizeType(t string) (normalType resourceType, pluralType string, err er
 // Options are the common options for interacting with the Red Sky Experiments API
 type Options struct {
 	// Config is the Red Sky Control Configuration
-	Config config.Config
+	Config redskyapi.Config
 	// ExperimentsAPI is used to interact with the Red Sky Experiments API
 	ExperimentsAPI experimentsv1alpha1.API
 	// Printer is the resource printer used to render objects from the Red Sky Experiments API

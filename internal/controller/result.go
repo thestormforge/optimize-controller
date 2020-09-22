@@ -21,7 +21,7 @@ import (
 	"runtime"
 	"strings"
 
-	redskyapi "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
+	redskyapi "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 )

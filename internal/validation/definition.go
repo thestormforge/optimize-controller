@@ -20,7 +20,7 @@ import (
 	"fmt"
 
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
-	redskyapi "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
+	redskyapi "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
 )
 
 // CheckDefinition will make sure the cluster and API experiment definitions are compatible

@@ -21,7 +21,7 @@ import (
 	"runtime"
 	"testing"
 
-	redskyapi "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
+	redskyapi "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

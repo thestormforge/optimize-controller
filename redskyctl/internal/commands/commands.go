@@ -20,7 +20,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/redskyops/redskyops-controller/internal/config"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/authorize_cluster"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/check"
@@ -37,6 +36,7 @@ import (
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/results"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/revoke"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/version"
+	"github.com/redskyops/redskyops-go/pkg/config"
 	"github.com/spf13/cobra"
 )
 

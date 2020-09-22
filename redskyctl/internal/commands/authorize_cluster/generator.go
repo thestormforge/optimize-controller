@@ -23,10 +23,10 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/redskyops/redskyops-controller/internal/config"
-	"github.com/redskyops/redskyops-controller/internal/oauth2/registration"
-	redskyapi "github.com/redskyops/redskyops-controller/redskyapi/experiments/v1alpha1"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
+	"github.com/redskyops/redskyops-go/pkg/config"
+	"github.com/redskyops/redskyops-go/pkg/oauth2/registration"
+	redskyapi "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
 	"github.com/spf13/cobra"
 	"golang.org/x/oauth2"
 	corev1 "k8s.io/api/core/v1"
