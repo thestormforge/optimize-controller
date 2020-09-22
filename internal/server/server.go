@@ -19,6 +19,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"path"
 	"strconv"
 
@@ -165,7 +166,17 @@ func ToClusterTrial(t *redskyv1beta1.Trial, suggestion *redskyapi.TrialAssignmen
 		if a.Value.IsString {
 			v = intstr.FromString(a.Value.StrVal)
 		} else {
-			v = intstr.FromInt(int(a.Value.Int64Value()))
+			// While the server supports 64-bit integers, any parameters used for Kubernetes
+			// experiments will have been defined with 32-bit integer bounds.
+			val := a.Value.Int64Value()
+			switch {
+			case val > math.MaxInt32:
+				v = intstr.FromInt(math.MaxInt32)
+			case val < math.MinInt32:
+				v = intstr.FromInt(math.MinInt32)
+			default:
+				v = intstr.FromInt(int(val))
+			}
 		}
 
 		t.Spec.Assignments = append(t.Spec.Assignments, redskyv1beta1.Assignment{

@@ -18,6 +18,8 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
+	"math"
 	"strconv"
 	"testing"
 	"time"
@@ -367,6 +369,36 @@ func TestToClusterTrial(t *testing.T) {
 						{Name: "two", Value: intstr.FromInt(222)},
 						{Name: "three", Value: intstr.FromInt(333)},
 					},
+				},
+			},
+		},
+		{
+			desc: "32bit overflow",
+			trial: &redskyv1beta1.Trial{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{},
+				},
+			},
+			suggestion: &redskyapi.TrialAssignments{
+				Assignments: []redskyapi.Assignment{
+					{ParameterName: "overflow", Value: numstr.FromInt64(math.MaxInt64)},
+				},
+			},
+			trialOut: &redskyv1beta1.Trial{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"redskyops.dev/report-trial-url": "",
+					},
+					Finalizers: []string{"serverFinalizer.redskyops.dev"},
+				},
+				Spec: redskyv1beta1.TrialSpec{
+					Assignments: []redskyv1beta1.Assignment{
+						{Name: "overflow", Value: intstr.FromInt(math.MaxInt32)},
+					},
+				},
+				Status: redskyv1beta1.TrialStatus{
+					Phase:       "Created",
+					Assignments: fmt.Sprintf("overflow=%d", math.MaxInt32),
 				},
 			},
 		},
