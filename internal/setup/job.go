@@ -190,11 +190,16 @@ func NewJob(t *redskyv1beta1.Trial, mode string) (*batchv1.Job, error) {
 				}
 			}
 
+			if task.HelmRepository != "" {
+				helmConfig.Repo = task.HelmRepository
+			}
+
 			// Record the base64 encoded YAML representation in the environment
 			b, err := yaml.Marshal(helmConfig)
 			if err != nil {
 				return nil, err
 			}
+
 			c.Env = append(c.Env, corev1.EnvVar{Name: "HELM_CONFIG", Value: base64.StdEncoding.EncodeToString(b)})
 		}
 
@@ -222,6 +227,7 @@ type helmGeneratorConfig struct {
 	ReleaseName       string               `json:"releaseName"`
 	Chart             string               `json:"chart"`
 	Version           string               `json:"version"`
+	Repo              string               `json:"repo,omitempty"`
 	Values            []helmGeneratorValue `json:"values"`
 }
 

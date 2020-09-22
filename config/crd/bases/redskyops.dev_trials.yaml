@@ -296,6 +296,8 @@ spec:
                       type: string
                     helmChartVersion:
                       type: string
+                    helmRepository:
+                      type: string
                     helmValues:
                       type: array
                       items:
@@ -6455,6 +6457,8 @@ spec:
                     helmChart:
                       type: string
                     helmChartVersion:
+                      type: string
+                    helmRepository:
                       type: string
                     helmValues:
                       type: array
