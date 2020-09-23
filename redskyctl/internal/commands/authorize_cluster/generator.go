@@ -72,7 +72,7 @@ func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			commander.SetStreams(&o.IOStreams, cmd)
-			return commander.WithContextE(o.complete)(cmd, args)
+			return o.complete()
 		},
 		RunE: commander.WithContextE(o.generate),
 	}
@@ -107,7 +107,7 @@ func (o *GeneratorOptions) addFlags(cmd *cobra.Command) {
 }
 
 // complete fills in the default values for the generator configuration
-func (o *GeneratorOptions) complete(ctx context.Context) error {
+func (o *GeneratorOptions) complete() error {
 	if o.Name == "" {
 		o.Name = "redsky-manager"
 	}
@@ -190,23 +190,9 @@ func (o *GeneratorOptions) clientInfo(ctx context.Context, ctrl *config.Controll
 		return resp, nil
 	}
 
-	// Try to read an existing client (ignore errors and just re-register)
-	if ctrl.RegistrationClientURI != "" {
-		// Shadow the context in case we need to change it for the read operation
-		rctx := ctx
-
-		// Technically we are non-standard in that we can just use our normal access token as a registration token
-		if ctrl.RegistrationAccessToken == "" {
-			// Hack to get a token source
-			rt, _ := o.Config.Authorize(rctx, nil)
-			if tt, ok := rt.(*oauth2.Transport); ok {
-				rctx = context.WithValue(rctx, oauth2.HTTPClient, oauth2.NewClient(rctx, tt.Source))
-			}
-		}
-
-		if info, err := registration.Read(rctx, ctrl.RegistrationClientURI, ctrl.RegistrationAccessToken); err == nil {
-			return info, nil
-		}
+	// Try to read an existing client
+	if resp := o.registeredClientInformation(ctx, ctrl); resp != nil {
+		return resp, nil
 	}
 
 	// Register a new client
@@ -217,6 +203,23 @@ func (o *GeneratorOptions) clientInfo(ctx context.Context, ctrl *config.Controll
 		ResponseTypes: []string{},
 	}
 	return o.Config.RegisterClient(ctx, client)
+}
+
+// registeredClientInformation read an already registered client, allowing it to be re-used.
+func (o *GeneratorOptions) registeredClientInformation(ctx context.Context, ctrl *config.Controller) *registration.ClientInformationResponse {
+	// Technically we are non-standard in that we can just use our normal access token as a registration token
+	// TODO RedSkyConfig.RegisterClient does this for us before calling the real "RegisterClient", do the same for "Read"?
+	rt, _ := o.Config.Authorize(ctx, nil) // NOTE: The transport is ignored, this is just a hack to get the TokenSource
+	if tt, ok := rt.(*oauth2.Transport); ok && tt.Source != nil {
+		ctx = context.WithValue(ctx, oauth2.HTTPClient, oauth2.NewClient(ctx, tt.Source))
+	}
+
+	info, err := registration.Read(ctx, ctrl.RegistrationClientURI, ctrl.RegistrationAccessToken)
+	if err != nil {
+		// Ignore errors and just register a new client
+		return nil
+	}
+	return info
 }
 
 // localClientInformation returns a mock client information response based on local information in the current
