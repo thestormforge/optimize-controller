@@ -20,10 +20,11 @@ import (
 	"fmt"
 	"path"
 	"testing"
+	"time"
 
 	redsky "github.com/redskyops/redskyops-controller/api/v1beta1"
-	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -180,21 +181,101 @@ func TestSummarize(t *testing.T) {
 	}
 }
 
-// Explicitly sets the state of the fields consider when computing the phase
-func setupExperiment(exp *redsky.Experiment, replicas *int32, experimentURL, nextTrialURL string, deletionTimestamp *metav1.Time) {
-	exp.Spec.Replicas = replicas
+func TestApplyCondition(t *testing.T) {
+	now := metav1.Now()
+	then := metav1.NewTime(now.Add(-5 * time.Second))
 
-	if experimentURL != "" {
-		exp.Annotations[redskyv1beta1.AnnotationExperimentURL] = experimentURL
-	} else {
-		delete(exp.Annotations, redskyv1beta1.AnnotationExperimentURL)
+	cases := []struct {
+		desc               string
+		conditionType      redsky.ExperimentConditionType
+		conditionStatus    corev1.ConditionStatus
+		reason             string
+		message            string
+		time               *metav1.Time
+		initialConditions  []redsky.ExperimentCondition
+		expectedConditions []redsky.ExperimentCondition
+	}{
+		{
+			desc:            "add to empty",
+			conditionType:   redsky.ExperimentFailed,
+			conditionStatus: corev1.ConditionTrue,
+			reason:          "Testing",
+			message:         "Test Test",
+			time:            &now,
+			expectedConditions: []redsky.ExperimentCondition{
+				{
+					Type:               redsky.ExperimentFailed,
+					Status:             corev1.ConditionTrue,
+					LastProbeTime:      now,
+					LastTransitionTime: now,
+					Reason:             "Testing",
+					Message:            "Test Test",
+				},
+			},
+		},
+		{
+			desc:            "update status",
+			conditionType:   redsky.ExperimentFailed,
+			conditionStatus: corev1.ConditionTrue,
+			reason:          "Testing",
+			message:         "Test Test",
+			time:            &now,
+			initialConditions: []redsky.ExperimentCondition{
+				{
+					Type:               redsky.ExperimentFailed,
+					Status:             corev1.ConditionFalse,
+					LastProbeTime:      then,
+					LastTransitionTime: then,
+					Reason:             "Foo",
+					Message:            "Bar",
+				},
+			},
+			expectedConditions: []redsky.ExperimentCondition{
+				{
+					Type:               redsky.ExperimentFailed,
+					Status:             corev1.ConditionTrue,
+					LastProbeTime:      now,
+					LastTransitionTime: now,
+					Reason:             "Testing",
+					Message:            "Test Test",
+				},
+			},
+		},
+		{
+			desc:            "update no change",
+			conditionType:   redsky.ExperimentFailed,
+			conditionStatus: corev1.ConditionTrue,
+			reason:          "Testing",
+			message:         "Test Test",
+			time:            &now,
+			initialConditions: []redsky.ExperimentCondition{
+				{
+					Type:               redsky.ExperimentFailed,
+					Status:             corev1.ConditionTrue,
+					LastProbeTime:      then,
+					LastTransitionTime: then,
+					Reason:             "Foo",
+					Message:            "Bar",
+				},
+			},
+			expectedConditions: []redsky.ExperimentCondition{
+				{
+					Type:               redsky.ExperimentFailed,
+					Status:             corev1.ConditionTrue,
+					LastProbeTime:      now,
+					LastTransitionTime: then,
+					Reason:             "Foo",
+					Message:            "Bar",
+				},
+			},
+		},
 	}
 
-	if nextTrialURL != "" {
-		exp.Annotations[redskyv1beta1.AnnotationNextTrialURL] = nextTrialURL
-	} else {
-		delete(exp.Annotations, redskyv1beta1.AnnotationNextTrialURL)
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			actual := redsky.ExperimentStatus{Conditions: c.initialConditions}
+			ApplyCondition(&actual, c.conditionType, c.conditionStatus, c.reason, c.message, c.time)
+			assert.Equal(t, c.expectedConditions, actual.Conditions)
+		})
 	}
-
-	exp.DeletionTimestamp = deletionTimestamp
 }

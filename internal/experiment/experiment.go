@@ -21,6 +21,7 @@ import (
 	"github.com/redskyops/redskyops-controller/internal/controller"
 	"github.com/redskyops/redskyops-controller/internal/trial"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -118,4 +119,33 @@ func summarize(exp *redskyv1beta1.Experiment, activeTrials int32, totalTrials in
 	}
 
 	return PhaseIdle
+}
+
+func ApplyCondition(status *redskyv1beta1.ExperimentStatus, conditionType redskyv1beta1.ExperimentConditionType, conditionStatus corev1.ConditionStatus, reason, message string, time *metav1.Time) {
+	if time == nil {
+		now := metav1.Now()
+		time = &now
+	}
+
+	newCondition := redskyv1beta1.ExperimentCondition{
+		Type:               conditionType,
+		Status:             conditionStatus,
+		Reason:             reason,
+		Message:            message,
+		LastProbeTime:      *time,
+		LastTransitionTime: *time,
+	}
+
+	for i := range status.Conditions {
+		if status.Conditions[i].Type == conditionType {
+			if status.Conditions[i].Status != conditionStatus {
+				status.Conditions[i] = newCondition
+			} else {
+				status.Conditions[i].LastProbeTime = *time
+			}
+			return
+		}
+	}
+
+	status.Conditions = append(status.Conditions, newCondition)
 }
