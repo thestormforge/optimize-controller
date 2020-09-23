@@ -23,6 +23,7 @@ import (
 	"strconv"
 
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
+	"github.com/redskyops/redskyops-controller/internal/experiment"
 	"github.com/redskyops/redskyops-controller/internal/trial"
 	redskyapi "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
@@ -217,4 +218,11 @@ func StopExperiment(exp *redskyv1beta1.Experiment, err error) bool {
 		return true
 	}
 	return false
+}
+
+// FailExperiment records a recognized error as an experiment failure.
+func FailExperiment(exp *redskyv1beta1.Experiment, reason string, err error) bool {
+	exp.SetReplicas(0)
+	experiment.ApplyCondition(&exp.Status, redskyv1beta1.ExperimentFailed, corev1.ConditionTrue, reason, err.Error(), nil)
+	return true
 }

@@ -197,6 +197,10 @@ func (r *ServerReconciler) createExperiment(ctx context.Context, log logr.Logger
 	n, e := server.FromCluster(exp)
 	ee, err := r.ExperimentsAPI.CreateExperiment(ctx, n, *e)
 	if err != nil {
+		if server.FailExperiment(exp, "ServerCreateFailed", err) {
+			err := r.Update(ctx, exp)
+			return controller.RequeueConflict(err)
+		}
 		return &ctrl.Result{}, err
 	}
 
