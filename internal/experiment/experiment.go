@@ -20,6 +20,7 @@ import (
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/internal/controller"
 	"github.com/redskyops/redskyops-controller/internal/trial"
+	corev1 "k8s.io/api/core/v1"
 )
 
 const (
@@ -41,6 +42,8 @@ const (
 	PhaseRunning = "Running"
 	// PhaseCompleted indicates that the experiment has exhausted it's trial budget and is no longer expecting new trials
 	PhaseCompleted = "Completed"
+	// PhaseFailed indicates that the experiment has failed
+	PhaseFailed = "Failed"
 	// PhaseDeleted indicates that the experiment has been deleted and is waiting for trials to be cleaned up
 	PhaseDeleted = "Deleted"
 )
@@ -85,6 +88,15 @@ func summarize(exp *redskyv1beta1.Experiment, activeTrials int32, totalTrials in
 
 	if !exp.GetDeletionTimestamp().IsZero() {
 		return PhaseDeleted
+	}
+
+	for _, c := range exp.Status.Conditions {
+		switch c.Type {
+		case redskyv1beta1.ExperimentFailed:
+			if c.Status == corev1.ConditionTrue {
+				return PhaseFailed
+			}
+		}
 	}
 
 	if activeTrials > 0 {

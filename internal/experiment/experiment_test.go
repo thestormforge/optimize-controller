@@ -156,6 +156,20 @@ func TestSummarize(t *testing.T) {
 			totalTrials:   1,
 			expectedPhase: PhaseIdle,
 		},
+		{
+			desc: "failed",
+			experiment: &redsky.Experiment{
+				Status: redsky.ExperimentStatus{
+					Conditions: []redsky.ExperimentCondition{
+						{
+							Type:   redsky.ExperimentFailed,
+							Status: corev1.ConditionTrue,
+						},
+					},
+				},
+			},
+			expectedPhase: PhaseFailed,
+		},
 	}
 
 	for _, tc := range testCases {
