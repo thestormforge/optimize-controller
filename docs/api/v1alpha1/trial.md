@@ -131,6 +131,7 @@ SetupTask represents the configuration necessary to apply application state to t
 | `helmChartVersion` | The Helm chart version, empty means use the latest | _string_ | false |
 | `helmValues` | The Helm values to set, ignored unless helmChart is also set | _[][HelmValue](#helmvalue)_ | false |
 | `helmValuesFrom` | The Helm values, ignored unless helmChart is also set | _[][HelmValuesFromSource](#helmvaluesfromsource)_ | false |
+| `helmRepository` | The Helm repository to fetch the chart from | _string_ | false |
 
 [Back to TOC](#table-of-contents)
 
