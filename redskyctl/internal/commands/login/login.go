@@ -193,32 +193,30 @@ func (o *Options) LoadConfig() error {
 }
 
 func (o *Options) login(ctx context.Context) error {
-	// TODO Why are we not using the supplied context?
-
 	// The user has requested we just show a URL
 	if o.DisplayURL || o.DisplayQR {
-		return o.runDeviceCodeFlow()
+		return o.runDeviceCodeFlow(ctx)
 	}
 
 	// Perform authorization using the system web browser and a local web server
-	return o.runAuthorizationCodeFlow()
+	return o.runAuthorizationCodeFlow(ctx)
 }
 
-func (o *Options) runDeviceCodeFlow() error {
+func (o *Options) runDeviceCodeFlow(ctx context.Context) error {
 	az, err := o.Config.NewDeviceAuthorization()
 	if err != nil {
 		return err
 	}
 	az.Scopes = append(az.Scopes, "register:clients", "offline_access") // TODO Where or what do we want to do here?
 
-	t, err := az.Token(context.Background(), o.generateValidatationRequest)
+	t, err := az.Token(ctx, o.generateValidatationRequest)
 	if err != nil {
 		return err
 	}
 	return o.takeOffline(t)
 }
 
-func (o *Options) runAuthorizationCodeFlow() error {
+func (o *Options) runAuthorizationCodeFlow(ctx context.Context) error {
 	// Create a new authorization code flow
 	c, err := o.Config.NewAuthorization()
 	if err != nil {
@@ -228,8 +226,7 @@ func (o *Options) runAuthorizationCodeFlow() error {
 	c.RedirectURL = "http://127.0.0.1:8085/"
 
 	// Create a context we can use to shutdown the server and the OAuth authorization code callback endpoint
-	var ctx context.Context
-	ctx, o.shutdown = context.WithCancel(context.Background())
+	ctx, o.shutdown = context.WithCancel(ctx)
 	handler := c.Callback(o.takeOffline, o.generateCallbackResponse)
 
 	// Create a new server with some extra configuration
