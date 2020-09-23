@@ -75,7 +75,7 @@ func cpuRequests(data MetricData, labelArgs ...string) (string, error) {
 	cpuResourcesQueryTemplate := `
 scalar(
   sum(
-    sum_over_time(kube_pod_container_resource_requests_cpu_cores[{{ .Range }}:1s])
+    avg_over_time(kube_pod_container_resource_requests_cpu_cores[{{ .Range }}])
     *
     on (pod) group_left kube_pod_labels{{ .Labels }}
   )
@@ -89,10 +89,12 @@ func memoryRequests(data MetricData, labelArgs ...string) (string, error) {
 	memoryResourcesQueryTemplate := `
 scalar(
   sum(
-    avg_over_time(kube_pod_container_resource_requests_memory_bytes[{{ .Range }}:1s])
+    avg_over_time(kube_pod_container_resource_requests_memory_bytes[{{ .Range }}])
     *
     on (pod) group_left kube_pod_labels{{ .Labels }}
   )
+  /
+  1024
   /
   1024
   /
