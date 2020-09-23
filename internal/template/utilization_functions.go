@@ -24,7 +24,6 @@ import (
 )
 
 func cpuUtilization(data MetricData, labelArgs ...string) (string, error) {
-
 	cpuUtilizationQueryTemplate := `
 scalar(
   round(
@@ -38,7 +37,7 @@ scalar(
       )
       /
       sum(
-        sum_over_time(kube_pod_container_resource_limits_cpu_cores[{{ .Range }}:1s])
+        sum_over_time(kube_pod_container_resource_requests_cpu_cores[{{ .Range }}:1s])
         *
         on (pod) group_left kube_pod_labels{{ .Labels }}
       )
@@ -62,7 +61,7 @@ scalar(
         on (pod) group_left kube_pod_labels{{ .Labels }}
         /
         sum(
-          kube_pod_container_resource_limits_memory_bytes
+          kube_pod_container_resource_requests_memory_bytes
         ) by (pod)
       )
     )
@@ -70,6 +69,37 @@ scalar(
 )`
 
 	return renderUtilization(memoryUtilizationQueryTemplate, data, labelArgs...)
+}
+
+func cpuRequests(data MetricData, labelArgs ...string) (string, error) {
+	cpuResourcesQueryTemplate := `
+scalar(
+  sum(
+    sum_over_time(kube_pod_container_resource_requests_cpu_cores[{{ .Range }}:1s])
+    *
+    on (pod) group_left kube_pod_labels{{ .Labels }}
+  )
+)`
+
+	return renderUtilization(cpuResourcesQueryTemplate, data, labelArgs...)
+}
+
+func memoryRequests(data MetricData, labelArgs ...string) (string, error) {
+	// Returns a value in MB
+	memoryResourcesQueryTemplate := `
+scalar(
+  sum(
+    avg_over_time(kube_pod_container_resource_requests_memory_bytes[{{ .Range }}:1s])
+    *
+    on (pod) group_left kube_pod_labels{{ .Labels }}
+  )
+  /
+  1024
+  /
+  1024
+)`
+
+	return renderUtilization(memoryResourcesQueryTemplate, data, labelArgs...)
 }
 
 func renderUtilization(query string, data MetricData, labelArgs ...string) (string, error) {
@@ -83,7 +113,7 @@ func renderUtilization(query string, data MetricData, labelArgs ...string) (stri
 
 		kvpair := strings.Split(label, "=")
 		if len(kvpair) != 2 {
-			return "", fmt.Errorf("invalid label for `cpuUtilization`, expected key=value, got: %s", label)
+			return "", fmt.Errorf("invalid label for utilization query, expected key=value, got: %s", label)
 		}
 
 		labels = append(labels, fmt.Sprintf("label_%s=\"%s\"", kvpair[0], kvpair[1]))
