@@ -123,6 +123,8 @@ type SetupTask struct {
 	HelmValues []HelmValue `json:"helmValues,omitempty"`
 	// The Helm values, ignored unless helmChart is also set
 	HelmValuesFrom []HelmValuesFromSource `json:"helmValuesFrom,omitempty"`
+	// The Helm repository to fetch the chart from
+	HelmRepository string `json:"helmRepository,omitempty"`
 }
 
 // PatchOperation represents a patch used to prepare the cluster for a trial run, includes the evaluated

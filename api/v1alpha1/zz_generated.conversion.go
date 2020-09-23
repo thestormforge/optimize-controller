@@ -1102,6 +1102,7 @@ func autoConvert_v1alpha1_SetupTask_To_v1beta1_SetupTask(in *SetupTask, out *v1b
 	} else {
 		out.HelmValuesFrom = nil
 	}
+	out.HelmRepository = in.HelmRepository
 	return nil
 }
 
@@ -1142,6 +1143,7 @@ func autoConvert_v1beta1_SetupTask_To_v1alpha1_SetupTask(in *v1beta1.SetupTask, 
 	} else {
 		out.HelmValuesFrom = nil
 	}
+	out.HelmRepository = in.HelmRepository
 	return nil
 }
 
