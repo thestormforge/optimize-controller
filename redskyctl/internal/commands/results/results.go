@@ -30,6 +30,7 @@ import (
 	"github.com/redskyops/redskyops-go/pkg/redskyapi"
 	"github.com/redskyops/redskyops-ui/v2/ui"
 	"github.com/spf13/cobra"
+	"golang.org/x/oauth2"
 )
 
 // Options is the configuration for displaying the results UI
@@ -78,7 +79,7 @@ func (o *Options) Complete() {
 func (o *Options) results(ctx context.Context) error {
 	// Create the router to match requests
 	router := http.NewServeMux()
-	if err := o.handleAPI(router, "/v1/"); err != nil {
+	if err := o.handleAPI(ctx, router, "/v1/"); err != nil {
 		return err
 	}
 	o.handleUI(router, "/ui/")
@@ -118,7 +119,7 @@ func (o *Options) openBrowser(loc string) error {
 	return browser.OpenURL(loc)
 }
 
-func (o *Options) handleAPI(serveMux *http.ServeMux, prefix string) error {
+func (o *Options) handleAPI(ctx context.Context, serveMux *http.ServeMux, prefix string) error {
 	// Get the endpoint mappings from the configuration
 	// TODO Should we just store the endpoints mapping on the rewrite proxy?
 	endpoints, err := o.Config.Endpoints()
@@ -131,14 +132,17 @@ func (o *Options) handleAPI(serveMux *http.ServeMux, prefix string) error {
 	address.Path = strings.TrimSuffix(address.Path, "/experiments/")
 	rp := &RewriteProxy{Address: *address}
 
+	// TODO We need bi-directional middleware for the client and server to set UA and Server headers
+	// We should know the UI version when we set the UA string so both products are present
+	// This is a temporary workaround: we can steal the UA transport from the default OAuth2 client
+	rt := oauth2.NewClient(ctx, nil).Transport
+
 	// Configure a transport to provide OAuth2 tokens to the backend
-	// TODO Set a UA round-tripper with both redskyctl and "rewrite proxy" as products?
-	transport, err := o.Config.Authorize(context.Background(), nil)
+	transport, err := o.Config.Authorize(ctx, rt)
 	if err != nil {
 		return err
 	}
 
-	// TODO Modify the response to include redskyctl in the Server header?
 	serveMux.Handle(prefix, http.StripPrefix(prefix, &httputil.ReverseProxy{
 		Director:       rp.Outgoing,
 		ModifyResponse: rp.Incoming,
