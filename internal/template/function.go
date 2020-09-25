@@ -41,6 +41,12 @@ func FuncMap() template.FuncMap {
 		"memoryUtilization": memoryUtilization,
 		"cpuRequests":       cpuRequests,
 		"memoryRequests":    memoryRequests,
+		"GB":                gb,
+		"MB":                mb,
+		"KB":                kb,
+		"GiB":               gib,
+		"MiB":               mib,
+		"KiB":               kib,
 	}
 
 	for k, v := range extra {

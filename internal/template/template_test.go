@@ -275,6 +275,44 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 			},
 			expectedQuery: expectedMemoryRequestsQueryWithParams,
 		},
+
+		{
+			desc: "function gb",
+			metric: redskyv1beta1.Metric{
+				Name:  "testMetric",
+				Query: `{{ "1234" | GB }}`,
+				Type:  redskyv1beta1.MetricLocal,
+			},
+			trial: redskyv1beta1.Trial{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+				},
+				Status: redskyv1beta1.TrialStatus{
+					StartTime:      &metav1.Time{Time: now.Add(-5 * time.Second)},
+					CompletionTime: &now,
+				},
+			},
+			expectedQuery: "1234/1000000000",
+		},
+
+		{
+			desc: "function gib",
+			metric: redskyv1beta1.Metric{
+				Name:  "testMetric",
+				Query: `{{ "1234" | GiB }}`,
+				Type:  redskyv1beta1.MetricLocal,
+			},
+			trial: redskyv1beta1.Trial{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+				},
+				Status: redskyv1beta1.TrialStatus{
+					StartTime:      &metav1.Time{Time: now.Add(-5 * time.Second)},
+					CompletionTime: &now,
+				},
+			},
+			expectedQuery: "1234/1073741824",
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
