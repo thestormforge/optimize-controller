@@ -237,6 +237,44 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 			},
 			expectedQuery: expectedMemoryUtilizationQueryWithoutParams,
 		},
+
+		{
+			desc: "function cpuRequests with parameters",
+			metric: redskyv1beta1.Metric{
+				Name:  "testMetric",
+				Query: `{{cpuRequests . "component=bob,component=tom"}}`,
+				Type:  redskyv1beta1.MetricLocal,
+			},
+			trial: redskyv1beta1.Trial{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+				},
+				Status: redskyv1beta1.TrialStatus{
+					StartTime:      &metav1.Time{Time: now.Add(-5 * time.Second)},
+					CompletionTime: &now,
+				},
+			},
+			expectedQuery: expectedCPURequestsQueryWithParams,
+		},
+
+		{
+			desc: "function memoryRequests with parameters",
+			metric: redskyv1beta1.Metric{
+				Name:  "testMetric",
+				Query: `{{memoryRequests . "component=bob,component=tom"}}`,
+				Type:  redskyv1beta1.MetricLocal,
+			},
+			trial: redskyv1beta1.Trial{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+				},
+				Status: redskyv1beta1.TrialStatus{
+					StartTime:      &metav1.Time{Time: now.Add(-5 * time.Second)},
+					CompletionTime: &now,
+				},
+			},
+			expectedQuery: expectedMemoryRequestsQueryWithParams,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
@@ -263,7 +301,7 @@ scalar(
       )
       /
       sum(
-        sum_over_time(kube_pod_container_resource_limits_cpu_cores[5s:1s])
+        sum_over_time(kube_pod_container_resource_requests_cpu_cores[5s:1s])
         *
         on (pod) group_left kube_pod_labels{label_component="bob",label_component="tom"}
       )
@@ -284,7 +322,7 @@ scalar(
       )
       /
       sum(
-        sum_over_time(kube_pod_container_resource_limits_cpu_cores[5s:1s])
+        sum_over_time(kube_pod_container_resource_requests_cpu_cores[5s:1s])
         *
         on (pod) group_left kube_pod_labels{namespace="default"}
       )
@@ -304,7 +342,7 @@ scalar(
         on (pod) group_left kube_pod_labels{label_component="bob",label_component="tom"}
         /
         sum(
-          kube_pod_container_resource_limits_memory_bytes
+          kube_pod_container_resource_requests_memory_bytes
         ) by (pod)
       )
     )
@@ -323,10 +361,28 @@ scalar(
         on (pod) group_left kube_pod_labels{namespace="default"}
         /
         sum(
-          kube_pod_container_resource_limits_memory_bytes
+          kube_pod_container_resource_requests_memory_bytes
         ) by (pod)
       )
     )
   * 100, 0.0001)
+)`
+
+	expectedMemoryRequestsQueryWithParams = `
+scalar(
+  sum(
+    avg_over_time(kube_pod_container_resource_requests_memory_bytes[5s])
+    *
+    on (pod) group_left kube_pod_labels{label_component="bob",label_component="tom"}
+  )
+)`
+
+	expectedCPURequestsQueryWithParams = `
+scalar(
+  sum(
+    avg_over_time(kube_pod_container_resource_requests_cpu_cores[5s])
+    *
+    on (pod) group_left kube_pod_labels{label_component="bob",label_component="tom"}
+  )
 )`
 )
