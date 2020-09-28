@@ -20,6 +20,8 @@ import (
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/internal/controller"
 	"github.com/redskyops/redskyops-controller/internal/trial"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -41,6 +43,8 @@ const (
 	PhaseRunning = "Running"
 	// PhaseCompleted indicates that the experiment has exhausted it's trial budget and is no longer expecting new trials
 	PhaseCompleted = "Completed"
+	// PhaseFailed indicates that the experiment has failed
+	PhaseFailed = "Failed"
 	// PhaseDeleted indicates that the experiment has been deleted and is waiting for trials to be cleaned up
 	PhaseDeleted = "Deleted"
 )
@@ -87,6 +91,15 @@ func summarize(exp *redskyv1beta1.Experiment, activeTrials int32, totalTrials in
 		return PhaseDeleted
 	}
 
+	for _, c := range exp.Status.Conditions {
+		switch c.Type {
+		case redskyv1beta1.ExperimentFailed:
+			if c.Status == corev1.ConditionTrue {
+				return PhaseFailed
+			}
+		}
+	}
+
 	if activeTrials > 0 {
 		return PhaseRunning
 	}
@@ -106,4 +119,33 @@ func summarize(exp *redskyv1beta1.Experiment, activeTrials int32, totalTrials in
 	}
 
 	return PhaseIdle
+}
+
+func ApplyCondition(status *redskyv1beta1.ExperimentStatus, conditionType redskyv1beta1.ExperimentConditionType, conditionStatus corev1.ConditionStatus, reason, message string, time *metav1.Time) {
+	if time == nil {
+		now := metav1.Now()
+		time = &now
+	}
+
+	newCondition := redskyv1beta1.ExperimentCondition{
+		Type:               conditionType,
+		Status:             conditionStatus,
+		Reason:             reason,
+		Message:            message,
+		LastProbeTime:      *time,
+		LastTransitionTime: *time,
+	}
+
+	for i := range status.Conditions {
+		if status.Conditions[i].Type == conditionType {
+			if status.Conditions[i].Status != conditionStatus {
+				status.Conditions[i] = newCondition
+			} else {
+				status.Conditions[i].LastProbeTime = *time
+			}
+			return
+		}
+	}
+
+	status.Conditions = append(status.Conditions, newCondition)
 }

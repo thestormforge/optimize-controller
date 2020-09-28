@@ -226,7 +226,7 @@ TrialStatus defines the observed state of Trial
 | `values` | Values is a string representation of the trial values for reporting purposes | _string_ | true |
 | `startTime` | StartTime is the effective (possibly adjusted) time the trial run job started | _*[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#time-v1-meta)_ | false |
 | `completionTime` | CompletionTime is the effective (possibly adjusted) time the trial run job completed | _*[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#time-v1-meta)_ | false |
-| `conditions` | Condition is the current state of the trial | _[][TrialCondition](#trialcondition)_ | false |
+| `conditions` | Conditions is the current state of the trial | _[][TrialCondition](#trialcondition)_ | false |
 | `patchOperations` | PatchOperations are the patches from the experiment evaluated in the context of this trial | _[][PatchOperation](#patchoperation)_ | false |
 | `readinessChecks` | ReadinessChecks are the all of the objects whose conditions need to be inspected for this trial | _[][ReadinessCheck](#readinesscheck)_ | false |
 

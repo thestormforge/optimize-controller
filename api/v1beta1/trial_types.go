@@ -265,7 +265,7 @@ type TrialStatus struct {
 	StartTime *metav1.Time `json:"startTime,omitempty"`
 	// CompletionTime is the effective (possibly adjusted) time the trial run job completed
 	CompletionTime *metav1.Time `json:"completionTime,omitempty"`
-	// Condition is the current state of the trial
+	// Conditions is the current state of the trial
 	Conditions []TrialCondition `json:"conditions,omitempty"`
 	// PatchOperations are the patches from the experiment evaluated in the context of this trial
 	PatchOperations []PatchOperation `json:"patchOperations,omitempty"`
