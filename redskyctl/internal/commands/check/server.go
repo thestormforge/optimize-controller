@@ -200,7 +200,7 @@ func generateExperiment(o *ServerOptions) *experimentsv1alpha1.Experiment {
 		e.Parameters = append(e.Parameters, experimentsv1alpha1.Parameter{
 			Name:   getUnique(used, getRandomParameter),
 			Type:   experimentsv1alpha1.ParameterTypeInteger,
-			Bounds: *generateBounds(),
+			Bounds: generateBounds(),
 		})
 	}
 
@@ -316,21 +316,8 @@ func checkTrialAssignments(exp *experimentsv1alpha1.Experiment, t *experimentsv1
 	}
 	for _, a := range t.Assignments {
 		if p, ok := params[a.ParameterName]; ok {
-			// Check bounds using floating point arithmetic
-			v, err := a.Value.Float64()
-			if err != nil {
+			if err := experimentsv1alpha1.CheckParameterValue(p, &a.Value); err != nil {
 				return err
-			}
-			min, err := p.Bounds.Min.Float64()
-			if err != nil {
-				return err
-			}
-			max, err := p.Bounds.Max.Float64()
-			if err != nil {
-				return err
-			}
-			if v < min || v > max {
-				return fmt.Errorf("server return out of bounds assignment: %s = %s (expected [%s,%s])", a.ParameterName, a.Value, p.Bounds.Min, p.Bounds.Max)
 			}
 		} else {
 			return fmt.Errorf("server returned unexpected assignment: %s", a.ParameterName)

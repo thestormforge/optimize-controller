@@ -31,7 +31,7 @@ type Assignment struct {
 	// Name of the parameter being assigned
 	Name string `json:"name"`
 	// Value of the assignment
-	Value int64 `json:"value"`
+	Value intstr.IntOrString `json:"value"`
 }
 
 // TrialReadinessGate represents a readiness check on one or more objects that must pass after patches

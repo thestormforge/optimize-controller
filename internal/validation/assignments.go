@@ -16,7 +16,10 @@ limitations under the License.
 
 package validation
 
-import redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
+import (
+	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+)
 
 // AssignmentError is raised when trial assignments do not match the experiment parameter definitions
 type AssignmentError struct {
@@ -41,7 +44,7 @@ func CheckAssignments(t *redskyv1beta1.Trial, exp *redskyv1beta1.Experiment) err
 	err := &AssignmentError{}
 
 	// Index the assignments, checking for duplicates
-	assignments := make(map[string]int64, len(t.Spec.Assignments))
+	assignments := make(map[string]intstr.IntOrString, len(t.Spec.Assignments))
 	for _, a := range t.Spec.Assignments {
 		if _, ok := assignments[a.Name]; !ok {
 			assignments[a.Name] = a.Value
@@ -53,7 +56,11 @@ func CheckAssignments(t *redskyv1beta1.Trial, exp *redskyv1beta1.Experiment) err
 	// Verify against the parameter specifications
 	for _, p := range exp.Spec.Parameters {
 		if a, ok := assignments[p.Name]; ok {
-			if a < p.Min || a > p.Max {
+			if a.Type == intstr.String {
+				if !contains(p.Values, a.StrVal) {
+					err.OutOfBounds = append(err.OutOfBounds, p.Name)
+				}
+			} else if a.IntVal < p.Min || a.IntVal > p.Max {
 				err.OutOfBounds = append(err.OutOfBounds, p.Name)
 			}
 			delete(assignments, p.Name)
@@ -70,4 +77,13 @@ func CheckAssignments(t *redskyv1beta1.Trial, exp *redskyv1beta1.Experiment) err
 		return nil
 	}
 	return err
+}
+
+func contains(values []string, strVal string) bool {
+	for _, c := range values {
+		if strVal == c {
+			return true
+		}
+	}
+	return false
 }

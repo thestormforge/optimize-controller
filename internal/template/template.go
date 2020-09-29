@@ -27,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
@@ -35,7 +36,7 @@ type PatchData struct {
 	// Trial metadata
 	Trial metav1.ObjectMeta
 	// Trial assignments
-	Values map[string]int64
+	Values map[string]interface{}
 }
 
 // MetricData represents a trial during metric evaluation
@@ -49,7 +50,7 @@ type MetricData struct {
 	// The duration of the trial run expressed as a Prometheus range value
 	Range string
 	// Trial assignments
-	Values map[string]int64
+	Values map[string]interface{}
 	// List of pods from the trial namespace (only available for "pods" type metrics)
 	Pods *corev1.PodList
 }
@@ -59,9 +60,13 @@ func newPatchData(t *redskyv1beta1.Trial) *PatchData {
 
 	t.ObjectMeta.DeepCopyInto(&d.Trial)
 
-	d.Values = make(map[string]int64, len(t.Spec.Assignments))
+	d.Values = make(map[string]interface{}, len(t.Spec.Assignments))
 	for _, a := range t.Spec.Assignments {
-		d.Values[a.Name] = a.Value
+		if a.Value.Type == intstr.String {
+			d.Values[a.Name] = a.Value.StrVal
+		} else {
+			d.Values[a.Name] = a.Value.IntVal
+		}
 	}
 
 	return d
@@ -72,9 +77,13 @@ func newMetricData(t *redskyv1beta1.Trial, target runtime.Object) *MetricData {
 
 	t.ObjectMeta.DeepCopyInto(&d.Trial)
 
-	d.Values = make(map[string]int64, len(t.Spec.Assignments))
+	d.Values = make(map[string]interface{}, len(t.Spec.Assignments))
 	for _, a := range t.Spec.Assignments {
-		d.Values[a.Name] = a.Value
+		if a.Value.Type == intstr.String {
+			d.Values[a.Name] = a.Value.StrVal
+		} else {
+			d.Values[a.Name] = a.Value.IntVal
+		}
 	}
 
 	if pods, ok := target.(*corev1.PodList); ok {

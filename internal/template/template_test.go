@@ -51,12 +51,30 @@ func TestEngine_RenderPatch(t *testing.T) {
 			},
 			expected: []byte(`{"metadata":{"labels":{"app":"testApp"}}}`),
 		},
+
+		{
+			desc: "numeric assignment",
+			patchTemplate: redskyv1beta1.PatchTemplate{
+				Patch: "spec:\n  replicas: {{ .Values.replicas }}\n",
+			},
+			trial: redskyv1beta1.Trial{
+				Spec: redskyv1beta1.TrialSpec{
+					Assignments: []redskyv1beta1.Assignment{
+						{
+							Name:  "replicas",
+							Value: intstr.FromInt(2),
+						},
+					},
+				},
+			},
+			expected: []byte(`{"spec":{"replicas":2}}`),
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
 			actual, err := eng.RenderPatch(&c.patchTemplate, &c.trial)
 			if assert.NoError(t, err) {
-				assert.Equal(t, c.expected, actual)
+				assert.Equal(t, string(c.expected), string(actual))
 			}
 		})
 	}
@@ -122,8 +140,18 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 			desc: "function percent",
 			metric: redskyv1beta1.Metric{
 				Name:  "testMetric",
-				Query: "{{percent 100 5}}",
+				Query: "{{percent .Values.test 5}}",
 				Type:  redskyv1beta1.MetricLocal,
+			},
+			trial: redskyv1beta1.Trial{
+				Spec: redskyv1beta1.TrialSpec{
+					Assignments: []redskyv1beta1.Assignment{
+						{
+							Name:  "test",
+							Value: intstr.FromInt(100),
+						},
+					},
+				},
 			},
 			target:        &corev1.Pod{},
 			expectedQuery: "5",

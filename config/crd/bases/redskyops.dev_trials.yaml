@@ -58,8 +58,9 @@ spec:
                     name:
                       type: string
                     value:
-                      type: integer
-                      format: int64
+                      anyOf:
+                      - type: string
+                      - type: integer
               experimentRef:
                 type: object
                 properties:
@@ -3677,8 +3678,9 @@ spec:
                     name:
                       type: string
                     value:
-                      type: integer
-                      format: int64
+                      anyOf:
+                      - type: string
+                      - type: integer
               experimentRef:
                 type: object
                 properties:

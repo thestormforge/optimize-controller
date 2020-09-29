@@ -19,6 +19,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"path"
 	"strconv"
 
@@ -27,6 +28,7 @@ import (
 	"github.com/redskyops/redskyops-controller/internal/trial"
 	redskyapi "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -55,18 +57,26 @@ func FromCluster(in *redskyv1beta1.Experiment) (redskyapi.ExperimentName, *redsk
 	out.Parameters = nil
 	for _, p := range in.Spec.Parameters {
 		// This is a special case to omit parameters client side
-		if p.Min == p.Max {
+		if p.Min == p.Max && len(p.Values) == 0 {
 			continue
 		}
 
-		out.Parameters = append(out.Parameters, redskyapi.Parameter{
-			Type: redskyapi.ParameterTypeInteger,
-			Name: p.Name,
-			Bounds: redskyapi.Bounds{
-				Min: json.Number(strconv.FormatInt(p.Min, 10)),
-				Max: json.Number(strconv.FormatInt(p.Max, 10)),
-			},
-		})
+		if len(p.Values) > 0 {
+			out.Parameters = append(out.Parameters, redskyapi.Parameter{
+				Type:   redskyapi.ParameterTypeCategorical,
+				Name:   p.Name,
+				Values: p.Values,
+			})
+		} else {
+			out.Parameters = append(out.Parameters, redskyapi.Parameter{
+				Type: redskyapi.ParameterTypeInteger,
+				Name: p.Name,
+				Bounds: &redskyapi.Bounds{
+					Min: json.Number(strconv.FormatInt(int64(p.Min), 10)),
+					Max: json.Number(strconv.FormatInt(int64(p.Max), 10)),
+				},
+			})
+		}
 	}
 
 	out.Constraints = nil
@@ -153,12 +163,27 @@ func ToClusterTrial(t *redskyv1beta1.Trial, suggestion *redskyapi.TrialAssignmen
 	}
 
 	for _, a := range suggestion.Assignments {
-		if v, err := a.Value.Int64(); err == nil {
-			t.Spec.Assignments = append(t.Spec.Assignments, redskyv1beta1.Assignment{
-				Name:  a.ParameterName,
-				Value: v,
-			})
+		var v intstr.IntOrString
+		if a.Value.IsString {
+			v = intstr.FromString(a.Value.StrVal)
+		} else {
+			// While the server supports 64-bit integers, any parameters used for Kubernetes
+			// experiments will have been defined with 32-bit integer bounds.
+			val := a.Value.Int64Value()
+			switch {
+			case val > math.MaxInt32:
+				v = intstr.FromInt(math.MaxInt32)
+			case val < math.MinInt32:
+				v = intstr.FromInt(math.MinInt32)
+			default:
+				v = intstr.FromInt(int(val))
+			}
 		}
+
+		t.Spec.Assignments = append(t.Spec.Assignments, redskyv1beta1.Assignment{
+			Name:  a.ParameterName,
+			Value: v,
+		})
 	}
 
 	if len(suggestion.Labels) > 0 {

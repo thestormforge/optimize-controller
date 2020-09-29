@@ -28,7 +28,7 @@ Assignment represents an individual name/value pair. Assignment names must corre
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
 | `name` | Name of the parameter being assigned | _string_ | true |
-| `value` | Value of the assignment | _int64_ | true |
+| `value` | Value of the assignment | _intstr.IntOrString_ | true |
 
 [Back to TOC](#table-of-contents)
 

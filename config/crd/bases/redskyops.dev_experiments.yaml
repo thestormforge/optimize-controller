@@ -184,12 +184,16 @@ spec:
                   properties:
                     max:
                       type: integer
-                      format: int64
+                      format: int32
                     min:
                       type: integer
-                      format: int64
+                      format: int32
                     name:
                       type: string
+                    values:
+                      type: array
+                      items:
+                        type: string
               patches:
                 type: array
                 items:
@@ -274,8 +278,9 @@ spec:
                             name:
                               type: string
                             value:
-                              type: integer
-                              format: int64
+                              anyOf:
+                              - type: string
+                              - type: integer
                       experimentRef:
                         type: object
                         properties:
@@ -4019,12 +4024,16 @@ spec:
                   properties:
                     max:
                       type: integer
-                      format: int64
+                      format: int32
                     min:
                       type: integer
-                      format: int64
+                      format: int32
                     name:
                       type: string
+                    values:
+                      type: array
+                      items:
+                        type: string
               patches:
                 type: array
                 items:
@@ -4109,8 +4118,9 @@ spec:
                             name:
                               type: string
                             value:
-                              type: integer
-                              format: int64
+                              anyOf:
+                              - type: string
+                              - type: integer
                       experimentRef:
                         type: object
                         properties:

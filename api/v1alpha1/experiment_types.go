@@ -36,9 +36,11 @@ type Parameter struct {
 	// The name of the parameter
 	Name string `json:"name"`
 	// The inclusive minimum value of the parameter
-	Min int64 `json:"min,omitempty"`
+	Min int32 `json:"min,omitempty"`
 	// The inclusive maximum value of the parameter
-	Max int64 `json:"max,omitempty"`
+	Max int32 `json:"max,omitempty"`
+	// Internal use only
+	Values []string `json:"values,omitempty"`
 }
 
 // Constraint represents a constraint to the domain of the parameters

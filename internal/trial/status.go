@@ -175,7 +175,7 @@ func summarize(t *redskyv1beta1.Trial) string {
 func assignments(t *redskyv1beta1.Trial) string {
 	assignments := make([]string, len(t.Spec.Assignments))
 	for i := range t.Spec.Assignments {
-		assignments[i] = fmt.Sprintf("%s=%d", t.Spec.Assignments[i].Name, t.Spec.Assignments[i].Value)
+		assignments[i] = fmt.Sprintf("%s=%s", t.Spec.Assignments[i].Name, t.Spec.Assignments[i].Value.String())
 	}
 	return strings.Join(assignments, ", ")
 }

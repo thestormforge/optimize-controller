@@ -18,16 +18,20 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
+	"math"
 	"strconv"
 	"testing"
 	"time"
 
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	redskyapi "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
+	"github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1/numstr"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func TestFromCluster(t *testing.T) {
@@ -96,7 +100,7 @@ func TestFromCluster(t *testing.T) {
 					{
 						Type: redskyapi.ParameterTypeInteger,
 						Name: "one",
-						Bounds: redskyapi.Bounds{
+						Bounds: &redskyapi.Bounds{
 							Min: json.Number(strconv.FormatInt(111, 10)),
 							Max: json.Number(strconv.FormatInt(222, 10)),
 						},
@@ -104,7 +108,7 @@ func TestFromCluster(t *testing.T) {
 					{
 						Type: redskyapi.ParameterTypeInteger,
 						Name: "two",
-						Bounds: redskyapi.Bounds{
+						Bounds: &redskyapi.Bounds{
 							Min: json.Number(strconv.FormatInt(1111, 10)),
 							Max: json.Number(strconv.FormatInt(2222, 10)),
 						},
@@ -112,7 +116,7 @@ func TestFromCluster(t *testing.T) {
 					{
 						Type: redskyapi.ParameterTypeInteger,
 						Name: "three",
-						Bounds: redskyapi.Bounds{
+						Bounds: &redskyapi.Bounds{
 							Min: json.Number(strconv.FormatInt(11111, 10)),
 							Max: json.Number(strconv.FormatInt(22222, 10)),
 						},
@@ -297,9 +301,9 @@ func TestToClusterTrial(t *testing.T) {
 					SelfURL: "some/path/1",
 				},
 				Assignments: []redskyapi.Assignment{
-					{ParameterName: "one", Value: json.Number("111")},
-					{ParameterName: "two", Value: json.Number("222")},
-					{ParameterName: "three", Value: json.Number("333")},
+					{ParameterName: "one", Value: numstr.FromInt64(111)},
+					{ParameterName: "two", Value: numstr.FromInt64(222)},
+					{ParameterName: "three", Value: numstr.FromInt64(333)},
 				},
 			},
 			trialOut: &redskyv1beta1.Trial{
@@ -319,9 +323,9 @@ func TestToClusterTrial(t *testing.T) {
 				},
 				Spec: redskyv1beta1.TrialSpec{
 					Assignments: []redskyv1beta1.Assignment{
-						{Name: "one", Value: 111},
-						{Name: "two", Value: 222},
-						{Name: "three", Value: 333},
+						{Name: "one", Value: intstr.FromInt(111)},
+						{Name: "two", Value: intstr.FromInt(222)},
+						{Name: "three", Value: intstr.FromInt(333)},
 					},
 				},
 			},
@@ -339,9 +343,9 @@ func TestToClusterTrial(t *testing.T) {
 					SelfURL: "some/path/one",
 				},
 				Assignments: []redskyapi.Assignment{
-					{ParameterName: "one", Value: json.Number("111")},
-					{ParameterName: "two", Value: json.Number("222")},
-					{ParameterName: "three", Value: json.Number("333")},
+					{ParameterName: "one", Value: numstr.FromInt64(111)},
+					{ParameterName: "two", Value: numstr.FromInt64(222)},
+					{ParameterName: "three", Value: numstr.FromInt64(333)},
 				},
 			},
 			trialOut: &redskyv1beta1.Trial{
@@ -361,10 +365,40 @@ func TestToClusterTrial(t *testing.T) {
 				},
 				Spec: redskyv1beta1.TrialSpec{
 					Assignments: []redskyv1beta1.Assignment{
-						{Name: "one", Value: 111},
-						{Name: "two", Value: 222},
-						{Name: "three", Value: 333},
+						{Name: "one", Value: intstr.FromInt(111)},
+						{Name: "two", Value: intstr.FromInt(222)},
+						{Name: "three", Value: intstr.FromInt(333)},
 					},
+				},
+			},
+		},
+		{
+			desc: "32bit overflow",
+			trial: &redskyv1beta1.Trial{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{},
+				},
+			},
+			suggestion: &redskyapi.TrialAssignments{
+				Assignments: []redskyapi.Assignment{
+					{ParameterName: "overflow", Value: numstr.FromInt64(math.MaxInt64)},
+				},
+			},
+			trialOut: &redskyv1beta1.Trial{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"redskyops.dev/report-trial-url": "",
+					},
+					Finalizers: []string{"serverFinalizer.redskyops.dev"},
+				},
+				Spec: redskyv1beta1.TrialSpec{
+					Assignments: []redskyv1beta1.Assignment{
+						{Name: "overflow", Value: intstr.FromInt(math.MaxInt32)},
+					},
+				},
+				Status: redskyv1beta1.TrialStatus{
+					Phase:       "Created",
+					Assignments: fmt.Sprintf("overflow=%d", math.MaxInt32),
 				},
 			},
 		},

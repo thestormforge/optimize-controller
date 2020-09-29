@@ -160,8 +160,9 @@ Parameter represents the domain of a single component of the experiment search s
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
 | `name` | The name of the parameter | _string_ | true |
-| `min` | The inclusive minimum value of the parameter | _int64_ | false |
-| `max` | The inclusive maximum value of the parameter | _int64_ | false |
+| `min` | The inclusive minimum value of the parameter | _int32_ | false |
+| `max` | The inclusive maximum value of the parameter | _int32_ | false |
+| `values` | Internal use only | _[]string_ | false |
 
 [Back to TOC](#table-of-contents)
 
