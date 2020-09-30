@@ -168,20 +168,23 @@ func (r *ReadinessChecker) unstructuredConditionStatus(obj *unstructured.Unstruc
 func (r *ReadinessChecker) statusField(obj *unstructured.Unstructured, conditionType string) (string, corev1.ConditionStatus, error) {
 	// In this case the condition type is "redskyops.dev/status-<FIELD>-<VALUE>" so we must parse out the field and value
 	kv := strings.SplitN(strings.TrimPrefix(conditionType, ConditionTypeStatus), "-", 2)
+	if len(kv) != 2 {
+		return "", corev1.ConditionFalse, fmt.Errorf("invalid status field condition: %s", conditionType)
+	}
 
 	s, ok := obj.UnstructuredContent()["status"].(map[string]interface{})
 	if !ok {
 		return "", corev1.ConditionFalse, fmt.Errorf("unable to locate status")
 	}
 
+	// Use "unknown" if we didn't see the field (or if it wasn't a simple string)
 	v, ok := s[kv[0]].(string)
 	if !ok {
-		// This is a legitimate "unknown" case because we didn't see the field
 		return "", corev1.ConditionUnknown, nil
 	}
 
 	// Check the value case-insensitively
-	if len(kv) > 1 && strings.EqualFold(kv[1], v) {
+	if strings.EqualFold(kv[1], v) {
 		return "", corev1.ConditionTrue, nil
 	}
 
