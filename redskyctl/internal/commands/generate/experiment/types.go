@@ -16,7 +16,17 @@ limitations under the License.
 
 package experiment
 
-import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/scheme"
+)
+
+var (
+	GroupVersion  = schema.GroupVersion{Group: "redskyops.dev", Version: "v1alpha1"}
+	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
+)
 
 // MagikExperiment represents the configuration of the experiment generator. The generator will consider
 // these values when constructing a new `Experiment` resource.
@@ -30,4 +40,26 @@ type MagikExperiment struct {
 
 	// Things to consider adding:
 	// 1. A label selector for objects to include in the scan (alternately, an annotation to exclude?)
+}
+
+// DeepCopyObject allows the MagikExperment to be used as a runtime object.
+// NOTE: This should be relatively minimal, if it grows switch to auto-generation.
+func (in *MagikExperiment) DeepCopyObject() runtime.Object {
+	if in == nil {
+		return nil
+	}
+	out := new(MagikExperiment)
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
+	if in.Resources != nil {
+		in, out := &in.Resources, &out.Resources
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	return out
+}
+
+func init() {
+	SchemeBuilder.Register(&MagikExperiment{})
 }
