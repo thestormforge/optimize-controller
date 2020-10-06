@@ -18,6 +18,7 @@ package generate
 
 import (
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/authorize_cluster"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/experiments"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/grant_permissions"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/initialize"
 	"github.com/redskyops/redskyops-go/pkg/config"
@@ -42,6 +43,7 @@ func NewCommand(o *Options) *cobra.Command {
 	cmd.AddCommand(authorize_cluster.NewGeneratorCommand(&authorize_cluster.GeneratorOptions{Config: o.Config}))
 	cmd.AddCommand(grant_permissions.NewGeneratorCommand(&grant_permissions.GeneratorOptions{Config: o.Config}))
 	cmd.AddCommand(NewRBACCommand(&RBACOptions{Config: o.Config, ClusterRole: true, ClusterRoleBinding: true}))
+	cmd.AddCommand(NewExperimentCommand(&ExperimentOptions{Options: experiments.Options{Config: o.Config}}))
 	cmd.AddCommand(NewTrialCommand(&TrialOptions{}))
 
 	return cmd
