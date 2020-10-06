@@ -33,6 +33,8 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+const experimentConfigKind = "MagikExperiment"
+
 type ExperimentOptions struct {
 	experiments.Options
 
@@ -44,9 +46,10 @@ type ExperimentOptions struct {
 
 func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "experiment",
-		Short: "Generate an experiment",
-		Long:  "Generate an experiment using magik",
+		Use:     "experiment",
+		Short:   "Generate an experiment",
+		Long:    "Generate an experiment using magik",
+		Aliases: []string{experimentConfigKind},
 
 		Annotations: map[string]string{
 			commander.PrinterAllowedFormats: "json,yaml",
@@ -55,8 +58,14 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 			commander.PrinterStreamList:     "true",
 		},
 
-		PreRun: commander.StreamsPreRun(&o.IOStreams),
-		RunE:   commander.WithoutArgsE(o.generate),
+		PreRun: func(cmd *cobra.Command, args []string) {
+			// Handle the case when we are invoked as a Kustomize exec plugin
+			if cmd.CalledAs() == experimentConfigKind && len(args) == 1 {
+				o.Filename = args[0]
+			}
+			commander.SetStreams(&o.IOStreams, cmd)
+		},
+		RunE: commander.WithoutArgsE(o.generate),
 	}
 
 	cmd.Flags().StringVarP(&o.Filename, "filename", "f", o.Filename, "File that contains the experiment configuration.")
@@ -72,7 +81,7 @@ func (o *ExperimentOptions) generate() error {
 
 	// Read the experiment configuration
 	if err := o.readConfig(); err != nil {
-		return nil
+		return err
 	}
 
 	// Start the experiment template
@@ -101,11 +110,12 @@ func (o *ExperimentOptions) readConfig() error {
 		return err
 	}
 
-	// Unmarshal and verify it looks right
+	// TODO We should be using the Kubernetes object decoder for this
 	if err := yaml.Unmarshal(b, &o.ExperimentConfig); err != nil {
 		return err
 	}
-	if o.ExperimentConfig.APIVersion != "redskyops.dev/v1alpha1" || o.ExperimentConfig.Kind != "MagikExperiment" {
+	gvk := experiment.GroupVersion.WithKind(experimentConfigKind)
+	if o.ExperimentConfig.GroupVersionKind() != gvk {
 		return fmt.Errorf("incorrect input type: %s", o.ExperimentConfig.GroupVersionKind().String())
 	}
 
