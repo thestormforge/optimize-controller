@@ -19,7 +19,7 @@ package experiment
 import (
 	"fmt"
 
-	"github.com/redskyops/redskyops-controller/api/v1beta1"
+	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/kustomize/api/filesys"
 	"sigs.k8s.io/kustomize/api/konfig"
@@ -35,11 +35,15 @@ const (
 	defaultParameterMax = 4000
 )
 
+// Scanner looks for resources that can be patched and adds them to an experiment.
 type Scanner struct {
+	// FileSystem to use when looking for resources, generally a pass through to the OS file system.
 	FileSystem filesys.FileSystem
 }
 
-func (s *Scanner) ScanInto(resources []string, exp *v1beta1.Experiment) error {
+// ScanInto scans the specified resource references and adds the necessary patches and parameter
+// definitions to the supplied experiment.
+func (s *Scanner) ScanInto(resources []string, exp *redskyv1beta1.Experiment) error {
 	// Load all of the resource references
 	rm, err := s.load(resources)
 	if err != nil {
@@ -141,7 +145,7 @@ func (s *Scanner) findPaths(r *resource.Resource) ([]fieldPath, error) {
 	return paths, nil
 }
 
-func (s *Scanner) apply(rl []resourceLists, exp *v1beta1.Experiment) error {
+func (s *Scanner) apply(rl []resourceLists, exp *redskyv1beta1.Experiment) error {
 	// TODO We can probably be smarter determining if a prefix is necessary
 	needsPrefix := len(rl) > 1
 

@@ -20,7 +20,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/redskyops/redskyops-controller/api/v1beta1"
+	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"sigs.k8s.io/yaml"
@@ -46,15 +46,15 @@ func (p *resourceLists) parameterName(name string, path fieldPath, needsPrefix b
 }
 
 // generate returns the strategic merge patches and parameters the resource lists of a particular resource.
-func (p *resourceLists) generate(needsPrefix bool) ([]v1beta1.Parameter, *v1beta1.PatchTemplate, error) {
-	parameters := make([]v1beta1.Parameter, 0, len(p.resourcesPaths)*2)
+func (p *resourceLists) generate(needsPrefix bool) ([]redskyv1beta1.Parameter, *redskyv1beta1.PatchTemplate, error) {
+	parameters := make([]redskyv1beta1.Parameter, 0, len(p.resourcesPaths)*2)
 	patches := make([]strategicpatch.JSONMap, len(p.resourcesPaths))
 
 	for i := range p.resourcesPaths {
-		cpu := v1beta1.Parameter{
+		cpu := redskyv1beta1.Parameter{
 			Name: p.parameterName("cpu", p.resourcesPaths[i], needsPrefix),
 		}
-		memory := v1beta1.Parameter{
+		memory := redskyv1beta1.Parameter{
 			Name: p.parameterName("memory", p.resourcesPaths[i], needsPrefix),
 		}
 		resourceList := map[string]interface{}{
@@ -75,7 +75,7 @@ func (p *resourceLists) generate(needsPrefix bool) ([]v1beta1.Parameter, *v1beta
 		return nil, nil, err
 	}
 
-	return parameters, &v1beta1.PatchTemplate{
+	return parameters, &redskyv1beta1.PatchTemplate{
 		Patch:     patch,
 		TargetRef: &p.targetRef,
 	}, nil
