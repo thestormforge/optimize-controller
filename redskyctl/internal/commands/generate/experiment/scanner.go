@@ -18,43 +18,41 @@ package experiment
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/redskyops/redskyops-controller/api/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/kustomize/api/filesys"
-	"sigs.k8s.io/kustomize/api/k8sdeps/kunstruct"
+	"sigs.k8s.io/kustomize/api/konfig"
 	"sigs.k8s.io/kustomize/api/krusty"
-	"sigs.k8s.io/kustomize/api/loader"
 	"sigs.k8s.io/kustomize/api/resmap"
 	"sigs.k8s.io/kustomize/api/resource"
+	"sigs.k8s.io/kustomize/api/types"
+	"sigs.k8s.io/yaml"
 )
 
 type Scanner struct {
 	FileSystem filesys.FileSystem
 }
 
-func (s *Scanner) ScanInto(references []string, exp *v1beta1.Experiment) error {
+func (s *Scanner) ScanInto(resources []string, exp *v1beta1.Experiment) error {
+	// Load all of the resource references
+	rm, err := s.load(resources)
+	if err != nil {
+		return err
+	}
+
 	// The collection of all the resources lists (limits/requests) we have found
 	var rl []resourceLists
 
-	// Iterate over the references and scan each resource we find
-	for _, r := range references {
-		rm, err := s.load(r)
+	// Iterate of the resources in the Kustomize resource map and scan each one
+	for _, rr := range rm.Resources() {
+		e, err := s.scan(rr)
 		if err != nil {
 			return err
 		}
 
-		// Iterate of the resources in the Kustomize resource map and scan each one
-		for _, rr := range rm.Resources() {
-			e, err := s.scan(rr)
-			if err != nil {
-				return err
-			}
-
-			if e != nil {
-				rl = append(rl, *e)
-			}
+		if e != nil {
+			rl = append(rl, *e)
 		}
 	}
 
@@ -66,17 +64,29 @@ func (s *Scanner) ScanInto(references []string, exp *v1beta1.Experiment) error {
 	return nil
 }
 
-func (s *Scanner) load(ref string) (resmap.ResMap, error) {
-	// This is a hack so you can use process substitution to get resources in for scanning
-	if strings.HasPrefix(ref, "/dev/fd/") {
-		kf := kunstruct.NewKunstructuredFactoryImpl()
-		rf := resource.NewFactory(kf)
-		rmf := resmap.NewFactory(rf, nil)
-		ldr := loader.NewFileLoaderAtRoot(s.FileSystem)
-		return rmf.FromFile(ldr, ref)
+func (s *Scanner) load(resources []string) (resmap.ResMap, error) {
+	// Get the current working directory so we can intercept requests for the Kustomization
+	cwd, _, err := s.FileSystem.CleanedAbs(".")
+	if err != nil {
+		return nil, err
 	}
 
-	return krusty.MakeKustomizer(s.FileSystem, krusty.MakeDefaultOptions()).Run(ref)
+	// Wrap the file system so it thinks the current directory is a kustomize root with our resources.
+	// This is necessary to ensure that relative paths are resolved correctly and that files are not
+	// treated like directories. If the current directory really is a kustomize root, that kustomization
+	// will be hidden to prefer loading just the resources that are part of the experiment configuration.
+	fSys := &kustomizationFileSystem{
+		FileSystem:            s.FileSystem,
+		KustomizationFileName: cwd.Join(konfig.DefaultKustomizationFileName()),
+		Kustomization: types.Kustomization{
+			Resources: resources,
+		},
+	}
+
+	// Turn off the load restrictions so we can load arbitrary files (e.g. /dev/fd/...)
+	o := krusty.MakeDefaultOptions()
+	o.LoadRestrictions = types.LoadRestrictionsNone
+	return krusty.MakeKustomizer(fSys, o).Run(".")
 }
 
 func (s *Scanner) scan(r *resource.Resource) (*resourceLists, error) {
@@ -150,4 +160,20 @@ func (s *Scanner) apply(rl []resourceLists, exp *v1beta1.Experiment) error {
 	}
 
 	return nil
+}
+
+// kustomizationFileSystem is a wrapper around a real file system that injects a Kustomization at
+// a pre-determined location. This has the effect of creating a kustomize root in memory even if
+// there is no kustomization.yaml on disk.
+type kustomizationFileSystem struct {
+	filesys.FileSystem
+	KustomizationFileName string
+	Kustomization         types.Kustomization
+}
+
+func (fs *kustomizationFileSystem) ReadFile(path string) ([]byte, error) {
+	if path == fs.KustomizationFileName {
+		return yaml.Marshal(fs.Kustomization)
+	}
+	return fs.FileSystem.ReadFile(path)
 }
