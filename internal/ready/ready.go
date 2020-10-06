@@ -46,6 +46,10 @@ const (
 	// ConditionTypeAppReady is a special condition type that combines the efficiency of the rollout status check,
 	// the compatibility of the pod ready check.
 	ConditionTypeAppReady = "redskyops.dev/app-ready"
+	// ConditionTypeStatus is a special condition type that can be used to check an arbitrary string on the status
+	// of the target object. The name of the status field and the expected value (indicating a ready state) should
+	// be appended to this constant, e.g. `"redskyops.dev/status-phase-running"` to check for a running pod.
+	ConditionTypeStatus = "redskyops.dev/status-"
 )
 
 // ReadinessChecker is used to check the conditions of runtime objects
@@ -93,7 +97,11 @@ func (r *ReadinessChecker) CheckConditions(ctx context.Context, obj *unstructure
 		case ConditionTypeAppReady:
 			msg, s, err = r.appReady(ctx, obj)
 		default:
-			msg, s, err = r.unstructuredConditionStatus(obj, c)
+			if strings.HasPrefix(c, ConditionTypeStatus) {
+				msg, s, err = r.statusField(obj, c)
+			} else {
+				msg, s, err = r.unstructuredConditionStatus(obj, c)
+			}
 		}
 
 		// Hard stop
@@ -129,6 +137,7 @@ func (r *ReadinessChecker) unstructuredConditionStatus(obj *unstructured.Unstruc
 	if !ok {
 		return "", corev1.ConditionFalse, fmt.Errorf("unable to locate status")
 	}
+
 	cl, ok := s["conditions"].([]interface{})
 	if !ok {
 		return "", corev1.ConditionFalse, fmt.Errorf("unable to locate conditions")
@@ -150,8 +159,38 @@ func (r *ReadinessChecker) unstructuredConditionStatus(obj *unstructured.Unstruc
 			}
 		}
 	}
+
 	// This is a legitimate "unknown" case because we didn't see the condition
 	return "", corev1.ConditionUnknown, nil
+}
+
+// statusField inspects a single top level field on the status
+func (r *ReadinessChecker) statusField(obj *unstructured.Unstructured, conditionType string) (string, corev1.ConditionStatus, error) {
+	// In this case the condition type is "redskyops.dev/status-<FIELD>-<VALUE>" so we must parse out the field and value
+	kv := strings.SplitN(strings.TrimPrefix(conditionType, ConditionTypeStatus), "-", 2)
+	if len(kv) != 2 {
+		return "", corev1.ConditionFalse, fmt.Errorf("invalid status field condition: %s", conditionType)
+	}
+
+	s, ok := obj.UnstructuredContent()["status"].(map[string]interface{})
+	if !ok {
+		return "", corev1.ConditionFalse, fmt.Errorf("unable to locate status")
+	}
+
+	// Use "unknown" if we didn't see the field (or if it wasn't a simple string)
+	v, ok := s[kv[0]].(string)
+	if !ok {
+		return "", corev1.ConditionUnknown, nil
+	}
+
+	// Check the value case-insensitively
+	if strings.EqualFold(kv[1], v) {
+		return "", corev1.ConditionTrue, nil
+	}
+
+	// Try to collect `{.status.message}` for failures
+	msg, _ := s["message"].(string)
+	return msg, corev1.ConditionFalse, nil
 }
 
 // appReady performs a rollout status check and falls back to a pod ready check

@@ -96,6 +96,36 @@ func TestReadinessChecker_CheckConditions(t *testing.T) {
 				},
 			},
 		},
+		{
+			desc:           "status-phase-running",
+			conditionTypes: []string{ConditionTypeStatus + "phase-running"},
+			ready:          true,
+
+			objs: []runtime.Object{
+				&corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"test": "test"}},
+					Status: corev1.PodStatus{
+						Phase: corev1.PodRunning,
+					},
+				},
+			},
+		},
+		{
+			desc:           "status-phase-pending",
+			conditionTypes: []string{ConditionTypeStatus + "phase-running"},
+			ready:          false,
+			msg:            "Testing",
+
+			objs: []runtime.Object{
+				&corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"test": "test"}},
+					Status: corev1.PodStatus{
+						Phase:   corev1.PodPending,
+						Message: "Testing",
+					},
+				},
+			},
+		},
 	}
 
 	ctx := context.TODO()
