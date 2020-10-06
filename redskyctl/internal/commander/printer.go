@@ -38,18 +38,40 @@ import (
 )
 
 const (
-	// PrinterAllowedFormats is the configuration key for
+	// PrinterAllowedFormats is the configuration key for setting the list of
+	// allowed output formats. This must be a comma-delimited list of format
+	// names that will reduce the default of formats (e.g. to allow only
+	// JSON and YAML).
 	PrinterAllowedFormats = "allowedFormats"
-	// PrinterOutputFormat is the configuration key for setting the initial output format
+	// PrinterOutputFormat is the configuration key for setting the initial
+	// output format. This value is effectively the default output format for
+	// the command. It must be set to one of the allowed formats.
 	PrinterOutputFormat = "outputFormat"
-	// PrinterColumns is the configuration key for setting the initial column list
+	// PrinterColumns is the configuration key for setting the initial column
+	// list. This must be a comma-delimited list of column names that will be
+	// displayed for tabular formats.
 	PrinterColumns = "columns"
-	// PrinterNoHeader is the configuration key for setting the initial suppress header flag
+	// PrinterNoHeader is the configuration key for setting the initial
+	// suppress header flag value. Suppressing the header on tabular formats
+	// will prevent the header row from being emitted.
 	PrinterNoHeader = "noHeader"
-	// PrinterShowLabels is the configuration key for setting the initial show labels flag
+	// PrinterShowLabels is the configuration key for setting the initial
+	// show labels flag value. Showing labels effects tabular formats which
+	// would not otherwise have an explicit label column. The reason the label
+	// column is special is because it is an arbitrary length list of key/value
+	// pairs, showing it by default might cause undesired wrapping.
 	PrinterShowLabels = "showLabels"
-	// PrinterHideStatus is the configuration key for setting the initial hide status flag
+	// PrinterHideStatus is the configuration key for setting the initial
+	// hide status flag value. Hiding the status effect the printing of
+	// Kubernetes objects which have a `status` section that may need to be
+	// suppressed from the output because representing an object at rest does
+	// not need to include the status.
 	PrinterHideStatus = "hideStatus"
+	// PrinterStreamList is the configuration key for setting the initial
+	// stream list status flag value. When printing Kubernetes objects this
+	// may result in an YAML document stream instead of a `v1/List` object
+	// being printed.
+	PrinterStreamList = "streamList"
 )
 
 // ResourcePrinter formats an object to a byte stream
@@ -135,9 +157,10 @@ func printFlagsFieldSep(c rune) bool { return c == ',' }
 func newPrintFlags(meta TableMeta, config map[string]string, additionalFormats map[string]AdditionalFormat) *printFlags {
 	pf := &printFlags{meta: meta, additionalFormats: additionalFormats}
 
-	// Hide status of Kube objects
+	// Kube specific configuration
 	if kp, ok := meta.(*kubePrinter); ok {
 		kp.hideStatus, _ = strconv.ParseBool(config[PrinterHideStatus])
+		kp.streamList, _ = strconv.ParseBool(config[PrinterStreamList])
 	}
 
 	// Split the column list
@@ -402,6 +425,7 @@ type kubePrinter struct {
 	scheme     *runtime.Scheme
 	printer    ResourcePrinter
 	hideStatus bool
+	streamList bool
 }
 
 // ExtractList returns a slice of the items from a Kube list object
@@ -508,6 +532,13 @@ func (k *kubePrinter) PrintObj(obj interface{}, w io.Writer) error {
 		return k.printer.PrintObj(u, w)
 	}
 
+	// Only YAML supports document streaming
+	streamList := k.streamList
+	if mp, ok := k.printer.(*marshalPrinter); !ok || !strings.EqualFold(mp.outputFormat, "yaml") {
+		// TODO We could consider doing ndjson
+		streamList = false
+	}
+
 	// List conversion is not deep, explicitly convert each item
 	ul := &unstructured.UnstructuredList{
 		Object: u.Object,
@@ -518,7 +549,18 @@ func (k *kubePrinter) PrintObj(obj interface{}, w io.Writer) error {
 		if err := k.convert(l.Items[i].Object, &ul.Items[i]); err != nil {
 			return err
 		}
+		if streamList {
+			if err := k.printer.PrintObj(ul.Items[i].Object, w); err != nil {
+				return err
+			}
+			_, _ = fmt.Fprintln(w, "---")
+		}
 	}
+
+	if streamList {
+		return nil
+	}
+
 	return k.printer.PrintObj(ul, w)
 }
 
