@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/redskyops/redskyops-controller/api/v1beta1"
+	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/experiments"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/generate/experiment"
@@ -117,12 +117,12 @@ func (o *ExperimentOptions) readConfig() error {
 	return nil
 }
 
-func (o *ExperimentOptions) newExperiment() *v1beta1.Experiment {
-	exp := &v1beta1.Experiment{
-		Spec: v1beta1.ExperimentSpec{
-			Metrics: []v1beta1.Metric{},
-			TrialTemplate: v1beta1.TrialTemplateSpec{
-				Spec: v1beta1.TrialSpec{
+func (o *ExperimentOptions) newExperiment() *redskyv1beta1.Experiment {
+	exp := &redskyv1beta1.Experiment{
+		Spec: redskyv1beta1.ExperimentSpec{
+			Metrics: []redskyv1beta1.Metric{},
+			TrialTemplate: redskyv1beta1.TrialTemplateSpec{
+				Spec: redskyv1beta1.TrialSpec{
 					JobTemplate: &batchv1beta1.JobTemplateSpec{
 						Spec: batchv1.JobSpec{
 							Template: corev1.PodTemplateSpec{
@@ -133,7 +133,7 @@ func (o *ExperimentOptions) newExperiment() *v1beta1.Experiment {
 						},
 					},
 					InitialDelaySeconds: 15,
-					SetupTasks: []v1beta1.SetupTask{
+					SetupTasks: []redskyv1beta1.SetupTask{
 						{
 							Name: "monitoring",
 							Args: []string{"prometheus", "$(MODE}"},
