@@ -132,11 +132,76 @@ func TestFieldPath_Read(t *testing.T) {
 			},
 			expected: "test",
 		},
+		{
+			desc:      "nested list elements",
+			fieldPath: []string{"x", "y{a=*}", "z"},
+			from: map[string]interface{}{
+				"x": map[string]interface{}{
+					"y": []interface{}{
+						map[string]interface{}{
+							"a": "c",
+							"z": "foobar",
+						},
+						map[string]interface{}{
+							"a": "b",
+							"z": "test",
+						},
+					},
+				},
+			},
+			expected: []interface{}{"foobar", "test"},
+		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
 			assert.Equal(t, c.expected, c.fieldPath.read(c.from))
+		})
+	}
+}
+
+func TestFieldPath_ReadInfo(t *testing.T) {
+	cases := []struct {
+		desc      string
+		fieldPath fieldPath
+		from      interface{}
+		target    interface{}
+		expected  interface{}
+	}{
+		{
+			desc:      "read out of list",
+			fieldPath: []string{"a", "b{x=test}"},
+			from: map[string]interface{}{
+				"a": map[string]interface{}{
+					"b": []interface{}{
+						map[string]interface{}{
+							"x": "test",
+							"y": "foobar",
+						},
+					},
+				},
+			},
+			target: &struct {
+				X string `json:"x"`
+				Y string `json:"y"`
+			}{},
+			expected: &struct {
+				X string `json:"x"`
+				Y string `json:"y"`
+			}{
+				X: "test",
+				Y: "foobar",
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			actual := c.target
+			err := c.fieldPath.readInto(c.from, actual)
+			if assert.NoError(t, err) {
+				assert.Equal(t, c.expected, actual)
+			}
 		})
 	}
 }

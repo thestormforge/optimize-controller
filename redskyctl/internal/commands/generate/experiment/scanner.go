@@ -30,6 +30,11 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+const (
+	defaultParameterMin = 100
+	defaultParameterMax = 4000
+)
+
 type Scanner struct {
 	FileSystem filesys.FileSystem
 }
@@ -117,26 +122,23 @@ func (s *Scanner) findPaths(r *resource.Resource) ([]fieldPath, error) {
 		return nil, nil
 	}
 
-	// Expect to find a container list
-	containers, ok := fieldPath([]string{"spec", "template", "spec", "containers"}).read(r.Map()).([]interface{})
+	// Find all the container names
+	names, ok := fieldPath([]string{"spec", "template", "spec", "containers{name=*}", "name"}).read(r.Map()).([]interface{})
 	if !ok {
-		return nil, fmt.Errorf("expected sequence")
+		return nil, fmt.Errorf("could not find container names")
 	}
 
 	// For each container, add a path
-	p := make([]fieldPath, 0, len(containers))
-	for i := range containers {
-		c, ok := containers[i].(map[string]interface{})
+	paths := make([]fieldPath, 0, len(names))
+	for i := range names {
+		name, ok := names[i].(string)
 		if !ok {
-			return nil, fmt.Errorf("expected mapping")
+			return nil, fmt.Errorf("expected container name to be a string")
 		}
-		p = append(p, []string{
-			"spec", "template", "spec",
-			fmt.Sprintf("containers{name=%s}", c["name"]),
-			"resources"})
+		paths = append(paths, []string{"spec", "template", "spec", "containers{name=" + name + "}", "resources"})
 	}
 
-	return p, nil
+	return paths, nil
 }
 
 func (s *Scanner) apply(rl []resourceLists, exp *v1beta1.Experiment) error {
@@ -151,8 +153,13 @@ func (s *Scanner) apply(rl []resourceLists, exp *v1beta1.Experiment) error {
 
 		// Set arbitrary bounds on each parameter
 		for j := range parameters {
-			parameters[j].Min = 100
-			parameters[j].Max = 4000
+			if parameters[j].Min == 0 {
+				parameters[j].Min = defaultParameterMin
+			}
+			if parameters[j].Max == 0 {
+				parameters[j].Max = defaultParameterMax
+			}
+			// TODO Swap the bounds if they don't align?
 		}
 
 		exp.Spec.Parameters = append(exp.Spec.Parameters, parameters...)

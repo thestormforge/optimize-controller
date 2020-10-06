@@ -23,7 +23,7 @@ import (
 	"github.com/redskyops/redskyops-controller/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
-	yyaml "sigs.k8s.io/yaml"
+	"sigs.k8s.io/yaml"
 )
 
 // resourceLists represents the location of the resource lists for a specific resource.
@@ -89,6 +89,11 @@ type fieldPath []string
 
 var fieldPathRegexp = regexp.MustCompile(`([^{}]+)(:?{(.+)=(.+)})?`)
 
+// String returns a string representation of the field path.
+func (fp fieldPath) String() string {
+	return strings.Join(fp, "/")
+}
+
 // build returns the minimal object representing the path to the supplied leaf value.
 func (fp fieldPath) build(leaf interface{}) strategicpatch.JSONMap {
 	if len(fp) == 0 {
@@ -136,19 +141,42 @@ func (fp fieldPath) read(from interface{}) interface{} {
 	}
 
 	pp := fieldPathRegexp.FindStringSubmatch(fp[0])
-	if pp[2] != "" {
-		l, ok := f[pp[1]].([]interface{})
-		if !ok {
-			return nil
-		}
-		for i := range l {
-			if fieldPath(pp[3:4]).read(l[i]) == pp[4] {
-				return fp[1:].read(l[i])
-			}
-		}
+	if pp[2] == "" {
+		return fp[1:].read(f[pp[1]])
+	}
+
+	l, ok := f[pp[1]].([]interface{})
+	if !ok {
 		return nil
 	}
-	return fp[1:].read(f[pp[1]])
+
+	if pp[4] == "*" {
+		all := make([]interface{}, len(l))
+		for i := range l {
+			all[i] = fp[1:].read(l[i])
+		}
+		return all
+	}
+
+	for i := range l {
+		if pp[4] == fieldPath(pp[3:4]).read(l[i]) {
+			return fp[1:].read(l[i])
+		}
+	}
+	return nil
+}
+
+// readInto performs a YAML serialization round trip on a value.
+func (fp fieldPath) readInto(from, into interface{}) error {
+	v := fp.read(from)
+	if v == nil {
+		return nil
+	}
+	data, err := yaml.Marshal(v)
+	if err != nil {
+		return err
+	}
+	return yaml.Unmarshal(data, into)
 }
 
 // mergeKeyValues returns only the values of the merge keys present in the field path. This is useful
@@ -176,7 +204,7 @@ func marshalPatch(p ...strategicpatch.JSONMap) (string, error) {
 	}
 
 	// Marshal the YAML
-	b, err := yyaml.Marshal(patch)
+	b, err := yaml.Marshal(patch)
 	if err != nil {
 		return "", err
 	}
