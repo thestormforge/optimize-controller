@@ -5,6 +5,7 @@ kind: Service
 metadata:
   labels:
     app: prometheus
+    component: server
   name: prometheus
 spec:
   ports:
@@ -14,5 +15,6 @@ spec:
     targetPort: 9090
   selector:
     app: prometheus
+    component: server
   sessionAffinity: None
   type: ClusterIP

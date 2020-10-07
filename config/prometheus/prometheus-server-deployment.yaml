@@ -4,16 +4,19 @@ kind: Deployment
 metadata:
   labels:
     app: prometheus
+    component: server
   name: prometheus-server
 spec:
   selector:
     matchLabels:
       app: prometheus
+      component: server
   replicas: 1
   template:
     metadata:
       labels:
         app: prometheus
+        component: server
     spec:
       serviceAccountName: prometheus-server
       containers:
