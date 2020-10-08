@@ -52,11 +52,16 @@ func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 		RunE:   commander.WithContextE(o.generate),
 	}
 
-	cmd.Flags().StringVar(&o.Image, "image", kustomize.BuildImage, "Specify the controller image to use.")
-	_ = cmd.Flags().MarkHidden("image")
+	o.addFlags(cmd)
 
 	commander.ExitOnError(cmd)
 	return cmd
+}
+
+func (o *GeneratorOptions) addFlags(cmd *cobra.Command) {
+	// Add hidden options
+	cmd.Flags().StringVar(&o.Image, "image", kustomize.BuildImage, "Specify the controller image to use.")
+	_ = cmd.Flags().MarkHidden("image")
 }
 
 func (o *GeneratorOptions) generate(ctx context.Context) error {

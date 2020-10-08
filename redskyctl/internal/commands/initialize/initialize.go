@@ -41,7 +41,6 @@ type Options struct {
 	IncludeBootstrapRole    bool
 	IncludeExtraPermissions bool
 	NamespaceSelector       string
-	Image                   string
 	SkipControllerRBAC      bool
 	SkipSecret              bool
 }
@@ -62,11 +61,11 @@ func NewCommand(o *Options) *cobra.Command {
 	cmd.Flags().BoolVar(&o.IncludeExtraPermissions, "extra-permissions", o.IncludeExtraPermissions, "Generate permissions required for features like namespace creation")
 	cmd.Flags().StringVar(&o.NamespaceSelector, "ns-selector", o.NamespaceSelector, "Create namespaced role bindings to matching namespaces.")
 
+	o.addFlags(cmd)
+
 	// Add hidden options
-	cmd.Flags().StringVar(&o.Image, "image", kustomize.BuildImage, "Specify the controller image to use.")
 	cmd.Flags().BoolVar(&o.SkipControllerRBAC, "skip-controller-rbac", o.SkipControllerRBAC, "Skip generation of additional controller roles.")
 	cmd.Flags().BoolVar(&o.SkipSecret, "skip-secret", o.SkipSecret, "Skip generation of secret.")
-	_ = cmd.Flags().MarkHidden("image")
 	_ = cmd.Flags().MarkHidden("skip-controller-rbac")
 	_ = cmd.Flags().MarkHidden("skip-secret")
 
