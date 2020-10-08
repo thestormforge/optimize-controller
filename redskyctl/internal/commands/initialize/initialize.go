@@ -87,7 +87,7 @@ func (o *Options) initialize(ctx context.Context) error {
 func (o *Options) generateInstall() (io.Reader, error) {
 	var buf bytes.Buffer
 
-	opts := o.GeneratorOptions // This MUST be a copy
+	opts := o.GeneratorOptions // Make a copy so we can overwrite the IOStreams without impacting the init command
 	opts.labels = map[string]string{"app.kubernetes.io/managed-by": "redskyctl"}
 	opts.IOStreams = commander.IOStreams{Out: &buf}
 	if err := opts.generate(); err != nil {
