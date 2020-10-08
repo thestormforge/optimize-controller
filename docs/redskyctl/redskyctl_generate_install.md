@@ -13,7 +13,10 @@ redskyctl generate install [flags]
 ### Options
 
 ```
-  -h, --help   help for install
+      --bootstrap-role       Create the bootstrap role.
+      --extra-permissions    Generate permissions required for features like namespace creation.
+  -h, --help                 help for install
+      --ns-selector string   Create namespaced role bindings to matching namespaces.
 ```
 
 ### Options inherited from parent commands
