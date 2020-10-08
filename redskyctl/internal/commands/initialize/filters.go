@@ -88,7 +88,12 @@ func (o *GeneratorOptions) envFromSecretFilter() kio.Filter {
 				continue
 			}
 
-			if err := commentOutEnvFrom(n); err != nil {
+			manager, err := yaml.Lookup("spec", "template", "spec", "containers", "[name=manager]").Filter(n)
+			if err != nil {
+				return nil, err
+			}
+
+			if err := commentOutField(manager, "envFrom"); err != nil {
 				return nil, err
 			}
 		}
@@ -96,60 +101,47 @@ func (o *GeneratorOptions) envFromSecretFilter() kio.Filter {
 	})
 }
 
-func commentOutEnvFrom(node *yaml.RNode) error {
-	switch node.YNode().Kind {
-	case yaml.MappingNode:
-		// Recurse into each key/value in the map
-		return node.VisitFields(func(node *yaml.MapNode) error {
-			if err := commentOutEnvFrom(node.Value); err != nil {
+func commentOutField(node *yaml.RNode, fieldName string) error {
+	if err := yaml.ErrorIfInvalid(node, yaml.MappingNode); err != nil {
+		return err
+	}
+
+	con := node.YNode().Content
+	for i := 0; i < len(con); i = i + 2 {
+		if con[i].Value == fieldName {
+			// Encode the field name and it's value as a YAML string
+			comment, err := encodeMappingNode(con[i], con[i+1])
+			if err != nil {
 				return err
 			}
 
-			// Only process the "containers" list
-			if node.Key.YNode().Value != "containers" || node.Value.YNode().Kind != yaml.SequenceNode {
-				return nil
-			}
+			// Stick the encoded YAML in the comment of the next element
+			// FIXME You can't comment out the last element
+			con[i+2].HeadComment = comment
 
-			// Iterate over the containers
-			cs, _ := node.Value.Elements()
-			for _, c := range cs {
-				con := c.YNode().Content
-				for i := 0; i < len(con); i = i + 2 {
-					if con[i].Value == "envFrom" {
-						// Convert the "envFrom" node into a YAML document and encode it
-						var buf bytes.Buffer
-						enc := yaml.NewEncoder(&buf)
-						err := enc.Encode(&yaml.Node{
-							Kind: yaml.DocumentNode,
-							Content: []*yaml.Node{
-								{
-									Kind:    yaml.MappingNode,
-									Content: con[i : i+2],
-								},
-							},
-						})
-						if err != nil {
-							return err
-						}
-
-						// Set the encoded YAML as the comment on the next element
-						con[i+2].HeadComment = buf.String()
-
-						// Remove the real "envFrom"
-						copy(con[i:], con[i+2:])
-						c.YNode().Content = con[:len(con)-2]
-						break
-					}
-				}
-			}
+			// Remove the real nodes
+			copy(con[i:], con[i+2:])
+			node.YNode().Content = con[:len(con)-2]
 			return nil
-		})
-	case yaml.SequenceNode:
-		// Recurse into each element in the list
-		return node.VisitElements(func(node *yaml.RNode) error {
-			return commentOutEnvFrom(node)
-		})
-	default:
-		return nil
+		}
 	}
+	return nil
+}
+
+func encodeMappingNode(key, value *yaml.Node) (string, error) {
+	// Convert the node into a YAML document and encode it
+	var buf bytes.Buffer
+	err := yaml.NewEncoder(&buf).Encode(&yaml.Node{
+		Kind: yaml.DocumentNode,
+		Content: []*yaml.Node{
+			{
+				Kind:    yaml.MappingNode,
+				Content: []*yaml.Node{key, value},
+			},
+		},
+	})
+	if err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }
