@@ -52,7 +52,7 @@ func NewCommand(o *Options) *cobra.Command {
 }
 
 func (o *Options) initialize(ctx context.Context) error {
-	install, err := o.generateInstall(ctx)
+	install, err := o.generateInstall()
 	if err != nil {
 		return err
 	}
@@ -84,13 +84,13 @@ func (o *Options) initialize(ctx context.Context) error {
 	return nil
 }
 
-func (o *Options) generateInstall(ctx context.Context) (io.Reader, error) {
+func (o *Options) generateInstall() (io.Reader, error) {
 	var buf bytes.Buffer
 
 	opts := o.GeneratorOptions // This MUST be a copy
 	opts.labels = map[string]string{"app.kubernetes.io/managed-by": "redskyctl"}
 	opts.IOStreams = commander.IOStreams{Out: &buf}
-	if err := opts.generate(ctx); err != nil {
+	if err := opts.generate(); err != nil {
 		return nil, err
 	}
 	return &buf, nil

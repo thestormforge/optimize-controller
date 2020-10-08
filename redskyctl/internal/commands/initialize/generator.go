@@ -18,22 +18,16 @@ package initialize
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"sync"
 
-	"github.com/redskyops/redskyops-controller/internal/version"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/authorize_cluster"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/grant_permissions"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/kustomize"
 	"github.com/redskyops/redskyops-go/pkg/config"
 	"github.com/spf13/cobra"
-	"sigs.k8s.io/kustomize/api/filters/labels"
-	"sigs.k8s.io/kustomize/api/resid"
-	"sigs.k8s.io/kustomize/api/types"
 	"sigs.k8s.io/kustomize/kyaml/kio"
-	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
 // GeneratorOptions are the configuration options for generating the controller installation
@@ -68,7 +62,7 @@ func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 		},
 
 		PreRun: commander.StreamsPreRun(&o.IOStreams),
-		RunE:   commander.WithContextE(o.generate),
+		RunE:   commander.WithoutArgsE(o.generate),
 	}
 
 	o.addFlags(cmd)
@@ -91,7 +85,7 @@ func (o *GeneratorOptions) addFlags(cmd *cobra.Command) {
 	_ = cmd.Flags().MarkHidden("skip-secret")
 }
 
-func (o *GeneratorOptions) generate(_ context.Context) error {
+func (o *GeneratorOptions) generate() error {
 	// Generate the primary application manifests
 	app, err := o.generateApplication()
 	if err != nil {
@@ -104,7 +98,6 @@ func (o *GeneratorOptions) generate(_ context.Context) error {
 			&kio.ByteReader{Reader: app},
 		},
 		Filters: []kio.Filter{
-			o.clusterRoleBindingFilter(),
 			o.labelFilter(),
 		},
 		Outputs: []kio.Writer{
@@ -120,59 +113,19 @@ func (o *GeneratorOptions) generate(_ context.Context) error {
 		p.Inputs = append(p.Inputs, &kio.ByteReader{Reader: o.generateSecret()})
 	}
 
+	if o.NamespaceSelector != "" {
+		p.Filters = append(p.Filters, o.clusterRoleBindingFilter())
+	}
+
+	if o.SkipSecret {
+		p.Filters = append(p.Filters, o.envFromSecretFilter())
+	}
+
 	return p.Execute()
 }
 
-// clusterRoleBindingFilter returns a filter that removes cluster role bindings for namespaced deployments
-func (o *GeneratorOptions) clusterRoleBindingFilter() kio.Filter {
-	return kio.FilterFunc(func(nodes []*yaml.RNode) ([]*yaml.RNode, error) {
-		if o.NamespaceSelector == "" {
-			return nodes, nil
-		}
-
-		output := make([]*yaml.RNode, 0, len(nodes))
-		for i := range nodes {
-			m, err := nodes[i].GetMeta()
-			if err != nil {
-				return nil, err
-			}
-
-			if m.Kind != "ClusterRoleBinding" || m.APIVersion == "rbac.authorization.k8s.io/v1" {
-				output = append(output, nodes[i])
-			}
-		}
-		return output, nil
-	})
-}
-
-// labelFilter returns a filter that applies the configured labels
-func (o *GeneratorOptions) labelFilter() kio.Filter {
-	f := labels.Filter{
-		Labels: map[string]string{
-			"app.kubernetes.io/version": version.GetInfo().Version,
-		},
-		FsSlice: []types.FieldSpec{
-			{
-				Gvk: resid.Gvk{
-					Kind: "Deployment",
-				},
-				Path:               "spec/template/metadata/labels",
-				CreateIfNotPresent: true,
-			},
-			{
-				Path:               "metadata/labels",
-				CreateIfNotPresent: true,
-			},
-		},
-	}
-
-	for k, v := range o.labels {
-		f.Labels[k] = v
-	}
-
-	return f
-}
-
+// generateApplication produces the primary application manifests via an in-memory kustomization of
+// go-generated assets computed during the build.
 func (o *GeneratorOptions) generateApplication() (io.Reader, error) {
 	r := o.Config.Reader()
 	ctrl, err := config.CurrentController(r)
@@ -202,6 +155,8 @@ func (o *GeneratorOptions) generateApplication() (io.Reader, error) {
 	return bytes.NewReader(yamls), nil
 }
 
+// generateControllerRBAC produces the RBAC manifests by invoking the
+// `grant_permissions` generator in memory.
 func (o *GeneratorOptions) generateControllerRBAC() io.Reader {
 	opts := grant_permissions.GeneratorOptions{
 		Config:                o.Config,
@@ -213,6 +168,8 @@ func (o *GeneratorOptions) generateControllerRBAC() io.Reader {
 	return o.newStdoutReader(grant_permissions.NewGeneratorCommand(&opts))
 }
 
+// generateSecret produces the Experiments API credentials secret manifest by invoking the
+// `authorize_cluster` generator in memory.
 func (o *GeneratorOptions) generateSecret() io.Reader {
 	opts := authorize_cluster.GeneratorOptions{
 		Config:            o.Config,
