@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/redskyops/redskyops-controller/internal/version"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/kustomize"
 	"github.com/redskyops/redskyops-go/pkg/config"
@@ -32,6 +33,9 @@ type GeneratorOptions struct {
 	Config *config.RedSkyConfig
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
+
+	// labels are currently private use for `redskyctl init` only
+	labels map[string]string
 
 	Image string
 }
@@ -65,6 +69,12 @@ func (o *GeneratorOptions) addFlags(cmd *cobra.Command) {
 }
 
 func (o *GeneratorOptions) generate(ctx context.Context) error {
+	// Always include the version
+	if o.labels == nil {
+		o.labels = make(map[string]string, 1)
+	}
+	o.labels["app.kubernetes.io/version"] = version.GetInfo().Version
+
 	r := o.Config.Reader()
 	ctrl, err := config.CurrentController(r)
 	if err != nil {
@@ -83,8 +93,9 @@ func (o *GeneratorOptions) generate(ctx context.Context) error {
 
 	yamls, err := kustomize.Yamls(
 		kustomize.WithInstall(),
-		kustomize.WithImage(o.Image),
 		kustomize.WithNamespace(ctrl.Namespace),
+		kustomize.WithImage(o.Image),
+		kustomize.WithLabels(o.labels),
 		kustomize.WithAPI(apiEnabled),
 	)
 

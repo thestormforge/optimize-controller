@@ -22,12 +22,9 @@ import (
 	"io"
 	"sync"
 
-	"github.com/redskyops/redskyops-controller/internal/version"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/authorize_cluster"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/grant_permissions"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/kustomize"
-	"github.com/redskyops/redskyops-go/pkg/config"
 	"github.com/spf13/cobra"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
@@ -127,38 +124,18 @@ func (o *Options) initialize(ctx context.Context) error {
 }
 
 func (o *Options) generateInstall(ctx context.Context) (io.Reader, error) {
-	r := o.Config.Reader()
-	ctrl, err := config.CurrentController(r)
-	if err != nil {
+	opts := GeneratorOptions{
+		Config: o.Config,
+		labels: map[string]string{"app.kubernetes.io/managed-by": "redskyctl"},
+		Image:  o.Image,
+	}
+
+	var buf bytes.Buffer
+	opts.IOStreams = commander.IOStreams{Out: &buf}
+	if err := opts.generate(ctx); err != nil {
 		return nil, err
 	}
-
-	auth, err := config.CurrentAuthorization(r)
-	if err != nil {
-		return nil, err
-	}
-
-	apiEnabled := false
-	if auth.Credential.TokenCredential != nil {
-		apiEnabled = true
-	}
-
-	yamls, err := kustomize.Yamls(
-		kustomize.WithInstall(),
-		kustomize.WithNamespace(ctrl.Namespace),
-		kustomize.WithImage(o.Image),
-		kustomize.WithLabels(map[string]string{
-			"app.kubernetes.io/version":    version.GetInfo().Version,
-			"app.kubernetes.io/managed-by": "redskyctl",
-		}),
-		kustomize.WithAPI(apiEnabled),
-	)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return bytes.NewReader(yamls), nil
+	return &buf, nil
 }
 
 func (o *Options) generateControllerRBAC() io.Reader {
