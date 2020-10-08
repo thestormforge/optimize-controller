@@ -4,66 +4,108 @@ kind: Deployment
 metadata:
   labels:
     app: prometheus
-    component: server
   name: prometheus-server
 spec:
   selector:
     matchLabels:
       app: prometheus
-      component: server
   replicas: 1
   template:
     metadata:
       labels:
         app: prometheus
-        component: server
     spec:
       serviceAccountName: prometheus-server
       containers:
-        - name: prometheus-server-configmap-reload
-          image: "jimmidyson/configmap-reload:latest"
-          imagePullPolicy: "IfNotPresent"
-          args:
-            - --volume-dir=/etc/config
-            - --webhook-url=http://127.0.0.1:9090/-/reload
-          volumeMounts:
-            - name: config-volume
-              mountPath: /etc/config
-              readOnly: true
-        - name: prometheus-server
-          image: "prom/prometheus:v2.21.0"
-          imagePullPolicy: "IfNotPresent"
-          args:
-            - --storage.tsdb.retention.time=1d
-            - --config.file=/etc/config/prometheus.yml
-            - --web.console.libraries=/etc/prometheus/console_libraries
-            - --web.console.templates=/etc/prometheus/consoles
-            - --web.enable-lifecycle
-          ports:
-            - containerPort: 9090
-          readinessProbe:
-            httpGet:
-              path: /-/ready
-              port: 9090
-            initialDelaySeconds: 30
-            periodSeconds: 5
-            timeoutSeconds: 30
-            failureThreshold: 3
-            successThreshold: 1
-          livenessProbe:
-            httpGet:
-              path: /-/healthy
-              port: 9090
-            initialDelaySeconds: 30
-            periodSeconds: 15
-            timeoutSeconds: 30
-            failureThreshold: 3
-            successThreshold: 1
-          volumeMounts:
-            - name: config-volume
-              mountPath: /etc/config
-            - name: storage-volume
-              mountPath: /data
+      - name: kube-state-metrics
+        args:
+        - --collectors=pods
+        imagePullPolicy: IfNotPresent
+        image: "quay.io/coreos/kube-state-metrics:v1.9.7"
+        ports:
+        - containerPort: 8080
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 5
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 5
+          timeoutSeconds: 5
+        resources:
+          requests:
+            cpu: 25m
+            memory: 25M
+          limits:
+            cpu: 100m
+            memory: 200M
+      - name: prometheus-pushgateway
+        image: "prom/pushgateway:v1.3.0"
+        imagePullPolicy: "IfNotPresent"
+        args:
+        ports:
+          - containerPort: 9091
+        livenessProbe:
+          httpGet:
+            path: /-/healthy
+            port: 9091
+          initialDelaySeconds: 10
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /-/ready
+            port: 9091
+          initialDelaySeconds: 10
+          timeoutSeconds: 10
+        resources:
+          requests:
+            cpu: 25m
+            memory: 25M
+          limits:
+            cpu: 100m
+            memory: 50M
+      - name: prometheus-server
+        image: "prom/prometheus:v2.21.0"
+        imagePullPolicy: "IfNotPresent"
+        args:
+          - --storage.tsdb.retention.time=1d
+          - --config.file=/etc/config/prometheus.yml
+        ports:
+          - containerPort: 9090
+        readinessProbe:
+          httpGet:
+            path: /-/ready
+            port: 9090
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 30
+          failureThreshold: 3
+          successThreshold: 1
+        livenessProbe:
+          httpGet:
+            path: /-/healthy
+            port: 9090
+          initialDelaySeconds: 30
+          periodSeconds: 15
+          timeoutSeconds: 30
+          failureThreshold: 3
+          successThreshold: 1
+        resources:
+          requests:
+            cpu: 25m
+            memory: 25M
+          limits:
+            cpu: 100m
+            memory: 200M
+        volumeMounts:
+          - name: config-volume
+            mountPath: /etc/config
+          - name: storage-volume
+            mountPath: /data
       securityContext:
         fsGroup: 65534
         runAsGroup: 65534

@@ -5,16 +5,18 @@ kind: Service
 metadata:
   labels:
     app: prometheus
-    component: server
   name: prometheus
 spec:
   ports:
-  - name: http
+  - name: server
     port: 9090
     protocol: TCP
     targetPort: 9090
+  - name: pushgw
+    port: 9091
+    protocol: TCP
+    targetPort: 9091
   selector:
     app: prometheus
-    component: server
   sessionAffinity: None
   type: ClusterIP

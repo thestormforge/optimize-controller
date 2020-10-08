@@ -22,11 +22,6 @@ case "$1" in
     fi
 
     kustomize edit set nameprefix $namePrefix
-
-    # Update static scrape target
-    ## janky busybox sed
-    sed -i -re 's/- (kube-state-metrics:8080)/- '$namePrefix'\1/' prometheus-server-configmap.yaml
-
   ;;
 esac
 
