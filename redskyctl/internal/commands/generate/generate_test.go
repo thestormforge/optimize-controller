@@ -60,7 +60,7 @@ func TestGenerate(t *testing.T) {
 		},
 		{
 			desc:          "gen install",
-			args:          []string{"install"},
+			args:          []string{"install", "--skip-secret"},
 			expectedError: false,
 			expectedPatterns: []string{
 				"kind: CustomResourceDefinition",
@@ -74,6 +74,7 @@ func TestGenerate(t *testing.T) {
 			desc: "gen install custom namespace",
 			args: []string{
 				"install",
+				"--skip-secret",
 				"--redskyconfig",
 				rsConfig.Name(),
 			},
@@ -89,6 +90,7 @@ func TestGenerate(t *testing.T) {
 			desc: "gen install custom image",
 			args: []string{
 				"install",
+				"--skip-secret",
 				"--image",
 				"gcr.io/redskyops/funsies:latest",
 			},
@@ -206,7 +208,6 @@ authorizations:
 contexts:
 - context:
     authorization: dev
-    server: dev
   name: dev
 controllers:
 - controller:
