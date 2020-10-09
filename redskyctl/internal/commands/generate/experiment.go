@@ -156,7 +156,7 @@ func (o *ExperimentOptions) newExperiment() *redskyv1beta1.Experiment {
 	}
 
 	// TODO Do we want to filter out any of this information?
-	o.ExperimentConfig.DeepCopyInto(&exp.ObjectMeta)
+	o.ExperimentConfig.ObjectMeta.DeepCopyInto(&exp.ObjectMeta)
 
 	return exp
 }
