@@ -46,12 +46,6 @@ label() {
 }
 
 
-# For the installation root we remove the labels that are typically added during
-# an install because the chart will contain templatized labels instead.
-cd "$WORKSPACE/install"
-konjure kustomize edit remove transformer metadata_labels.yaml
-
-
 # For the default root we remove the resources that get included separately.
 cd "$WORKSPACE/default"
 kustomize edit remove resource "../crd"

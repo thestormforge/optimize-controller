@@ -1,7 +1,10 @@
 namespace: redsky-system
 
+commonLabels:
+  app.kubernetes.io/name: redskyops
+
 resources:
-  - ../install
+  - ../default
 
 patchesStrategicMerge:
   - chart_patch.yaml

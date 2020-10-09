@@ -13,8 +13,8 @@ redskyctl init [flags]
 ### Options
 
 ```
-      --bootstrap-role       Create the bootstrap role (if it does not exist). (default true)
-      --extra-permissions    Generate permissions required for features like namespace creation
+      --bootstrap-role       Create the bootstrap role. (default true)
+      --extra-permissions    Generate permissions required for features like namespace creation.
   -h, --help                 help for init
       --ns-selector string   Create namespaced role bindings to matching namespaces.
       --wait                 Wait for resources to be established before returning.
