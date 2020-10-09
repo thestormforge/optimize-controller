@@ -363,13 +363,13 @@ scalar(
           increase(container_cpu_usage_seconds_total{container="", image=""}[5s])
         ) by (pod)
         *
-        on (pod) group_left kube_pod_labels{label_component="bob",label_component="tom"}
+        on (pod) group_left kube_pod_labels{namespace="default",label_component="bob",label_component="tom"}
       )
       /
       sum(
         sum_over_time(kube_pod_container_resource_requests_cpu_cores[5s:1s])
         *
-        on (pod) group_left kube_pod_labels{label_component="bob",label_component="tom"}
+        on (pod) group_left kube_pod_labels{namespace="default",label_component="bob",label_component="tom"}
       )
     )
   * 100, 0.0001)
@@ -405,7 +405,7 @@ scalar(
           container_memory_max_usage_bytes
         ) by (pod)
         *
-        on (pod) group_left kube_pod_labels{label_component="bob",label_component="tom"}
+        on (pod) group_left kube_pod_labels{namespace="default",label_component="bob",label_component="tom"}
         /
         sum(
           kube_pod_container_resource_requests_memory_bytes
@@ -439,7 +439,7 @@ scalar(
   sum(
     avg_over_time(kube_pod_container_resource_requests_memory_bytes[5s])
     *
-    on (pod) group_left kube_pod_labels{label_component="bob",label_component="tom"}
+    on (pod) group_left kube_pod_labels{namespace="default",label_component="bob",label_component="tom"}
   )
 )`
 
@@ -448,7 +448,7 @@ scalar(
   sum(
     avg_over_time(kube_pod_container_resource_requests_cpu_cores[5s])
     *
-    on (pod) group_left kube_pod_labels{label_component="bob",label_component="tom"}
+    on (pod) group_left kube_pod_labels{namespace="default",label_component="bob",label_component="tom"}
   )
 )`
 )
