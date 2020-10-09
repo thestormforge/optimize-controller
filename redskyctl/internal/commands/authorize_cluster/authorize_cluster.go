@@ -17,11 +17,12 @@ limitations under the License.
 package authorize_cluster
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"io"
+	"text/template"
 
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-go/pkg/config"
@@ -109,16 +110,28 @@ func (o *Options) generateSecret(out io.Writer, secretName, secretHash *string) 
 // patchDeployment patches the Red Sky Controller deployment to reflect the state of the secret; any changes to the
 // will cause the controller to be re-deployed.
 func (o *Options) patchDeployment(ctx context.Context, secretName, secretHash string) error {
-	// TODO Deployment name should come from config (it could be different, e.g. for a Helm installation)
-	name := "redsky-controller-manager"
-	patch := fmt.Sprintf(patchFormat, secretHash, secretName)
 	ctrl, err := config.CurrentController(o.Config.Reader())
 	if err != nil {
 		return err
 	}
 
+	// Generate the deployment patch using the secret name and hash
+	var buf bytes.Buffer
+	tmpl := template.Must(template.New("patch").Parse(patchTemplate))
+	err = tmpl.Execute(&buf, map[string]string{
+		"SecretName": secretName,
+		"SecretHash": secretHash,
+	})
+	if err != nil {
+		return err
+	}
+
 	// Execute the patch
-	kubectlPatch, err := o.Config.Kubectl(ctx, "patch", "deployment", name, "--namespace", ctrl.Namespace, "--patch", patch)
+	// TODO Deployment name should come from config (it could be different, e.g. for a Helm installation)
+	name := "redsky-controller-manager"
+	namespace := ctrl.Namespace
+	patch := buf.String()
+	kubectlPatch, err := o.Config.Kubectl(ctx, "patch", "deployment", name, "--namespace", namespace, "--patch", patch)
 	if err != nil {
 		return err
 	}
@@ -127,17 +140,17 @@ func (o *Options) patchDeployment(ctx context.Context, secretName, secretHash st
 	return kubectlPatch.Run()
 }
 
-// patchFormat is used to patch the deployment with the secret information
-const patchFormat = `
+// patchTemplate is used to patch the deployment with the secret information
+const patchTemplate = `
 spec:
   template:
     metadata:
       annotations:
-        "redskyops.dev/secretHash": "%s"
+        "redskyops.dev/secretHash": "{{ .SecretHash }}"
     spec:
       containers:
       - name: manager
         envFrom:
         - secretRef:
-            name: "%s"
+            name: "{{ .SecretName }}"
 `
