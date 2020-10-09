@@ -38,11 +38,13 @@ func capturePrometheusMetric(m *redskyv1beta1.Metric, target runtime.Object, com
 	}
 
 	for _, u := range urls {
-		if value, stddev, err = captureOnePrometheusMetric(u, m.Query, m.ErrorQuery, completionTime); err != nil {
-			continue
+		if value, stddev, err = captureOnePrometheusMetric(u, m.Query, m.ErrorQuery, completionTime); err == nil {
+			break
 		}
 
-		return value, stddev, nil
+		if _, ok := err.(*CaptureError); ok {
+			return value, stddev, err
+		}
 	}
 
 	return value, stddev, err
@@ -89,9 +91,11 @@ func captureOnePrometheusMetric(address, query, errorQuery string, completionTim
 	result := float64(v.(*model.Scalar).Value)
 	if math.IsNaN(result) {
 		err := &CaptureError{Message: "metric data not available", Address: address, Query: query, CompletionTime: completionTime}
+
 		if strings.HasPrefix(query, "scalar(") {
 			err.Message += " (the scalar function may have received an input vector whose size is not 1)"
 		}
+
 		return 0, 0, err
 	}
 
