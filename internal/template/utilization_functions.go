@@ -100,7 +100,9 @@ scalar(
 func renderUtilization(query string, data MetricData, labelArgs ...string) (string, error) {
 	tmpl := template.Must(template.New("query").Parse(query))
 
-	var labels []string
+	// Always include the trial namespace
+	labels := []string{fmt.Sprintf("namespace=\"%s\"", data.Trial.Namespace)}
+
 	for _, label := range strings.Split(strings.Join(labelArgs, ","), ",") {
 		if label == "" {
 			continue
@@ -112,10 +114,6 @@ func renderUtilization(query string, data MetricData, labelArgs ...string) (stri
 		}
 
 		labels = append(labels, fmt.Sprintf("label_%s=\"%s\"", kvpair[0], kvpair[1]))
-	}
-
-	if len(labels) == 0 {
-		labels = append(labels, fmt.Sprintf("namespace=\"%s\"", data.Trial.Namespace))
 	}
 
 	input := struct {
