@@ -17,6 +17,7 @@ limitations under the License.
 package experiments
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -153,6 +154,36 @@ func TestParseNames(t *testing.T) {
 			} else if assert.NoError(t, err) {
 				assert.Equal(t, c.names, names)
 			}
+		})
+	}
+}
+
+func TestSortByField(t *testing.T) {
+	cases := []struct {
+		desc     string
+		field    string
+		unsorted []interface{}
+		sorted   []interface{}
+	}{
+		{
+			desc:  "x",
+			field: "x",
+			unsorted: []interface{}{
+				map[string]interface{}{"x": 20},
+				map[string]interface{}{"x": 40},
+				map[string]interface{}{"x": 30},
+			},
+			sorted: []interface{}{
+				map[string]interface{}{"x": 20},
+				map[string]interface{}{"x": 30},
+				map[string]interface{}{"x": 40},
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			sort.Slice(c.unsorted, sortByField(c.field, func(i int) interface{} { return c.unsorted[i] }))
+			assert.Equal(t, c.sorted, c.unsorted)
 		})
 	}
 }

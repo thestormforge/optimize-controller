@@ -19,7 +19,6 @@ package experiments
 import (
 	"fmt"
 	"io"
-	"reflect"
 	"strconv"
 	"strings"
 
@@ -398,31 +397,26 @@ func sortByField(sortBy string, item func(int) interface{}) func(int, int) bool 
 	}
 
 	return func(i, j int) bool {
-		ir, err := parser.FindResults(item(i))
-		if err != nil || len(ir) == 0 || len(ir[0]) == 0 {
-			return true
+		ir, ierr := parser.FindResults(item(i))
+		iok := ierr == nil && len(ir) > 0 && len(ir[0]) > 0 && ir[0][0].CanInterface()
+
+		jr, jerr := parser.FindResults(item(j))
+		jok := jerr == nil && len(jr) > 0 && len(jr[0]) > 0 && jr[0][0].CanInterface()
+
+		if iok && jok && ir[0][0].Kind() == jr[0][0].Kind() {
+			jv := jr[0][0].Interface()
+			switch iv := ir[0][0].Interface().(type) {
+			case int:
+				return iv < jv.(int)
+			case int64:
+				return iv < jv.(int64)
+			case float64:
+				return iv < jv.(float64)
+			case string:
+				return iv < jv.(string) // TODO Improve the sort order
+			}
 		}
 
-		jr, err := parser.FindResults(item(j))
-		if err != nil || len(jr) == 0 || len(jr[0]) == 0 {
-			return false
-		}
-
-		less, _ := isLess(ir[0][0], jr[0][0])
-		return less
-	}
-}
-
-// isLess compares values, only int64, float64, and string are allowed
-func isLess(i, j reflect.Value) (bool, error) {
-	switch i.Kind() {
-	case reflect.Int64:
-		return i.Int() < j.Int(), nil
-	case reflect.Float64:
-		return i.Float() < j.Float(), nil
-	case reflect.String:
-		return i.String() < j.String(), nil // TODO Improve the sort order
-	default:
-		return false, fmt.Errorf("unsortable type: %v", i.Kind())
+		return i < j
 	}
 }
