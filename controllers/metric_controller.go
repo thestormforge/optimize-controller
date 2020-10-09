@@ -202,11 +202,15 @@ func (r *MetricReconciler) target(ctx context.Context, namespace string, m *reds
 	case redskyv1beta1.MetricPods:
 		// Use the selector to get a list of pods
 		target := &corev1.PodList{}
-		if sel, err := meta.MatchingSelector(m.Selector); err != nil {
-			return nil, err
-		} else if err := r.List(ctx, target, client.InNamespace(namespace), sel); err != nil {
+		sel, err := meta.MatchingSelector(m.Selector)
+		if err != nil {
 			return nil, err
 		}
+
+		if err = r.List(ctx, target, client.InNamespace(namespace), sel); err != nil {
+			return nil, err
+		}
+
 		return target, nil
 	case redskyv1beta1.MetricPrometheus, redskyv1beta1.MetricJSONPath:
 		// Both Prometheus and JSONPath target a service
@@ -216,11 +220,23 @@ func (r *MetricReconciler) target(ctx context.Context, namespace string, m *reds
 			return target, nil
 		}
 
-		if sel, err := meta.MatchingSelector(m.Selector); err != nil {
-			return nil, err
-		} else if err := r.List(ctx, target, client.InNamespace(namespace), sel); err != nil {
+		// Default label selector to `app: prometheus` if not specified
+		labelSelector := m.Selector
+		if labelSelector == nil && m.Type == redskyv1beta1.MetricPrometheus {
+			labelSelector = &metav1.LabelSelector{
+				MatchLabels: map[string]string{"app": "prometheus"},
+			}
+		}
+
+		sel, err := meta.MatchingSelector(labelSelector)
+		if err != nil {
 			return nil, err
 		}
+
+		if err = r.List(ctx, target, client.InNamespace(namespace), sel); err != nil {
+			return nil, err
+		}
+
 		return target, nil
 	default:
 		// Assume no target is necessary
