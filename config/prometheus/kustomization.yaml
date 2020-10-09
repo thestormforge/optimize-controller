@@ -4,9 +4,6 @@ kind: Kustomization
 namespace: default
 
 resources:
-- ./kube-state-metrics-deployment.yaml
-- ./kube-state-metrics-rbac.yaml
-- ./kube-state-metrics-svc.yaml
 - ./prometheus-server-configmap.yaml
 - ./prometheus-server-deployment.yaml
 - ./prometheus-server-rbac.yaml
