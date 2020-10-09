@@ -25,7 +25,7 @@ jobs:
         id: install-minikube
         run: |
           brew install minikube hyperkit docker
-          echo "::set-output name=cache-key::$(minikube version | md5)"
+          echo "cache-key=$(minikube version | md5)" >> $GITHUB_ENV
       - name: Cache minikube
         uses: actions/cache@v2
         with:
@@ -38,7 +38,7 @@ jobs:
       - name: Start minikube
         run: |
           minikube start --wait all
-          minikube docker-env | sed '/^#/d;s/="\(.*\)"/::\1/g;s/export /::set-env name=/g'
+          minikube docker-env | sed '/^#/d;s/="\(.*\)"/=\1/g;s/export //g' >> $GITHUB_ENV
       - name: Cache Go Modules
         uses: actions/cache@v1
         with:
@@ -70,22 +70,22 @@ jobs:
         run: |
           if [ -z "${GITHUB_REF/refs\/tags\/*/}" ]; then
             TAG=${GITHUB_REF##*/v}
-            echo "::set-env name=DOCKER_TAG::latest"
-            echo "::set-env name=VERSION::v${TAG}"
-            echo "::set-env name=IMG::redskyops/redskyops-controller:${TAG}"
-            echo "::set-env name=REDSKYCTL_IMG::redskyops/redskyctl:${TAG}"
-            echo "::set-env name=SETUPTOOLS_IMG::redskyops/setuptools:${TAG}"
-            echo "::set-env name=AC_USERNAME::${{ secrets.AC_USERNAME }}"
+            echo "DOCKER_TAG=latest" >> $GITHUB_ENV
+            echo "VERSION=v${TAG}" >> $GITHUB_ENV
+            echo "IMG=redskyops/redskyops-controller:${TAG}" >> $GITHUB_ENV
+            echo "REDSKYCTL_IMG=redskyops/redskyctl:${TAG}" >> $GITHUB_ENV
+            echo "SETUPTOOLS_IMG=redskyops/setuptools:${TAG}" >> $GITHUB_ENV
+            echo "AC_USERNAME=${{ secrets.AC_USERNAME }}" >> $GITHUB_ENV
             printenv DOCKER_PASSWORD | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
           else
             TAG="sha-$(git rev-parse --short HEAD)"
-            echo "::set-env name=DOCKER_TAG::canary" # TODO This should change to "latest" after the 1.6.0 release
-            echo "::set-env name=IMG::gcr.io/redskyops/redskyops-controller:${TAG}"
-            echo "::set-env name=REDSKYCTL_IMG::gcr.io/redskyops/redskyctl:${TAG}"
-            echo "::set-env name=SETUPTOOLS_IMG::gcr.io/redskyops/setuptools:${TAG}"
+            echo "DOCKER_TAG=canary"  >> $GITHUB_ENV # TODO This should change to "latest" after the 1.6.0 release
+            echo "IMG=gcr.io/redskyops/redskyops-controller:${TAG}" >> $GITHUB_ENV
+            echo "REDSKYCTL_IMG=gcr.io/redskyops/redskyctl:${TAG}" >> $GITHUB_ENV
+            echo "SETUPTOOLS_IMG=gcr.io/redskyops/setuptools:${TAG}" >> $GITHUB_ENV
             gcloud --quiet auth configure-docker
           fi
-          echo "::set-env name=PULL_POLICY::Always"
+          echo "PULL_POLICY=Always" >> $GITHUB_ENV
       - name: Build controller
         run: |
           make docker-build-ci
