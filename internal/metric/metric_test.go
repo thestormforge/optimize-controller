@@ -33,6 +33,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func TestCaptureMetric(t *testing.T) {
@@ -178,4 +179,213 @@ func promHttpTestServer() *httptest.Server {
 		fmt.Fprint(w, resp)
 		return
 	}))
+}
+
+func TestToURL(t *testing.T) {
+	testCases := []struct {
+		desc     string
+		metric   *redskyv1beta1.Metric
+		obj      *corev1.ServiceList
+		expected []string
+	}{
+		{
+			desc:   "single port",
+			metric: &redskyv1beta1.Metric{},
+			obj: &corev1.ServiceList{
+				Items: []corev1.Service{
+					{
+						Spec: corev1.ServiceSpec{
+							ClusterIP: "10.0.0.1",
+							Ports: []corev1.ServicePort{
+								{
+									Name:     "testPort",
+									Protocol: corev1.ProtocolTCP,
+									Port:     9090,
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: []string{"http://10.0.0.1:9090/"},
+		},
+
+		{
+			desc:   "single port headless",
+			metric: &redskyv1beta1.Metric{},
+			obj: &corev1.ServiceList{
+				Items: []corev1.Service{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "headless",
+							Namespace: "default",
+						},
+						Spec: corev1.ServiceSpec{
+							ClusterIP: "None",
+							Ports: []corev1.ServicePort{
+								{
+									Name:     "testPort",
+									Protocol: corev1.ProtocolTCP,
+									Port:     9090,
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: []string{"http://headless.default:9090/"},
+		},
+
+		{
+			desc:   "multi port",
+			metric: &redskyv1beta1.Metric{},
+			obj: &corev1.ServiceList{
+				Items: []corev1.Service{
+					{
+						Spec: corev1.ServiceSpec{
+							ClusterIP: "10.0.0.1",
+							Ports: []corev1.ServicePort{
+								{
+									Name:     "testPort",
+									Protocol: corev1.ProtocolTCP,
+									Port:     9090,
+								},
+								{
+									Name:     "testPort1",
+									Protocol: corev1.ProtocolTCP,
+									Port:     9091,
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: []string{"http://10.0.0.1:9090/", "http://10.0.0.1:9091/"},
+		},
+
+		{
+			desc: "metric port name",
+			metric: &redskyv1beta1.Metric{
+				Port: intstr.Parse("uberport"),
+			},
+			obj: &corev1.ServiceList{
+				Items: []corev1.Service{
+					{
+						Spec: corev1.ServiceSpec{
+							ClusterIP: "10.0.0.1",
+							Ports: []corev1.ServicePort{
+								{
+									Name:     "uberport",
+									Protocol: corev1.ProtocolTCP,
+									Port:     9090,
+								},
+								{
+									Name:     "testPort1",
+									Protocol: corev1.ProtocolTCP,
+									Port:     9091,
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: []string{"http://10.0.0.1:9090/"},
+		},
+
+		{
+			desc: "metric port number",
+			metric: &redskyv1beta1.Metric{
+				Port: intstr.Parse("9090"),
+			},
+			obj: &corev1.ServiceList{
+				Items: []corev1.Service{
+					{
+						Spec: corev1.ServiceSpec{
+							ClusterIP: "10.0.0.1",
+							Ports: []corev1.ServicePort{
+								{
+									Name:     "testPort",
+									Protocol: corev1.ProtocolTCP,
+									Port:     9090,
+								},
+								{
+									Name:     "testPort1",
+									Protocol: corev1.ProtocolTCP,
+									Port:     9091,
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: []string{"http://10.0.0.1:9090/"},
+		},
+
+		{
+			desc: "metric port number headless",
+			metric: &redskyv1beta1.Metric{
+				Port: intstr.Parse("9090"),
+			},
+			obj: &corev1.ServiceList{
+				Items: []corev1.Service{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "headless",
+							Namespace: "default",
+						},
+						Spec: corev1.ServiceSpec{
+							ClusterIP: "None",
+							Ports: []corev1.ServicePort{
+								{
+									Name:     "testPort",
+									Protocol: corev1.ProtocolTCP,
+									Port:     9090,
+								},
+								{
+									Name:     "testPort1",
+									Protocol: corev1.ProtocolTCP,
+									Port:     9091,
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: []string{"http://headless.default:9090/"},
+		},
+
+		{
+			desc: "metric port name not matched with single svc port",
+			metric: &redskyv1beta1.Metric{
+				Port: intstr.Parse("uberport"),
+			},
+			obj: &corev1.ServiceList{
+				Items: []corev1.Service{
+					{
+						Spec: corev1.ServiceSpec{
+							ClusterIP: "10.0.0.1",
+							Ports: []corev1.ServicePort{
+								{
+									Name:     "testPort1",
+									Protocol: corev1.ProtocolTCP,
+									Port:     9091,
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: []string{"http://10.0.0.1:9091/"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("%q", tc.desc), func(t *testing.T) {
+			output, err := toURL(tc.obj, tc.metric)
+
+			assert.NoError(t, err)
+
+			assert.Equal(t, tc.expected, output)
+		})
+	}
 }

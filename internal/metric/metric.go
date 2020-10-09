@@ -26,6 +26,7 @@ import (
 	"github.com/redskyops/redskyops-controller/internal/template"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // CaptureError describes problems that arise while capturing metric values
@@ -96,37 +97,52 @@ func toURL(target runtime.Object, m *redskyv1beta1.Metric) ([]string, error) {
 	}
 	path := "/" + strings.TrimLeft(m.Path, "/")
 
-	// Construct a URL for each service (use IP literals instead of host names to avoid DNS lookups)
+	// Construct a URL for each service (
 	var urls []string
 	for _, s := range list.Items {
-		// When debugging in minikube, use `minikube tunnel` to expose the cluster IP on the host
-		// TODO How do we setup port forwarding in GCP?
+
+		// Prefer IP literals instead of host names to avoid DNS lookups
 		host := s.Spec.ClusterIP
 		if host == "None" {
-			// Only actual clusterIPs are support
-			continue
+			// fall back to service name if it is a headless service
+			host = fmt.Sprintf("%s.%s", s.Name, s.Namespace)
 		}
-		port := m.Port.IntValue()
 
-		if port < 1 {
-			portName := m.Port.StrVal
-			// TODO Default an empty portName to scheme?
+		var ports []int
+
+		switch m.Port.Type {
+		case intstr.Int:
+			if m.Port.IntValue() > 0 {
+				// Explicity add port number
+				ports = append(ports, m.Port.IntValue())
+			} else {
+				// Aggregate all ports on the service
+				for _, sp := range s.Spec.Ports {
+					ports = append(ports, int(sp.Port))
+				}
+			}
+		case intstr.String:
+			// Attempt to match port name
 			for _, sp := range s.Spec.Ports {
-				if sp.Name == portName || len(s.Spec.Ports) == 1 {
-					port = int(sp.Port)
+				if sp.Name == m.Port.StrVal || len(s.Spec.Ports) == 1 {
+					ports = append(ports, int(sp.Port))
+					break
 				}
 			}
 		}
 
-		if port < 1 {
+		if len(ports) == 0 {
 			return nil, fmt.Errorf("metric '%s' has unresolvable port: %s", m.Name, m.Port.String())
 		}
 
-		urls = append(urls, fmt.Sprintf("%s://%s:%d%s", scheme, host, port, path))
+		for _, port := range ports {
+			urls = append(urls, fmt.Sprintf("%s://%s:%d%s", scheme, host, port, path))
+		}
 	}
 
 	if len(urls) == 0 {
 		return nil, fmt.Errorf("unable to find metric targets for '%s'", m.Name)
 	}
+
 	return urls, nil
 }
