@@ -18,6 +18,7 @@ package initialize
 
 import (
 	"bytes"
+	"html/template"
 	"io"
 	"sync"
 
@@ -109,16 +110,14 @@ func (o *GeneratorOptions) generate() error {
 		p.Inputs = append(p.Inputs, &kio.ByteReader{Reader: o.generateControllerRBAC()})
 	}
 
-	if !o.SkipSecret {
+	if o.SkipSecret {
+		p.Inputs = append(p.Inputs, &kio.ByteReader{Reader: o.generatePlaceholderSecret()})
+	} else {
 		p.Inputs = append(p.Inputs, &kio.ByteReader{Reader: o.generateSecret()})
 	}
 
 	if o.NamespaceSelector != "" {
 		p.Filters = append(p.Filters, o.clusterRoleBindingFilter())
-	}
-
-	if o.SkipSecret {
-		p.Filters = append(p.Filters, o.envFromSecretFilter())
 	}
 
 	return p.Execute()
@@ -176,6 +175,31 @@ func (o *GeneratorOptions) generateSecret() io.Reader {
 		AllowUnauthorized: true,
 	}
 	return o.newStdoutReader(authorize_cluster.NewGeneratorCommand(&opts))
+}
+
+// generatePlaceholderSecret produces an empty secret object with the expected name for the
+// deployment's `envFrom` reference. Note that when making changes to the placeholder in
+// the cluster you must remember to delete pods to have the changes picked up.
+func (o *GeneratorOptions) generatePlaceholderSecret() io.Reader {
+	r := &stdoutReader{}
+	r.exec = func() error {
+		ctrl, err := config.CurrentController(o.Config.Reader())
+		if err != nil {
+			return err
+		}
+
+		tmpl := template.Must(template.New("secret").Parse(`apiVersion: v1
+kind: Secret
+metadata:
+  name: redsky-manager
+  namespace: {{ .Namespace }}
+type: Opaque
+data: {}
+`))
+
+		return tmpl.Execute(&r.stdout, &ctrl)
+	}
+	return r
 }
 
 // newStdoutReader returns an io.Reader which will execute the supplied command on the first read
