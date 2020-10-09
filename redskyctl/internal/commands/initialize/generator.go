@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"html/template"
 	"io"
+	"os"
 	"sync"
 
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
@@ -41,6 +42,7 @@ type GeneratorOptions struct {
 	IncludeBootstrapRole    bool
 	IncludeExtraPermissions bool
 	NamespaceSelector       string
+	OutputDirectory         string
 
 	Image              string
 	SkipControllerRBAC bool
@@ -66,6 +68,7 @@ func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 		RunE:   commander.WithoutArgsE(o.generate),
 	}
 
+	cmd.Flags().StringVar(&o.OutputDirectory, "output-dir", o.OutputDirectory, "Write files to a `directory` instead of stdout.")
 	o.addFlags(cmd)
 
 	commander.ExitOnError(cmd)
@@ -118,6 +121,15 @@ func (o *GeneratorOptions) generate() error {
 
 	if o.NamespaceSelector != "" {
 		p.Filters = append(p.Filters, o.clusterRoleBindingFilter())
+	}
+
+	if o.OutputDirectory != "" {
+		if err := os.MkdirAll(o.OutputDirectory, 0700); err != nil {
+			return err
+		}
+		p.Outputs = []kio.Writer{kio.LocalPackageWriter{
+			PackagePath: o.OutputDirectory,
+		}}
 	}
 
 	return p.Execute()
