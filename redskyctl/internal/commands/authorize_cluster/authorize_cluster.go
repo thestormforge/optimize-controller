@@ -130,15 +130,14 @@ func (o *Options) patchDeployment(ctx context.Context, secretName, secretHash st
 // patchFormat is used to patch the deployment with the secret information
 const patchFormat = `
 spec:
-  metadata:
-    annotations:
-      "redskyops.dev/secretHash": "%s"
   template:
+    metadata:
+      annotations:
+        "redskyops.dev/secretHash": "%s"
     spec:
       containers:
       - name: manager
         envFrom:
         - secretRef:
             name: "%s"
-            optional: false
 `
