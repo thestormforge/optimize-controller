@@ -341,6 +341,25 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 			},
 			expectedQuery: "1234/1073741824",
 		},
+
+		{
+			desc: "prometheus label key sanitize",
+			metric: redskyv1beta1.Metric{
+				Name:  "testMetric",
+				Query: `{{memoryRequests . "my/super.cool.label-with-fluffy/bunnies=789"}}`,
+				Type:  redskyv1beta1.MetricLocal,
+			},
+			trial: redskyv1beta1.Trial{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+				},
+				Status: redskyv1beta1.TrialStatus{
+					StartTime:      &metav1.Time{Time: now.Add(-5 * time.Second)},
+					CompletionTime: &now,
+				},
+			},
+			expectedQuery: expectedMemoryRequestsQuerySanitized,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
@@ -449,6 +468,15 @@ scalar(
     avg_over_time(kube_pod_container_resource_requests_cpu_cores[5s])
     *
     on (pod) group_left kube_pod_labels{namespace="default",label_component="bob",label_component="tom"}
+  )
+)`
+
+	expectedMemoryRequestsQuerySanitized = `
+scalar(
+  sum(
+    avg_over_time(kube_pod_container_resource_requests_memory_bytes[5s])
+    *
+    on (pod) group_left kube_pod_labels{namespace="default",label_my_super_cool_label_with_fluffy_bunnies="789"}
   )
 )`
 )

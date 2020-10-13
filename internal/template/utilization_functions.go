@@ -19,9 +19,13 @@ package template
 import (
 	"bytes"
 	"fmt"
+	"regexp"
 	"strings"
 	"text/template"
 )
+
+// https://github.com/prometheus/prometheus/blob/3240cf83f08e448e0b96a4a1f96c0e8b2d51cf61/util/strutil/strconv.go#L23
+var invalidLabelCharRE = regexp.MustCompile(`[^a-zA-Z0-9_]`)
 
 func cpuUtilization(data MetricData, labelArgs ...string) (string, error) {
 	cpuUtilizationQueryTemplate := `
@@ -112,6 +116,9 @@ func renderUtilization(query string, data MetricData, labelArgs ...string) (stri
 		if len(kvpair) != 2 {
 			return "", fmt.Errorf("invalid label for utilization query, expected key=value, got: %s", label)
 		}
+
+		// Sanitize label name for prometheus usage
+		kvpair[0] = invalidLabelCharRE.ReplaceAllString(kvpair[0], "_")
 
 		labels = append(labels, fmt.Sprintf("label_%s=\"%s\"", kvpair[0], kvpair[1]))
 	}
