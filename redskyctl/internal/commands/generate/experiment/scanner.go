@@ -17,17 +17,18 @@ limitations under the License.
 package experiment
 
 import (
-	"fmt"
+	"bytes"
+	"strings"
 
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/kustomize/api/filesys"
 	"sigs.k8s.io/kustomize/api/konfig"
 	"sigs.k8s.io/kustomize/api/krusty"
 	"sigs.k8s.io/kustomize/api/resmap"
-	"sigs.k8s.io/kustomize/api/resource"
 	"sigs.k8s.io/kustomize/api/types"
-	"sigs.k8s.io/yaml"
+	"sigs.k8s.io/kustomize/kyaml/filtersutil"
+	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
 const (
@@ -50,19 +51,10 @@ func (s *Scanner) ScanInto(resources []string, exp *redskyv1beta1.Experiment) er
 		return err
 	}
 
-	// The collection of all the resources lists (limits/requests) we have found
-	var rl []resourceLists
-
 	// Iterate of the resources in the Kustomize resource map and scan each one
-	for _, rr := range rm.Resources() {
-		e, err := s.scan(rr)
-		if err != nil {
-			return err
-		}
-
-		if e != nil {
-			rl = append(rl, *e)
-		}
+	rl, err := s.scan(rm)
+	if err != nil {
+		return err
 	}
 
 	// Apply the accumulated results to the experiment
@@ -98,79 +90,176 @@ func (s *Scanner) load(resources []string) (resmap.ResMap, error) {
 	return krusty.MakeKustomizer(fSys, o).Run(".")
 }
 
-func (s *Scanner) scan(r *resource.Resource) (*resourceLists, error) {
-	// Inspect the resource for resource lists (i.e. collections of requests/limits)
-	paths, err := s.findPaths(r)
-	if err != nil || len(paths) == 0 {
-		return nil, err
-	}
-	rl := &resourceLists{resourcesPaths: paths}
-
-	// Update the target reference
-	gvk := r.GetGvk()
-	rl.targetRef.Name = r.GetName()
-	rl.targetRef.Namespace = r.GetNamespace()
-	rl.targetRef.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   gvk.Group,
-		Version: gvk.Version,
-		Kind:    gvk.Kind,
-	})
-
-	return rl, nil
-}
-
-func (s *Scanner) findPaths(r *resource.Resource) ([]fieldPath, error) {
-	// This is going to take the naive approach. We are going to look for `apps/v1` _only_
-	gvk := r.GetGvk()
-	if gvk.Group != "apps" || gvk.Version != "v1" {
-		return nil, nil
-	}
-
-	// Find all the container names
-	names, ok := fieldPath([]string{"spec", "template", "spec", "containers{name=*}", "name"}).read(r.Map()).([]interface{})
-	if !ok {
-		return nil, fmt.Errorf("could not find container names")
-	}
-
-	// For each container, add a path
-	paths := make([]fieldPath, 0, len(names))
-	for i := range names {
-		name, ok := names[i].(string)
-		if !ok {
-			return nil, fmt.Errorf("expected container name to be a string")
+func (s *Scanner) scan(rm resmap.ResMap) ([]*applicationResource, error) {
+	result := make([]*applicationResource, 0, rm.Size())
+	for _, rr := range rm.Resources() {
+		// Get the YAML tree representation of the resource
+		node, err := filtersutil.GetRNode(rr)
+		if err != nil {
+			return nil, err
 		}
-		paths = append(paths, []string{"spec", "template", "spec", "containers{name=" + name + "}", "resources"})
-	}
 
-	return paths, nil
+		// Scan the document tree for information to add to the application resource
+		r := &applicationResource{}
+		if err := r.SaveTargetReference(node); err != nil {
+			return nil, err
+		}
+		if err := r.SaveResourcesPaths(node); err != nil {
+			return nil, err
+		}
+		if !r.Empty() {
+			result = append(result, r)
+		}
+	}
+	return result, nil
 }
 
-func (s *Scanner) apply(rl []resourceLists, exp *redskyv1beta1.Experiment) error {
+func (s *Scanner) apply(list []*applicationResource, exp *redskyv1beta1.Experiment) error {
 	// TODO We can probably be smarter determining if a prefix is necessary
-	needsPrefix := len(rl) > 1
+	needsPrefix := len(list) > 1
 
-	for i := range rl {
-		parameters, patch, err := rl[i].generate(needsPrefix)
+	for _, r := range list {
+		patch, err := r.ResourcesPatch(needsPrefix)
 		if err != nil {
 			return err
 		}
-
-		// Set arbitrary bounds on each parameter
-		for j := range parameters {
-			if parameters[j].Min == 0 {
-				parameters[j].Min = defaultParameterMin
-			}
-			if parameters[j].Max == 0 {
-				parameters[j].Max = defaultParameterMax
-			}
-			// TODO Swap the bounds if they don't align?
-		}
-
-		exp.Spec.Parameters = append(exp.Spec.Parameters, parameters...)
 		exp.Spec.Patches = append(exp.Spec.Patches, *patch)
+		exp.Spec.Parameters = append(exp.Spec.Parameters, r.ResourcesParameters(needsPrefix)...)
 	}
 
 	return nil
+}
+
+// applicationResource is an individual resource that belongs to an application.
+type applicationResource struct {
+	// targetRef is the reference to the resource
+	targetRef corev1.ObjectReference
+	// resourcesPaths are the YAML paths to the `resources` elements in the resource
+	resourcesPaths [][]string
+}
+
+// Empty checks to see if this application resource has anything useful in it
+func (r *applicationResource) Empty() bool {
+	return len(r.resourcesPaths) == 0
+}
+
+// SaveTargetReference updates the resource reference from the supplied document node.
+func (r *applicationResource) SaveTargetReference(node *yaml.RNode) error {
+	meta, err := node.GetMeta()
+	if err != nil {
+		return err
+	}
+
+	r.targetRef = corev1.ObjectReference{
+		APIVersion: meta.APIVersion,
+		Kind:       meta.Kind,
+		Name:       meta.Name,
+		Namespace:  meta.Namespace,
+	}
+
+	return nil
+}
+
+// SaveResourcesPaths extracts the paths the `resources` elements from the supplied node.
+func (r *applicationResource) SaveResourcesPaths(node *yaml.RNode) error {
+	if r.targetRef.APIVersion != "apps/v1" {
+		return nil
+	}
+
+	path := []string{"spec", "template", "spec", "containers"}
+	return node.PipeE(
+		yaml.Lookup(path...),
+		yaml.FilterFunc(func(node *yaml.RNode) (*yaml.RNode, error) {
+			return nil, node.VisitElements(func(node *yaml.RNode) error {
+				name := node.Field("name").Value.YNode().Value
+				r.resourcesPaths = append(r.resourcesPaths, append(path, "[name="+name+"]", "resources"))
+				return nil
+			})
+		}))
+}
+
+// ResourcesParameters returns the parameters required for optimizing the discovered resources sections.
+func (r *applicationResource) ResourcesParameters(includeTarget bool) []redskyv1beta1.Parameter {
+	parameters := make([]redskyv1beta1.Parameter, 0, len(r.resourcesPaths)*2)
+	for i := range r.resourcesPaths {
+		parameters = append(parameters, redskyv1beta1.Parameter{
+			Name: r.parameterName(i, "memory", includeTarget),
+			Min:  defaultParameterMin,
+			Max:  defaultParameterMax,
+		}, redskyv1beta1.Parameter{
+			Name: r.parameterName(i, "cpu", includeTarget),
+			Min:  defaultParameterMin,
+			Max:  defaultParameterMax,
+		})
+	}
+	return parameters
+}
+
+// ResourcesPatch returns a patch for the discovered resources sections.
+func (r *applicationResource) ResourcesPatch(includeTarget bool) (*redskyv1beta1.PatchTemplate, error) {
+	// Create an empty patch
+	patch := yaml.NewRNode(&yaml.Node{
+		Kind:    yaml.DocumentNode,
+		Content: []*yaml.Node{{Kind: yaml.MappingNode}},
+	})
+
+	for i := range r.resourcesPaths {
+		// Construct limits/requests values
+		memory := "{{ .Values." + r.parameterName(i, "memory", includeTarget) + " }}Mi"
+		cpu := "{{ .Values." + r.parameterName(i, "cpu", includeTarget) + " }}m"
+		values, err := yaml.NewRNode(&yaml.Node{Kind: yaml.MappingNode}).Pipe(
+			yaml.Tee(yaml.SetField("memory", yaml.NewScalarRNode(memory))),
+			yaml.Tee(yaml.SetField("cpu", yaml.NewScalarRNode(cpu))),
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		// Aggregate the limits/requests on the patch
+		if err := patch.PipeE(
+			&yaml.PathGetter{Path: r.resourcesPaths[i], Create: yaml.MappingNode},
+			yaml.Tee(yaml.SetField("limits", values)),
+			yaml.Tee(yaml.SetField("requests", values)),
+		); err != nil {
+			return nil, err
+		}
+	}
+
+	// Render the patch and add it to the list of patches
+	var buf bytes.Buffer
+	if err := yaml.NewEncoder(&buf).Encode(patch.Document()); err != nil {
+		return nil, err
+	}
+
+	return &redskyv1beta1.PatchTemplate{
+		Patch:     buf.String(),
+		TargetRef: &r.targetRef,
+	}, nil
+}
+
+// parameterName returns the name of the parameter to use for the resources path at the specified index.
+func (r *applicationResource) parameterName(i int, name string, includeTarget bool) string {
+	var pn []string
+
+	// Include the target kind and name
+	if includeTarget {
+		pn = append(pn, strings.ToLower(r.targetRef.Kind), r.targetRef.Name)
+	}
+
+	// Include the list index values (e.g. the container names)
+	if len(r.resourcesPaths) > 1 {
+		for _, p := range r.resourcesPaths[i] {
+			if yaml.IsListIndex(p) {
+				if _, value, _ := yaml.SplitIndexNameValue(p); value != "" {
+					pn = append(pn, value)
+				}
+			}
+		}
+	}
+
+	// Add the requested parameter name and join everything together
+	pn = append(pn, name)
+	return strings.Join(pn, "_")
 }
 
 // kustomizationFileSystem is a wrapper around a real file system that injects a Kustomization at
