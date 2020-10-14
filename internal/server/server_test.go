@@ -442,12 +442,19 @@ func TestFromClusterTrial(t *testing.T) {
 			in: &redskyv1beta1.Trial{
 				Status: redskyv1beta1.TrialStatus{
 					Conditions: []redskyv1beta1.TrialCondition{
-						{Type: redskyv1beta1.TrialFailed, Status: corev1.ConditionTrue},
+						{
+							Type:    redskyv1beta1.TrialFailed,
+							Status:  corev1.ConditionTrue,
+							Reason:  corev1.PodReasonUnschedulable,
+							Message: "0/3 nodes are available: 3 Insufficient cpu.",
+						},
 					},
 				},
 			},
 			expectedOut: &redskyapi.TrialValues{
-				Failed: true,
+				Failed:  true,
+				Reason:  corev1.PodReasonUnschedulable,
+				Message: "0/3 nodes are available: 3 Insufficient cpu.",
 			},
 		},
 		{
