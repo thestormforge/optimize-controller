@@ -94,8 +94,11 @@ func NewRedskyctlCommand() *cobra.Command {
 	// This allows `redskyctl generate` to be run via a symlink from the Kustomize plugin directory
 	if len(os.Args) == 2 {
 		if c, _, err := rootCmd.Find([]string{"generate", filepath.Base(os.Args[0])}); err == nil {
-			c.Parent().RemoveCommand(c)
-			return c
+			if use := c.Annotations["KustomizePluginKind"]; use != "" {
+				c.Parent().RemoveCommand(c)
+				c.Use = use
+				return c
+			}
 		}
 	}
 
