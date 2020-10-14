@@ -46,12 +46,12 @@ type ExperimentOptions struct {
 
 func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "experiment",
-		Short:   "Generate an experiment",
-		Long:    "Generate an experiment using magik",
-		Aliases: []string{experimentConfigKind},
+		Use:   "experiment",
+		Short: "Generate an experiment",
+		Long:  "Generate an experiment using magik",
 
 		Annotations: map[string]string{
+			"KustomizePluginKind":           experimentConfigKind,
 			commander.PrinterAllowedFormats: "json,yaml",
 			commander.PrinterOutputFormat:   "yaml",
 			commander.PrinterHideStatus:     "true",
