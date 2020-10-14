@@ -51,11 +51,13 @@ type Application struct {
 	CloudProvider *CloudProvider `json:"cloudProvider,omitempty"`
 }
 
+// +kubebuilder:object:generate=true
 type CostConfig struct {
 	// Labels of the pods which should be considered when collecting cost information.
 	Labels map[string]string `json:"labels,omitempty"`
 }
 
+// +kubebuilder:object:generate=true
 type CloudProvider struct {
 	// Cloud provider name, may be used to adjust defaults
 	Name string `json:"name,omitempty"`
