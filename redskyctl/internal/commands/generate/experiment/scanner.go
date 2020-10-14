@@ -44,9 +44,9 @@ type Scanner struct {
 
 // ScanInto scans the specified resource references and adds the necessary patches and parameter
 // definitions to the supplied experiment.
-func (s *Scanner) ScanInto(resources []string, exp *redskyv1beta1.Experiment) error {
+func (s *Scanner) ScanInto(app *Application, exp *redskyv1beta1.Experiment) error {
 	// Load all of the resource references
-	rm, err := s.load(resources)
+	rm, err := s.load(app.Resources)
 	if err != nil {
 		return err
 	}

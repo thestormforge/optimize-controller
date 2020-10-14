@@ -25,8 +25,6 @@ import (
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/experiments"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/generate/experiment"
 	"github.com/spf13/cobra"
-	batchv1 "k8s.io/api/batch/v1"
-	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/kustomize/api/filesys"
@@ -91,9 +89,12 @@ func (o *ExperimentOptions) generate() error {
 	s := &experiment.Scanner{
 		FileSystem: filesys.MakeFsOnDisk(),
 	}
-	if err := s.ScanInto(o.ExperimentConfig.Resources, exp); err != nil {
+	if err := s.ScanInto(&o.ExperimentConfig, exp); err != nil {
 		return err
 	}
+
+	// Add the cost metric
+	experiment.AddCostMetric(&o.ExperimentConfig, exp)
 
 	// TODO Do some sanity checks to make sure the experiment is valid before we add it
 	list.Items = append(list.Items, runtime.RawExtension{Object: exp})
@@ -119,6 +120,12 @@ func (o *ExperimentOptions) readConfig() error {
 		return fmt.Errorf("incorrect input type: %s", o.ExperimentConfig.GroupVersionKind().String())
 	}
 
+	scheme, err := experiment.SchemeBuilder.Build()
+	if err != nil {
+		return err
+	}
+	scheme.Default(&o.ExperimentConfig)
+
 	// Add additional resources
 	o.ExperimentConfig.Resources = append(o.ExperimentConfig.Resources, o.Resources...)
 
@@ -128,32 +135,7 @@ func (o *ExperimentOptions) readConfig() error {
 }
 
 func (o *ExperimentOptions) newExperiment() *redskyv1beta1.Experiment {
-	exp := &redskyv1beta1.Experiment{
-		Spec: redskyv1beta1.ExperimentSpec{
-			Metrics: []redskyv1beta1.Metric{},
-			TrialTemplate: redskyv1beta1.TrialTemplateSpec{
-				Spec: redskyv1beta1.TrialSpec{
-					JobTemplate: &batchv1beta1.JobTemplateSpec{
-						Spec: batchv1.JobSpec{
-							Template: corev1.PodTemplateSpec{
-								Spec: corev1.PodSpec{
-									Containers: []corev1.Container{},
-								},
-							},
-						},
-					},
-					InitialDelaySeconds: 15,
-					SetupTasks: []redskyv1beta1.SetupTask{
-						{
-							Name: "monitoring",
-							Args: []string{"prometheus", "$(MODE}"},
-						},
-					},
-					SetupServiceAccountName: "promsetup",
-				},
-			},
-		},
-	}
+	exp := &redskyv1beta1.Experiment{}
 
 	// TODO Do we want to filter out any of this information?
 	o.ExperimentConfig.ObjectMeta.DeepCopyInto(&exp.ObjectMeta)
