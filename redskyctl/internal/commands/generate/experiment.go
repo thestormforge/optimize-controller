@@ -33,12 +33,12 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-const experimentConfigKind = "MagikExperiment"
+const experimentConfigKind = "Application"
 
 type ExperimentOptions struct {
 	experiments.Options
 
-	ExperimentConfig experiment.MagikExperiment
+	ExperimentConfig experiment.Application
 	Filename         string
 
 	Resources []string

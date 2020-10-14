@@ -27,11 +27,11 @@ var (
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 )
 
-// MagikExperiment represents the configuration of the experiment generator. The generator will consider
+// Application represents the configuration of the experiment generator. The generator will consider
 // these values when constructing a new `Experiment` resource.
 // +kubebuilder:object:generate=true
 // +kubebuilder:object:root=true
-type MagikExperiment struct {
+type Application struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
@@ -44,5 +44,5 @@ type MagikExperiment struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&MagikExperiment{})
+	SchemeBuilder.Register(&Application{})
 }
