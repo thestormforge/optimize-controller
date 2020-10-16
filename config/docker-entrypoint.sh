@@ -2,16 +2,6 @@
 set -e
 
 case "$1" in
-  install)
-    # Generate installation manifests
-    shift && /workspace/install/install.sh "$@"
-    exit $?
-  ;;
-  chart)
-    # Package the Helm chart
-    shift && /workspace/chart/build.sh "$@"
-    exit $?
-  ;;
   prometheus)
     # Generate prometheus manifests
     shift && cd /workspace/prometheus
@@ -21,7 +11,7 @@ case "$1" in
       namePrefix="redsky-$NAMESPACE-"
     fi
 
-    kustomize edit set nameprefix $namePrefix
+    kustomize edit set nameprefix "$namePrefix"
   ;;
 esac
 
@@ -86,7 +76,7 @@ while [ "$#" != "0" ] ; do
         }
         shift
         ;;
-    --dry-run)
+    build)
         handle () { cat ; }
         shift
         ;;
