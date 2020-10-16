@@ -17,6 +17,7 @@ limitations under the License.
 package experiments
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -153,6 +154,50 @@ func TestParseNames(t *testing.T) {
 			} else if assert.NoError(t, err) {
 				assert.Equal(t, c.names, names)
 			}
+		})
+	}
+}
+
+func TestSortByField(t *testing.T) {
+	cases := []struct {
+		desc     string
+		field    string
+		unsorted []interface{}
+		sorted   []interface{}
+	}{
+		{
+			desc:     "strings",
+			unsorted: []interface{}{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***"},
+			sorted:   []interface{}{"", "%*&^*&^&", "***", "Hello", "bar", "f00", "foo", "foo"},
+		},
+		{
+			desc:  "int depth 1",
+			field: "x",
+			unsorted: []interface{}{
+				map[string]interface{}{"x": int64(74)},
+				map[string]interface{}{"x": int64(59)},
+				map[string]interface{}{"x": int64(238)},
+				map[string]interface{}{"x": int64(-784)},
+			},
+			sorted: []interface{}{
+				map[string]interface{}{"x": int64(-784)},
+				map[string]interface{}{"x": int64(59)},
+				map[string]interface{}{"x": int64(74)},
+				map[string]interface{}{"x": int64(238)},
+			},
+		},
+		{
+			desc:     "mixed type",
+			unsorted: []interface{}{"Hello", int64(74), int64(23), int64(905), "foo"},
+			sorted:   []interface{}{"Hello", int64(23), int64(74), int64(905), "foo"},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			data := c.unsorted
+			less := sortByField(c.field, func(i int) interface{} { return data[i] })
+			sort.Slice(data[:], less)
+			assert.Equal(t, c.sorted, data[:])
 		})
 	}
 }

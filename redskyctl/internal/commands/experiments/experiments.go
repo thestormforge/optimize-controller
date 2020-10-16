@@ -19,7 +19,6 @@ package experiments
 import (
 	"fmt"
 	"io"
-	"reflect"
 	"strconv"
 	"strings"
 
@@ -385,44 +384,42 @@ func (m *experimentsMeta) Header(outputFormat string, column string) string {
 // sortByField sorts using a JSONPath expression
 func sortByField(sortBy string, item func(int) interface{}) func(int, int) bool {
 	// TODO We always wrap the items in maps now, can we simplify?
-	field := sortBy // Roughly the same as RelaxedJSONPathExpression
-	if strings.HasPrefix(field, "{") && strings.HasSuffix(field, "}") {
-		field = strings.TrimPrefix(strings.TrimSuffix(field, "}"), "{")
-	}
-	field = strings.TrimPrefix(field, ".")
-	field = fmt.Sprintf("{.%s}", field)
-
 	parser := jsonpath.New("sorting").AllowMissingKeys(true)
-	if err := parser.Parse(field); err != nil {
-		return nil
+	if err := parser.Parse(relaxedJSONPathExpression(sortBy)); err != nil {
+		return func(i int, j int) bool { return i < j }
 	}
 
 	return func(i, j int) bool {
-		ir, err := parser.FindResults(item(i))
-		if err != nil || len(ir) == 0 || len(ir[0]) == 0 {
-			return true
+		ir, ierr := parser.FindResults(item(i))
+		iok := ierr == nil && len(ir) > 0 && len(ir[0]) > 0 && ir[0][0].CanInterface()
+
+		jr, jerr := parser.FindResults(item(j))
+		jok := jerr == nil && len(jr) > 0 && len(jr[0]) > 0 && jr[0][0].CanInterface()
+
+		if iok && jok && ir[0][0].Kind() == jr[0][0].Kind() {
+			jv := jr[0][0].Interface()
+			switch iv := ir[0][0].Interface().(type) {
+			case int64:
+				return iv < jv.(int64)
+			case float64:
+				return iv < jv.(float64)
+			case string:
+				return iv < jv.(string) // TODO Improve the sort order
+			}
 		}
 
-		jr, err := parser.FindResults(item(j))
-		if err != nil || len(jr) == 0 || len(jr[0]) == 0 {
-			return false
-		}
-
-		less, _ := isLess(ir[0][0], jr[0][0])
-		return less
+		return i < j
 	}
 }
 
-// isLess compares values, only int64, float64, and string are allowed
-func isLess(i, j reflect.Value) (bool, error) {
-	switch i.Kind() {
-	case reflect.Int64:
-		return i.Int() < j.Int(), nil
-	case reflect.Float64:
-		return i.Float() < j.Float(), nil
-	case reflect.String:
-		return i.String() < j.String(), nil // TODO Improve the sort order
-	default:
-		return false, fmt.Errorf("unsortable type: %v", i.Kind())
+func relaxedJSONPathExpression(expr string) string {
+	// Roughly the same as RelaxedJSONPathExpression in kubectl
+	if strings.HasPrefix(expr, "{") && strings.HasSuffix(expr, "}") {
+		expr = strings.TrimPrefix(strings.TrimSuffix(expr, "}"), "{")
 	}
+	expr = strings.TrimPrefix(expr, ".")
+	if expr == "" {
+		return "{$}"
+	}
+	return fmt.Sprintf("{.%s}", expr)
 }
