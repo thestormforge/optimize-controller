@@ -207,3 +207,28 @@ spec:
 		return nil
 	}
 }
+
+func WithImagePullPolicy(pullPolicy string) Option {
+	return func(k *Kustomize) error {
+		controllerPullPolicyPatch := []byte(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redsky-controller-manager
+  namespace: redsky-system
+spec:
+  template:
+    spec:
+      containers:
+      - name: manager
+        imagePullPolicy: ` + pullPolicy)
+
+		if err := k.fs.WriteFile(filepath.Join(k.Base, "pull_policy_patch.yaml"), controllerPullPolicyPatch); err != nil {
+			return err
+		}
+
+		k.kustomize.PatchesStrategicMerge = append(k.kustomize.PatchesStrategicMerge, "pull_policy_patch.yaml")
+
+		return nil
+	}
+}

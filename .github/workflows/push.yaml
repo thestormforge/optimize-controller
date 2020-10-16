@@ -71,7 +71,7 @@ jobs:
           echo "IMG=gcr.io/redskyops/redskyops-controller:${TAG}" >> $GITHUB_ENV
           echo "REDSKYCTL_IMG=gcr.io/redskyops/redskyctl:${TAG}" >> $GITHUB_ENV
           echo "SETUPTOOLS_IMG=gcr.io/redskyops/setuptools:${TAG}" >> $GITHUB_ENV
-          echo "PULL_POLICY=Always" >> $GITHUB_ENV
+          echo "PULL_POLICY=" >> $GITHUB_ENV
           echo "DOCKER_TAG=pr-${{ github.event.number }}" >> $GITHUB_ENV
       - name: Cache Go Modules
         uses: actions/cache@v1
