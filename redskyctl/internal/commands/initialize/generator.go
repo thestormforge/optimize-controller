@@ -23,6 +23,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/redskyops/redskyops-controller/internal/setup"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/authorize_cluster"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/grant_permissions"
@@ -158,6 +159,7 @@ func (o *GeneratorOptions) generateApplication() (io.Reader, error) {
 		kustomize.WithInstall(),
 		kustomize.WithNamespace(ctrl.Namespace),
 		kustomize.WithImage(o.Image),
+		kustomize.WithImagePullPolicy(setup.ImagePullPolicy),
 		kustomize.WithAPI(apiEnabled),
 	)
 	if err != nil {

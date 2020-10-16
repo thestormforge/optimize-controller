@@ -85,7 +85,7 @@ jobs:
             echo "SETUPTOOLS_IMG=gcr.io/redskyops/setuptools:${TAG}" >> $GITHUB_ENV
             gcloud --quiet auth configure-docker
           fi
-          echo "PULL_POLICY=Always" >> $GITHUB_ENV
+          echo "PULL_POLICY=" >> $GITHUB_ENV
       - name: Build controller
         run: |
           make docker-build-ci

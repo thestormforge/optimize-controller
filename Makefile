@@ -3,7 +3,7 @@
 IMG ?= controller:latest
 REDSKYCTL_IMG ?= redskyctl:latest
 SETUPTOOLS_IMG ?= setuptools:latest
-PULL_POLICY ?= IfNotPresent
+PULL_POLICY ?= Never
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,maxDescLen=0"
 
