@@ -97,7 +97,7 @@ docker-build-controller:
 	docker build . -t ${IMG}
 
 docker-build-setuptools:
-	docker build config -t ${SETUPTOOLS_IMG} --build-arg IMG='${IMG}' --build-arg PULL_POLICY='${PULL_POLICY}' --build-arg VERSION='${VERSION}'
+	docker build config -t ${SETUPTOOLS_IMG}
 
 # Push the docker images
 docker-push:

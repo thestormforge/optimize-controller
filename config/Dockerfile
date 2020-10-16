@@ -17,33 +17,24 @@ ENV HELM_URL="https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" \
     KUSTOMIZE_URL="https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" \
     KONJURE_URL="https://github.com/carbonrelay/konjure/releases/download/${KONJURE_VERSION}/konjure-linux-amd64.tar.gz"
 
+COPY . /workspace/
+
 RUN apk --no-cache add curl && \
     curl -L "$HELM_URL" | tar xz -C /usr/local/bin --exclude '*/*[^helm]' --strip-components=1 && \
     curl -L "$KUBECTL_URL" -o /usr/local/bin/kubectl && chmod +x /usr/local/bin/kubectl && \
     curl -L "$KUSTOMIZE_URL" | tar xz -C /usr/local/bin && \
     curl -L "$KONJURE_URL" | tar xz -C /usr/local/bin && \
-    addgroup -g 1000 -S setup && \
-    adduser -u 1000 -S setup -G setup
-
-COPY . /workspace/
-
-ARG IMG
-ARG PULL_POLICY
-ARG VERSION
-RUN cd /workspace/manager && kustomize edit set image controller=${IMG} && \
-    sed -i "s|PULL_POLICY|${PULL_POLICY}|g" /workspace/chart/redskyops/values.yaml && \
-    sed -i "s|IMG|${IMG%:*}|g" /workspace/chart/redskyops/values.yaml /workspace/chart/redskyops/questions.yml && \
-    sed -i "s|TAG|${IMG##*:}|g" /workspace/chart/redskyops/values.yaml /workspace/chart/redskyops/questions.yml && \
-    echo "appVersion: ${VERSION}" >> /workspace/chart/redskyops/Chart.yaml && \
     mkdir -p /workspace/base && \
+    addgroup -g 1000 -S setup && \
+    adduser -u 1000 -S setup -G setup && \
     chown -R setup /workspace
 
 USER setup:setup
 RUN konjure kustomize init
 
-# Add Helm stable until May 13, 2020
+# Add Helm stable until Nov 13, 2020
 RUN helm repo add stable https://kubernetes-charts.storage.googleapis.com
 
 WORKDIR "/workspace/base"
 ENTRYPOINT ["/workspace/docker-entrypoint.sh"]
-CMD ["install"]
+CMD ["build"]
