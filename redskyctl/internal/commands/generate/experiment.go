@@ -17,9 +17,6 @@ limitations under the License.
 package generate
 
 import (
-	"fmt"
-	"io/ioutil"
-
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/experiments"
@@ -29,7 +26,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/kustomize/api/filesys"
-	"sigs.k8s.io/yaml"
 )
 
 const experimentConfigKind = "Application"
@@ -37,8 +33,8 @@ const experimentConfigKind = "Application"
 type ExperimentOptions struct {
 	experiments.Options
 
-	ExperimentConfig experiment.Application
-	Filename         string
+	Application experiment.Application
+	Filename    string
 
 	Resources []string
 }
@@ -70,6 +66,8 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 	cmd.Flags().StringVarP(&o.Filename, "filename", "f", o.Filename, "File that contains the experiment configuration.")
 	cmd.Flags().StringArrayVarP(&o.Resources, "resources", "r", nil, "Additional resources to consider.")
 
+	_ = cmd.MarkFlagFilename("filename", "yml", "yaml")
+
 	commander.SetKubePrinter(&o.Printer, cmd, nil)
 	commander.ExitOnError(cmd)
 	return cmd
@@ -85,8 +83,8 @@ func (o *ExperimentOptions) generate() error {
 
 	// Start the experiment template
 	exp := &redskyv1beta1.Experiment{}
-	// TODO Do we want to filter out any of this information?
-	o.ExperimentConfig.ObjectMeta.DeepCopyInto(&exp.ObjectMeta)
+	// TODO Do we want to filter out any of this information? Re-format it (e.g. "{appName}-{version}"?
+	o.Application.ObjectMeta.DeepCopyInto(&exp.ObjectMeta)
 
 	// Scan the resources and add the results into the experiment object
 	if err := o.newScanner().ScanInto(exp); err != nil {
@@ -94,7 +92,7 @@ func (o *ExperimentOptions) generate() error {
 	}
 
 	// Add the cost metric
-	experiment.AddCostMetric(&o.ExperimentConfig, exp)
+	experiment.AddCostMetric(&o.Application, exp)
 
 	// TODO Do some sanity checks to make sure the experiment is valid before we add it
 	list.Items = append(list.Items, runtime.RawExtension{Object: exp})
@@ -105,31 +103,22 @@ func (o *ExperimentOptions) generate() error {
 }
 
 func (o *ExperimentOptions) readConfig() error {
-	// Read the configuration file
+	// Read the configuration from disk if specified
 	if o.Filename != "" {
-		b, err := ioutil.ReadFile(o.Filename)
+		r, err := o.IOStreams.OpenFile(o.Filename)
 		if err != nil {
 			return err
 		}
 
-		// TODO We should be using the Kubernetes object decoder for this
-		if err := yaml.Unmarshal(b, &o.ExperimentConfig); err != nil {
+		rr := commander.NewResourceReader()
+		_ = experiment.AddToScheme(rr.Scheme)
+		if err := rr.ReadInto(r, &o.Application); err != nil {
 			return err
 		}
-		gvk := experiment.GroupVersion.WithKind(experimentConfigKind)
-		if o.ExperimentConfig.GroupVersionKind() != gvk {
-			return fmt.Errorf("incorrect input type: %s", o.ExperimentConfig.GroupVersionKind().String())
-		}
 	}
-
-	scheme, err := experiment.SchemeBuilder.Build()
-	if err != nil {
-		return err
-	}
-	scheme.Default(&o.ExperimentConfig)
 
 	// Add additional resources
-	o.ExperimentConfig.Resources = append(o.ExperimentConfig.Resources, o.Resources...)
+	o.Application.Resources = append(o.Application.Resources, o.Resources...)
 
 	// TODO Should we expose additional overrides/merges on the CLI options? Like name?
 
@@ -139,12 +128,12 @@ func (o *ExperimentOptions) readConfig() error {
 func (o *ExperimentOptions) newScanner() *experiment.Scanner {
 	s := &experiment.Scanner{
 		FileSystem:                 filesys.MakeFsOnDisk(),
-		Resources:                  o.ExperimentConfig.Resources,
+		Resources:                  o.Application.Resources,
 		ContainerResourcesSelector: experiment.DefaultContainerResourcesSelectors(),
 	}
 
-	if o.ExperimentConfig.Parameters != nil && o.ExperimentConfig.Parameters.ContainerResources != nil {
-		ls := labels.Set(o.ExperimentConfig.Parameters.ContainerResources.Labels).String()
+	if o.Application.Parameters != nil && o.Application.Parameters.ContainerResources != nil {
+		ls := labels.Set(o.Application.Parameters.ContainerResources.Labels).String()
 		for i := range s.ContainerResourcesSelector {
 			s.ContainerResourcesSelector[i].LabelSelector = ls
 		}
