@@ -26,6 +26,7 @@ import (
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/generate/experiment"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/kustomize/api/filesys"
 	"sigs.k8s.io/yaml"
@@ -88,7 +89,7 @@ func (o *ExperimentOptions) generate() error {
 	o.ExperimentConfig.ObjectMeta.DeepCopyInto(&exp.ObjectMeta)
 
 	// Scan the resources and add the results into the experiment object
-	if err := o.newScanner().ScanInto(&o.ExperimentConfig, exp); err != nil {
+	if err := o.newScanner().ScanInto(exp); err != nil {
 		return err
 	}
 
@@ -136,8 +137,18 @@ func (o *ExperimentOptions) readConfig() error {
 }
 
 func (o *ExperimentOptions) newScanner() *experiment.Scanner {
-	return &experiment.Scanner{
+	s := &experiment.Scanner{
 		FileSystem:                 filesys.MakeFsOnDisk(),
+		Resources:                  o.ExperimentConfig.Resources,
 		ContainerResourcesSelector: experiment.DefaultContainerResourcesSelectors(),
 	}
+
+	if o.ExperimentConfig.Parameters != nil && o.ExperimentConfig.Parameters.ContainerResources != nil {
+		ls := labels.Set(o.ExperimentConfig.Parameters.ContainerResources.Labels).String()
+		for i := range s.ContainerResourcesSelector {
+			s.ContainerResourcesSelector[i].LabelSelector = ls
+		}
+	}
+
+	return s
 }
