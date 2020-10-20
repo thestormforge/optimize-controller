@@ -23,11 +23,7 @@ import (
 
 // TODO This whole thing should move over to redskyops-go
 
-// Things to consider adding:
-// 1. A label selector for objects to include in the scan (alternately, an annotation to exclude?)
-
-// Application represents the configuration of the experiment generator. The generator will consider
-// these values when constructing a new `Experiment` resource.
+// Application represents a description of an application to run experiments on.
 // +kubebuilder:object:generate=true
 // +kubebuilder:object:root=true
 type Application struct {
