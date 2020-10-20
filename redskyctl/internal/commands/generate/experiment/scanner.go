@@ -40,6 +40,8 @@ const (
 type Scanner struct {
 	// FileSystem to use when looking for resources, generally a pass through to the OS file system.
 	FileSystem filesys.FileSystem
+	// ContainerResourcesSelector are the selectors for determining what application resources to scan for resources lists.
+	ContainerResourcesSelector []ContainerResourcesSelector
 }
 
 // ScanInto scans the specified resource references and adds the necessary patches and parameter
@@ -92,23 +94,35 @@ func (s *Scanner) load(resources []string) (resmap.ResMap, error) {
 
 func (s *Scanner) scan(rm resmap.ResMap) ([]*applicationResource, error) {
 	result := make([]*applicationResource, 0, rm.Size())
-	for _, rr := range rm.Resources() {
-		// Get the YAML tree representation of the resource
-		node, err := filtersutil.GetRNode(rr)
+	for _, sel := range s.ContainerResourcesSelector {
+		// Select the matching resources
+		resources, err := rm.Select(sel.selector())
 		if err != nil {
 			return nil, err
 		}
 
-		// Scan the document tree for information to add to the application resource
-		r := &applicationResource{}
-		if err := r.SaveTargetReference(node); err != nil {
-			return nil, err
-		}
-		if err := r.SaveResourcesPaths(node); err != nil {
-			return nil, err
-		}
-		if !r.Empty() {
-			result = append(result, r)
+		for _, r := range resources {
+			// Get the YAML tree representation of the resource
+			node, err := filtersutil.GetRNode(r)
+			if err != nil {
+				return nil, err
+			}
+
+			// Scan the document tree for information to add to the application resource
+			ar := &applicationResource{}
+			if err := ar.SaveTargetReference(node); err != nil {
+				return nil, err
+			}
+			if err := ar.SaveResourcesPaths(node, sel); err != nil {
+				// TODO Ignore errors if the resource doesn't have a matching resources path
+				return nil, err
+			}
+			if ar.Empty() {
+				continue
+			}
+
+			// TODO We need to deal with duplicates
+			result = append(result, ar)
 		}
 	}
 	return result, nil
@@ -161,16 +175,17 @@ func (r *applicationResource) SaveTargetReference(node *yaml.RNode) error {
 }
 
 // SaveResourcesPaths extracts the paths the `resources` elements from the supplied node.
-func (r *applicationResource) SaveResourcesPaths(node *yaml.RNode) error {
-	if r.targetRef.APIVersion != "apps/v1" {
-		return nil
-	}
-
-	path := []string{"spec", "template", "spec", "containers"}
+func (r *applicationResource) SaveResourcesPaths(node *yaml.RNode, sel ContainerResourcesSelector) error {
+	path := sel.fieldSpec().PathSlice()
 	return node.PipeE(
 		yaml.Lookup(path...),
 		yaml.FilterFunc(func(node *yaml.RNode) (*yaml.RNode, error) {
 			return nil, node.VisitElements(func(node *yaml.RNode) error {
+				// TODO Capture existing resources for a baseline?
+				if node.Field("resources") == nil && !sel.CreateIfNotPresent {
+					return nil
+				}
+
 				name := node.Field("name").Value.YNode().Value
 				r.resourcesPaths = append(r.resourcesPaths, append(path, "[name="+name+"]", "resources"))
 				return nil
