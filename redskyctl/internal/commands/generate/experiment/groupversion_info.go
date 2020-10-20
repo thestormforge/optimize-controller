@@ -22,7 +22,7 @@ import (
 )
 
 var (
-	GroupVersion       = schema.GroupVersion{Group: "app.redskyops.dev", Version: "v1alpha1"}
+	GroupVersion       = schema.GroupVersion{Group: "apps.redskyops.dev", Version: "v1alpha1"}
 	SchemeBuilder      = &scheme.Builder{GroupVersion: GroupVersion}
 	localSchemeBuilder = &SchemeBuilder.SchemeBuilder
 )
