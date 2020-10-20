@@ -103,10 +103,9 @@ func TestGenerate(t *testing.T) {
 			},
 		},
 		{
-			// TODO: I'd expect this to exit 1, but it doesn't?
 			desc:          "gen rbac (no args)",
 			args:          []string{"rbac"},
-			expectedError: false,
+			expectedError: true,
 		},
 		{
 			// TODO: Need to get an experiment that actually requires additional rbac

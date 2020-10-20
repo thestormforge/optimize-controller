@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 
@@ -49,6 +50,15 @@ type IOStreams struct {
 	Out io.Writer
 	// ErrOut is used to access the standard error output stream (or it's override)
 	ErrOut io.Writer
+}
+
+// OpenFile returns a read closer for the specified filename. If the filename is logically
+// empty (i.e. "-"), the input stream is returned.
+func (s *IOStreams) OpenFile(filename string) (io.ReadCloser, error) {
+	if filename == "-" {
+		return ioutil.NopCloser(s.In), nil
+	}
+	return os.Open(filename)
 }
 
 // SetStreams updates the streams using the supplied command
