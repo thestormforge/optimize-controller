@@ -55,7 +55,8 @@ func NewResourceReader() *ResourceReader {
 	return rr
 }
 
-// ReadInto reads the
+// ReadInto decodes the supplied byte stream into the target runtime object. The default values
+// and type information of the target object will be populated.
 func (r *ResourceReader) ReadInto(reader io.ReadCloser, target runtime.Object) error {
 	// Determine the GVK for the type we are supposed to be populating
 	gvk, err := r.objectKind(target)

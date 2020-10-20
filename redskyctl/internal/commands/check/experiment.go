@@ -60,7 +60,7 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 }
 
 func (o *ExperimentOptions) checkExperiment() error {
-	r, err := o.FileReader(o.Filename)
+	r, err := o.IOStreams.OpenFile(o.Filename)
 	if err != nil {
 		return err
 	}

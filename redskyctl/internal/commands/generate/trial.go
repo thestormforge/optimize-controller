@@ -66,7 +66,7 @@ func NewTrialCommand(o *TrialOptions) *cobra.Command {
 }
 
 func (o *TrialOptions) generate() error {
-	r, err := o.FileReader(o.Filename)
+	r, err := o.IOStreams.OpenFile(o.Filename)
 	if err != nil {
 		return err
 	}

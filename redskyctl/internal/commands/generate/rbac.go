@@ -97,7 +97,7 @@ func (o *RBACOptions) Complete() {
 }
 
 func (o *RBACOptions) generate() error {
-	r, err := o.FileReader(o.Filename)
+	r, err := o.IOStreams.OpenFile(o.Filename)
 	if err != nil {
 		return err
 	}
