@@ -18,18 +18,10 @@ package experiment
 
 import (
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"sigs.k8s.io/controller-runtime/pkg/scheme"
 )
 
-var (
-	GroupVersion       = schema.GroupVersion{Group: "redskyops.dev", Version: "v1alpha1"}
-	SchemeBuilder      = &scheme.Builder{GroupVersion: GroupVersion}
-	localSchemeBuilder = &SchemeBuilder.SchemeBuilder
-)
+// TODO This whole thing should move over to redskyops-go
 
 // Things to consider adding:
 // 1. A label selector for objects to include in the scan (alternately, an annotation to exclude?)
@@ -46,8 +38,10 @@ type Application struct {
 	// These strings are the same format as used by Kustomize.
 	Resources []string `json:"resources,omitempty"`
 
+	// Cost is used to identify which parts of the application impact the cost of running the application.
 	Cost *CostConfig `json:"cost,omitempty"`
 
+	// CloudProvider is used to provide details about the hosting environment the application is run in.
 	CloudProvider *CloudProvider `json:"cloudProvider,omitempty"`
 }
 
@@ -67,35 +61,4 @@ type CloudProvider struct {
 
 func init() {
 	SchemeBuilder.Register(&Application{})
-	localSchemeBuilder.Register(RegisterDefaults)
-}
-
-func RegisterDefaults(s *runtime.Scheme) error {
-	s.AddTypeDefaultingFunc(&Application{}, func(obj interface{}) { obj.(*Application).Default() })
-	return nil
-}
-
-func (in *Application) Default() {
-	if in.CloudProvider == nil {
-		in.CloudProvider = &CloudProvider{}
-	}
-	in.CloudProvider.Default()
-}
-
-func (in *CloudProvider) Default() {
-	if in.Cost == nil {
-		in.Cost = corev1.ResourceList{}
-	}
-	if in.Cost.Cpu().IsZero() {
-		switch in.Name {
-		default:
-			in.Cost[corev1.ResourceCPU] = resource.MustParse("22")
-		}
-	}
-	if in.Cost.Memory().IsZero() {
-		switch in.Name {
-		default:
-			in.Cost[corev1.ResourceMemory] = resource.MustParse("3")
-		}
-	}
 }
