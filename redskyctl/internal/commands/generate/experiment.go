@@ -83,7 +83,9 @@ func (o *ExperimentOptions) generate() error {
 	}
 
 	// Start the experiment template
-	exp := o.newExperiment()
+	exp := &redskyv1beta1.Experiment{}
+	// TODO Do we want to filter out any of this information?
+	o.ExperimentConfig.ObjectMeta.DeepCopyInto(&exp.ObjectMeta)
 
 	// Scan the resources and add the results into the experiment object
 	s := &experiment.Scanner{
@@ -106,18 +108,20 @@ func (o *ExperimentOptions) generate() error {
 
 func (o *ExperimentOptions) readConfig() error {
 	// Read the configuration file
-	b, err := ioutil.ReadFile(o.Filename)
-	if err != nil {
-		return err
-	}
+	if o.Filename != "" {
+		b, err := ioutil.ReadFile(o.Filename)
+		if err != nil {
+			return err
+		}
 
-	// TODO We should be using the Kubernetes object decoder for this
-	if err := yaml.Unmarshal(b, &o.ExperimentConfig); err != nil {
-		return err
-	}
-	gvk := experiment.GroupVersion.WithKind(experimentConfigKind)
-	if o.ExperimentConfig.GroupVersionKind() != gvk {
-		return fmt.Errorf("incorrect input type: %s", o.ExperimentConfig.GroupVersionKind().String())
+		// TODO We should be using the Kubernetes object decoder for this
+		if err := yaml.Unmarshal(b, &o.ExperimentConfig); err != nil {
+			return err
+		}
+		gvk := experiment.GroupVersion.WithKind(experimentConfigKind)
+		if o.ExperimentConfig.GroupVersionKind() != gvk {
+			return fmt.Errorf("incorrect input type: %s", o.ExperimentConfig.GroupVersionKind().String())
+		}
 	}
 
 	scheme, err := experiment.SchemeBuilder.Build()
@@ -132,13 +136,4 @@ func (o *ExperimentOptions) readConfig() error {
 	// TODO Should we expose additional overrides/merges on the CLI options? Like name?
 
 	return nil
-}
-
-func (o *ExperimentOptions) newExperiment() *redskyv1beta1.Experiment {
-	exp := &redskyv1beta1.Experiment{}
-
-	// TODO Do we want to filter out any of this information?
-	o.ExperimentConfig.ObjectMeta.DeepCopyInto(&exp.ObjectMeta)
-
-	return exp
 }
