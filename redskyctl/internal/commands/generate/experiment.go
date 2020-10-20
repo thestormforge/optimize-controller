@@ -88,10 +88,7 @@ func (o *ExperimentOptions) generate() error {
 	o.ExperimentConfig.ObjectMeta.DeepCopyInto(&exp.ObjectMeta)
 
 	// Scan the resources and add the results into the experiment object
-	s := &experiment.Scanner{
-		FileSystem: filesys.MakeFsOnDisk(),
-	}
-	if err := s.ScanInto(&o.ExperimentConfig, exp); err != nil {
+	if err := o.newScanner().ScanInto(&o.ExperimentConfig, exp); err != nil {
 		return err
 	}
 
@@ -136,4 +133,11 @@ func (o *ExperimentOptions) readConfig() error {
 	// TODO Should we expose additional overrides/merges on the CLI options? Like name?
 
 	return nil
+}
+
+func (o *ExperimentOptions) newScanner() *experiment.Scanner {
+	return &experiment.Scanner{
+		FileSystem:                 filesys.MakeFsOnDisk(),
+		ContainerResourcesSelector: experiment.DefaultContainerResourcesSelectors(),
+	}
 }
