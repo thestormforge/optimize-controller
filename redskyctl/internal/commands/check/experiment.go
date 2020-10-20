@@ -18,7 +18,6 @@ package check
 
 import (
 	"fmt"
-	"io/ioutil"
 	"strings"
 
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
@@ -30,7 +29,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
-	"sigs.k8s.io/yaml"
 )
 
 // ExperimentOptions are the options for checking an experiment manifest
@@ -55,27 +53,22 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 	cmd.Flags().StringVarP(&o.Filename, "filename", "f", "", "File that contains the experiment to check.")
 
 	_ = cmd.MarkFlagFilename("filename", "yml", "yaml")
+	_ = cmd.MarkFlagRequired("filename")
 
 	commander.ExitOnError(cmd)
 	return cmd
 }
 
 func (o *ExperimentOptions) checkExperiment() error {
-	// Read the entire input
-	var data []byte
-	var err error
-	if o.Filename == "-" {
-		data, err = ioutil.ReadAll(o.In)
-	} else {
-		data, err = ioutil.ReadFile(o.Filename)
-	}
+	r, err := o.FileReader(o.Filename)
 	if err != nil {
 		return err
 	}
 
 	// Unmarshal the experiment
 	experiment := &redskyv1beta1.Experiment{}
-	if err = yaml.Unmarshal(data, experiment); err != nil {
+	rr := commander.NewResourceReader()
+	if err := rr.ReadInto(r, experiment); err != nil {
 		return err
 	}
 

@@ -80,6 +80,7 @@ func NewRBACCommand(o *RBACOptions) *cobra.Command {
 	cmd.Flags().BoolVar(&o.ClusterRoleBinding, "cluster-role-binding", o.ClusterRoleBinding, "When generating a cluster role, also generate a cluster role binding.")
 
 	_ = cmd.MarkFlagFilename("filename", "yml", "yaml")
+	_ = cmd.MarkFlagRequired("filename")
 
 	commander.SetKubePrinter(&o.Printer, cmd, nil)
 	commander.ExitOnError(cmd)
@@ -96,9 +97,15 @@ func (o *RBACOptions) Complete() {
 }
 
 func (o *RBACOptions) generate() error {
+	r, err := o.FileReader(o.Filename)
+	if err != nil {
+		return err
+	}
+
 	// Read the experiments
 	experimentList := &redskyv1beta1.ExperimentList{}
-	if err := readExperiments(o.Filename, o.In, experimentList); err != nil {
+	rr := commander.NewResourceReader()
+	if err := rr.ReadInto(r, experimentList); err != nil {
 		return err
 	}
 
