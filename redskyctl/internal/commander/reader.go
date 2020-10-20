@@ -49,7 +49,7 @@ func NewResourceReader() *ResourceReader {
 	_ = redskyv1beta1.AddToScheme(rr.Scheme)
 	_ = redskyv1alpha1.AddToScheme(rr.Scheme)
 
-	// Allow single experiments to fulfil target an experiment list
+	// Allow single experiments to target an experiment list
 	_ = addExperimentListConversions(rr.Scheme)
 
 	return rr
@@ -104,11 +104,13 @@ func (r *ResourceReader) objectKind(obj runtime.Object) (schema.GroupVersionKind
 	if err != nil {
 		return schema.GroupVersionKind{}, err
 	}
+
 	gvk, ok := r.PreferredVersion.KindForGroupVersionKinds(gvks)
 	if !ok {
 		// Your code must supply a GroupVersioner to disambiguate this case
 		panic("read destination type is ambiguous in scheme")
 	}
+
 	return gvk, nil
 }
 
@@ -119,6 +121,7 @@ func (r *ResourceReader) decoder(mediaType string) (runtime.Decoder, error) {
 	if !ok {
 		return nil, fmt.Errorf("could not find serializer for %s", mediaType)
 	}
+
 	return cs.DecoderToVersion(info.Serializer, r.PreferredVersion), nil
 }
 
@@ -132,6 +135,7 @@ func mediaType(r io.ReadCloser) string {
 			mt = runtime.ContentTypeJSON
 		}
 	}
+
 	return mt
 }
 
@@ -145,6 +149,7 @@ func (onlyVersion) KindForGroupVersionKinds(kinds []schema.GroupVersionKind) (sc
 	if len(kinds) == 1 {
 		return kinds[0], true
 	}
+
 	return schema.GroupVersionKind{}, false
 }
 
@@ -167,5 +172,6 @@ func addExperimentListConversions(s *runtime.Scheme) error {
 	}); err != nil {
 		return err
 	}
+
 	return nil
 }
