@@ -43,6 +43,9 @@ type Application struct {
 
 	// CloudProvider is used to provide details about the hosting environment the application is run in.
 	CloudProvider *CloudProvider `json:"cloudProvider,omitempty"`
+
+	// Parameters specifies additional details about the experiment parameters.
+	Parameters *Parameters `json:"parameters,omitempty"`
 }
 
 // +kubebuilder:object:generate=true
@@ -53,10 +56,22 @@ type CostConfig struct {
 
 // +kubebuilder:object:generate=true
 type CloudProvider struct {
-	// Cloud provider name, may be used to adjust defaults
+	// Cloud provider name, may be used to adjust defaults.
 	Name string `json:"name,omitempty"`
-	// Per-resource cost weightings
+	// Per-resource cost weightings.
 	Cost corev1.ResourceList `json:"cost,omitempty"`
+}
+
+// +kubebuilder:object:generate=true
+type Parameters struct {
+	// Information related to the discovery of container resources parameters like CPU and memory.
+	ContainerResources *ContainerResources `json:"containerResources,omitempty"`
+}
+
+// +kubebuilder:object:generate=true
+type ContainerResources struct {
+	// Labels of Kubernetes objects to consider when generating container resources patches.
+	Labels map[string]string `json:"labels,omitempty"`
 }
 
 func init() {
