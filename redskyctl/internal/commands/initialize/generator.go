@@ -69,7 +69,7 @@ func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 		RunE:   commander.WithoutArgsE(o.generate),
 	}
 
-	cmd.Flags().StringVar(&o.OutputDirectory, "output-dir", o.OutputDirectory, "Write files to a `directory` instead of stdout.")
+	cmd.Flags().StringVar(&o.OutputDirectory, "output-dir", o.OutputDirectory, "write files to a `directory` instead of stdout")
 	o.addFlags(cmd)
 
 	commander.ExitOnError(cmd)
@@ -77,14 +77,14 @@ func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 }
 
 func (o *GeneratorOptions) addFlags(cmd *cobra.Command) {
-	cmd.Flags().BoolVar(&o.IncludeBootstrapRole, "bootstrap-role", o.IncludeBootstrapRole, "Create the bootstrap role.")
-	cmd.Flags().BoolVar(&o.IncludeExtraPermissions, "extra-permissions", o.IncludeExtraPermissions, "Generate permissions required for features like namespace creation.")
-	cmd.Flags().StringVar(&o.NamespaceSelector, "ns-selector", o.NamespaceSelector, "Create namespaced role bindings to matching namespaces.")
+	cmd.Flags().BoolVar(&o.IncludeBootstrapRole, "bootstrap-role", o.IncludeBootstrapRole, "create the bootstrap role")
+	cmd.Flags().BoolVar(&o.IncludeExtraPermissions, "extra-permissions", o.IncludeExtraPermissions, "generate permissions required for features like namespace creation")
+	cmd.Flags().StringVar(&o.NamespaceSelector, "ns-selector", o.NamespaceSelector, "create namespaced role bindings to matching namespaces")
 
 	// Add hidden options
-	cmd.Flags().StringVar(&o.Image, "image", kustomize.BuildImage, "Specify the controller image to use.")
-	cmd.Flags().BoolVar(&o.SkipControllerRBAC, "skip-controller-rbac", o.SkipControllerRBAC, "Skip generation of additional controller roles.")
-	cmd.Flags().BoolVar(&o.SkipSecret, "skip-secret", o.SkipSecret, "Skip generation of secret.")
+	cmd.Flags().StringVar(&o.Image, "image", kustomize.BuildImage, "specify the controller image to use")
+	cmd.Flags().BoolVar(&o.SkipControllerRBAC, "skip-controller-rbac", o.SkipControllerRBAC, "skip generation of additional controller roles")
+	cmd.Flags().BoolVar(&o.SkipSecret, "skip-secret", o.SkipSecret, "skip generation of secret")
 	_ = cmd.Flags().MarkHidden("image")
 	_ = cmd.Flags().MarkHidden("skip-controller-rbac")
 	_ = cmd.Flags().MarkHidden("skip-secret")

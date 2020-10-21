@@ -54,10 +54,10 @@ func NewGetCommand(o *GetOptions) *cobra.Command {
 		RunE: commander.WithContextE(o.get),
 	}
 
-	cmd.Flags().IntVar(&o.ChunkSize, "chunk-size", o.ChunkSize, "Fetch large lists in chunks rather then all at once.")
-	cmd.Flags().StringVarP(&o.Selector, "selector", "l", o.Selector, "Selector (label `query`) to filter on.")
-	cmd.Flags().StringVar(&o.SortBy, "sort-by", o.SortBy, "Sort list types using this JSONPath `expression`.")
-	cmd.Flags().BoolVarP(&o.All, "all", "A", false, "Include all resources.")
+	cmd.Flags().IntVar(&o.ChunkSize, "chunk-size", o.ChunkSize, "fetch large lists in chunks rather then all at once")
+	cmd.Flags().StringVarP(&o.Selector, "selector", "l", o.Selector, "selector (label `query`) to filter on")
+	cmd.Flags().StringVar(&o.SortBy, "sort-by", o.SortBy, "sort list types using this JSONPath `expression`")
+	cmd.Flags().BoolVarP(&o.All, "all", "A", false, "include all resources")
 
 	_ = cmd.MarkZshCompPositionalArgumentWords(1, validTypes()...)
 

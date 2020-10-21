@@ -105,13 +105,13 @@ func NewCommand(o *Options) *cobra.Command {
 		RunE:              commander.WithContextE(o.login),
 	}
 
-	cmd.Flags().StringVar(&o.Name, "name", "", "Name of the server configuration to authorize.")
-	cmd.Flags().StringVar(&o.Environment, "env", "", "Override the execution environment.")
-	cmd.Flags().StringVar(&o.Server, "server", "", "Override the Red Sky API server identifier.")
-	cmd.Flags().StringVar(&o.Issuer, "issuer", "", "Override the authorization server identifier.")
-	cmd.Flags().BoolVar(&o.DisplayURL, "url", false, "Display the URL instead of opening a browser.")
-	cmd.Flags().BoolVar(&o.DisplayQR, "qr", false, "Display a QR code instead of opening a browser.")
-	cmd.Flags().BoolVar(&o.Force, "force", false, "Overwrite existing configuration.")
+	cmd.Flags().StringVar(&o.Name, "name", "", "name of the server configuration to authorize")
+	cmd.Flags().StringVar(&o.Environment, "env", "", "override the execution environment")
+	cmd.Flags().StringVar(&o.Server, "server", "", "override the Red Sky API server identifier")
+	cmd.Flags().StringVar(&o.Issuer, "issuer", "", "override the authorization server identifier")
+	cmd.Flags().BoolVar(&o.DisplayURL, "url", false, "display the URL instead of opening a browser")
+	cmd.Flags().BoolVar(&o.DisplayQR, "qr", false, "display a QR code instead of opening a browser")
+	cmd.Flags().BoolVar(&o.Force, "force", false, "overwrite existing configuration")
 
 	_ = cmd.Flags().MarkHidden("env")
 	_ = cmd.Flags().MarkHidden("server")

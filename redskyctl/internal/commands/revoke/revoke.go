@@ -52,7 +52,7 @@ func NewCommand(o *Options) *cobra.Command {
 		RunE:   commander.WithContextE(o.revoke),
 	}
 
-	cmd.Flags().StringVar(&o.Name, "name", "", "Name of the server configuration to de-authorize.")
+	cmd.Flags().StringVar(&o.Name, "name", "", "name of the server configuration to de-authorize")
 
 	commander.ExitOnError(cmd)
 	return cmd

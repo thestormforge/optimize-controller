@@ -43,7 +43,7 @@ func NewCommand(o *Options) *cobra.Command {
 		RunE:   commander.WithContextE(o.initialize),
 	}
 
-	cmd.Flags().BoolVar(&o.Wait, "wait", o.Wait, "Wait for resources to be established before returning.")
+	cmd.Flags().BoolVar(&o.Wait, "wait", o.Wait, "wait for resources to be established before returning")
 
 	o.addFlags(cmd)
 

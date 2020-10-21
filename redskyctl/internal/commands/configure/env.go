@@ -49,7 +49,7 @@ func NewEnvCommand(o *EnvOptions) *cobra.Command {
 		RunE:   commander.WithoutArgsE(o.env),
 	}
 
-	cmd.Flags().BoolVar(&o.IncludeController, "manager", false, "Generate the manager environment.")
+	cmd.Flags().BoolVar(&o.IncludeController, "manager", false, "generate the manager environment")
 
 	commander.ExitOnError(cmd)
 	return cmd

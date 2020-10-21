@@ -193,14 +193,14 @@ func (f *printFlags) addFlags(cmd *cobra.Command) {
 	// We only need an output flag if there is a choice
 	if len(f.allowedFormats) > 1 {
 		allowed := strings.Trim(strings.ReplaceAll(strings.Join(f.allowedFormats, "|"), "||", "|"), "|")
-		cmd.Flags().StringVarP(&f.outputFormat, "output", "o", f.outputFormat, fmt.Sprintf("Output `format`. One of: %s", allowed))
+		cmd.Flags().StringVarP(&f.outputFormat, "output", "o", f.outputFormat, fmt.Sprintf("output `format`. one of: %s", allowed))
 	}
 
 	// These flags only work with formats that require metadata, make sure we have at least one
 	for _, allowedFormat := range f.allowedFormats {
 		if requiresMeta(allowedFormat) {
-			cmd.Flags().BoolVar(&f.noHeader, "no-headers", f.noHeader, "Don't print headers.")
-			cmd.Flags().BoolVar(&f.showLabels, "show-labels", f.showLabels, "When printing, show all labels as the last column.")
+			cmd.Flags().BoolVar(&f.noHeader, "no-headers", f.noHeader, "don't print headers")
+			cmd.Flags().BoolVar(&f.showLabels, "show-labels", f.showLabels, "when printing, show all labels as the last column")
 			break
 		}
 	}

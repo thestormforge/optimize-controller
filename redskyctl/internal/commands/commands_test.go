@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
+	flag "github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -36,6 +37,8 @@ func testCommandUsage(t *testing.T, cmd *cobra.Command) {
 	// without the period. We also want to prevent wrapping on an 80 column layout so we
 	// limit the length.
 
+	// For flags (e.g. "-h, --help  help for xxx") we want lower case without the period.
+
 	t.Run(cmd.Name(), func(t *testing.T) {
 		// Short description
 		fw := strings.Fields(cmd.Short)[0]
@@ -45,9 +48,34 @@ func testCommandUsage(t *testing.T, cmd *cobra.Command) {
 
 		// TODO If cmd.Args is set, check that Name() != Use
 
+		// Flags
+		cmd.Flags().VisitAll(func(f *flag.Flag) {
+			t.Run("--"+f.Name, func(t *testing.T) {
+				assert.False(t, strings.HasSuffix(cmd.Short, "."))
+
+				_, u := flag.UnquoteUsage(f)
+				fw := strings.Fields(u)[0]
+				assert.Equal(t, normalizeFlagUsage(fw), fw)
+				//	assert.NotEqual(t, "string", n)
+
+				if f.Name == "filename" {
+					assert.Contains(t, f.Annotations, cobra.BashCompFilenameExt)
+				}
+
+				// TODO Check the "one of" format
+			})
+		})
+
 		// Recurse into the children commands
 		for _, c := range cmd.Commands() {
 			testCommandUsage(t, c)
 		}
 	})
+}
+
+func normalizeFlagUsage(usageFirstWord string) string {
+	if usageFirstWord == "Kustomize" {
+		return usageFirstWord
+	}
+	return strings.ToLower(usageFirstWord)
 }

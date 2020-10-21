@@ -60,10 +60,10 @@ func NewViewCommand(o *ViewOptions) *cobra.Command {
 		RunE:   commander.WithoutArgsE(o.view),
 	}
 
-	cmd.Flags().StringVarP(&o.Output, "output", "o", "yaml", "Output `format`. One of: yaml|json")
-	cmd.Flags().BoolVar(&o.FileOnly, "raw", false, "Display the raw configuration file without merging.")
-	cmd.Flags().BoolVar(&o.Minify, "minify", false, "Reduce information to effective values.")
-	cmd.Flags().BoolVar(&config.DecodeJWT, "decode-jwt", false, "Display JWT claims instead of raw token strings.")
+	cmd.Flags().StringVarP(&o.Output, "output", "o", "yaml", "output `format`. One of: yaml|json")
+	cmd.Flags().BoolVar(&o.FileOnly, "raw", false, "display the raw configuration file without merging")
+	cmd.Flags().BoolVar(&o.Minify, "minify", false, "reduce information to effective values")
+	cmd.Flags().BoolVar(&config.DecodeJWT, "decode-jwt", false, "display JWT claims instead of raw token strings")
 	_ = cmd.Flags().MarkHidden("decode-jwt")
 
 	commander.ExitOnError(cmd)

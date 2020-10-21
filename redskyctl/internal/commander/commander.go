@@ -122,10 +122,10 @@ func ConfigGlobals(cfg *internalconfig.RedSkyConfig, cmd *cobra.Command) {
 	root := cmd.Root()
 
 	// Create the configuration options on top of environment variable overrides
-	root.PersistentFlags().StringVar(&cfg.Filename, "redskyconfig", cfg.Filename, "Path to the redskyconfig file to use.")
-	root.PersistentFlags().StringVar(&cfg.Overrides.Context, "context", "", "The name of the redskyconfig context to use. NOT THE KUBE CONTEXT.")
-	root.PersistentFlags().StringVar(&cfg.Overrides.KubeConfig, "kubeconfig", "", "Path to the kubeconfig file to use for CLI requests.")
-	root.PersistentFlags().StringVarP(&cfg.Overrides.Namespace, "namespace", "n", "", "If present, the namespace scope for this CLI request.")
+	root.PersistentFlags().StringVar(&cfg.Filename, "redskyconfig", cfg.Filename, "path to the redskyconfig `file` to use")
+	root.PersistentFlags().StringVar(&cfg.Overrides.Context, "context", "", "the `name` of the redskyconfig context to use, NOT THE KUBE CONTEXT")
+	root.PersistentFlags().StringVar(&cfg.Overrides.KubeConfig, "kubeconfig", "", "path to the kubeconfig `file` to use for CLI requests")
+	root.PersistentFlags().StringVarP(&cfg.Overrides.Namespace, "namespace", "n", "", "if present, the namespace scope for this CLI request")
 
 	_ = root.MarkFlagFilename("redskyconfig")
 	_ = root.MarkFlagFilename("kubeconfig")
