@@ -27,6 +27,7 @@ Kubernetes Exploration
 * [redskyctl label](redskyctl_label.md)	 - Label a Red Sky resource
 * [redskyctl login](redskyctl_login.md)	 - Authenticate
 * [redskyctl reset](redskyctl_reset.md)	 - Uninstall from a cluster
+* [redskyctl results](redskyctl_results.md)	 - Serve a visualization of the results
 * [redskyctl revoke](redskyctl_revoke.md)	 - Revoke an authorization
 * [redskyctl suggest](redskyctl_suggest.md)	 - Suggest assignments
 * [redskyctl version](redskyctl_version.md)	 - Print the version information
