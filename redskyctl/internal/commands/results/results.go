@@ -51,8 +51,9 @@ type Options struct {
 // NewCommand creates a new command for displaying the results UI
 func NewCommand(o *Options) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "results",
-		Short: "Serve a visualization of the results",
+		Use:        "results",
+		Short:      "Serve a visualization of the results",
+		Deprecated: "This command is being replaced with 'https://app.carbonrelay.io/'",
 
 		PreRun: func(cmd *cobra.Command, args []string) {
 			commander.SetStreams(&o.IOStreams, cmd)
