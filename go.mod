@@ -18,7 +18,7 @@ require (
 	github.com/prometheus/common v0.4.1
 	github.com/redskyops/redskyops-go v0.0.4
 	github.com/redskyops/redskyops-ui/v2 v2.1.5
-	github.com/spf13/cobra v1.0.0
+	github.com/spf13/cobra v1.1.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.6.1
 	github.com/zorkian/go-datadog-api v2.24.0+incompatible
