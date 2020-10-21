@@ -51,9 +51,10 @@ type ServerOptions struct {
 // NewServerCommand creates a new command for checking the Red Sky API server
 func NewServerCommand(o *ServerOptions) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "server",
-		Short: "Check the server",
-		Long:  "Check the Red Sky Ops server",
+		Use:    "server",
+		Short:  "Check the server",
+		Long:   "Check the Red Sky Ops server",
+		Hidden: true,
 
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if err := o.Complete(); err != nil {
