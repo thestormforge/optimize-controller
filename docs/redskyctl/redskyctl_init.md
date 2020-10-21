@@ -13,20 +13,20 @@ redskyctl init [flags]
 ### Options
 
 ```
-      --bootstrap-role       Create the bootstrap role. (default true)
-      --extra-permissions    Generate permissions required for features like namespace creation.
+      --bootstrap-role       create the bootstrap role (default true)
+      --extra-permissions    generate permissions required for features like namespace creation
   -h, --help                 help for init
-      --ns-selector string   Create namespaced role bindings to matching namespaces.
-      --wait                 Wait for resources to be established before returning.
+      --ns-selector string   create namespaced role bindings to matching namespaces
+      --wait                 wait for resources to be established before returning
 ```
 
 ### Options inherited from parent commands
 
 ```
-      --context string        The name of the redskyconfig context to use. NOT THE KUBE CONTEXT.
-      --kubeconfig string     Path to the kubeconfig file to use for CLI requests.
-  -n, --namespace string      If present, the namespace scope for this CLI request.
-      --redskyconfig string   Path to the redskyconfig file to use.
+      --context name        the name of the redskyconfig context to use, NOT THE KUBE CONTEXT
+      --kubeconfig file     path to the kubeconfig file to use for CLI requests
+  -n, --namespace string    if present, the namespace scope for this CLI request
+      --redskyconfig file   path to the redskyconfig file to use
 ```
 
 ### SEE ALSO

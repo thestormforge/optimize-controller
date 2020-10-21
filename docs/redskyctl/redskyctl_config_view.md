@@ -14,18 +14,18 @@ redskyctl config view [flags]
 
 ```
   -h, --help            help for view
-      --minify          Reduce information to effective values.
-  -o, --output format   Output format. One of: yaml|json (default "yaml")
-      --raw             Display the raw configuration file without merging.
+      --minify          reduce information to effective values
+  -o, --output format   output format. One of: yaml|json (default "yaml")
+      --raw             display the raw configuration file without merging
 ```
 
 ### Options inherited from parent commands
 
 ```
-      --context string        The name of the redskyconfig context to use. NOT THE KUBE CONTEXT.
-      --kubeconfig string     Path to the kubeconfig file to use for CLI requests.
-  -n, --namespace string      If present, the namespace scope for this CLI request.
-      --redskyconfig string   Path to the redskyconfig file to use.
+      --context name        the name of the redskyconfig context to use, NOT THE KUBE CONTEXT
+      --kubeconfig file     path to the kubeconfig file to use for CLI requests
+  -n, --namespace string    if present, the namespace scope for this CLI request
+      --redskyconfig file   path to the redskyconfig file to use
 ```
 
 ### SEE ALSO

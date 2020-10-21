@@ -2,22 +2,14 @@
 
 Kubernetes Exploration
 
-### Synopsis
-
-Kubernetes Exploration
-
-```
-redskyctl [flags]
-```
-
 ### Options
 
 ```
-      --context string        The name of the redskyconfig context to use. NOT THE KUBE CONTEXT.
-  -h, --help                  help for redskyctl
-      --kubeconfig string     Path to the kubeconfig file to use for CLI requests.
-  -n, --namespace string      If present, the namespace scope for this CLI request.
-      --redskyconfig string   Path to the redskyconfig file to use.
+      --context name        the name of the redskyconfig context to use, NOT THE KUBE CONTEXT
+  -h, --help                help for redskyctl
+      --kubeconfig file     path to the kubeconfig file to use for CLI requests
+  -n, --namespace string    if present, the namespace scope for this CLI request
+      --redskyconfig file   path to the redskyconfig file to use
 ```
 
 ### SEE ALSO
@@ -35,7 +27,6 @@ redskyctl [flags]
 * [redskyctl label](redskyctl_label.md)	 - Label a Red Sky resource
 * [redskyctl login](redskyctl_login.md)	 - Authenticate
 * [redskyctl reset](redskyctl_reset.md)	 - Uninstall from a cluster
-* [redskyctl results](redskyctl_results.md)	 - Serve a visualization of the results
 * [redskyctl revoke](redskyctl_revoke.md)	 - Revoke an authorization
 * [redskyctl suggest](redskyctl_suggest.md)	 - Suggest assignments
 * [redskyctl version](redskyctl_version.md)	 - Print the version information

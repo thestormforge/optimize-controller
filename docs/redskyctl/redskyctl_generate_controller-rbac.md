@@ -13,21 +13,21 @@ redskyctl generate controller-rbac [flags]
 ### Options
 
 ```
-      --create-trial-namespace   Include trial namespace creation permissions.
+      --create-trial-namespace   include trial namespace creation permissions
   -h, --help                     help for controller-rbac
-      --include-manager          Bind manager to matching namespaces.
-      --ns-selector string       Bind to matching namespaces.
-  -o, --output format            Output format. One of: json|yaml (default "yaml")
-      --skip-default             Skip default permissions.
+      --include-manager          bind manager to matching namespaces
+      --ns-selector string       bind to matching namespaces
+  -o, --output format            output format. one of: json|yaml (default "yaml")
+      --skip-default             skip default permissions
 ```
 
 ### Options inherited from parent commands
 
 ```
-      --context string        The name of the redskyconfig context to use. NOT THE KUBE CONTEXT.
-      --kubeconfig string     Path to the kubeconfig file to use for CLI requests.
-  -n, --namespace string      If present, the namespace scope for this CLI request.
-      --redskyconfig string   Path to the redskyconfig file to use.
+      --context name        the name of the redskyconfig context to use, NOT THE KUBE CONTEXT
+      --kubeconfig file     path to the kubeconfig file to use for CLI requests
+  -n, --namespace string    if present, the namespace scope for this CLI request
+      --redskyconfig file   path to the redskyconfig file to use
 ```
 
 ### SEE ALSO

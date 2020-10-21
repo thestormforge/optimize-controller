@@ -13,23 +13,23 @@ redskyctl get (TYPE NAME | TYPE/NAME ...) [flags]
 ### Options
 
 ```
-  -A, --all                  Include all resources.
-      --chunk-size int       Fetch large lists in chunks rather then all at once. (default 500)
+  -A, --all                  include all resources
+      --chunk-size int       fetch large lists in chunks rather then all at once (default 500)
   -h, --help                 help for get
-      --no-headers           Don't print headers.
-  -o, --output format        Output format. One of: json|yaml|name|wide|csv
-  -l, --selector query       Selector (label query) to filter on.
-      --show-labels          When printing, show all labels as the last column.
-      --sort-by expression   Sort list types using this JSONPath expression.
+      --no-headers           don't print headers
+  -o, --output format        output format. one of: json|yaml|name|wide|csv
+  -l, --selector query       selector (label query) to filter on
+      --show-labels          when printing, show all labels as the last column
+      --sort-by expression   sort list types using this JSONPath expression
 ```
 
 ### Options inherited from parent commands
 
 ```
-      --context string        The name of the redskyconfig context to use. NOT THE KUBE CONTEXT.
-      --kubeconfig string     Path to the kubeconfig file to use for CLI requests.
-  -n, --namespace string      If present, the namespace scope for this CLI request.
-      --redskyconfig string   Path to the redskyconfig file to use.
+      --context name        the name of the redskyconfig context to use, NOT THE KUBE CONTEXT
+      --kubeconfig file     path to the kubeconfig file to use for CLI requests
+  -n, --namespace string    if present, the namespace scope for this CLI request
+      --redskyconfig file   path to the redskyconfig file to use
 ```
 
 ### SEE ALSO

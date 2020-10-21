@@ -13,22 +13,22 @@ redskyctl generate rbac [flags]
 ### Options
 
 ```
-      --cluster-role           Generate a cluster role. (default true)
-      --cluster-role-binding   When generating a cluster role, also generate a cluster role binding. (default true)
-  -f, --filename string        File that contains the experiment to extract roles from.
+      --cluster-role           generate a cluster role (default true)
+      --cluster-role-binding   when generating a cluster role, also generate a cluster role binding (default true)
+  -f, --filename string        file that contains the experiment to extract roles from
   -h, --help                   help for rbac
-      --include-names          Include resource names in the generated role.
-  -o, --output format          Output format. One of: json|yaml (default "yaml")
-      --role-name string       Name of the cluster role to generate (default is to use a generated name).
+      --include-names          include resource names in the generated role
+  -o, --output format          output format. one of: json|yaml (default "yaml")
+      --role-name string       name of the cluster role to generate (default is to use a generated name)
 ```
 
 ### Options inherited from parent commands
 
 ```
-      --context string        The name of the redskyconfig context to use. NOT THE KUBE CONTEXT.
-      --kubeconfig string     Path to the kubeconfig file to use for CLI requests.
-  -n, --namespace string      If present, the namespace scope for this CLI request.
-      --redskyconfig string   Path to the redskyconfig file to use.
+      --context name        the name of the redskyconfig context to use, NOT THE KUBE CONTEXT
+      --kubeconfig file     path to the kubeconfig file to use for CLI requests
+  -n, --namespace string    if present, the namespace scope for this CLI request
+      --redskyconfig file   path to the redskyconfig file to use
 ```
 
 ### SEE ALSO

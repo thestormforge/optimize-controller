@@ -13,19 +13,19 @@ redskyctl version [flags]
 ### Options
 
 ```
-      --controller-image   Print only the name of the controller image.
-      --debug              Display debugging information.
+      --controller-image   print only the name of the controller image
+      --debug              display debugging information
   -h, --help               help for version
-      --setuptools-image   Print only the name of the setuptools image.
+      --setuptools-image   print only the name of the setuptools image
 ```
 
 ### Options inherited from parent commands
 
 ```
-      --context string        The name of the redskyconfig context to use. NOT THE KUBE CONTEXT.
-      --kubeconfig string     Path to the kubeconfig file to use for CLI requests.
-  -n, --namespace string      If present, the namespace scope for this CLI request.
-      --redskyconfig string   Path to the redskyconfig file to use.
+      --context name        the name of the redskyconfig context to use, NOT THE KUBE CONTEXT
+      --kubeconfig file     path to the kubeconfig file to use for CLI requests
+  -n, --namespace string    if present, the namespace scope for this CLI request
+      --redskyconfig file   path to the redskyconfig file to use
 ```
 
 ### SEE ALSO
