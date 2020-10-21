@@ -44,6 +44,8 @@ func NewGetCommand(o *GetOptions) *cobra.Command {
 		Short: "Display a Red Sky resource",
 		Long:  "Get Red Sky resources from the remote server",
 
+		ValidArgsFunction: o.validArgs,
+
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			commander.SetStreams(&o.IOStreams, cmd)
 			if err := commander.SetExperimentsAPI(&o.ExperimentsAPI, o.Config, cmd); err != nil {
@@ -58,8 +60,6 @@ func NewGetCommand(o *GetOptions) *cobra.Command {
 	cmd.Flags().StringVarP(&o.Selector, "selector", "l", o.Selector, "selector (label `query`) to filter on")
 	cmd.Flags().StringVar(&o.SortBy, "sort-by", o.SortBy, "sort list types using this JSONPath `expression`")
 	cmd.Flags().BoolVarP(&o.All, "all", "A", false, "include all resources")
-
-	_ = cmd.MarkZshCompPositionalArgumentWords(1, validTypes()...)
 
 	commander.SetPrinter(&experimentsMeta{}, &o.Printer, cmd, nil)
 	commander.ExitOnError(cmd)

@@ -25,6 +25,7 @@ import (
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-go/pkg/redskyapi"
 	experimentsv1alpha1 "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
+	"github.com/spf13/cobra"
 	"k8s.io/client-go/util/jsonpath"
 )
 
@@ -36,11 +37,6 @@ const (
 	// typeTrial is the type argument to use for trials
 	typeTrial resourceType = "trial"
 )
-
-// validTypes returns the supported object types as strings
-func validTypes() []string {
-	return []string{string(typeExperiment), string(typeTrial)}
-}
 
 // normalizeType returns a consistent value based on a user entered type. The returned plural type only
 // preserves the plural form of the input.
@@ -72,6 +68,22 @@ type Options struct {
 
 	// Names of the resources to work with
 	Names []name
+}
+
+func (o *Options) validArgs(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	// Start by suggesting a type
+	if len(args) == 0 {
+		var s []string
+		if t := string(typeExperiment); strings.HasPrefix(t, toComplete) {
+			s = append(s, t)
+		}
+		if t := string(typeTrial); strings.HasPrefix(t, toComplete) {
+			s = append(s, t)
+		}
+		return s, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return nil, cobra.ShellCompDirectiveNoFileComp
 }
 
 func (o *Options) setNames(args []string) error {
