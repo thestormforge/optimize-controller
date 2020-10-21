@@ -84,7 +84,6 @@ func NewCommand(o *Options) *cobra.Command {
 	cmd.Flags().BoolVar(&o.ShowControllerImage, "controller-image", false, "print only the name of the controller image")
 	cmd.Flags().BoolVar(&o.Debug, "debug", o.Debug, "display debugging information")
 
-	commander.ExitOnError(cmd)
 	return cmd
 }
 

@@ -66,7 +66,6 @@ func NewViewCommand(o *ViewOptions) *cobra.Command {
 	cmd.Flags().BoolVar(&config.DecodeJWT, "decode-jwt", false, "display JWT claims instead of raw token strings")
 	_ = cmd.Flags().MarkHidden("decode-jwt")
 
-	commander.ExitOnError(cmd)
 	return cmd
 }
 

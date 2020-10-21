@@ -54,7 +54,7 @@ func NewDeleteCommand(o *DeleteOptions) *cobra.Command {
 	}
 
 	o.Printer = &verbPrinter{verb: "deleted"}
-	commander.ExitOnError(cmd)
+
 	return cmd
 }
 

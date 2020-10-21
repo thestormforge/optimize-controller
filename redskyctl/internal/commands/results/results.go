@@ -67,7 +67,6 @@ func NewCommand(o *Options) *cobra.Command {
 	cmd.Flags().DurationVar(&o.IdleTimeout, "idle-timeout", 5*time.Second, "set the heartbeat interval (0 to ignore heartbeats)")
 	_ = cmd.Flags().MarkHidden("idle-timeout")
 
-	commander.ExitOnError(cmd)
 	return cmd
 }
 

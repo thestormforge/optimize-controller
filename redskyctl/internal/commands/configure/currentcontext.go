@@ -43,7 +43,6 @@ func NewCurrentContextCommand(o *CurrentContextOptions) *cobra.Command {
 		RunE:   commander.WithoutArgsE(o.currentContext),
 	}
 
-	commander.ExitOnError(cmd)
 	return cmd
 }
 

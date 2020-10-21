@@ -55,7 +55,6 @@ func NewConfigCommand(o *ConfigOptions) *cobra.Command {
 		RunE: commander.WithContextE(o.checkConfig),
 	}
 
-	commander.ExitOnError(cmd)
 	return cmd
 }
 

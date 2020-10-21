@@ -63,7 +63,6 @@ func NewSuggestCommand(o *SuggestOptions) *cobra.Command {
 	cmd.Flags().StringVar(&o.DefaultBehavior, "default", "", "select the behavior for default values; one of: none|min|max|rand")
 	cmd.Flags().StringVarP(&o.Labels, "labels", "l", "", "comma separated labels to apply to the trial")
 
-	commander.ExitOnError(cmd)
 	return cmd
 }
 

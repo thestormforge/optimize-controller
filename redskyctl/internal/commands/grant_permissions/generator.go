@@ -68,7 +68,7 @@ func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 	o.addFlags(cmd)
 
 	commander.SetKubePrinter(&o.Printer, cmd, nil)
-	commander.ExitOnError(cmd)
+
 	return cmd
 }
 

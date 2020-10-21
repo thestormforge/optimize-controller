@@ -117,7 +117,6 @@ func NewCommand(o *Options) *cobra.Command {
 	_ = cmd.Flags().MarkHidden("server")
 	_ = cmd.Flags().MarkHidden("issuer")
 
-	commander.ExitOnError(cmd)
 	return cmd
 }
 

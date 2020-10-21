@@ -62,7 +62,7 @@ func NewGetCommand(o *GetOptions) *cobra.Command {
 	cmd.Flags().BoolVarP(&o.All, "all", "A", false, "include all resources")
 
 	commander.SetPrinter(&experimentsMeta{}, &o.Printer, cmd, nil)
-	commander.ExitOnError(cmd)
+
 	return cmd
 }
 

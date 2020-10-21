@@ -71,7 +71,6 @@ func NewServerCommand(o *ServerOptions) *cobra.Command {
 	cmd.Flags().BoolVar(&o.ReportFailure, "fail", o.ReportFailure, "report an experiment failure instead of generated values")
 	cmd.Flags().BoolVar(&o.DryRun, "dry-run", o.DryRun, "generate experiment JSON to stdout")
 
-	commander.ExitOnError(cmd)
 	return cmd
 }
 

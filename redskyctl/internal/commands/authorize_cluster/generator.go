@@ -87,7 +87,7 @@ func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 	commander.SetKubePrinter(&o.Printer, cmd, map[string]commander.AdditionalFormat{
 		"helm": commander.ResourcePrinterFunc(printHelmValues),
 	})
-	commander.ExitOnError(cmd)
+
 	return cmd
 }
 

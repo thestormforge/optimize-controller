@@ -55,7 +55,6 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 	_ = cmd.MarkFlagFilename("filename", "yml", "yaml")
 	_ = cmd.MarkFlagRequired("filename")
 
-	commander.ExitOnError(cmd)
 	return cmd
 }
 

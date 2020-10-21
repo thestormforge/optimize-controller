@@ -52,7 +52,6 @@ func NewControllerCommand(o *ControllerOptions) *cobra.Command {
 
 	cmd.Flags().BoolVar(&o.Wait, "wait", o.Wait, "wait for the controller to be ready before returning")
 
-	commander.ExitOnError(cmd)
 	return cmd
 }
 

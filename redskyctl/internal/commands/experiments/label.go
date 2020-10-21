@@ -54,7 +54,7 @@ func NewLabelCommand(o *LabelOptions) *cobra.Command {
 	}
 
 	o.Printer = &verbPrinter{verb: "labeled"}
-	commander.ExitOnError(cmd)
+
 	return cmd
 }
 

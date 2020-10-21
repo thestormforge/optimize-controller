@@ -61,7 +61,7 @@ func NewTrialCommand(o *TrialOptions) *cobra.Command {
 	_ = cmd.MarkFlagRequired("filename")
 
 	commander.SetKubePrinter(&o.Printer, cmd, nil)
-	commander.ExitOnError(cmd)
+
 	return cmd
 }
 

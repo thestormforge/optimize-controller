@@ -83,7 +83,7 @@ func NewRBACCommand(o *RBACOptions) *cobra.Command {
 	_ = cmd.MarkFlagRequired("filename")
 
 	commander.SetKubePrinter(&o.Printer, cmd, nil)
-	commander.ExitOnError(cmd)
+
 	return cmd
 }
 

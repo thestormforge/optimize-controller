@@ -17,6 +17,7 @@ limitations under the License.
 package commands
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
@@ -37,6 +38,7 @@ import (
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/revoke"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/version"
 	"github.com/redskyops/redskyops-go/pkg/config"
+	experimentsv1alpha1 "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
 	"github.com/spf13/cobra"
 )
 
@@ -46,6 +48,7 @@ func NewRedskyctlCommand() *cobra.Command {
 		Use:               "redskyctl",
 		Short:             "Kubernetes Exploration",
 		DisableAutoGenTag: true,
+		SilenceUsage:      true,
 	}
 
 	// Create a global configuration
@@ -85,7 +88,21 @@ func NewRedskyctlCommand() *cobra.Command {
 	// TODO Some kind of debug tool to evaluate metric queries
 	// TODO The "get" functionality needs to support templating so you can extract assignments for downstream use
 
+	commander.MapErrors(rootCmd, mapError)
 	return rootCmd
+}
+
+// mapError intercepts errors returned by commands before they are reported.
+func mapError(err error) error {
+	if experimentsv1alpha1.IsUnauthorized(err) {
+		// Trust the error message we get from the experiments API
+		if _, ok := err.(*experimentsv1alpha1.Error); ok {
+			return fmt.Errorf("%w, try running 'redskyctl login'", err)
+		}
+		return fmt.Errorf("unauthorized, try running 'redskyctl login'")
+	}
+
+	return err
 }
 
 // authorizationIdentity returns the client identifier to use for a given authorization server (identified by it's issuer URI)

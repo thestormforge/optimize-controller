@@ -54,7 +54,6 @@ func NewCommand(o *Options) *cobra.Command {
 
 	cmd.Flags().StringVar(&o.Name, "name", "", "name of the server configuration to de-authorize")
 
-	commander.ExitOnError(cmd)
 	return cmd
 }
 

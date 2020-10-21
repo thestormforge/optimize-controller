@@ -72,7 +72,6 @@ func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 	cmd.Flags().StringVar(&o.OutputDirectory, "output-dir", o.OutputDirectory, "write files to a `directory` instead of stdout")
 	o.addFlags(cmd)
 
-	commander.ExitOnError(cmd)
 	return cmd
 }
 

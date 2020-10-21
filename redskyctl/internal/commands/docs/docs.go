@@ -21,7 +21,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
 )
@@ -56,7 +55,6 @@ func NewCommand(o *Options) *cobra.Command {
 	_ = cmd.MarkFlagDirname("directory")
 	_ = cmd.MarkFlagDirname("source")
 
-	commander.ExitOnError(cmd)
 	return cmd
 }
 
