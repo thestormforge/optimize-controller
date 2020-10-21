@@ -26,6 +26,7 @@ import (
 
 	"github.com/redskyops/redskyops-controller/internal/version"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands"
+	"github.com/spf13/cobra"
 	"golang.org/x/oauth2"
 )
 
@@ -38,6 +39,9 @@ func init() {
 		panic(err)
 	}
 	rand.Seed(int64(binary.LittleEndian.Uint64(b[:])))
+
+	// Prevent Cobra from changing the command order
+	cobra.EnableCommandSorting = false
 }
 
 func main() {

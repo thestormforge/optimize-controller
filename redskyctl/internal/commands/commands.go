@@ -48,9 +48,6 @@ func NewRedskyctlCommand() *cobra.Command {
 		DisableAutoGenTag: true,
 	}
 
-	// By default just run the help
-	rootCmd.Run = rootCmd.HelpFunc()
-
 	// Create a global configuration
 	cfg := &config.RedSkyConfig{}
 	commander.ConfigGlobals(cfg, rootCmd)
@@ -58,25 +55,29 @@ func NewRedskyctlCommand() *cobra.Command {
 	// Establish OAuth client identity
 	cfg.ClientIdentity = authorizationIdentity
 
-	// Add the sub-commands
+	// Kubernetes Commands
+	rootCmd.AddCommand(initialize.NewCommand(&initialize.Options{GeneratorOptions: initialize.GeneratorOptions{Config: cfg, IncludeBootstrapRole: true}}))
+	rootCmd.AddCommand(reset.NewCommand(&reset.Options{Config: cfg}))
+	rootCmd.AddCommand(grant_permissions.NewCommand(&grant_permissions.Options{GeneratorOptions: grant_permissions.GeneratorOptions{Config: cfg}}))
 	rootCmd.AddCommand(authorize_cluster.NewCommand(&authorize_cluster.Options{GeneratorOptions: authorize_cluster.GeneratorOptions{Config: cfg}}))
-	rootCmd.AddCommand(check.NewCommand(&check.Options{Config: cfg}))
-	rootCmd.AddCommand(completion.NewCommand(&completion.Options{}))
-	rootCmd.AddCommand(configure.NewCommand(&configure.Options{Config: cfg}))
-	rootCmd.AddCommand(docs.NewCommand(&docs.Options{}))
+	rootCmd.AddCommand(generate.NewCommand(&generate.Options{Config: cfg}))
+
+	// Remove Server Commands
 	rootCmd.AddCommand(experiments.NewDeleteCommand(&experiments.DeleteOptions{Options: experiments.Options{Config: cfg}}))
 	rootCmd.AddCommand(experiments.NewGetCommand(&experiments.GetOptions{Options: experiments.Options{Config: cfg}, ChunkSize: 500}))
 	rootCmd.AddCommand(experiments.NewLabelCommand(&experiments.LabelOptions{Options: experiments.Options{Config: cfg}}))
 	rootCmd.AddCommand(experiments.NewSuggestCommand(&experiments.SuggestOptions{Options: experiments.Options{Config: cfg}}))
-	rootCmd.AddCommand(generate.NewCommand(&generate.Options{Config: cfg}))
-	rootCmd.AddCommand(grant_permissions.NewCommand(&grant_permissions.Options{GeneratorOptions: grant_permissions.GeneratorOptions{Config: cfg}}))
-	rootCmd.AddCommand(initialize.NewCommand(&initialize.Options{GeneratorOptions: initialize.GeneratorOptions{Config: cfg, IncludeBootstrapRole: true}}))
-	rootCmd.AddCommand(kustomize.NewCommand())
-	rootCmd.AddCommand(login.NewCommand(&login.Options{Config: cfg}))
-	rootCmd.AddCommand(reset.NewCommand(&reset.Options{Config: cfg}))
 	rootCmd.AddCommand(results.NewCommand(&results.Options{Config: cfg}))
+
+	// Administrative Commands
+	rootCmd.AddCommand(login.NewCommand(&login.Options{Config: cfg}))
 	rootCmd.AddCommand(revoke.NewCommand(&revoke.Options{Config: cfg}))
+	rootCmd.AddCommand(configure.NewCommand(&configure.Options{Config: cfg}))
+	rootCmd.AddCommand(check.NewCommand(&check.Options{Config: cfg}))
+	rootCmd.AddCommand(completion.NewCommand(&completion.Options{}))
+	rootCmd.AddCommand(kustomize.NewCommand())
 	rootCmd.AddCommand(version.NewCommand(&version.Options{Config: cfg}))
+	rootCmd.AddCommand(docs.NewCommand(&docs.Options{}))
 
 	// TODO Add 'backup' and 'restore' maintenance commands ('maint' subcommands?)
 	// TODO We need helpers for doing a "dry run" on patches to make configuration easier

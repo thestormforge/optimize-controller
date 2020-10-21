@@ -36,9 +36,11 @@ func NewCommand(o *Options) *cobra.Command {
 	}
 
 	cmd.AddCommand(NewCurrentContextCommand(&CurrentContextOptions{Config: o.Config}))
-	cmd.AddCommand(NewEnvCommand(&EnvOptions{Config: o.Config}))
-	cmd.AddCommand(NewSetCommand(&SetOptions{Config: o.Config}))
 	cmd.AddCommand(NewViewCommand(&ViewOptions{Config: o.Config}))
+	cmd.AddCommand(NewSetCommand(&SetOptions{Config: o.Config}))
+	cmd.AddCommand(NewEnvCommand(&EnvOptions{Config: o.Config}))
+
+	// TODO It might be nice to have a "create-context" command for adding a context to the config file
 
 	return cmd
 }
