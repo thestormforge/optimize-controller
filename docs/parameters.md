@@ -81,3 +81,36 @@ Sometimes it is necessary to manipulate a value to consume it in a patch. To sup
   Return the integer percentage.
 
   `percent 9 50` will return `"4"`.
+
+## Parameter Constraints
+
+**Constraints** restrict the assignments that parameters may take relative to one another. Constraints are optional and used in addition to the bounds on individual parameters like `min` or `max`.
+
+Red Sky Ops supports two types of constraints: **Order** and **Sum**.
+
+### Order Constraint
+
+The order constraint requires that one integer parameter be strictly larger than another. For example, you can use an order constraint to ensure that a container's maximum replicas value is always greater than it's minimum replicas:
+
+```yaml
+  constraints:
+    - order:
+        lowerParameter: min_replicas
+        upperParameter: max_replicas
+```
+
+### Sum Constraint
+
+The sum constraint requires that the sum of two or more parameters not exceed an upper or lower bound. For example, in an experiment tuning CPU on multiple deployments, a sum constraint could enforce an overall cap of `4000` millicpus between both deployments:
+
+```yaml
+  constraints:
+    - sum:
+        bound: 4000
+        isUpperBound: true
+        parameters:
+          - name: first_cpu
+          - name: second_cpu
+```
+
+Each parameter in the sum constraint may have an associated **weight**. When a weight is specified for a parameter, the parameter's value is multiplied by that weight before being summed.
