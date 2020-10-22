@@ -1,6 +1,6 @@
 # Parameters
 
-A **parameter** is a {value, field, placeholder, input to an experiment} which can be adjusted during an experiment. Every parameter has a name and a **domain** of acceptable values it can be **assigned** during a trial. 
+A **parameter** is a value which can be adjusted during an experiment. Every parameter has a name and a **domain** of acceptable values it can be **assigned** during a trial.
 
 An experiment must define one or more parameters. Together, the parameters in an experiment define the **search space**.
 
@@ -27,7 +27,7 @@ While a parameter for tuning the concurrent garbage collection threads on a Java
     max: 8
 ```
 
-*Note:* Some fields in Kubernetes objects, like [CPU Request](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#meaning-of-cpu), allow their value to be specified using decimal numbers like `0.1` or as an integer with an attached unit, like `100m` ("one hundred millicpus"). Because Red Sky Ops only tunes integer numbers, you must use the latter format, as explained further in [Using Parameters](#using-parameters). 
+*Note:* Some fields in Kubernetes objects, like [CPU Request](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#meaning-of-cpu), allow their value to be specified using decimal numbers like `0.1` or as an integer with an attached unit, like `100m` ("one hundred millicpus"). Because Red Sky Ops only tunes integer numbers, you must use the latter format. See [Using Parameters](#using-parameters).
 
 ### Categorical
 
@@ -75,7 +75,7 @@ Note the inclusion of an `m` to specify millicpus.
 
 ### Parameter Manipulation
 
-Sometimes it is necessary to manipulate a parameter value to consume it in a patch. To support this, patches are evaluated as [Go templates](https://golang.org/pkg/text/template/) with the added [Sprig](http://masterminds.github.io/sprig/) template functions. Additional template functions are also available:
+Sometimes it is necessary to manipulate a value to consume it in a patch. To support this, patches are evaluated as [Go templates](https://golang.org/pkg/text/template/), with [Sprig](http://masterminds.github.io/sprig/) template functions included to support a variety of operations. Additional template functions are also available:
 
 - **percent**
   Return the integer percentage.
