@@ -1,4 +1,4 @@
-# Using Parameters
+# Parameters
 
 A **parameter** is a {value, field, placeholder, input to an experiment} which can be adjusted during an experiment. Every parameter has a name and a **domain** of acceptable values it can be **assigned** during a trial. 
 
@@ -27,7 +27,7 @@ While a parameter for tuning the concurrent garbage collection threads on a Java
     max: 8
 ```
 
-*Note:* Some fields in Kubernetes objects, like [CPU Request](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#meaning-of-cpu), allow their value to be specified using decimal numbers like `0.1` or as an integer with an attached unit, like `100m` ("one hundred millicpus"). Because Red Sky Ops only tunes integer numbers, you must use the latter format, as explained further in **Using Parameters**. 
+*Note:* Some fields in Kubernetes objects, like [CPU Request](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#meaning-of-cpu), allow their value to be specified using decimal numbers like `0.1` or as an integer with an attached unit, like `100m` ("one hundred millicpus"). Because Red Sky Ops only tunes integer numbers, you must use the latter format, as explained further in [Using Parameters](#using-parameters). 
 
 ### Categorical
 
@@ -47,7 +47,7 @@ Categorical parameters specify a finite list of acceptable values, where each va
 
 The `parameters` section of an experiment file defines the names and domains of the experiment's parameters. The `patches` section defines how those parameters are used in your application.
 
-To reuse an earlier example, an integer parameter for tuning CPU on a container might be defined as follows:
+To continue with an earlier example, an integer parameter for tuning CPU on a container might be defined as follows:
 
 ```yaml
   parameters:
@@ -80,4 +80,4 @@ Sometimes it is necessary to manipulate a parameter value to consume it in a pat
 - **percent**
   Return the integer percentage.
 
-  `percent 9 50` will return `"4"`
+  `percent 9 50` will return `"4"`.
