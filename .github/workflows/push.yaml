@@ -74,8 +74,8 @@ jobs:
             ${{ runner.os }}-gobuildcache-
       - name: Bootstrap
         run: |
-          DOCKER_TAG="sha-$(git rev-parse --short HEAD)"
           DOCKER_REGISTRY="ghcr.io/redskyops/redskyops-controller"
+          DOCKER_TAG="sha-$(git rev-parse --short HEAD)"
           echo "IMAGE_TAG=pr-${{ github.event.number }}" >> $GITHUB_ENV
           echo "IMG=${DOCKER_REGISTRY}/redskyops-controller:${DOCKER_TAG}" >> $GITHUB_ENV
           echo "REDSKYCTL_IMG=${DOCKER_REGISTRY}/redskyctl:${DOCKER_TAG}" >> $GITHUB_ENV
@@ -92,7 +92,7 @@ jobs:
       - name: Push Docker images
         if: github.event.pull_request.head.repo.fork == false
         run: |
-          echo "${{ secrets.BMASTERS_TOKEN }}" | docker login -u "${{ secrets.BMASTERS_ACTOR }}" --password-stdin
+          echo "${{ secrets.BMASTERS_TOKEN }}" | docker login "ghcr.io" -u "${{ secrets.BMASTERS_ACTOR }}" --password-stdin
           docker tag "${IMG}" "${IMG%%:*}:${IMAGE_TAG}"
           docker tag "${REDSKYCTL_IMG}" "${REDSKYCTL_IMG%%:*}:${IMAGE_TAG}"
           docker tag "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:${IMAGE_TAG}"
