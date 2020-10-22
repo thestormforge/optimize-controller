@@ -94,10 +94,12 @@ docker-build: test docker-build-ci
 docker-build-ci: build docker-build-controller docker-build-setuptools
 
 docker-build-controller:
-	docker build . -t ${IMG}
+	docker build . -t ${IMG} \
+		--label "org.opencontainers.image.source=$(shell git remote get-url origin)"
 
 docker-build-setuptools:
-	docker build config -t ${SETUPTOOLS_IMG}
+	docker build config -t ${SETUPTOOLS_IMG} \
+		--label "org.opencontainers.image.source=$(shell git remote get-url origin)"
 
 # Push the docker images
 docker-push:

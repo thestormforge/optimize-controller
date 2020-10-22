@@ -32,6 +32,8 @@ archives:
 dockers:
   - image_templates:
       - '{{ .Env.REDSKYCTL_IMG }}'
+    build_flag_templates:
+      - "--label=org.opencontainers.image.source={{.GitURL}}"
     dockerfile: redskyctl/Dockerfile
 brews:
   - tap:
