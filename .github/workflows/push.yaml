@@ -74,7 +74,7 @@ jobs:
             ${{ runner.os }}-gobuildcache-
       - name: Bootstrap
         run: |
-          DOCKER_REGISTRY="ghcr.io/redskyops/redskyops-controller"
+          DOCKER_REGISTRY="ghcr.io/redskyops"
           DOCKER_TAG="sha-$(git rev-parse --short HEAD)"
           echo "IMAGE_TAG=pr-${{ github.event.number }}" >> $GITHUB_ENV
           echo "IMG=${DOCKER_REGISTRY}/redskyops-controller:${DOCKER_TAG}" >> $GITHUB_ENV
