@@ -37,10 +37,10 @@ Categorical parameters specify a finite list of acceptable values, where each va
   parameters:
   - name: gc_collector
     values:
-    - G1
-    - ConcMarkSweep
-    - Serial
-    - Parallel
+    - "G1"
+    - "ConcMarkSweep"
+    - "Serial"
+    - "Parallel"
 ```
 
 ## Using Parameters
