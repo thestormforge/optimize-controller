@@ -95,11 +95,11 @@ docker-build-ci: build docker-build-controller docker-build-setuptools
 
 docker-build-controller:
 	docker build . -t ${IMG} \
-		--label=org.opencontainers.image.source=https://github.com/redskyops/redskyops-controller
+		--label "org.opencontainers.image.source=$(shell git remote get-url origin)"
 
 docker-build-setuptools:
 	docker build config -t ${SETUPTOOLS_IMG} \
-		--label=org.opencontainers.image.source=https://github.com/redskyops/redskyops-controller
+		--label "org.opencontainers.image.source=$(shell git remote get-url origin)"
 
 # Push the docker images
 docker-push:
