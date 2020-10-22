@@ -58,21 +58,6 @@ jobs:
         with:
           version: v0.9.0
           wait: 0s
-      - name: Set up Google Cloud Platform
-        if: github.event.pull_request.head.repo.fork == false
-        uses: GoogleCloudPlatform/github-actions/setup-gcloud@0.1.3
-        with:
-          service_account_email: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_EMAIL }}
-          service_account_key: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
-          project_id: redskyops
-      - name: Bootstrap
-        run: |
-          TAG="sha-$(git rev-parse --short HEAD)"
-          echo "IMG=gcr.io/redskyops/redskyops-controller:${TAG}" >> $GITHUB_ENV
-          echo "REDSKYCTL_IMG=gcr.io/redskyops/redskyctl:${TAG}" >> $GITHUB_ENV
-          echo "SETUPTOOLS_IMG=gcr.io/redskyops/setuptools:${TAG}" >> $GITHUB_ENV
-          echo "PULL_POLICY=" >> $GITHUB_ENV
-          echo "DOCKER_TAG=pr-${{ github.event.number }}" >> $GITHUB_ENV
       - name: Cache Go Modules
         uses: actions/cache@v1
         with:
@@ -87,6 +72,15 @@ jobs:
           key: ${{ runner.os }}-gobuildcache-${{ hashFiles('**.go') }}
           restore-keys: |
             ${{ runner.os }}-gobuildcache-
+      - name: Bootstrap
+        run: |
+          DOCKER_TAG="sha-$(git rev-parse --short HEAD)"
+          DOCKER_REGISTRY="ghcr.io/redskyops/redskyops-controller"
+          echo "IMAGE_TAG=pr-${{ github.event.number }}" >> $GITHUB_ENV
+          echo "IMG=${DOCKER_REGISTRY}/redskyops-controller:${DOCKER_TAG}" >> $GITHUB_ENV
+          echo "REDSKYCTL_IMG=${DOCKER_REGISTRY}/redskyctl:${DOCKER_TAG}" >> $GITHUB_ENV
+          echo "SETUPTOOLS_IMG=${DOCKER_REGISTRY}/setuptools:${DOCKER_TAG}" >> $GITHUB_ENV
+          echo "PULL_POLICY=" >> $GITHUB_ENV
       - name: Build controller
         run: |
           hack/install_kustomize.sh
@@ -95,19 +89,17 @@ jobs:
         uses: goreleaser/goreleaser-action@v2
         with:
           args: release --skip-sign --rm-dist
-      - name: Tag Docker images
-        run: |
-          docker tag "${IMG}" "${IMG%%:*}:${DOCKER_TAG}"
-          docker tag "${REDSKYCTL_IMG}" "${REDSKYCTL_IMG%%:*}:${DOCKER_TAG}"
-          docker tag "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:${DOCKER_TAG}"
       - name: Push Docker images
         if: github.event.pull_request.head.repo.fork == false
         run: |
-          gcloud --quiet auth configure-docker
+          echo "${{ secrets.BMASTERS_TOKEN }}" | docker login -u "${{ secrets.BMASTERS_ACTOR }}" --password-stdin
+          docker tag "${IMG}" "${IMG%%:*}:${IMAGE_TAG}"
+          docker tag "${REDSKYCTL_IMG}" "${REDSKYCTL_IMG%%:*}:${IMAGE_TAG}"
+          docker tag "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:${IMAGE_TAG}"
           make docker-push
-          docker push "${IMG%%:*}:${DOCKER_TAG}"
-          docker push "${REDSKYCTL_IMG%%:*}:${DOCKER_TAG}"
-          docker push "${SETUPTOOLS_IMG%%:*}:${DOCKER_TAG}"
+          docker push "${IMG%%:*}:${IMAGE_TAG}"
+          docker push "${REDSKYCTL_IMG%%:*}:${IMAGE_TAG}"
+          docker push "${SETUPTOOLS_IMG%%:*}:${IMAGE_TAG}"
       - name: Upload macOS binary
         uses: actions/upload-artifact@v2
         with:
@@ -118,6 +110,6 @@ jobs:
         with:
           name: redskyctl_linux_amd64
           path: dist/redskyctl-linux-amd64.tar.gz
-      - name: redsky quickstart
+      - name: Run integration tests
         run: |
           hack/integration.sh

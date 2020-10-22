@@ -53,40 +53,33 @@ jobs:
           key: ${{ runner.os }}-gobuildcache-${{ hashFiles('**.go') }}
           restore-keys: |
             ${{ runner.os }}-gobuildcache-
-      - name: Set up Google Cloud Platform
-        # FIXME: This needs to get upgraded to fix the build warnings
-        uses: GoogleCloudPlatform/github-actions/setup-gcloud@0.1.3
-        with:
-          service_account_email: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_EMAIL }}
-          service_account_key: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
-          project_id: redskyops
       - name: Import GPG key
         id: import_gpg
         uses: crazy-max/ghaction-import-gpg@v2
         env:
           GPG_PRIVATE_KEY: ${{ secrets.BMASTERS_PRIVATE_KEY }}
       - name: Bootstrap
-        env:
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
         run: |
           if [ -z "${GITHUB_REF/refs\/tags\/*/}" ]; then
-            TAG=${GITHUB_REF##*/v}
-            echo "DOCKER_TAG=latest" >> $GITHUB_ENV
+            DOCKER_TAG=${GITHUB_REF##*/v}
+            DOCKER_REGISTRY="redskyops"
+            DOCKER_USERNAME="${{ secrets.DOCKER_USERNAME }}"
+            DOCKER_PASSWORD="${{ secrets.DOCKER_PASSWORD }}"
+            echo "IMAGE_TAG=latest" >> $GITHUB_ENV
             echo "VERSION=v${TAG}" >> $GITHUB_ENV
-            echo "IMG=redskyops/redskyops-controller:${TAG}" >> $GITHUB_ENV
-            echo "REDSKYCTL_IMG=redskyops/redskyctl:${TAG}" >> $GITHUB_ENV
-            echo "SETUPTOOLS_IMG=redskyops/setuptools:${TAG}" >> $GITHUB_ENV
             echo "AC_USERNAME=${{ secrets.AC_USERNAME }}" >> $GITHUB_ENV
-            printenv DOCKER_PASSWORD | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
           else
-            TAG="sha-$(git rev-parse --short HEAD)"
-            echo "DOCKER_TAG=edge"  >> $GITHUB_ENV
-            echo "IMG=gcr.io/redskyops/redskyops-controller:${TAG}" >> $GITHUB_ENV
-            echo "REDSKYCTL_IMG=gcr.io/redskyops/redskyctl:${TAG}" >> $GITHUB_ENV
-            echo "SETUPTOOLS_IMG=gcr.io/redskyops/setuptools:${TAG}" >> $GITHUB_ENV
-            gcloud --quiet auth configure-docker
+            DOCKER_TAG="sha-$(git rev-parse --short HEAD)"
+            DOCKER_REGISTRY="ghcr.io/redskyops/redskyops-controller"
+            DOCKER_USERNAME="${{ secrets.BMASTERS_ACTOR }}"
+            DOCKER_PASSWORD="${{ secrets.BMASTERS_TOKEN }}"
+            echo "IMAGE_TAG=edge"  >> $GITHUB_ENV
           fi
+          echo "IMG=${DOCKER_REGISTRY}/redskyops-controller:${DOCKER_TAG}" >> $GITHUB_ENV
+          echo "REDSKYCTL_IMG=${DOCKER_REGISTRY}/redskyctl:${DOCKER_TAG}" >> $GITHUB_ENV
+          echo "SETUPTOOLS_IMG=${DOCKER_REGISTRY}/setuptools:${DOCKER_TAG}" >> $GITHUB_ENV
           echo "PULL_POLICY=" >> $GITHUB_ENV
+          printenv DOCKER_PASSWORD | docker login -u "${DOCKER_USERNAME}" --password-stdin
       - name: Build controller
         run: |
           make docker-build-ci
@@ -100,13 +93,13 @@ jobs:
           AC_IDENTITY_P12: ${{ secrets.AC_IDENTITY_P12 }}
       - name: Push Docker images
         run: |
-          docker tag "${IMG}" "${IMG%%:*}:${DOCKER_TAG}"
-          docker tag "${REDSKYCTL_IMG}" "${REDSKYCTL_IMG%%:*}:${DOCKER_TAG}"
-          docker tag "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:${DOCKER_TAG}"
+          docker tag "${IMG}" "${IMG%%:*}:${IMAGE_TAG}"
+          docker tag "${REDSKYCTL_IMG}" "${REDSKYCTL_IMG%%:*}:${IMAGE_TAG}"
+          docker tag "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:${IMAGE_TAG}"
           make docker-push
-          docker push "${IMG%%:*}:${DOCKER_TAG}"
-          docker push "${REDSKYCTL_IMG%%:*}:${DOCKER_TAG}"
-          docker push "${SETUPTOOLS_IMG%%:*}:${DOCKER_TAG}"
+          docker push "${IMG%%:*}:${IMAGE_TAG}"
+          docker push "${REDSKYCTL_IMG%%:*}:${IMAGE_TAG}"
+          docker push "${SETUPTOOLS_IMG%%:*}:${IMAGE_TAG}"
       - name: Upload macOS binary
         uses: actions/upload-artifact@v1
         with:
