@@ -1,4 +1,4 @@
-# Using Metrics
+# Metrics
 
 Trial metrics are collected immediately following completion of the trial run job, typically from a dedicated metric store like Prometheus. A single 64-bit floating point number is collected for each metric defined on the experiment.
 

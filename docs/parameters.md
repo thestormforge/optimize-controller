@@ -1,12 +1,12 @@
 # Parameters
 
-A **parameter** is a value which can be adjusted during an experiment. Every parameter has a name and a **domain** of acceptable values it can be **assigned** during a trial.
+A **parameter** is an input to an experiment which can be adjusted from trial to trial. Every parameter has a name and a domain of acceptable values. The value given to a parameter in a specific trial is sometimes called the **parameter assignment**.
 
 An experiment must define one or more parameters. Together, the parameters in an experiment define the **search space**.
 
 ## Parameter Types
 
-Red Sky Ops supports two types of parameters: **Integer** and **Categorical**.
+Parameters can be one of two types: **Integer** or **Categorical**.
 
 ### Integer
 
