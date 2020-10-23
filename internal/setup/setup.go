@@ -18,6 +18,7 @@ package setup
 
 import (
 	"fmt"
+	"strings"
 
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -141,4 +142,37 @@ func GetConditionStatus(j *batchv1.Job) (corev1.ConditionStatus, string) {
 	}
 
 	return corev1.ConditionFalse, ""
+}
+
+// AppendAssignmentEnv appends an environment variable for each trial assignment
+func AppendAssignmentEnv(t *redskyv1beta1.Trial, env []corev1.EnvVar) []corev1.EnvVar {
+	for _, a := range t.Spec.Assignments {
+		name := strings.ReplaceAll(strings.ToUpper(a.Name), ".", "_")
+		env = append(env, corev1.EnvVar{Name: name, Value: a.Value.String()})
+	}
+
+	return env
+}
+
+// AppendPrometheusEnv appends environment variables to help reference the built in Prometheus
+func AppendPrometheusEnv(t *redskyv1beta1.Trial, env []corev1.EnvVar) []corev1.EnvVar {
+	for i := range t.Spec.SetupTasks {
+		if IsPrometheusSetupTask(&t.Spec.SetupTasks[i]) {
+			url := "http://prometheus:9091/metrics/trial/" + t.Name
+			return append(env, corev1.EnvVar{Name: "PUSHGATEWAY_URL", Value: url})
+		}
+	}
+
+	return env
+}
+
+// IsPrometheusSetupTask checks to see if the supplied setup task is for the built-in Prometheus.
+func IsPrometheusSetupTask(st *redskyv1beta1.SetupTask) bool {
+	// Needs to be the default image
+	if st.Image != "" && st.Image != Image {
+		return false
+	}
+
+	// Needs to have these arguments
+	return len(st.Args) == 2 && st.Args[0] == "prometheus" && st.Args[1] == "$(MODE)"
 }

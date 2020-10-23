@@ -90,15 +90,6 @@ func IsTrialJobReference(t *redskyv1beta1.Trial, ref *corev1.ObjectReference) bo
 	return true
 }
 
-// AppendAssignmentEnv appends an environment variable for each trial assignment
-func AppendAssignmentEnv(t *redskyv1beta1.Trial, env []corev1.EnvVar) []corev1.EnvVar {
-	for _, a := range t.Spec.Assignments {
-		name := strings.ReplaceAll(strings.ToUpper(a.Name), ".", "_")
-		env = append(env, corev1.EnvVar{Name: name, Value: a.Value.String()})
-	}
-	return env
-}
-
 // NeedsCleanup checks to see if a trial's TTL has expired
 func NeedsCleanup(t *redskyv1beta1.Trial) bool {
 	// Already deleted or still active, no cleanup necessary

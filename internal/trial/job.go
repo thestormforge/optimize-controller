@@ -23,6 +23,7 @@ import (
 
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/internal/meta"
+	"github.com/redskyops/redskyops-controller/internal/setup"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -69,7 +70,8 @@ func NewJob(t *redskyv1beta1.Trial) *batchv1.Job {
 	// Expose the current assignments as environment variables to every container (except the default sleep container added below)
 	for i := range job.Spec.Template.Spec.Containers {
 		c := &job.Spec.Template.Spec.Containers[i]
-		c.Env = AppendAssignmentEnv(t, c.Env)
+		c.Env = setup.AppendAssignmentEnv(t, c.Env)
+		c.Env = setup.AppendPrometheusEnv(t, c.Env)
 	}
 
 	// Containers cannot be empty, inject a sleep by default
