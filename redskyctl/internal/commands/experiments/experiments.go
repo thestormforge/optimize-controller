@@ -19,6 +19,7 @@ package experiments
 import (
 	"fmt"
 	"io"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -263,6 +264,9 @@ func (m *experimentsMeta) Columns(obj interface{}, outputFormat string, showLabe
 			}
 		}
 
+		// Add the failure reason and message
+		columns = append(columns, "failureReason", "failureMessage")
+
 		// CSV labels need to be split out into individual columns
 		if showLabels {
 			labels := make(map[string]bool)
@@ -341,6 +345,10 @@ func (m *experimentsMeta) ExtractValue(obj interface{}, column string) (string, 
 				labels = append(labels, fmt.Sprintf("%s=%s", k, v))
 			}
 			return strings.Join(labels, ","), nil
+		case "failureReason":
+			return o.Reason, nil
+		case "failureMessage":
+			return o.Message, nil
 		default:
 			// This could be a name pattern (e.g. parameter assignment, metric value, label)
 			if pn := strings.TrimPrefix(column, "parameter_"); pn != column {
@@ -378,6 +386,7 @@ func (m *experimentsMeta) Header(outputFormat string, column string) string {
 	if strings.ToLower(outputFormat) == "csv" {
 		return column
 	}
+	column = regexp.MustCompile("(.)([A-Z])").ReplaceAllString(column, "$1 $2")
 	return strings.ToUpper(column)
 }
 
