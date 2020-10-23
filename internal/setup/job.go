@@ -24,7 +24,6 @@ import (
 
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/internal/template"
-	"github.com/redskyops/redskyops-controller/internal/trial"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -124,7 +123,7 @@ func NewJob(t *redskyv1beta1.Trial, mode string) (*batchv1.Job, error) {
 		}
 
 		// Add the trial assignments to the environment
-		c.Env = trial.AppendAssignmentEnv(t, c.Env)
+		c.Env = AppendAssignmentEnv(t, c.Env)
 
 		// Add the configured volume mounts
 		c.VolumeMounts = append(c.VolumeMounts, task.VolumeMounts...)
