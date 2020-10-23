@@ -68,6 +68,18 @@ func TestCheckMetricBounds(t *testing.T) {
 			value:    redskyv1beta1.Value{Value: "1.23456789"},
 			hasError: true,
 		},
+
+		{
+			desc:     "suffix max",
+			metric:   redskyv1beta1.Metric{Max: mustQuantity("100m")},
+			value:    redskyv1beta1.Value{Value: "0.2"},
+			hasError: true,
+		},
+		{
+			desc:   "suffix min",
+			metric: redskyv1beta1.Metric{Min: mustQuantity("100m")},
+			value:  redskyv1beta1.Value{Value: "0.2"},
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
