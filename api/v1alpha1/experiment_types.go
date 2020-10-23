@@ -88,6 +88,10 @@ type Metric struct {
 	Name string `json:"name"`
 	// Indicator that the goal of the experiment is to minimize the value of this metric
 	Minimize bool `json:"minimize,omitempty"`
+	// The inclusive minimum allowed value for the metric
+	Min *resource.Quantity `json:"min,omitempty"`
+	// The inclusive maximum allowed value for the metric
+	Max *resource.Quantity `json:"max,omitempty"`
 
 	// The metric collection type, one of: local|pods|prometheus|datadog|jsonpath, default: local
 	Type MetricType `json:"type,omitempty"`

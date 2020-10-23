@@ -27,6 +27,7 @@ import (
 	"github.com/redskyops/redskyops-controller/internal/meta"
 	"github.com/redskyops/redskyops-controller/internal/metric"
 	"github.com/redskyops/redskyops-controller/internal/trial"
+	"github.com/redskyops/redskyops-controller/internal/validation"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -189,6 +190,16 @@ func (r *MetricReconciler) collectMetrics(ctx context.Context, t *redskyv1beta1.
 		trial.ApplyCondition(&t.Status, redskyv1beta1.TrialObserved, corev1.ConditionFalse, "", "", probeTime)
 		err := r.Update(ctx, t)
 		return controller.RequeueConflict(err)
+	}
+
+	// Wait until all metrics have been collected to fail the trial for an out of bounds metric
+	for i := range t.Spec.Values {
+		v := &t.Spec.Values[i]
+		if err := validation.CheckMetricBounds(metrics[v.Name], v); err != nil {
+			trial.ApplyCondition(&t.Status, redskyv1beta1.TrialFailed, corev1.ConditionTrue, "MetricBound", err.Error(), probeTime)
+			err := r.Update(ctx, t)
+			return controller.RequeueConflict(err)
+		}
 	}
 
 	// We made it through all of the metrics without needing additional changes

@@ -865,6 +865,8 @@ func Convert_v1beta1_HelmValuesFromSource_To_v1alpha1_HelmValuesFromSource(in *v
 func autoConvert_v1alpha1_Metric_To_v1beta1_Metric(in *Metric, out *v1beta1.Metric, s conversion.Scope) error {
 	out.Name = in.Name
 	out.Minimize = in.Minimize
+	out.Min = in.Min
+	out.Max = in.Max
 	out.Type = v1beta1.MetricType(in.Type)
 	out.Query = in.Query
 	out.ErrorQuery = in.ErrorQuery
@@ -883,6 +885,8 @@ func Convert_v1alpha1_Metric_To_v1beta1_Metric(in *Metric, out *v1beta1.Metric, 
 func autoConvert_v1beta1_Metric_To_v1alpha1_Metric(in *v1beta1.Metric, out *Metric, s conversion.Scope) error {
 	out.Name = in.Name
 	out.Minimize = in.Minimize
+	out.Min = in.Min
+	out.Max = in.Max
 	out.Type = MetricType(in.Type)
 	out.Query = in.Query
 	out.ErrorQuery = in.ErrorQuery
