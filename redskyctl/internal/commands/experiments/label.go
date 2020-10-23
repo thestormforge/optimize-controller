@@ -41,6 +41,8 @@ func NewLabelCommand(o *LabelOptions) *cobra.Command {
 		Short: "Label a Red Sky resource",
 		Long:  "Label Red Sky resources on the remote server",
 
+		ValidArgsFunction: o.validArgs,
+
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			commander.SetStreams(&o.IOStreams, cmd)
 			if err := commander.SetExperimentsAPI(&o.ExperimentsAPI, o.Config, cmd); err != nil {
@@ -51,10 +53,8 @@ func NewLabelCommand(o *LabelOptions) *cobra.Command {
 		RunE: commander.WithContextE(o.label),
 	}
 
-	_ = cmd.MarkZshCompPositionalArgumentWords(1, validTypes()...)
-
 	o.Printer = &verbPrinter{verb: "labeled"}
-	commander.ExitOnError(cmd)
+
 	return cmd
 }
 

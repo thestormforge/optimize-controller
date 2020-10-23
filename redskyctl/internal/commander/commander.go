@@ -18,11 +18,9 @@ package commander
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
-	"os/exec"
 
 	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
@@ -122,10 +120,10 @@ func ConfigGlobals(cfg *internalconfig.RedSkyConfig, cmd *cobra.Command) {
 	root := cmd.Root()
 
 	// Create the configuration options on top of environment variable overrides
-	root.PersistentFlags().StringVar(&cfg.Filename, "redskyconfig", cfg.Filename, "Path to the redskyconfig file to use.")
-	root.PersistentFlags().StringVar(&cfg.Overrides.Context, "context", "", "The name of the redskyconfig context to use. NOT THE KUBE CONTEXT.")
-	root.PersistentFlags().StringVar(&cfg.Overrides.KubeConfig, "kubeconfig", "", "Path to the kubeconfig file to use for CLI requests.")
-	root.PersistentFlags().StringVarP(&cfg.Overrides.Namespace, "namespace", "n", "", "If present, the namespace scope for this CLI request.")
+	root.PersistentFlags().StringVar(&cfg.Filename, "redskyconfig", cfg.Filename, "path to the redskyconfig `file` to use")
+	root.PersistentFlags().StringVar(&cfg.Overrides.Context, "context", "", "the `name` of the redskyconfig context to use, NOT THE KUBE CONTEXT")
+	root.PersistentFlags().StringVar(&cfg.Overrides.KubeConfig, "kubeconfig", "", "path to the kubeconfig `file` to use for CLI requests")
+	root.PersistentFlags().StringVarP(&cfg.Overrides.Namespace, "namespace", "n", "", "if present, the namespace scope for this CLI request")
 
 	_ = root.MarkFlagFilename("redskyconfig")
 	_ = root.MarkFlagFilename("kubeconfig")
@@ -173,55 +171,28 @@ func AddPreRunE(cmd *cobra.Command, preRunE func(*cobra.Command, []string) error
 	}
 }
 
-// ExitOnError converts all the error returning run functions to non-error implementations that immediately exit
-func ExitOnError(cmd *cobra.Command) {
-	// Convert a RunE to a Run
-	wrapE := func(runE func(*cobra.Command, []string) error) func(*cobra.Command, []string) {
-		return func(cmd *cobra.Command, args []string) {
-			err := runE(cmd, args)
-			if err == nil {
-				return
+// MapErrors wraps all of the error returning functions on the supplied command (and it's sub-commands) so that
+// they pass any errors through the mapping function.
+func MapErrors(cmd *cobra.Command, f func(error) error) {
+	// Define a function which passes all errors through the supplied mapping function
+	wrapE := func(runE func(*cobra.Command, []string) error) func(*cobra.Command, []string) error {
+		if runE != nil {
+			return func(cmd *cobra.Command, args []string) error {
+				return f(runE(cmd, args))
 			}
-
-			// Handle forked process errors by propagating the exit status
-			if eerr, ok := err.(*exec.ExitError); ok && !eerr.Success() {
-				os.Exit(eerr.ExitCode())
-			}
-
-			// Handle unauthorized errors by suggesting `login`
-			if experimentsv1alpha1.IsUnauthorized(err) {
-				msg := "unauthorized"
-				if _, ok := err.(*experimentsv1alpha1.Error); ok {
-					msg = err.Error()
-				}
-				err = fmt.Errorf("%s, try running 'redskyctl login'", msg)
-			}
-
-			// TODO With the exception of silence usage behavior and stdout vs. stderr, this is basically what Cobra already does with a RunE...
-			cmd.PrintErr("Error: ", err.Error(), "\n")
-			os.Exit(1)
 		}
+		return nil
 	}
 
-	// Wrap all of the RunE
-	if cmd.PersistentPreRunE != nil {
-		cmd.PersistentPreRun = wrapE(cmd.PersistentPreRunE)
-		cmd.PersistentPreRunE = nil
-	}
-	if cmd.PreRunE != nil {
-		cmd.PreRun = wrapE(cmd.PreRunE)
-		cmd.PreRunE = nil
-	}
-	if cmd.RunE != nil {
-		cmd.Run = wrapE(cmd.RunE)
-		cmd.RunE = nil
-	}
-	if cmd.PostRunE != nil {
-		cmd.PostRun = wrapE(cmd.PostRunE)
-		cmd.PostRunE = nil
-	}
-	if cmd.PersistentPostRunE != nil {
-		cmd.PersistentPostRun = wrapE(cmd.PersistentPostRunE)
-		cmd.PersistentPostRunE = nil
+	// Wrap all the error returning functions
+	cmd.PersistentPreRunE = wrapE(cmd.PersistentPreRunE)
+	cmd.PreRunE = wrapE(cmd.PreRunE)
+	cmd.RunE = wrapE(cmd.RunE)
+	cmd.PostRunE = wrapE(cmd.PostRunE)
+	cmd.PersistentPostRunE = wrapE(cmd.PersistentPostRunE)
+
+	// Recurse and wrap errors for all of the sub-commands
+	for _, c := range cmd.Commands() {
+		MapErrors(c, f)
 	}
 }

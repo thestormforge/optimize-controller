@@ -13,20 +13,20 @@ redskyctl login [flags]
 ### Options
 
 ```
-      --force         Overwrite existing configuration.
+      --force         overwrite existing configuration
   -h, --help          help for login
-      --name string   Name of the server configuration to authorize.
-      --qr            Display a QR code instead of opening a browser.
-      --url           Display the URL instead of opening a browser.
+      --name string   name of the server configuration to authorize
+      --qr            display a QR code instead of opening a browser
+      --url           display the URL instead of opening a browser
 ```
 
 ### Options inherited from parent commands
 
 ```
-      --context string        The name of the redskyconfig context to use. NOT THE KUBE CONTEXT.
-      --kubeconfig string     Path to the kubeconfig file to use for CLI requests.
-  -n, --namespace string      If present, the namespace scope for this CLI request.
-      --redskyconfig string   Path to the redskyconfig file to use.
+      --context name        the name of the redskyconfig context to use, NOT THE KUBE CONTEXT
+      --kubeconfig file     path to the kubeconfig file to use for CLI requests
+  -n, --namespace string    if present, the namespace scope for this CLI request
+      --redskyconfig file   path to the redskyconfig file to use
 ```
 
 ### SEE ALSO

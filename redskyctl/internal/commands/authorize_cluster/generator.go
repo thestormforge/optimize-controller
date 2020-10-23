@@ -87,7 +87,7 @@ func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 	commander.SetKubePrinter(&o.Printer, cmd, map[string]commander.AdditionalFormat{
 		"helm": commander.ResourcePrinterFunc(printHelmValues),
 	})
-	commander.ExitOnError(cmd)
+
 	return cmd
 }
 
@@ -101,8 +101,8 @@ func clusterName() string {
 }
 
 func (o *GeneratorOptions) addFlags(cmd *cobra.Command) {
-	cmd.Flags().StringVar(&o.ClientName, "client-name", o.ClientName, "Client name to use for registration.")
-	cmd.Flags().BoolVar(&o.AllowUnauthorized, "allow-unauthorized", o.AllowUnauthorized, "Generate a secret without authorization, if necessary.")
+	cmd.Flags().StringVar(&o.ClientName, "client-name", o.ClientName, "client name to use for registration")
+	cmd.Flags().BoolVar(&o.AllowUnauthorized, "allow-unauthorized", o.AllowUnauthorized, "generate a secret without authorization, if necessary")
 	_ = cmd.Flags().MarkHidden("allow-unauthorized")
 }
 

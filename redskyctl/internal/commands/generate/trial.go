@@ -50,18 +50,18 @@ func NewTrialCommand(o *TrialOptions) *cobra.Command {
 		RunE:   commander.WithoutArgsE(o.generate),
 	}
 
-	cmd.Flags().StringVarP(&o.Filename, "filename", "f", o.Filename, "File that contains the experiment to generate trials for.")
-	cmd.Flags().StringVarP(&o.Labels, "labels", "l", "", "Comma separated labels to apply to the trial.")
+	cmd.Flags().StringVarP(&o.Filename, "filename", "f", o.Filename, "file that contains the experiment to generate trials for")
+	cmd.Flags().StringVarP(&o.Labels, "labels", "l", "", "comma separated labels to apply to the trial")
 
-	cmd.Flags().StringToStringVarP(&o.Assignments, "assign", "A", nil, "Assign an explicit value to a parameter.")
-	cmd.Flags().BoolVar(&o.AllowInteractive, "interactive", o.AllowInteractive, "Allow interactive prompts for unspecified parameter assignments.")
-	cmd.Flags().StringVar(&o.DefaultBehavior, "default", "", "Select the behavior for default values; one of: none|min|max|rand.")
+	cmd.Flags().StringToStringVarP(&o.Assignments, "assign", "A", nil, "assign an explicit value to a parameter")
+	cmd.Flags().BoolVar(&o.AllowInteractive, "interactive", o.AllowInteractive, "allow interactive prompts for unspecified parameter assignments")
+	cmd.Flags().StringVar(&o.DefaultBehavior, "default", "", "select the behavior for default values; one of: none|min|max|rand")
 
 	_ = cmd.MarkFlagFilename("filename", "yml", "yaml")
 	_ = cmd.MarkFlagRequired("filename")
 
 	commander.SetKubePrinter(&o.Printer, cmd, nil)
-	commander.ExitOnError(cmd)
+
 	return cmd
 }
 

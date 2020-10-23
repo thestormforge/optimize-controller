@@ -68,15 +68,15 @@ func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 	o.addFlags(cmd)
 
 	commander.SetKubePrinter(&o.Printer, cmd, nil)
-	commander.ExitOnError(cmd)
+
 	return cmd
 }
 
 func (o *GeneratorOptions) addFlags(cmd *cobra.Command) {
-	cmd.Flags().BoolVar(&o.SkipDefault, "skip-default", o.SkipDefault, "Skip default permissions.")
-	cmd.Flags().BoolVar(&o.CreateTrialNamespaces, "create-trial-namespace", o.CreateTrialNamespaces, "Include trial namespace creation permissions.")
-	cmd.Flags().StringVar(&o.NamespaceSelector, "ns-selector", o.NamespaceSelector, "Bind to matching namespaces.")
-	cmd.Flags().BoolVar(&o.IncludeManagerRole, "include-manager", o.IncludeManagerRole, "Bind manager to matching namespaces.")
+	cmd.Flags().BoolVar(&o.SkipDefault, "skip-default", o.SkipDefault, "skip default permissions")
+	cmd.Flags().BoolVar(&o.CreateTrialNamespaces, "create-trial-namespace", o.CreateTrialNamespaces, "include trial namespace creation permissions")
+	cmd.Flags().StringVar(&o.NamespaceSelector, "ns-selector", o.NamespaceSelector, "bind to matching namespaces")
+	cmd.Flags().BoolVar(&o.IncludeManagerRole, "include-manager", o.IncludeManagerRole, "bind manager to matching namespaces")
 }
 
 func (o *GeneratorOptions) generate(ctx context.Context) error {

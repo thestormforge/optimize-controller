@@ -50,12 +50,11 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 		RunE:   commander.WithoutArgsE(o.checkExperiment),
 	}
 
-	cmd.Flags().StringVarP(&o.Filename, "filename", "f", "", "File that contains the experiment to check.")
+	cmd.Flags().StringVarP(&o.Filename, "filename", "f", "", "file that contains the experiment to check")
 
 	_ = cmd.MarkFlagFilename("filename", "yml", "yaml")
 	_ = cmd.MarkFlagRequired("filename")
 
-	commander.ExitOnError(cmd)
 	return cmd
 }
 

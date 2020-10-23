@@ -46,7 +46,6 @@ func NewCommand(o *Options) *cobra.Command {
 		RunE:   commander.WithContextE(o.reset),
 	}
 
-	commander.ExitOnError(cmd)
 	return cmd
 }
 

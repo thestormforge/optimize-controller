@@ -61,12 +61,11 @@ func NewCommand(o *Options) *cobra.Command {
 		RunE: commander.WithContextE(o.results),
 	}
 
-	cmd.Flags().StringVar(&o.ServerAddress, "address", "", "Address to listen on.")
-	cmd.Flags().BoolVar(&o.DisplayURL, "url", false, "Display the URL instead of opening a browser.")
-	cmd.Flags().DurationVar(&o.IdleTimeout, "idle-timeout", 5*time.Second, "Set the heartbeat interval (0 to ignore heartbeats).")
+	cmd.Flags().StringVar(&o.ServerAddress, "address", "", "address to listen on")
+	cmd.Flags().BoolVar(&o.DisplayURL, "url", false, "display the URL instead of opening a browser")
+	cmd.Flags().DurationVar(&o.IdleTimeout, "idle-timeout", 5*time.Second, "set the heartbeat interval (0 to ignore heartbeats)")
 	_ = cmd.Flags().MarkHidden("idle-timeout")
 
-	commander.ExitOnError(cmd)
 	return cmd
 }
 

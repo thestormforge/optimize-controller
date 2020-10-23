@@ -49,7 +49,6 @@ func NewSetCommand(o *SetOptions) *cobra.Command {
 		RunE: commander.WithoutArgsE(o.set),
 	}
 
-	commander.ExitOnError(cmd)
 	return cmd
 }
 

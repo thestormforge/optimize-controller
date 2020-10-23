@@ -73,17 +73,17 @@ func NewRBACCommand(o *RBACOptions) *cobra.Command {
 		RunE: commander.WithoutArgsE(o.generate),
 	}
 
-	cmd.Flags().StringVarP(&o.Filename, "filename", "f", o.Filename, "File that contains the experiment to extract roles from.")
-	cmd.Flags().StringVar(&o.Name, "role-name", o.Name, "Name of the cluster role to generate (default is to use a generated name).")
-	cmd.Flags().BoolVar(&o.IncludeNames, "include-names", o.IncludeNames, "Include resource names in the generated role.")
-	cmd.Flags().BoolVar(&o.ClusterRole, "cluster-role", o.ClusterRole, "Generate a cluster role.")
-	cmd.Flags().BoolVar(&o.ClusterRoleBinding, "cluster-role-binding", o.ClusterRoleBinding, "When generating a cluster role, also generate a cluster role binding.")
+	cmd.Flags().StringVarP(&o.Filename, "filename", "f", o.Filename, "file that contains the experiment to extract roles from")
+	cmd.Flags().StringVar(&o.Name, "role-name", o.Name, "name of the cluster role to generate (default is to use a generated name)")
+	cmd.Flags().BoolVar(&o.IncludeNames, "include-names", o.IncludeNames, "include resource names in the generated role")
+	cmd.Flags().BoolVar(&o.ClusterRole, "cluster-role", o.ClusterRole, "generate a cluster role")
+	cmd.Flags().BoolVar(&o.ClusterRoleBinding, "cluster-role-binding", o.ClusterRoleBinding, "when generating a cluster role, also generate a cluster role binding")
 
 	_ = cmd.MarkFlagFilename("filename", "yml", "yaml")
 	_ = cmd.MarkFlagRequired("filename")
 
 	commander.SetKubePrinter(&o.Printer, cmd, nil)
-	commander.ExitOnError(cmd)
+
 	return cmd
 }
 

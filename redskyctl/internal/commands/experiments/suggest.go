@@ -58,12 +58,11 @@ func NewSuggestCommand(o *SuggestOptions) *cobra.Command {
 		RunE: commander.WithContextE(o.suggest),
 	}
 
-	cmd.Flags().StringToStringVarP(&o.Assignments, "assign", "A", nil, "Assign an explicit value to a parameter.")
-	cmd.Flags().BoolVar(&o.AllowInteractive, "interactive", false, "Allow interactive prompts for unspecified parameter assignments.")
-	cmd.Flags().StringVar(&o.DefaultBehavior, "default", "", "Select the behavior for default values; one of: none|min|max|rand.")
-	cmd.Flags().StringVarP(&o.Labels, "labels", "l", "", "Comma separated labels to apply to the trial.")
+	cmd.Flags().StringToStringVarP(&o.Assignments, "assign", "A", nil, "assign an explicit value to a parameter")
+	cmd.Flags().BoolVar(&o.AllowInteractive, "interactive", false, "allow interactive prompts for unspecified parameter assignments")
+	cmd.Flags().StringVar(&o.DefaultBehavior, "default", "", "select the behavior for default values; one of: none|min|max|rand")
+	cmd.Flags().StringVarP(&o.Labels, "labels", "l", "", "comma separated labels to apply to the trial")
 
-	commander.ExitOnError(cmd)
 	return cmd
 }
 

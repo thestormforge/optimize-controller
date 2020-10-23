@@ -19,7 +19,6 @@ package completion
 import (
 	"fmt"
 
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
 )
 
@@ -46,7 +45,6 @@ redskyctl completion zsh > $ZSH/completions/_redskyctl`,
 		RunE:   func(cmd *cobra.Command, _ []string) error { return o.completion(cmd) },
 	}
 
-	commander.ExitOnError(cmd)
 	return cmd
 }
 

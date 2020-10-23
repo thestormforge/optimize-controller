@@ -51,7 +51,6 @@ func NewVersionCommand(o *VersionOptions) *cobra.Command {
 		RunE:   commander.WithContextE(o.checkVersion),
 	}
 
-	commander.ExitOnError(cmd)
 	return cmd
 }
 

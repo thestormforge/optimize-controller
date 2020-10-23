@@ -13,22 +13,22 @@ redskyctl generate trial [flags]
 ### Options
 
 ```
-  -A, --assign stringToString   Assign an explicit value to a parameter. (default [])
-      --default string          Select the behavior for default values; one of: none|min|max|rand.
-  -f, --filename string         File that contains the experiment to generate trials for.
+  -A, --assign stringToString   assign an explicit value to a parameter (default [])
+      --default string          select the behavior for default values; one of: none|min|max|rand
+  -f, --filename string         file that contains the experiment to generate trials for
   -h, --help                    help for trial
-      --interactive             Allow interactive prompts for unspecified parameter assignments.
-  -l, --labels string           Comma separated labels to apply to the trial.
-  -o, --output format           Output format. One of: json|yaml (default "yaml")
+      --interactive             allow interactive prompts for unspecified parameter assignments
+  -l, --labels string           comma separated labels to apply to the trial
+  -o, --output format           output format. one of: json|yaml (default "yaml")
 ```
 
 ### Options inherited from parent commands
 
 ```
-      --context string        The name of the redskyconfig context to use. NOT THE KUBE CONTEXT.
-      --kubeconfig string     Path to the kubeconfig file to use for CLI requests.
-  -n, --namespace string      If present, the namespace scope for this CLI request.
-      --redskyconfig string   Path to the redskyconfig file to use.
+      --context name        the name of the redskyconfig context to use, NOT THE KUBE CONTEXT
+      --kubeconfig file     path to the kubeconfig file to use for CLI requests
+  -n, --namespace string    if present, the namespace scope for this CLI request
+      --redskyconfig file   path to the redskyconfig file to use
 ```
 
 ### SEE ALSO

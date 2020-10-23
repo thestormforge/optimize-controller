@@ -54,7 +54,6 @@ func NewConfigCommand(o *ConfigOptions) *cobra.Command {
 	_ = cmd.MarkFlagDirname("kustomize")
 	_ = cmd.MarkFlagFilename("filename", "yml", "yaml")
 
-	commander.ExitOnError(cmd)
 	return cmd
 }
 

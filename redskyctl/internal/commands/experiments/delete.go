@@ -41,6 +41,8 @@ func NewDeleteCommand(o *DeleteOptions) *cobra.Command {
 		Short: "Delete a Red Sky resource",
 		Long:  "Delete Red Sky resources from the remote server",
 
+		ValidArgsFunction: o.validArgs,
+
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			commander.SetStreams(&o.IOStreams, cmd)
 			if err := commander.SetExperimentsAPI(&o.ExperimentsAPI, o.Config, cmd); err != nil {
@@ -51,10 +53,8 @@ func NewDeleteCommand(o *DeleteOptions) *cobra.Command {
 		RunE: commander.WithContextE(o.delete),
 	}
 
-	_ = cmd.MarkZshCompPositionalArgumentWords(1, validTypes()...)
-
 	o.Printer = &verbPrinter{verb: "deleted"}
-	commander.ExitOnError(cmd)
+
 	return cmd
 }
 

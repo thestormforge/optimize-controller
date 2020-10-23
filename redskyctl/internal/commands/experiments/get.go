@@ -44,6 +44,8 @@ func NewGetCommand(o *GetOptions) *cobra.Command {
 		Short: "Display a Red Sky resource",
 		Long:  "Get Red Sky resources from the remote server",
 
+		ValidArgsFunction: o.validArgs,
+
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			commander.SetStreams(&o.IOStreams, cmd)
 			if err := commander.SetExperimentsAPI(&o.ExperimentsAPI, o.Config, cmd); err != nil {
@@ -54,15 +56,13 @@ func NewGetCommand(o *GetOptions) *cobra.Command {
 		RunE: commander.WithContextE(o.get),
 	}
 
-	cmd.Flags().IntVar(&o.ChunkSize, "chunk-size", o.ChunkSize, "Fetch large lists in chunks rather then all at once.")
-	cmd.Flags().StringVarP(&o.Selector, "selector", "l", o.Selector, "Selector (label `query`) to filter on.")
-	cmd.Flags().StringVar(&o.SortBy, "sort-by", o.SortBy, "Sort list types using this JSONPath `expression`.")
-	cmd.Flags().BoolVarP(&o.All, "all", "A", false, "Include all resources.")
-
-	_ = cmd.MarkZshCompPositionalArgumentWords(1, validTypes()...)
+	cmd.Flags().IntVar(&o.ChunkSize, "chunk-size", o.ChunkSize, "fetch large lists in chunks rather then all at once")
+	cmd.Flags().StringVarP(&o.Selector, "selector", "l", o.Selector, "selector (label `query`) to filter on")
+	cmd.Flags().StringVar(&o.SortBy, "sort-by", o.SortBy, "sort list types using this JSONPath `expression`")
+	cmd.Flags().BoolVarP(&o.All, "all", "A", false, "include all resources")
 
 	commander.SetPrinter(&experimentsMeta{}, &o.Printer, cmd, nil)
-	commander.ExitOnError(cmd)
+
 	return cmd
 }
 

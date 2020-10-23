@@ -21,7 +21,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
 )
@@ -49,14 +48,13 @@ func NewCommand(o *Options) *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error { return o.docs(cmd) },
 	}
 
-	cmd.Flags().StringVarP(&o.Directory, "directory", "d", "./", "Directory where documentation is written.")
-	cmd.Flags().StringVar(&o.DocType, "doc-type", "markdown", "Documentation type to write, one of: markdown|man|api.")
-	cmd.Flags().StringVar(&o.SourcePath, "source", "", "Source path used to find API types.")
+	cmd.Flags().StringVarP(&o.Directory, "directory", "d", "./", "directory where documentation is written")
+	cmd.Flags().StringVar(&o.DocType, "doc-type", "markdown", "documentation type to write, one of: markdown|man|api")
+	cmd.Flags().StringVar(&o.SourcePath, "source", "", "source path used to find API types")
 
 	_ = cmd.MarkFlagDirname("directory")
 	_ = cmd.MarkFlagDirname("source")
 
-	commander.ExitOnError(cmd)
 	return cmd
 }
 

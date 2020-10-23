@@ -13,18 +13,18 @@ redskyctl generate secret [flags]
 ### Options
 
 ```
-      --client-name string   Client name to use for registration.
+      --client-name string   client name to use for registration
   -h, --help                 help for secret
-  -o, --output format        Output format. One of: json|yaml|helm (default "yaml")
+  -o, --output format        output format. one of: json|yaml|helm (default "yaml")
 ```
 
 ### Options inherited from parent commands
 
 ```
-      --context string        The name of the redskyconfig context to use. NOT THE KUBE CONTEXT.
-      --kubeconfig string     Path to the kubeconfig file to use for CLI requests.
-  -n, --namespace string      If present, the namespace scope for this CLI request.
-      --redskyconfig string   Path to the redskyconfig file to use.
+      --context name        the name of the redskyconfig context to use, NOT THE KUBE CONTEXT
+      --kubeconfig file     path to the kubeconfig file to use for CLI requests
+  -n, --namespace string    if present, the namespace scope for this CLI request
+      --redskyconfig file   path to the redskyconfig file to use
 ```
 
 ### SEE ALSO

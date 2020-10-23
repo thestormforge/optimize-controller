@@ -42,7 +42,6 @@ func NewCommand(o *Options) *cobra.Command {
 
 	o.addFlags(cmd)
 
-	commander.ExitOnError(cmd)
 	return cmd
 }
 

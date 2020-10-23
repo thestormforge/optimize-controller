@@ -20,12 +20,15 @@ import (
 	"context"
 	crypto_rand "crypto/rand"
 	"encoding/binary"
+	"errors"
 	"math/rand"
 	"net/http"
 	"os"
+	"os/exec"
 
 	"github.com/redskyops/redskyops-controller/internal/version"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands"
+	"github.com/spf13/cobra"
 	"golang.org/x/oauth2"
 )
 
@@ -38,6 +41,9 @@ func init() {
 		panic(err)
 	}
 	rand.Seed(int64(binary.LittleEndian.Uint64(b[:])))
+
+	// Prevent Cobra from changing the command order
+	cobra.EnableCommandSorting = false
 }
 
 func main() {
@@ -52,8 +58,11 @@ func main() {
 	ctx = context.WithValue(ctx, oauth2.HTTPClient, &http.Client{Transport: uaRoundTripper})
 
 	// Run the command
-	err := cmd.ExecuteContext(ctx)
-	if err != nil {
+	if err := cmd.ExecuteContext(ctx); err != nil {
+		var e *exec.ExitError
+		if errors.As(err, &e) && !e.Success() {
+			os.Exit(e.ExitCode())
+		}
 		os.Exit(1)
 	}
 }
