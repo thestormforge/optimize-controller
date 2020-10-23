@@ -172,7 +172,7 @@ func AddPreRunE(cmd *cobra.Command, preRunE func(*cobra.Command, []string) error
 }
 
 // MapErrors wraps all of the error returning functions on the supplied command (and it's sub-commands) so that
-// pass any errors through the mapping function.
+// they pass any errors through the mapping function.
 func MapErrors(cmd *cobra.Command, f func(error) error) {
 	// Define a function which passes all errors through the supplied mapping function
 	wrapE := func(runE func(*cobra.Command, []string) error) func(*cobra.Command, []string) error {
