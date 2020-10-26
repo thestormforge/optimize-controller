@@ -24,7 +24,9 @@ import (
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/kustomize/api/resid"
+	"sigs.k8s.io/kustomize/api/resmap"
 	"sigs.k8s.io/kustomize/api/types"
+	"sigs.k8s.io/kustomize/kyaml/filtersutil"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
@@ -115,6 +117,62 @@ func DefaultContainerResourcesSelectors() []ContainerResourcesSelector {
 			CreateIfNotPresent: true,
 		},
 	}
+}
+
+// scanForContainerResources scans the supplied resource map for container resources matching the selector.
+func scanForContainerResources(rm resmap.ResMap, selector []ContainerResourcesSelector, list *corev1.List) error {
+	crs := make([]*containerResources, 0, rm.Size())
+	for _, sel := range selector {
+		// Select the matching resources
+		resources, err := rm.Select(sel.selector())
+		if err != nil {
+			return err
+		}
+
+		for _, r := range resources {
+			// Get the YAML tree representation of the resource
+			node, err := filtersutil.GetRNode(r)
+			if err != nil {
+				return err
+			}
+
+			// Scan the document tree for information to add to the application resource
+			cr := &containerResources{}
+			if err := cr.SaveTargetReference(node); err != nil {
+				return err
+			}
+			if err := cr.SaveResourcesPaths(node, sel); err != nil {
+				// TODO Ignore errors if the resource doesn't have a matching resources path
+				return err
+			}
+			if cr.Empty() {
+				continue
+			}
+
+			// Make sure we only get the newly discovered parts
+			crs = mergeOrAppend(crs, cr)
+		}
+	}
+
+	if len(crs) == 0 {
+		return nil
+	}
+
+	// TODO We can probably be smarter determining if a prefix is necessary
+	needsPrefix := len(crs) > 1
+
+	exp := findOrAddExperiment(list)
+	for _, cr := range crs {
+		patch, err := cr.ResourcesPatch(needsPrefix)
+		if err != nil {
+			return err
+		}
+
+		exp.Spec.Patches = append(exp.Spec.Patches, *patch)
+		exp.Spec.Parameters = append(exp.Spec.Parameters, cr.ResourcesParameters(needsPrefix)...)
+	}
+
+	return nil
 }
 
 // containerResources is an individual application resource that specifies container resources.

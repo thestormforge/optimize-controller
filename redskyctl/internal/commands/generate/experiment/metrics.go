@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/labels"
 )
@@ -28,14 +29,16 @@ var one = resource.MustParse("1")
 
 const costQueryFormat = `({{ cpuRequests . "%s" }} * %d) + ({{ memoryRequests . "%s" | GB }} * %d)`
 
-func AddCostMetric(app *Application, exp *redskyv1beta1.Experiment) {
-	if app.Cost == nil || len(app.Cost.Labels) == 0 {
-		return
+func addApplicationMetrics(app *Application, list *corev1.List) error {
+	// Add a cost metric
+	if app.Cost != nil && len(app.Cost.Labels) > 0 {
+		addCostMetric(app, list)
 	}
 
-	// The cost metric requires Prometheus
-	ensurePrometheus(exp)
+	return nil
+}
 
+func addCostMetric(app *Application, list *corev1.List) {
 	lbl := labels.Set(app.Cost.Labels).String()
 	var cpuWeight, memoryWeight *resource.Quantity
 
@@ -50,26 +53,15 @@ func AddCostMetric(app *Application, exp *redskyv1beta1.Experiment) {
 		memoryWeight = &one
 	}
 
+	// Add the cost metric to the experiment
+	exp := findOrAddExperiment(list)
 	exp.Spec.Metrics = append(exp.Spec.Metrics, redskyv1beta1.Metric{
 		Name:     "cost",
 		Minimize: true,
 		Type:     redskyv1beta1.MetricPrometheus,
 		Query:    fmt.Sprintf(costQueryFormat, lbl, cpuWeight.Value(), lbl, memoryWeight.Value()),
 	})
-}
 
-func ensurePrometheus(exp *redskyv1beta1.Experiment) {
-	// Return if we see the Prometheus setup task
-	trialSpec := &exp.Spec.TrialTemplate.Spec
-	for _, st := range trialSpec.SetupTasks {
-		if st.Image == "" && len(st.Args) == 2 && st.Args[0] == "prometheus" && st.Args[1] == "$(MODE)" {
-			return
-		}
-	}
-
-	// Add the missing setup task
-	trialSpec.SetupTasks = append(trialSpec.SetupTasks, redskyv1beta1.SetupTask{
-		Name: "monitoring",
-		Args: []string{"prometheus", "$(MODE)"},
-	})
+	// The cost metric requires Prometheus
+	ensurePrometheus(list)
 }

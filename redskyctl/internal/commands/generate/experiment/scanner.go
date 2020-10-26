@@ -18,12 +18,14 @@ package experiment
 
 import (
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
+	"github.com/redskyops/redskyops-controller/internal/setup"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/kustomize/api/filesys"
 	"sigs.k8s.io/kustomize/api/konfig"
 	"sigs.k8s.io/kustomize/api/krusty"
 	"sigs.k8s.io/kustomize/api/resmap"
 	"sigs.k8s.io/kustomize/api/types"
-	"sigs.k8s.io/kustomize/kyaml/filtersutil"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
@@ -32,35 +34,40 @@ type Scanner struct {
 	// FileSystem to use when looking for resources, generally a pass through to the OS file system.
 	FileSystem filesys.FileSystem
 	// Resources representing the application to scan.
-	Resources []string
+	App *Application
 	// ContainerResourcesSelector are the selectors for determining what application resources to scan for resources lists.
 	ContainerResourcesSelector []ContainerResourcesSelector
 }
 
 // ScanInto scans the specified resource references and adds the necessary patches and parameter
 // definitions to the supplied experiment.
-func (s *Scanner) ScanInto(exp *redskyv1beta1.Experiment) error {
+func (s *Scanner) ScanInto(list *corev1.List) error {
 	// Load all of the resource references
-	rm, err := s.load(s.Resources)
+	rm, err := s.load()
 	if err != nil {
 		return err
 	}
 
-	// We need to aggregate them all the container resources we can apply them
-	crs, err := s.scanForContainerResources(rm)
-	if err != nil {
+	// Scan the application resources for requests/limits and add the parameters and patches necessary
+	if err := scanForContainerResources(rm, s.ContainerResourcesSelector, list); err != nil {
 		return err
 	}
 
-	// Apply the accumulated results to the experiment
-	if err := s.applyContainerResources(crs, exp); err != nil {
+	// Add metrics based on the configuration of the application
+	if err := addApplicationMetrics(s.App, list); err != nil {
+		return err
+	}
+
+	// Update the metadata
+	if err := applyApplicationMetadata(s.App, list); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (s *Scanner) load(resources []string) (resmap.ResMap, error) {
+// load returns a Kustomize resource map of all the application resources.
+func (s *Scanner) load() (resmap.ResMap, error) {
 	// Get the current working directory so we can intercept requests for the Kustomization
 	cwd, _, err := s.FileSystem.CleanedAbs(".")
 	if err != nil {
@@ -75,7 +82,7 @@ func (s *Scanner) load(resources []string) (resmap.ResMap, error) {
 		FileSystem:            s.FileSystem,
 		KustomizationFileName: cwd.Join(konfig.DefaultKustomizationFileName()),
 		Kustomization: types.Kustomization{
-			Resources: resources,
+			Resources: s.App.Resources,
 		},
 	}
 
@@ -85,56 +92,38 @@ func (s *Scanner) load(resources []string) (resmap.ResMap, error) {
 	return krusty.MakeKustomizer(fSys, o).Run(".")
 }
 
-func (s *Scanner) scanForContainerResources(rm resmap.ResMap) ([]*containerResources, error) {
-	result := make([]*containerResources, 0, rm.Size())
-	for _, sel := range s.ContainerResourcesSelector {
-		// Select the matching resources
-		resources, err := rm.Select(sel.selector())
-		if err != nil {
-			return nil, err
-		}
-
-		for _, r := range resources {
-			// Get the YAML tree representation of the resource
-			node, err := filtersutil.GetRNode(r)
-			if err != nil {
-				return nil, err
-			}
-
-			// Scan the document tree for information to add to the application resource
-			cr := &containerResources{}
-			if err := cr.SaveTargetReference(node); err != nil {
-				return nil, err
-			}
-			if err := cr.SaveResourcesPaths(node, sel); err != nil {
-				// TODO Ignore errors if the resource doesn't have a matching resources path
-				return nil, err
-			}
-			if cr.Empty() {
-				continue
-			}
-
-			// Make sure we only get the newly discovered parts
-			result = mergeOrAppend(result, cr)
+// findOrAddExperiment returns the experiment from the supplied list, creating it if it does not exist.
+func findOrAddExperiment(list *corev1.List) *redskyv1beta1.Experiment {
+	var exp *redskyv1beta1.Experiment
+	for i := range list.Items {
+		if p, ok := list.Items[i].Object.(*redskyv1beta1.Experiment); ok {
+			exp = p
+			break
 		}
 	}
-	return result, nil
+	if exp == nil {
+		exp = &redskyv1beta1.Experiment{}
+		list.Items = append(list.Items, runtime.RawExtension{Object: exp})
+	}
+	return exp
 }
 
-func (s *Scanner) applyContainerResources(crs []*containerResources, exp *redskyv1beta1.Experiment) error {
-	// TODO We can probably be smarter determining if a prefix is necessary
-	needsPrefix := len(crs) > 1
-
-	for _, cr := range crs {
-		patch, err := cr.ResourcesPatch(needsPrefix)
-		if err != nil {
-			return err
+// ensurePrometheus adds Prometheus configuration to the supplied list.
+func ensurePrometheus(list *corev1.List) {
+	// Return if we see the Prometheus setup task
+	exp := findOrAddExperiment(list)
+	trialSpec := &exp.Spec.TrialTemplate.Spec
+	for _, st := range trialSpec.SetupTasks {
+		if setup.IsPrometheusSetupTask(&st) {
+			return
 		}
-		exp.Spec.Patches = append(exp.Spec.Patches, *patch)
-		exp.Spec.Parameters = append(exp.Spec.Parameters, cr.ResourcesParameters(needsPrefix)...)
 	}
 
-	return nil
+	// Add the missing setup task
+	trialSpec.SetupTasks = append(trialSpec.SetupTasks, redskyv1beta1.SetupTask{
+		Name: "monitoring",
+		Args: []string{"prometheus", "$(MODE)"},
+	})
 }
 
 // kustomizationFileSystem is a wrapper around a real file system that injects a Kustomization at
