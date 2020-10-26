@@ -17,25 +17,19 @@ limitations under the License.
 package generate
 
 import (
-	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/experiments"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/generate/experiment"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/kustomize/api/filesys"
 )
-
-const experimentConfigKind = "Application"
 
 type ExperimentOptions struct {
 	experiments.Options
 
-	Application experiment.Application
-	Filename    string
-
+	Filename  string
 	Resources []string
 }
 
@@ -46,7 +40,7 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 		Long:  "Generate an experiment using magik",
 
 		Annotations: map[string]string{
-			"KustomizePluginKind":           experimentConfigKind,
+			"KustomizePluginKind":           "Application",
 			commander.PrinterAllowedFormats: "json,yaml",
 			commander.PrinterOutputFormat:   "yaml",
 			commander.PrinterHideStatus:     "true",
@@ -55,7 +49,7 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 
 		PreRun: func(cmd *cobra.Command, args []string) {
 			// Handle the case when we are invoked as a Kustomize exec plugin
-			if cmd.CalledAs() == experimentConfigKind && len(args) == 1 {
+			if cmd.CalledAs() == cmd.Annotations["KustomizePluginKind"] && len(args) == 1 {
 				o.Filename = args[0]
 			}
 			commander.SetStreams(&o.IOStreams, cmd)
@@ -69,75 +63,59 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 	_ = cmd.MarkFlagFilename("filename", "yml", "yaml")
 
 	commander.SetKubePrinter(&o.Printer, cmd, nil)
-	commander.ExitOnError(cmd)
 	return cmd
 }
 
 func (o *ExperimentOptions) generate() error {
-	list := &corev1.List{}
-
 	// Read the experiment configuration
-	if err := o.readConfig(); err != nil {
+	app, err := o.readConfig()
+	if err != nil {
 		return err
 	}
 
-	// Start the experiment template
-	exp := &redskyv1beta1.Experiment{}
-	// TODO Do we want to filter out any of this information? Re-format it (e.g. "{appName}-{version}"?
-	o.Application.ObjectMeta.DeepCopyInto(&exp.ObjectMeta)
+	// Create a new scanner
+	s := &experiment.Scanner{App: app, FileSystem: filesys.MakeFsOnDisk()}
 
-	// Scan the resources and add the results into the experiment object
-	if err := o.newScanner().ScanInto(exp); err != nil {
-		return err
-	}
-
-	// Add the cost metric
-	experiment.AddCostMetric(&o.Application, exp)
-
-	// TODO Do some sanity checks to make sure the experiment is valid before we add it
-	list.Items = append(list.Items, runtime.RawExtension{Object: exp})
-
-	// TODO What other objects should we add to the list? Service account? RBAC?
-
-	return o.Printer.PrintObj(list, o.Out)
-}
-
-func (o *ExperimentOptions) readConfig() error {
-	// Read the configuration from disk if specified
-	if o.Filename != "" {
-		r, err := o.IOStreams.OpenFile(o.Filename)
-		if err != nil {
-			return err
-		}
-
-		rr := commander.NewResourceReader()
-		_ = experiment.AddToScheme(rr.Scheme)
-		if err := rr.ReadInto(r, &o.Application); err != nil {
-			return err
-		}
-	}
-
-	// Add additional resources
-	o.Application.Resources = append(o.Application.Resources, o.Resources...)
-
-	// TODO Should we expose additional overrides/merges on the CLI options? Like name?
-
-	return nil
-}
-
-func (o *ExperimentOptions) newScanner() *experiment.Scanner {
-	s := &experiment.Scanner{
-		FileSystem:                 filesys.MakeFsOnDisk(),
-		Resources:                  o.Application.Resources,
-		ContainerResourcesSelector: experiment.DefaultContainerResourcesSelectors(),
-	}
-
-	if o.Application.Parameters != nil && o.Application.Parameters.ContainerResources != nil {
-		ls := labels.Set(o.Application.Parameters.ContainerResources.Labels).String()
+	// Configure how we filter the application resources when looking for requests/limits
+	// TODO This is kind of a hack: we are just adding labels (if present) to the default selectors
+	s.ContainerResourcesSelector = experiment.DefaultContainerResourcesSelectors()
+	if app.Parameters != nil && app.Parameters.ContainerResources != nil {
+		ls := labels.Set(app.Parameters.ContainerResources.Labels).String()
 		for i := range s.ContainerResourcesSelector {
 			s.ContainerResourcesSelector[i].LabelSelector = ls
 		}
 	}
 
-	return s
+	// Scan the resources and add the results into the experiment
+	list := &corev1.List{}
+	if err := s.ScanInto(list); err != nil {
+		return err
+	}
+
+	// TODO Do some sanity checks to make sure everything is valid
+
+	return o.Printer.PrintObj(list, o.Out)
+}
+
+func (o *ExperimentOptions) readConfig() (*experiment.Application, error) {
+	app := &experiment.Application{}
+
+	// Read the configuration from disk if specified
+	if o.Filename != "" {
+		r, err := o.IOStreams.OpenFile(o.Filename)
+		if err != nil {
+			return nil, err
+		}
+
+		rr := commander.NewResourceReader()
+		_ = experiment.AddToScheme(rr.Scheme)
+		if err := rr.ReadInto(r, app); err != nil {
+			return nil, err
+		}
+	}
+
+	// Add additional resources (this allows addition manifests to be added when invoking the CLI)
+	app.Resources = append(app.Resources, o.Resources...)
+
+	return app, nil
 }
