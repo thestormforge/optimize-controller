@@ -70,8 +70,14 @@ func NewCommand(o *Options) *cobra.Command {
 }
 
 func (o *Options) Complete() {
+	// Default to listening on an ephemeral port
 	if o.ServerAddress == "" {
 		o.ServerAddress = ":0"
+	}
+
+	// If we are just printing a URL we can't rely on the heartbeat to keep the process alive
+	if o.DisplayURL {
+		o.IdleTimeout = 0
 	}
 }
 
@@ -115,7 +121,10 @@ func (o *Options) openBrowser(loc string) error {
 	}
 
 	_, _ = fmt.Fprintf(o.Out, "Opening %s in your default browser...", loc)
-	return browser.OpenURL(loc)
+	if err := browser.OpenURL(loc); err != nil {
+		return fmt.Errorf("failed to open browser, use 'redskyctl results --url' instead")
+	}
+	return nil
 }
 
 func (o *Options) handleAPI(ctx context.Context, serveMux *http.ServeMux, prefix string) error {
