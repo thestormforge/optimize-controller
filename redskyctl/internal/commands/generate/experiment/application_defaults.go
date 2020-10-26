@@ -17,8 +17,6 @@ limitations under the License.
 package experiment
 
 import (
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
@@ -36,26 +34,4 @@ func RegisterDefaults(s *runtime.Scheme) error {
 var _ admission.Defaulter = &Application{}
 
 func (in *Application) Default() {
-	if in.CloudProvider == nil {
-		in.CloudProvider = &CloudProvider{}
-	}
-	in.CloudProvider.Default()
-}
-
-func (in *CloudProvider) Default() {
-	if in.Cost == nil {
-		in.Cost = corev1.ResourceList{}
-	}
-	if in.Cost.Cpu().IsZero() {
-		switch in.Name {
-		default:
-			in.Cost[corev1.ResourceCPU] = resource.MustParse("22")
-		}
-	}
-	if in.Cost.Memory().IsZero() {
-		switch in.Name {
-		default:
-			in.Cost[corev1.ResourceMemory] = resource.MustParse("3")
-		}
-	}
 }
