@@ -35,17 +35,21 @@ type Application struct {
 	Resources []string `json:"resources,omitempty"`
 
 	// Cost is used to identify which parts of the application impact the cost of running the application.
-	Cost *CostConfig `json:"cost,omitempty"`
+	Cost *Cost `json:"cost,omitempty"`
 
 	// CloudProvider is used to provide details about the hosting environment the application is run in.
 	CloudProvider *CloudProvider `json:"cloudProvider,omitempty"`
 
 	// Parameters specifies additional details about the experiment parameters.
 	Parameters *Parameters `json:"parameters,omitempty"`
+
+	// TODO We should have a qualityOfService: section were you can specify things like
+	// the percentage of the max that resources are expected to use (then we add both limits and requests and a constraint)
+	// or the "max latency" for the application (we could add a non-optimized metric to capture it).
 }
 
 // +kubebuilder:object:generate=true
-type CostConfig struct {
+type Cost struct {
 	// Labels of the pods which should be considered when collecting cost information.
 	Labels map[string]string `json:"labels,omitempty"`
 }
