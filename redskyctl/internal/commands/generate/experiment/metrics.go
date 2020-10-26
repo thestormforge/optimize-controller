@@ -40,15 +40,14 @@ func addApplicationMetrics(app *Application, list *corev1.List) error {
 
 func addCostMetric(app *Application, list *corev1.List) {
 	lbl := labels.Set(app.Cost.Labels).String()
-	var cpuWeight, memoryWeight *resource.Quantity
 
-	if app.CloudProvider != nil {
-		cpuWeight = app.CloudProvider.Cost.Cpu()
-		memoryWeight = app.CloudProvider.Cost.Memory()
-	}
+	// Compute the cloud provider specific cost weights
+	cost := computeCost(app.CloudProvider)
+	cpuWeight := cost.Cpu()
 	if cpuWeight == nil || cpuWeight.IsZero() {
 		cpuWeight = &one
 	}
+	memoryWeight := cost.Memory()
 	if memoryWeight == nil || memoryWeight.IsZero() {
 		memoryWeight = &one
 	}
@@ -64,4 +63,49 @@ func addCostMetric(app *Application, list *corev1.List) {
 
 	// The cost metric requires Prometheus
 	ensurePrometheus(list)
+}
+
+// computeCost returns the cost weightings for a cloud provider.
+// CPU weights are $/vCPU, Memory weights are $/GB
+func computeCost(cp *CloudProvider) corev1.ResourceList {
+	if cp != nil && cp.GenericCloudProvider != nil {
+		return genericCost(cp.GenericCloudProvider)
+	}
+	if cp != nil && cp.GCP != nil {
+		return gcpCost(cp.GCP)
+	}
+	if cp != nil && cp.AWS != nil {
+		return awsCost(cp.AWS)
+	}
+	return genericCost(nil)
+}
+
+func gcpCost(gcp *GoogleCloudPlatform) corev1.ResourceList {
+	cost := gcp.Cost
+	addDefaultCost(&cost, corev1.ResourceCPU, "22")
+	addDefaultCost(&cost, corev1.ResourceMemory, "3")
+	return cost
+}
+
+func awsCost(aws *AmazonWebServices) corev1.ResourceList {
+	cost := aws.Cost
+	addDefaultCost(&cost, corev1.ResourceCPU, "22")
+	addDefaultCost(&cost, corev1.ResourceMemory, "3")
+	return cost
+}
+
+func genericCost(p *GenericCloudProvider) corev1.ResourceList {
+	cost := corev1.ResourceList{}
+	if p != nil && p.Cost != nil {
+		cost = p.Cost
+	}
+	addDefaultCost(&cost, corev1.ResourceCPU, "22")
+	addDefaultCost(&cost, corev1.ResourceMemory, "3")
+	return cost
+}
+
+func addDefaultCost(r *corev1.ResourceList, name corev1.ResourceName, value string) {
+	if v, ok := (*r)[name]; !ok || v.IsZero() {
+		(*r)[name] = resource.MustParse(value)
+	}
 }
