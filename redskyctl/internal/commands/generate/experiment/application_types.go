@@ -56,8 +56,28 @@ type Cost struct {
 
 // +kubebuilder:object:generate=true
 type CloudProvider struct {
-	// Cloud provider name, may be used to adjust defaults.
-	Name string `json:"name,omitempty"`
+	// Generic cloud provider configuration.
+	*GenericCloudProvider `json:",inline"`
+	// Configuration specific to Google Cloud Platform.
+	GCP *GoogleCloudPlatform `json:"gcp,omitempty"`
+	// Configuration specific to Amazon Web Services.
+	AWS *AmazonWebServices `json:"aws,omitempty"`
+}
+
+// +kubebuilder:object:generate=true
+type GoogleCloudPlatform struct {
+	// Per-resource cost weightings.
+	Cost corev1.ResourceList `json:"cost,omitempty"`
+}
+
+// +kubebuilder:object:generate=true
+type AmazonWebServices struct {
+	// Per-resource cost weightings.
+	Cost corev1.ResourceList `json:"cost,omitempty"`
+}
+
+// +kubebuilder:object:generate=true
+type GenericCloudProvider struct {
 	// Per-resource cost weightings.
 	Cost corev1.ResourceList `json:"cost,omitempty"`
 }
