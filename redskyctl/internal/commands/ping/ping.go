@@ -54,7 +54,6 @@ func NewCommand(o *Options) *cobra.Command {
 		RunE: commander.WithContextE(o.ping),
 	}
 
-	commander.ExitOnError(cmd)
 	return cmd
 }
 
