@@ -336,14 +336,19 @@ func (o *Options) openBrowser(loc string) error {
 		return err
 	}
 
-	// Do not open the browser for root
+	// Do not open the browser for root, but assume they still have one
 	if u.Uid == "0" {
 		_, _ = fmt.Fprintf(o.Out, "%s\n", loc)
 		return nil
 	}
 
+	// Print the URL and open it
 	_, _ = fmt.Fprintf(o.Out, browserPrompt, loc)
-	return browser.OpenURL(loc)
+	if err := browser.OpenURL(loc); err != nil {
+		return fmt.Errorf("failed to open browser, use 'redskyctl login --url' instead")
+	}
+
+	return nil
 }
 
 // configureCallbackServer configures an HTTP server using the supplied callback redirect URL for the listen address
