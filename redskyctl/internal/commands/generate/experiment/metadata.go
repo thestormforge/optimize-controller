@@ -19,6 +19,7 @@ package experiment
 import (
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 )
 
 // applyApplicationMetadata updates the metadata of the generated objects.
@@ -26,9 +27,20 @@ func applyApplicationMetadata(app *Application, list *corev1.List) error {
 
 	for i := range list.Items {
 		switch obj := list.Items[i].Object.(type) {
+
 		case *redskyv1beta1.Experiment:
 			// TODO Do we want to filter out any of this information? Re-format it (e.g. "{appName}-{version}"?
 			app.ObjectMeta.DeepCopyInto(&obj.ObjectMeta)
+
+		case *corev1.ServiceAccount:
+			obj.Namespace = app.Namespace
+
+		case *rbacv1.ClusterRoleBinding:
+			for i := range obj.Subjects {
+				if obj.Subjects[i].Namespace == "" {
+					obj.Subjects[i].Namespace = app.Namespace
+				}
+			}
 		}
 	}
 
