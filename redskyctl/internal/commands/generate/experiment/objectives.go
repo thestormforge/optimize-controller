@@ -29,20 +29,35 @@ var one = resource.MustParse("1")
 
 const costQueryFormat = `({{ cpuRequests . "%s" }} * %d) + ({{ memoryRequests . "%s" | GB }} * %d)`
 
-func addApplicationMetrics(app *Application, list *corev1.List) error {
-	// Add a cost metric
-	if app.Cost != nil && len(app.Cost.Labels) > 0 {
-		addCostMetric(app, list)
+func addObjectives(app *Application, objectives []string, list *corev1.List) error {
+	skip := func(obj *Objective) bool {
+		for _, name := range objectives {
+			if obj.Name == name {
+				return false
+			}
+		}
+		return true
+	}
+
+	for i := range app.Objectives {
+		if skip(&app.Objectives[i]) {
+			continue
+		}
+
+		switch {
+		case app.Objectives[i].Cost != nil:
+			addCostMetric(&app.Objectives[i], app.CloudProvider, list)
+		}
 	}
 
 	return nil
 }
 
-func addCostMetric(app *Application, list *corev1.List) {
-	lbl := labels.Set(app.Cost.Labels).String()
+func addCostMetric(obj *Objective, cp *CloudProvider, list *corev1.List) {
+	lbl := labels.Set(obj.Cost.Labels).String()
 
 	// Compute the cloud provider specific cost weights
-	cost := computeCost(app.CloudProvider)
+	cost := computeCost(cp)
 	cpuWeight := cost.Cpu()
 	if cpuWeight == nil || cpuWeight.IsZero() {
 		cpuWeight = &one

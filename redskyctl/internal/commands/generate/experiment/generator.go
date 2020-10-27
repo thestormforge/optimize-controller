@@ -17,6 +17,8 @@ limitations under the License.
 package experiment
 
 import (
+	"strings"
+
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/internal/setup"
 	corev1 "k8s.io/api/core/v1"
@@ -31,47 +33,70 @@ import (
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
-// Scanner looks for resources that can be patched and adds them to an experiment.
-type Scanner struct {
-	// FileSystem to use when looking for resources, generally a pass through to the OS file system.
-	FileSystem filesys.FileSystem
-	// Resources representing the application to scan.
-	App *Application
+// Generator generates an application experiment.
+type Generator struct {
+	// The definition of the application to generate an experiment for.
+	Application *Application
+	// The namespace to run the experiment in.
+	Namespace string
+	// The scenario of the experiment.
+	Scenario string
+	// The objectives of the experiment.
+	Objectives []string
 	// ContainerResourcesSelector are the selectors for determining what application resources to scan for resources lists.
 	ContainerResourcesSelector []ContainerResourcesSelector
+	// FileSystem to use when looking for resources, generally a pass through to the OS file system.
+	FileSystem filesys.FileSystem
 }
 
-// ScanInto scans the specified resource references and adds the necessary patches and parameter
-// definitions to the supplied experiment.
-func (s *Scanner) ScanInto(list *corev1.List) error {
+// Generate scans the application and produces a list of Kubernetes objects representing an the experiment
+func (g *Generator) GenerateExperiment() (*corev1.List, error) {
 	// Load all of the resource references
-	rm, err := s.load()
+	rm, err := g.load()
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	// Start with an empty list
+	list := &corev1.List{}
 
 	// Scan the application resources for requests/limits and add the parameters and patches necessary
-	if err := scanForContainerResources(rm, s.ContainerResourcesSelector, list); err != nil {
-		return err
+	if err := scanForContainerResources(rm, g.ContainerResourcesSelector, list); err != nil {
+		return nil, err
 	}
 
-	// Add metrics based on the configuration of the application
-	if err := addApplicationMetrics(s.App, list); err != nil {
-		return err
+	// Add metrics based on the objectives of the application
+	if err := addObjectives(g.Application, g.Objectives, list); err != nil {
+		return nil, err
 	}
 
-	// Update the metadata
-	if err := applyApplicationMetadata(s.App, list); err != nil {
-		return err
+	// Update the metadata of the generated objects
+	for i := range list.Items {
+		switch obj := list.Items[i].Object.(type) {
+
+		case *redskyv1beta1.Experiment:
+			obj.Namespace = g.Namespace
+			obj.Name = g.experimentName()
+
+		case *corev1.ServiceAccount:
+			obj.Namespace = g.Namespace
+
+		case *rbacv1.ClusterRoleBinding:
+			for i := range obj.Subjects {
+				if obj.Subjects[i].Namespace == "" {
+					obj.Subjects[i].Namespace = g.Namespace
+				}
+			}
+		}
 	}
 
-	return nil
+	return list, nil
 }
 
 // load returns a Kustomize resource map of all the application resources.
-func (s *Scanner) load() (resmap.ResMap, error) {
+func (g *Generator) load() (resmap.ResMap, error) {
 	// Get the current working directory so we can intercept requests for the Kustomization
-	cwd, _, err := s.FileSystem.CleanedAbs(".")
+	cwd, _, err := g.FileSystem.CleanedAbs(".")
 	if err != nil {
 		return nil, err
 	}
@@ -81,10 +106,10 @@ func (s *Scanner) load() (resmap.ResMap, error) {
 	// treated like directories. If the current directory really is a kustomize root, that kustomization
 	// will be hidden to prefer loading just the resources that are part of the experiment configuration.
 	fSys := &kustomizationFileSystem{
-		FileSystem:            s.FileSystem,
+		FileSystem:            g.FileSystem,
 		KustomizationFileName: cwd.Join(konfig.DefaultKustomizationFileName()),
 		Kustomization: types.Kustomization{
-			Resources: s.App.Resources,
+			Resources: g.Application.Resources,
 		},
 	}
 
@@ -92,6 +117,23 @@ func (s *Scanner) load() (resmap.ResMap, error) {
 	o := krusty.MakeDefaultOptions()
 	o.LoadRestrictions = types.LoadRestrictionsNone
 	return krusty.MakeKustomizer(fSys, o).Run(".")
+}
+
+// experimentName returns the name of the experiment to generate.
+func (g *Generator) experimentName() string {
+	names := make([]string, 0, 2+len(g.Objectives))
+	if g.Application.Name != "" {
+		names = append(names, g.Application.Name)
+	}
+	if g.Scenario != "" {
+		names = append(names, g.Scenario)
+	}
+	for _, o := range g.Objectives {
+		if o != "" {
+			names = append(names, o)
+		}
+	}
+	return strings.Join(names, "-")
 }
 
 // findOrAddExperiment returns the experiment from the supplied list, creating it if it does not exist.

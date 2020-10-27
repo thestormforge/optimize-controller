@@ -34,14 +34,20 @@ type Application struct {
 	// These strings are the same format as used by Kustomize.
 	Resources []string `json:"resources,omitempty"`
 
-	// Cost is used to identify which parts of the application impact the cost of running the application.
-	Cost *Cost `json:"cost,omitempty"`
+	// Parameters specifies additional details about the experiment parameters.
+	Parameters *Parameters `json:"parameters,omitempty"`
+
+	// Ingress specifies how to find the entry point to the application.
+	Ingress *Ingress `json:"ingress,omitempty"`
+
+	// The list of scenarios to optimize the application for.
+	Scenarios []Scenario `json:"scenarios,omitempty"`
+
+	// The list of objectives to optimizat the application for.
+	Objectives []Objective `json:"objectives,omitempty"`
 
 	// CloudProvider is used to provide details about the hosting environment the application is run in.
 	CloudProvider *CloudProvider `json:"cloudProvider,omitempty"`
-
-	// Parameters specifies additional details about the experiment parameters.
-	Parameters *Parameters `json:"parameters,omitempty"`
 
 	// TODO We should have a qualityOfService: section were you can specify things like
 	// the percentage of the max that resources are expected to use (then we add both limits and requests and a constraint)
@@ -49,7 +55,39 @@ type Application struct {
 }
 
 // +kubebuilder:object:generate=true
-type Cost struct {
+type Parameters struct {
+	// Information related to the discovery of container resources parameters like CPU and memory.
+	ContainerResources *ContainerResources `json:"containerResources,omitempty"`
+}
+
+// +kubebuilder:object:generate=true
+type ContainerResources struct {
+	// Labels of Kubernetes objects to consider when generating container resources patches.
+	Labels map[string]string `json:"labels,omitempty"`
+}
+
+// +kubebuilder:object:generate=true
+type Ingress struct {
+	// The name of the service to use for ingress to the application.
+	ServiceName string `json:"serviceName,omitempty"`
+}
+
+// +kubebuilder:object:generate=true
+type Scenario struct {
+	// The name of scenario.
+	Name string `json:"name"`
+}
+
+// +kubebuilder:object:generate=true
+type Objective struct {
+	// The name of the objective.
+	Name string `json:"name"`
+	// Cost is used to identify which parts of the application impact the cost of running the application.
+	Cost *CostObjective `json:"cost,omitempty"`
+}
+
+// +kubebuilder:object:generate=true
+type CostObjective struct {
 	// Labels of the pods which should be considered when collecting cost information.
 	Labels map[string]string `json:"labels,omitempty"`
 }
@@ -80,18 +118,6 @@ type AmazonWebServices struct {
 type GenericCloudProvider struct {
 	// Per-resource cost weightings.
 	Cost corev1.ResourceList `json:"cost,omitempty"`
-}
-
-// +kubebuilder:object:generate=true
-type Parameters struct {
-	// Information related to the discovery of container resources parameters like CPU and memory.
-	ContainerResources *ContainerResources `json:"containerResources,omitempty"`
-}
-
-// +kubebuilder:object:generate=true
-type ContainerResources struct {
-	// Labels of Kubernetes objects to consider when generating container resources patches.
-	Labels map[string]string `json:"labels,omitempty"`
 }
 
 func init() {
