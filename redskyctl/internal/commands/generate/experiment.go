@@ -17,11 +17,13 @@ limitations under the License.
 package generate
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/experiments"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/generate/experiment"
 	"github.com/spf13/cobra"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/kustomize/api/filesys"
 )
@@ -29,8 +31,10 @@ import (
 type ExperimentOptions struct {
 	experiments.Options
 
-	Filename  string
-	Resources []string
+	Filename   string
+	Resources  []string
+	Scenario   string
+	Objectives []string
 }
 
 func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
@@ -57,8 +61,10 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 		RunE: commander.WithoutArgsE(o.generate),
 	}
 
-	cmd.Flags().StringVarP(&o.Filename, "filename", "f", o.Filename, "File that contains the experiment configuration.")
-	cmd.Flags().StringArrayVarP(&o.Resources, "resources", "r", nil, "Additional resources to consider.")
+	cmd.Flags().StringVarP(&o.Filename, "filename", "f", o.Filename, "file that contains the experiment configuration")
+	cmd.Flags().StringArrayVarP(&o.Resources, "resources", "r", nil, "additional resources to consider")
+	cmd.Flags().StringVarP(&o.Scenario, "scenario", "s", o.Scenario, "the application scenario to generate an experiment for")
+	cmd.Flags().StringArrayVar(&o.Objectives, "objectives", o.Objectives, "the application objectives to generate an experiment for")
 
 	_ = cmd.MarkFlagFilename("filename", "yml", "yaml")
 
@@ -66,29 +72,41 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 	return cmd
 }
 
-func (o *ExperimentOptions) generate() error {
-	// Read the experiment configuration
-	app, err := o.readConfig()
+func (o *ExperimentOptions) generate() (err error) {
+	// Create a new experiment generator
+	g := &experiment.Generator{FileSystem: filesys.MakeFsOnDisk()}
+
+	// Read the application
+	g.Application, err = o.application()
 	if err != nil {
 		return err
 	}
 
-	// Create a new scanner
-	s := &experiment.Scanner{App: app, FileSystem: filesys.MakeFsOnDisk()}
+	// Validate the requested scenario against the application
+	g.Scenario, err = o.scenario(g.Application)
+	if err != nil {
+		return err
+	}
+
+	// Validate the requested objectives against the application
+	g.Objectives, err = o.objectives(g.Application)
+	if err != nil {
+		return err
+	}
 
 	// Configure how we filter the application resources when looking for requests/limits
 	// TODO This is kind of a hack: we are just adding labels (if present) to the default selectors
-	s.ContainerResourcesSelector = experiment.DefaultContainerResourcesSelectors()
-	if app.Parameters != nil && app.Parameters.ContainerResources != nil {
-		ls := labels.Set(app.Parameters.ContainerResources.Labels).String()
-		for i := range s.ContainerResourcesSelector {
-			s.ContainerResourcesSelector[i].LabelSelector = ls
+	g.ContainerResourcesSelector = experiment.DefaultContainerResourcesSelectors()
+	if g.Application.Parameters != nil && g.Application.Parameters.ContainerResources != nil {
+		ls := labels.Set(g.Application.Parameters.ContainerResources.Labels).String()
+		for i := range g.ContainerResourcesSelector {
+			g.ContainerResourcesSelector[i].LabelSelector = ls
 		}
 	}
 
-	// Scan the resources and add the results into the experiment
-	list := &corev1.List{}
-	if err := s.ScanInto(list); err != nil {
+	// Generate the experiment
+	list, err := g.GenerateExperiment()
+	if err != nil {
 		return err
 	}
 
@@ -97,7 +115,7 @@ func (o *ExperimentOptions) generate() error {
 	return o.Printer.PrintObj(list, o.Out)
 }
 
-func (o *ExperimentOptions) readConfig() (*experiment.Application, error) {
+func (o *ExperimentOptions) application() (*experiment.Application, error) {
 	app := &experiment.Application{}
 
 	// Read the configuration from disk if specified
@@ -118,4 +136,57 @@ func (o *ExperimentOptions) readConfig() (*experiment.Application, error) {
 	app.Resources = append(app.Resources, o.Resources...)
 
 	return app, nil
+}
+
+func (o *ExperimentOptions) scenario(app *experiment.Application) (string, error) {
+	switch len(app.Scenarios) {
+
+	case 0:
+		if o.Scenario == "" {
+			return o.Scenario, nil
+		}
+		return "", fmt.Errorf("unknown scenario '%s' (application has no scenarios defined)", o.Scenario)
+
+	case 1:
+		if o.Scenario == app.Scenarios[0].Name {
+			return o.Scenario, nil
+		}
+		return "", fmt.Errorf("unknown scenario '%s' (must be %s)", o.Scenario, app.Scenarios[0].Name)
+
+	default:
+		names := make([]string, 0, len(app.Scenarios))
+		for i := range app.Scenarios {
+			if app.Scenarios[i].Name == o.Scenario {
+				return o.Scenario, nil
+			}
+			names = append(names, app.Scenarios[i].Name)
+		}
+		return "", fmt.Errorf("unknown scenario '%s' (should be one of %s)", o.Scenario, strings.Join(names, ", "))
+
+	}
+}
+
+func (o *ExperimentOptions) objectives(app *experiment.Application) ([]string, error) {
+	r := make(map[string]struct{}, len(o.Objectives))
+	for _, o := range o.Objectives {
+		r[o] = struct{}{}
+	}
+
+	names := make([]string, 0, len(o.Objectives))
+	for i := range app.Objectives {
+		if _, ok := r[app.Objectives[i].Name]; ok || len(o.Objectives) == 0 {
+			names = append(names, app.Objectives[i].Name)
+			delete(r, app.Objectives[i].Name)
+		}
+	}
+
+	if len(r) > 0 {
+		names = make([]string, 0, len(r))
+		for k := range r {
+			names = append(names, k)
+		}
+		return nil, fmt.Errorf("unknown objectives %s", strings.Join(names, ", "))
+	}
+
+	return names, nil
 }

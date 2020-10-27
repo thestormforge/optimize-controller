@@ -246,6 +246,7 @@ func (r *containerResources) ResourcesParameters(includeTarget bool) []redskyv1b
 }
 
 // ResourcesPatch returns a patch for the discovered resources sections.
+// TODO This should take a Go template for generating the parameter name
 func (r *containerResources) ResourcesPatch(includeTarget bool) (*redskyv1beta1.PatchTemplate, error) {
 	// Create an empty patch
 	patch := yaml.NewRNode(&yaml.Node{
