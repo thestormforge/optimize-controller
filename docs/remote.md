@@ -16,6 +16,12 @@ Alternatively, you can get a one-time use code to enter into a browser from anot
 redskyctl login --url
 ```
 
+At anytime you can check to see that you can communicate with the server:
+
+```sh
+redskyctl ping
+```
+
 ## Applying Configuration
 
 To apply the Red Sky Ops configuration to the current cluster, first view your existing configuration to verify it is correct:

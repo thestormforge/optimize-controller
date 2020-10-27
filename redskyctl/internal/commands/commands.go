@@ -33,6 +33,7 @@ import (
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/initialize"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/kustomize"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/login"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/ping"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/reset"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/results"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/revoke"
@@ -75,6 +76,7 @@ func NewRedskyctlCommand() *cobra.Command {
 	// Administrative Commands
 	rootCmd.AddCommand(login.NewCommand(&login.Options{Config: cfg}))
 	rootCmd.AddCommand(revoke.NewCommand(&revoke.Options{Config: cfg}))
+	rootCmd.AddCommand(ping.NewCommand(&ping.Options{Config: cfg}))
 	rootCmd.AddCommand(configure.NewCommand(&configure.Options{Config: cfg}))
 	rootCmd.AddCommand(check.NewCommand(&check.Options{Config: cfg}))
 	rootCmd.AddCommand(completion.NewCommand(&completion.Options{}))
