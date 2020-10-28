@@ -4,7 +4,7 @@ Generate an experiment
 
 ### Synopsis
 
-Generate an experiment using magik
+Generate an experiment from an application descriptor
 
 ```
 redskyctl generate experiment [flags]
@@ -13,10 +13,12 @@ redskyctl generate experiment [flags]
 ### Options
 
 ```
-  -f, --filename string         File that contains the experiment configuration.
-  -h, --help                    help for experiment
-  -o, --output format           Output format. One of: json|yaml (default "yaml")
-  -r, --resources stringArray   Additional resources to consider.
+  -f, --filename string          file that contains the experiment configuration
+  -h, --help                     help for experiment
+      --objectives stringArray   the application objectives to generate an experiment for
+  -o, --output format            Output format. One of: json|yaml (default "yaml")
+  -r, --resources stringArray    additional resources to consider
+  -s, --scenario string          the application scenario to generate an experiment for
 ```
 
 ### Options inherited from parent commands
