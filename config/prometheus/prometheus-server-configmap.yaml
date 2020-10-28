@@ -30,16 +30,8 @@ data:
         source_labels: [ __name__ ]
         action: keep
       # Drop labels we dont care about
-      - regex: beta_kubernetes_io_arch
-        action: labeldrop
-      - regex: kubernetes_io_arch
-        action: labeldrop
-      - regex: beta_kubernetes_io_os
-        action: labeldrop
-      - regex: kubernetes_io_os
-        action: labeldrop
-      - regex: job
-        action: labeldrop
+      - regex: ^container|image|pod|namespace$
+        action: labelkeep
     - job_name: kube-state-metrics
       scheme: http
       static_configs:
@@ -51,15 +43,19 @@ data:
         source_labels: [ __name__ ]
         action: keep
       # Drop labels we dont care about
-      - regex: beta_kubernetes_io_arch
+      - regex: ^beta_kubernetes_io_arch$
         action: labeldrop
-      - regex: kubernetes_io_arch
+      - regex: ^kubernetes_io_arch$
         action: labeldrop
-      - regex: beta_kubernetes_io_os
+      - regex: ^beta_kubernetes_io_os$
         action: labeldrop
-      - regex: kubernetes_io_os
+      - regex: ^kubernetes_io_os$
         action: labeldrop
-      - regex: job
+      - regex: ^job$
+        action: labeldrop
+      - regex: ^instance$
+        action: labeldrop
+      - regex: ^node$
         action: labeldrop
     - job_name: prometheus-pushgateway
       honor_labels: true
