@@ -144,13 +144,13 @@ func (o *ExperimentOptions) scenario(app *v1alpha1.Application) (string, error) 
 
 	case 0:
 		if o.Scenario == "" {
-			return o.Scenario, nil
+			return "", nil
 		}
 		return "", fmt.Errorf("unknown scenario '%s' (application has no scenarios defined)", o.Scenario)
 
 	case 1:
-		if o.Scenario == app.Scenarios[0].Name {
-			return o.Scenario, nil
+		if o.Scenario == app.Scenarios[0].Name || o.Scenario == "" {
+			return app.Scenarios[0].Name, nil
 		}
 		return "", fmt.Errorf("unknown scenario '%s' (must be %s)", o.Scenario, app.Scenarios[0].Name)
 
