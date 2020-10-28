@@ -19,6 +19,7 @@ package experiment
 import (
 	"fmt"
 
+	"github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -29,8 +30,8 @@ var one = resource.MustParse("1")
 
 const costQueryFormat = `({{ cpuRequests . "%s" }} * %d) + ({{ memoryRequests . "%s" | GB }} * %d)`
 
-func addObjectives(app *Application, objectives []string, list *corev1.List) error {
-	skip := func(obj *Objective) bool {
+func addObjectives(app *v1alpha1.Application, objectives []string, list *corev1.List) error {
+	skip := func(obj *v1alpha1.Objective) bool {
 		for _, name := range objectives {
 			if obj.Name == name {
 				return false
@@ -53,7 +54,7 @@ func addObjectives(app *Application, objectives []string, list *corev1.List) err
 	return nil
 }
 
-func addCostMetric(obj *Objective, cp *CloudProvider, list *corev1.List) {
+func addCostMetric(obj *v1alpha1.Objective, cp *v1alpha1.CloudProvider, list *corev1.List) {
 	lbl := labels.Set(obj.Cost.Labels).String()
 
 	// Compute the cloud provider specific cost weights
@@ -82,7 +83,7 @@ func addCostMetric(obj *Objective, cp *CloudProvider, list *corev1.List) {
 
 // computeCost returns the cost weightings for a cloud provider.
 // CPU weights are $/vCPU, Memory weights are $/GB
-func computeCost(cp *CloudProvider) corev1.ResourceList {
+func computeCost(cp *v1alpha1.CloudProvider) corev1.ResourceList {
 	if cp != nil && cp.GenericCloudProvider != nil {
 		return genericCost(cp.GenericCloudProvider)
 	}
@@ -95,21 +96,21 @@ func computeCost(cp *CloudProvider) corev1.ResourceList {
 	return genericCost(nil)
 }
 
-func gcpCost(gcp *GoogleCloudPlatform) corev1.ResourceList {
+func gcpCost(gcp *v1alpha1.GoogleCloudPlatform) corev1.ResourceList {
 	cost := gcp.Cost
 	addDefaultCost(&cost, corev1.ResourceCPU, "22")
 	addDefaultCost(&cost, corev1.ResourceMemory, "3")
 	return cost
 }
 
-func awsCost(aws *AmazonWebServices) corev1.ResourceList {
+func awsCost(aws *v1alpha1.AmazonWebServices) corev1.ResourceList {
 	cost := aws.Cost
 	addDefaultCost(&cost, corev1.ResourceCPU, "22")
 	addDefaultCost(&cost, corev1.ResourceMemory, "3")
 	return cost
 }
 
-func genericCost(p *GenericCloudProvider) corev1.ResourceList {
+func genericCost(p *v1alpha1.GenericCloudProvider) corev1.ResourceList {
 	cost := corev1.ResourceList{}
 	if p != nil && p.Cost != nil {
 		cost = p.Cost
