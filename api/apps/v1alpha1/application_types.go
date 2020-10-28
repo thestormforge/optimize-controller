@@ -51,26 +51,32 @@ type Application struct {
 	// or the "max latency" for the application (we could add a non-optimized metric to capture it).
 }
 
+// Parameters describes the strategy for tuning the application.
 type Parameters struct {
 	// Information related to the discovery of container resources parameters like CPU and memory.
 	ContainerResources *ContainerResources `json:"containerResources,omitempty"`
 }
 
+// ContainerResources specifies which resources in the application should have their container
+// resources (CPU and memory) optimized.
 type ContainerResources struct {
 	// Labels of Kubernetes objects to consider when generating container resources patches.
 	Labels map[string]string `json:"labels,omitempty"`
 }
 
+// Ingress describes the point of ingress to the application.
 type Ingress struct {
 	// The name of the service to use for ingress to the application.
 	ServiceName string `json:"serviceName,omitempty"`
 }
 
+// Scenario describes a specific pattern of load to optimize the application for.
 type Scenario struct {
 	// The name of scenario.
 	Name string `json:"name"`
 }
 
+// Objective describes the goal of the optimization in terms of specific metrics.
 type Objective struct {
 	// The name of the objective.
 	Name string `json:"name"`
@@ -78,11 +84,13 @@ type Objective struct {
 	Cost *CostObjective `json:"cost,omitempty"`
 }
 
+// CostObjective is used to estimate the cost of running an application in a specific scenario.
 type CostObjective struct {
 	// Labels of the pods which should be considered when collecting cost information.
 	Labels map[string]string `json:"labels,omitempty"`
 }
 
+// CloudProvider describes the how the application is being hosted.
 type CloudProvider struct {
 	// Generic cloud provider configuration.
 	*GenericCloudProvider `json:",inline"`
@@ -92,16 +100,19 @@ type CloudProvider struct {
 	AWS *AmazonWebServices `json:"aws,omitempty"`
 }
 
+// GoogleCloudPlatform is used to configure details specific to applications hosted in GCP.
 type GoogleCloudPlatform struct {
 	// Per-resource cost weightings.
 	Cost corev1.ResourceList `json:"cost,omitempty"`
 }
 
+// AmazonWebServices is used to configure details specific to applications hosted in AWS.
 type AmazonWebServices struct {
 	// Per-resource cost weightings.
 	Cost corev1.ResourceList `json:"cost,omitempty"`
 }
 
+// GenericCloudProvider is used to configure details for applications hosted on other platforms.
 type GenericCloudProvider struct {
 	// Per-resource cost weightings.
 	Cost corev1.ResourceList `json:"cost,omitempty"`
