@@ -98,15 +98,15 @@ func computeCost(cp *v1alpha1.CloudProvider) corev1.ResourceList {
 
 func gcpCost(gcp *v1alpha1.GoogleCloudPlatform) corev1.ResourceList {
 	cost := gcp.Cost
-	addDefaultCost(&cost, corev1.ResourceCPU, "22")
-	addDefaultCost(&cost, corev1.ResourceMemory, "3")
+	addDefaultCost(&cost, corev1.ResourceCPU, "17")
+	addDefaultCost(&cost, corev1.ResourceMemory, "2")
 	return cost
 }
 
 func awsCost(aws *v1alpha1.AmazonWebServices) corev1.ResourceList {
 	cost := aws.Cost
-	addDefaultCost(&cost, corev1.ResourceCPU, "22")
-	addDefaultCost(&cost, corev1.ResourceMemory, "3")
+	addDefaultCost(&cost, corev1.ResourceCPU, "18")
+	addDefaultCost(&cost, corev1.ResourceMemory, "5")
 	return cost
 }
 
@@ -115,7 +115,7 @@ func genericCost(p *v1alpha1.GenericCloudProvider) corev1.ResourceList {
 	if p != nil && p.Cost != nil {
 		cost = p.Cost
 	}
-	addDefaultCost(&cost, corev1.ResourceCPU, "22")
+	addDefaultCost(&cost, corev1.ResourceCPU, "17")
 	addDefaultCost(&cost, corev1.ResourceMemory, "3")
 	return cost
 }
