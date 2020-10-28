@@ -21,9 +21,11 @@ import (
 
 	"github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
+	meta2 "github.com/redskyops/redskyops-controller/internal/meta"
 	"github.com/redskyops/redskyops-controller/internal/setup"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/kustomize/api/filesys"
@@ -73,14 +75,30 @@ func (g *Generator) GenerateExperiment() (*corev1.List, error) {
 
 	// Update the metadata of the generated objects
 	for i := range list.Items {
+		// Get a generic accessor for the list item
+		acc, err := meta.Accessor(list.Items[i].Object)
+		if err != nil {
+			return nil, err
+		}
+
+		// Label all objects with the application name
+		meta2.AddLabel(acc, v1alpha1.LabelApplication, g.Application.Name)
+
 		switch obj := list.Items[i].Object.(type) {
 
 		case *redskyv1beta1.Experiment:
-			obj.Namespace = g.Namespace
-			obj.Name = g.experimentName()
+			acc.SetNamespace(g.Namespace)
+			acc.SetName(g.experimentName())
+
+			// Add the application label to the templates
+			meta2.AddLabel(&obj.Spec.TrialTemplate, v1alpha1.LabelApplication, g.Application.Name)
+			if obj.Spec.TrialTemplate.Spec.JobTemplate != nil {
+				meta2.AddLabel(obj.Spec.TrialTemplate.Spec.JobTemplate, v1alpha1.LabelApplication, g.Application.Name)
+				meta2.AddLabel(&obj.Spec.TrialTemplate.Spec.JobTemplate.Spec.Template, v1alpha1.LabelApplication, g.Application.Name)
+			}
 
 		case *corev1.ServiceAccount:
-			obj.Namespace = g.Namespace
+			acc.SetNamespace(g.Namespace)
 
 		case *rbacv1.ClusterRoleBinding:
 			for i := range obj.Subjects {
