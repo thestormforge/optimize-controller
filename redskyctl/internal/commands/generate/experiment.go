@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/experiments"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/generate/experiment"
@@ -115,8 +116,8 @@ func (o *ExperimentOptions) generate() (err error) {
 	return o.Printer.PrintObj(list, o.Out)
 }
 
-func (o *ExperimentOptions) application() (*experiment.Application, error) {
-	app := &experiment.Application{}
+func (o *ExperimentOptions) application() (*v1alpha1.Application, error) {
+	app := &v1alpha1.Application{}
 
 	// Read the configuration from disk if specified
 	if o.Filename != "" {
@@ -126,7 +127,7 @@ func (o *ExperimentOptions) application() (*experiment.Application, error) {
 		}
 
 		rr := commander.NewResourceReader()
-		_ = experiment.AddToScheme(rr.Scheme)
+		_ = v1alpha1.AddToScheme(rr.Scheme)
 		if err := rr.ReadInto(r, app); err != nil {
 			return nil, err
 		}
@@ -138,7 +139,7 @@ func (o *ExperimentOptions) application() (*experiment.Application, error) {
 	return app, nil
 }
 
-func (o *ExperimentOptions) scenario(app *experiment.Application) (string, error) {
+func (o *ExperimentOptions) scenario(app *v1alpha1.Application) (string, error) {
 	switch len(app.Scenarios) {
 
 	case 0:
@@ -166,7 +167,7 @@ func (o *ExperimentOptions) scenario(app *experiment.Application) (string, error
 	}
 }
 
-func (o *ExperimentOptions) objectives(app *experiment.Application) ([]string, error) {
+func (o *ExperimentOptions) objectives(app *v1alpha1.Application) ([]string, error) {
 	r := make(map[string]struct{}, len(o.Objectives))
 	for _, o := range o.Objectives {
 		r[o] = struct{}{}

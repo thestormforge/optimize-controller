@@ -14,17 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package experiment
+package v1alpha1
 
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// TODO This whole thing should move over to redskyops-go
-
 // Application represents a description of an application to run experiments on.
-// +kubebuilder:object:generate=true
 // +kubebuilder:object:root=true
 type Application struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -54,31 +51,26 @@ type Application struct {
 	// or the "max latency" for the application (we could add a non-optimized metric to capture it).
 }
 
-// +kubebuilder:object:generate=true
 type Parameters struct {
 	// Information related to the discovery of container resources parameters like CPU and memory.
 	ContainerResources *ContainerResources `json:"containerResources,omitempty"`
 }
 
-// +kubebuilder:object:generate=true
 type ContainerResources struct {
 	// Labels of Kubernetes objects to consider when generating container resources patches.
 	Labels map[string]string `json:"labels,omitempty"`
 }
 
-// +kubebuilder:object:generate=true
 type Ingress struct {
 	// The name of the service to use for ingress to the application.
 	ServiceName string `json:"serviceName,omitempty"`
 }
 
-// +kubebuilder:object:generate=true
 type Scenario struct {
 	// The name of scenario.
 	Name string `json:"name"`
 }
 
-// +kubebuilder:object:generate=true
 type Objective struct {
 	// The name of the objective.
 	Name string `json:"name"`
@@ -86,13 +78,11 @@ type Objective struct {
 	Cost *CostObjective `json:"cost,omitempty"`
 }
 
-// +kubebuilder:object:generate=true
 type CostObjective struct {
 	// Labels of the pods which should be considered when collecting cost information.
 	Labels map[string]string `json:"labels,omitempty"`
 }
 
-// +kubebuilder:object:generate=true
 type CloudProvider struct {
 	// Generic cloud provider configuration.
 	*GenericCloudProvider `json:",inline"`
@@ -102,19 +92,16 @@ type CloudProvider struct {
 	AWS *AmazonWebServices `json:"aws,omitempty"`
 }
 
-// +kubebuilder:object:generate=true
 type GoogleCloudPlatform struct {
 	// Per-resource cost weightings.
 	Cost corev1.ResourceList `json:"cost,omitempty"`
 }
 
-// +kubebuilder:object:generate=true
 type AmazonWebServices struct {
 	// Per-resource cost weightings.
 	Cost corev1.ResourceList `json:"cost,omitempty"`
 }
 
-// +kubebuilder:object:generate=true
 type GenericCloudProvider struct {
 	// Per-resource cost weightings.
 	Cost corev1.ResourceList `json:"cost,omitempty"`

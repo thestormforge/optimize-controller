@@ -14,24 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package experiment
+package v1alpha1
 
-import (
-	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+// Application labels and annotations
+
+const (
+	// LabelApplication is the name of the application associated with an object.
+	LabelApplication = "redskyops.dev/application"
 )
-
-func init() {
-	localSchemeBuilder.Register(RegisterDefaults)
-}
-
-// Register the defaulting function for the application root object.
-func RegisterDefaults(s *runtime.Scheme) error {
-	s.AddTypeDefaultingFunc(&Application{}, func(obj interface{}) { obj.(*Application).Default() })
-	return nil
-}
-
-var _ admission.Defaulter = &Application{}
-
-func (in *Application) Default() {
-}
