@@ -94,13 +94,6 @@ spec:
           timeoutSeconds: 30
           failureThreshold: 3
           successThreshold: 1
-        resources:
-          requests:
-            cpu: 25m
-            memory: 25M
-          limits:
-            cpu: 100m
-            memory: 200M
         volumeMounts:
           - name: config-volume
             mountPath: /etc/config
