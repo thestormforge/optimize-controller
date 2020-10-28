@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
@@ -78,10 +79,19 @@ func (o *Options) docs(cmd *cobra.Command) error {
 		}
 
 	case "api":
-		if err := genAPIDoc(o.Directory, "trial.md", filepath.Join(o.SourcePath, "trial_types.go")); err != nil {
+		if err := genAPIDoc(o.Directory, o.SourcePath, "redskyops.dev/v1alpha1", "Trial"); err != nil {
 			return err
 		}
-		if err := genAPIDoc(o.Directory, "experiment.md", filepath.Join(o.SourcePath, "experiment_types.go")); err != nil {
+		if err := genAPIDoc(o.Directory, o.SourcePath, "redskyops.dev/v1beta1", "Trial"); err != nil {
+			return err
+		}
+		if err := genAPIDoc(o.Directory, o.SourcePath, "redskyops.dev/v1alpha1", "Experiment"); err != nil {
+			return err
+		}
+		if err := genAPIDoc(o.Directory, o.SourcePath, "redskyops.dev/v1beta1", "Experiment"); err != nil {
+			return err
+		}
+		if err := genAPIDoc(o.Directory, o.SourcePath, "apps.redskyops.dev/v1alpha1", "Application"); err != nil {
 			return err
 		}
 
@@ -92,8 +102,16 @@ func (o *Options) docs(cmd *cobra.Command) error {
 	return nil
 }
 
-func genAPIDoc(dir, basename, path string) error {
-	filename := filepath.Join(dir, basename)
+func genAPIDoc(dir, sourcePath, apiVersion, kind string) error {
+	dirname := strings.ReplaceAll(apiVersion, ".redskyops.dev/", "/")
+	dirname = strings.ReplaceAll(dirname, "redskyops.dev/", "/")
+	if err := os.MkdirAll(filepath.Join(dir, dirname), 0777); err != nil {
+		return err
+	}
+
+	filename := filepath.Join(dir, dirname, strings.ToLower(kind)+".md")
+	path := filepath.Join(sourcePath, dirname, strings.ToLower(kind)+"_types.go")
+
 	f, err := os.Create(filename)
 	if err != nil {
 		return err
