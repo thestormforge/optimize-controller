@@ -24,8 +24,12 @@ data:
       relabel_configs:
       - action: labelmap
         regex: __meta_kubernetes_node_label_(.+)
-      # Drop labels we dont care about
       metric_relabel_configs:
+      # We only consume the following metrics, so let's drop everything else
+      - regex: ^container_cpu_usage_seconds_total|container_memory_max_usage_bytes$
+        source_labels: [ __name__ ]
+        action: keep
+      # Drop labels we dont care about
       - regex: beta_kubernetes_io_arch
         action: labeldrop
       - regex: kubernetes_io_arch
@@ -41,6 +45,22 @@ data:
       static_configs:
       - targets:
         - localhost:8080
+      metric_relabel_configs:
+      # We only consume the following metrics, so let's drop everything else
+      - regex: ^kube_pod_container_resource_requests_cpu_cores|kube_pod_labels|kube_pod_container_resource_requests_memory_bytes$
+        source_labels: [ __name__ ]
+        action: keep
+      # Drop labels we dont care about
+      - regex: beta_kubernetes_io_arch
+        action: labeldrop
+      - regex: kubernetes_io_arch
+        action: labeldrop
+      - regex: beta_kubernetes_io_os
+        action: labeldrop
+      - regex: kubernetes_io_os
+        action: labeldrop
+      - regex: job
+        action: labeldrop
     - job_name: prometheus-pushgateway
       honor_labels: true
       scheme: http
