@@ -19,6 +19,7 @@ package experiment
 import (
 	"strings"
 
+	"github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/internal/setup"
 	corev1 "k8s.io/api/core/v1"
@@ -36,7 +37,7 @@ import (
 // Generator generates an application experiment.
 type Generator struct {
 	// The definition of the application to generate an experiment for.
-	Application *Application
+	Application *v1alpha1.Application
 	// The namespace to run the experiment in.
 	Namespace string
 	// The scenario of the experiment.
