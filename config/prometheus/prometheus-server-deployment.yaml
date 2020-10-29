@@ -74,6 +74,7 @@ spec:
         args:
           - --storage.tsdb.retention.time=1d
           - --config.file=/etc/config/prometheus.yml
+          - --web.enable-lifecycle
         ports:
           - containerPort: 9090
         resources:
@@ -106,6 +107,23 @@ spec:
             mountPath: /etc/config
           - name: storage-volume
             mountPath: /data
+      - name: configmap-reloader
+        image: "jimmidyson/configmap-reload:v0.4.0"
+        imagePullPolicy: "IfNotPresent"
+        args:
+          - --volume-dir=/etc/config
+          - --webhook-url=http://127.0.0.1:9090/-/reload
+        resources:
+          requests:
+            cpu: 25m
+            memory: 25M
+          limits:
+            cpu: 100m
+            memory: 50M
+        volumeMounts:
+          - name: config-volume
+            mountPath: /etc/config
+            readOnly: true
       securityContext:
         fsGroup: 65534
         runAsGroup: 65534
