@@ -59,6 +59,11 @@ func IsActive(t *redskyv1beta1.Trial) bool {
 	return false
 }
 
+// IsSuggestion checks to see if the specified trial is actually a suggestion to the backend.
+func IsSuggestion(t *redskyv1beta1.Trial) bool {
+	return t.Labels[redskyv1beta1.LabelTrialRole] != "suggestion"
+}
+
 // IsTrialJobReference checks to see if the supplied reference likely points to the job of a trial. This is
 // used primarily to give special handling to patch operations so they can refer to trial job before it exists.
 func IsTrialJobReference(t *redskyv1beta1.Trial, ref *corev1.ObjectReference) bool {

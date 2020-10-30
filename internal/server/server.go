@@ -22,11 +22,13 @@ import (
 	"math"
 	"path"
 	"strconv"
+	"strings"
 
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/internal/experiment"
 	"github.com/redskyops/redskyops-controller/internal/trial"
 	redskyapi "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
+	"github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1/numstr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -232,6 +234,37 @@ func FromClusterTrial(in *redskyv1beta1.Trial) *redskyapi.TrialValues {
 				out.Values = append(out.Values, value)
 			}
 		}
+	}
+
+	return out
+}
+
+// FromClusterTrialAssignments returns the trial assignments for making suggestions.
+func FromClusterTrialAssignments(t *redskyv1beta1.Trial) *redskyapi.TrialAssignments {
+	out := &redskyapi.TrialAssignments{}
+
+	if l := len(t.ObjectMeta.Labels); l > 0 {
+		out.Labels = make(map[string]string, l)
+		for k, v := range t.ObjectMeta.Labels {
+			if k == redskyv1beta1.LabelTrialRole {
+				continue
+			}
+			out.Labels[strings.TrimPrefix(k, "redskyops.dev/")] = v
+		}
+	}
+
+	out.Assignments = nil
+	for _, a := range t.Spec.Assignments {
+		assignment := redskyapi.Assignment{
+			ParameterName: a.Name,
+		}
+		if a.Value.Type == intstr.String {
+			assignment.Value = numstr.FromString(a.Value.StrVal)
+		} else {
+			assignment.Value = numstr.FromInt64(int64(a.Value.IntVal))
+		}
+
+		out.Assignments = append(out.Assignments, assignment)
 	}
 
 	return out

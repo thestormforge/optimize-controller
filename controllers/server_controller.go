@@ -88,6 +88,11 @@ func (r *ServerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		t := &trialList.Items[i]
 		tlog := log.WithValues("trial", t.Namespace+"/"+t.Name)
 
+		// Check to see if the trial is meant to be a suggestion
+		if trial.IsSuggestion(t) {
+			return r.suggestTrial(ctx, log, exp, t)
+		}
+
 		// Count active trials
 		if trial.IsActive(t) {
 			activeTrials++
@@ -350,4 +355,26 @@ func (r *ServerReconciler) abandonTrial(ctx context.Context, log logr.Logger, t 
 
 	log.Info("Abandoned trial")
 	return nil, nil
+}
+
+// suggestTrial will convert the trial to a suggestion and delete the in cluster trial
+func (r *ServerReconciler) suggestTrial(ctx context.Context, log logr.Logger, exp *redskyv1beta1.Experiment, t *redskyv1beta1.Trial) (ctrl.Result, error) {
+	// Suggestion is such an infrequent operation we do not explicitly track the necessary
+	// state in the cluster, we need to fetch the experiment from the server to get the suggestion URL
+	ee, err := r.ExperimentsAPI.GetExperiment(ctx, exp.GetAnnotations()[redskyv1beta1.AnnotationExperimentURL])
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// Convert the trial into a list of assignments and send it to the server
+	trialAssignments := server.FromClusterTrialAssignments(t)
+	if _, err := r.ExperimentsAPI.CreateTrial(ctx, ee.TrialsURL, *trialAssignments); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	log.Info("Suggested trial")
+
+	// Delete the trial out of Kubernetes now that the suggestion is recorded
+	err = r.Delete(ctx, t)
+	return ctrl.Result{}, err
 }
