@@ -39,23 +39,25 @@ import (
 // Generator generates an application experiment.
 type Generator struct {
 	// The definition of the application to generate an experiment for.
-	Application *v1alpha1.Application
-	// The namespace to run the experiment in.
-	Namespace string
-	// The scenario of the experiment.
-	Scenario string
-	// The objectives of the experiment.
-	Objectives []string
+	Application v1alpha1.Application
 	// ContainerResourcesSelector are the selectors for determining what application resources to scan for resources lists.
 	ContainerResourcesSelector []ContainerResourcesSelector
-	// FileSystem to use when looking for resources, generally a pass through to the OS file system.
-	FileSystem filesys.FileSystem
+
+	// File system to use when looking for resources, generally a pass through to the OS file system.
+	fs filesys.FileSystem
+}
+
+// Create a new generator.
+func NewGenerator(fs filesys.FileSystem) *Generator {
+	return &Generator{
+		fs: fs,
+	}
 }
 
 // Generate scans the application and produces a list of Kubernetes objects representing an the experiment
-func (g *Generator) GenerateExperiment() (*corev1.List, error) {
-	// Load all of the resource references
-	rm, err := g.load()
+func (g *Generator) Generate() (*corev1.List, error) {
+	// Load all of the application resources
+	arm, err := g.loadApplicationResources()
 	if err != nil {
 		return nil, err
 	}
@@ -64,12 +66,12 @@ func (g *Generator) GenerateExperiment() (*corev1.List, error) {
 	list := &corev1.List{}
 
 	// Scan the application resources for requests/limits and add the parameters and patches necessary
-	if err := scanForContainerResources(rm, g.ContainerResourcesSelector, list); err != nil {
+	if err := g.scanForContainerResources(arm, list); err != nil {
 		return nil, err
 	}
 
 	// Add metrics based on the objectives of the application
-	if err := addObjectives(g.Application, g.Objectives, list); err != nil {
+	if err := g.addObjectives(list); err != nil {
 		return nil, err
 	}
 
@@ -86,8 +88,11 @@ func (g *Generator) GenerateExperiment() (*corev1.List, error) {
 
 		switch obj := list.Items[i].Object.(type) {
 
+		case *corev1.ServiceAccount, *corev1.ConfigMap, *corev1.Secret:
+			acc.SetNamespace(g.Application.Namespace)
+
 		case *redskyv1beta1.Experiment:
-			acc.SetNamespace(g.Namespace)
+			acc.SetNamespace(g.Application.Namespace)
 			acc.SetName(g.experimentName())
 
 			// Add the application label to the templates
@@ -97,13 +102,10 @@ func (g *Generator) GenerateExperiment() (*corev1.List, error) {
 				meta2.AddLabel(&obj.Spec.TrialTemplate.Spec.JobTemplate.Spec.Template, v1alpha1.LabelApplication, g.Application.Name)
 			}
 
-		case *corev1.ServiceAccount:
-			acc.SetNamespace(g.Namespace)
-
 		case *rbacv1.ClusterRoleBinding:
 			for i := range obj.Subjects {
 				if obj.Subjects[i].Namespace == "" {
-					obj.Subjects[i].Namespace = g.Namespace
+					obj.Subjects[i].Namespace = g.Application.Namespace
 				}
 			}
 		}
@@ -112,10 +114,10 @@ func (g *Generator) GenerateExperiment() (*corev1.List, error) {
 	return list, nil
 }
 
-// load returns a Kustomize resource map of all the application resources.
-func (g *Generator) load() (resmap.ResMap, error) {
+// loadApplicationResources returns a Kustomize resource map of all the application resources.
+func (g *Generator) loadApplicationResources() (resmap.ResMap, error) {
 	// Get the current working directory so we can intercept requests for the Kustomization
-	cwd, _, err := g.FileSystem.CleanedAbs(".")
+	cwd, _, err := g.fs.CleanedAbs(".")
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +127,7 @@ func (g *Generator) load() (resmap.ResMap, error) {
 	// treated like directories. If the current directory really is a kustomize root, that kustomization
 	// will be hidden to prefer loading just the resources that are part of the experiment configuration.
 	fSys := &kustomizationFileSystem{
-		FileSystem:            g.FileSystem,
+		FileSystem:            g.fs,
 		KustomizationFileName: cwd.Join(konfig.DefaultKustomizationFileName()),
 		Kustomization: types.Kustomization{
 			Resources: g.Application.Resources,
@@ -140,16 +142,18 @@ func (g *Generator) load() (resmap.ResMap, error) {
 
 // experimentName returns the name of the experiment to generate.
 func (g *Generator) experimentName() string {
-	names := make([]string, 0, 2+len(g.Objectives))
+	names := make([]string, 0, 1+len(g.Application.Scenarios)+len(g.Application.Objectives))
 	if g.Application.Name != "" {
 		names = append(names, g.Application.Name)
 	}
-	if g.Scenario != "" {
-		names = append(names, g.Scenario)
+	for _, s := range g.Application.Scenarios {
+		if s.Name != "" {
+			names = append(names, s.Name)
+		}
 	}
-	for _, o := range g.Objectives {
-		if o != "" {
-			names = append(names, o)
+	for _, o := range g.Application.Objectives {
+		if o.Name != "" {
+			names = append(names, o.Name)
 		}
 	}
 	return strings.Join(names, "-")

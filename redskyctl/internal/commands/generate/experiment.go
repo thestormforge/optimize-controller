@@ -18,6 +18,8 @@ package generate
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
@@ -27,6 +29,7 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/kustomize/api/filesys"
+	"sigs.k8s.io/kustomize/api/konfig"
 )
 
 type ExperimentOptions struct {
@@ -37,6 +40,9 @@ type ExperimentOptions struct {
 	Scenario   string
 	Objectives []string
 }
+
+// Other possible options:
+// Have the option to create (or not create?) untracked metrics (e.g. CPU and Memory requests along side Cost)
 
 func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 	cmd := &cobra.Command{
@@ -57,6 +63,9 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 			if cmd.CalledAs() == cmd.Annotations["KustomizePluginKind"] && len(args) == 1 {
 				o.Filename = args[0]
 			}
+			if o.Scenario == "" {
+				o.Scenario = "default"
+			}
 			commander.SetStreams(&o.IOStreams, cmd)
 		},
 		RunE: commander.WithoutArgsE(o.generate),
@@ -73,25 +82,30 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 	return cmd
 }
 
-func (o *ExperimentOptions) generate() (err error) {
-	// Create a new experiment generator
-	g := &experiment.Generator{FileSystem: filesys.MakeFsOnDisk()}
+func (o *ExperimentOptions) generate() error {
+	g := experiment.NewGenerator(filesys.MakeFsOnDisk())
 
-	// Read the application
-	g.Application, err = o.application()
-	if err != nil {
+	if o.Filename != "" {
+		r, err := o.IOStreams.OpenFile(o.Filename)
+		if err != nil {
+			return err
+		}
+
+		rr := commander.NewResourceReader()
+		if err := rr.ReadInto(r, &g.Application); err != nil {
+			return err
+		}
+	}
+
+	if err := o.filterResources(&g.Application); err != nil {
 		return err
 	}
 
-	// Validate the requested scenario against the application
-	g.Scenario, err = o.scenario(g.Application)
-	if err != nil {
+	if err := o.filterScenarios(&g.Application); err != nil {
 		return err
 	}
 
-	// Validate the requested objectives against the application
-	g.Objectives, err = o.objectives(g.Application)
-	if err != nil {
+	if err := o.filterObjectives(&g.Application); err != nil {
 		return err
 	}
 
@@ -106,7 +120,7 @@ func (o *ExperimentOptions) generate() (err error) {
 	}
 
 	// Generate the experiment
-	list, err := g.GenerateExperiment()
+	list, err := g.Generate()
 	if err != nil {
 		return err
 	}
@@ -116,78 +130,78 @@ func (o *ExperimentOptions) generate() (err error) {
 	return o.Printer.PrintObj(list, o.Out)
 }
 
-func (o *ExperimentOptions) application() (*v1alpha1.Application, error) {
-	app := &v1alpha1.Application{}
-
-	// Read the configuration from disk if specified
-	if o.Filename != "" {
-		r, err := o.IOStreams.OpenFile(o.Filename)
-		if err != nil {
-			return nil, err
-		}
-
-		rr := commander.NewResourceReader()
-		_ = v1alpha1.AddToScheme(rr.Scheme)
-		if err := rr.ReadInto(r, app); err != nil {
-			return nil, err
-		}
-	}
-
+func (o *ExperimentOptions) filterResources(app *v1alpha1.Application) error {
 	// Add additional resources (this allows addition manifests to be added when invoking the CLI)
 	app.Resources = append(app.Resources, o.Resources...)
 
-	return app, nil
+	// Check to see if there is a Kustomization root at the same location as the file
+	if len(app.Resources) == 0 && o.Filename != "" {
+		dir := filepath.Dir(o.Filename)
+		for _, n := range konfig.RecognizedKustomizationFileNames() {
+			if _, err := os.Stat(filepath.Join(dir, n)); err == nil {
+				app.Resources = append(app.Resources, dir)
+				break
+			}
+		}
+	}
+
+	return nil
 }
 
-func (o *ExperimentOptions) scenario(app *v1alpha1.Application) (string, error) {
+func (o *ExperimentOptions) filterScenarios(app *v1alpha1.Application) error {
 	switch len(app.Scenarios) {
 
 	case 0:
-		if o.Scenario == "" {
-			return "", nil
+		if o.Scenario == "default" {
+			return nil
 		}
-		return "", fmt.Errorf("unknown scenario '%s' (application has no scenarios defined)", o.Scenario)
+		return fmt.Errorf("unknown scenario '%s' (application has no scenarios defined)", o.Scenario)
 
 	case 1:
-		if o.Scenario == app.Scenarios[0].Name || o.Scenario == "" {
-			return app.Scenarios[0].Name, nil
+		if app.Scenarios[0].Name == o.Scenario {
+			return nil
 		}
-		return "", fmt.Errorf("unknown scenario '%s' (must be %s)", o.Scenario, app.Scenarios[0].Name)
+		return fmt.Errorf("unknown scenario '%s' (must be %s)", o.Scenario, app.Scenarios[0].Name)
 
 	default:
 		names := make([]string, 0, len(app.Scenarios))
 		for i := range app.Scenarios {
 			if app.Scenarios[i].Name == o.Scenario {
-				return o.Scenario, nil
+				// Only keep the requested scenario
+				app.Scenarios = app.Scenarios[i : i+1]
+				return nil
 			}
 			names = append(names, app.Scenarios[i].Name)
 		}
-		return "", fmt.Errorf("unknown scenario '%s' (should be one of %s)", o.Scenario, strings.Join(names, ", "))
+		return fmt.Errorf("unknown scenario '%s' (should be one of %s)", o.Scenario, strings.Join(names, ", "))
 
 	}
 }
 
-func (o *ExperimentOptions) objectives(app *v1alpha1.Application) ([]string, error) {
-	r := make(map[string]struct{}, len(o.Objectives))
-	for _, o := range o.Objectives {
-		r[o] = struct{}{}
+func (o *ExperimentOptions) filterObjectives(app *v1alpha1.Application) error {
+	if len(o.Objectives) == 0 {
+		return nil
 	}
 
-	names := make([]string, 0, len(o.Objectives))
-	for i := range app.Objectives {
-		if _, ok := r[app.Objectives[i].Name]; ok || len(o.Objectives) == 0 {
-			names = append(names, app.Objectives[i].Name)
-			delete(r, app.Objectives[i].Name)
+	// Keep will have the same explicit order as the requested objectives
+	keep := make([]v1alpha1.Objective, 0, len(o.Objectives))
+	unknown := make([]string, 0, len(o.Objectives))
+
+FOUND:
+	for _, name := range o.Objectives {
+		for i := range app.Objectives {
+			if app.Objectives[i].Name == name {
+				keep = append(keep, app.Objectives[i])
+				break FOUND
+			}
 		}
+		unknown = append(unknown, name)
 	}
 
-	if len(r) > 0 {
-		names = make([]string, 0, len(r))
-		for k := range r {
-			names = append(names, k)
-		}
-		return nil, fmt.Errorf("unknown objectives %s", strings.Join(names, ", "))
+	if len(keep) != cap(keep) {
+		return fmt.Errorf("unknown objectives %s", strings.Join(unknown, ", "))
 	}
 
-	return names, nil
+	app.Objectives = keep
+	return nil
 }
