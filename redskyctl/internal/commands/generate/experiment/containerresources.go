@@ -120,9 +120,9 @@ func DefaultContainerResourcesSelectors() []ContainerResourcesSelector {
 }
 
 // scanForContainerResources scans the supplied resource map for container resources matching the selector.
-func scanForContainerResources(rm resmap.ResMap, selector []ContainerResourcesSelector, list *corev1.List) error {
+func (g *Generator) scanForContainerResources(rm resmap.ResMap, list *corev1.List) error {
 	crs := make([]*containerResources, 0, rm.Size())
-	for _, sel := range selector {
+	for _, sel := range g.ContainerResourcesSelector {
 		// Select the matching resources
 		resources, err := rm.Select(sel.selector())
 		if err != nil {
@@ -138,14 +138,14 @@ func scanForContainerResources(rm resmap.ResMap, selector []ContainerResourcesSe
 
 			// Scan the document tree for information to add to the application resource
 			cr := &containerResources{}
-			if err := cr.SaveTargetReference(node); err != nil {
+			if err := cr.saveTargetReference(node); err != nil {
 				return err
 			}
-			if err := cr.SaveResourcesPaths(node, sel); err != nil {
+			if err := cr.saveResourcesPaths(node, sel); err != nil {
 				// TODO Ignore errors if the resource doesn't have a matching resources path
 				return err
 			}
-			if cr.Empty() {
+			if cr.empty() {
 				continue
 			}
 
@@ -163,13 +163,13 @@ func scanForContainerResources(rm resmap.ResMap, selector []ContainerResourcesSe
 
 	exp := findOrAddExperiment(list)
 	for _, cr := range crs {
-		patch, err := cr.ResourcesPatch(needsPrefix)
+		patch, err := cr.resourcesPatch(needsPrefix)
 		if err != nil {
 			return err
 		}
 
 		exp.Spec.Patches = append(exp.Spec.Patches, *patch)
-		exp.Spec.Parameters = append(exp.Spec.Parameters, cr.ResourcesParameters(needsPrefix)...)
+		exp.Spec.Parameters = append(exp.Spec.Parameters, cr.resourcesParameters(needsPrefix)...)
 	}
 
 	return nil
@@ -184,12 +184,12 @@ type containerResources struct {
 }
 
 // Empty checks to see if this application resource has anything useful in it.
-func (r *containerResources) Empty() bool {
+func (r *containerResources) empty() bool {
 	return len(r.resourcesPaths) == 0
 }
 
 // SaveTargetReference updates the resource reference from the supplied document node.
-func (r *containerResources) SaveTargetReference(node *yaml.RNode) error {
+func (r *containerResources) saveTargetReference(node *yaml.RNode) error {
 	meta, err := node.GetMeta()
 	if err != nil {
 		return err
@@ -206,7 +206,7 @@ func (r *containerResources) SaveTargetReference(node *yaml.RNode) error {
 }
 
 // SaveResourcesPaths extracts the paths the `resources` elements from the supplied node.
-func (r *containerResources) SaveResourcesPaths(node *yaml.RNode, sel ContainerResourcesSelector) error {
+func (r *containerResources) saveResourcesPaths(node *yaml.RNode, sel ContainerResourcesSelector) error {
 	path := sel.fieldSpec().PathSlice()
 	return node.PipeE(
 		yaml.Lookup(path...),
@@ -229,7 +229,7 @@ func (r *containerResources) SaveResourcesPaths(node *yaml.RNode, sel ContainerR
 }
 
 // ResourcesParameters returns the parameters required for optimizing the discovered resources sections.
-func (r *containerResources) ResourcesParameters(includeTarget bool) []redskyv1beta1.Parameter {
+func (r *containerResources) resourcesParameters(includeTarget bool) []redskyv1beta1.Parameter {
 	parameters := make([]redskyv1beta1.Parameter, 0, len(r.resourcesPaths)*2)
 	for i := range r.resourcesPaths {
 		parameters = append(parameters, redskyv1beta1.Parameter{
@@ -247,7 +247,7 @@ func (r *containerResources) ResourcesParameters(includeTarget bool) []redskyv1b
 
 // ResourcesPatch returns a patch for the discovered resources sections.
 // TODO This should take a Go template for generating the parameter name
-func (r *containerResources) ResourcesPatch(includeTarget bool) (*redskyv1beta1.PatchTemplate, error) {
+func (r *containerResources) resourcesPatch(includeTarget bool) (*redskyv1beta1.PatchTemplate, error) {
 	// Create an empty patch
 	patch := yaml.NewRNode(&yaml.Node{
 		Kind:    yaml.DocumentNode,
