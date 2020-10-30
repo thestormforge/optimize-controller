@@ -22,6 +22,7 @@ import (
 	"math"
 	"path"
 	"strconv"
+	"strings"
 
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/internal/experiment"
@@ -45,6 +46,13 @@ func FromCluster(in *redskyv1beta1.Experiment) (redskyapi.ExperimentName, *redsk
 	out.ExperimentMeta.LastModified = in.CreationTimestamp.Time
 	out.ExperimentMeta.SelfURL = in.Annotations[redskyv1beta1.AnnotationExperimentURL]
 	out.ExperimentMeta.NextTrialURL = in.Annotations[redskyv1beta1.AnnotationNextTrialURL]
+
+	if l := len(in.ObjectMeta.Labels); l > 0 {
+		out.Labels = make(map[string]string, l)
+		for k, v := range in.ObjectMeta.Labels {
+			out.Labels[strings.TrimPrefix(k, "redskyops.dev/")] = v
+		}
+	}
 
 	out.Optimization = nil
 	for _, o := range in.Spec.Optimization {
