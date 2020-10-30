@@ -87,6 +87,8 @@ spec:
                   - name
                   - query
                   properties:
+                    collectOnly:
+                      type: boolean
                     errorQuery:
                       type: string
                     max:
@@ -3935,6 +3937,8 @@ spec:
                   - name
                   - query
                   properties:
+                    collectOnly:
+                      type: boolean
                     errorQuery:
                       type: string
                     max:

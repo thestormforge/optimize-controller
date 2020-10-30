@@ -112,6 +112,7 @@ Metric represents an observable outcome from a trial run
 | `minimize` | Indicator that the goal of the experiment is to minimize the value of this metric | _bool_ | false |
 | `min` | The inclusive minimum allowed value for the metric | _*resource.Quantity_ | false |
 | `max` | The inclusive maximum allowed value for the metric | _*resource.Quantity_ | false |
+| `collectOnly` | Indicator that this metric should be collected, but not used for optimization | _bool_ | false |
 | `type` | The metric collection type, one of: local\|pods\|prometheus\|datadog\|jsonpath, default: local | _MetricType_ | false |
 | `query` | Collection type specific query, e.g. Go template for "local", PromQL for "prometheus" or a JSON pointer expression (with curly braces) for "jsonpath" | _string_ | true |
 | `errorQuery` | Collection type specific query for the error associated with collected metric value | _string_ | false |
