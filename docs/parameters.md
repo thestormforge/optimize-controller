@@ -6,9 +6,9 @@ An experiment must define one or more parameters. Together, the parameters in an
 
 ## Parameter Types
 
-Parameters can be one of two types: **Integer** or **Categorical**.
+Parameters can be one of two types: **Integer** or **String**.
 
-### Integer
+### Integer Parameters
 
 Integer parameters specify a minimum bound, a maximum bound, or both. (Both bounds are *inclusive*, and when either bound is unspecified, it defaults to 0.) A parameter for tuning CPU on a container might be defined with both bounds:
 
@@ -29,9 +29,9 @@ While a parameter for tuning the concurrent garbage collection threads on a Java
 
 *Note:* Some fields in Kubernetes objects, like [CPU Request](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#meaning-of-cpu), allow their value to be specified using decimal numbers like `0.1` or as an integer with an attached unit, like `100m` ("one hundred millicpus"). Because Red Sky Ops only tunes integer numbers, you must use the latter format. See [Using Parameters](#using-parameters).
 
-### Categorical
+### String Parameters
 
-Categorical parameters specify a finite list of acceptable values, where each value is a string. For example, a parameter for tuning the garbage collection algorithm on a Java application might be defined like:
+String parameters specify a finite list of acceptable values, where each value is a string. For example, a parameter for tuning the garbage collection algorithm on a Java application might be defined like:
 
 ```yaml
   parameters:
