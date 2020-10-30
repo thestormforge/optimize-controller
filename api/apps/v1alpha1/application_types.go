@@ -66,8 +66,8 @@ type ContainerResources struct {
 
 // Ingress describes the point of ingress to the application.
 type Ingress struct {
-	// The name of the service to use for ingress to the application.
-	ServiceName string `json:"serviceName,omitempty"`
+	// The URL used to access the application from outside the cluster.
+	URL string `json:"url,omitempty"`
 }
 
 // Scenario describes a specific pattern of load to optimize the application for.

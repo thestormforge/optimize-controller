@@ -34,4 +34,22 @@ func RegisterDefaults(s *runtime.Scheme) error {
 var _ admission.Defaulter = &Application{}
 
 func (in *Application) Default() {
+	// Give scenarios a default name
+	for i := range in.Scenarios {
+		if in.Scenarios[i].Name == "" {
+			in.Scenarios[i].Name = "default"
+		}
+	}
+
+	// Give objectives a default name based on their type
+	for i := range in.Objectives {
+		if in.Objectives[i].Name == "" {
+			switch {
+			case in.Objectives[i].Cost != nil:
+				in.Objectives[i].Name = "cost"
+			case in.Objectives[i].Latency != nil:
+				in.Objectives[i].Name = "latency"
+			}
+		}
+	}
 }

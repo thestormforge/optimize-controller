@@ -30,24 +30,13 @@ var one = resource.MustParse("1")
 
 const costQueryFormat = `({{ cpuRequests . "%s" }} * %d) + ({{ memoryRequests . "%s" | GB }} * %d)`
 
-func addObjectives(app *v1alpha1.Application, objectives []string, list *corev1.List) error {
-	skip := func(obj *v1alpha1.Objective) bool {
-		for _, name := range objectives {
-			if obj.Name == name {
-				return false
-			}
-		}
-		return true
-	}
-
-	for i := range app.Objectives {
-		if skip(&app.Objectives[i]) {
-			continue
-		}
-
+func (g *Generator) addObjectives(list *corev1.List) error {
+	for i := range g.Application.Objectives {
 		switch {
-		case app.Objectives[i].Cost != nil:
-			addCostMetric(&app.Objectives[i], app.CloudProvider, list)
+
+		case g.Application.Objectives[i].Cost != nil:
+			addCostMetric(&g.Application.Objectives[i], g.Application.CloudProvider, list)
+
 		}
 	}
 
