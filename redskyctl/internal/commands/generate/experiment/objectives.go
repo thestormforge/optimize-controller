@@ -18,7 +18,6 @@ package experiment
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
