@@ -17,6 +17,9 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"reflect"
+	"strings"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
@@ -34,22 +37,36 @@ func RegisterDefaults(s *runtime.Scheme) error {
 var _ admission.Defaulter = &Application{}
 
 func (in *Application) Default() {
-	// Give scenarios a default name
 	for i := range in.Scenarios {
-		if in.Scenarios[i].Name == "" {
-			in.Scenarios[i].Name = "default"
-		}
+		in.Scenarios[i].Default()
 	}
 
-	// Give objectives a default name based on their type
 	for i := range in.Objectives {
-		if in.Objectives[i].Name == "" {
-			switch {
-			case in.Objectives[i].Cost != nil:
-				in.Objectives[i].Name = "cost"
-			case in.Objectives[i].Latency != nil:
-				in.Objectives[i].Name = "latency"
+		in.Objectives[i].Default()
+	}
+}
+
+func (in *Scenario) Default() {
+	if in.Name == "" {
+		in.Name = "default"
+	}
+}
+
+func (in *Objective) Default() {
+	v := reflect.Indirect(reflect.ValueOf(in))
+	for i := 0; i < v.NumField(); i++ {
+		if v.Field(i).Kind() != reflect.Ptr {
+			continue
+		}
+
+		f := v.Type().Field(i)
+		name := strings.Split(f.Tag.Get("json"), ",")[0]
+		if v.Field(i).IsNil() {
+			if in.Name == name {
+				v.Field(i).Set(reflect.New(f.Type.Elem()))
 			}
+		} else if in.Name == "" {
+			in.Name = name
 		}
 	}
 }
