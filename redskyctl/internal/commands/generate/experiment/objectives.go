@@ -18,6 +18,7 @@ package experiment
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
@@ -30,12 +31,34 @@ var one = resource.MustParse("1")
 
 const costQueryFormat = `({{ cpuRequests . "%s" }} * %d) + ({{ memoryRequests . "%s" | GB }} * %d)`
 
+// priceList defines the price weights to use in the cost query.
+var priceList = map[string]corev1.ResourceList{
+	"default": {
+		corev1.ResourceCPU:    resource.MustParse("17"),
+		corev1.ResourceMemory: resource.MustParse("3"),
+	},
+	"gcp": {
+		corev1.ResourceCPU:    resource.MustParse("17"),
+		corev1.ResourceMemory: resource.MustParse("2"),
+	},
+	"aws": {
+		corev1.ResourceCPU:    resource.MustParse("18"),
+		corev1.ResourceMemory: resource.MustParse("5"),
+	},
+}
+
+func init() {
+	// Add some aliases
+	priceList["googleCloudProvider"] = priceList["gcp"]
+	priceList["amazonWebServices"] = priceList["aws"]
+}
+
 func (g *Generator) addObjectives(list *corev1.List) error {
 	for i := range g.Application.Objectives {
 		switch {
 
 		case g.Application.Objectives[i].Cost != nil:
-			addCostMetric(&g.Application.Objectives[i], g.Application.CloudProvider, list)
+			addCostMetric(&g.Application, &g.Application.Objectives[i], list)
 
 		}
 	}
@@ -43,11 +66,23 @@ func (g *Generator) addObjectives(list *corev1.List) error {
 	return nil
 }
 
-func addCostMetric(obj *v1alpha1.Objective, cp *v1alpha1.CloudProvider, list *corev1.List) {
-	lbl := labels.Set(obj.Cost.Labels).String()
+func addCostMetric(app *v1alpha1.Application, obj *v1alpha1.Objective, list *corev1.List) {
+	pricing := obj.Cost.Pricing
+	if pricing == "" {
+		switch {
+		case app.GoogleCloudPlatform != nil:
+			pricing = "gcp"
+		case app.AmazonWebServices != nil:
+			pricing = "aws"
+		default:
+			pricing = "default"
+		}
+	}
 
-	// Compute the cloud provider specific cost weights
-	cost := computeCost(cp)
+	cost := priceList[pricing]
+	for k, v := range obj.Cost.PriceList {
+		cost[k] = v
+	}
 	cpuWeight := cost.Cpu()
 	if cpuWeight == nil || cpuWeight.IsZero() {
 		cpuWeight = &one
@@ -57,10 +92,12 @@ func addCostMetric(obj *v1alpha1.Objective, cp *v1alpha1.CloudProvider, list *co
 		memoryWeight = &one
 	}
 
+	lbl := labels.Set(obj.Cost.Labels).String()
+
 	// Add the cost metric to the experiment
 	exp := findOrAddExperiment(list)
 	exp.Spec.Metrics = append(exp.Spec.Metrics, redskyv1beta1.Metric{
-		Name:     "cost",
+		Name:     obj.Name,
 		Minimize: true,
 		Type:     redskyv1beta1.MetricPrometheus,
 		Query:    fmt.Sprintf(costQueryFormat, lbl, cpuWeight.Value(), lbl, memoryWeight.Value()),
@@ -68,49 +105,4 @@ func addCostMetric(obj *v1alpha1.Objective, cp *v1alpha1.CloudProvider, list *co
 
 	// The cost metric requires Prometheus
 	ensurePrometheus(list)
-}
-
-// computeCost returns the cost weightings for a cloud provider.
-// CPU weights are $/vCPU, Memory weights are $/GB
-func computeCost(cp *v1alpha1.CloudProvider) corev1.ResourceList {
-	if cp != nil && cp.GenericCloudProvider != nil {
-		return genericCost(cp.GenericCloudProvider)
-	}
-	if cp != nil && cp.GCP != nil {
-		return gcpCost(cp.GCP)
-	}
-	if cp != nil && cp.AWS != nil {
-		return awsCost(cp.AWS)
-	}
-	return genericCost(nil)
-}
-
-func gcpCost(gcp *v1alpha1.GoogleCloudPlatform) corev1.ResourceList {
-	cost := gcp.Cost
-	addDefaultCost(&cost, corev1.ResourceCPU, "17")
-	addDefaultCost(&cost, corev1.ResourceMemory, "2")
-	return cost
-}
-
-func awsCost(aws *v1alpha1.AmazonWebServices) corev1.ResourceList {
-	cost := aws.Cost
-	addDefaultCost(&cost, corev1.ResourceCPU, "18")
-	addDefaultCost(&cost, corev1.ResourceMemory, "5")
-	return cost
-}
-
-func genericCost(p *v1alpha1.GenericCloudProvider) corev1.ResourceList {
-	cost := corev1.ResourceList{}
-	if p != nil && p.Cost != nil {
-		cost = p.Cost
-	}
-	addDefaultCost(&cost, corev1.ResourceCPU, "17")
-	addDefaultCost(&cost, corev1.ResourceMemory, "3")
-	return cost
-}
-
-func addDefaultCost(r *corev1.ResourceList, name corev1.ResourceName, value string) {
-	if v, ok := (*r)[name]; !ok || v.IsZero() {
-		(*r)[name] = resource.MustParse(value)
-	}
 }
