@@ -18,8 +18,11 @@ package v1alpha1
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+// NOTE: Application is not a spec/status style object, it contains possible file system references
 
 // Application represents a description of an application to run experiments on.
 // +kubebuilder:object:root=true
@@ -43,8 +46,11 @@ type Application struct {
 	// The list of objectives to optimizat the application for.
 	Objectives []Objective `json:"objectives,omitempty"`
 
-	// CloudProvider is used to provide details about the hosting environment the application is run in.
-	CloudProvider *CloudProvider `json:"cloudProvider,omitempty"`
+	// GoogleCloudPlatform allows you to configure hosting details specific to GCP.
+	GoogleCloudPlatform *GoogleCloudPlatform `json:"googleCloudPlatform,omitempty"`
+
+	// AmazonWebServices allows you to configure hosting details specific to AWS.
+	AmazonWebServices *AmazonWebServices `json:"amazonWebServices,omitempty"`
 
 	// TODO We should have a qualityOfService: section were you can specify things like
 	// the percentage of the max that resources are expected to use (then we add both limits and requests and a constraint)
@@ -82,40 +88,43 @@ type Objective struct {
 	Name string `json:"name"`
 	// Cost is used to identify which parts of the application impact the cost of running the application.
 	Cost *CostObjective `json:"cost,omitempty"`
+	// Latency is used to determine which measure of API performance to optimize.
+	Latency *LatencyObjective `json:"latency,omitempty"`
 }
 
 // CostObjective is used to estimate the cost of running an application in a specific scenario.
 type CostObjective struct {
 	// Labels of the pods which should be considered when collecting cost information.
 	Labels map[string]string `json:"labels,omitempty"`
+	// The name of the pricing strategy to use.
+	Pricing string `json:"pricing,omitempty"`
+	// Explicit overrides to the pricing strategy.
+	PriceList corev1.ResourceList `json:"priceList,omitempty"`
 }
 
-// CloudProvider describes the how the application is being hosted.
-type CloudProvider struct {
-	// Generic cloud provider configuration.
-	*GenericCloudProvider `json:",inline"`
-	// Configuration specific to Google Cloud Platform.
-	GCP *GoogleCloudPlatform `json:"gcp,omitempty"`
-	// Configuration specific to Amazon Web Services.
-	AWS *AmazonWebServices `json:"aws,omitempty"`
+type LatencyType string
+
+const (
+	LatencyMin          LatencyType = "min"
+	LatencyMax          LatencyType = "max"
+	LatencyMean         LatencyType = "mean" // avg
+	LatencyMedian       LatencyType = "median"
+	LatencyPercentile95 LatencyType = "percentile_95" // p95
+	LatencyPercentile99 LatencyType = "percentile_99" // p99
+)
+
+// LatencyObject is used to measure performance of an application under load.
+type LatencyObjective struct {
+	// The types of latencies to optimize.
+	LatencyTypes []LatencyType `json:",inline"`
 }
 
 // GoogleCloudPlatform is used to configure details specific to applications hosted in GCP.
 type GoogleCloudPlatform struct {
-	// Per-resource cost weightings.
-	Cost corev1.ResourceList `json:"cost,omitempty"`
 }
 
 // AmazonWebServices is used to configure details specific to applications hosted in AWS.
 type AmazonWebServices struct {
-	// Per-resource cost weightings.
-	Cost corev1.ResourceList `json:"cost,omitempty"`
-}
-
-// GenericCloudProvider is used to configure details for applications hosted on other platforms.
-type GenericCloudProvider struct {
-	// Per-resource cost weightings.
-	Cost corev1.ResourceList `json:"cost,omitempty"`
 }
 
 func init() {

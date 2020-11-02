@@ -23,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 
+	redskyappsv1alpha1 "github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
 	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/internal/controller"
@@ -48,6 +49,7 @@ func NewResourceReader() *ResourceReader {
 	// Always add our types
 	_ = redskyv1beta1.AddToScheme(rr.Scheme)
 	_ = redskyv1alpha1.AddToScheme(rr.Scheme)
+	_ = redskyappsv1alpha1.AddToScheme(rr.Scheme)
 
 	// Allow single experiments to target an experiment list
 	_ = addExperimentListConversions(rr.Scheme)
