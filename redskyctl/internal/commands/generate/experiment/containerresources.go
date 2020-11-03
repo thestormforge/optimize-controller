@@ -158,22 +158,26 @@ func (g *Generator) scanForContainerResources(rm resmap.ResMap, list *corev1.Lis
 		return nil
 	}
 
-	// TODO We can probably be smarter determining if a prefix is necessary
-	needsPrefix := len(crs) > 1
-
+	prefix := parameterNamePrefix(crs)
 	exp := findOrAddExperiment(list)
 	for _, cr := range crs {
-		patch, err := cr.resourcesPatch(needsPrefix)
+		// Create a parameter naming function that accounts for both objects and paths
+		name := parameterName(prefix, cr)
+
+		patch, err := cr.resourcesPatch(name)
 		if err != nil {
 			return err
 		}
 
 		exp.Spec.Patches = append(exp.Spec.Patches, *patch)
-		exp.Spec.Parameters = append(exp.Spec.Parameters, cr.resourcesParameters(needsPrefix)...)
+		exp.Spec.Parameters = append(exp.Spec.Parameters, cr.resourcesParameters(name)...)
 	}
 
 	return nil
 }
+
+// nameGen is a function that produces parameter names.
+type nameGen func(ref *corev1.ObjectReference, path []string, name string) string
 
 // containerResources is an individual application resource that specifies container resources.
 type containerResources struct {
@@ -229,15 +233,15 @@ func (r *containerResources) saveResourcesPaths(node *yaml.RNode, sel ContainerR
 }
 
 // ResourcesParameters returns the parameters required for optimizing the discovered resources sections.
-func (r *containerResources) resourcesParameters(includeTarget bool) []redskyv1beta1.Parameter {
+func (r *containerResources) resourcesParameters(name nameGen) []redskyv1beta1.Parameter {
 	parameters := make([]redskyv1beta1.Parameter, 0, len(r.resourcesPaths)*2)
 	for i := range r.resourcesPaths {
 		parameters = append(parameters, redskyv1beta1.Parameter{
-			Name: r.parameterName(i, "memory", includeTarget),
+			Name: name(&r.targetRef, r.resourcesPaths[i], "memory"),
 			Min:  defaultParameterMin,
 			Max:  defaultParameterMax,
 		}, redskyv1beta1.Parameter{
-			Name: r.parameterName(i, "cpu", includeTarget),
+			Name: name(&r.targetRef, r.resourcesPaths[i], "cpu"),
 			Min:  defaultParameterMin,
 			Max:  defaultParameterMax,
 		})
@@ -246,8 +250,7 @@ func (r *containerResources) resourcesParameters(includeTarget bool) []redskyv1b
 }
 
 // ResourcesPatch returns a patch for the discovered resources sections.
-// TODO This should take a Go template for generating the parameter name
-func (r *containerResources) resourcesPatch(includeTarget bool) (*redskyv1beta1.PatchTemplate, error) {
+func (r *containerResources) resourcesPatch(name nameGen) (*redskyv1beta1.PatchTemplate, error) {
 	// Create an empty patch
 	patch := yaml.NewRNode(&yaml.Node{
 		Kind:    yaml.DocumentNode,
@@ -256,8 +259,8 @@ func (r *containerResources) resourcesPatch(includeTarget bool) (*redskyv1beta1.
 
 	for i := range r.resourcesPaths {
 		// Construct limits/requests values
-		memory := "{{ .Values." + r.parameterName(i, "memory", includeTarget) + " }}Mi"
-		cpu := "{{ .Values." + r.parameterName(i, "cpu", includeTarget) + " }}m"
+		memory := "{{ .Values." + name(&r.targetRef, r.resourcesPaths[i], "memory") + " }}Mi"
+		cpu := "{{ .Values." + name(&r.targetRef, r.resourcesPaths[i], "cpu") + " }}m"
 		values, err := yaml.NewRNode(&yaml.Node{Kind: yaml.MappingNode}).Pipe(
 			yaml.Tee(yaml.SetField("memory", yaml.NewScalarRNode(memory))),
 			yaml.Tee(yaml.SetField("cpu", yaml.NewScalarRNode(cpu))),
@@ -288,29 +291,67 @@ func (r *containerResources) resourcesPatch(includeTarget bool) (*redskyv1beta1.
 	}, nil
 }
 
-// parameterName returns the name of the parameter to use for the resources path at the specified index.
-func (r *containerResources) parameterName(i int, name string, includeTarget bool) string {
-	var pn []string
-
-	// Include the target kind and name
-	if includeTarget {
-		pn = append(pn, strings.ToLower(r.targetRef.Kind), r.targetRef.Name)
+// parameterNamePrefix returns a name generator function that produces a prefix based
+// on the distinct elements found in the object references of the supplied container resources.
+func parameterNamePrefix(crs []*containerResources) nameGen {
+	// Index the object references by kind and name
+	names := make(map[string]map[string]struct{})
+	for _, cr := range crs {
+		if ns := names[cr.targetRef.Kind]; ns == nil {
+			names[cr.targetRef.Kind] = make(map[string]struct{})
+		}
+		names[cr.targetRef.Kind][cr.targetRef.Name] = struct{}{}
 	}
 
-	// Include the list index values (e.g. the container names)
-	if len(r.resourcesPaths) > 1 {
-		for _, p := range r.resourcesPaths[i] {
-			if yaml.IsListIndex(p) {
+	// Determine which prefixes we need
+	// TODO This assumes overlapping names
+	needsKind := len(names) > 1
+	needsName := false
+	for _, v := range names {
+		needsName = needsName || len(v) > 1
+	}
+
+	return func(ref *corev1.ObjectReference, _ []string, _ string) string {
+		var parts []string
+		if needsKind {
+			parts = append(parts, strings.ToLower(ref.Kind))
+		}
+		if needsName {
+			parts = append(parts, strings.Split(ref.Name, "-")...)
+		}
+		return strings.Join(parts, "_")
+	}
+}
+
+// parameterName returns a name generator function that produces a unique parameter
+// name given a prefix (computed from a list of container resources) and the supplied
+// container resources (which is assumed to have been considered when computing the prefix).
+func parameterName(prefix nameGen, cr *containerResources) nameGen {
+	// Determine if the path is necessary
+	needsPath := len(cr.resourcesPaths) > 1
+
+	return func(ref *corev1.ObjectReference, path []string, name string) string {
+		var parts []string
+
+		// Only append the prefix if it is not blank
+		if prefix != nil {
+			if p := prefix(ref, path, name); p != "" {
+				parts = append(parts, p)
+			}
+		}
+
+		// Add the list index values (e.g. the container names)
+		for _, p := range path {
+			if needsPath && yaml.IsListIndex(p) {
 				if _, value, _ := yaml.SplitIndexNameValue(p); value != "" {
-					pn = append(pn, value)
+					parts = append(parts, value) // TODO Split on "-" like we do for names?
 				}
 			}
 		}
-	}
 
-	// Add the requested parameter name and join everything together
-	pn = append(pn, name)
-	return strings.Join(pn, "_")
+		// Join everything together using the requested parameter name at the end
+		return strings.Join(append(parts, name), "_")
+	}
 }
 
 // mergeOrAppend appends a container resources pointer unless it already exists, in which case the
