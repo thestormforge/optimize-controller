@@ -62,20 +62,27 @@ jobs:
         run: |
           if [ -z "${GITHUB_REF/refs\/tags\/*/}" ]; then
             DOCKER_REGISTRY="redskyops"
+            GH_DOCKER_REGISTRY="ghcr.io/redskyops"
             DOCKER_TAG=${GITHUB_REF##*/v}
             echo "IMAGE_TAG=latest" >> $GITHUB_ENV
             echo "VERSION=v${TAG}" >> $GITHUB_ENV
             echo "AC_USERNAME=${{ secrets.AC_USERNAME }}" >> $GITHUB_ENV
             echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+            echo "${{ secrets.BMASTERS_TOKEN }}" | docker login "ghcr.io" -u "${{ secrets.BMASTERS_ACTOR }}" --password-stdin
           else
             DOCKER_REGISTRY="ghcr.io/redskyops"
             DOCKER_TAG="sha-$(git rev-parse --short HEAD)"
             echo "IMAGE_TAG=edge"  >> $GITHUB_ENV
             echo "${{ secrets.BMASTERS_TOKEN }}" | docker login "ghcr.io" -u "${{ secrets.BMASTERS_ACTOR }}" --password-stdin
           fi
+          # Docker Registry
           echo "IMG=${DOCKER_REGISTRY}/redskyops-controller:${DOCKER_TAG}" >> $GITHUB_ENV
           echo "REDSKYCTL_IMG=${DOCKER_REGISTRY}/redskyctl:${DOCKER_TAG}" >> $GITHUB_ENV
           echo "SETUPTOOLS_IMG=${DOCKER_REGISTRY}/setuptools:${DOCKER_TAG}" >> $GITHUB_ENV
+          # Github Container Registry
+          echo "GH_IMG=${GH_DOCKER_REGISTRY}/redskyops-controller:${DOCKER_TAG}" >> $GITHUB_ENV
+          echo "GH_REDSKYCTL_IMG=${GH_DOCKER_REGISTRY}/redskyctl:${DOCKER_TAG}" >> $GITHUB_ENV
+          echo "GH_SETUPTOOLS_IMG=${GH_DOCKER_REGISTRY}/setuptools:${DOCKER_TAG}" >> $GITHUB_ENV
           echo "PULL_POLICY=" >> $GITHUB_ENV
       - name: Build controller
         run: |
@@ -93,10 +100,16 @@ jobs:
           docker tag "${IMG}" "${IMG%%:*}:${IMAGE_TAG}"
           docker tag "${REDSKYCTL_IMG}" "${REDSKYCTL_IMG%%:*}:${IMAGE_TAG}"
           docker tag "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:${IMAGE_TAG}"
+          docker tag "${IMG}" "${GH_IMG%%:*}:${IMAGE_TAG}"
+          docker tag "${REDSKYCTL_IMG}" "${GH_REDSKYCTL_IMG%%:*}:${IMAGE_TAG}"
+          docker tag "${SETUPTOOLS_IMG}" "${GH_SETUPTOOLS_IMG%%:*}:${IMAGE_TAG}"
           make docker-push
           docker push "${IMG%%:*}:${IMAGE_TAG}"
           docker push "${REDSKYCTL_IMG%%:*}:${IMAGE_TAG}"
           docker push "${SETUPTOOLS_IMG%%:*}:${IMAGE_TAG}"
+          docker push "${GH_IMG%%:*}:${IMAGE_TAG}"
+          docker push "${GH_REDSKYCTL_IMG%%:*}:${IMAGE_TAG}"
+          docker push "${GH_SETUPTOOLS_IMG%%:*}:${IMAGE_TAG}"
       - name: Upload macOS binary
         uses: actions/upload-artifact@v1
         with:
