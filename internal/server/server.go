@@ -249,9 +249,9 @@ func FromClusterTrial(exp *redskyv1beta1.Experiment, t *redskyv1beta1.Trial) *re
 	// Record the values only if we didn't fail
 	out.Values = nil
 	if !out.Failed {
-		collectOnly := make(map[string]bool, len(exp.Spec.Metrics))
+		optimize := make(map[string]*bool, len(exp.Spec.Metrics))
 		for i := range exp.Spec.Metrics {
-			collectOnly[exp.Spec.Metrics[i].Name] = exp.Spec.Metrics[i].CollectOnly
+			optimize[exp.Spec.Metrics[i].Name] = exp.Spec.Metrics[i].Optimize
 		}
 
 		for _, v := range t.Spec.Values {
@@ -259,7 +259,7 @@ func FromClusterTrial(exp *redskyv1beta1.Experiment, t *redskyv1beta1.Trial) *re
 				value := redskyapi.Value{
 					MetricName: v.Name,
 					Value:      fv,
-					// CollectOnly: collectOnly[v.Name],
+					// Optimize: optimize[v.Name],
 				}
 				if ev, err := strconv.ParseFloat(v.Error, 64); err == nil {
 					value.Error = ev

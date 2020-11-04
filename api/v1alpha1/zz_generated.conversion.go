@@ -867,7 +867,7 @@ func autoConvert_v1alpha1_Metric_To_v1beta1_Metric(in *Metric, out *v1beta1.Metr
 	out.Minimize = in.Minimize
 	out.Min = in.Min
 	out.Max = in.Max
-	out.CollectOnly = in.CollectOnly
+	out.Optimize = in.Optimize
 	out.Type = v1beta1.MetricType(in.Type)
 	out.Query = in.Query
 	out.ErrorQuery = in.ErrorQuery
@@ -888,7 +888,7 @@ func autoConvert_v1beta1_Metric_To_v1alpha1_Metric(in *v1beta1.Metric, out *Metr
 	out.Minimize = in.Minimize
 	out.Min = in.Min
 	out.Max = in.Max
-	out.CollectOnly = in.CollectOnly
+	out.Optimize = in.Optimize
 	out.Type = MetricType(in.Type)
 	out.Query = in.Query
 	out.ErrorQuery = in.ErrorQuery
