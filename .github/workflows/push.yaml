@@ -93,13 +93,14 @@ jobs:
         if: github.event.pull_request.head.repo.fork == false
         run: |
           echo "${{ secrets.BMASTERS_TOKEN }}" | docker login "ghcr.io" -u "${{ secrets.BMASTERS_ACTOR }}" --password-stdin
-          docker tag "${IMG}" "${IMG%%:*}:${IMAGE_TAG}"
-          docker tag "${REDSKYCTL_IMG}" "${REDSKYCTL_IMG%%:*}:${IMAGE_TAG}"
-          docker tag "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:${IMAGE_TAG}"
           make docker-push
-          docker push "${IMG%%:*}:${IMAGE_TAG}"
-          docker push "${REDSKYCTL_IMG%%:*}:${IMAGE_TAG}"
-          docker push "${SETUPTOOLS_IMG%%:*}:${IMAGE_TAG}"
+          docker-push() {
+            docker tag "$1" "$2"
+            docker push "$2"
+          }
+          docker-push "${IMG}" "${IMG%%:*}:${IMAGE_TAG}"
+          docker-push "${REDSKYCTL_IMG}" "${REDSKYCTL_IMG%%:*}:${IMAGE_TAG}"
+          docker-push "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:${IMAGE_TAG}"
       - name: Upload macOS binary
         uses: actions/upload-artifact@v2
         with:
