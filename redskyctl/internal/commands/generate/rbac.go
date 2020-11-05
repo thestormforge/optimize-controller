@@ -17,6 +17,8 @@ limitations under the License.
 package generate
 
 import (
+	"bufio"
+	"context"
 	"fmt"
 	"path/filepath"
 	"regexp"
@@ -32,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/kubernetes/scheme"
 )
@@ -68,7 +71,7 @@ func NewRBACCommand(o *RBACOptions) *cobra.Command {
 
 		PreRun: func(cmd *cobra.Command, args []string) {
 			commander.SetStreams(&o.IOStreams, cmd)
-			o.Complete()
+			o.Complete(cmd.Context())
 		},
 		RunE: commander.WithoutArgsE(o.generate),
 	}
@@ -87,13 +90,39 @@ func NewRBACCommand(o *RBACOptions) *cobra.Command {
 	return cmd
 }
 
-func (o *RBACOptions) Complete() {
+func (o *RBACOptions) Complete(ctx context.Context) {
 	// Create a REST mapper to convert from GroupVersionKind (used on patch targets) to GroupVersionResource (used in policy rules)
 	rm := meta.NewDefaultRESTMapper(scheme.Scheme.PreferredVersionAllGroups())
 	for gvk := range scheme.Scheme.AllKnownTypes() {
 		rm.Add(gvk, meta.RESTScopeRoot)
 	}
+	o.addInstalledCRDs(ctx, rm)
 	o.mapper = rm
+}
+
+func (o *RBACOptions) addInstalledCRDs(ctx context.Context, rm *meta.DefaultRESTMapper) {
+	cmd, err := o.Config.Kubectl(ctx, "get", "crds", "--output", "jsonpath", "--template",
+		`{range .items[*].spec}{.group}/{.version} {.names.kind} {.names.plural} {.names.singular}{"\n"}{end}`)
+	if err != nil {
+		return
+	}
+
+	stdout, _ := cmd.StdoutPipe()
+	if err := cmd.Start(); err != nil {
+		return
+	}
+
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		f := strings.Fields(scanner.Text())
+
+		gv, err := schema.ParseGroupVersion(f[0])
+		if err != nil {
+			continue
+		}
+
+		rm.AddSpecific(gv.WithKind(f[1]), gv.WithResource(f[2]), gv.WithResource(f[3]), meta.RESTScopeRoot)
+	}
 }
 
 func (o *RBACOptions) generate() error {
