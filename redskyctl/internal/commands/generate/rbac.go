@@ -32,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/kubernetes/scheme"
 )
@@ -90,9 +91,21 @@ func NewRBACCommand(o *RBACOptions) *cobra.Command {
 func (o *RBACOptions) Complete() {
 	// Create a REST mapper to convert from GroupVersionKind (used on patch targets) to GroupVersionResource (used in policy rules)
 	rm := meta.NewDefaultRESTMapper(scheme.Scheme.PreferredVersionAllGroups())
+
+	// Add all types known to the Kubernetes Client Go scheme (we can use unsafe guess safely for these types)
 	for gvk := range scheme.Scheme.AllKnownTypes() {
 		rm.Add(gvk, meta.RESTScopeRoot)
 	}
+
+	// If we hit a CRD we will use "unsafe guess" (basically add an "s"); here are some well-known exceptions
+
+	// https://github.com/elastic/cloud-on-k8s/tree/master/config/crds/bases
+	elasticGV := schema.GroupVersion{Group: "elasticsearch.k8s.elastic.co", Version: "v1"}
+	rm.AddSpecific(elasticGV.WithKind("Elasticsearch"),
+		elasticGV.WithResource("elasticsearches"),
+		elasticGV.WithResource("elasticsearch"),
+		meta.RESTScopeRoot)
+
 	o.mapper = rm
 }
 
