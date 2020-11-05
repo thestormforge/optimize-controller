@@ -962,6 +962,7 @@ func Convert_v1beta1_OrderConstraint_To_v1alpha1_OrderConstraint(in *v1beta1.Ord
 
 func autoConvert_v1alpha1_Parameter_To_v1beta1_Parameter(in *Parameter, out *v1beta1.Parameter, s conversion.Scope) error {
 	out.Name = in.Name
+	out.Baseline = in.Baseline
 	out.Min = in.Min
 	out.Max = in.Max
 	out.Values = in.Values
@@ -970,6 +971,7 @@ func autoConvert_v1alpha1_Parameter_To_v1beta1_Parameter(in *Parameter, out *v1b
 
 func autoConvert_v1beta1_Parameter_To_v1alpha1_Parameter(in *v1beta1.Parameter, out *Parameter, s conversion.Scope) error {
 	out.Name = in.Name
+	out.Baseline = in.Baseline
 	out.Min = in.Min
 	out.Max = in.Max
 	out.Values = in.Values

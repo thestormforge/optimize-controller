@@ -194,7 +194,7 @@ func (r *ServerReconciler) listTrials(ctx context.Context, trialList *redskyv1be
 // server will be copied back into cluster along with the URLs needed for future interactions with server.
 func (r *ServerReconciler) createExperiment(ctx context.Context, log logr.Logger, exp *redskyv1beta1.Experiment) (*ctrl.Result, error) {
 	// Convert the cluster state into a server representation
-	n, e := server.FromCluster(exp)
+	n, e, b := server.FromCluster(exp)
 	ee, err := r.ExperimentsAPI.CreateExperiment(ctx, n, *e)
 	if err != nil {
 		if server.FailExperiment(exp, "ServerCreateFailed", err) {
@@ -207,6 +207,13 @@ func (r *ServerReconciler) createExperiment(ctx context.Context, log logr.Logger
 	// Check that the server and the cluster have a compatible experiment definition
 	if err := validation.CheckDefinition(exp, &ee); err != nil {
 		return &ctrl.Result{}, err
+	}
+
+	// Best effort to send a baseline suggestion along with the experiment creation
+	if b != nil {
+		if _, err := r.ExperimentsAPI.CreateTrial(ctx, ee.TrialsURL, *b); err != nil {
+			log.Error(err, "Failed to suggest experiment baseline")
+		}
 	}
 
 	// Apply the server response to the cluster state

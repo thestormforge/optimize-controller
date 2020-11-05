@@ -83,7 +83,7 @@ func (o *TrialOptions) generate() error {
 	}
 
 	// Convert the experiment so we can use it to collect the suggested assignments
-	_, serverExperiment := server.FromCluster(exp)
+	_, serverExperiment, _ := server.FromCluster(exp)
 	ta := experimentsv1alpha1.TrialAssignments{}
 	if err := o.SuggestAssignments(serverExperiment, &ta); err != nil {
 		return err
