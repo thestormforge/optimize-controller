@@ -26,38 +26,16 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 )
 
-var one = resource.MustParse("1")
+var zero = resource.MustParse("0")
 
 const costQueryFormat = `({{ cpuRequests . "%s" }} * %d) + ({{ memoryRequests . "%s" | GB }} * %d)`
 
-// priceList defines the price weights to use in the cost query.
-var priceList = map[string]corev1.ResourceList{
-	"default": {
-		corev1.ResourceCPU:    resource.MustParse("17"),
-		corev1.ResourceMemory: resource.MustParse("3"),
-	},
-	"gcp": {
-		corev1.ResourceCPU:    resource.MustParse("17"),
-		corev1.ResourceMemory: resource.MustParse("2"),
-	},
-	"aws": {
-		corev1.ResourceCPU:    resource.MustParse("18"),
-		corev1.ResourceMemory: resource.MustParse("5"),
-	},
-}
-
-func init() {
-	// Add some aliases
-	priceList["googleCloudProvider"] = priceList["gcp"]
-	priceList["amazonWebServices"] = priceList["aws"]
-}
-
 func (g *Generator) addObjectives(list *corev1.List) error {
-	for i := range g.Application.Objectives {
+	for _, obj := range g.Application.Objectives {
 		switch {
 
-		case g.Application.Objectives[i].Cost != nil:
-			addCostMetric(&g.Application, &g.Application.Objectives[i], list)
+		case obj.Requests != nil:
+			addRequestsMetric(&obj, list)
 
 		}
 	}
@@ -65,33 +43,18 @@ func (g *Generator) addObjectives(list *corev1.List) error {
 	return nil
 }
 
-func addCostMetric(app *v1alpha1.Application, obj *v1alpha1.Objective, list *corev1.List) {
-	pricing := obj.Cost.Pricing
-	if pricing == "" {
-		switch {
-		case app.GoogleCloudPlatform != nil:
-			pricing = "gcp"
-		case app.AmazonWebServices != nil:
-			pricing = "aws"
-		default:
-			pricing = "default"
-		}
+func addRequestsMetric(obj *v1alpha1.Objective, list *corev1.List) {
+	lbl := labels.Set(obj.Requests.Labels).String()
+
+	cpuWeight := obj.Requests.Weights.Cpu()
+	if cpuWeight == nil {
+		cpuWeight = &zero
 	}
 
-	cost := priceList[pricing]
-	for k, v := range obj.Cost.PriceList {
-		cost[k] = v
+	memoryWeight := obj.Requests.Weights.Memory()
+	if memoryWeight == nil {
+		memoryWeight = &zero
 	}
-	cpuWeight := cost.Cpu()
-	if cpuWeight == nil || cpuWeight.IsZero() {
-		cpuWeight = &one
-	}
-	memoryWeight := cost.Memory()
-	if memoryWeight == nil || memoryWeight.IsZero() {
-		memoryWeight = &one
-	}
-
-	lbl := labels.Set(obj.Cost.Labels).String()
 
 	// Add the cost metric to the experiment
 	exp := findOrAddExperiment(list)
