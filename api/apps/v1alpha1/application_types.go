@@ -17,7 +17,10 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"encoding/json"
+
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -83,40 +86,50 @@ type Scenario struct {
 
 // Objective describes the goal of the optimization in terms of specific metrics.
 type Objective struct {
-	// The name of the objective.
+	// The name of the objective. If no objective specific configuration is supplied, the name is
+	// used to derive a configuration.
 	Name string `json:"name"`
-	// Cost is used to identify which parts of the application impact the cost of running the application.
-	Cost *CostObjective `json:"cost,omitempty"`
-	// Latency is used to determine which measure of API performance to optimize.
+	// The upper bound for the objective.
+	Max *resource.Quantity `json:"max,omitempty"`
+	// The lower bound for the objective.
+	Min *resource.Quantity `json:"min,omitempty"`
+
+	// Requests is used to optimize the resources consumed by an application.
+	Requests *RequestsObjective `json:"requests,omitempty"`
+	// Latency is used to optimize the responsiveness of an application.
 	Latency *LatencyObjective `json:"latency,omitempty"`
 }
 
-// CostObjective is used to estimate the cost of running an application in a specific scenario.
-type CostObjective struct {
+// RequestsObjective is used to optimize the resource requests of an application in a specific scenario.
+type RequestsObjective struct {
 	// Labels of the pods which should be considered when collecting cost information.
 	Labels map[string]string `json:"labels,omitempty"`
-	// The name of the pricing strategy to use.
-	Pricing string `json:"pricing,omitempty"`
-	// Explicit overrides to the pricing strategy.
-	PriceList corev1.ResourceList `json:"priceList,omitempty"`
+	// Weights are used to determine which container resources should be optimized.
+	Weights corev1.ResourceList `json:"weights,omitempty"`
 }
 
+// LatencyObject is used to optimize the responsiveness of an application in a specific scenario.
+type LatencyObjective struct {
+	// The latency to optimize.
+	LatencyType
+}
+
+// UnmarshalJSON allows a latency objective to be specified as a simple string.
+func (in *LatencyObjective) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &in.LatencyType)
+}
+
+// LatencyType describes a measure of latency.
 type LatencyType string
 
 const (
-	LatencyMin          LatencyType = "min"
-	LatencyMax          LatencyType = "max"
-	LatencyMean         LatencyType = "mean" // avg
-	LatencyMedian       LatencyType = "median"
-	LatencyPercentile95 LatencyType = "percentile_95" // p95
-	LatencyPercentile99 LatencyType = "percentile_99" // p99
+	LatencyMinimum      LatencyType = "minimum"
+	LatencyMaximum      LatencyType = "maximum"
+	LatencyMean         LatencyType = "mean"
+	LatencyPercentile50 LatencyType = "percentile_50"
+	LatencyPercentile95 LatencyType = "percentile_95"
+	LatencyPercentile99 LatencyType = "percentile_99"
 )
-
-// LatencyObject is used to measure performance of an application under load.
-type LatencyObjective struct {
-	// The types of latencies to optimize.
-	LatencyTypes []LatencyType `json:",inline"`
-}
 
 // GoogleCloudPlatform is used to configure details specific to applications hosted in GCP.
 type GoogleCloudPlatform struct {
