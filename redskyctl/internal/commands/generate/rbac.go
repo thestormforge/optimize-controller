@@ -17,6 +17,8 @@ limitations under the License.
 package generate
 
 import (
+	"bufio"
+	"context"
 	"fmt"
 	"path/filepath"
 	"regexp"
@@ -69,7 +71,7 @@ func NewRBACCommand(o *RBACOptions) *cobra.Command {
 
 		PreRun: func(cmd *cobra.Command, args []string) {
 			commander.SetStreams(&o.IOStreams, cmd)
-			o.Complete()
+			o.Complete(cmd.Context())
 		},
 		RunE: commander.WithoutArgsE(o.generate),
 	}
@@ -88,25 +90,39 @@ func NewRBACCommand(o *RBACOptions) *cobra.Command {
 	return cmd
 }
 
-func (o *RBACOptions) Complete() {
+func (o *RBACOptions) Complete(ctx context.Context) {
 	// Create a REST mapper to convert from GroupVersionKind (used on patch targets) to GroupVersionResource (used in policy rules)
 	rm := meta.NewDefaultRESTMapper(scheme.Scheme.PreferredVersionAllGroups())
-
-	// Add all types known to the Kubernetes Client Go scheme (we can use unsafe guess safely for these types)
 	for gvk := range scheme.Scheme.AllKnownTypes() {
 		rm.Add(gvk, meta.RESTScopeRoot)
 	}
-
-	// If we hit a CRD we will use "unsafe guess" (basically add an "s"); here are some well-known exceptions
-
-	// https://github.com/elastic/cloud-on-k8s/tree/master/config/crds/bases
-	elasticGV := schema.GroupVersion{Group: "elasticsearch.k8s.elastic.co", Version: "v1"}
-	rm.AddSpecific(elasticGV.WithKind("Elasticsearch"),
-		elasticGV.WithResource("elasticsearches"),
-		elasticGV.WithResource("elasticsearch"),
-		meta.RESTScopeRoot)
-
+	o.addInstalledCRDs(ctx, rm)
 	o.mapper = rm
+}
+
+func (o *RBACOptions) addInstalledCRDs(ctx context.Context, rm *meta.DefaultRESTMapper) {
+	cmd, err := o.Config.Kubectl(ctx, "get", "crds", "--output", "jsonpath", "--template",
+		`{range .items[*].spec}{.group}/{.version} {.names.kind} {.names.plural} {.names.singular}{"\n"}{end}`)
+	if err != nil {
+		return
+	}
+
+	stdout, _ := cmd.StdoutPipe()
+	if err := cmd.Start(); err != nil {
+		return
+	}
+
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		f := strings.Fields(scanner.Text())
+
+		gv, err := schema.ParseGroupVersion(f[0])
+		if err != nil {
+			continue
+		}
+
+		rm.AddSpecific(gv.WithKind(f[1]), gv.WithResource(f[2]), gv.WithResource(f[3]), meta.RESTScopeRoot)
+	}
 }
 
 func (o *RBACOptions) generate() error {
