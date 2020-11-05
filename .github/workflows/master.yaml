@@ -70,8 +70,7 @@ jobs:
           else
             DOCKER_REGISTRY="ghcr.io/redskyops"
             DOCKER_TAG="sha-$(git rev-parse --short HEAD)"
-            echo "IMAGE_TAG=edge"  >> $GITHUB_ENV
-            echo "${{ secrets.BMASTERS_TOKEN }}" | docker login "ghcr.io" -u "${{ secrets.BMASTERS_ACTOR }}" --password-stdin
+            echo "IMAGE_TAG=edge" >> $GITHUB_ENV
           fi
           echo "IMG=${DOCKER_REGISTRY}/redskyops-controller:${DOCKER_TAG}" >> $GITHUB_ENV
           echo "REDSKYCTL_IMG=${DOCKER_REGISTRY}/redskyctl:${DOCKER_TAG}" >> $GITHUB_ENV
@@ -90,13 +89,20 @@ jobs:
           AC_IDENTITY_P12: ${{ secrets.AC_IDENTITY_P12 }}
       - name: Push Docker images
         run: |
-          docker tag "${IMG}" "${IMG%%:*}:${IMAGE_TAG}"
-          docker tag "${REDSKYCTL_IMG}" "${REDSKYCTL_IMG%%:*}:${IMAGE_TAG}"
-          docker tag "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:${IMAGE_TAG}"
+          echo "${{ secrets.BMASTERS_TOKEN }}" | docker login "ghcr.io" -u "${{ secrets.BMASTERS_ACTOR }}" --password-stdin
           make docker-push
-          docker push "${IMG%%:*}:${IMAGE_TAG}"
-          docker push "${REDSKYCTL_IMG%%:*}:${IMAGE_TAG}"
-          docker push "${SETUPTOOLS_IMG%%:*}:${IMAGE_TAG}"
+          docker-push() {
+            docker tag "$1" "$2"
+            docker push "$2"
+          }
+          docker-push "${IMG}" "${IMG%%:*}:${IMAGE_TAG}"
+          docker-push "${REDSKYCTL_IMG}" "${REDSKYCTL_IMG%%:*}:${IMAGE_TAG}"
+          docker-push "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:${IMAGE_TAG}"
+          if [ "${IMG#ghcr.io/}" = "${IMG}" ]; then
+            docker-push "${IMG}" "ghcr.io/${IMG}"
+            docker-push "${REDSKYCTL_IMG}" "ghcr.io/${REDSKYCTL_IMG}"
+            docker-push "${SETUPTOOLS_IMG}" "ghcr.io/${SETUPTOOLS_IMG}"
+          fi
       - name: Upload macOS binary
         uses: actions/upload-artifact@v1
         with:
