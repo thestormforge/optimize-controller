@@ -308,7 +308,7 @@ func (r *ServerReconciler) reportTrial(ctx context.Context, log logr.Logger, exp
 	}
 
 	if reportTrialURL := t.GetAnnotations()[redskyv1beta1.AnnotationReportTrialURL]; reportTrialURL != "" {
-		trialValues := server.FromClusterTrial(exp, t)
+		trialValues := server.FromClusterTrial(t)
 		err := r.ExperimentsAPI.ReportTrial(ctx, reportTrialURL, *trialValues)
 		if controller.IgnoreReportError(err) != nil {
 			return &ctrl.Result{}, err

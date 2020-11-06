@@ -560,7 +560,7 @@ func TestFromClusterTrial(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			out := FromClusterTrial(&c.experiment, &c.trial)
+			out := FromClusterTrial(&c.trial)
 			assert.Equal(t, c.expectedOut, out)
 		})
 	}
