@@ -63,9 +63,6 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 			if cmd.CalledAs() == cmd.Annotations["KustomizePluginKind"] && len(args) == 1 {
 				o.Filename = args[0]
 			}
-			if o.Scenario == "" {
-				o.Scenario = "default"
-			}
 			commander.SetStreams(&o.IOStreams, cmd)
 		},
 		RunE: commander.WithoutArgsE(o.generate),
@@ -125,8 +122,6 @@ func (o *ExperimentOptions) generate() error {
 		return err
 	}
 
-	// TODO Do some sanity checks to make sure everything is valid
-
 	return o.Printer.PrintObj(list, o.Out)
 }
 
@@ -149,19 +144,27 @@ func (o *ExperimentOptions) filterResources(app *v1alpha1.Application) error {
 }
 
 func (o *ExperimentOptions) filterScenarios(app *v1alpha1.Application) error {
+	if o.Scenario == "" {
+		if len(app.Scenarios) > 1 {
+			names := make([]string, 0, len(app.Scenarios))
+			for _, s := range app.Scenarios {
+				names = append(names, s.Name)
+			}
+			return fmt.Errorf("scenario is required (should be one of '%s')", strings.Join(names, "', '"))
+		}
+		return nil
+	}
+
 	switch len(app.Scenarios) {
 
 	case 0:
-		if o.Scenario == "default" {
-			return nil
-		}
 		return fmt.Errorf("unknown scenario '%s' (application has no scenarios defined)", o.Scenario)
 
 	case 1:
 		if app.Scenarios[0].Name == o.Scenario {
 			return nil
 		}
-		return fmt.Errorf("unknown scenario '%s' (must be %s)", o.Scenario, app.Scenarios[0].Name)
+		return fmt.Errorf("unknown scenario '%s' (must be '%s')", o.Scenario, app.Scenarios[0].Name)
 
 	default:
 		names := make([]string, 0, len(app.Scenarios))
@@ -173,7 +176,7 @@ func (o *ExperimentOptions) filterScenarios(app *v1alpha1.Application) error {
 			}
 			names = append(names, app.Scenarios[i].Name)
 		}
-		return fmt.Errorf("unknown scenario '%s' (should be one of %s)", o.Scenario, strings.Join(names, ", "))
+		return fmt.Errorf("unknown scenario '%s' (should be one of '%s')", o.Scenario, strings.Join(names, "', '"))
 
 	}
 }
