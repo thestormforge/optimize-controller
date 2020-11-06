@@ -241,8 +241,8 @@ func FromClusterTrial(in *redskyv1beta1.Trial) *redskyapi.TrialValues {
 	for _, c := range in.Status.Conditions {
 		if c.Type == redskyv1beta1.TrialFailed && c.Status == corev1.ConditionTrue {
 			out.Failed = true
-			out.Reason = c.Reason
-			out.Message = c.Message
+			out.FailureReason = c.Reason
+			out.FailureMessage = c.Message
 		}
 	}
 

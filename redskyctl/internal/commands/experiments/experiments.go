@@ -358,9 +358,9 @@ func (m *experimentsMeta) ExtractValue(obj interface{}, column string) (string, 
 			}
 			return strings.Join(labels, ","), nil
 		case "failureReason":
-			return o.Reason, nil
+			return o.FailureReason, nil
 		case "failureMessage":
-			return o.Message, nil
+			return o.FailureMessage, nil
 		default:
 			// This could be a name pattern (e.g. parameter assignment, metric value, label)
 			if pn := strings.TrimPrefix(column, "parameter_"); pn != column {
