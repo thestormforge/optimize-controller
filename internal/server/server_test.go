@@ -527,9 +527,9 @@ func TestFromClusterTrial(t *testing.T) {
 				},
 			},
 			expectedOut: &redskyapi.TrialValues{
-				Failed:  true,
-				Reason:  corev1.PodReasonUnschedulable,
-				Message: "0/3 nodes are available: 3 Insufficient cpu.",
+				Failed:         true,
+				FailureReason:  corev1.PodReasonUnschedulable,
+				FailureMessage: "0/3 nodes are available: 3 Insufficient cpu.",
 			},
 		},
 		{
