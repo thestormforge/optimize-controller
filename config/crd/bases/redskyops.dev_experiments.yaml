@@ -89,6 +89,10 @@ spec:
                   properties:
                     errorQuery:
                       type: string
+                    max:
+                      type: string
+                    min:
+                      type: string
                     minimize:
                       type: boolean
                     name:
@@ -3932,6 +3936,10 @@ spec:
                   - query
                   properties:
                     errorQuery:
+                      type: string
+                    max:
+                      type: string
+                    min:
                       type: string
                     minimize:
                       type: boolean
