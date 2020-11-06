@@ -18,11 +18,14 @@ package experiment
 
 import (
 	"bytes"
+	"encoding/json"
 	"regexp"
 	"strings"
 
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/kustomize/api/resid"
 	"sigs.k8s.io/kustomize/api/resmap"
 	"sigs.k8s.io/kustomize/api/types"
@@ -185,6 +188,8 @@ type containerResources struct {
 	targetRef corev1.ObjectReference
 	// resourcesPaths are the YAML paths to the `resources` elements
 	resourcesPaths [][]string
+	// resources are the actual `resources` found at the corresponding path index
+	resources []corev1.ResourceList
 }
 
 // Empty checks to see if this application resource has anything useful in it.
@@ -216,8 +221,8 @@ func (r *containerResources) saveResourcesPaths(node *yaml.RNode, sel ContainerR
 		yaml.Lookup(path...),
 		yaml.FilterFunc(func(node *yaml.RNode) (*yaml.RNode, error) {
 			return nil, node.VisitElements(func(node *yaml.RNode) error {
-				// TODO Capture existing resources for a baseline?
-				if node.Field("resources") == nil && !sel.CreateIfNotPresent {
+				rl := node.Field("resources")
+				if rl == nil && !sel.CreateIfNotPresent {
 					return nil
 				}
 
@@ -227,6 +232,7 @@ func (r *containerResources) saveResourcesPaths(node *yaml.RNode, sel ContainerR
 				}
 
 				r.resourcesPaths = append(r.resourcesPaths, append(path, "[name="+name+"]", "resources"))
+				r.resources = append(r.resources, materializeResourceList(rl))
 				return nil
 			})
 		}))
@@ -236,14 +242,25 @@ func (r *containerResources) saveResourcesPaths(node *yaml.RNode, sel ContainerR
 func (r *containerResources) resourcesParameters(name nameGen) []redskyv1beta1.Parameter {
 	parameters := make([]redskyv1beta1.Parameter, 0, len(r.resourcesPaths)*2)
 	for i := range r.resourcesPaths {
+		var baselineMemory, baselineCPU *intstr.IntOrString
+		if q, ok := r.resources[i][corev1.ResourceMemory]; ok {
+			scaled := intstr.FromInt(int(q.ScaledValue(resource.Mega)))
+			baselineMemory = &scaled
+		}
+		if q, ok := r.resources[i][corev1.ResourceCPU]; ok {
+			scaled := intstr.FromInt(int(q.ScaledValue(resource.Milli)))
+			baselineCPU = &scaled
+		}
 		parameters = append(parameters, redskyv1beta1.Parameter{
-			Name: name(&r.targetRef, r.resourcesPaths[i], "memory"),
-			Min:  defaultParameterMin,
-			Max:  defaultParameterMax,
+			Name:     name(&r.targetRef, r.resourcesPaths[i], "memory"),
+			Min:      defaultParameterMin,
+			Max:      defaultParameterMax,
+			Baseline: baselineMemory,
 		}, redskyv1beta1.Parameter{
-			Name: name(&r.targetRef, r.resourcesPaths[i], "cpu"),
-			Min:  defaultParameterMin,
-			Max:  defaultParameterMax,
+			Name:     name(&r.targetRef, r.resourcesPaths[i], "cpu"),
+			Min:      defaultParameterMin,
+			Max:      defaultParameterMax,
+			Baseline: baselineCPU,
 		})
 	}
 	return parameters
@@ -259,7 +276,7 @@ func (r *containerResources) resourcesPatch(name nameGen) (*redskyv1beta1.PatchT
 
 	for i := range r.resourcesPaths {
 		// Construct limits/requests values
-		memory := "{{ .Values." + name(&r.targetRef, r.resourcesPaths[i], "memory") + " }}Mi"
+		memory := "{{ .Values." + name(&r.targetRef, r.resourcesPaths[i], "memory") + " }}M"
 		cpu := "{{ .Values." + name(&r.targetRef, r.resourcesPaths[i], "cpu") + " }}m"
 		values, err := yaml.NewRNode(&yaml.Node{Kind: yaml.MappingNode}).Pipe(
 			yaml.Tee(yaml.SetField("memory", yaml.NewScalarRNode(memory))),
@@ -352,6 +369,20 @@ func parameterName(prefix nameGen, cr *containerResources) nameGen {
 		// Join everything together using the requested parameter name at the end
 		return strings.Join(append(parts, name), "_")
 	}
+}
+
+// materializeResourceList returns a resource list from the supplied node.
+func materializeResourceList(node *yaml.MapNode) corev1.ResourceList {
+	resources := struct {
+		Limits   corev1.ResourceList `json:"limits"`
+		Requests corev1.ResourceList `json:"requests"`
+	}{}
+	if node != nil {
+		if data, err := node.Value.MarshalJSON(); err == nil {
+			_ = json.Unmarshal(data, &resources)
+		}
+	}
+	return resources.Requests
 }
 
 // mergeOrAppend appends a container resources pointer unless it already exists, in which case the
