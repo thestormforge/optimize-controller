@@ -94,6 +94,8 @@ type Metric struct {
 	Min *resource.Quantity `json:"min,omitempty"`
 	// The inclusive maximum allowed value for the metric
 	Max *resource.Quantity `json:"max,omitempty"`
+	// Indicator that this metric should be optimized (default: true)
+	Optimize *bool `json:"optimize,omitempty"`
 
 	// The metric collection type, one of: local|pods|prometheus|datadog|jsonpath, default: local
 	Type MetricType `json:"type,omitempty"`

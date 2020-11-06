@@ -489,12 +489,13 @@ func TestToClusterTrial(t *testing.T) {
 func TestFromClusterTrial(t *testing.T) {
 	cases := []struct {
 		desc        string
-		in          *redskyv1beta1.Trial
+		experiment  redskyv1beta1.Experiment
+		trial       redskyv1beta1.Trial
 		expectedOut *redskyapi.TrialValues
 	}{
 		{
 			desc: "no conditions",
-			in: &redskyv1beta1.Trial{
+			trial: redskyv1beta1.Trial{
 				Status: redskyv1beta1.TrialStatus{
 					Conditions: []redskyv1beta1.TrialCondition{},
 				},
@@ -503,7 +504,7 @@ func TestFromClusterTrial(t *testing.T) {
 		},
 		{
 			desc: "not failed",
-			in: &redskyv1beta1.Trial{
+			trial: redskyv1beta1.Trial{
 				Status: redskyv1beta1.TrialStatus{
 					Conditions: []redskyv1beta1.TrialCondition{
 						{Type: redskyv1beta1.TrialComplete, Status: corev1.ConditionTrue},
@@ -514,7 +515,7 @@ func TestFromClusterTrial(t *testing.T) {
 		},
 		{
 			desc: "failed",
-			in: &redskyv1beta1.Trial{
+			trial: redskyv1beta1.Trial{
 				Status: redskyv1beta1.TrialStatus{
 					Conditions: []redskyv1beta1.TrialCondition{
 						{
@@ -534,7 +535,7 @@ func TestFromClusterTrial(t *testing.T) {
 		},
 		{
 			desc: "conditions not failed",
-			in: &redskyv1beta1.Trial{
+			trial: redskyv1beta1.Trial{
 				Status: redskyv1beta1.TrialStatus{
 					Conditions: []redskyv1beta1.TrialCondition{
 						{Type: redskyv1beta1.TrialComplete, Status: corev1.ConditionTrue},
@@ -559,7 +560,7 @@ func TestFromClusterTrial(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			out := FromClusterTrial(c.in)
+			out := FromClusterTrial(&c.trial)
 			assert.Equal(t, c.expectedOut, out)
 		})
 	}

@@ -145,6 +145,7 @@ func FromCluster(in *redskyv1beta1.Experiment) (redskyapi.ExperimentName, *redsk
 		out.Metrics = append(out.Metrics, redskyapi.Metric{
 			Name:     m.Name,
 			Minimize: m.Minimize,
+			Optimize: m.Optimize,
 		})
 	}
 
@@ -234,11 +235,11 @@ func ToClusterTrial(t *redskyv1beta1.Trial, suggestion *redskyapi.TrialAssignmen
 }
 
 // FromClusterTrial converts cluster state to API state
-func FromClusterTrial(in *redskyv1beta1.Trial) *redskyapi.TrialValues {
+func FromClusterTrial(t *redskyv1beta1.Trial) *redskyapi.TrialValues {
 	out := &redskyapi.TrialValues{}
 
 	// Check to see if the trial failed
-	for _, c := range in.Status.Conditions {
+	for _, c := range t.Status.Conditions {
 		if c.Type == redskyv1beta1.TrialFailed && c.Status == corev1.ConditionTrue {
 			out.Failed = true
 			out.FailureReason = c.Reason
@@ -249,7 +250,7 @@ func FromClusterTrial(in *redskyv1beta1.Trial) *redskyapi.TrialValues {
 	// Record the values only if we didn't fail
 	out.Values = nil
 	if !out.Failed {
-		for _, v := range in.Spec.Values {
+		for _, v := range t.Spec.Values {
 			if fv, err := strconv.ParseFloat(v.Value, 64); err == nil {
 				value := redskyapi.Value{
 					MetricName: v.Name,

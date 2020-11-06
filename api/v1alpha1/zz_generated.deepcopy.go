@@ -327,6 +327,11 @@ func (in *Metric) DeepCopyInto(out *Metric) {
 		x := (*in).DeepCopy()
 		*out = &x
 	}
+	if in.Optimize != nil {
+		in, out := &in.Optimize, &out.Optimize
+		*out = new(bool)
+		**out = **in
+	}
 	if in.Selector != nil {
 		in, out := &in.Selector, &out.Selector
 		*out = new(v1.LabelSelector)
