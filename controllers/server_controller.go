@@ -97,7 +97,7 @@ func (r *ServerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		if meta.HasFinalizer(t, server.Finalizer) {
 			// TODO Combine report and abandon into one function
 			if trial.IsFinished(t) {
-				if result, err := r.reportTrial(ctx, tlog, exp, t); result != nil {
+				if result, err := r.reportTrial(ctx, tlog, t); result != nil {
 					return *result, err
 				}
 			} else if trial.IsAbandoned(t) {
@@ -302,7 +302,7 @@ func (r *ServerReconciler) nextTrial(ctx context.Context, log logr.Logger, exp *
 }
 
 // reportTrial will report the values from a finished in cluster trial back to the server
-func (r *ServerReconciler) reportTrial(ctx context.Context, log logr.Logger, exp *redskyv1beta1.Experiment, t *redskyv1beta1.Trial) (*ctrl.Result, error) {
+func (r *ServerReconciler) reportTrial(ctx context.Context, log logr.Logger, t *redskyv1beta1.Trial) (*ctrl.Result, error) {
 	if !meta.RemoveFinalizer(t, server.Finalizer) {
 		return nil, nil
 	}
