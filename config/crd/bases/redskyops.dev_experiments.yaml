@@ -182,6 +182,10 @@ spec:
                   required:
                   - name
                   properties:
+                    baseline:
+                      anyOf:
+                      - type: string
+                      - type: integer
                     max:
                       type: integer
                       format: int32
@@ -4022,6 +4026,10 @@ spec:
                   required:
                   - name
                   properties:
+                    baseline:
+                      anyOf:
+                      - type: string
+                      - type: integer
                     max:
                       type: integer
                       format: int32

@@ -28,6 +28,7 @@ import (
 	"k8s.io/api/batch/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/scheme"
 )
 
@@ -122,13 +123,50 @@ func checkParameters(lint Linter, parameters []redskyv1beta1.Parameter) {
 		lint.Error().Missing("parameters")
 	}
 
+	var baseline int
 	for i := range parameters {
 		checkParameter(lint.For(i), &parameters[i])
+		if parameters[i].Baseline != nil {
+			baseline++
+		}
+	}
+
+	if baseline > 0 && baseline != len(parameters) {
+		lint.Warning().Missing("baseline: should be on all parameters or none")
 	}
 
 }
 
 func checkParameter(lint Linter, parameter *redskyv1beta1.Parameter) {
+
+	if parameter.Baseline != nil {
+		if parameter.Baseline.Type == intstr.String {
+			if parameter.Min > 0 || parameter.Max > 0 {
+				lint.For().Error().Invalid("baseline", parameter.Baseline, "<number>")
+			} else if len(parameter.Values) > 0 {
+				var allowed []interface{}
+				for _, v := range parameter.Values {
+					if parameter.Baseline.StrVal != v {
+						allowed = append(allowed, v)
+					}
+				}
+				if len(allowed) == len(parameter.Values) {
+					lint.For().Error().Invalid("baseline", parameter.Baseline, allowed...)
+				}
+			}
+		} else {
+			if len(parameter.Values) > 0 {
+				lint.For().Error().Invalid("baseline", parameter.Baseline, parameter.Values)
+			} else if parameter.Min != parameter.Max {
+				if parameter.Baseline.IntVal < parameter.Min {
+					lint.For().Error().Invalid("baseline", parameter.Baseline, fmt.Sprintf("<greater than %d>", parameter.Min))
+				}
+				if parameter.Baseline.IntVal > parameter.Max {
+					lint.For().Error().Invalid("baseline", parameter.Baseline, fmt.Sprintf("<less than %d>", parameter.Max))
+				}
+			}
+		}
+	}
 
 }
 

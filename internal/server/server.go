@@ -28,6 +28,7 @@ import (
 	"github.com/redskyops/redskyops-controller/internal/experiment"
 	"github.com/redskyops/redskyops-controller/internal/trial"
 	redskyapi "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
+	"github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1/numstr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -41,11 +42,13 @@ const (
 // TODO Split this into trial.go and experiment.go ?
 
 // FromCluster converts cluster state to API state
-func FromCluster(in *redskyv1beta1.Experiment) (redskyapi.ExperimentName, *redskyapi.Experiment) {
+func FromCluster(in *redskyv1beta1.Experiment) (redskyapi.ExperimentName, *redskyapi.Experiment, *redskyapi.TrialAssignments) {
 	out := &redskyapi.Experiment{}
 	out.ExperimentMeta.LastModified = in.CreationTimestamp.Time
 	out.ExperimentMeta.SelfURL = in.Annotations[redskyv1beta1.AnnotationExperimentURL]
 	out.ExperimentMeta.NextTrialURL = in.Annotations[redskyv1beta1.AnnotationNextTrialURL]
+
+	baseline := &redskyapi.TrialAssignments{Labels: map[string]string{"baseline": "true"}}
 
 	if l := len(in.ObjectMeta.Labels); l > 0 {
 		out.Labels = make(map[string]string, l)
@@ -83,6 +86,19 @@ func FromCluster(in *redskyv1beta1.Experiment) (redskyapi.ExperimentName, *redsk
 					Min: json.Number(strconv.FormatInt(int64(p.Min), 10)),
 					Max: json.Number(strconv.FormatInt(int64(p.Max), 10)),
 				},
+			})
+		}
+
+		if p.Baseline != nil {
+			var v numstr.NumberOrString
+			if p.Baseline.Type == intstr.String {
+				v = numstr.FromString(p.Baseline.StrVal)
+			} else {
+				v = numstr.FromInt64(int64(p.Baseline.IntVal))
+			}
+			baseline.Assignments = append(baseline.Assignments, redskyapi.Assignment{
+				ParameterName: p.Name,
+				Value:         v,
 			})
 		}
 	}
@@ -132,8 +148,13 @@ func FromCluster(in *redskyv1beta1.Experiment) (redskyapi.ExperimentName, *redsk
 		})
 	}
 
+	// We need all of the assignments to include the baseline
+	if len(baseline.Assignments) == 0 || len(baseline.Assignments) != len(out.Parameters) {
+		baseline = nil
+	}
+
 	n := redskyapi.NewExperimentName(in.Name)
-	return n, out
+	return n, out, baseline
 }
 
 // ToCluster converts API state to cluster state

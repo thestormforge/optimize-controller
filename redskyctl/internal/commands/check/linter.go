@@ -21,6 +21,8 @@ import (
 	"path"
 )
 
+// TODO Just replace this whole thing with a structured logger
+
 // Linter is a collector of lint errors
 type Linter interface {
 	// For returns a new linter at the specified path
@@ -98,7 +100,13 @@ func (l *lc) Missing(thing string) {
 }
 
 func (l *lc) Invalid(thing string, was interface{}, allowed ...interface{}) {
-	l.aa("Invalid %s: was '%s', expected one of %s", thing, was, allowed)
+	if len(allowed) > 1 {
+		l.aa("Invalid %s: was '%s', expected one of %s", thing, was, allowed)
+	} else if len(allowed) == 1 {
+		l.aa("Invalid %s: was '%s', expected %s", thing, was, allowed[0])
+	} else {
+		l.aa("Invalid %s: was '%s'", thing, was)
+	}
 }
 
 func (l *lc) Failed(thing string, err error) {

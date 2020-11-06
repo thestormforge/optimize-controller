@@ -35,6 +35,8 @@ type Optimization struct {
 type Parameter struct {
 	// The name of the parameter
 	Name string `json:"name"`
+	// The baseline value for this parameter.
+	Baseline *intstr.IntOrString `json:"baseline,omitempty"`
 	// The inclusive minimum value of the parameter
 	Min int32 `json:"min,omitempty"`
 	// The inclusive maximum value of the parameter

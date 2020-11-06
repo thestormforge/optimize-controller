@@ -35,12 +35,16 @@ import (
 )
 
 func TestFromCluster(t *testing.T) {
+	one := intstr.FromInt(1)
+	two := intstr.FromInt(2)
+	three := intstr.FromString("three")
 	now := time.Now()
 	cases := []struct {
-		desc string
-		in   *redskyv1beta1.Experiment
-		out  *redskyapi.Experiment
-		name redskyapi.ExperimentName
+		desc     string
+		in       *redskyv1beta1.Experiment
+		out      *redskyapi.Experiment
+		name     redskyapi.ExperimentName
+		baseline *redskyapi.TrialAssignments
 	}{
 		{
 			desc: "basic",
@@ -218,12 +222,83 @@ func TestFromCluster(t *testing.T) {
 				},
 			},
 		},
+		{
+			desc: "baseline",
+			in: &redskyv1beta1.Experiment{
+				Spec: redskyv1beta1.ExperimentSpec{
+					Parameters: []redskyv1beta1.Parameter{
+						{Name: "one", Min: 0, Max: 1, Baseline: &one},
+						{Name: "two", Min: 0, Max: 1, Baseline: &two},
+						{Name: "three", Min: 0, Max: 1, Baseline: &three},
+					},
+				},
+			},
+			out: &redskyapi.Experiment{
+				Parameters: []redskyapi.Parameter{
+					{
+						Type:   redskyapi.ParameterTypeInteger,
+						Name:   "one",
+						Bounds: &redskyapi.Bounds{Min: "0", Max: "1"},
+					},
+					{
+						Type:   redskyapi.ParameterTypeInteger,
+						Name:   "two",
+						Bounds: &redskyapi.Bounds{Min: "0", Max: "1"},
+					},
+					{
+						Type:   redskyapi.ParameterTypeInteger,
+						Name:   "three",
+						Bounds: &redskyapi.Bounds{Min: "0", Max: "1"},
+					},
+				},
+			},
+			baseline: &redskyapi.TrialAssignments{
+				Labels: map[string]string{"baseline": "true"},
+				Assignments: []redskyapi.Assignment{
+					{ParameterName: "one", Value: numstr.FromInt64(1)},
+					{ParameterName: "two", Value: numstr.FromInt64(2)},
+					{ParameterName: "three", Value: numstr.FromString("three")},
+				},
+			},
+		},
+		{
+			desc: "baseline missing",
+			in: &redskyv1beta1.Experiment{
+				Spec: redskyv1beta1.ExperimentSpec{
+					Parameters: []redskyv1beta1.Parameter{
+						{Name: "one", Min: 0, Max: 1, Baseline: &one},
+						{Name: "two", Min: 0, Max: 1, Baseline: &two},
+						{Name: "three", Min: 0, Max: 1},
+					},
+				},
+			},
+			out: &redskyapi.Experiment{
+				Parameters: []redskyapi.Parameter{
+					{
+						Type:   redskyapi.ParameterTypeInteger,
+						Name:   "one",
+						Bounds: &redskyapi.Bounds{Min: "0", Max: "1"},
+					},
+					{
+						Type:   redskyapi.ParameterTypeInteger,
+						Name:   "two",
+						Bounds: &redskyapi.Bounds{Min: "0", Max: "1"},
+					},
+					{
+						Type:   redskyapi.ParameterTypeInteger,
+						Name:   "three",
+						Bounds: &redskyapi.Bounds{Min: "0", Max: "1"},
+					},
+				},
+			},
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			name, out := FromCluster(c.in)
+			name, out, baseline := FromCluster(c.in)
 			assert.Equal(t, c.in.Name, name.Name())
 			assert.Equal(t, c.out, out)
+			assert.Equal(t, c.baseline, baseline)
 		})
 	}
 }
