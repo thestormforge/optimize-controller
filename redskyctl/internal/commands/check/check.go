@@ -37,7 +37,6 @@ func NewCommand(o *Options) *cobra.Command {
 
 	cmd.AddCommand(NewConfigCommand(&ConfigOptions{Config: o.Config}))
 	cmd.AddCommand(NewExperimentCommand(&ExperimentOptions{}))
-	cmd.AddCommand(NewServerCommand(&ServerOptions{Config: o.Config}))
 	cmd.AddCommand(NewVersionCommand(&VersionOptions{}))
 	cmd.AddCommand(NewControllerCommand(&ControllerOptions{Config: o.Config}))
 
