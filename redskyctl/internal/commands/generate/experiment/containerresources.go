@@ -33,11 +33,6 @@ import (
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
-const (
-	defaultParameterMin = 100
-	defaultParameterMax = 4000
-)
-
 // ContainerResourcesSelector identifies zero or more container resources specifications.
 // NOTE: This object is basically a combination of a Kustomize FieldSpec and a Selector.
 type ContainerResourcesSelector struct {
@@ -247,19 +242,23 @@ func (r *containerResources) resourcesParameters(name nameGen) []redskyv1beta1.P
 			scaled := intstr.FromInt(int(q.ScaledValue(resource.Mega)))
 			baselineMemory = &scaled
 		}
+		var minMemory, maxMemory int32 = 128, 4096
+
 		if q, ok := r.resources[i][corev1.ResourceCPU]; ok {
 			scaled := intstr.FromInt(int(q.ScaledValue(resource.Milli)))
 			baselineCPU = &scaled
 		}
+		var minCPU, maxCPU int32 = 100, 4000
+
 		parameters = append(parameters, redskyv1beta1.Parameter{
 			Name:     name(&r.targetRef, r.resourcesPaths[i], "memory"),
-			Min:      defaultParameterMin,
-			Max:      defaultParameterMax,
+			Min:      minMemory,
+			Max:      maxMemory,
 			Baseline: baselineMemory,
 		}, redskyv1beta1.Parameter{
 			Name:     name(&r.targetRef, r.resourcesPaths[i], "cpu"),
-			Min:      defaultParameterMin,
-			Max:      defaultParameterMax,
+			Min:      minCPU,
+			Max:      maxCPU,
 			Baseline: baselineCPU,
 		})
 	}

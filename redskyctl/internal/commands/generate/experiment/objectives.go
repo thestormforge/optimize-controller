@@ -63,8 +63,8 @@ func addRequestsMetric(obj *v1alpha1.Objective, list *corev1.List) {
 		Minimize: true,
 		Type:     redskyv1beta1.MetricPrometheus,
 		Query:    fmt.Sprintf(costQueryFormat, lbl, cpuWeight.Value(), lbl, memoryWeight.Value()),
-		Max:      obj.Max,
 		Min:      obj.Min,
+		Max:      obj.Max,
 	})
 
 	// The cost metric requires Prometheus
