@@ -93,6 +93,8 @@ type Objective struct {
 	Max *resource.Quantity `json:"max,omitempty"`
 	// The lower bound for the objective.
 	Min *resource.Quantity `json:"min,omitempty"`
+	// Flag indicating that this objective should optimized instead of monitored (default: true).
+	Optimize *bool `json:"optimize,omitempty"`
 
 	// Requests is used to optimize the resources consumed by an application.
 	Requests *RequestsObjective `json:"requests,omitempty"`

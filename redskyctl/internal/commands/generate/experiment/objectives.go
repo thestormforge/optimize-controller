@@ -28,7 +28,7 @@ import (
 
 var zero = resource.MustParse("0")
 
-const costQueryFormat = `({{ cpuRequests . "%s" }} * %d) + ({{ memoryRequests . "%s" | GB }} * %d)`
+const requestsQueryFormat = `({{ cpuRequests . "%s" }} * %d) + ({{ memoryRequests . "%s" | GB }} * %d)`
 
 func (g *Generator) addObjectives(list *corev1.List) error {
 	for _, obj := range g.Application.Objectives {
@@ -62,9 +62,10 @@ func addRequestsMetric(obj *v1alpha1.Objective, list *corev1.List) {
 		Name:     obj.Name,
 		Minimize: true,
 		Type:     redskyv1beta1.MetricPrometheus,
-		Query:    fmt.Sprintf(costQueryFormat, lbl, cpuWeight.Value(), lbl, memoryWeight.Value()),
+		Query:    fmt.Sprintf(requestsQueryFormat, lbl, cpuWeight.Value(), lbl, memoryWeight.Value()),
 		Min:      obj.Min,
 		Max:      obj.Max,
+		Optimize: obj.Optimize,
 	})
 
 	// The cost metric requires Prometheus
