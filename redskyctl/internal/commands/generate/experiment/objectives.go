@@ -18,6 +18,7 @@ package experiment
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
@@ -67,6 +68,24 @@ func addRequestsMetric(obj *v1alpha1.Objective, list *corev1.List) {
 		Max:      obj.Max,
 		Optimize: obj.Optimize,
 	})
+
+	// If the name contains "cost" and the weights are non-zero, add non-optimized metrics for each request
+	if strings.Contains(obj.Name, "cost") && !cpuWeight.IsZero() && !memoryWeight.IsZero() && (obj.Optimize == nil || *obj.Optimize) {
+		nonOptimized := false
+		exp.Spec.Metrics = append(exp.Spec.Metrics, redskyv1beta1.Metric{
+			Name:     obj.Name + "-cpu-requests",
+			Minimize: true,
+			Optimize: &nonOptimized,
+			Type:     redskyv1beta1.MetricPrometheus,
+			Query:    fmt.Sprintf("{{ cpuRequests . \"%s\" }}", lbl),
+		}, redskyv1beta1.Metric{
+			Name:     obj.Name + "-memory-requests",
+			Minimize: true,
+			Optimize: &nonOptimized,
+			Type:     redskyv1beta1.MetricPrometheus,
+			Query:    fmt.Sprintf("{{ memoryRequests . \"%s\" }}", lbl), // TODO Convert to GB?
+		})
+	}
 
 	// The cost metric requires Prometheus
 	ensurePrometheus(list)
