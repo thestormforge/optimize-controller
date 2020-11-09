@@ -182,6 +182,11 @@ func (in *Objective) DeepCopyInto(out *Objective) {
 		x := (*in).DeepCopy()
 		*out = &x
 	}
+	if in.Optimize != nil {
+		in, out := &in.Optimize, &out.Optimize
+		*out = new(bool)
+		**out = **in
+	}
 	if in.Requests != nil {
 		in, out := &in.Requests, &out.Requests
 		*out = new(RequestsObjective)
