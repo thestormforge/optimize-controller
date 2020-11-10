@@ -54,6 +54,9 @@ type Application struct {
 	// AmazonWebServices allows you to configure hosting details specific to AWS.
 	AmazonWebServices *AmazonWebServices `json:"amazonWebServices,omitempty"`
 
+	// StormForger allows you to configure StormForger to apply load on your application.
+	StormForger *StormForger `json:"stormForger,omitempty"`
+
 	// TODO We should have a qualityOfService: section were you can specify things like
 	// the percentage of the max that resources are expected to use (then we add both limits and requests and a constraint)
 	// or the "max latency" for the application (we could add a non-optimized metric to capture it).
@@ -82,6 +85,16 @@ type Ingress struct {
 type Scenario struct {
 	// The name of scenario.
 	Name string `json:"name"`
+	// StormForger configuration for the scenario.
+	StormForger *StormForgerScenario `json:"stormforger,omitempty"`
+}
+
+// StormForgerScenario is used to generate load using StormForger.
+type StormForgerScenario struct {
+	// Override the generated test case name.
+	TestCase string `json:"testCase,omitempty"`
+	// Path to the test case file.
+	TestCaseFile string `json:"testCaseFile,omitempty"`
 }
 
 // Objective describes the goal of the optimization in terms of specific metrics.
@@ -139,6 +152,24 @@ type GoogleCloudPlatform struct {
 
 // AmazonWebServices is used to configure details specific to applications hosted in AWS.
 type AmazonWebServices struct {
+}
+
+// StormForger describes global configuration related to StormForger.
+type StormForger struct {
+	// The name of the StormForger organization.
+	Organization string `json:"org,omitempty"`
+	// Configuration for the StormForger service account.
+	AccessToken *StormForgerAccessToken `json:"accessToken,omitempty"`
+}
+
+// StormForgerAccessToken is used to configure a service account access token for the StormForger API.
+type StormForgerAccessToken struct {
+	// The path to the file that contains the service account access token.
+	File string `json:"file,omitempty"`
+	// A literal token value, this should only be used for testing as it is not secure.
+	Literal string `json:"literal,omitempty"`
+	// Reference to an existing secret key that contains the access token.
+	SecretKeyRef *corev1.SecretKeySelector `json:"secretKeyRef,omitempty"`
 }
 
 func init() {
