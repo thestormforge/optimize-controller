@@ -274,26 +274,22 @@ func ensureStormForgerSecret(at *v1alpha1.StormForgerAccessToken, ldr ifc.Loader
 	}
 
 	// Use a constant reference
-	const (
-		name = "stormforger-service-account"
-		key  = "accessToken"
-	)
 	stormForgerJWT.ValueFrom.SecretKeyRef = &corev1.SecretKeySelector{
 		LocalObjectReference: corev1.LocalObjectReference{
-			Name: name,
+			Name: v1alpha1.StormForgerAccessTokenSecretName,
 		},
-		Key: key,
+		Key: v1alpha1.StormForgerAccessTokenSecretKey,
 	}
 
 	// If we find the secret in the list, we are done
 	var secret *corev1.Secret
 	for i := range list.Items {
 		if s, ok := list.Items[i].Object.(*corev1.Secret); ok {
-			if s.Name == name {
+			if s.Name == stormForgerJWT.ValueFrom.SecretKeyRef.Name {
 				secret = s
 
 				// If the key is missing we still have work to do
-				if _, ok := s.Data[key]; !ok {
+				if _, ok := s.Data[stormForgerJWT.ValueFrom.SecretKeyRef.Key]; !ok {
 					break
 				}
 				return stormForgerJWT, nil
@@ -305,7 +301,7 @@ func ensureStormForgerSecret(at *v1alpha1.StormForgerAccessToken, ldr ifc.Loader
 	if secret == nil {
 		secret = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: name,
+				Name: stormForgerJWT.ValueFrom.SecretKeyRef.Name,
 			},
 			Type: corev1.SecretTypeOpaque,
 		}
@@ -314,7 +310,7 @@ func ensureStormForgerSecret(at *v1alpha1.StormForgerAccessToken, ldr ifc.Loader
 
 	switch {
 	case at != nil && at.Literal != "":
-		secret.StringData = map[string]string{key: at.Literal}
+		secret.StringData = map[string]string{stormForgerJWT.ValueFrom.SecretKeyRef.Key: at.Literal}
 
 	case at != nil && at.File != "":
 		data, err := ldr.Load(at.File)
@@ -322,10 +318,10 @@ func ensureStormForgerSecret(at *v1alpha1.StormForgerAccessToken, ldr ifc.Loader
 			return nil, fmt.Errorf("unable to load StormForger access token: %w", err)
 		}
 
-		secret.Data = map[string][]byte{key: data}
+		secret.Data = map[string][]byte{stormForgerJWT.ValueFrom.SecretKeyRef.Key: data}
 
 	default:
-		secret.Data = map[string][]byte{key: nil}
+		secret.Data = map[string][]byte{stormForgerJWT.ValueFrom.SecretKeyRef.Key: nil}
 	}
 
 	return stormForgerJWT, nil

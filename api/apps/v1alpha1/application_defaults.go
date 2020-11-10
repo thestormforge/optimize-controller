@@ -30,6 +30,11 @@ func init() {
 	localSchemeBuilder.Register(RegisterDefaults)
 }
 
+const (
+	StormForgerAccessTokenSecretName = "stormforger-service-account"
+	StormForgerAccessTokenSecretKey  = "accessToken"
+)
+
 // Register the defaulting function for the application root object.
 func RegisterDefaults(s *runtime.Scheme) error {
 	s.AddTypeDefaultingFunc(&Application{}, func(obj interface{}) { obj.(*Application).Default() })
@@ -46,6 +51,8 @@ func (in *Application) Default() {
 	for i := range in.Objectives {
 		in.Objectives[i].Default()
 	}
+
+	in.StormForger.Default()
 }
 
 func (in *Scenario) Default() {
@@ -57,6 +64,33 @@ func (in *Scenario) Default() {
 			in.Name = strings.TrimSuffix(in.Name, filepath.Ext(in.Name))
 		} else {
 			in.Name = "default"
+		}
+	}
+}
+
+func (in *StormForger) Default() {
+	if in == nil {
+		return
+	}
+
+	in.AccessToken.Default()
+}
+
+func (in *StormForgerAccessToken) Default() {
+	if in == nil {
+		return
+	}
+
+	if in.File == "" && in.Literal == "" && in.SecretKeyRef == nil {
+		in.SecretKeyRef = &corev1.SecretKeySelector{}
+	}
+
+	if in.SecretKeyRef != nil {
+		if in.SecretKeyRef.Name == "" {
+			in.SecretKeyRef.Name = StormForgerAccessTokenSecretName
+		}
+		if in.SecretKeyRef.Key == "" {
+			in.SecretKeyRef.Key = StormForgerAccessTokenSecretKey
 		}
 	}
 }
