@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"path/filepath"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -49,7 +50,14 @@ func (in *Application) Default() {
 
 func (in *Scenario) Default() {
 	if in.Name == "" {
-		in.Name = "default"
+		if in.StormForger != nil && in.StormForger.TestCase != "" {
+			in.Name = in.StormForger.TestCase
+		} else if in.StormForger != nil && in.StormForger.TestCaseFile != "" {
+			in.Name = filepath.Base(in.StormForger.TestCaseFile)
+			in.Name = strings.TrimSuffix(in.Name, filepath.Ext(in.Name))
+		} else {
+			in.Name = "default"
+		}
 	}
 }
 

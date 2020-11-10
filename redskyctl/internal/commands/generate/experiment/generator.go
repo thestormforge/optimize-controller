@@ -75,6 +75,11 @@ func (g *Generator) Generate() (*corev1.List, error) {
 		return nil, err
 	}
 
+	// Add a trial job based on the scenario of the application
+	if err := g.addScenario(arm, list); err != nil {
+		return nil, err
+	}
+
 	// Update the metadata of the generated objects
 	for i := range list.Items {
 		// Get a generic accessor for the list item
