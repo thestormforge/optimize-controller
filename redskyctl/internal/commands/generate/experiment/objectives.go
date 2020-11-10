@@ -90,3 +90,50 @@ func addRequestsMetric(obj *v1alpha1.Objective, list *corev1.List) {
 	// The cost metric requires Prometheus
 	ensurePrometheus(list)
 }
+
+// addStormForgerObjectives adds metrics for objectives supported by StormForger.
+func addStormForgerObjectives(app *v1alpha1.Application, list *corev1.List) error {
+	for _, obj := range app.Objectives {
+		switch {
+
+		case obj.Latency != nil:
+			addStormForgerLatencyMetric(&obj, list)
+
+		}
+	}
+
+	return nil
+}
+
+func addStormForgerLatencyMetric(obj *v1alpha1.Objective, list *corev1.List) {
+	var m string
+	switch v1alpha1.FixLatency(obj.Latency.LatencyType) {
+	case v1alpha1.LatencyMinimum:
+		m = "min"
+	case v1alpha1.LatencyMaximum:
+		m = "max"
+	case v1alpha1.LatencyMean:
+		m = "mean"
+	case v1alpha1.LatencyPercentile50:
+		m = "median"
+	case v1alpha1.LatencyPercentile95:
+		m = "percentile_95"
+	case v1alpha1.LatencyPercentile99:
+		m = "percentile_99"
+	default:
+		// This is not a latency measure that StormForger can produce, skip it
+		return
+	}
+
+	// Filter the metric to match what was sent to the Push Gateway
+	exp := findOrAddExperiment(list)
+	exp.Spec.Metrics = append(exp.Spec.Metrics, redskyv1beta1.Metric{
+		Name:     obj.Name,
+		Minimize: true,
+		Type:     redskyv1beta1.MetricPrometheus,
+		Query:    m + `{job="trialRun",instance="{{ .Trial.Name }}"}`,
+		Min:      obj.Min,
+		Max:      obj.Max,
+		Optimize: obj.Optimize,
+	})
+}
