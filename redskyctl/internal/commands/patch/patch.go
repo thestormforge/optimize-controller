@@ -58,8 +58,8 @@ type Options struct {
 func NewCommand(o *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "patch",
-		Short: "Create a patched manifest using trial parameters.",
-		Long:  "Create a patched manifest using the parameters from the specified trial.",
+		Short: "Create a patched manifest using trial parameters",
+		Long:  "Create a patched manifest using the parameters from the specified trial",
 
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			commander.SetStreams(&o.IOStreams, cmd)
@@ -91,8 +91,6 @@ func (o *Options) patch(ctx context.Context) error {
 	}
 
 	exp := &redsky.Experiment{}
-	// since we've already read the input, we'll use "-" as the filename
-	// to trigger reading from an io.Reader
 	rr := commander.NewResourceReader()
 	if err := rr.ReadInto(ioutil.NopCloser(bytes.NewReader(experimentBytes)), exp); err != nil {
 		return err
