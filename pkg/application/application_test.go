@@ -24,20 +24,66 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+func TestExperimentName(t *testing.T) {
+	cases := []struct {
+		name string
+		app  v1alpha1.Application
+	}{
+		{
+			name: "application-testcase-objective",
+			app: v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{Name: "application"},
+				Scenarios: []v1alpha1.Scenario{
+					{
+						// NOTE: This relies on the behavior of `Application.Default()`
+						StormForger: &v1alpha1.StormForgerScenario{TestCase: "testCase"},
+					},
+				},
+				Objectives: []v1alpha1.Objective{
+					{
+						Name: "objective",
+					},
+				},
+			},
+		},
+
+		{
+			name: "a-s-o",
+			app: v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{Name: "a"},
+				Scenarios: []v1alpha1.Scenario{
+					{
+						Name:        "s",
+						StormForger: &v1alpha1.StormForgerScenario{TestCase: "testCase"},
+					},
+				},
+				Objectives: []v1alpha1.Objective{
+					{
+						Name:     "o",
+						Requests: &v1alpha1.RequestsObjective{},
+					},
+				},
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			assert.Equal(t, c.name, ExperimentName(&c.app))
+		})
+	}
+}
+
 func TestFilterByExperimentName(t *testing.T) {
 	cases := []struct {
 		experiment     string
 		application    string
-		scenario       string
-		objectives     []string
 		scenarioNames  []string
 		objectiveNames []string
+		err            string
 	}{
 		{
 			experiment:     "simple-default-one",
 			application:    "simple",
-			scenario:       "default",
-			objectives:     []string{"one"},
 			scenarioNames:  []string{"test", "default"},
 			objectiveNames: []string{"one", "two"},
 		},
@@ -45,8 +91,6 @@ func TestFilterByExperimentName(t *testing.T) {
 		{
 			experiment:     "a-a-s-s-o2-o1",
 			application:    "a-a",
-			scenario:       "s-s",
-			objectives:     []string{"o2", "o1"},
 			scenarioNames:  []string{"s-s-s", "s-s"},
 			objectiveNames: []string{"o1", "o2", "o3"},
 		},
@@ -54,10 +98,30 @@ func TestFilterByExperimentName(t *testing.T) {
 		{
 			experiment:     "a-s-s-o",
 			application:    "a",
-			scenario:       "s",
-			objectives:     []string{"s-o"},
+			scenarioNames:  []string{"s", "s-s"},
+			objectiveNames: []string{"s-o", "o"},
+			err:            "ambiguous name 'a-s-s-o'",
+		},
+		{
+			experiment:     "a-s-s-o",
+			application:    "a",
 			scenarioNames:  []string{"s", "s-s"},
 			objectiveNames: []string{"s-o", "x"},
+		},
+
+		{
+			experiment:     "case-myscenario-test2-test1",
+			application:    "case",
+			scenarioNames:  []string{"MyScenario"},
+			objectiveNames: []string{"Test_2", "Test_1"},
+		},
+
+		{
+			experiment:     "app-blackfriday-latency",
+			application:    "app",
+			scenarioNames:  []string{"cybermonday", "blackfriday"},
+			objectiveNames: []string{"cost", "throughput"},
+			err:            "invalid name 'app-blackfriday-latency', could not find cost, throughput",
 		},
 	}
 	for _, c := range cases {
@@ -75,7 +139,9 @@ func TestFilterByExperimentName(t *testing.T) {
 
 			// Filter the experiment using the name and verify it produces the same name
 			err := FilterByExperimentName(app, c.experiment)
-			if assert.NoError(t, err) {
+			if c.err != "" {
+				assert.EqualError(t, err, c.err)
+			} else if assert.NoError(t, err) {
 				assert.Equal(t, c.experiment, ExperimentName(app))
 			}
 		})

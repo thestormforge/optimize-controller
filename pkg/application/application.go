@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"unicode"
 
 	"github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
 	"sigs.k8s.io/kustomize/api/filesys"
@@ -51,7 +52,7 @@ func FilterScenarios(app *v1alpha1.Application, scenario string) error {
 		return fmt.Errorf("unknown scenario '%s' (application has no scenarios defined)", scenario)
 
 	case 1:
-		if app.Scenarios[0].Name == scenario {
+		if cleanName(app.Scenarios[0].Name) == scenario {
 			return nil
 		}
 		return fmt.Errorf("unknown scenario '%s' (must be '%s')", scenario, app.Scenarios[0].Name)
@@ -59,7 +60,7 @@ func FilterScenarios(app *v1alpha1.Application, scenario string) error {
 	default:
 		names := make([]string, 0, len(app.Scenarios))
 		for i := range app.Scenarios {
-			if app.Scenarios[i].Name == scenario {
+			if cleanName(app.Scenarios[i].Name) == scenario {
 				// Only keep the requested scenario
 				app.Scenarios = app.Scenarios[i : i+1]
 				return nil
@@ -87,7 +88,7 @@ func FilterObjectives(app *v1alpha1.Application, objectives []string) error {
 FOUND:
 	for _, name := range objectives {
 		for i := range app.Objectives {
-			if app.Objectives[i].Name == name {
+			if cleanName(app.Objectives[i].Name) == name {
 				keep = append(keep, app.Objectives[i])
 				continue FOUND
 			}
@@ -105,33 +106,35 @@ FOUND:
 
 // ExperimentName returns the name of an experiment corresponding to the application state. Before
 // passing an application, be sure to filter scenarios and objectives.
-func ExperimentName(app *v1alpha1.Application) string {
-	names := make([]string, 0, 1+len(app.Scenarios)+len(app.Objectives))
+func ExperimentName(application *v1alpha1.Application) string {
+	// Default the application to avoid empty names (deep copy first so we don't impact the caller)
+	app := application.DeepCopy()
+	app.Default()
 
-	if app.Name != "" {
-		names = append(names, app.Name)
-	}
+	names := make([]string, 0, 1+len(app.Scenarios)+len(app.Objectives))
+	names = append(names, app.Name)
 
 	for _, s := range app.Scenarios {
-		if s.Name != "" {
-			names = append(names, s.Name)
-		}
+		names = append(names, cleanName(s.Name))
 	}
 
 	for _, o := range app.Objectives {
-		if o.Name != "" {
-			names = append(names, o.Name)
-		}
+		names = append(names, cleanName(o.Name))
 	}
 
 	return strings.Join(names, "-")
 }
 
 // FilterByExperimentName filters the scenarios and objectives based on an experiment name.
+// This can fail with an "ambiguous name" error if the combination of scenario and objective
+// results in multiple possible combinations for the given experiment name. For example, if
+// application name is "a", there are scenarios named "s" and "s-s" and objectives named
+// "s-o" and "o" then the experiment name "a-s-s-o" could be "s" and "s-o" OR "s-s" and "o".
+// Callers should have a back up plan for invoking `Filter*` methods independently.
 func FilterByExperimentName(app *v1alpha1.Application, name string) error {
 	e := newLexer(app, name)
 
-	// Eat the application name at the start
+	// Eat the application name at the start (it will error if they don't match)
 	if _, err := e.next(); err != nil {
 		return err
 	}
@@ -154,6 +157,17 @@ func FilterByExperimentName(app *v1alpha1.Application, name string) error {
 		return err
 	}
 	return FilterObjectives(app, objectives)
+}
+
+// AmbiguousNameError is returned from `FilterByExperimentName` when an experiment name maps
+// back to multiple combinations of scenario and objective names.
+type AmbiguousNameError struct {
+	Name string
+}
+
+// Error returns a description of the ambiguous name error.
+func (e *AmbiguousNameError) Error() string {
+	return fmt.Sprintf("ambiguous name '%s'", e.Name)
 }
 
 // LoadResources loads all of the resources for an application, using the supplied file system
@@ -199,6 +213,22 @@ func (fs *kustomizationFileSystem) ReadFile(path string) ([]byte, error) {
 	return fs.FileSystem.ReadFile(path)
 }
 
+func cleanName(n string) string {
+	return strings.Map(func(r rune) rune {
+		r = unicode.ToLower(r)
+		if r >= 'a' && r <= 'z' {
+			return r
+		}
+		if r >= '0' && r <= '9' {
+			return r
+		}
+		if r == '-' || r == '.' {
+			return r
+		}
+		return -1
+	}, n)
+}
+
 type experimentNameLexer struct {
 	input     string
 	pos       int
@@ -208,15 +238,18 @@ type experimentNameLexer struct {
 
 var errEos = errors.New("eos")
 
-func newLexer(app *v1alpha1.Application, name string) *experimentNameLexer {
-	// Build the token library from the application
+func newLexer(application *v1alpha1.Application, name string) *experimentNameLexer {
+	// Build the token library from the defaulted application
+	app := application.DeepCopy()
+	app.Default()
+
 	e := &experimentNameLexer{input: name, tokens: make([][]string, 3)}
 	e.tokens[0] = []string{app.Name}
 	for _, s := range app.Scenarios {
-		e.tokens[1] = append(e.tokens[1], s.Name)
+		e.tokens[1] = append(e.tokens[1], cleanName(s.Name))
 	}
 	for _, o := range app.Objectives {
-		e.tokens[2] = append(e.tokens[2], o.Name)
+		e.tokens[2] = append(e.tokens[2], cleanName(o.Name))
 	}
 	return e
 }
@@ -253,7 +286,7 @@ func (e *experimentNameLexer) next() (string, error) {
 			if err == errEos {
 				// We consumed the match and still got to the end, this match was good
 				if matchIndex >= 0 {
-					return "", fmt.Errorf("ambiguous name '%s'", e.input)
+					return "", &AmbiguousNameError{Name: e.input}
 				}
 				matchIndex = i
 			}
