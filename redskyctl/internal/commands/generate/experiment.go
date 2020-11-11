@@ -17,12 +17,11 @@ limitations under the License.
 package generate
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
+	"github.com/redskyops/redskyops-controller/pkg/application"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/experiments"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/generate/experiment"
@@ -98,11 +97,11 @@ func (o *ExperimentOptions) generate() error {
 		return err
 	}
 
-	if err := o.filterScenarios(&g.Application); err != nil {
+	if err := application.FilterScenarios(&g.Application, o.Scenario); err != nil {
 		return err
 	}
 
-	if err := o.filterObjectives(&g.Application); err != nil {
+	if err := application.FilterObjectives(&g.Application, o.Objectives); err != nil {
 		return err
 	}
 
@@ -140,71 +139,5 @@ func (o *ExperimentOptions) filterResources(app *v1alpha1.Application) error {
 		}
 	}
 
-	return nil
-}
-
-func (o *ExperimentOptions) filterScenarios(app *v1alpha1.Application) error {
-	if o.Scenario == "" {
-		if len(app.Scenarios) > 1 {
-			names := make([]string, 0, len(app.Scenarios))
-			for _, s := range app.Scenarios {
-				names = append(names, s.Name)
-			}
-			return fmt.Errorf("scenario is required (should be one of '%s')", strings.Join(names, "', '"))
-		}
-		return nil
-	}
-
-	switch len(app.Scenarios) {
-
-	case 0:
-		return fmt.Errorf("unknown scenario '%s' (application has no scenarios defined)", o.Scenario)
-
-	case 1:
-		if app.Scenarios[0].Name == o.Scenario {
-			return nil
-		}
-		return fmt.Errorf("unknown scenario '%s' (must be '%s')", o.Scenario, app.Scenarios[0].Name)
-
-	default:
-		names := make([]string, 0, len(app.Scenarios))
-		for i := range app.Scenarios {
-			if app.Scenarios[i].Name == o.Scenario {
-				// Only keep the requested scenario
-				app.Scenarios = app.Scenarios[i : i+1]
-				return nil
-			}
-			names = append(names, app.Scenarios[i].Name)
-		}
-		return fmt.Errorf("unknown scenario '%s' (should be one of '%s')", o.Scenario, strings.Join(names, "', '"))
-
-	}
-}
-
-func (o *ExperimentOptions) filterObjectives(app *v1alpha1.Application) error {
-	if len(o.Objectives) == 0 {
-		return nil
-	}
-
-	// Keep will have the same explicit order as the requested objectives
-	keep := make([]v1alpha1.Objective, 0, len(o.Objectives))
-	unknown := make([]string, 0, len(o.Objectives))
-
-FOUND:
-	for _, name := range o.Objectives {
-		for i := range app.Objectives {
-			if app.Objectives[i].Name == name {
-				keep = append(keep, app.Objectives[i])
-				break FOUND
-			}
-		}
-		unknown = append(unknown, name)
-	}
-
-	if len(keep) != cap(keep) {
-		return fmt.Errorf("unknown objectives %s", strings.Join(unknown, ", "))
-	}
-
-	app.Objectives = keep
 	return nil
 }

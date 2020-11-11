@@ -17,23 +17,17 @@ limitations under the License.
 package experiment
 
 import (
-	"strings"
-
 	"github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	meta2 "github.com/redskyops/redskyops-controller/internal/meta"
 	"github.com/redskyops/redskyops-controller/internal/setup"
+	"github.com/redskyops/redskyops-controller/pkg/application"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/kustomize/api/filesys"
-	"sigs.k8s.io/kustomize/api/konfig"
-	"sigs.k8s.io/kustomize/api/krusty"
-	"sigs.k8s.io/kustomize/api/resmap"
-	"sigs.k8s.io/kustomize/api/types"
-	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
 // Generator generates an application experiment.
@@ -57,7 +51,7 @@ func NewGenerator(fs filesys.FileSystem) *Generator {
 // Generate scans the application and produces a list of Kubernetes objects representing an the experiment
 func (g *Generator) Generate() (*corev1.List, error) {
 	// Load all of the application resources
-	arm, err := g.loadApplicationResources()
+	arm, err := application.LoadResources(&g.Application, g.fs)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +92,7 @@ func (g *Generator) Generate() (*corev1.List, error) {
 
 		case *redskyv1beta1.Experiment:
 			acc.SetNamespace(g.Application.Namespace)
-			acc.SetName(g.experimentName())
+			acc.SetName(application.ExperimentName(&g.Application))
 
 			// Add the application label to the templates
 			meta2.AddLabel(&obj.Spec.TrialTemplate, v1alpha1.LabelApplication, g.Application.Name)
@@ -117,51 +111,6 @@ func (g *Generator) Generate() (*corev1.List, error) {
 	}
 
 	return list, nil
-}
-
-// loadApplicationResources returns a Kustomize resource map of all the application resources.
-func (g *Generator) loadApplicationResources() (resmap.ResMap, error) {
-	// Get the current working directory so we can intercept requests for the Kustomization
-	cwd, _, err := g.fs.CleanedAbs(".")
-	if err != nil {
-		return nil, err
-	}
-
-	// Wrap the file system so it thinks the current directory is a kustomize root with our resources.
-	// This is necessary to ensure that relative paths are resolved correctly and that files are not
-	// treated like directories. If the current directory really is a kustomize root, that kustomization
-	// will be hidden to prefer loading just the resources that are part of the experiment configuration.
-	fSys := &kustomizationFileSystem{
-		FileSystem:            g.fs,
-		KustomizationFileName: cwd.Join(konfig.DefaultKustomizationFileName()),
-		Kustomization: types.Kustomization{
-			Resources: g.Application.Resources,
-		},
-	}
-
-	// Turn off the load restrictions so we can load arbitrary files (e.g. /dev/fd/...)
-	o := krusty.MakeDefaultOptions()
-	o.LoadRestrictions = types.LoadRestrictionsNone
-	return krusty.MakeKustomizer(fSys, o).Run(".")
-}
-
-// experimentName returns the name of the experiment to generate.
-func (g *Generator) experimentName() string {
-	names := make([]string, 0, 1+len(g.Application.Scenarios)+len(g.Application.Objectives))
-	if g.Application.Name != "" {
-		names = append(names, g.Application.Name)
-	}
-	for _, s := range g.Application.Scenarios {
-		if s.Name != "" {
-			names = append(names, s.Name)
-		}
-	}
-	for _, o := range g.Application.Objectives {
-		if o.Name != "" {
-			names = append(names, o.Name)
-		}
-	}
-	return strings.Join(names, "-")
 }
 
 // findOrAddExperiment returns the experiment from the supplied list, creating it if it does not exist.
@@ -276,20 +225,4 @@ func ensurePrometheus(list *corev1.List) {
 		}},
 	)
 
-}
-
-// kustomizationFileSystem is a wrapper around a real file system that injects a Kustomization at
-// a pre-determined location. This has the effect of creating a kustomize root in memory even if
-// there is no kustomization.yaml on disk.
-type kustomizationFileSystem struct {
-	filesys.FileSystem
-	KustomizationFileName string
-	Kustomization         types.Kustomization
-}
-
-func (fs *kustomizationFileSystem) ReadFile(path string) ([]byte, error) {
-	if path == fs.KustomizationFileName {
-		return yaml.Marshal(fs.Kustomization)
-	}
-	return fs.FileSystem.ReadFile(path)
 }
