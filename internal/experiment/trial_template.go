@@ -42,22 +42,12 @@ func PopulateTrialFromTemplate(exp *redskyv1beta1.Experiment, t *redskyv1beta1.T
 	if t.Annotations == nil {
 		t.Annotations = map[string]string{}
 	}
-	if t.Spec.JobTemplate != nil && t.Spec.JobTemplate.Labels == nil {
-		t.Spec.JobTemplate.Labels = map[string]string{}
-	}
-	if t.Spec.JobTemplate != nil && t.Spec.JobTemplate.Spec.Template.Labels == nil {
-		t.Spec.JobTemplate.Spec.Template.Labels = map[string]string{}
-	}
 
 	// Record the experiment
 	t.Labels[redskyv1beta1.LabelExperiment] = exp.Name
 	t.Spec.ExperimentRef = &corev1.ObjectReference{
 		Name:      exp.Name,
 		Namespace: exp.Namespace,
-	}
-	if t.Spec.JobTemplate != nil {
-		t.Spec.JobTemplate.Labels[redskyv1beta1.LabelExperiment] = exp.Name
-		t.Spec.JobTemplate.Spec.Template.Labels[redskyv1beta1.LabelExperiment] = exp.Name
 	}
 
 	// Default trial name is the experiment name with a random suffix
