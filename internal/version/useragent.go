@@ -63,13 +63,34 @@ func userAgentString(product, comment string) string {
 	if product == "" {
 		return ""
 	}
-	// TODO Validate "product"
 
+	// TODO Validate "product"
+	ua := strings.Builder{}
+	ua.WriteString(product)
+	ua.WriteRune('/')
+	ua.WriteString(strings.TrimPrefix(Version, "v"))
+
+	// Build the comments using both the user supplied comments and some additional build information
+	var comments []string
+
+	// Only include build metadata for pre-release versions
+	if strings.Contains(Version, "-") && BuildMetadata != "" {
+		comments = append(comments, BuildMetadata)
+	}
+
+	// Clean white space and surrounding comment indicators
+	comment = strings.TrimSpace(comment)
+	comment = strings.TrimLeft(comment, "(")
+	comment = strings.TrimRight(comment, ")")
 	comment = strings.TrimSpace(comment)
 	if comment != "" {
-		comment = " (" + strings.TrimRight(strings.TrimLeft(comment, "("), ")") + ")"
+		comments = append(comments, comment)
 	}
-	// TODO Include build metadata in the comment?
 
-	return product + "/" + strings.TrimLeft(Version, "v") + comment
+	// Only add the comment if it is not empty
+	if len(comments) > 0 {
+		ua.WriteString(" (" + strings.Join(comments, "; ") + ")")
+	}
+
+	return ua.String()
 }
