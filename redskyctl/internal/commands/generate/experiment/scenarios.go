@@ -21,7 +21,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
+	redskyappsv1alpha1 "github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -45,7 +45,7 @@ func (g *Generator) addScenario(arm resmap.ResMap, list *corev1.List) error {
 	return nil
 }
 
-func addStormForgerJob(sc *v1alpha1.Scenario, app *v1alpha1.Application, fs filesys.FileSystem, rm resmap.ResMap, list *corev1.List) error {
+func addStormForgerJob(sc *redskyappsv1alpha1.Scenario, app *redskyappsv1alpha1.Application, fs filesys.FileSystem, rm resmap.ResMap, list *corev1.List) error {
 	// Fail unless we have the necessary global configuration
 	if app.StormForger == nil {
 		return fmt.Errorf("the StormForger global configuration is required when using a StormForger scenario")
@@ -156,7 +156,7 @@ func stormForgerImage() string {
 	return imageName + ":" + imageTag
 }
 
-func testCase(sc *v1alpha1.Scenario, app *v1alpha1.Application) (*corev1.EnvVar, error) {
+func testCase(sc *redskyappsv1alpha1.Scenario, app *redskyappsv1alpha1.Application) (*corev1.EnvVar, error) {
 	testCase := &corev1.EnvVar{
 		Name:  "TESTCASE",
 		Value: sc.StormForger.TestCase,
@@ -174,7 +174,7 @@ func testCase(sc *v1alpha1.Scenario, app *v1alpha1.Application) (*corev1.EnvVar,
 	return testCase, nil
 }
 
-func ensureStormForgerTestCaseFile(s *v1alpha1.StormForgerScenario, ldr ifc.Loader, list *corev1.List) (*corev1.EnvVar, *corev1.VolumeMount, *corev1.Volume, error) {
+func ensureStormForgerTestCaseFile(s *redskyappsv1alpha1.StormForgerScenario, ldr ifc.Loader, list *corev1.List) (*corev1.EnvVar, *corev1.VolumeMount, *corev1.Volume, error) {
 	// The test case file can be blank, in which case it must be uploaded to StormForger ahead of time
 	if s.TestCaseFile == "" {
 		return nil, nil, nil, nil
@@ -228,7 +228,7 @@ func ensureStormForgerTestCaseFile(s *v1alpha1.StormForgerScenario, ldr ifc.Load
 	return testCaseFile, testCaseVolumeMount, testCaseVolume, nil
 }
 
-func scanForIngress(rm resmap.ResMap, ingress *v1alpha1.Ingress) (*corev1.EnvVar, error) {
+func scanForIngress(rm resmap.ResMap, ingress *redskyappsv1alpha1.Ingress) (*corev1.EnvVar, error) {
 	if ingress == nil || ingress.URL == "" {
 		return nil, nil
 	}
@@ -260,7 +260,7 @@ func scanForIngress(rm resmap.ResMap, ingress *v1alpha1.Ingress) (*corev1.EnvVar
 	}, nil
 }
 
-func ensureStormForgerSecret(at *v1alpha1.StormForgerAccessToken, ldr ifc.Loader, list *corev1.List) (*corev1.EnvVar, error) {
+func ensureStormForgerSecret(at *redskyappsv1alpha1.StormForgerAccessToken, ldr ifc.Loader, list *corev1.List) (*corev1.EnvVar, error) {
 	// Create a new environment variable definition
 	stormForgerJWT := &corev1.EnvVar{
 		Name:      "STORMFORGER_JWT",
@@ -276,9 +276,9 @@ func ensureStormForgerSecret(at *v1alpha1.StormForgerAccessToken, ldr ifc.Loader
 	// Use a constant reference
 	stormForgerJWT.ValueFrom.SecretKeyRef = &corev1.SecretKeySelector{
 		LocalObjectReference: corev1.LocalObjectReference{
-			Name: v1alpha1.StormForgerAccessTokenSecretName,
+			Name: redskyappsv1alpha1.StormForgerAccessTokenSecretName,
 		},
-		Key: v1alpha1.StormForgerAccessTokenSecretKey,
+		Key: redskyappsv1alpha1.StormForgerAccessTokenSecretKey,
 	}
 
 	// If we find the secret in the list, we are done

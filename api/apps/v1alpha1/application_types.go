@@ -48,18 +48,8 @@ type Application struct {
 	// The list of objectives to optimizat the application for.
 	Objectives []Objective `json:"objectives,omitempty"`
 
-	// GoogleCloudPlatform allows you to configure hosting details specific to GCP.
-	GoogleCloudPlatform *GoogleCloudPlatform `json:"googleCloudPlatform,omitempty"`
-
-	// AmazonWebServices allows you to configure hosting details specific to AWS.
-	AmazonWebServices *AmazonWebServices `json:"amazonWebServices,omitempty"`
-
 	// StormForger allows you to configure StormForger to apply load on your application.
 	StormForger *StormForger `json:"stormForger,omitempty"`
-
-	// TODO We should have a qualityOfService: section were you can specify things like
-	// the percentage of the max that resources are expected to use (then we add both limits and requests and a constraint)
-	// or the "max latency" for the application (we could add a non-optimized metric to capture it).
 }
 
 // Parameters describes the strategy for tuning the application.
@@ -145,14 +135,6 @@ const (
 	LatencyPercentile95 LatencyType = "percentile_95"
 	LatencyPercentile99 LatencyType = "percentile_99"
 )
-
-// GoogleCloudPlatform is used to configure details specific to applications hosted in GCP.
-type GoogleCloudPlatform struct {
-}
-
-// AmazonWebServices is used to configure details specific to applications hosted in AWS.
-type AmazonWebServices struct {
-}
 
 // StormForger describes global configuration related to StormForger.
 type StormForger struct {

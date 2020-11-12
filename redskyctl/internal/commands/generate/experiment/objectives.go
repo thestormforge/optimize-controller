@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
+	redskyappsv1alpha1 "github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -44,7 +44,7 @@ func (g *Generator) addObjectives(list *corev1.List) error {
 	return nil
 }
 
-func addRequestsMetric(obj *v1alpha1.Objective, list *corev1.List) {
+func addRequestsMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) {
 	lbl := labels.Set(obj.Requests.Labels).String()
 
 	cpuWeight := obj.Requests.Weights.Cpu()
@@ -92,7 +92,7 @@ func addRequestsMetric(obj *v1alpha1.Objective, list *corev1.List) {
 }
 
 // addStormForgerObjectives adds metrics for objectives supported by StormForger.
-func addStormForgerObjectives(app *v1alpha1.Application, list *corev1.List) error {
+func addStormForgerObjectives(app *redskyappsv1alpha1.Application, list *corev1.List) error {
 	for _, obj := range app.Objectives {
 		switch {
 
@@ -105,20 +105,20 @@ func addStormForgerObjectives(app *v1alpha1.Application, list *corev1.List) erro
 	return nil
 }
 
-func addStormForgerLatencyMetric(obj *v1alpha1.Objective, list *corev1.List) {
+func addStormForgerLatencyMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) {
 	var m string
-	switch v1alpha1.FixLatency(obj.Latency.LatencyType) {
-	case v1alpha1.LatencyMinimum:
+	switch redskyappsv1alpha1.FixLatency(obj.Latency.LatencyType) {
+	case redskyappsv1alpha1.LatencyMinimum:
 		m = "min"
-	case v1alpha1.LatencyMaximum:
+	case redskyappsv1alpha1.LatencyMaximum:
 		m = "max"
-	case v1alpha1.LatencyMean:
+	case redskyappsv1alpha1.LatencyMean:
 		m = "mean"
-	case v1alpha1.LatencyPercentile50:
+	case redskyappsv1alpha1.LatencyPercentile50:
 		m = "median"
-	case v1alpha1.LatencyPercentile95:
+	case redskyappsv1alpha1.LatencyPercentile95:
 		m = "percentile_95"
-	case v1alpha1.LatencyPercentile99:
+	case redskyappsv1alpha1.LatencyPercentile99:
 		m = "percentile_99"
 	default:
 		// This is not a latency measure that StormForger can produce, skip it
