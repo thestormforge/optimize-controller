@@ -33,21 +33,22 @@ import (
 
 // NewJob returns a new trial run job from the template on the trial
 func NewJob(t *redskyv1beta1.Trial) *batchv1.Job {
-	job := batchv1.Job{}
+	job := &batchv1.Job{}
+
+	// Start with the job template
 	if t.Spec.JobTemplate != nil {
-		// Copy the job template into the new job
 		t.Spec.JobTemplate.ObjectMeta.DeepCopyInto(&job.ObjectMeta)
 		t.Spec.JobTemplate.Spec.DeepCopyInto(&job.Spec)
-	} else {
-		// If there is no job template, make sure we at least get the experiment name labels
-		meta.AddLabel(&job, redskyv1beta1.LabelExperiment, t.ExperimentNamespacedName().Name)
-		meta.AddLabel(&job.Spec.Template, redskyv1beta1.LabelExperiment, t.ExperimentNamespacedName().Name)
 	}
 
-	// Apply labels
-	meta.AddLabel(&job, redskyv1beta1.LabelTrial, t.Name)
+	// Apply labels to the job itself
+	meta.AddLabel(job, redskyv1beta1.LabelExperiment, t.ExperimentNamespacedName().Name)
+	meta.AddLabel(job, redskyv1beta1.LabelTrial, t.Name)
+	meta.AddLabel(job, redskyv1beta1.LabelTrialRole, "trialRun")
+
+	// Apply labels to the pod template
+	meta.AddLabel(&job.Spec.Template, redskyv1beta1.LabelExperiment, t.ExperimentNamespacedName().Name)
 	meta.AddLabel(&job.Spec.Template, redskyv1beta1.LabelTrial, t.Name)
-	meta.AddLabel(&job, redskyv1beta1.LabelTrialRole, "trialRun")
 	meta.AddLabel(&job.Spec.Template, redskyv1beta1.LabelTrialRole, "trialRun")
 
 	// Provide default metadata
@@ -75,11 +76,13 @@ func NewJob(t *redskyv1beta1.Trial) *batchv1.Job {
 
 	// Containers cannot be empty, inject a sleep by default
 	if len(job.Spec.Template.Spec.Containers) == 0 {
-		addDefaultContainer(t, &job)
+		addDefaultContainer(t, job)
 	}
 
 	// Check to see if there is patch for the (as of yet, non-existent) trial job
-	return patchSelf(t, &job)
+	job = patchSelf(t, job)
+
+	return job
 }
 
 func addDefaultContainer(t *redskyv1beta1.Trial, job *batchv1.Job) {
