@@ -21,6 +21,11 @@ import (
 	"unicode"
 )
 
+// NOTE: The main reason for not baking this into an unmarshal method is to
+// ensure the user specified value is preserved long enough to incorporate
+// it into generated names (e.g. the generated name should be `latency-min`
+// not `latency-minimum` when user specifies the objective `latency: min`).
+
 // FixLatency returns a constant value from a user entered value.
 func FixLatency(in LatencyType) LatencyType {
 	switch strings.Map(func(r rune) rune {

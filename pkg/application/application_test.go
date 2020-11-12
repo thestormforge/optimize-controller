@@ -48,18 +48,18 @@ func TestExperimentName(t *testing.T) {
 		},
 
 		{
-			name: "a-s-o",
+			name: "application-scenario-objective",
 			app: v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{Name: "a"},
+				ObjectMeta: metav1.ObjectMeta{Name: "application"},
 				Scenarios: []v1alpha1.Scenario{
 					{
-						Name:        "s",
+						Name:        "scenario",
 						StormForger: &v1alpha1.StormForgerScenario{TestCase: "testCase"},
 					},
 				},
 				Objectives: []v1alpha1.Objective{
 					{
-						Name:     "o",
+						Name:     "objective",
 						Requests: &v1alpha1.RequestsObjective{},
 					},
 				},
@@ -89,24 +89,24 @@ func TestFilterByExperimentName(t *testing.T) {
 		},
 
 		{
-			experiment:     "a-a-s-s-o2-o1",
-			application:    "a-a",
-			scenarioNames:  []string{"s-s-s", "s-s"},
-			objectiveNames: []string{"o1", "o2", "o3"},
+			experiment:     "app-app-sce-sce-obj2-obj1",
+			application:    "app-app",
+			scenarioNames:  []string{"sce-sce-sce", "sce-sce"},
+			objectiveNames: []string{"obj1", "obj2", "obj3"},
 		},
 
 		{
-			experiment:     "a-s-s-o",
-			application:    "a",
-			scenarioNames:  []string{"s", "s-s"},
-			objectiveNames: []string{"s-o", "o"},
-			err:            "ambiguous name 'a-s-s-o'",
+			experiment:     "app-sce-sce-obj",
+			application:    "app",
+			scenarioNames:  []string{"sce", "sce-sce"},
+			objectiveNames: []string{"sce-obj", "obj"},
+			err:            "ambiguous name 'app-sce-sce-obj'",
 		},
 		{
-			experiment:     "a-s-s-o",
-			application:    "a",
-			scenarioNames:  []string{"s", "s-s"},
-			objectiveNames: []string{"s-o", "x"},
+			experiment:     "app-sce-sce-obj",
+			application:    "app",
+			scenarioNames:  []string{"sce", "sce-sce"},
+			objectiveNames: []string{"sce-obj", "x"},
 		},
 
 		{
