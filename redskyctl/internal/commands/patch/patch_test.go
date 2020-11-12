@@ -27,6 +27,7 @@ import (
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/patch"
 	"github.com/redskyops/redskyops-go/pkg/config"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPatch(t *testing.T) {
@@ -46,7 +47,7 @@ func TestPatch(t *testing.T) {
 			args: []string{
 				"--file", expFile.Name(),
 				"--file", manifestFile.Name(),
-				"--trialnumber", "1234",
+				"--trialname", "sampleExperiment-1234",
 			},
 		},
 		{
@@ -54,7 +55,7 @@ func TestPatch(t *testing.T) {
 			args: []string{
 				"--file", "-",
 				"--file", manifestFile.Name(),
-				"--trialnumber", "1234",
+				"--trialname", "sampleExperiment-1234",
 			},
 			stdin: bytes.NewReader(expBytes),
 		},
@@ -63,7 +64,7 @@ func TestPatch(t *testing.T) {
 			args: []string{
 				"--file", expFile.Name(),
 				"--file", "-",
-				"--trialnumber", "1234",
+				"--trialname", "sampleExperiment-1234",
 			},
 			stdin: bytes.NewReader(pgDeployment),
 		},
@@ -71,7 +72,7 @@ func TestPatch(t *testing.T) {
 			desc: "exp stdin manifest stdin",
 			args: []string{
 				"--file", "-",
-				"--trialnumber", "1234",
+				"--trialname", "sampleExperiment-1234",
 			},
 			stdin: bytes.NewReader(append(expBytes, pgDeployment...)),
 		},
@@ -100,7 +101,7 @@ func TestPatch(t *testing.T) {
 			}
 
 			err := cmd.Execute()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			cpu := wannabeTrial.TrialAssignments.Assignments[0]
 			mem := wannabeTrial.TrialAssignments.Assignments[1]
