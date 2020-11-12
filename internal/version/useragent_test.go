@@ -57,6 +57,44 @@ func TestUserAgent(t *testing.T) {
 			comment:  "fluffy comment",
 			expected: "testComment/0.0.0-source (fluffy comment)",
 		},
+		{
+			desc:     "empty comment",
+			product:  "empty",
+			comment:  " (  ) ",
+			expected: "empty/0.0.0-source",
+		},
+		{
+			desc:     "empty comment",
+			product:  "empty",
+			comment:  " ",
+			expected: "empty/0.0.0-source",
+		},
+		{
+			desc:     "white space comment",
+			product:  "empty",
+			comment:  " ( test )",
+			expected: "empty/0.0.0-source (test)",
+		},
+		{
+			desc:    "build meta comment",
+			product: "meta",
+			comment: "test",
+			versionInfo: &Info{
+				Version:       "v1.2.3-next",
+				BuildMetadata: "build.123",
+			},
+			expected: "meta/1.2.3-next (build.123; test)",
+		},
+		{
+			desc:    "build meta comment",
+			product: "meta",
+			comment: "(test)",
+			versionInfo: &Info{
+				Version:       "v1.2.3",
+				BuildMetadata: "build.123",
+			},
+			expected: "meta/1.2.3 (test)",
+		},
 	}
 
 	for _, c := range cases {
