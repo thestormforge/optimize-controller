@@ -17,24 +17,29 @@ limitations under the License.
 package patch
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"strconv"
+	"strings"
 
+	apps "github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
 	redsky "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/internal/experiment"
 	"github.com/redskyops/redskyops-controller/internal/patch"
 	"github.com/redskyops/redskyops-controller/internal/server"
 	"github.com/redskyops/redskyops-controller/internal/template"
+	"github.com/redskyops/redskyops-controller/pkg/application"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
+	experimentctl "github.com/redskyops/redskyops-controller/redskyctl/internal/commands/generate/experiment"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/kustomize"
 	"github.com/redskyops/redskyops-go/pkg/config"
 	experimentsapi "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"sigs.k8s.io/kustomize/api/filesys"
 	"sigs.k8s.io/kustomize/api/resid"
 	"sigs.k8s.io/kustomize/api/types"
 	"sigs.k8s.io/kustomize/kyaml/kio"
@@ -52,6 +57,7 @@ type Options struct {
 
 	inputFiles  []string
 	trialNumber int
+	trialName   string
 }
 
 // NewCommand creates a command for performing a patch
@@ -76,23 +82,18 @@ func NewCommand(o *Options) *cobra.Command {
 
 	cmd.Flags().StringSliceVar(&o.inputFiles, "file", []string{""}, "experiment and related manifests to patch, - for stdin")
 	cmd.Flags().IntVar(&o.trialNumber, "trialnumber", -1, "trial number")
+	cmd.Flags().StringVar(&o.trialName, "trialname", "", "trial name")
 
 	return cmd
 }
 
 func (o *Options) patch(ctx context.Context) error {
-	if o.trialNumber == -1 {
-		return fmt.Errorf("a trial number must be specified")
+	if o.trialName == "" {
+		return fmt.Errorf("a trial name must be specified")
 	}
 
-	experimentBytes, manifestsBytes, err := o.readInputs()
+	exp, manifestsBytes, err := o.readInputs()
 	if err != nil {
-		return err
-	}
-
-	exp := &redsky.Experiment{}
-	rr := commander.NewResourceReader()
-	if err := rr.ReadInto(ioutil.NopCloser(bytes.NewReader(experimentBytes)), exp); err != nil {
 		return err
 	}
 
@@ -102,7 +103,7 @@ func (o *Options) patch(ctx context.Context) error {
 	}
 
 	// look up trial from api
-	trialItem, err := o.GetTrialByID(ctx, exp.Name, o.trialNumber)
+	trialItem, err := o.getTrialByID(ctx, exp.Name)
 	if err != nil {
 		return err
 	}
@@ -131,12 +132,19 @@ func (o *Options) patch(ctx context.Context) error {
 	return nil
 }
 
-func (o *Options) GetTrialByID(ctx context.Context, experimentName string, trialNumber int) (*experimentsapi.TrialItem, error) {
+func (o *Options) getTrialByID(ctx context.Context, experimentName string) (*experimentsapi.TrialItem, error) {
 	query := &experimentsapi.TrialListQuery{
 		Status: []experimentsapi.TrialStatus{experimentsapi.TrialCompleted},
 	}
 
 	trialList, err := o.getTrials(ctx, experimentName, query)
+	if err != nil {
+		return nil, err
+	}
+
+	// Cut off just the trial number from the trial name
+	trialNum := o.trialName[strings.LastIndex(o.trialName, "-")+1:]
+	trialNumber, err := strconv.Atoi(trialNum)
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +173,6 @@ func (o *Options) getTrials(ctx context.Context, experimentName string, query *e
 
 	experiment, err := o.ExperimentsAPI.GetExperimentByName(ctx, experimentsapi.NewExperimentName(experimentName))
 	if err != nil {
-		fmt.Println("failed here", err)
 		return trialList, err
 	}
 
@@ -178,8 +185,8 @@ func (o *Options) getTrials(ctx context.Context, experimentName string, query *e
 
 // readInputs handles all of the loading of files and/or stdin. It utilizes kio.pipelines
 // so we can better handle reading from stdin and getting at the specific data we need.
-func (o *Options) readInputs() (experiment []byte, manifests []byte, err error) {
-	kioInputs := []kio.Reader{}
+func (o *Options) readInputs() (experiment *redsky.Experiment, manifests []byte, err error) {
+	inputs := make(map[string][]byte)
 
 	for _, filename := range o.inputFiles {
 		r, err := o.IOStreams.OpenFile(filename)
@@ -188,46 +195,77 @@ func (o *Options) readInputs() (experiment []byte, manifests []byte, err error) 
 		}
 		defer r.Close()
 
-		kioInputs = append(kioInputs, &kio.ByteReader{Reader: bufio.NewReader(r)})
+		// Read the input files into a buffer so we can account for reading
+		// from StdIn
+		// Could probably use ioutil.ReadAll here, not sure there's much difference
+		var buf bytes.Buffer
+		if _, err = buf.ReadFrom(r); err != nil {
+			return nil, nil, err
+		}
+
+		inputs[filename] = buf.Bytes()
 	}
 
-	var (
-		inputsBuf     bytes.Buffer
-		manifestsBuf  bytes.Buffer
-		experimentBuf bytes.Buffer
-	)
+	kioInputs := []kio.Reader{}
+	experiment = &redsky.Experiment{}
 
-	// Read in all inputs
-	// // We read in everything at first so we only read o.In once
-	allInput := kio.Pipeline{
-		Inputs:  kioInputs,
-		Outputs: []kio.Writer{kio.ByteWriter{Writer: &inputsBuf}},
-	}
-	if err := allInput.Execute(); err != nil {
-		return experiment, manifests, err
+	for _, input := range inputs {
+		// Find out if we've been given an application
+		app := &apps.Application{}
+		if err = yaml.Unmarshal(input, app); err != nil {
+			return nil, nil, err
+		}
+
+		if err := commander.NewResourceReader().ReadInto(ioutil.NopCloser(bytes.NewReader(input)), app); err != nil {
+			// Not an application type, so let's add it in to kio as a resource
+			kioInputs = append(kioInputs, &kio.ByteReader{Reader: bytes.NewReader(input)})
+
+			testExperiment := &redsky.Experiment{}
+			if err := commander.NewResourceReader().ReadInto(ioutil.NopCloser(bytes.NewReader(input)), testExperiment); err == nil {
+				testExperiment.DeepCopyInto(experiment)
+			}
+
+			continue
+		}
+
+		// Remove resources that arent related to the specific trial
+		application.FilterByExperimentName(app, o.trialName)
+
+		gen := experimentctl.NewGenerator(filesys.MakeFsInMemory())
+		gen.Application = *app
+
+		list, err := gen.Generate()
+		if err != nil {
+			return nil, nil, err
+		}
+
+		listBytes, err := list.Marshal()
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// Save off experiment for other uses
+		if err := commander.NewResourceReader().ReadInto(ioutil.NopCloser(bytes.NewReader(listBytes)), experiment); err != nil {
+			return nil, nil, err
+		}
+
+		// Add experiment and other manifests
+		kioInputs = append(kioInputs, &kio.ByteReader{Reader: bytes.NewReader(listBytes)})
 	}
 
-	// Render manifests
+	// Render manifests and strip out experiment
+	var manifestsBuf bytes.Buffer
 	manifestsInput := kio.Pipeline{
-		Inputs:  []kio.Reader{&kio.ByteReader{Reader: bytes.NewReader(inputsBuf.Bytes())}},
+		Inputs:  kioInputs,
 		Filters: []kio.Filter{kio.FilterFunc(filterRemoveExperiment)},
 		Outputs: []kio.Writer{kio.ByteWriter{Writer: &manifestsBuf}},
+		//	Outputs: []kio.Writer{kio.ByteWriter{Writer: os.Stdout}},
 	}
 	if err := manifestsInput.Execute(); err != nil {
 		return experiment, manifests, err
 	}
 
-	// Render Experiment
-	experimentInput := kio.Pipeline{
-		Inputs:  []kio.Reader{&kio.ByteReader{Reader: bytes.NewReader(inputsBuf.Bytes())}},
-		Filters: []kio.Filter{kio.FilterFunc(filterSaveExperiment)},
-		Outputs: []kio.Writer{kio.ByteWriter{Writer: &experimentBuf}},
-	}
-	if err := experimentInput.Execute(); err != nil {
-		return experiment, manifests, err
-	}
-
-	return experimentBuf.Bytes(), manifestsBuf.Bytes(), nil
+	return experiment, manifestsBuf.Bytes(), nil
 }
 
 // filterRemoveExperiment is used to strip experiments from the inputs.
