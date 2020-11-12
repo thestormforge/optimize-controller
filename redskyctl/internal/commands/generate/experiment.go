@@ -20,7 +20,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
+	redskyappsv1alpha1 "github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
 	"github.com/redskyops/redskyops-controller/pkg/application"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/experiments"
@@ -124,7 +124,7 @@ func (o *ExperimentOptions) generate() error {
 	return o.Printer.PrintObj(list, o.Out)
 }
 
-func (o *ExperimentOptions) filterResources(app *v1alpha1.Application) error {
+func (o *ExperimentOptions) filterResources(app *redskyappsv1alpha1.Application) error {
 	// Add additional resources (this allows addition manifests to be added when invoking the CLI)
 	app.Resources = append(app.Resources, o.Resources...)
 

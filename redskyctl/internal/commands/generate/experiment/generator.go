@@ -17,7 +17,7 @@ limitations under the License.
 package experiment
 
 import (
-	"github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
+	redskyappsv1alpha1 "github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	meta2 "github.com/redskyops/redskyops-controller/internal/meta"
 	"github.com/redskyops/redskyops-controller/internal/setup"
@@ -33,7 +33,7 @@ import (
 // Generator generates an application experiment.
 type Generator struct {
 	// The definition of the application to generate an experiment for.
-	Application v1alpha1.Application
+	Application redskyappsv1alpha1.Application
 	// ContainerResourcesSelector are the selectors for determining what application resources to scan for resources lists.
 	ContainerResourcesSelector []ContainerResourcesSelector
 
@@ -83,7 +83,7 @@ func (g *Generator) Generate() (*corev1.List, error) {
 		}
 
 		// Label all objects with the application name
-		meta2.AddLabel(acc, v1alpha1.LabelApplication, g.Application.Name)
+		meta2.AddLabel(acc, redskyappsv1alpha1.LabelApplication, g.Application.Name)
 
 		switch obj := list.Items[i].Object.(type) {
 
@@ -95,10 +95,10 @@ func (g *Generator) Generate() (*corev1.List, error) {
 			acc.SetName(application.ExperimentName(&g.Application))
 
 			// Add the application label to the templates
-			meta2.AddLabel(&obj.Spec.TrialTemplate, v1alpha1.LabelApplication, g.Application.Name)
+			meta2.AddLabel(&obj.Spec.TrialTemplate, redskyappsv1alpha1.LabelApplication, g.Application.Name)
 			if obj.Spec.TrialTemplate.Spec.JobTemplate != nil {
-				meta2.AddLabel(obj.Spec.TrialTemplate.Spec.JobTemplate, v1alpha1.LabelApplication, g.Application.Name)
-				meta2.AddLabel(&obj.Spec.TrialTemplate.Spec.JobTemplate.Spec.Template, v1alpha1.LabelApplication, g.Application.Name)
+				meta2.AddLabel(obj.Spec.TrialTemplate.Spec.JobTemplate, redskyappsv1alpha1.LabelApplication, g.Application.Name)
+				meta2.AddLabel(&obj.Spec.TrialTemplate.Spec.JobTemplate.Spec.Template, redskyappsv1alpha1.LabelApplication, g.Application.Name)
 			}
 
 		case *rbacv1.ClusterRoleBinding:

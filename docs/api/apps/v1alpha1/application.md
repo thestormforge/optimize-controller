@@ -4,10 +4,8 @@
 
 
 ## Table of Contents
-* [AmazonWebServices](#amazonwebservices)
 * [Application](#application)
 * [ContainerResources](#containerresources)
-* [GoogleCloudPlatform](#googlecloudplatform)
 * [Ingress](#ingress)
 * [LatencyObjective](#latencyobjective)
 * [Objective](#objective)
@@ -17,16 +15,6 @@
 * [StormForger](#stormforger)
 * [StormForgerAccessToken](#stormforgeraccesstoken)
 * [StormForgerScenario](#stormforgerscenario)
-
-## AmazonWebServices
-
-AmazonWebServices is used to configure details specific to applications hosted in AWS.
-
-| Field | Description | Scheme | Required |
-| ----- | ----------- | ------ | -------- |
-| _N/A_ |
-
-[Back to TOC](#table-of-contents)
 
 ## Application
 
@@ -40,8 +28,6 @@ Application represents a description of an application to run experiments on.
 | `ingress` | Ingress specifies how to find the entry point to the application. | _*[Ingress](#ingress)_ | false |
 | `scenarios` | The list of scenarios to optimize the application for. | _[][Scenario](#scenario)_ | false |
 | `objectives` | The list of objectives to optimizat the application for. | _[][Objective](#objective)_ | false |
-| `googleCloudPlatform` | GoogleCloudPlatform allows you to configure hosting details specific to GCP. | _*[GoogleCloudPlatform](#googlecloudplatform)_ | false |
-| `amazonWebServices` | AmazonWebServices allows you to configure hosting details specific to AWS. | _*[AmazonWebServices](#amazonwebservices)_ | false |
 | `stormForger` | StormForger allows you to configure StormForger to apply load on your application. | _*[StormForger](#stormforger)_ | false |
 
 [Back to TOC](#table-of-contents)
@@ -53,16 +39,6 @@ ContainerResources specifies which resources in the application should have thei
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
 | `labels` | Labels of Kubernetes objects to consider when generating container resources patches. | _map[string]string_ | false |
-
-[Back to TOC](#table-of-contents)
-
-## GoogleCloudPlatform
-
-GoogleCloudPlatform is used to configure details specific to applications hosted in GCP.
-
-| Field | Description | Scheme | Required |
-| ----- | ----------- | ------ | -------- |
-| _N/A_ |
 
 [Back to TOC](#table-of-contents)
 
