@@ -44,9 +44,10 @@ type Options struct {
 // NewCommand creates a new command for executing a logout
 func NewCommand(o *Options) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "revoke",
-		Short: "Revoke an authorization",
-		Long:  "Log out of your Red Sky Account.",
+		Use:     "revoke",
+		Short:   "Revoke an authorization",
+		Long:    "Log out of your Red Sky Account.",
+		Aliases: []string{"logout"},
 
 		PreRun: commander.StreamsPreRun(&o.IOStreams),
 		RunE:   commander.WithContextE(o.revoke),
