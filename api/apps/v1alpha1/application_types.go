@@ -65,12 +65,20 @@ func (in *Application) HasDefaultObjectives() bool {
 type Parameters struct {
 	// Information related to the discovery of container resources parameters like CPU and memory.
 	ContainerResources *ContainerResources `json:"containerResources,omitempty"`
+	// Information related to the discovery of replica parameters.
+	Replicas *Replicas `json:"replicas,omitempty"`
 }
 
 // ContainerResources specifies which resources in the application should have their container
 // resources (CPU and memory) optimized.
 type ContainerResources struct {
 	// Labels of Kubernetes objects to consider when generating container resources patches.
+	Labels map[string]string `json:"labels,omitempty"`
+}
+
+// Replicas specifies which resources in the application should have their replica count optimized.
+type Replicas struct {
+	// Labels of Kubernetes objects to consider when generating replica patches.
 	Labels map[string]string `json:"labels,omitempty"`
 }
 

@@ -17,10 +17,8 @@ limitations under the License.
 package experiment
 
 import (
-	"bytes"
 	"encoding/json"
 	"regexp"
-	"strings"
 
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
@@ -54,7 +52,7 @@ type ContainerResourcesSelector struct {
 	ContainerName string `json:"containerName,omitempty"`
 }
 
-// fieldSpec returns this ContainerResourcesSelector as a Kustomize FieldSpec.
+// fieldSpec returns this selector as a Kustomize FieldSpec.
 func (rs *ContainerResourcesSelector) fieldSpec() types.FieldSpec {
 	return types.FieldSpec{
 		Gvk:                rs.Gvk,
@@ -63,7 +61,7 @@ func (rs *ContainerResourcesSelector) fieldSpec() types.FieldSpec {
 	}
 }
 
-// selector resturns this ContainerResourcesSelector as a Kustomize Selector.
+// selector resturns this selector as a Kustomize Selector.
 func (rs *ContainerResourcesSelector) selector() types.Selector {
 	return types.Selector{
 		Gvk:                rs.Gvk,
@@ -118,99 +116,44 @@ func DefaultContainerResourcesSelectors() []ContainerResourcesSelector {
 }
 
 // scanForContainerResources scans the supplied resource map for container resources matching the selector.
-func (g *Generator) scanForContainerResources(rm resmap.ResMap, list *corev1.List) error {
-	crs := make([]*containerResources, 0, rm.Size())
-	for _, sel := range g.ContainerResourcesSelector {
+func (g *Generator) scanForContainerResources(ars []*applicationResource, rm resmap.ResMap) ([]*applicationResource, error) {
+	for _, sel := range g.ContainerResourcesSelectors {
 		// Select the matching resources
 		resources, err := rm.Select(sel.selector())
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		for _, r := range resources {
 			// Get the YAML tree representation of the resource
 			node, err := filtersutil.GetRNode(r)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			// Scan the document tree for information to add to the application resource
-			cr := &containerResources{}
-			if err := cr.saveTargetReference(node); err != nil {
-				return err
+			ar := &applicationResource{}
+			if err := ar.saveTargetReference(node); err != nil {
+				return nil, err
 			}
-			if err := cr.saveResourcesPaths(node, sel); err != nil {
+			if err := ar.saveContainerResourcesPaths(node, sel); err != nil {
 				// TODO Ignore errors if the resource doesn't have a matching resources path
-				return err
+				return nil, err
 			}
-			if cr.empty() {
+			if len(ar.containerResourcesPaths) == 0 {
 				continue
 			}
 
 			// Make sure we only get the newly discovered parts
-			crs = mergeOrAppend(crs, cr)
+			ars = mergeOrAppend(ars, ar)
 		}
 	}
 
-	if len(crs) == 0 {
-		return nil
-	}
-
-	prefix := parameterNamePrefix(crs)
-	exp := findOrAddExperiment(list)
-	for _, cr := range crs {
-		// Create a parameter naming function that accounts for both objects and paths
-		name := parameterName(prefix, cr)
-
-		patch, err := cr.resourcesPatch(name)
-		if err != nil {
-			return err
-		}
-
-		exp.Spec.Patches = append(exp.Spec.Patches, *patch)
-		exp.Spec.Parameters = append(exp.Spec.Parameters, cr.resourcesParameters(name)...)
-	}
-
-	return nil
+	return ars, nil
 }
 
-// nameGen is a function that produces parameter names.
-type nameGen func(ref *corev1.ObjectReference, path []string, name string) string
-
-// containerResources is an individual application resource that specifies container resources.
-type containerResources struct {
-	// targetRef is the reference to the resource
-	targetRef corev1.ObjectReference
-	// resourcesPaths are the YAML paths to the `resources` elements
-	resourcesPaths [][]string
-	// resources are the actual `resources` found at the corresponding path index
-	resources []corev1.ResourceList
-}
-
-// Empty checks to see if this application resource has anything useful in it.
-func (r *containerResources) empty() bool {
-	return len(r.resourcesPaths) == 0
-}
-
-// SaveTargetReference updates the resource reference from the supplied document node.
-func (r *containerResources) saveTargetReference(node *yaml.RNode) error {
-	meta, err := node.GetMeta()
-	if err != nil {
-		return err
-	}
-
-	r.targetRef = corev1.ObjectReference{
-		APIVersion: meta.APIVersion,
-		Kind:       meta.Kind,
-		Name:       meta.Name,
-		Namespace:  meta.Namespace,
-	}
-
-	return nil
-}
-
-// SaveResourcesPaths extracts the paths the `resources` elements from the supplied node.
-func (r *containerResources) saveResourcesPaths(node *yaml.RNode, sel ContainerResourcesSelector) error {
+// saveResourcesPaths extracts the paths to the `resources` elements from the supplied node.
+func (r *applicationResource) saveContainerResourcesPaths(node *yaml.RNode, sel ContainerResourcesSelector) error {
 	path := sel.fieldSpec().PathSlice()
 	return node.PipeE(
 		yaml.Lookup(path...),
@@ -226,148 +169,43 @@ func (r *containerResources) saveResourcesPaths(node *yaml.RNode, sel ContainerR
 					return nil
 				}
 
-				r.resourcesPaths = append(r.resourcesPaths, append(path, "[name="+name+"]", "resources"))
-				r.resources = append(r.resources, materializeResourceList(rl))
+				r.containerResourcesPaths = append(r.containerResourcesPaths, append(path, "[name="+name+"]", "resources"))
+				r.containerResources = append(r.containerResources, materializeResourceList(rl))
 				return nil
 			})
 		}))
 }
 
-// ResourcesParameters returns the parameters required for optimizing the discovered resources sections.
-func (r *containerResources) resourcesParameters(name nameGen) []redskyv1beta1.Parameter {
-	parameters := make([]redskyv1beta1.Parameter, 0, len(r.resourcesPaths)*2)
-	for i := range r.resourcesPaths {
+// resourcesParameters returns the parameters required for optimizing the discovered resources sections.
+func (r *applicationResource) containerResourcesParameters(name nameGen) []redskyv1beta1.Parameter {
+	parameters := make([]redskyv1beta1.Parameter, 0, len(r.containerResourcesPaths)*2)
+	for i := range r.containerResourcesPaths {
 		var baselineMemory, baselineCPU *intstr.IntOrString
-		if q, ok := r.resources[i][corev1.ResourceMemory]; ok {
+		if q, ok := r.containerResources[i][corev1.ResourceMemory]; ok {
 			scaled := intstr.FromInt(int(q.ScaledValue(resource.Mega)))
 			baselineMemory = &scaled
 		}
 		var minMemory, maxMemory int32 = 128, 4096
 
-		if q, ok := r.resources[i][corev1.ResourceCPU]; ok {
+		if q, ok := r.containerResources[i][corev1.ResourceCPU]; ok {
 			scaled := intstr.FromInt(int(q.ScaledValue(resource.Milli)))
 			baselineCPU = &scaled
 		}
 		var minCPU, maxCPU int32 = 100, 4000
 
 		parameters = append(parameters, redskyv1beta1.Parameter{
-			Name:     name(&r.targetRef, r.resourcesPaths[i], "memory"),
+			Name:     name(&r.targetRef, r.containerResourcesPaths[i], "memory"),
 			Min:      minMemory,
 			Max:      maxMemory,
 			Baseline: baselineMemory,
 		}, redskyv1beta1.Parameter{
-			Name:     name(&r.targetRef, r.resourcesPaths[i], "cpu"),
+			Name:     name(&r.targetRef, r.containerResourcesPaths[i], "cpu"),
 			Min:      minCPU,
 			Max:      maxCPU,
 			Baseline: baselineCPU,
 		})
 	}
 	return parameters
-}
-
-// ResourcesPatch returns a patch for the discovered resources sections.
-func (r *containerResources) resourcesPatch(name nameGen) (*redskyv1beta1.PatchTemplate, error) {
-	// Create an empty patch
-	patch := yaml.NewRNode(&yaml.Node{
-		Kind:    yaml.DocumentNode,
-		Content: []*yaml.Node{{Kind: yaml.MappingNode}},
-	})
-
-	for i := range r.resourcesPaths {
-		// Construct limits/requests values
-		memory := "{{ .Values." + name(&r.targetRef, r.resourcesPaths[i], "memory") + " }}M"
-		cpu := "{{ .Values." + name(&r.targetRef, r.resourcesPaths[i], "cpu") + " }}m"
-		values, err := yaml.NewRNode(&yaml.Node{Kind: yaml.MappingNode}).Pipe(
-			yaml.Tee(yaml.SetField("memory", yaml.NewScalarRNode(memory))),
-			yaml.Tee(yaml.SetField("cpu", yaml.NewScalarRNode(cpu))),
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		// Aggregate the limits/requests on the patch
-		if err := patch.PipeE(
-			&yaml.PathGetter{Path: r.resourcesPaths[i], Create: yaml.MappingNode},
-			yaml.Tee(yaml.SetField("limits", values)),
-			yaml.Tee(yaml.SetField("requests", values)),
-		); err != nil {
-			return nil, err
-		}
-	}
-
-	// Render the patch and add it to the list of patches
-	var buf bytes.Buffer
-	if err := yaml.NewEncoder(&buf).Encode(patch.Document()); err != nil {
-		return nil, err
-	}
-
-	return &redskyv1beta1.PatchTemplate{
-		Patch:     buf.String(),
-		TargetRef: &r.targetRef,
-	}, nil
-}
-
-// parameterNamePrefix returns a name generator function that produces a prefix based
-// on the distinct elements found in the object references of the supplied container resources.
-func parameterNamePrefix(crs []*containerResources) nameGen {
-	// Index the object references by kind and name
-	names := make(map[string]map[string]struct{})
-	for _, cr := range crs {
-		if ns := names[cr.targetRef.Kind]; ns == nil {
-			names[cr.targetRef.Kind] = make(map[string]struct{})
-		}
-		names[cr.targetRef.Kind][cr.targetRef.Name] = struct{}{}
-	}
-
-	// Determine which prefixes we need
-	// TODO This assumes overlapping names
-	needsKind := len(names) > 1
-	needsName := false
-	for _, v := range names {
-		needsName = needsName || len(v) > 1
-	}
-
-	return func(ref *corev1.ObjectReference, _ []string, _ string) string {
-		var parts []string
-		if needsKind {
-			parts = append(parts, strings.ToLower(ref.Kind))
-		}
-		if needsName {
-			parts = append(parts, strings.Split(ref.Name, "-")...)
-		}
-		return strings.Join(parts, "_")
-	}
-}
-
-// parameterName returns a name generator function that produces a unique parameter
-// name given a prefix (computed from a list of container resources) and the supplied
-// container resources (which is assumed to have been considered when computing the prefix).
-func parameterName(prefix nameGen, cr *containerResources) nameGen {
-	// Determine if the path is necessary
-	needsPath := len(cr.resourcesPaths) > 1
-
-	return func(ref *corev1.ObjectReference, path []string, name string) string {
-		var parts []string
-
-		// Only append the prefix if it is not blank
-		if prefix != nil {
-			if p := prefix(ref, path, name); p != "" {
-				parts = append(parts, p)
-			}
-		}
-
-		// Add the list index values (e.g. the container names)
-		for _, p := range path {
-			if needsPath && yaml.IsListIndex(p) {
-				if _, value, _ := yaml.SplitIndexNameValue(p); value != "" {
-					parts = append(parts, value) // TODO Split on "-" like we do for names?
-				}
-			}
-		}
-
-		// Join everything together using the requested parameter name at the end
-		return strings.Join(append(parts, name), "_")
-	}
 }
 
 // materializeResourceList returns a resource list from the supplied node.
@@ -382,39 +220,4 @@ func materializeResourceList(node *yaml.MapNode) corev1.ResourceList {
 		}
 	}
 	return resources.Requests
-}
-
-// mergeOrAppend appends a container resources pointer unless it already exists, in which case the
-// distinct resources paths are combined.
-func mergeOrAppend(crs []*containerResources, cr *containerResources) []*containerResources {
-	for _, r := range crs {
-		if r.targetRef == cr.targetRef {
-			for i := range cr.resourcesPaths {
-				r.resourcesPaths = appendDistinctStringSlice(r.resourcesPaths, cr.resourcesPaths[i])
-			}
-			return crs
-		}
-	}
-
-	return append(crs, cr)
-}
-
-// appendDistinctStringSlice is used for merging resources paths.
-func appendDistinctStringSlice(s [][]string, ss []string) [][]string {
-OUTER:
-	for i := range s {
-		if len(s[i]) != len(ss) {
-			continue OUTER
-		}
-
-		for j := range s[i] {
-			if s[i][j] != ss[j] {
-				continue OUTER
-			}
-		}
-
-		return s
-	}
-
-	return append(s, ss)
 }

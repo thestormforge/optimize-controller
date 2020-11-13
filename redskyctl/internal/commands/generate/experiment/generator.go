@@ -36,9 +36,10 @@ import (
 type Generator struct {
 	// The definition of the application to generate an experiment for.
 	Application redskyappsv1alpha1.Application
-	// ContainerResourcesSelector are the selectors for determining what application resources to scan for resources lists.
-	ContainerResourcesSelector []ContainerResourcesSelector
-
+	// ContainerResourcesSelectors are the selectors for determining what application resources to scan for resources lists.
+	ContainerResourcesSelectors []ContainerResourcesSelector
+	// ReplicaSelectors are the selectors for determining what application resources to scan for desired replica counts.
+	ReplicaSelectors []ReplicaSelector
 	// File system to use when looking for resources, generally a pass through to the OS file system.
 	fs filesys.FileSystem
 }
@@ -58,11 +59,24 @@ func (g *Generator) Generate() (*corev1.List, error) {
 		return nil, err
 	}
 
-	// Start with an empty list
+	// Start with empty lists
 	list := &corev1.List{}
+	ars := make([]*applicationResource, 0, arm.Size())
 
 	// Scan the application resources for requests/limits and add the parameters and patches necessary
-	if err := g.scanForContainerResources(arm, list); err != nil {
+	ars, err = g.scanForContainerResources(ars, arm)
+	if err != nil {
+		return nil, err
+	}
+
+	// Scan the application resources for replicas and add the parameters and patches necessary
+	ars, err = g.scanForReplicas(ars, arm)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add parameters and patches discovered from the application
+	if err := patchExperiment(ars, list); err != nil {
 		return nil, err
 	}
 

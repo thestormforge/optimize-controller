@@ -107,11 +107,18 @@ func (o *ExperimentOptions) generate() error {
 
 	// Configure how we filter the application resources when looking for requests/limits
 	// TODO This is kind of a hack: we are just adding labels (if present) to the default selectors
-	g.ContainerResourcesSelector = experiment.DefaultContainerResourcesSelectors()
+	g.ContainerResourcesSelectors = experiment.DefaultContainerResourcesSelectors()
 	if g.Application.Parameters != nil && g.Application.Parameters.ContainerResources != nil {
 		ls := labels.Set(g.Application.Parameters.ContainerResources.Labels).String()
-		for i := range g.ContainerResourcesSelector {
-			g.ContainerResourcesSelector[i].LabelSelector = ls
+		for i := range g.ContainerResourcesSelectors {
+			g.ContainerResourcesSelectors[i].LabelSelector = ls
+		}
+	}
+	if g.Application.Parameters != nil && g.Application.Parameters.Replicas != nil {
+		g.ReplicaSelectors = experiment.DefaultReplicaSelectors()
+		ls := labels.Set(g.Application.Parameters.Replicas.Labels).String()
+		for i := range g.ReplicaSelectors {
+			g.ReplicaSelectors[i].LabelSelector = ls
 		}
 	}
 

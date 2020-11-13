@@ -10,6 +10,7 @@
 * [LatencyObjective](#latencyobjective)
 * [Objective](#objective)
 * [Parameters](#parameters)
+* [Replicas](#replicas)
 * [RequestsObjective](#requestsobjective)
 * [Scenario](#scenario)
 * [StormForger](#stormforger)
@@ -84,6 +85,17 @@ Parameters describes the strategy for tuning the application.
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
 | `containerResources` | Information related to the discovery of container resources parameters like CPU and memory. | _*[ContainerResources](#containerresources)_ | false |
+| `replicas` | Information related to the discovery of replica parameters. | _*[Replicas](#replicas)_ | false |
+
+[Back to TOC](#table-of-contents)
+
+## Replicas
+
+Replicas specifies which resources in the application should have their replica count optimized.
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| `labels` | Labels of Kubernetes objects to consider when generating replica patches. | _map[string]string_ | false |
 
 [Back to TOC](#table-of-contents)
 

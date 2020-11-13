@@ -26,7 +26,7 @@ import (
 func TestParameterNames(t *testing.T) {
 	cases := []struct {
 		desc     string
-		crs      []*containerResources
+		ars      []*applicationResource
 		expected []string
 	}{
 		{
@@ -35,13 +35,13 @@ func TestParameterNames(t *testing.T) {
 
 		{
 			desc: "one deployment one container",
-			crs: []*containerResources{
+			ars: []*applicationResource{
 				{
 					targetRef: corev1.ObjectReference{
 						Kind: "Deployment",
 						Name: "test",
 					},
-					resourcesPaths: [][]string{
+					containerResourcesPaths: [][]string{
 						{"spec", "template", "spec", "containers", "[name=test]", "resources"},
 					},
 				},
@@ -54,13 +54,13 @@ func TestParameterNames(t *testing.T) {
 
 		{
 			desc: "one deployment two containers",
-			crs: []*containerResources{
+			ars: []*applicationResource{
 				{
 					targetRef: corev1.ObjectReference{
 						Kind: "Deployment",
 						Name: "test",
 					},
-					resourcesPaths: [][]string{
+					containerResourcesPaths: [][]string{
 						{"spec", "template", "spec", "containers", "[name=test1]", "resources"},
 						{"spec", "template", "spec", "containers", "[name=test2]", "resources"},
 					},
@@ -76,13 +76,13 @@ func TestParameterNames(t *testing.T) {
 
 		{
 			desc: "two deployments one container",
-			crs: []*containerResources{
+			ars: []*applicationResource{
 				{
 					targetRef: corev1.ObjectReference{
 						Kind: "Deployment",
 						Name: "test1",
 					},
-					resourcesPaths: [][]string{
+					containerResourcesPaths: [][]string{
 						{"spec", "template", "spec", "containers", "[name=test]", "resources"},
 					},
 				},
@@ -91,7 +91,7 @@ func TestParameterNames(t *testing.T) {
 						Kind: "Deployment",
 						Name: "test2",
 					},
-					resourcesPaths: [][]string{
+					containerResourcesPaths: [][]string{
 						{"spec", "template", "spec", "containers", "[name=test]", "resources"},
 					},
 				},
@@ -106,13 +106,13 @@ func TestParameterNames(t *testing.T) {
 
 		{
 			desc: "two deployments two containers",
-			crs: []*containerResources{
+			ars: []*applicationResource{
 				{
 					targetRef: corev1.ObjectReference{
 						Kind: "Deployment",
 						Name: "test1",
 					},
-					resourcesPaths: [][]string{
+					containerResourcesPaths: [][]string{
 						{"spec", "template", "spec", "containers", "[name=test1]", "resources"},
 						{"spec", "template", "spec", "containers", "[name=test2]", "resources"},
 					},
@@ -122,7 +122,7 @@ func TestParameterNames(t *testing.T) {
 						Kind: "Deployment",
 						Name: "test2",
 					},
-					resourcesPaths: [][]string{
+					containerResourcesPaths: [][]string{
 						{"spec", "template", "spec", "containers", "[name=test]", "resources"},
 					},
 				},
@@ -139,13 +139,13 @@ func TestParameterNames(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			p := parameterNamePrefix(c.crs)
+			p := parameterNamePrefix(c.ars)
 			var actual []string
-			for _, cr := range c.crs {
+			for _, cr := range c.ars {
 				pn := parameterName(p, cr)
-				for i := range cr.resourcesPaths {
-					actual = append(actual, pn(&cr.targetRef, cr.resourcesPaths[i], "cpu"))
-					actual = append(actual, pn(&cr.targetRef, cr.resourcesPaths[i], "memory"))
+				for i := range cr.containerResourcesPaths {
+					actual = append(actual, pn(&cr.targetRef, cr.containerResourcesPaths[i], "cpu"))
+					actual = append(actual, pn(&cr.targetRef, cr.containerResourcesPaths[i], "memory"))
 				}
 			}
 			assert.Equal(t, c.expected, actual)
