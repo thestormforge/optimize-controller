@@ -209,7 +209,7 @@ func ensurePrometheus(list *corev1.List) {
 					Resources: []string{"clusterroles", "clusterrolebindings"},
 				},
 				{
-					Verbs:     []string{"get", "create", "update"},
+					Verbs:     []string{"get", "create", "update", "delete"},
 					APIGroups: []string{""},
 					Resources: []string{"serviceaccounts", "services", "configmaps"},
 				},
