@@ -18,11 +18,9 @@ package reset
 
 import (
 	"context"
-	"fmt"
 	"io"
 
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/grant_permissions"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/initialize"
 	"github.com/redskyops/redskyops-go/pkg/config"
 	"github.com/spf13/cobra"
@@ -76,13 +74,7 @@ func (o *Options) reset(ctx context.Context) error {
 	// Generate all of the manifests (with YAML document delimiters)
 	go func() {
 		defer func() { _ = w.Close() }()
-		if err := o.generateInstall(w); err != nil {
-			return
-		}
-		_, _ = fmt.Fprintln(w, "---")
-		if err := o.generateBootstrapRole(w); err != nil {
-			return
-		}
+		_ = o.generateInstall(w)
 	}()
 
 	// Wait for everything to be deleted
@@ -91,20 +83,11 @@ func (o *Options) reset(ctx context.Context) error {
 
 func (o *Options) generateInstall(out io.Writer) error {
 	opts := &initialize.GeneratorOptions{
-		Config: o.Config,
+		Config:               o.Config,
+		SkipSecret:           true,
+		IncludeBootstrapRole: true,
 	}
 	cmd := initialize.NewGeneratorCommand(opts)
-	cmd.SetArgs([]string{})
-	cmd.SetOut(out)
-	cmd.SetErr(o.ErrOut)
-	return cmd.Execute()
-}
-
-func (o *Options) generateBootstrapRole(out io.Writer) error {
-	opts := &grant_permissions.GeneratorOptions{
-		Config: o.Config,
-	}
-	cmd := grant_permissions.NewGeneratorCommand(opts)
 	cmd.SetArgs([]string{})
 	cmd.SetOut(out)
 	cmd.SetErr(o.ErrOut)
