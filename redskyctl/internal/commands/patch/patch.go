@@ -46,8 +46,6 @@ import (
 	"sigs.k8s.io/kustomize/api/filesys"
 	"sigs.k8s.io/kustomize/api/resid"
 	"sigs.k8s.io/kustomize/api/types"
-	"sigs.k8s.io/kustomize/kyaml/kio"
-	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
 // Options are the configuration options for creating a patched experiment
@@ -269,103 +267,6 @@ func (o *Options) readInputs() error {
 	}
 
 	return nil
-}
-
-/*
-
-	kioInputs := []kio.Reader{}
-	experiment = &redsky.Experiment{}
-
-	for filename, input := range inputs {
-		app := &apps.Application{}
-
-		// Find out if we've been given an application
-		if err := commander.NewResourceReader().ReadInto(ioutil.NopCloser(bytes.NewReader(input)), app); err != nil {
-			fmt.Println("sad face", filename, err)
-			// Not an application type, so let's add it in to kio as a resource
-			kioInputs = append(kioInputs, &kio.ByteReader{Reader: bytes.NewReader(input)})
-
-			testExperiment := &redsky.Experiment{}
-			if err := commander.NewResourceReader().ReadInto(ioutil.NopCloser(bytes.NewReader(input)), testExperiment); err == nil {
-				testExperiment.DeepCopyInto(experiment)
-			}
-
-			continue
-		}
-
-		fmt.Printf("app before: %#v\n", app)
-		// Remove resources that arent related to the specific trial
-		application.FilterByExperimentName(app, o.trialName)
-		fmt.Printf("app after: %#v\n", app)
-
-		gen := experimentctl.NewGenerator(fs)
-		gen.Application = *app
-
-		list, err := gen.Generate()
-		if err != nil {
-			return nil, nil, err
-		}
-
-		listBytes, err := list.Marshal()
-		if err != nil {
-			return nil, nil, err
-		}
-
-		// Save off experiment for other uses
-		if err := commander.NewResourceReader().ReadInto(ioutil.NopCloser(bytes.NewReader(listBytes)), experiment); err != nil {
-			return nil, nil, err
-		}
-
-		// Add experiment and other manifests
-		kioInputs = append(kioInputs, &kio.ByteReader{Reader: bytes.NewReader(listBytes)})
-	}
-
-	// Render manifests and strip out experiment
-	var manifestsBuf bytes.Buffer
-	manifestsInput := kio.Pipeline{
-		Inputs:  kioInputs,
-		Filters: []kio.Filter{kio.FilterFunc(filterRemoveExperiment)},
-		Outputs: []kio.Writer{kio.ByteWriter{Writer: &manifestsBuf}},
-		//	Outputs: []kio.Writer{kio.ByteWriter{Writer: os.Stdout}},
-	}
-	if err := manifestsInput.Execute(); err != nil {
-		return experiment, manifests, err
-	}
-
-	return experiment, manifestsBuf.Bytes(), nil
-}
-*/
-
-// filterRemoveExperiment is used to strip experiments from the inputs.
-func filterRemoveExperiment(input []*yaml.RNode) ([]*yaml.RNode, error) {
-	var output kio.ResourceNodeSlice
-	for i := range input {
-		m, err := input[i].GetMeta()
-		if err != nil {
-			return nil, err
-		}
-		if m.Kind == "Experiment" {
-			continue
-		}
-		output = append(output, input[i])
-	}
-	return output, nil
-}
-
-// filterSaveExperiment is used to strip everything but experiments from the inputs.
-func filterSaveExperiment(input []*yaml.RNode) ([]*yaml.RNode, error) {
-	var output kio.ResourceNodeSlice
-	for i := range input {
-		m, err := input[i].GetMeta()
-		if err != nil {
-			return nil, err
-		}
-		if m.Kind != "Experiment" {
-			continue
-		}
-		output = append(output, input[i])
-	}
-	return output, nil
 }
 
 // createKustomizePatches translates a patchTemplate into a kustomize (json) patch
