@@ -160,7 +160,7 @@ func stormForgerImage() string {
 
 func testCase(sc *redskyappsv1alpha1.Scenario, app *redskyappsv1alpha1.Application) (*corev1.EnvVar, error) {
 	testCase := &corev1.EnvVar{
-		Name:  "TESTCASE",
+		Name:  "TEST_CASE",
 		Value: sc.StormForger.TestCase,
 	}
 
@@ -223,7 +223,7 @@ func ensureStormForgerTestCaseFile(s *redskyappsv1alpha1.StormForgerScenario, ld
 	}
 
 	testCaseFile := &corev1.EnvVar{
-		Name:  "TESTCASEFILE",
+		Name:  "TEST_CASE_FILE",
 		Value: filepath.Join(testCaseVolumeMount.MountPath, testCaseVolume.VolumeSource.ConfigMap.Items[0].Path),
 	}
 
