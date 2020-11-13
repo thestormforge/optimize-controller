@@ -103,6 +103,10 @@ type Objective struct {
 	Requests *RequestsObjective `json:"requests,omitempty"`
 	// Latency is used to optimize the responsiveness of an application.
 	Latency *LatencyObjective `json:"latency,omitempty"`
+
+	// Internal use field for marking objectives as having been implemented. For example,
+	// it may be impossible to optimize for some objectives based on the current state.
+	Implemented bool `json:"-"`
 }
 
 // RequestsObjective is used to optimize the resource requests of an application in a specific scenario.

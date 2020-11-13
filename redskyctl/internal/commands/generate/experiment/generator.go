@@ -17,6 +17,8 @@ limitations under the License.
 package experiment
 
 import (
+	"fmt"
+
 	redskyappsv1alpha1 "github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	meta2 "github.com/redskyops/redskyops-controller/internal/meta"
@@ -107,6 +109,13 @@ func (g *Generator) Generate() (*corev1.List, error) {
 					obj.Subjects[i].Namespace = g.Application.Namespace
 				}
 			}
+		}
+	}
+
+	// Verify all of the objectives were implemented
+	for i := range g.Application.Objectives {
+		if !g.Application.Objectives[i].Implemented {
+			return nil, fmt.Errorf("generated experiment cannot optimize objective: %s", g.Application.Objectives[i].Name)
 		}
 	}
 

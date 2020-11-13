@@ -70,6 +70,7 @@ func addRequestsMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) {
 		Max:      obj.Max,
 		Optimize: obj.Optimize,
 	})
+	obj.Implemented = true
 
 	// If the name contains "cost" and the weights are non-zero, add non-optimized metrics for each request
 	if strings.Contains(obj.Name, "cost") && !cpuWeight.IsZero() && !memoryWeight.IsZero() && (obj.Optimize == nil || *obj.Optimize) {
@@ -141,4 +142,5 @@ func addStormForgerLatencyMetric(obj *redskyappsv1alpha1.Objective, list *corev1
 		Max:      obj.Max,
 		Optimize: obj.Optimize,
 	})
+	obj.Implemented = true
 }
