@@ -25,6 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 var zero = resource.MustParse("0")
@@ -63,6 +64,7 @@ func addRequestsMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) {
 		Name:     obj.Name,
 		Minimize: true,
 		Type:     redskyv1beta1.MetricPrometheus,
+		Port:     intstr.FromInt(9090),
 		Query:    fmt.Sprintf(requestsQueryFormat, lbl, cpuWeight.Value(), lbl, memoryWeight.Value()),
 		Min:      obj.Min,
 		Max:      obj.Max,
@@ -77,12 +79,14 @@ func addRequestsMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) {
 			Minimize: true,
 			Optimize: &nonOptimized,
 			Type:     redskyv1beta1.MetricPrometheus,
+			Port:     intstr.FromInt(9090),
 			Query:    fmt.Sprintf("{{ cpuRequests . \"%s\" }}", lbl),
 		}, redskyv1beta1.Metric{
 			Name:     obj.Name + "-memory-requests",
 			Minimize: true,
 			Optimize: &nonOptimized,
 			Type:     redskyv1beta1.MetricPrometheus,
+			Port:     intstr.FromInt(9090),
 			Query:    fmt.Sprintf("{{ memoryRequests . \"%s\" }}", lbl), // TODO Convert to GB?
 		})
 	}
@@ -131,6 +135,7 @@ func addStormForgerLatencyMetric(obj *redskyappsv1alpha1.Objective, list *corev1
 		Name:     obj.Name,
 		Minimize: true,
 		Type:     redskyv1beta1.MetricPrometheus,
+		Port:     intstr.FromInt(9090),
 		Query:    m + `{job="trialRun",instance="{{ .Trial.Name }}"}`,
 		Min:      obj.Min,
 		Max:      obj.Max,
