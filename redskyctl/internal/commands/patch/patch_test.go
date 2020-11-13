@@ -30,6 +30,7 @@ import (
 	"github.com/redskyops/redskyops-go/pkg/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"sigs.k8s.io/kustomize/api/filesys"
 )
 
 func TestPatchExperiment(t *testing.T) {
@@ -83,6 +84,7 @@ func TestPatchExperiment(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("%q", tc.desc), func(t *testing.T) {
 			cfg := &config.RedSkyConfig{}
+
 			opts := &patch.Options{Config: cfg}
 			opts.ExperimentsAPI = &fakeRedSkyServer{}
 			cmd := patch.NewCommand(opts)
@@ -123,9 +125,9 @@ func TestPatchApplication(t *testing.T) {
 	manifestFile := createTempManifests(t)
 	defer os.Remove(manifestFile.Name())
 
-	_, b, appFile := createTempApplication(t, filepath.Base(manifestFile.Name()))
+	app, _, appFile := createTempApplication(t, filepath.Base(manifestFile.Name()))
 	defer os.Remove(appFile.Name())
-	fmt.Println(string(b))
+	//fmt.Println(string(b))
 
 	testCases := []struct {
 		desc  string
@@ -172,7 +174,16 @@ func TestPatchApplication(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("%q", tc.desc), func(t *testing.T) {
 			cfg := &config.RedSkyConfig{}
-			opts := &patch.Options{Config: cfg}
+
+			fs := filesys.MakeFsInMemory()
+			err := fs.WriteFile(filepath.Base(manifestFile.Name()), pgDeployment)
+			require.NoError(t, err)
+			for _, scenario := range app.Scenarios {
+				err = fs.WriteFile(scenario.StormForger.TestCaseFile, []byte("{}"))
+				require.NoError(t, err)
+			}
+
+			opts := &patch.Options{Config: cfg, Fs: fs}
 			opts.ExperimentsAPI = &fakeRedSkyServer{}
 			cmd := patch.NewCommand(opts)
 			commander.ConfigGlobals(cfg, cmd)
@@ -194,7 +205,7 @@ func TestPatchApplication(t *testing.T) {
 			log.Println(manifestFile.Name())
 
 			//time.Sleep(1 * time.Minute)
-			err := cmd.Execute()
+			err = cmd.Execute()
 			require.NoError(t, err)
 
 			cpu := wannabeTrial.TrialAssignments.Assignments[0]

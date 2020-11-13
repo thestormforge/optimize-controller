@@ -28,13 +28,12 @@ import (
 	"strconv"
 	"strings"
 
-	apps "github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
+	app "github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
 	redsky "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/internal/experiment"
 	"github.com/redskyops/redskyops-controller/internal/patch"
 	"github.com/redskyops/redskyops-controller/internal/server"
 	"github.com/redskyops/redskyops-controller/internal/template"
-	"github.com/redskyops/redskyops-controller/pkg/application"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	experimentctl "github.com/redskyops/redskyops-controller/redskyctl/internal/commands/generate/experiment"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/kustomize"
@@ -42,6 +41,7 @@ import (
 	experimentsapi "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/kustomize/api/filesys"
 	"sigs.k8s.io/kustomize/api/resid"
 	"sigs.k8s.io/kustomize/api/types"
@@ -61,10 +61,15 @@ type Options struct {
 	inputFiles  []string
 	trialNumber int
 	trialName   string
+
+	// This is used for testing
+	Fs filesys.FileSystem
 }
 
 // NewCommand creates a command for performing a patch
 func NewCommand(o *Options) *cobra.Command {
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Llongfile)
+
 	cmd := &cobra.Command{
 		Use:   "patch",
 		Short: "Create a patched manifest using trial parameters",
@@ -95,15 +100,82 @@ func (o *Options) patch(ctx context.Context) error {
 		return fmt.Errorf("a trial name must be specified")
 	}
 
-	exp, manifestsBytes, err := o.readInputs()
-	if err != nil {
+	if err := o.readInputs(); err != nil {
 		return err
 	}
 
-	// Populate list of assets to write to kustomize
-	assets := map[string]*kustomize.Asset{
-		"resources.yaml": kustomize.NewAssetFromBytes(manifestsBytes),
+	exp := &redsky.Experiment{}
+	appl := &app.Application{}
+	resources := []string{}
+	log.Println("experiment", exp)
+
+	for _, keyFile := range []interface{}{exp, appl} {
+
+		fnames, err := findFileType(o.Fs, keyFile)
+		if err != nil {
+			return err
+		}
+
+		log.Println("experiment", exp)
+		switch keyFile.(type) {
+		// case *redsky.Experiment{} is the easy case and handled for us by fundFileType
+		case *app.Application:
+
+			//gen := experimentctl.NewGenerator(appFs)
+			gen := experimentctl.NewGenerator(o.Fs)
+			gen.Application = *appl
+
+			list, err := gen.Generate()
+			if err != nil {
+				return err
+			}
+
+			// Reset filesys because we've consumed all the initial assets to generate new ones
+			o.Fs = filesys.MakeFsInMemory()
+
+			for idx, listItem := range list.Items {
+				//log.Printf("%#v\n", list)
+
+				listBytes, err := listItem.Marshal()
+				if err != nil {
+					return err
+				}
+
+				assetName := fmt.Sprintf("%s%d%s", "application-assets", idx, ".yaml")
+				if err := o.Fs.WriteFile(assetName, listBytes); err != nil {
+					return err
+				}
+
+				resources = append(resources, assetName)
+
+				tempExperiment := &redsky.Experiment{}
+				if err := commander.NewResourceReader().ReadInto(ioutil.NopCloser(bytes.NewReader(listBytes)), exp); err != nil {
+					log.Println("we had an error reading into exp", err)
+					continue
+				}
+
+				log.Println("success")
+				tempExperiment.DeepCopyInto(exp)
+			}
+
+		case struct{}:
+			resources = append(resources, fnames...)
+		}
 	}
+	log.Println("resources", resources)
+	log.Println("experiment", exp)
+
+	// Need to verify that we have exp/appl in the correct state
+
+	// TODO fs.Walk to detect experiment?
+	// need to find a way to get experiment somehow
+
+	// Populate list of assets to write to kustomize
+	/*
+		assets := map[string]*kustomize.Asset{
+			"resources.yaml": kustomize.NewAssetFromBytes(manifestsBytes),
+		}
+	*/
 
 	// look up trial from api
 	trialItem, err := o.getTrialByID(ctx, exp.Name)
@@ -123,7 +195,8 @@ func (o *Options) patch(ctx context.Context) error {
 	}
 
 	yamls, err := kustomize.Yamls(
-		kustomize.WithResources(assets),
+		kustomize.WithFS(o.Fs),
+		kustomize.WithResourceNames(resources),
 		kustomize.WithPatches(patches),
 	)
 	if err != nil {
@@ -188,14 +261,15 @@ func (o *Options) getTrials(ctx context.Context, experimentName string, query *e
 
 // readInputs handles all of the loading of files and/or stdin. It utilizes kio.pipelines
 // so we can better handle reading from stdin and getting at the specific data we need.
-func (o *Options) readInputs() (experiment *redsky.Experiment, manifests []byte, err error) {
-	inputs := make(map[string][]byte)
-	fs := filesys.MakeFsInMemory()
+func (o *Options) readInputs() error {
+	if o.Fs == nil {
+		o.Fs = filesys.MakeFsInMemory()
+	}
 
 	for _, filename := range o.inputFiles {
 		r, err := o.IOStreams.OpenFile(filename)
 		if err != nil {
-			return nil, nil, err
+			return err
 		}
 		defer r.Close()
 
@@ -203,25 +277,22 @@ func (o *Options) readInputs() (experiment *redsky.Experiment, manifests []byte,
 		// from StdIn
 		var buf bytes.Buffer
 		if _, err = buf.ReadFrom(r); err != nil {
-			return nil, nil, err
-		}
-
-		if err := fs.WriteFile(filepath.Base(filename), buf.Bytes()); err != nil {
-			return nil, nil, err
-		}
-
-		inputs[filename] = buf.Bytes()
-	}
-
-	if err := fs.Walk("/", func(path string, info os.FileInfo, err error) error {
-		if err != nil {
 			return err
 		}
-		fmt.Println(path, info.Size())
-		return nil
-	}); err != nil {
-		log.Fatal(err)
+
+		if filename == "-" {
+			filename = "stdin"
+		}
+
+		if err := o.Fs.WriteFile(filepath.Base(filename), buf.Bytes()); err != nil {
+			return err
+		}
 	}
+
+	return nil
+}
+
+/*
 
 	kioInputs := []kio.Reader{}
 	experiment = &redsky.Experiment{}
@@ -284,6 +355,7 @@ func (o *Options) readInputs() (experiment *redsky.Experiment, manifests []byte,
 
 	return experiment, manifestsBuf.Bytes(), nil
 }
+*/
 
 // filterRemoveExperiment is used to strip experiments from the inputs.
 func filterRemoveExperiment(input []*yaml.RNode) ([]*yaml.RNode, error) {
@@ -363,4 +435,48 @@ func createKustomizePatches(patchSpec []redsky.PatchTemplate, trial *redsky.Tria
 	}
 
 	return patches, nil
+}
+
+func findFileType(fs filesys.FileSystem, ft interface{}) ([]string, error) {
+	filenames := []string{}
+	walkFn := func(path string, info os.FileInfo, err error) error {
+		//log.Println("fs.path", path)
+		if err != nil {
+			return err
+		}
+
+		if fs.IsDir(path) {
+			return nil
+		}
+
+		// This should account for when we pass in `struct{}`
+		if _, ok := ft.(struct{}); ok {
+			filenames = append(filenames, filepath.Base(path))
+			return nil
+		}
+
+		// Need to do this weird double read because ioutil.ReadAll on a filesys.File
+		// makes bad things happen
+		data, err := fs.ReadFile(path)
+		if err != nil {
+			return err
+		}
+
+		if err := commander.NewResourceReader().ReadInto(ioutil.NopCloser(bytes.NewReader(data)), ft.(runtime.Object)); err != nil {
+			// We're going to skip invalid errors here because its most likely due to us trying to
+			// read the file into the incorrect type
+			// We'll account for this later by ensuring those types are != nil
+			return nil
+		}
+
+		filenames = append(filenames, filepath.Base(path))
+
+		return nil
+	}
+
+	if err := fs.Walk("/", walkFn); err != nil {
+		return filenames, err
+	}
+
+	return filenames, nil
 }
