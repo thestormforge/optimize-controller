@@ -95,13 +95,7 @@ func (g *Generator) Generate() (*corev1.List, error) {
 		case *redskyv1beta1.Experiment:
 			acc.SetNamespace(g.Application.Namespace)
 			acc.SetName(application.ExperimentName(&g.Application))
-
-			// Add the application label to the templates
-			meta2.AddLabel(&obj.Spec.TrialTemplate, redskyappsv1alpha1.LabelApplication, g.Application.Name)
-			if obj.Spec.TrialTemplate.Spec.JobTemplate != nil {
-				meta2.AddLabel(obj.Spec.TrialTemplate.Spec.JobTemplate, redskyappsv1alpha1.LabelApplication, g.Application.Name)
-				meta2.AddLabel(&obj.Spec.TrialTemplate.Spec.JobTemplate.Spec.Template, redskyappsv1alpha1.LabelApplication, g.Application.Name)
-			}
+			labelExperiment(&g.Application, obj)
 
 		case *rbacv1.ClusterRoleBinding:
 			for i := range obj.Subjects {
@@ -136,6 +130,28 @@ func findOrAddExperiment(list *corev1.List) *redskyv1beta1.Experiment {
 		list.Items = append(list.Items, runtime.RawExtension{Object: exp})
 	}
 	return exp
+}
+
+// labelExperiment adds application labels to the experiment
+func labelExperiment(app *redskyappsv1alpha1.Application, exp *redskyv1beta1.Experiment) {
+	// This function adds labels to the experiment, the trial template and (if present)
+	// the job template (including the job's pod template).
+	addExpLabel := func(label, value string) {
+		meta2.AddLabel(exp, label, value)
+		meta2.AddLabel(&exp.Spec.TrialTemplate, label, value)
+		if exp.Spec.TrialTemplate.Spec.JobTemplate != nil {
+			meta2.AddLabel(exp.Spec.TrialTemplate.Spec.JobTemplate, label, value)
+			meta2.AddLabel(&exp.Spec.TrialTemplate.Spec.JobTemplate.Spec.Template, label, value)
+		}
+	}
+
+	if app.Name != "" {
+		addExpLabel(redskyappsv1alpha1.LabelApplication, app.Name)
+	}
+
+	if len(app.Scenarios) == 1 {
+		addExpLabel(redskyappsv1alpha1.LabelScenario, app.Scenarios[0].Name)
+	}
 }
 
 // ensureSetupServiceAccount ensures that we are using an explicit service account for setup tasks.

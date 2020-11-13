@@ -21,4 +21,7 @@ package v1alpha1
 const (
 	// LabelApplication is the name of the application associated with an object.
 	LabelApplication = "redskyops.dev/application"
+
+	// LabelScenario is the application scenario associated with an object.
+	LabelScenario = "redskyops.dev/scenario"
 )
