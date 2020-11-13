@@ -118,8 +118,10 @@ func ExperimentName(application *v1alpha1.Application) string {
 		names = append(names, cleanName(s.Name))
 	}
 
-	for _, o := range app.Objectives {
-		names = append(names, cleanName(o.Name))
+	if !application.HasDefaultObjectives() {
+		for _, o := range app.Objectives {
+			names = append(names, cleanName(o.Name))
+		}
 	}
 
 	return strings.Join(names, "-")

@@ -53,6 +53,8 @@ func (in *Application) Default() {
 	}
 
 	in.StormForger.Default()
+
+	in.initialObjectiveCount = len(in.Objectives)
 }
 
 func (in *Scenario) Default() {
