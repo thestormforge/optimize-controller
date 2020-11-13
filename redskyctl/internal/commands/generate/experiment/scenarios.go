@@ -19,8 +19,10 @@ package experiment
 import (
 	"fmt"
 	"os"
+	"os/user"
 	"path/filepath"
 
+	"github.com/BurntSushi/toml"
 	redskyappsv1alpha1 "github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
@@ -309,10 +311,20 @@ func ensureStormForgerSecret(at *redskyappsv1alpha1.StormForgerAccessToken, ldr 
 	}
 
 	switch {
-	case at != nil && at.Literal != "":
+	case at == nil:
+		cfg := struct {
+			JWT string
+		}{}
+		if usr, err := user.Current(); err == nil {
+			_, _ = toml.DecodeFile(filepath.Join(usr.HomeDir, ".stormforger.toml"), &cfg)
+		}
+
+		secret.StringData = map[string]string{stormForgerJWT.ValueFrom.SecretKeyRef.Key: cfg.JWT}
+
+	case at.Literal != "":
 		secret.StringData = map[string]string{stormForgerJWT.ValueFrom.SecretKeyRef.Key: at.Literal}
 
-	case at != nil && at.File != "":
+	case at.File != "":
 		data, err := ldr.Load(at.File)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load StormForger access token: %w", err)
