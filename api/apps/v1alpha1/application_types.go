@@ -90,16 +90,20 @@ type Scenario struct {
 
 // StormForgerScenario is used to generate load using StormForger.
 type StormForgerScenario struct {
-	// Override the generated test case name.
+	// The test case can be used to specify an existing test case in the StormForger API or
+	// it can be used to override the generated test case name when specified in conjunction
+	// with the local test case file. Note that the organization name should not be included.
 	TestCase string `json:"testCase,omitempty"`
-	// Path to the test case file.
+	// Path to a local test case file used to define a new test case in the StormForger API.
 	TestCaseFile string `json:"testCaseFile,omitempty"`
 }
 
-// Objective describes the goal of the optimization in terms of specific metrics.
+// Objective describes the goal of the optimization in terms of specific metrics. Note that only
+// one objective configuration can be specified at a time.
 type Objective struct {
 	// The name of the objective. If no objective specific configuration is supplied, the name is
-	// used to derive a configuration.
+	// used to derive a configuration. For example, any valid latency (prefixed or suffixed with
+	// "latency") will configure a default latency objective.
 	Name string `json:"name"`
 	// The upper bound for the objective.
 	Max *resource.Quantity `json:"max,omitempty"`
@@ -128,7 +132,10 @@ type RequestsObjective struct {
 
 // LatencyObject is used to optimize the responsiveness of an application in a specific scenario.
 type LatencyObjective struct {
-	// The latency to optimize.
+	// The latency to optimize. Can be one of the following values:
+	// `minimum` (or `min`), `maximum` (or `max`), `mean` (or `average`, `avg`),
+	// `percentile_50` (or `p50`, `median`, `med`), `percentile_95` (or `p95`),
+	// `percentile_99` (or `p99`).
 	LatencyType
 }
 

@@ -58,17 +58,17 @@ LatencyObject is used to optimize the responsiveness of an application in a spec
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| `LatencyType` | The latency to optimize. | _LatencyType_ | false |
+| `LatencyType` | The latency to optimize. Can be one of the following values: `minimum` (or `min`), `maximum` (or `max`), `mean` (or `average`, `avg`), `percentile_50` (or `p50`, `median`, `med`), `percentile_95` (or `p95`), `percentile_99` (or `p99`). | _LatencyType_ | false |
 
 [Back to TOC](#table-of-contents)
 
 ## Objective
 
-Objective describes the goal of the optimization in terms of specific metrics.
+Objective describes the goal of the optimization in terms of specific metrics. Note that only one objective configuration can be specified at a time.
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| `name` | The name of the objective. If no objective specific configuration is supplied, the name is used to derive a configuration. | _string_ | true |
+| `name` | The name of the objective. If no objective specific configuration is supplied, the name is used to derive a configuration. For example, any valid latency (prefixed or suffixed with "latency") will configure a default latency objective. | _string_ | true |
 | `max` | The upper bound for the objective. | _*resource.Quantity_ | false |
 | `min` | The lower bound for the objective. | _*resource.Quantity_ | false |
 | `optimize` | Flag indicating that this objective should optimized instead of monitored (default: true). | _*bool_ | false |
@@ -138,7 +138,7 @@ StormForgerScenario is used to generate load using StormForger.
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| `testCase` | Override the generated test case name. | _string_ | false |
-| `testCaseFile` | Path to the test case file. | _string_ | false |
+| `testCase` | The test case can be used to specify an existing test case in the StormForger API or it can be used to override the generated test case name when specified in conjunction with the local test case file. Note that the organization name should not be included. | _string_ | false |
+| `testCaseFile` | Path to a local test case file used to define a new test case in the StormForger API. | _string_ | false |
 
 [Back to TOC](#table-of-contents)
