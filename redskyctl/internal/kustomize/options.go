@@ -42,7 +42,7 @@ func defaultOptions() *Kustomize {
 	fs := filesys.MakeFsInMemory()
 
 	return &Kustomize{
-		Base:       "/app/base",
+		Base:       "/",
 		fs:         fs,
 		Kustomizer: krusty.MakeKustomizer(fs, krusty.MakeDefaultOptions()),
 		kustomize:  &types.Kustomization{},
@@ -231,6 +231,22 @@ spec:
 
 		k.kustomize.PatchesStrategicMerge = append(k.kustomize.PatchesStrategicMerge, "pull_policy_patch.yaml")
 
+		return nil
+	}
+}
+
+func WithFS(fs filesys.FileSystem) Option {
+	return func(k *Kustomize) (err error) {
+		k.fs = fs
+		k.Kustomizer = krusty.MakeKustomizer(fs, krusty.MakeDefaultOptions())
+
+		return nil
+	}
+}
+
+func WithResourceNames(filenames []string) Option {
+	return func(k *Kustomize) (err error) {
+		k.kustomize.Resources = append(k.kustomize.Resources, filenames...)
 		return nil
 	}
 }
