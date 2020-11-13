@@ -100,7 +100,7 @@ type Scenario struct {
 type StormForgerScenario struct {
 	// The test case can be used to specify an existing test case in the StormForger API or
 	// it can be used to override the generated test case name when specified in conjunction
-	// with the local test case file. Note that the organization name should not be included.
+	// with the local test case file. The organization is optional if it is configured globally.
 	TestCase string `json:"testCase,omitempty"`
 	// Path to a local test case file used to define a new test case in the StormForger API.
 	TestCaseFile string `json:"testCaseFile,omitempty"`

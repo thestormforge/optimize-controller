@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 	redskyappsv1alpha1 "github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
@@ -171,6 +172,8 @@ func testCase(sc *redskyappsv1alpha1.Scenario, app *redskyappsv1alpha1.Applicati
 		}
 
 		testCase.Value = fmt.Sprintf("%s/%s-%s", app.StormForger.Organization, app.Name, sc.Name)
+	} else if !strings.Contains(testCase.Value, "/") && app.StormForger.Organization != "" {
+		testCase.Value = app.StormForger.Organization + "/" + testCase.Value
 	}
 
 	return testCase, nil

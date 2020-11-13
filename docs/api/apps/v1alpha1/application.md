@@ -150,7 +150,7 @@ StormForgerScenario is used to generate load using StormForger.
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| `testCase` | The test case can be used to specify an existing test case in the StormForger API or it can be used to override the generated test case name when specified in conjunction with the local test case file. Note that the organization name should not be included. | _string_ | false |
+| `testCase` | The test case can be used to specify an existing test case in the StormForger API or it can be used to override the generated test case name when specified in conjunction with the local test case file. The organization is optional if it is configured globally. | _string_ | false |
 | `testCaseFile` | Path to a local test case file used to define a new test case in the StormForger API. | _string_ | false |
 
 [Back to TOC](#table-of-contents)
