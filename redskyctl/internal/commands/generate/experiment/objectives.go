@@ -33,11 +33,12 @@ var zero = resource.MustParse("0")
 const requestsQueryFormat = `({{ cpuRequests . "%s" }} * %d) + ({{ memoryRequests . "%s" | GB }} * %d)`
 
 func (g *Generator) addObjectives(list *corev1.List) error {
-	for _, obj := range g.Application.Objectives {
+	for i := range g.Application.Objectives {
+		obj := &g.Application.Objectives[i]
 		switch {
 
 		case obj.Requests != nil:
-			addRequestsMetric(&obj, list)
+			addRequestsMetric(obj, list)
 
 		}
 	}
@@ -98,11 +99,12 @@ func addRequestsMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) {
 
 // addStormForgerObjectives adds metrics for objectives supported by StormForger.
 func addStormForgerObjectives(app *redskyappsv1alpha1.Application, list *corev1.List) error {
-	for _, obj := range app.Objectives {
+	for i := range app.Objectives {
+		obj := &app.Objectives[i]
 		switch {
 
 		case obj.Latency != nil:
-			addStormForgerLatencyMetric(&obj, list)
+			addStormForgerLatencyMetric(obj, list)
 
 		}
 	}
