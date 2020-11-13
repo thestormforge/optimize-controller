@@ -101,6 +101,8 @@ func (g *Generator) Generate() (*corev1.List, error) {
 				meta2.AddLabel(&obj.Spec.TrialTemplate.Spec.JobTemplate.Spec.Template, redskyappsv1alpha1.LabelApplication, g.Application.Name)
 			}
 
+			obj.TypeMeta.SetGroupVersionKind(redskyv1beta1.GroupVersion.WithKind("Experiment"))
+
 		case *rbacv1.ClusterRoleBinding:
 			for i := range obj.Subjects {
 				if obj.Subjects[i].Namespace == "" {
