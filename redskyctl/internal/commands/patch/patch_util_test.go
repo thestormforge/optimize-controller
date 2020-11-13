@@ -108,8 +108,13 @@ func createTempApplication(t *testing.T, filename string) (*app.Application, []b
 			Namespace: "default",
 		},
 		Resources: []string{filename},
-		// TODO what is this?
-		// Parameters: &app.Parameters{},
+		Parameters: &app.Parameters{
+			ContainerResources: &app.ContainerResources{
+				Labels: map[string]string{
+					"component": "postgres",
+				},
+			},
+		},
 		Scenarios: []app.Scenario{
 			{
 				Name: "how-do-you-make-a-tissue-dance",

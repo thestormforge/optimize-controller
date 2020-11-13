@@ -41,6 +41,7 @@ import (
 	experimentsapi "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/kustomize/api/filesys"
 	"sigs.k8s.io/kustomize/api/resid"
@@ -107,35 +108,35 @@ func (o *Options) patch(ctx context.Context) error {
 	exp := &redsky.Experiment{}
 	appl := &app.Application{}
 	resources := []string{}
-	log.Println("experiment", exp)
 
 	for _, keyFile := range []interface{}{exp, appl} {
 
-		fnames, err := findFileType(o.Fs, keyFile)
+		_, err := findFileType(o.Fs, keyFile)
 		if err != nil {
 			return err
 		}
 
-		log.Println("experiment", exp)
 		switch keyFile.(type) {
 		// case *redsky.Experiment{} is the easy case and handled for us by fundFileType
 		case *app.Application:
+			resources = append(resources, appl.Resources...)
 
-			//gen := experimentctl.NewGenerator(appFs)
 			gen := experimentctl.NewGenerator(o.Fs)
 			gen.Application = *appl
+			gen.ContainerResourcesSelector = experimentctl.DefaultContainerResourcesSelectors()
+			if gen.Application.Parameters != nil && gen.Application.Parameters.ContainerResources != nil {
+				ls := labels.Set(gen.Application.Parameters.ContainerResources.Labels).String()
+				for i := range gen.ContainerResourcesSelector {
+					gen.ContainerResourcesSelector[i].LabelSelector = ls
+				}
+			}
 
 			list, err := gen.Generate()
 			if err != nil {
 				return err
 			}
 
-			// Reset filesys because we've consumed all the initial assets to generate new ones
-			o.Fs = filesys.MakeFsInMemory()
-
 			for idx, listItem := range list.Items {
-				//log.Printf("%#v\n", list)
-
 				listBytes, err := listItem.Marshal()
 				if err != nil {
 					return err
@@ -148,34 +149,12 @@ func (o *Options) patch(ctx context.Context) error {
 
 				resources = append(resources, assetName)
 
-				tempExperiment := &redsky.Experiment{}
-				if err := commander.NewResourceReader().ReadInto(ioutil.NopCloser(bytes.NewReader(listBytes)), exp); err != nil {
-					log.Println("we had an error reading into exp", err)
-					continue
+				if te, ok := list.Items[idx].Object.(*redsky.Experiment); ok {
+					te.DeepCopyInto(exp)
 				}
-
-				log.Println("success")
-				tempExperiment.DeepCopyInto(exp)
 			}
-
-		case struct{}:
-			resources = append(resources, fnames...)
 		}
 	}
-	log.Println("resources", resources)
-	log.Println("experiment", exp)
-
-	// Need to verify that we have exp/appl in the correct state
-
-	// TODO fs.Walk to detect experiment?
-	// need to find a way to get experiment somehow
-
-	// Populate list of assets to write to kustomize
-	/*
-		assets := map[string]*kustomize.Asset{
-			"resources.yaml": kustomize.NewAssetFromBytes(manifestsBytes),
-		}
-	*/
 
 	// look up trial from api
 	trialItem, err := o.getTrialByID(ctx, exp.Name)

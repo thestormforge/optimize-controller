@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"testing"
@@ -201,17 +200,14 @@ func TestPatchApplication(t *testing.T) {
 			if len(tc.args) > 0 {
 				cmd.SetArgs(tc.args)
 			}
-			log.Println(appFile.Name())
-			log.Println(manifestFile.Name())
 
-			//time.Sleep(1 * time.Minute)
 			err = cmd.Execute()
 			require.NoError(t, err)
 
 			cpu := wannabeTrial.TrialAssignments.Assignments[0]
 			mem := wannabeTrial.TrialAssignments.Assignments[1]
 			assert.Contains(t, b.String(), fmt.Sprintf("%s: %sm", cpu.ParameterName, cpu.Value.String()))
-			assert.Contains(t, b.String(), fmt.Sprintf("%s: %sMi", mem.ParameterName, mem.Value.String()))
+			assert.Contains(t, b.String(), fmt.Sprintf("%s: %sM", mem.ParameterName, mem.Value.String()))
 		})
 	}
 }
