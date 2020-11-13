@@ -21,9 +21,11 @@ import (
 	"os"
 	"testing"
 
+	app "github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
 	redsky "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"
 )
@@ -94,6 +96,69 @@ func createTempManifests(t *testing.T) *os.File {
 	require.NoError(t, err)
 
 	return tmpfile
+}
+
+func createTempApplication(t *testing.T, filename string) (*app.Application, []byte, *os.File) {
+	tm := &metav1.TypeMeta{}
+	tm.SetGroupVersionKind(app.GroupVersion.WithKind("Application"))
+	sampleApplication := &app.Application{
+		TypeMeta: *tm,
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "sampleApplication",
+			Namespace: "default",
+		},
+		Resources: []string{filename},
+		// TODO what is this?
+		// Parameters: &app.Parameters{},
+		Scenarios: []app.Scenario{
+			{
+				Name: "how-do-you-make-a-tissue-dance",
+				StormForger: &app.StormForgerScenario{
+					TestCase:     "tissue-box",
+					TestCaseFile: "tissue-box.yaml",
+				},
+			},
+			{
+				Name: "put-a-little-boogie-in-it",
+				StormForger: &app.StormForgerScenario{
+					TestCase:     "boogie",
+					TestCaseFile: "boogie.yaml",
+				},
+			},
+		},
+		Objectives: []app.Objective{
+			{
+				Name: "cost",
+				Max:  resource.NewQuantity(100, resource.DecimalExponent),
+				Requests: &app.RequestsObjective{
+					Labels: map[string]string{"everybody": "yes"},
+					Weights: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("100m"),
+						corev1.ResourceMemory: resource.MustParse("100M"),
+					},
+				},
+			},
+			// v1alpha1.Application.Resources: []string: Objectives: []v1alpha1.Objective: v1alpha1.Objective.Name: Max: Latency: unmarshalerDecoder: json: cannot unmarshal object into Go value of type v1alpha1.LatencyType, error found in #10 byte of ...|ntile_99"},"max":"50|..., bigger context ...|00M"}}},{"latency":{"LatencyType":"percentile_99"},"max":"50","name":"latency"}],"resources":["/var/|...
+			// {
+			// 	Name: "latency",
+			// 	Max:  resource.NewQuantity(50, resource.DecimalExponent),
+			// 	Latency: &app.LatencyObjective{
+			// 		LatencyType: app.LatencyPercentile99,
+			// 	},
+			// },
+		},
+	}
+
+	tmpfile, err := ioutil.TempFile("", "application-*.yaml")
+	require.NoError(t, err)
+
+	b, err := yaml.Marshal(sampleApplication)
+	require.NoError(t, err)
+
+	_, err = tmpfile.Write(b)
+	require.NoError(t, err)
+
+	return sampleApplication, b, tmpfile
 }
 
 // hack to allow offline testing

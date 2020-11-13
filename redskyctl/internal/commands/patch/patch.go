@@ -22,6 +22,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -187,6 +190,7 @@ func (o *Options) getTrials(ctx context.Context, experimentName string, query *e
 // so we can better handle reading from stdin and getting at the specific data we need.
 func (o *Options) readInputs() (experiment *redsky.Experiment, manifests []byte, err error) {
 	inputs := make(map[string][]byte)
+	fs := filesys.MakeFsInMemory()
 
 	for _, filename := range o.inputFiles {
 		r, err := o.IOStreams.OpenFile(filename)
@@ -197,26 +201,37 @@ func (o *Options) readInputs() (experiment *redsky.Experiment, manifests []byte,
 
 		// Read the input files into a buffer so we can account for reading
 		// from StdIn
-		// Could probably use ioutil.ReadAll here, not sure there's much difference
 		var buf bytes.Buffer
 		if _, err = buf.ReadFrom(r); err != nil {
+			return nil, nil, err
+		}
+
+		if err := fs.WriteFile(filepath.Base(filename), buf.Bytes()); err != nil {
 			return nil, nil, err
 		}
 
 		inputs[filename] = buf.Bytes()
 	}
 
+	if err := fs.Walk("/", func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		fmt.Println(path, info.Size())
+		return nil
+	}); err != nil {
+		log.Fatal(err)
+	}
+
 	kioInputs := []kio.Reader{}
 	experiment = &redsky.Experiment{}
 
-	for _, input := range inputs {
-		// Find out if we've been given an application
+	for filename, input := range inputs {
 		app := &apps.Application{}
-		if err = yaml.Unmarshal(input, app); err != nil {
-			return nil, nil, err
-		}
 
+		// Find out if we've been given an application
 		if err := commander.NewResourceReader().ReadInto(ioutil.NopCloser(bytes.NewReader(input)), app); err != nil {
+			fmt.Println("sad face", filename, err)
 			// Not an application type, so let's add it in to kio as a resource
 			kioInputs = append(kioInputs, &kio.ByteReader{Reader: bytes.NewReader(input)})
 
@@ -228,10 +243,12 @@ func (o *Options) readInputs() (experiment *redsky.Experiment, manifests []byte,
 			continue
 		}
 
+		fmt.Printf("app before: %#v\n", app)
 		// Remove resources that arent related to the specific trial
 		application.FilterByExperimentName(app, o.trialName)
+		fmt.Printf("app after: %#v\n", app)
 
-		gen := experimentctl.NewGenerator(filesys.MakeFsInMemory())
+		gen := experimentctl.NewGenerator(fs)
 		gen.Application = *app
 
 		list, err := gen.Generate()
