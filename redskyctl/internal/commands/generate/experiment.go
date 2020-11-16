@@ -17,14 +17,16 @@ limitations under the License.
 package generate
 
 import (
+	"context"
 	"os"
 	"path/filepath"
+	"strings"
 
 	redskyappsv1alpha1 "github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
 	"github.com/redskyops/redskyops-controller/pkg/application"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/experiments"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/generate/experiment"
+	"github.com/redskyops/redskyops-go/pkg/config"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/kustomize/api/filesys"
@@ -32,7 +34,12 @@ import (
 )
 
 type ExperimentOptions struct {
-	experiments.Options
+	// Config is the Red Sky Configuration used to generate the role binding
+	Config *config.RedSkyConfig
+	// Printer is the resource printer used to render generated objects
+	Printer commander.ResourcePrinter
+	// IOStreams are used to access the standard process streams
+	commander.IOStreams
 
 	Filename   string
 	Resources  []string
@@ -122,6 +129,11 @@ func (o *ExperimentOptions) generate() error {
 		}
 	}
 
+	// Make sure there is an explicit namespace
+	if g.Application.Namespace == "" {
+		g.Application.Namespace = o.defaultNamespace()
+	}
+
 	// Generate the experiment
 	list, err := g.Generate()
 	if err != nil {
@@ -147,4 +159,24 @@ func (o *ExperimentOptions) filterResources(app *redskyappsv1alpha1.Application)
 	}
 
 	return nil
+}
+
+func (o *ExperimentOptions) defaultNamespace() string {
+	// First check to see if we have an explicit namespace override set
+	if cstr, err := config.CurrentCluster(o.Config.Reader()); err == nil && cstr.Namespace != "" {
+		return cstr.Namespace
+	}
+
+	// Check the kubectl config output
+	cmd, err := o.Config.Kubectl(context.Background(), "config", "view", "--minify", "-o", "jsonpath='{.contexts[0].context.namespace}'")
+	if err == nil {
+		if out, err := cmd.CombinedOutput(); err == nil {
+			if ns := strings.TrimSpace(strings.Trim(string(out), "'")); ns != "" {
+				return ns
+			}
+		}
+	}
+
+	// We cannot return empty, use default
+	return "default"
 }
