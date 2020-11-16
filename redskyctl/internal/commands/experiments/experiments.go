@@ -71,20 +71,13 @@ type Options struct {
 	Names []name
 }
 
-func (o *Options) validArgs(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	// Start by suggesting a type
-	if len(args) == 0 {
-		var s []string
-		if t := string(typeExperiment); strings.HasPrefix(t, toComplete) {
-			s = append(s, t)
-		}
-		if t := string(typeTrial); strings.HasPrefix(t, toComplete) {
-			s = append(s, t)
-		}
-		return s, cobra.ShellCompDirectiveNoFileComp
+func (o *Options) validArgs(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	// The experiment API will not be set when we are getting completions
+	// NOTE: The context is not set on the `cmd` (see Cobra #1263), use the parent as a workaround
+	if err := commander.SetExperimentsAPI(&o.ExperimentsAPI, o.Config, cmd.Parent()); err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
-
-	return nil, cobra.ShellCompDirectiveNoFileComp
+	return Completion(cmd.Parent().Context(), o.ExperimentsAPI, args, toComplete)
 }
 
 func (o *Options) setNames(args []string) error {
@@ -156,7 +149,9 @@ func parseNames(args []string) ([]name, error) {
 		// Special case where trial can alternatively end with "-<NUM>" instead of "/<NUM>"
 		if n.Type == typeTrial && argNumber == "" && !typeIsPlural {
 			if pos := strings.LastIndex(argName, "-"); pos > 0 {
-				n.Name, argNumber = argName[0:pos], argName[pos+1:]
+				if _, err := strconv.ParseInt(argName[pos+1:], 10, 64); err == nil {
+					n.Name, argNumber = argName[0:pos], argName[pos+1:]
+				}
 			}
 		}
 
