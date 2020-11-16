@@ -89,7 +89,7 @@ func addRequestsMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) {
 			Optimize: &nonOptimized,
 			Type:     redskyv1beta1.MetricPrometheus,
 			Port:     intstr.FromInt(9090),
-			Query:    fmt.Sprintf("{{ memoryRequests . \"%s\" }}", lbl), // TODO Convert to GB?
+			Query:    fmt.Sprintf("{{ memoryRequests . \"%s\" | GB }}", lbl),
 		})
 	}
 
