@@ -34,6 +34,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 func TestCaptureMetric(t *testing.T) {
@@ -42,6 +43,8 @@ func TestCaptureMetric(t *testing.T) {
 	// all tests this way
 	now := metav1.NewTime(time.Now().Add(time.Duration(-10) * time.Minute))
 	later := metav1.NewTime(now.Add(5 * time.Second))
+
+	log := zap.New(zap.UseDevMode(true))
 
 	jsonHttpTest := jsonPathHttpTestServer()
 	defer jsonHttpTest.Close()
@@ -151,6 +154,7 @@ func TestCaptureMetric(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("%q", tc.desc), func(t *testing.T) {
+			log := log.WithValues("test", tc.desc)
 			trial := &redskyv1beta1.Trial{
 				Status: redskyv1beta1.TrialStatus{
 					StartTime:      &now,
@@ -158,7 +162,7 @@ func TestCaptureMetric(t *testing.T) {
 				},
 			}
 
-			duration, _, err := CaptureMetric(tc.metric, trial, tc.obj)
+			duration, _, err := CaptureMetric(log, tc.metric, trial, tc.obj)
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expected, duration)
 		})
