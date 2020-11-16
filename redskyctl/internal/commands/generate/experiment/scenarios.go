@@ -88,30 +88,8 @@ func addStormForgerJob(sc *redskyappsv1alpha1.Scenario, app *redskyappsv1alpha1.
 					},
 				},
 			},
-			VolumeMounts: []corev1.VolumeMount{
-				{
-					Name:      "podinfo",
-					ReadOnly:  true,
-					MountPath: "/etc/podinfo",
-				},
-			},
 		},
 	}
-	pod.Volumes = append(pod.Volumes, corev1.Volume{
-		Name: "podinfo",
-		VolumeSource: corev1.VolumeSource{
-			DownwardAPI: &corev1.DownwardAPIVolumeSource{
-				Items: []corev1.DownwardAPIVolumeFile{
-					{
-						Path: "labels",
-						FieldRef: &corev1.ObjectFieldSelector{
-							FieldPath: "metadata.labels",
-						},
-					},
-				},
-			},
-		},
-	})
 
 	// Add the test case name
 	if testCase, err := testCase(sc, app); err != nil {
@@ -209,12 +187,6 @@ func ensureStormForgerTestCaseFile(s *redskyappsv1alpha1.StormForgerScenario, ld
 				LocalObjectReference: corev1.LocalObjectReference{
 					Name: testCaseConfigMap.Name,
 				},
-				Items: []corev1.KeyToPath{
-					{
-						Key:  key,
-						Path: "testcasefile.js",
-					},
-				},
 			},
 		},
 	}
@@ -227,7 +199,7 @@ func ensureStormForgerTestCaseFile(s *redskyappsv1alpha1.StormForgerScenario, ld
 
 	testCaseFile := &corev1.EnvVar{
 		Name:  "TEST_CASE_FILE",
-		Value: filepath.Join(testCaseVolumeMount.MountPath, testCaseVolume.VolumeSource.ConfigMap.Items[0].Path),
+		Value: filepath.Join(testCaseVolumeMount.MountPath, key),
 	}
 
 	return testCaseFile, testCaseVolumeMount, testCaseVolume, nil
