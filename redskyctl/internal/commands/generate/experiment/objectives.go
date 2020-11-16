@@ -139,7 +139,7 @@ func addStormForgerLatencyMetric(obj *redskyappsv1alpha1.Objective, list *corev1
 		Minimize: true,
 		Type:     redskyv1beta1.MetricPrometheus,
 		Port:     intstr.FromInt(9090),
-		Query:    m + `{job="trialRun",instance="{{ .Trial.Name }}"}`,
+		Query:    `scalar(` + m + `{job="trialRun",instance="{{ .Trial.Name }})"}`,
 		Min:      obj.Min,
 		Max:      obj.Max,
 		Optimize: obj.Optimize,
