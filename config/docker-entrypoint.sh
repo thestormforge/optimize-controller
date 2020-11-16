@@ -12,6 +12,12 @@ case "$1" in
     fi
 
     kustomize edit set nameprefix "$namePrefix"
+    waitFn() {
+      kubectl wait --for condition=Available=true --timeout 120s deployment ${namePrefix}prometheus-server
+    }
+  ;;
+  default)
+    waitFn() { :; }
   ;;
 esac
 
@@ -78,6 +84,7 @@ while [ "$#" != "0" ] ; do
         ;;
     build)
         handle () { cat ; }
+        waitFn () { :; }
         shift
         ;;
     *)
@@ -90,3 +97,4 @@ done
 
 # Run Kustomize and pipe it into the handler
 kustomize build --enable_alpha_plugins | handle
+waitFn
