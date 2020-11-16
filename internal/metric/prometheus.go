@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-logr/logr"
 	prom "github.com/prometheus/client_golang/api"
 	promv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
@@ -30,7 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-func capturePrometheusMetric(m *redskyv1beta1.Metric, target runtime.Object, completionTime time.Time) (value float64, stddev float64, err error) {
+func capturePrometheusMetric(log logr.Logger, m *redskyv1beta1.Metric, target runtime.Object, completionTime time.Time) (value float64, stddev float64, err error) {
 	var urls []string
 
 	if urls, err = toURL(target, m); err != nil {
@@ -38,7 +39,7 @@ func capturePrometheusMetric(m *redskyv1beta1.Metric, target runtime.Object, com
 	}
 
 	for _, u := range urls {
-		if value, stddev, err = captureOnePrometheusMetric(u, m.Query, m.ErrorQuery, completionTime); err == nil {
+		if value, stddev, err = captureOnePrometheusMetric(log, u, m.Query, m.ErrorQuery, completionTime); err == nil {
 			break
 		}
 
@@ -50,7 +51,7 @@ func capturePrometheusMetric(m *redskyv1beta1.Metric, target runtime.Object, com
 	return value, stddev, err
 }
 
-func captureOnePrometheusMetric(address, query, errorQuery string, completionTime time.Time) (float64, float64, error) {
+func captureOnePrometheusMetric(log logr.Logger, address, query, errorQuery string, completionTime time.Time) (float64, float64, error) {
 	// Get the Prometheus client based on the metric URL
 	// TODO Cache these by URL
 	c, err := prom.NewClient(prom.Config{Address: address})
@@ -65,6 +66,7 @@ func captureOnePrometheusMetric(address, query, errorQuery string, completionTim
 		return 0, 0, err
 	}
 
+	queryTime := completionTime
 	for _, target := range targets.Active {
 		if target.Health != promv1.HealthGood {
 			continue
@@ -74,10 +76,19 @@ func captureOnePrometheusMetric(address, query, errorQuery string, completionTim
 			// TODO Can we make a more informed delay?
 			return 0, 0, &CaptureError{RetryAfter: 5 * time.Second}
 		}
+
+		if target.LastScrape.After(queryTime) {
+			queryTime = target.LastScrape
+		}
+	}
+
+	// If we needed to adjust the query time, log it so we have a record of the actual time being used
+	if !queryTime.Equal(completionTime) {
+		log.WithValues("queryTime", queryTime).Info("Adjusted completion time for Prometheus query")
 	}
 
 	// Execute query
-	v, _, err := promAPI.Query(context.TODO(), query, completionTime)
+	v, _, err := promAPI.Query(context.TODO(), query, queryTime)
 	if err != nil {
 		return 0, 0, err
 	}

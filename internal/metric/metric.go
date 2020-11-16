@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-logr/logr"
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/redskyops/redskyops-controller/internal/template"
 	corev1 "k8s.io/api/core/v1"
@@ -48,7 +49,7 @@ func (e *CaptureError) Error() string {
 }
 
 // CaptureMetric captures a point-in-time metric value and it's error (standard deviation)
-func CaptureMetric(metric *redskyv1beta1.Metric, trial *redskyv1beta1.Trial, target runtime.Object) (float64, float64, error) {
+func CaptureMetric(log logr.Logger, metric *redskyv1beta1.Metric, trial *redskyv1beta1.Trial, target runtime.Object) (float64, float64, error) {
 	// Work on a copy so we can render the queries in place
 	metric = metric.DeepCopy()
 
@@ -65,7 +66,7 @@ func CaptureMetric(metric *redskyv1beta1.Metric, trial *redskyv1beta1.Trial, tar
 		value, err := strconv.ParseFloat(metric.Query, 64)
 		return value, 0, err
 	case redskyv1beta1.MetricPrometheus:
-		return capturePrometheusMetric(metric, target, trial.Status.CompletionTime.Time)
+		return capturePrometheusMetric(log, metric, target, trial.Status.CompletionTime.Time)
 	case redskyv1beta1.MetricDatadog:
 		return captureDatadogMetric(metric.Scheme, metric.Query, trial.Status.StartTime.Time, trial.Status.CompletionTime.Time)
 	case redskyv1beta1.MetricJSONPath:

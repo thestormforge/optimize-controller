@@ -160,7 +160,7 @@ func (r *MetricReconciler) collectMetrics(ctx context.Context, t *redskyv1beta1.
 		var captureError error
 		if target, err := r.target(ctx, t.Namespace, metrics[v.Name]); err != nil {
 			captureError = err
-		} else if value, stddev, err := metric.CaptureMetric(metrics[v.Name], t, target); err != nil {
+		} else if value, stddev, err := metric.CaptureMetric(log, metrics[v.Name], t, target); err != nil {
 			if merr, ok := err.(*metric.CaptureError); ok && merr.RetryAfter > 0 {
 				// Do not count retries against the remaining attempts
 				return &ctrl.Result{RequeueAfter: merr.RetryAfter}, nil
