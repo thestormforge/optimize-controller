@@ -228,7 +228,7 @@ func ensurePrometheus(list *corev1.List) {
 					Resources: []string{"serviceaccounts", "services", "configmaps"},
 				},
 				{
-					Verbs:     []string{"get", "create", "delete", "patch"},
+					Verbs:     []string{"get", "create", "delete", "patch", "list", "watch"},
 					APIGroups: []string{"apps"},
 					Resources: []string{"deployments"},
 				},
