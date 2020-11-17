@@ -19,7 +19,6 @@ package docs
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
@@ -77,29 +76,9 @@ func (o *Options) docs(cmd *cobra.Command) error {
 			return err
 		}
 
-	case "api":
-		if err := genAPIDoc(o.Directory, "trial.md", filepath.Join(o.SourcePath, "trial_types.go")); err != nil {
-			return err
-		}
-		if err := genAPIDoc(o.Directory, "experiment.md", filepath.Join(o.SourcePath, "experiment_types.go")); err != nil {
-			return err
-		}
-
 	default:
 		return fmt.Errorf("unknown documentation type: %s", o.DocType)
 	}
 
-	return nil
-}
-
-func genAPIDoc(dir, basename, path string) error {
-	filename := filepath.Join(dir, basename)
-	f, err := os.Create(filename)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = f.Close() }()
-
-	printAPIDocs(f, path)
 	return nil
 }
