@@ -216,19 +216,18 @@ func ensurePrometheus(list *corev1.List) {
 			},
 			Rules: []rbacv1.PolicyRule{
 				// Required to manage the Prometheus resources in the setup task
-				// TODO It's unclear why this isn't just create/delete on all six types
 				{
 					Verbs:     []string{"get", "create", "delete"},
 					APIGroups: []string{"rbac.authorization.k8s.io"},
 					Resources: []string{"clusterroles", "clusterrolebindings"},
 				},
 				{
-					Verbs:     []string{"get", "create", "update", "delete"},
+					Verbs:     []string{"get", "create", "delete"},
 					APIGroups: []string{""},
 					Resources: []string{"serviceaccounts", "services", "configmaps"},
 				},
 				{
-					Verbs:     []string{"get", "create", "delete", "patch", "list", "watch"},
+					Verbs:     []string{"get", "create", "delete", "list", "watch"},
 					APIGroups: []string{"apps"},
 					Resources: []string{"deployments"},
 				},
