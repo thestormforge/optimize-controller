@@ -34,13 +34,6 @@ jobs:
         run: |
           hack/install_kustomize.sh
           make test
-      - name: Verify docs have been generated
-        run: |
-          make generate-docs
-          # Need to do this to clear up delta with regenerating the docs
-          # since we rm -r docs
-          git update-index --refresh
-          git diff-files --exit-code
   build:
     name: Build and Deploy
     runs-on: ubuntu-latest
