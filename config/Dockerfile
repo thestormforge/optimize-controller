@@ -1,13 +1,13 @@
 FROM alpine:latest
 
-ENV HELM_VERSION="v3.2.1" \
-    HELM_SHA256="018f9908cb950701a5d59e757653a790c66d8eda288625dbb185354ca6f41f6b"
+ENV HELM_VERSION="v3.4.1" \
+    HELM_SHA256="538f85b4b73ac6160b30fd0ab4b510441aa3fa326593466e8bf7084a9c288420"
 
-ENV KUBECTL_VERSION="v1.14.10" \
-    KUBECTL_SHA256="7729c6612bec76badc7926a79b26e0d9b06cc312af46dbb80ea7416d1fce0b36"
+ENV KUBECTL_VERSION="v1.16.15" \
+    KUBECTL_SHA256="e8913069293156ddf55f243814a22d2384fc18b165efb6200606fdeaad146605"
 
-ENV KUSTOMIZE_VERSION="v3.5.5" \
-    KUSTOMIZE_SHA256="23306e0c0fb24f5a9fea4c3b794bef39211c580e4cbaee9e21b9891cb52e73e7"
+ENV KUSTOMIZE_VERSION="v3.8.7" \
+    KUSTOMIZE_SHA256="4a3372d7bfdffe2eaf729e77f88bc94ce37dc84de55616bfe90aac089bf6fd02"
 
 ENV KONJURE_VERSION="v0.2.1" \
     KONJURE_SHA256="8bf2a82b389076d80a9bd5f379c330e5d74353ef8fac95f851dd26c26349b61c"
@@ -31,9 +31,6 @@ RUN apk --no-cache add curl && \
 
 USER setup:setup
 RUN konjure kustomize init
-
-# Add Helm stable until Nov 13, 2020
-RUN helm repo add stable https://kubernetes-charts.storage.googleapis.com
 
 WORKDIR "/workspace/base"
 ENTRYPOINT ["/workspace/docker-entrypoint.sh"]
