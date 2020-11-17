@@ -24,8 +24,8 @@ import (
 	"github.com/redskyops/redskyops-controller/internal/server"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/experiments"
-	experimentsv1alpha1 "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
 	"github.com/spf13/cobra"
+	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/redskyapi/experiments/v1alpha1"
 )
 
 type TrialOptions struct {

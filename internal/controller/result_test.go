@@ -21,8 +21,8 @@ import (
 	"runtime"
 	"testing"
 
-	redskyapi "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
 	"github.com/stretchr/testify/assert"
+	redskyapi "github.com/thestormforge/optimize-go/pkg/redskyapi/experiments/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"

@@ -22,8 +22,8 @@ import (
 
 	"github.com/redskyops/redskyops-controller/internal/controller"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
-	experimentsv1alpha1 "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
 	"github.com/spf13/cobra"
+	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/redskyapi/experiments/v1alpha1"
 )
 
 // DeleteOptions includes the configuration for deleting experiment API objects

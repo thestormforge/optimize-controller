@@ -536,8 +536,6 @@ github.com/prometheus/procfs v0.0.2/go.mod h1:TjEm7ze935MbeOT/UhFTIMYKhuLP4wbCsT
 github.com/prometheus/tsdb v0.7.1/go.mod h1:qhTCs0VvXwvX/y3TZrWD7rabWM+ijKTux40TwIPHuXU=
 github.com/qri-io/starlib v0.4.2-0.20200213133954-ff2e8cd5ef8d/go.mod h1:7DPO4domFU579Ga6E61sB9VFNaniPVwJP5C4bBCu3wA=
 github.com/quasilyte/go-consistent v0.0.0-20190521200055-c6f3937de18c/go.mod h1:5STLWrekHfjyYwxBRVRXNOSewLJ3PWfDJd1VyTS21fI=
-github.com/redskyops/redskyops-go v0.0.5 h1:HaIA2myMtlK4nUYk8+0nexZCRQXdf82KDS1dQx3gOy4=
-github.com/redskyops/redskyops-go v0.0.5/go.mod h1:dmfIPpFpk1o/vpCbPiOlCzP/Pzg2QEvyFeqkkk1Q6sc=
 github.com/redskyops/redskyops-ui/v2 v2.1.6 h1:3NNM8Wcz4tDN6IrDjfzzhCKLuZOqnkxs1kma1zsqUGE=
 github.com/redskyops/redskyops-ui/v2 v2.1.6/go.mod h1:1YrDT+GwRG3KGv0HtPBu0lJ9Ghf7RiAbvmwlCUSwjsU=
 github.com/remyoudompheng/bigfft v0.0.0-20170806203942-52369c62f446/go.mod h1:uYEyJGbgTkfkS4+E/PavXkNJcbFIpEtjt2B0KDQ5+9M=
@@ -604,6 +602,8 @@ github.com/stretchr/testify v1.4.0/go.mod h1:j7eGeouHqKxXV5pUuKE4zz7dFj8WfuZ+81P
 github.com/stretchr/testify v1.6.1 h1:hDPOHmpOpP40lSULcqw7IrRb/u7w6RpDC9399XyoNd0=
 github.com/stretchr/testify v1.6.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/subosito/gotenv v1.2.0/go.mod h1:N0PQaV/YGNqwC0u51sEeR/aUtSLEXKX9iv69rRypqCw=
+github.com/thestormforge/optimize-go v0.0.6 h1:s2kAn5lWvGujfy5qjbP+RqLvHGVZPImuCpv2cTo17zw=
+github.com/thestormforge/optimize-go v0.0.6/go.mod h1:Gpl/jbX18GH9yFZDW5AoeKPG3OeyrvhHViClCawPODA=
 github.com/tidwall/pretty v1.0.0/go.mod h1:XNkn88O1ChpSDQmQeStsy+sBenx6DDtFZJxhVysOjyk=
 github.com/timakin/bodyclose v0.0.0-20190930140734-f7f2e9bca95e/go.mod h1:Qimiffbc6q9tBWlVV6x0P9sat/ao1xEkREYPPj9hphk=
 github.com/tmc/grpc-websocket-proxy v0.0.0-20170815181823-89b8d40f7ca8/go.mod h1:ncp9v5uamzpCO7NfCPTXjqaC+bZgJeR0sMTm6dMHP7U=

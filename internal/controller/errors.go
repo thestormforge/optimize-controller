@@ -17,7 +17,7 @@ limitations under the License.
 package controller
 
 import (
-	redskyapi "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
+	redskyapi "github.com/thestormforge/optimize-go/pkg/redskyapi/experiments/v1alpha1"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 )
 

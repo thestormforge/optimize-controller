@@ -27,9 +27,9 @@ import (
 
 	"github.com/pkg/browser"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
-	"github.com/redskyops/redskyops-go/pkg/redskyapi"
 	"github.com/redskyops/redskyops-ui/v2/ui"
 	"github.com/spf13/cobra"
+	"github.com/thestormforge/optimize-go/pkg/redskyapi"
 	"golang.org/x/oauth2"
 )
 

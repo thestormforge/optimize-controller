@@ -27,7 +27,7 @@ import (
 	"github.com/redskyops/redskyops-controller/controllers"
 	"github.com/redskyops/redskyops-controller/internal/controller"
 	"github.com/redskyops/redskyops-controller/internal/version"
-	"github.com/redskyops/redskyops-go/pkg/config"
+	"github.com/thestormforge/optimize-go/pkg/config"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
