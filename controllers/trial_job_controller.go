@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -29,6 +30,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -42,7 +44,7 @@ type TrialJobReconciler struct {
 }
 
 // +kubebuilder:rbac:groups=redskyops.dev,resources=trials,verbs=get;list;watch;update
-// +kubebuilder:rbac:groups=batch;extensions,resources=jobs,verbs=get;list;watch;create
+// +kubebuilder:rbac:groups=batch;extensions,resources=jobs,verbs=get;list;watch;create;patch
 // +kubebuilder:rbac:groups="",resources=pods,verbs=list
 
 func (r *TrialJobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
@@ -66,23 +68,25 @@ func (r *TrialJobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	// Create a new job if necessary
-	if len(jobList.Items) == 0 {
-		// Insert a "sleep" between "ready" and the trial job
-		if ids := time.Duration(t.Spec.InitialDelaySeconds) * time.Second; ids > 0 {
-			for _, c := range t.Status.Conditions {
-				if c.Type == redskyv1beta1.TrialReady {
-					startTime := c.LastTransitionTime.Add(ids)
-					if startTime.After(now.Time) {
-						return ctrl.Result{RequeueAfter: startTime.Sub(now.Time)}, nil
-					}
+	if len(jobList.Items) > 0 {
+		return ctrl.Result{}, nil
+	}
+
+	// Insert a "sleep" between "ready" and the trial job
+	if ids := time.Duration(t.Spec.InitialDelaySeconds) * time.Second; ids > 0 {
+		for _, c := range t.Status.Conditions {
+			if c.Type == redskyv1beta1.TrialReady {
+				startTime := c.LastTransitionTime.Add(ids)
+				if startTime.After(now.Time) {
+					return ctrl.Result{RequeueAfter: startTime.Sub(now.Time)}, nil
 				}
 			}
 		}
+	}
 
-		// Create the trial run job
-		if result, err := r.createJob(ctx, t); result != nil {
-			return *result, err
-		}
+	// Create the trial run job
+	if result, err := r.createJob(ctx, t); result != nil {
+		return *result, err
 	}
 
 	return ctrl.Result{}, nil
@@ -179,17 +183,24 @@ func (r *TrialJobReconciler) applyJobStatus(ctx context.Context, t *redskyv1beta
 	if matchingSelector, err := meta.MatchingSelector(job.Spec.Selector); err == nil {
 		podList := &corev1.PodList{}
 		if err := r.List(ctx, podList, client.InNamespace(job.Namespace), matchingSelector); err == nil {
+
 			// Look for pod failures (edge case where job controller doesn't update status properly, e.g. initContainer failure or unschedulable)
 			for i := range podList.Items {
 				s := &podList.Items[i].Status
 				if s.Phase == corev1.PodFailed {
-					trial.ApplyCondition(&t.Status, redskyv1beta1.TrialFailed, corev1.ConditionTrue, s.Reason, "", time)
+					trial.ApplyCondition(&t.Status, redskyv1beta1.TrialFailed, corev1.ConditionTrue, s.Reason, "trial pod failed", time)
 					dirty = true
 				}
+
 				// TODO We should consolidate this with `internal/ready/podFailed`
 				for _, c := range s.Conditions {
 					if c.Type == corev1.PodScheduled && c.Status == corev1.ConditionFalse && c.Reason == corev1.PodReasonUnschedulable {
-						trial.ApplyCondition(&t.Status, redskyv1beta1.TrialFailed, corev1.ConditionTrue, c.Reason, c.Message, time)
+						trial.ApplyCondition(&t.Status, redskyv1beta1.TrialFailed, corev1.ConditionTrue, c.Reason, fmt.Sprintf("trial pod: %s", c.Message), time)
+
+						// Patch the job and set parallelism to 0 to suspend the job and terminate any active pods
+						if err := r.Patch(ctx, job, client.RawPatch(types.StrategicMergePatchType, []byte(`{ "spec": { "parallelism": 0  } }`))); err != nil {
+							r.Log.Error(err, "unable suspend trial job", "job", job, "pod status", podList.Items[i].Status)
+						}
 						dirty = true
 					}
 				}
