@@ -24,10 +24,10 @@ import (
 
 	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
-	internalconfig "github.com/redskyops/redskyops-go/pkg/config"
-	"github.com/redskyops/redskyops-go/pkg/redskyapi"
-	experimentsv1alpha1 "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
 	"github.com/spf13/cobra"
+	internalconfig "github.com/thestormforge/optimize-go/pkg/config"
+	"github.com/thestormforge/optimize-go/pkg/redskyapi"
+	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/redskyapi/experiments/v1alpha1"
 	"golang.org/x/oauth2"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"

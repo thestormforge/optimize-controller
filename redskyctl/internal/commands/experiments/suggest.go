@@ -24,9 +24,9 @@ import (
 	"strings"
 
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
-	experimentsv1alpha1 "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
-	"github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1/numstr"
 	"github.com/spf13/cobra"
+	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/redskyapi/experiments/v1alpha1"
+	"github.com/thestormforge/optimize-go/pkg/redskyapi/experiments/v1alpha1/numstr"
 )
 
 // TODO Accept suggestion inputs from standard input, what formats?

@@ -22,8 +22,8 @@ import (
 	"context"
 
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
-	"github.com/redskyops/redskyops-go/pkg/config"
 	"github.com/spf13/cobra"
+	"github.com/thestormforge/optimize-go/pkg/config"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

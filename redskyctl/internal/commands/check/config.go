@@ -23,9 +23,9 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
-	"github.com/redskyops/redskyops-go/pkg/config"
-	experimentsv1alpha1 "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
 	"github.com/spf13/cobra"
+	"github.com/thestormforge/optimize-go/pkg/config"
+	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/redskyapi/experiments/v1alpha1"
 )
 
 // ConfigOptions are the options for checking a Red Sky Configuration

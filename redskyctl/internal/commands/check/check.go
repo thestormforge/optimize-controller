@@ -17,8 +17,8 @@ limitations under the License.
 package check
 
 import (
-	"github.com/redskyops/redskyops-go/pkg/config"
 	"github.com/spf13/cobra"
+	"github.com/thestormforge/optimize-go/pkg/config"
 )
 
 // Options includes the configuration for the subcommands

@@ -27,9 +27,9 @@ import (
 	"github.com/redskyops/redskyops-controller/internal/version"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/kustomize"
-	"github.com/redskyops/redskyops-go/pkg/config"
-	experimentsv1alpha1 "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
 	"github.com/spf13/cobra"
+	"github.com/thestormforge/optimize-go/pkg/config"
+	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/redskyapi/experiments/v1alpha1"
 )
 
 // TODO Add support for getting Red Sky server version

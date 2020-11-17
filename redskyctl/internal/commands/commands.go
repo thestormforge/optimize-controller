@@ -38,9 +38,9 @@ import (
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/results"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/revoke"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/version"
-	"github.com/redskyops/redskyops-go/pkg/config"
-	experimentsv1alpha1 "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
 	"github.com/spf13/cobra"
+	"github.com/thestormforge/optimize-go/pkg/config"
+	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/redskyapi/experiments/v1alpha1"
 )
 
 // NewRedskyctlCommand creates a new top-level redskyctl command

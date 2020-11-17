@@ -24,10 +24,10 @@ import (
 	"strings"
 
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
-	"github.com/redskyops/redskyops-go/pkg/config"
-	"github.com/redskyops/redskyops-go/pkg/oauth2/registration"
-	redskyapi "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
 	"github.com/spf13/cobra"
+	"github.com/thestormforge/optimize-go/pkg/config"
+	"github.com/thestormforge/optimize-go/pkg/oauth2/registration"
+	redskyapi "github.com/thestormforge/optimize-go/pkg/redskyapi/experiments/v1alpha1"
 	"golang.org/x/oauth2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

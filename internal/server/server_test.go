@@ -25,9 +25,9 @@ import (
 	"time"
 
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
-	redskyapi "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
-	"github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1/numstr"
 	"github.com/stretchr/testify/assert"
+	redskyapi "github.com/thestormforge/optimize-go/pkg/redskyapi/experiments/v1alpha1"
+	"github.com/thestormforge/optimize-go/pkg/redskyapi/experiments/v1alpha1/numstr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

@@ -29,9 +29,9 @@ import (
 	"github.com/mdp/qrterminal/v3"
 	"github.com/pkg/browser"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
-	"github.com/redskyops/redskyops-go/pkg/config"
-	"github.com/redskyops/redskyops-go/pkg/oauth2/authorizationcode"
 	"github.com/spf13/cobra"
+	"github.com/thestormforge/optimize-go/pkg/config"
+	"github.com/thestormforge/optimize-go/pkg/oauth2/authorizationcode"
 	"golang.org/x/oauth2"
 )
 

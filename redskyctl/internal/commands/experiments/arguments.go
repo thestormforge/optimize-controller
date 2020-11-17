@@ -24,8 +24,8 @@ import (
 	"strconv"
 	"strings"
 
-	experimentsv1alpha1 "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
 	"github.com/spf13/cobra"
+	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/redskyapi/experiments/v1alpha1"
 )
 
 // Completion implements argument completion for the type/name arguments.

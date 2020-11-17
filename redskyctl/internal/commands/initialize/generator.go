@@ -28,8 +28,8 @@ import (
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/authorize_cluster"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/grant_permissions"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/kustomize"
-	"github.com/redskyops/redskyops-go/pkg/config"
 	"github.com/spf13/cobra"
+	"github.com/thestormforge/optimize-go/pkg/config"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 )
 
