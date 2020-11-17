@@ -13,7 +13,7 @@ case "$1" in
 
     kustomize edit set nameprefix "$namePrefix"
     waitFn() {
-      kubectl wait --for condition=Available=true --timeout 120s deployment ${namePrefix}prometheus-server
+      kubectl wait --for condition=Available=true --timeout 120s deployment.apps ${namePrefix}prometheus-server
     }
   ;;
   default)
@@ -80,6 +80,7 @@ while [ "$#" != "0" ] ; do
                 kubectl wait pods --for=delete --namespace "$NAMESPACE" --selector "redskyops.dev/trial=$TRIAL,redskyops.dev/trial-role=trialResource"
             fi
         }
+        waitFn () { :; }
         shift
         ;;
     build)
