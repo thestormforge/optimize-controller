@@ -72,7 +72,7 @@ jobs:
             DOCKER_TAG="sha-$(git rev-parse --short HEAD)"
             echo "IMAGE_TAG=edge" >> $GITHUB_ENV
           fi
-          echo "IMG=${DOCKER_REGISTRY}/redskyops-controller:${DOCKER_TAG}" >> $GITHUB_ENV
+          echo "IMG=${DOCKER_REGISTRY}/optimize-controller:${DOCKER_TAG}" >> $GITHUB_ENV
           echo "REDSKYCTL_IMG=${DOCKER_REGISTRY}/redskyctl:${DOCKER_TAG}" >> $GITHUB_ENV
           echo "SETUPTOOLS_IMG=${DOCKER_REGISTRY}/setuptools:${DOCKER_TAG}" >> $GITHUB_ENV
           echo "PULL_POLICY=" >> $GITHUB_ENV
