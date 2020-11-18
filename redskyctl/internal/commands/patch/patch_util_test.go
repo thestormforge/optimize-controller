@@ -76,7 +76,7 @@ func createTempExperimentFile(t *testing.T) (*redsky.Experiment, []byte, *os.Fil
 		Status: redsky.ExperimentStatus{},
 	}
 
-	tmpfile, err := ioutil.TempFile("", "experiment")
+	tmpfile, err := ioutil.TempFile("", "experiment-*.yaml")
 	require.NoError(t, err)
 
 	b, err := yaml.Marshal(sampleExperiment)
