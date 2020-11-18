@@ -238,6 +238,14 @@ func ToClusterTrial(t *redskyv1beta1.Trial, suggestion *redskyapi.TrialAssignmen
 func FromClusterTrial(t *redskyv1beta1.Trial) *redskyapi.TrialValues {
 	out := &redskyapi.TrialValues{}
 
+	// Set the trial timestamps
+	if t.Status.StartTime != nil {
+		out.StartTime = &t.Status.StartTime.Time
+	}
+	if t.Status.CompletionTime != nil {
+		out.CompletionTime = &t.Status.CompletionTime.Time
+	}
+
 	// Check to see if the trial failed
 	for _, c := range t.Status.Conditions {
 		if c.Type == redskyv1beta1.TrialFailed && c.Status == corev1.ConditionTrue {
