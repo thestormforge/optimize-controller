@@ -28,7 +28,6 @@ import (
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/generate/experiment"
 	"github.com/redskyops/redskyops-go/pkg/config"
 	"github.com/spf13/cobra"
-	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/kustomize/api/filesys"
 	"sigs.k8s.io/kustomize/api/konfig"
 )
@@ -112,23 +111,6 @@ func (o *ExperimentOptions) generate() error {
 		return err
 	}
 
-	// Configure how we filter the application resources when looking for requests/limits
-	// TODO This is kind of a hack: we are just adding labels (if present) to the default selectors
-	g.ContainerResourcesSelectors = experiment.DefaultContainerResourcesSelectors()
-	if g.Application.Parameters != nil && g.Application.Parameters.ContainerResources != nil {
-		ls := labels.Set(g.Application.Parameters.ContainerResources.Labels).String()
-		for i := range g.ContainerResourcesSelectors {
-			g.ContainerResourcesSelectors[i].LabelSelector = ls
-		}
-	}
-	if g.Application.Parameters != nil && g.Application.Parameters.Replicas != nil {
-		g.ReplicaSelectors = experiment.DefaultReplicaSelectors()
-		ls := labels.Set(g.Application.Parameters.Replicas.Labels).String()
-		for i := range g.ReplicaSelectors {
-			g.ReplicaSelectors[i].LabelSelector = ls
-		}
-	}
-
 	// Make sure there is an explicit namespace and name
 	if g.Application.Namespace == "" {
 		g.Application.Namespace = o.defaultNamespace()
@@ -136,6 +118,9 @@ func (o *ExperimentOptions) generate() error {
 	if g.Application.Name == "" {
 		g.Application.Name = o.defaultName()
 	}
+
+	// Configure how we filter the application resources when looking for requests/limits
+	g.SetDefaultSelectors()
 
 	// Generate the experiment
 	list, err := g.Generate()
