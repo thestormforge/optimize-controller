@@ -129,9 +129,12 @@ func (o *ExperimentOptions) generate() error {
 		}
 	}
 
-	// Make sure there is an explicit namespace
+	// Make sure there is an explicit namespace and name
 	if g.Application.Namespace == "" {
 		g.Application.Namespace = o.defaultNamespace()
+	}
+	if g.Application.Name == "" {
+		g.Application.Name = o.defaultName()
 	}
 
 	// Generate the experiment
@@ -174,6 +177,18 @@ func (o *ExperimentOptions) defaultNamespace() string {
 			if ns := strings.TrimSpace(strings.Trim(string(out), "'")); ns != "" {
 				return ns
 			}
+		}
+	}
+
+	// We cannot return empty, use default
+	return "default"
+}
+
+func (o *ExperimentOptions) defaultName() string {
+	// Use the directory name
+	if af, err := filepath.Abs(o.Filename); err == nil {
+		if d := filepath.Base(filepath.Dir(af)); d != "." {
+			return d
 		}
 	}
 
