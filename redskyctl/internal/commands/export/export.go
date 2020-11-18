@@ -82,13 +82,18 @@ func NewCommand(o *Options) *cobra.Command {
 				err = commander.SetExperimentsAPI(&o.ExperimentsAPI, o.Config, cmd)
 			}
 
+			if len(args) != 1 {
+				return fmt.Errorf("a trial name must be specified")
+			}
+
+			o.trialName = args[0]
+
 			return err
 		},
 		RunE: commander.WithContextE(o.runner),
 	}
 
 	cmd.Flags().StringSliceVar(&o.inputFiles, "file", []string{""}, "experiment and related manifests to export, - for stdin")
-	cmd.Flags().StringVar(&o.trialName, "trialname", "", "trial name")
 
 	return cmd
 }
