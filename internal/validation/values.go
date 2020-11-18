@@ -35,7 +35,7 @@ func CheckMetricBounds(m *redskyv1beta1.Metric, v *redskyv1beta1.Value) error {
 	if m.Min != nil {
 		min := float64(m.Min.ScaledValue(resource.Nano)) / 1000000000
 		if value < min {
-			return fmt.Errorf("metric value %f for %s is below the minumum of %s", value, m.Name, m.Min.String())
+			return fmt.Errorf("metric value %f for %s is below the minimum of %s", value, m.Name, m.Min.String())
 		}
 	}
 

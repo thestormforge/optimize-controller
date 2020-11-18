@@ -114,7 +114,7 @@ func toURL(target runtime.Object, m *redskyv1beta1.Metric) ([]string, error) {
 		switch m.Port.Type {
 		case intstr.Int:
 			if m.Port.IntValue() > 0 {
-				// Explicity add port number
+				// Explicitly add port number
 				ports = append(ports, m.Port.IntValue())
 			} else {
 				// Aggregate all ports on the service
