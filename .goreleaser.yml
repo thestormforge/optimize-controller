@@ -37,14 +37,14 @@ dockers:
     dockerfile: redskyctl/Dockerfile
 brews:
   - tap:
-      owner: redskyops
+      owner: thestormforge
       name: homebrew-tap
     folder: Formula
     commit_author:
       name: Butch Masters
       email: butch@carbonrelay.com
-    homepage: "https://redskyops.dev/"
-    description: Kubernetes Exploration
+    homepage: "https://www.stormforge.io/"
+    description: Release with Confidence
 signs:
   - id: notarization
     # This is going to produce empty ".sig" files that will need to be manually removed from the GitHub release

@@ -1,10 +1,2 @@
 **
-!/api
-!/controllers
-!/internal
-!/redskyapi
-!/redskyctl
-!/go.mod
-!/go.sum
-!/main.go
 !/manager
