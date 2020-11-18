@@ -48,9 +48,9 @@ func NewCommand(o *Options) *cobra.Command {
 	}
 
 	// Keep the flags so we don't fail, but mark the all as hidden
-	cmd.Flags().StringVar(&o.ServerAddress, "address", "", "")
-	cmd.Flags().BoolVar(&o.DisplayURL, "url", false, "")
-	cmd.Flags().DurationVar(&o.IdleTimeout, "idle-timeout", 5*time.Second, "")
+	cmd.Flags().StringVar(&o.ServerAddress, "address", "", "ignored for compatibility")
+	cmd.Flags().BoolVar(&o.DisplayURL, "url", false, "display the URL instead of opening a browser")
+	cmd.Flags().DurationVar(&o.IdleTimeout, "idle-timeout", 5*time.Second, "ignored for compatibility")
 	_ = cmd.Flags().MarkHidden("address")
 	_ = cmd.Flags().MarkHidden("url")
 	_ = cmd.Flags().MarkHidden("idle-timeout")

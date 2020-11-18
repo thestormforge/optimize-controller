@@ -53,10 +53,11 @@ func testCommandUsage(t *testing.T, cmd *cobra.Command) {
 			t.Run("--"+f.Name, func(t *testing.T) {
 				assert.False(t, strings.HasSuffix(cmd.Short, "."))
 
-				_, u := flag.UnquoteUsage(f)
-				fw := strings.Fields(u)[0]
-				assert.Equal(t, normalizeFlagUsage(fw), fw)
-				//	assert.NotEqual(t, "string", n)
+				if _, u := flag.UnquoteUsage(f); assert.NotEmpty(t, u) {
+					fw := strings.Fields(u)[0]
+					assert.Equal(t, normalizeFlagUsage(fw), fw)
+					//	assert.NotEqual(t, "string", n)
+				}
 
 				if f.Name == "filename" {
 					assert.Contains(t, f.Annotations, cobra.BashCompFilenameExt)
