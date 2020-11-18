@@ -49,7 +49,7 @@ func TestPatchExperiment(t *testing.T) {
 			args: []string{
 				"--file", expFile.Name(),
 				"--file", manifestFile.Name(),
-				"--trialname", "sampleExperiment-1234",
+				"sampleExperiment-1234",
 			},
 		},
 		{
@@ -57,7 +57,7 @@ func TestPatchExperiment(t *testing.T) {
 			args: []string{
 				"--file", "-",
 				"--file", manifestFile.Name(),
-				"--trialname", "sampleExperiment-1234",
+				"sampleExperiment-1234",
 			},
 			stdin: bytes.NewReader(expBytes),
 		},
@@ -66,7 +66,7 @@ func TestPatchExperiment(t *testing.T) {
 			args: []string{
 				"--file", expFile.Name(),
 				"--file", "-",
-				"--trialname", "sampleExperiment-1234",
+				"sampleExperiment-1234",
 			},
 			stdin: bytes.NewReader(pgDeployment),
 		},
@@ -74,7 +74,7 @@ func TestPatchExperiment(t *testing.T) {
 			desc: "exp stdin manifest stdin",
 			args: []string{
 				"--file", "-",
-				"--trialname", "sampleExperiment-1234",
+				"sampleExperiment-1234",
 			},
 			stdin: bytes.NewReader(append(expBytes, pgDeployment...)),
 		},
@@ -124,7 +124,7 @@ func TestPatchApplication(t *testing.T) {
 	manifestFile := createTempManifests(t)
 	defer os.Remove(manifestFile.Name())
 
-	app, _, appFile := createTempApplication(t, filepath.Base(manifestFile.Name()))
+	app, appFileBytes, appFile := createTempApplication(t, filepath.Base(manifestFile.Name()))
 	defer os.Remove(appFile.Name())
 	//fmt.Println(string(b))
 
@@ -134,40 +134,20 @@ func TestPatchApplication(t *testing.T) {
 		stdin io.Reader
 	}{
 		{
-			desc: "exp file manifest file",
+			desc: "app file manifest file",
 			args: []string{
 				"--file", appFile.Name(),
-				"--trialname", "sampleApplication-how-do-you-make-a-tissue-dance-put-a-little-boogie-in-it-1234",
+				"sampleApplication-how-do-you-make-a-tissue-dance-put-a-little-boogie-in-it-1234",
 			},
 		},
-		/*
-			{
-				desc: "exp stdin manifest file",
-				args: []string{
-					"--file", "-",
-					"--file", manifestFile.Name(),
-					"--trialname", "sampleExperiment-1234",
-				},
-				stdin: bytes.NewReader(expBytes),
+		{
+			desc: "app stdin manifest stdin",
+			args: []string{
+				"--file", "-",
+				"sampleExperiment-1234",
 			},
-			{
-				desc: "exp file manifest stdin",
-				args: []string{
-					"--file", expFile.Name(),
-					"--file", "-",
-					"--trialname", "sampleExperiment-1234",
-				},
-				stdin: bytes.NewReader(pgDeployment),
-			},
-			{
-				desc: "exp stdin manifest stdin",
-				args: []string{
-					"--file", "-",
-					"--trialname", "sampleExperiment-1234",
-				},
-				stdin: bytes.NewReader(append(expBytes, pgDeployment...)),
-			},
-		*/
+			stdin: bytes.NewReader(append(appFileBytes, pgDeployment...)),
+		},
 	}
 
 	for _, tc := range testCases {
