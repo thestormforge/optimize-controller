@@ -18,7 +18,6 @@ package stormforger
 
 import (
 	"fmt"
-	"os"
 	"os/user"
 	"path/filepath"
 	"strings"
@@ -47,7 +46,7 @@ func AddTrialJob(sc *redskyappsv1alpha1.Scenario, app *redskyappsv1alpha1.Applic
 	exp := k8s.FindOrAddExperiment(list)
 	exp.Spec.TrialTemplate.Spec.JobTemplate = &batchv1beta1.JobTemplateSpec{}
 
-	// The StormForger image we are about to use requires Prometheus for the Push Gateway
+	// The StormForger image we are about to use requires Prometheus for the Pushgateway
 	prometheus.AddSetupTask(list)
 
 	// Add metrics for the scenario specific objectives
@@ -66,7 +65,7 @@ func AddTrialJob(sc *redskyappsv1alpha1.Scenario, app *redskyappsv1alpha1.Applic
 	pod.Containers = []corev1.Container{
 		{
 			Name:  "stormforger",
-			Image: stormForgerImage(),
+			Image: k8s.TrialJobImage("stormforger"),
 			Env: []corev1.EnvVar{
 				{
 					Name: "TITLE",
@@ -88,7 +87,7 @@ func AddTrialJob(sc *redskyappsv1alpha1.Scenario, app *redskyappsv1alpha1.Applic
 	}
 
 	// Add a ConfigMap with the test case script
-	if testCaseFile, testCaseVolumeMount, testCaseVolume, err := ensureStormForgerTestCaseFile(sc.StormForger, ldr, list); err != nil {
+	if testCaseFile, testCaseVolumeMount, testCaseVolume, err := ensureStormForgerTestCaseFile(sc, ldr, list); err != nil {
 		return err
 	} else if testCaseFile != nil && testCaseVolumeMount != nil && testCaseVolume != nil {
 		pod.Containers[0].Env = append(pod.Containers[0].Env, *testCaseFile)
@@ -97,7 +96,7 @@ func AddTrialJob(sc *redskyappsv1alpha1.Scenario, app *redskyappsv1alpha1.Applic
 	}
 
 	// Scan the application to determine the ingress point
-	if target, err := scanForIngress(rm, app.Ingress); err != nil {
+	if target, err := target(rm, app.Ingress); err != nil {
 		return err
 	} else if target != nil {
 		pod.Containers[0].Env = append(pod.Containers[0].Env, *target)
@@ -111,19 +110,6 @@ func AddTrialJob(sc *redskyappsv1alpha1.Scenario, app *redskyappsv1alpha1.Applic
 	}
 
 	return nil
-}
-
-func stormForgerImage() string {
-	// Allow the image name to be overridden using environment variables, primarily for development work
-	imageName := os.Getenv("TRIAL_JOB_IMAGE_REPOSITORY")
-	if imageName == "" {
-		imageName = "redskyops/trial-jobs"
-	}
-	imageTag := os.Getenv("TRIAL_JOB_IMAGE_TAG")
-	if imageTag == "" {
-		imageTag = "0.0.1-stormforger"
-	}
-	return imageName + ":" + imageTag
 }
 
 func testCase(sc *redskyappsv1alpha1.Scenario, app *redskyappsv1alpha1.Application) (*corev1.EnvVar, error) {
@@ -146,31 +132,31 @@ func testCase(sc *redskyappsv1alpha1.Scenario, app *redskyappsv1alpha1.Applicati
 	return testCase, nil
 }
 
-func ensureStormForgerTestCaseFile(s *redskyappsv1alpha1.StormForgerScenario, ldr ifc.Loader, list *corev1.List) (*corev1.EnvVar, *corev1.VolumeMount, *corev1.Volume, error) {
+func ensureStormForgerTestCaseFile(s *redskyappsv1alpha1.Scenario, ldr ifc.Loader, list *corev1.List) (*corev1.EnvVar, *corev1.VolumeMount, *corev1.Volume, error) {
 	// The test case file can be blank, in which case it must be uploaded to StormForger ahead of time
-	if s.TestCaseFile == "" {
+	if s.StormForger.TestCaseFile == "" {
 		return nil, nil, nil, nil
 	}
 
 	// TODO Try to find it first...
 	testCaseConfigMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "stormforger-test-case",
+			Name: fmt.Sprintf("%s-test-case-file", s.Name),
 		},
 		BinaryData: map[string][]byte{},
 	}
 	list.Items = append(list.Items, runtime.RawExtension{Object: testCaseConfigMap})
 
 	// Load the test case file into the config map
-	key := filepath.Base(s.TestCaseFile)
-	data, err := ldr.Load(s.TestCaseFile)
+	key := filepath.Base(s.StormForger.TestCaseFile)
+	data, err := ldr.Load(s.StormForger.TestCaseFile)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("unable to load StormForger test case file: %w", err)
 	}
 	testCaseConfigMap.BinaryData[key] = data
 
 	testCaseVolume := &corev1.Volume{
-		Name: "stormforger-test-case-file",
+		Name: "test-case-file",
 		VolumeSource: corev1.VolumeSource{
 			ConfigMap: &corev1.ConfigMapVolumeSource{
 				LocalObjectReference: corev1.LocalObjectReference{
@@ -194,35 +180,15 @@ func ensureStormForgerTestCaseFile(s *redskyappsv1alpha1.StormForgerScenario, ld
 	return testCaseFile, testCaseVolumeMount, testCaseVolume, nil
 }
 
-func scanForIngress(rm resmap.ResMap, ingress *redskyappsv1alpha1.Ingress) (*corev1.EnvVar, error) {
-	if ingress == nil || ingress.URL == "" {
-		return nil, nil
+func target(rm resmap.ResMap, ingress *redskyappsv1alpha1.Ingress) (*corev1.EnvVar, error) {
+	target, err := k8s.ScanForIngress(rm, ingress, true)
+	if err != nil || target == "" {
+		return nil, err
 	}
-
-	// This needs to find the ingress.
-	// I think there are 3 options:
-	// 1. Poke around in the resource map
-	// 2. Let the job query the Kube API at runtime
-	// 3. Let the controller query the Kube API at runtime
-
-	// For 1, we are unlikely to find much: we might be find some objects that have names that are later bound
-	// into to something we can hit from outside the cluster (e.g. a host name rule on an ingress object)
-	// but most of those will be ambiguous (or provider specific).
-
-	// For 2, there is an RBAC problem: the job will need additional runtime permissions via it's service account
-	// to query the Kube API.
-
-	// For 3, the controller may have similar RBAC issues and is further limited by the fact that it is looking at
-	// a generic job/trial template for clues about how to do the ingress lookup (at which time it would modify
-	// the container definition for the job's pod, prior to creating the job). We might need some kind of Go template
-	// in the environment variable values that the controller would evaluate prior to runtime (come to think of it,
-	// that might be a more explicit and obvious solution to the current problem of the parameter names magically
-	// showing up in the environment); we would just need something to handle the lookup, e.g. a custom function
-	// like `externalIP "myservice"` that evaluates prior to job scheduling.
 
 	return &corev1.EnvVar{
 		Name:  "TARGET",
-		Value: ingress.URL,
+		Value: target,
 	}, nil
 }
 

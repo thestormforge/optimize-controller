@@ -17,6 +17,7 @@ limitations under the License.
 package experiment
 
 import (
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/generate/experiment/locust"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/generate/experiment/stormforger"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/kustomize/api/resmap"
@@ -28,6 +29,9 @@ func (g *Generator) addScenario(arm resmap.ResMap, list *corev1.List) error {
 
 		case g.Application.Scenarios[i].StormForger != nil:
 			return stormforger.AddTrialJob(&g.Application.Scenarios[i], &g.Application, g.fs, arm, list)
+
+		case g.Application.Scenarios[i].Locust != nil:
+			return locust.AddTrialJob(&g.Application.Scenarios[i], &g.Application, g.fs, arm, list)
 
 		}
 	}

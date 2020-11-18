@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -62,8 +63,12 @@ func (in *Scenario) Default() {
 		if in.StormForger != nil && in.StormForger.TestCase != "" {
 			in.Name = in.StormForger.TestCase
 		} else if in.StormForger != nil && in.StormForger.TestCaseFile != "" {
-			in.Name = filepath.Base(in.StormForger.TestCaseFile)
-			in.Name = strings.TrimSuffix(in.Name, filepath.Ext(in.Name))
+			in.Name = pathToName(in.StormForger.TestCaseFile)
+		} else if in.Locust != nil && in.Locust.Locustfile != "" {
+			in.Name = pathToName(in.Locust.Locustfile)
+			if in.Name == "locustfile" {
+				in.Name = "default"
+			}
 		} else {
 			in.Name = "default"
 		}
@@ -200,4 +205,14 @@ func countConfigs(obj *Objective) int {
 		c++
 	}
 	return c
+}
+
+func pathToName(path string) string {
+	name := filepath.Base(path)
+	name = strings.TrimSuffix(name, filepath.Ext(name))
+	name = strings.Map(func(r rune) rune {
+		// TODO Other special characters?
+		return unicode.ToLower(r)
+	}, name)
+	return name
 }

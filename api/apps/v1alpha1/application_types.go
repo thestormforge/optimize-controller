@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -94,6 +95,8 @@ type Scenario struct {
 	Name string `json:"name"`
 	// StormForger configuration for the scenario.
 	StormForger *StormForgerScenario `json:"stormforger,omitempty"`
+	// Locust configuration for the scenario.
+	Locust *LocustScenario `json:"locust,omitempty"`
 }
 
 // StormForgerScenario is used to generate load using StormForger.
@@ -104,6 +107,18 @@ type StormForgerScenario struct {
 	TestCase string `json:"testCase,omitempty"`
 	// Path to a local test case file used to define a new test case in the StormForger API.
 	TestCaseFile string `json:"testCaseFile,omitempty"`
+}
+
+// LocustScenario is used to generate load using Locust.
+type LocustScenario struct {
+	// Path to a Python module file to import.
+	Locustfile string `json:"locustfile,omitempty"`
+	// Number of concurrent Locust users.
+	Users *int `json:"users,omitempty"`
+	// The rate per second in which users are spawned.
+	SpawnRate *int `json:"spawnRate,omitempty"`
+	// Stop after the specified amount of time.
+	RunTime *time.Duration `json:"runTime,omitempty"`
 }
 
 // Objective describes the goal of the optimization in terms of specific metrics. Note that only

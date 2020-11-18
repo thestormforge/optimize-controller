@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/generate/experiment/k8s"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
@@ -125,7 +126,7 @@ func patchExperiment(ars []*applicationResource, list *corev1.List) error {
 	}
 
 	prefix := parameterNamePrefix(ars)
-	exp := findOrAddExperiment(list)
+	exp := k8s.FindOrAddExperiment(list)
 	for _, ar := range ars {
 		// Create a parameter naming function that accounts for both objects and paths
 		name := parameterName(prefix, ar)
