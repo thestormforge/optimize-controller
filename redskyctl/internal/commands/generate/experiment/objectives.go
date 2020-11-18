@@ -22,6 +22,7 @@ import (
 
 	redskyappsv1alpha1 "github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
 	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/generate/experiment/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/labels"
@@ -94,55 +95,5 @@ func addRequestsMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) {
 	}
 
 	// The cost metric requires Prometheus
-	ensurePrometheus(list)
-}
-
-// addStormForgerObjectives adds metrics for objectives supported by StormForger.
-func addStormForgerObjectives(app *redskyappsv1alpha1.Application, list *corev1.List) error {
-	for i := range app.Objectives {
-		obj := &app.Objectives[i]
-		switch {
-
-		case obj.Latency != nil:
-			addStormForgerLatencyMetric(obj, list)
-
-		}
-	}
-
-	return nil
-}
-
-func addStormForgerLatencyMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) {
-	var m string
-	switch redskyappsv1alpha1.FixLatency(obj.Latency.LatencyType) {
-	case redskyappsv1alpha1.LatencyMinimum:
-		m = "min"
-	case redskyappsv1alpha1.LatencyMaximum:
-		m = "max"
-	case redskyappsv1alpha1.LatencyMean:
-		m = "mean"
-	case redskyappsv1alpha1.LatencyPercentile50:
-		m = "median"
-	case redskyappsv1alpha1.LatencyPercentile95:
-		m = "percentile_95"
-	case redskyappsv1alpha1.LatencyPercentile99:
-		m = "percentile_99"
-	default:
-		// This is not a latency measure that StormForger can produce, skip it
-		return
-	}
-
-	// Filter the metric to match what was sent to the Push Gateway
-	exp := findOrAddExperiment(list)
-	exp.Spec.Metrics = append(exp.Spec.Metrics, redskyv1beta1.Metric{
-		Name:     obj.Name,
-		Minimize: true,
-		Type:     redskyv1beta1.MetricPrometheus,
-		Port:     intstr.FromInt(9090),
-		Query:    `scalar(` + m + `{job="trialRun",instance="{{ .Trial.Name }}"})`,
-		Min:      obj.Min,
-		Max:      obj.Max,
-		Optimize: obj.Optimize,
-	})
-	obj.Implemented = true
+	prometheus.AddSetupTask(list)
 }
