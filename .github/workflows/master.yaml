@@ -1,4 +1,4 @@
-name: Main workflow
+name: Master
 on:
   push:
     branches:
@@ -68,11 +68,11 @@ jobs:
             echo "AC_USERNAME=${{ secrets.AC_USERNAME }}" >> $GITHUB_ENV
             echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
           else
-            DOCKER_REGISTRY="ghcr.io/redskyops"
+            DOCKER_REGISTRY="ghcr.io/thestormforge"
             DOCKER_TAG="sha-$(git rev-parse --short HEAD)"
             echo "IMAGE_TAG=edge" >> $GITHUB_ENV
           fi
-          echo "IMG=${DOCKER_REGISTRY}/redskyops-controller:${DOCKER_TAG}" >> $GITHUB_ENV
+          echo "IMG=${DOCKER_REGISTRY}/optimize-controller:${DOCKER_TAG}" >> $GITHUB_ENV
           echo "REDSKYCTL_IMG=${DOCKER_REGISTRY}/redskyctl:${DOCKER_TAG}" >> $GITHUB_ENV
           echo "SETUPTOOLS_IMG=${DOCKER_REGISTRY}/setuptools:${DOCKER_TAG}" >> $GITHUB_ENV
           echo "PULL_POLICY=" >> $GITHUB_ENV

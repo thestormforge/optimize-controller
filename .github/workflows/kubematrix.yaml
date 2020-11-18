@@ -58,7 +58,7 @@ jobs:
         run: |
           tar -zxf dist/redskyctl_linux_amd64/redskyctl-linux-amd64.tar.gz \
               -C dist/redskyctl_linux_amd64
-      - name: RedSky Quickstart
+      - name: Quick Start
         run: |
           hack/integration.sh
       - name: The job has failed
