@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package patch_test
+package export_test
 
 import (
 	"bytes"
@@ -25,7 +25,7 @@ import (
 	"testing"
 
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/patch"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/export"
 	"github.com/redskyops/redskyops-go/pkg/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -84,9 +84,9 @@ func TestPatchExperiment(t *testing.T) {
 		t.Run(fmt.Sprintf("%q", tc.desc), func(t *testing.T) {
 			cfg := &config.RedSkyConfig{}
 
-			opts := &patch.Options{Config: cfg}
+			opts := &export.Options{Config: cfg}
 			opts.ExperimentsAPI = &fakeRedSkyServer{}
-			cmd := patch.NewCommand(opts)
+			cmd := export.NewCommand(opts)
 			commander.ConfigGlobals(cfg, cmd)
 
 			// setup output
@@ -182,9 +182,9 @@ func TestPatchApplication(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			opts := &patch.Options{Config: cfg, Fs: fs}
+			opts := &export.Options{Config: cfg, Fs: fs}
 			opts.ExperimentsAPI = &fakeRedSkyServer{}
-			cmd := patch.NewCommand(opts)
+			cmd := export.NewCommand(opts)
 			commander.ConfigGlobals(cfg, cmd)
 
 			// setup output

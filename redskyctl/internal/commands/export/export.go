@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package patch
+package export
 
 import (
 	"bytes"
@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -57,9 +56,8 @@ type Options struct {
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
 
-	inputFiles  []string
-	trialNumber int
-	trialName   string
+	inputFiles []string
+	trialName  string
 
 	// This is used for testing
 	Fs          filesys.FileSystem
@@ -69,14 +67,12 @@ type Options struct {
 	resources   map[string]struct{}
 }
 
-// NewCommand creates a command for performing a patch
+// NewCommand creates a command for performing an export
 func NewCommand(o *Options) *cobra.Command {
-	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Llongfile)
-
 	cmd := &cobra.Command{
-		Use:   "patch",
-		Short: "Create a patched manifest using trial parameters",
-		Long:  "Create a patched manifest using the parameters from the specified trial",
+		Use:   "export",
+		Short: "Export trial parameters to an application or experiment",
+		Long:  "Export trial parameters to an application or experiment from the specified trial",
 
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			commander.SetStreams(&o.IOStreams, cmd)
@@ -91,8 +87,7 @@ func NewCommand(o *Options) *cobra.Command {
 		RunE: commander.WithContextE(o.runner),
 	}
 
-	cmd.Flags().StringSliceVar(&o.inputFiles, "file", []string{""}, "experiment and related manifests to patch, - for stdin")
-	cmd.Flags().IntVar(&o.trialNumber, "trialnumber", -1, "trial number")
+	cmd.Flags().StringSliceVar(&o.inputFiles, "file", []string{""}, "experiment and related manifests to export, - for stdin")
 	cmd.Flags().StringVar(&o.trialName, "trialname", "", "trial name")
 
 	return cmd
