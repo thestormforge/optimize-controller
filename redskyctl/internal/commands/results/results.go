@@ -64,7 +64,7 @@ func (o *Options) results() error {
 		return err
 	}
 
-	loc := "https://app.stormforge.io/"
+	loc := "https://app.stormforge.io/experiments"
 
 	// Do not open the browser for root
 	if o.DisplayURL || u.Uid == "0" {
