@@ -44,7 +44,7 @@ func TestScenario_Default(t *testing.T) {
 				},
 			},
 			expected: Scenario{
-				Name: "testCase",
+				Name: "testcase",
 				StormForger: &StormForgerScenario{
 					TestCase: "testCase",
 				},
@@ -58,7 +58,7 @@ func TestScenario_Default(t *testing.T) {
 				},
 			},
 			expected: Scenario{
-				Name: "testCaseFile",
+				Name: "testcasefile",
 				StormForger: &StormForgerScenario{
 					TestCaseFile: "./cases/testCaseFile.js",
 				},

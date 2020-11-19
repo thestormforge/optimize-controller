@@ -61,11 +61,11 @@ func (in *Application) Default() {
 func (in *Scenario) Default() {
 	if in.Name == "" {
 		if in.StormForger != nil && in.StormForger.TestCase != "" {
-			in.Name = in.StormForger.TestCase
+			in.Name = cleanName(in.StormForger.TestCase)
 		} else if in.StormForger != nil && in.StormForger.TestCaseFile != "" {
-			in.Name = pathToName(in.StormForger.TestCaseFile)
+			in.Name = cleanName(in.StormForger.TestCaseFile)
 		} else if in.Locust != nil && in.Locust.Locustfile != "" {
-			in.Name = pathToName(in.Locust.Locustfile)
+			in.Name = cleanName(in.Locust.Locustfile)
 			if in.Name == "locustfile" {
 				in.Name = "default"
 			}
@@ -207,8 +207,8 @@ func countConfigs(obj *Objective) int {
 	return c
 }
 
-func pathToName(path string) string {
-	name := filepath.Base(path)
+func cleanName(in string) string {
+	name := filepath.Base(in)
 	name = strings.TrimSuffix(name, filepath.Ext(name))
 	name = strings.Map(func(r rune) rune {
 		// TODO Other special characters?
