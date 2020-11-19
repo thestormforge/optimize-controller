@@ -19,8 +19,8 @@ package export_test
 import (
 	"context"
 
-	experimentsapi "github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1"
-	"github.com/redskyops/redskyops-go/pkg/redskyapi/experiments/v1alpha1/numstr"
+	experimentsapi "github.com/thestormforge/optimize-go/pkg/redskyapi/experiments/v1alpha1"
+	"github.com/thestormforge/optimize-go/pkg/redskyapi/experiments/v1alpha1/numstr"
 )
 
 var wannabeTrial = experimentsapi.TrialItem{
