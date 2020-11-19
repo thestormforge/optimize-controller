@@ -47,7 +47,7 @@ import (
 func NewRedskyctlCommand() *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:               "redskyctl",
-		Short:             "Kubernetes Exploration",
+		Short:             "Release with Confidence",
 		DisableAutoGenTag: true,
 		SilenceUsage:      true,
 	}
