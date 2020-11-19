@@ -2,7 +2,6 @@ policies:
   - type: license
     spec:
       excludeSuffixes:
-        - po_docgen.go
         - zz_generated.conversion.go
         - zz_generated.deepcopy.go
       includeSuffixes:
