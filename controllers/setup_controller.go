@@ -101,8 +101,12 @@ func (r *SetupReconciler) inspectSetupJobs(ctx context.Context, t *redskyv1beta1
 	if len(list.Items) == 0 {
 		if t.DeletionTimestamp.IsZero() {
 			// Normally if the trial hasn't been deleted and there are no jobs, the status will already be unknown
-			trial.ApplyCondition(&t.Status, redskyv1beta1.TrialSetupCreated, corev1.ConditionUnknown, "", "", probeTime)
-			trial.ApplyCondition(&t.Status, redskyv1beta1.TrialSetupDeleted, corev1.ConditionUnknown, "", "", probeTime)
+			// NOTE: Do not use ApplyCondition unless we are sure the condition is already there
+			for i := range t.Status.Conditions {
+				if ct := t.Status.Conditions[i].Type; ct == redskyv1beta1.TrialSetupCreated || ct == redskyv1beta1.TrialSetupDeleted {
+					trial.ApplyCondition(&t.Status, ct, corev1.ConditionUnknown, "", "", probeTime)
+				}
+			}
 		} else if trial.CheckCondition(&t.Status, redskyv1beta1.TrialSetupDeleted, corev1.ConditionFalse) {
 			// We only need this for the delete job (the corresponding failure for the create job is handled when creating the jobs):
 			// If "setup deleted" condition is "false" then we must have started job, but if the list is empty someone
