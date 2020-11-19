@@ -199,7 +199,7 @@ func (r *TrialJobReconciler) applyJobStatus(ctx context.Context, t *redskyv1beta
 
 						// Patch the job and set parallelism to 0 to suspend the job and terminate any active pods
 						if err := r.Patch(ctx, job, client.RawPatch(types.StrategicMergePatchType, []byte(`{ "spec": { "parallelism": 0  } }`))); err != nil {
-							r.Log.Error(err, "unable suspend trial job", "job", job, "pod status", podList.Items[i].Status)
+							r.Log.WithValues("trial", fmt.Sprintf("%s/%s", t.Namespace, t.Name), "job", fmt.Sprintf("%s/%s", job.Namespace, job.Name)).Error(err, "unable suspend trial job")
 						}
 						dirty = true
 					}
