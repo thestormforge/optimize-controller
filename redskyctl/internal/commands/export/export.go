@@ -32,6 +32,7 @@ import (
 	"github.com/redskyops/redskyops-controller/internal/patch"
 	"github.com/redskyops/redskyops-controller/internal/server"
 	"github.com/redskyops/redskyops-controller/internal/template"
+	apppkg "github.com/redskyops/redskyops-controller/pkg/application"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	experimentctl "github.com/redskyops/redskyops-controller/redskyctl/internal/commands/generate/experiment"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/kustomize"
@@ -39,7 +40,6 @@ import (
 	"github.com/thestormforge/optimize-go/pkg/config"
 	experimentsapi "github.com/thestormforge/optimize-go/pkg/redskyapi/experiments/v1alpha1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/kustomize/api/filesys"
 	"sigs.k8s.io/kustomize/api/resid"
 	"sigs.k8s.io/kustomize/api/types"
@@ -269,8 +269,7 @@ func (o *Options) runner(ctx context.Context) error {
 	server.ToClusterTrial(trial, &trialItem.TrialAssignments)
 
 	// render patches
-	var patches map[string]types.Patch
-	patches, err = createKustomizePatches(o.experiment.Spec.Patches, trial)
+	patches, err := createKustomizePatches(o.experiment.Spec.Patches, trial)
 	if err != nil {
 		return err
 	}
@@ -296,17 +295,12 @@ func (o *Options) runner(ctx context.Context) error {
 }
 
 func (o *Options) generateExperiment() error {
+	// Filter application experiment to only the relevant pieces
+	apppkg.FilterByExperimentName(o.application, o.trialName[:strings.LastIndex(o.trialName, "-")])
+
 	gen := experimentctl.NewGenerator(o.Fs)
 	gen.Application = *o.application
-	gen.ContainerResourcesSelectors = experimentctl.DefaultContainerResourcesSelectors()
-
-	if gen.Application.Parameters != nil && gen.Application.Parameters.ContainerResources != nil {
-		ls := labels.Set(gen.Application.Parameters.ContainerResources.Labels).String()
-
-		for i := range gen.ContainerResourcesSelectors {
-			gen.ContainerResourcesSelectors[i].LabelSelector = ls
-		}
-	}
+	gen.SetDefaultSelectors()
 
 	list, err := gen.Generate()
 	if err != nil {
@@ -329,7 +323,6 @@ func (o *Options) generateExperiment() error {
 		if te, ok := list.Items[idx].Object.(*redsky.Experiment); ok {
 			o.experiment = &redsky.Experiment{}
 			te.DeepCopyInto(o.experiment)
-			break
 		}
 	}
 
@@ -388,46 +381,63 @@ func (o *Options) getTrials(ctx context.Context, experimentName string, query *e
 }
 
 // createKustomizePatches translates a patchTemplate into a kustomize (json) patch
-func createKustomizePatches(patchSpec []redsky.PatchTemplate, trial *redsky.Trial) (map[string]types.Patch, error) {
+func createKustomizePatches(patchSpec []redsky.PatchTemplate, trial *redsky.Trial) ([]types.Patch, error) {
 	te := template.New()
-	patches := map[string]types.Patch{}
+	patches := make([]types.Patch, len(patchSpec))
 
 	for idx, expPatch := range patchSpec {
 		ref, data, err := patch.RenderTemplate(te, trial, &expPatch)
+		// ref, _, err := patch.RenderTemplate(te, trial, &expPatch)
 		if err != nil {
 			return nil, err
 		}
 
-		// Surely there's got to be a better way
-		// // Transition patch from json to map[string]interface
-		m := make(map[string]interface{})
-		if err := json.Unmarshal(data, &m); err != nil {
-			return nil, err
+		switch expPatch.Type {
+		// If json patch, we can consume the patch as is
+		case redsky.PatchJSON:
+		// Otherwise we need to inject the type meta into the patch data
+		// because it says so
+		// https://github.com/kubernetes-sigs/kustomize/blob/master/examples/inlinePatch.md
+		default:
+			// Surely there's got to be a better way
+			// Trying to go from corev1.ObjectRef -> metav1.PartialObjectMetadata
+			// kind of works, but we're unable to really do much with that because
+			// the rendered patch we get back from te.RenderPatch is already a json
+			// object ( as in it begins/ends with `{ }`. So a simple append(pom, data...)
+			// wont work.
+			// We could try to go through the whole jump of switch gvk and create explicit
+			// objects for each, but that isnt really right or addressing the issue either
+			// So instead we'll do this dance with unstructured.
+
+			// // Transition patch from json to map[string]interface
+			m := make(map[string]interface{})
+			if err := json.Unmarshal(data, &m); err != nil {
+				return nil, err
+			}
+
+			u := &unstructured.Unstructured{}
+			// // Set patch data first ( otherwise it overwrites everything else )
+			u.SetUnstructuredContent(m)
+			// // Define object/type meta
+			u.SetName(ref.Name)
+			u.SetNamespace(ref.Namespace)
+			u.SetGroupVersionKind(ref.GroupVersionKind())
+			// // Profit
+			data, err = u.MarshalJSON()
+			if err != nil {
+				return nil, err
+			}
 		}
 
-		u := &unstructured.Unstructured{}
-		// // Set patch data first ( otherwise it overwrites everything else )
-		u.SetUnstructuredContent(m)
-		// // Define object/type meta
-		u.SetName(ref.Name)
-		u.SetNamespace(ref.Namespace)
-		u.SetGroupVersionKind(ref.GroupVersionKind())
-		// // Profit
-		b, err := u.MarshalJSON()
-		if err != nil {
-			return nil, err
-		}
-
-		patches[fmt.Sprintf("%s-%d", "patch", idx)] = types.Patch{
-			Patch: string(b),
+		patches[idx] = types.Patch{
+			Patch: string(data),
 			Target: &types.Selector{
 				Gvk: resid.Gvk{
 					Group:   ref.GroupVersionKind().Group,
 					Version: ref.GroupVersionKind().Version,
 					Kind:    ref.GroupVersionKind().Kind,
 				},
-				Name:      ref.Name,
-				Namespace: ref.Namespace,
+				Name: ref.Name,
 			},
 		}
 	}
