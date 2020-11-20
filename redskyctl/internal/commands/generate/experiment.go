@@ -78,6 +78,7 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 	cmd.Flags().StringVarP(&o.Scenario, "scenario", "s", o.Scenario, "the application scenario to generate an experiment for")
 	cmd.Flags().StringArrayVar(&o.Objectives, "objectives", o.Objectives, "the application objectives to generate an experiment for")
 
+	_ = cmd.MarkFlagRequired("filename")
 	_ = cmd.MarkFlagFilename("filename", "yml", "yaml")
 
 	commander.SetKubePrinter(&o.Printer, cmd, nil)
