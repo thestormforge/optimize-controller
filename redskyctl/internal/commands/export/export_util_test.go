@@ -119,15 +119,13 @@ func createTempApplication(t *testing.T, filename string) (*app.Application, []b
 			{
 				Name: "how-do-you-make-a-tissue-dance",
 				StormForger: &app.StormForgerScenario{
-					TestCase:     "tissue-box",
-					TestCaseFile: "tissue-box.yaml",
+					TestCase: "tissue-box",
 				},
 			},
 			{
 				Name: "put-a-little-boogie-in-it",
 				StormForger: &app.StormForgerScenario{
-					TestCase:     "boogie",
-					TestCaseFile: "boogie.yaml",
+					TestCase: "boogie",
 				},
 			},
 		},

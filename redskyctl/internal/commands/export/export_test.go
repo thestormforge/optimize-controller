@@ -124,7 +124,7 @@ func TestPatchApplication(t *testing.T) {
 	manifestFile := createTempManifests(t)
 	defer os.Remove(manifestFile.Name())
 
-	app, appFileBytes, appFile := createTempApplication(t, filepath.Base(manifestFile.Name()))
+	_, appFileBytes, appFile := createTempApplication(t, manifestFile.Name())
 	defer os.Remove(appFile.Name())
 	//fmt.Println(string(b))
 
@@ -157,10 +157,6 @@ func TestPatchApplication(t *testing.T) {
 			fs := filesys.MakeFsInMemory()
 			err := fs.WriteFile(filepath.Base(manifestFile.Name()), pgDeployment)
 			require.NoError(t, err)
-			for _, scenario := range app.Scenarios {
-				err = fs.WriteFile(scenario.StormForger.TestCaseFile, []byte("{}"))
-				require.NoError(t, err)
-			}
 
 			opts := &export.Options{Config: cfg, Fs: fs}
 			opts.ExperimentsAPI = &fakeRedSkyServer{}
