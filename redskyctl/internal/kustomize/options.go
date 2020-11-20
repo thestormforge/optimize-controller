@@ -73,13 +73,19 @@ func WithResources(a map[string]*Asset) Option {
 
 // WithPatches updates the kustomization with the specified list of
 // Patches and writes them to the in memory filesystem.
-func WithPatches(a map[string]types.Patch) Option {
+func WithPatches(patches []types.Patch) Option {
 	return func(k *Kustomize) (err error) {
 		// Write out all assets to in memory filesystem
-		for name, patch := range a {
+		for _, patch := range patches {
 			k.kustomize.Patches = append(k.kustomize.Patches, patch)
 
-			if err = k.fs.WriteFile(filepath.Join(k.Base, name), []byte(patch.Patch)); err != nil {
+			if patch.Path == "" {
+				continue
+			}
+
+			// TODO I wonder if this even makes sense...
+			// If we include the patch above ( which would include the patch bytes ) this shouldnt ever get used?
+			if err = k.fs.WriteFile(filepath.Join(k.Base, patch.Path), []byte(patch.Patch)); err != nil {
 				return err
 			}
 
