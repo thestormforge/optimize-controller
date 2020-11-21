@@ -59,8 +59,10 @@ type Options struct {
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
 
-	inputFiles []string
-	trialName  string
+	inputFiles    []string
+	trialName     string
+	patchOnly     bool
+	patchedTarget bool
 
 	// This is used for testing
 	Fs          filesys.FileSystem
@@ -96,7 +98,9 @@ func NewCommand(o *Options) *cobra.Command {
 		RunE: commander.WithContextE(o.runner),
 	}
 
-	cmd.Flags().StringSliceVar(&o.inputFiles, "file", []string{""}, "experiment and related manifests to export, - for stdin")
+	cmd.Flags().StringSliceVarP(&o.inputFiles, "filename", "f", []string{""}, "experiment and related manifests to export, - for stdin")
+	cmd.Flags().BoolVarP(&o.patchOnly, "patch", "p", false, "export only the patch")
+	cmd.Flags().BoolVarP(&o.patchedTarget, "patched-target", "t", false, "export only the patched resource")
 
 	return cmd
 }
@@ -219,6 +223,46 @@ func filter(kind string) kio.FilterFunc {
 	}
 }
 
+// filter returns a filter function to exctract a specified `kind` from the input.
+func filterPatch(patches []types.Patch) kio.FilterFunc {
+	return func(input []*yaml.RNode) ([]*yaml.RNode, error) {
+		var output kio.ResourceNodeSlice
+
+		for i := range input {
+			m, err := input[i].GetMeta()
+			if err != nil {
+				return nil, err
+			}
+			for _, patch := range patches {
+				// Skip comparison if patch.Target.X is ""
+				if patch.Target.Kind != "" && patch.Target.Kind != m.Kind {
+					continue
+				}
+
+				gv := strings.Split(m.APIVersion, "/")
+				if len(gv) != 2 {
+					continue
+				}
+
+				if patch.Target.Group != "" && patch.Target.Group != gv[0] {
+					continue
+				}
+
+				if patch.Target.Version != "" && patch.Target.Version != gv[1] {
+					continue
+				}
+
+				if patch.Target.Name != "" && patch.Target.Name != m.Name {
+					continue
+				}
+
+				output = append(output, input[i])
+			}
+		}
+		return output, nil
+	}
+}
+
 func (o *Options) runner(ctx context.Context) error {
 	if o.trialName == "" {
 		return fmt.Errorf("a trial name must be specified")
@@ -270,6 +314,14 @@ func (o *Options) runner(ctx context.Context) error {
 		return err
 	}
 
+	if o.patchOnly {
+		for _, patch := range patches {
+			fmt.Fprintln(o.Out, patch.Patch)
+		}
+
+		return nil
+	}
+
 	resourceNames := make([]string, 0, len(o.resources))
 	for name := range o.resources {
 		resourceNames = append(resourceNames, name)
@@ -284,8 +336,21 @@ func (o *Options) runner(ctx context.Context) error {
 		return err
 	}
 
-	fmt.Fprintln(o.Out, string(yamls))
+	if !o.patchedTarget {
+		fmt.Fprintln(o.Out, string(yamls))
+		return nil
+	}
 
+	output := kio.Pipeline{
+		Inputs:  []kio.Reader{&kio.ByteReader{Reader: bytes.NewReader(yamls)}},
+		Filters: []kio.Filter{kio.FilterFunc(filterPatch(patches))},
+		Outputs: []kio.Writer{kio.ByteWriter{Writer: o.Out}},
+	}
+	if err := output.Execute(); err != nil {
+		return err
+	}
+
+	// We don't want to bail if we cant find an application since we'll handle this later
 	return nil
 }
 
@@ -421,7 +486,6 @@ func createKustomizePatches(patchSpec []redsky.PatchTemplate, trial *redsky.Tria
 
 	for idx, expPatch := range patchSpec {
 		ref, data, err := patch.RenderTemplate(te, trial, &expPatch)
-		// ref, _, err := patch.RenderTemplate(te, trial, &expPatch)
 		if err != nil {
 			return nil, err
 		}

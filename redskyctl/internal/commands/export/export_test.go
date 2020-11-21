@@ -47,16 +47,16 @@ func TestPatchExperiment(t *testing.T) {
 		{
 			desc: "exp file manifest file",
 			args: []string{
-				"--file", expFile.Name(),
-				"--file", manifestFile.Name(),
+				"--filename", expFile.Name(),
+				"--filename", manifestFile.Name(),
 				"sampleExperiment-1234",
 			},
 		},
 		{
 			desc: "exp stdin manifest file",
 			args: []string{
-				"--file", "-",
-				"--file", manifestFile.Name(),
+				"--filename", "-",
+				"--filename", manifestFile.Name(),
 				"sampleExperiment-1234",
 			},
 			stdin: bytes.NewReader(expBytes),
@@ -64,8 +64,8 @@ func TestPatchExperiment(t *testing.T) {
 		{
 			desc: "exp file manifest stdin",
 			args: []string{
-				"--file", expFile.Name(),
-				"--file", "-",
+				"--filename", expFile.Name(),
+				"--filename", "-",
 				"sampleExperiment-1234",
 			},
 			stdin: bytes.NewReader(pgDeployment),
@@ -73,7 +73,7 @@ func TestPatchExperiment(t *testing.T) {
 		{
 			desc: "exp stdin manifest stdin",
 			args: []string{
-				"--file", "-",
+				"--filename", "-",
 				"sampleExperiment-1234",
 			},
 			stdin: bytes.NewReader(append(expBytes, pgDeployment...)),
@@ -136,14 +136,14 @@ func TestPatchApplication(t *testing.T) {
 		{
 			desc: "app file manifest file",
 			args: []string{
-				"--file", appFile.Name(),
+				"--filename", appFile.Name(),
 				"sampleApplication-how-do-you-make-a-tissue-dance-put-a-little-boogie-in-it-1234",
 			},
 		},
 		{
 			desc: "app stdin manifest stdin",
 			args: []string{
-				"--file", "-",
+				"--filename", "-",
 				"sampleExperiment-1234",
 			},
 			stdin: bytes.NewReader(append(appFileBytes, pgDeployment...)),
