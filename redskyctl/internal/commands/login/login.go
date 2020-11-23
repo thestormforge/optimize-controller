@@ -38,10 +38,10 @@ import (
 // TODO Configure these via LDFLAGS appropriate for dev/prod
 var (
 	// SuccessURL is the URL where users are redirected after a successful login
-	SuccessURL = "https://redskyops.dev/api/auth_success/"
+	SuccessURL = "https://docs.stormforge.io/api/auth_success/"
 
 	// NotActivatedURL is the URL where users are redirected if they do not have a valid namespace claim in their access token
-	NotActivatedURL = "https://app.carbonrelay.io/"
+	NotActivatedURL = "https://app.stormforge.io/"
 )
 
 const (
