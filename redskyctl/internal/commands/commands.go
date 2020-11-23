@@ -19,6 +19,7 @@ package commands
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
@@ -89,6 +90,17 @@ func NewRedskyctlCommand() *cobra.Command {
 	// TODO Add a "trial cleanup" command to run setup tasks (perhaps remove labels from standard setupJob)
 	// TODO Some kind of debug tool to evaluate metric queries
 	// TODO The "get" functionality needs to support templating so you can extract assignments for downstream use
+
+	// This allows `redskyctl generate` to be run via a symlink from the Kustomize plugin directory
+	if len(os.Args) == 2 {
+		if c, _, err := rootCmd.Find([]string{"generate", filepath.Base(os.Args[0])}); err == nil {
+			if use := c.Annotations["KustomizePluginKind"]; use != "" {
+				c.Parent().RemoveCommand(c)
+				c.Use = use
+				return c
+			}
+		}
+	}
 
 	commander.MapErrors(rootCmd, mapError)
 	return rootCmd

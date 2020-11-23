@@ -3,6 +3,7 @@ module github.com/redskyops/redskyops-controller
 go 1.14
 
 require (
+	github.com/BurntSushi/toml v0.3.1
 	github.com/Masterminds/goutils v1.1.0 // indirect
 	github.com/Masterminds/semver v1.4.2 // indirect
 	github.com/Masterminds/sprig v2.20.0+incompatible
