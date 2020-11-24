@@ -65,8 +65,6 @@ type Options struct {
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
 
-	// Name is the key assigned to this login in the configuration
-	Name string
 	// Environment overrides the default execution environment
 	Environment string
 	// Server overrides the default server identifier
@@ -96,7 +94,9 @@ func NewCommand(o *Options) *cobra.Command {
 		RunE:              commander.WithContextE(o.login),
 	}
 
-	cmd.Flags().StringVar(&o.Name, "name", "", "name of the server configuration to authorize")
+	// NOTE: --name is an alias of --context for backwards compatibility
+	cmd.Flags().StringVar(&o.Config.Overrides.Context, "name", "", "name of the server configuration to authorize")
+
 	cmd.Flags().StringVar(&o.Environment, "env", "", "override the execution environment")
 	cmd.Flags().StringVar(&o.Server, "server", "", "override the Red Sky API server identifier")
 	cmd.Flags().StringVar(&o.Issuer, "issuer", "", "override the authorization server identifier")
@@ -114,16 +114,17 @@ func NewCommand(o *Options) *cobra.Command {
 // complete fills in the default values
 func (o *Options) complete() error {
 	// Make sure the name is not blank
-	if o.Name == "" {
-		o.Name = "default"
+	if o.Config.Overrides.Context == "" {
+		name := "default"
 		if o.Server != "" {
-			o.Name = strings.ToLower(o.Server)
-			o.Name = strings.TrimPrefix(o.Name, "http://")
-			o.Name = strings.TrimPrefix(o.Name, "https://")
-			o.Name = strings.Trim(o.Name, "/")
-			o.Name = strings.ReplaceAll(o.Name, ".", "_")
-			o.Name = strings.ReplaceAll(o.Name, "/", "_")
+			name = strings.ToLower(o.Server)
+			name = strings.TrimPrefix(name, "http://")
+			name = strings.TrimPrefix(name, "https://")
+			name = strings.Trim(name, "/")
+			name = strings.ReplaceAll(name, ".", "_")
+			name = strings.ReplaceAll(name, "/", "_")
 		}
+		o.Config.Overrides.Context = name
 	}
 
 	// If the server is not blank, make sure it is a URL
@@ -168,13 +169,14 @@ func (o *Options) LoadConfig() error {
 		}
 
 		// We need to save the server in the loader so default values are loaded on top of them
+		name := cfg.Overrides.Context
 		srv := &config.Server{Identifier: o.Server, Authorization: config.AuthorizationServer{Issuer: o.Issuer}}
-		if err := cfg.Update(config.SaveServer(o.Name, srv, cfg.Environment())); err != nil {
+		if err := cfg.Update(config.SaveServer(name, srv, cfg.Environment())); err != nil {
 			return err
 		}
 
 		// We need change the current context here to ensure the value is correct when we try to read the configuration out later
-		if err := cfg.Update(config.ApplyCurrentContext(o.Name, o.Name, o.Name, "")); err != nil {
+		if err := cfg.Update(config.ApplyCurrentContext(name, name, name, "")); err != nil {
 			return err
 		}
 
@@ -236,7 +238,7 @@ func (o *Options) requireForceIfNameExists(cfg *config.Config) error {
 	if !o.Force {
 		// NOTE: We do not require --force for server name conflicts so you can log into an existing configuration
 		for i := range cfg.Authorizations {
-			if cfg.Authorizations[i].Name == o.Name {
+			if cfg.Authorizations[i].Name == o.Config.Overrides.Context {
 				az := &cfg.Authorizations[i].Authorization
 				if az.Credential.TokenCredential != nil || az.Credential.ClientCredential != nil {
 					return fmt.Errorf("refusing to update, use --force")
@@ -260,7 +262,7 @@ func (o *Options) takeOffline(t *oauth2.Token) error {
 		}
 	}
 
-	if err := o.Config.Update(config.SaveToken(o.Name, t)); err != nil {
+	if err := o.Config.Update(config.SaveToken(o.Config.Overrides.Context, t)); err != nil {
 		return err
 	}
 	if err := o.Config.Write(); err != nil {
