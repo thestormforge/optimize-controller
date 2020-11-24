@@ -126,8 +126,7 @@ func (o *Options) patchDeployment(ctx context.Context, secretName, secretHash st
 	}
 
 	// Execute the patch
-	// TODO Deployment name should come from config (it could be different, e.g. for a Helm installation)
-	name := "redsky-controller-manager"
+	name := ctrl.DeploymentName
 	namespace := ctrl.Namespace
 	patch := buf.String()
 	kubectlPatch, err := o.Config.Kubectl(ctx, "patch", "deployment", name, "--namespace", namespace, "--patch", patch)
