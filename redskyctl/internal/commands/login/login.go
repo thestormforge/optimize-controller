@@ -35,15 +35,6 @@ import (
 	"golang.org/x/oauth2"
 )
 
-// TODO Configure these via LDFLAGS appropriate for dev/prod
-var (
-	// SuccessURL is the URL where users are redirected after a successful login
-	SuccessURL = "https://docs.stormforge.io/api/auth_success/"
-
-	// NotActivatedURL is the URL where users are redirected if they do not have a valid namespace claim in their access token
-	NotActivatedURL = "https://app.stormforge.io/"
-)
-
 const (
 	browserPrompt = `Opening your default browser to visit:
 
@@ -284,10 +275,13 @@ func (o *Options) takeOffline(t *oauth2.Token) error {
 
 // generateCallbackResponse generates an HTTP response for the OAuth callback
 func (o *Options) generateCallbackResponse(w http.ResponseWriter, r *http.Request, status int, err error) {
+	// We can ignore the error because we just created the server in the configuration
+	srv, _ := config.CurrentServer(o.Config.Reader())
+
 	switch status {
 	case http.StatusOK:
 		// Redirect the user to the successful login URL and shutdown the server
-		http.Redirect(w, r, SuccessURL, http.StatusSeeOther)
+		http.Redirect(w, r, srv.Application.AuthSuccessEndpoint, http.StatusSeeOther)
 		o.shutdown()
 	case http.StatusNotFound, http.StatusMethodNotAllowed:
 		// Ignorable error codes, e.g. browser requests for '/favicon.ico'
@@ -295,7 +289,7 @@ func (o *Options) generateCallbackResponse(w http.ResponseWriter, r *http.Reques
 	default:
 		// TODO Better detection of this error
 		if status == http.StatusInternalServerError && err != nil && err.Error() == "account is not activated" {
-			http.Redirect(w, r, NotActivatedURL, http.StatusSeeOther)
+			http.Redirect(w, r, srv.Application.BaseURL, http.StatusSeeOther)
 			_, _ = fmt.Fprintf(o.Out, "Your account is not activated.\n")
 			o.shutdown()
 			return
