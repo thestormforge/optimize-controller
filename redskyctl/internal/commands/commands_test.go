@@ -60,7 +60,7 @@ func testCommandUsage(t *testing.T, cmd *cobra.Command) {
 				}
 
 				if f.Name == "filename" {
-					assert.Contains(t, f.Annotations, cobra.BashCompFilenameExt)
+					assert.Containsf(t, f.Annotations, cobra.BashCompFilenameExt, "cmd.MarkFlagFilename('filename', 'ext'...) missing")
 				}
 
 				// TODO Check the "one of" format

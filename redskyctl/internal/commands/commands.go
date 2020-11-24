@@ -29,6 +29,7 @@ import (
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/configure"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/docs"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/experiments"
+	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/export"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/generate"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/grant_permissions"
 	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/initialize"
@@ -66,6 +67,7 @@ func NewRedskyctlCommand() *cobra.Command {
 	rootCmd.AddCommand(grant_permissions.NewCommand(&grant_permissions.Options{GeneratorOptions: grant_permissions.GeneratorOptions{Config: cfg}}))
 	rootCmd.AddCommand(authorize_cluster.NewCommand(&authorize_cluster.Options{GeneratorOptions: authorize_cluster.GeneratorOptions{Config: cfg}}))
 	rootCmd.AddCommand(generate.NewCommand(&generate.Options{Config: cfg}))
+	rootCmd.AddCommand(export.NewCommand(&export.Options{Config: cfg}))
 
 	// Remove Server Commands
 	rootCmd.AddCommand(experiments.NewDeleteCommand(&experiments.DeleteOptions{Options: experiments.Options{Config: cfg}}))
