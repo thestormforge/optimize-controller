@@ -75,7 +75,7 @@ type Options struct {
 // NewCommand creates a command for performing an export
 func NewCommand(o *Options) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "export",
+		Use:   "export TRIAL_NAME",
 		Short: "Export trial parameters to an application or experiment",
 		Long:  "Export trial parameters to an application or experiment from the specified trial",
 
@@ -101,6 +101,9 @@ func NewCommand(o *Options) *cobra.Command {
 	cmd.Flags().StringSliceVarP(&o.inputFiles, "filename", "f", []string{""}, "experiment and related manifests to export, - for stdin")
 	cmd.Flags().BoolVarP(&o.patchOnly, "patch", "p", false, "export only the patch")
 	cmd.Flags().BoolVarP(&o.patchedTarget, "patched-target", "t", false, "export only the patched resource")
+
+	_ = cmd.MarkFlagRequired("filename")
+	_ = cmd.MarkFlagFilename("filename", "yml", "yaml")
 
 	return cmd
 }
