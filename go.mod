@@ -20,7 +20,7 @@ require (
 	github.com/spf13/cobra v1.1.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.6.1
-	github.com/thestormforge/optimize-go v0.0.6
+	github.com/thestormforge/optimize-go v0.0.7
 	github.com/zorkian/go-datadog-api v2.24.0+incompatible
 	golang.org/x/net v0.0.0-20200904194848-62affa334b73
 	golang.org/x/oauth2 v0.0.0-20200902213428-5d25da1a8d43

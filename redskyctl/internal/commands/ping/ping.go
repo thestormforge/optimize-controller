@@ -86,7 +86,7 @@ func hostAndAddrs(ctx context.Context, r config.Reader) (string, []string, error
 		return "", nil, err
 	}
 
-	u, err := url.Parse(srv.RedSky.ExperimentsEndpoint)
+	u, err := url.Parse(srv.API.ExperimentsEndpoint)
 	if err != nil {
 		return "", nil, err
 	}
