@@ -19,13 +19,15 @@ package metric
 import (
 	"fmt"
 	"math"
+	"net/url"
 	"os"
 	"time"
 
+	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	datadog "github.com/zorkian/go-datadog-api"
 )
 
-func captureDatadogMetric(aggregator, query string, startTime, completionTime time.Time) (float64, float64, error) {
+func captureDatadogMetric(m *redskyv1beta1.Metric, startTime, completionTime time.Time) (float64, float64, error) {
 	apiKey := os.Getenv("DATADOG_API_KEY")
 	if apiKey == "" {
 		apiKey = os.Getenv("DD_API_KEY")
@@ -38,7 +40,7 @@ func captureDatadogMetric(aggregator, query string, startTime, completionTime ti
 
 	client := datadog.NewClient(apiKey, applicationKey)
 
-	metrics, err := client.QueryMetrics(startTime.Unix(), completionTime.Unix(), query)
+	metrics, err := client.QueryMetrics(startTime.Unix(), completionTime.Unix(), m.Query)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -47,13 +49,18 @@ func captureDatadogMetric(aggregator, query string, startTime, completionTime ti
 		return 0, 0, fmt.Errorf("expected one series")
 	}
 
+	u, err := url.Parse(m.URL)
+	if err != nil {
+		return 0, 0, err
+	}
+	aggregator := u.Query().Get("aggregator")
+
 	var value, n float64
 	for _, p := range metrics[0].Points {
 		if p[1] == nil {
 			continue
 		}
 
-		// TODO What is `metrics[0].Aggr`?
 		switch aggregator {
 		case "avg", "":
 			value = value + *p[1]
@@ -75,5 +82,5 @@ func captureDatadogMetric(aggregator, query string, startTime, completionTime ti
 		value = value / n
 	}
 
-	return value, 0, nil
+	return value, math.NaN(), nil
 }

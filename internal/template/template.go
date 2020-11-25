@@ -41,8 +41,13 @@ type PatchData struct {
 
 // MetricData represents a trial during metric evaluation
 type MetricData struct {
-	// Trial metadata
-	Trial metav1.ObjectMeta
+	// Trial
+	Trial *redskyv1beta1.Trial
+	// Target
+	Target runtime.Object
+	// List of pods from the trial namespace (same as Target only if target is a PodList otherwise nil, here for backwards compatibility)
+	Pods *corev1.PodList
+
 	// The time at which the trial run started (possibly adjusted)
 	StartTime time.Time
 	// The time at which the trial run completed
@@ -51,8 +56,6 @@ type MetricData struct {
 	Range string
 	// Trial assignments
 	Values map[string]interface{}
-	// List of pods from the trial namespace (only available for "pods" type metrics)
-	Pods *corev1.PodList
 }
 
 func newPatchData(t *redskyv1beta1.Trial) *PatchData {
@@ -73,9 +76,13 @@ func newPatchData(t *redskyv1beta1.Trial) *PatchData {
 }
 
 func newMetricData(t *redskyv1beta1.Trial, target runtime.Object) *MetricData {
-	d := &MetricData{}
-
-	t.ObjectMeta.DeepCopyInto(&d.Trial)
+	d := &MetricData{
+		Trial:  t.DeepCopy(),
+		Target: target,
+	}
+	if pods, ok := target.(*corev1.PodList); ok {
+		d.Pods = pods
+	}
 
 	d.Values = make(map[string]interface{}, len(t.Spec.Assignments))
 	for _, a := range t.Spec.Assignments {
@@ -84,10 +91,6 @@ func newMetricData(t *redskyv1beta1.Trial, target runtime.Object) *MetricData {
 		} else {
 			d.Values[a.Name] = a.Value.IntVal
 		}
-	}
-
-	if pods, ok := target.(*corev1.PodList); ok {
-		d.Pods = pods
 	}
 
 	if t.Status.StartTime != nil {

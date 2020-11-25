@@ -85,12 +85,10 @@ type SumConstraint struct {
 type MetricType string
 
 const (
-	// MetricLocal metrics are Go Templates evaluated against the trial itself. No external service is consulted, primarily
-	// useful for extracting start and completion times.
-	MetricLocal MetricType = "local"
-	// MetricPods metrics are similar to local metrics, however the list of pods in the trial namespace matched by the selector
-	// is also available.
-	MetricPods MetricType = "pods"
+	// MetricKubernetes metrics issue Kubernetes API requests using the target reference and selector (if no
+	// reference is supplied, the trial itself is assumed). Queries are Go Templates evaluated against the
+	// the result of the API call.
+	MetricKubernetes MetricType = "kubernetes"
 	// MetricPrometheus metrics issue PromQL queries to a matched service. Queries MUST evaluate to a scalar value.
 	MetricPrometheus MetricType = "prometheus"
 	// MetricDatadog metrics issue queries to the Datadog service. Requires API and application key configuration.
@@ -119,18 +117,14 @@ type Metric struct {
 	// Collection type specific query for the error associated with collected metric value
 	ErrorQuery string `json:"errorQuery,omitempty"`
 
-	// The scheme to use when collecting metrics
-	Scheme string `json:"scheme,omitempty"`
-	// Selector matching services to collect this metric from, only the first matched service to provide a value is used
+	// URL to use when querying remote metric sources.
+	URL string `json:"url,omitempty"`
+
+	// Target reference of the Kubernetes object to query for metric information. Can be used
+	// in conjunction with the selector when the name is empty. Mutually exclusive with the URL.
+	TargetRef *corev1.ObjectReference `json:"targetRef,omitempty"`
+	// Selector matching to apply in conjunction with the target reference.
 	Selector *metav1.LabelSelector `json:"selector,omitempty"`
-	// The port number or name on the matched service to collect the metric value from
-	Port intstr.IntOrString `json:"port,omitempty"`
-	// URL path component used to collect the metric value from an endpoint (used as a prefix for the Prometheus API)
-	Path string `json:"path,omitempty"`
-	// URL to query for fetching metrics.
-	// If this parameter is specified, it will be preferred over Scheme, Selector, Port, and Path.
-	// This is only used for MetricPrometheus and MetricJSONPath metric types.
-	URL string `json:"-"`
 }
 
 // PatchReadinessGate contains a reference to a condition

@@ -20,41 +20,22 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"reflect"
 	"strconv"
 	"time"
 
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/util/jsonpath"
 )
 
 // TODO We need some type of client util to encapsulate this
-// TODO Combine it with the Prometheus clients?
 var httpClient = &http.Client{Timeout: 10 * time.Second}
 
-func captureJSONPathMetric(m *redskyv1beta1.Metric, target runtime.Object) (value float64, stddev float64, err error) {
-	var urls []string
-
-	if urls, err = toURL(target, m); err != nil {
-		return value, stddev, err
-	}
-
-	for _, u := range urls {
-		if value, stddev, err = captureOneJSONPathMetric(u, m.Name, m.Query); err != nil {
-			continue
-		}
-
-		return value, stddev, nil
-	}
-
-	return value, stddev, err
-}
-
-func captureOneJSONPathMetric(url, name, query string) (float64, float64, error) {
+func captureJSONPathMetric(m *redskyv1beta1.Metric) (value float64, valueError float64, err error) {
 	// Fetch the URL
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequest(http.MethodGet, m.URL, nil)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -70,7 +51,7 @@ func captureOneJSONPathMetric(url, name, query string) (float64, float64, error)
 	// Check the response status
 	if resp.StatusCode != http.StatusOK {
 		// TODO Should we not ignore this?
-		return 0, 0, nil
+		return 0, math.NaN(), nil
 	}
 
 	// Unmarshal as generic JSON
@@ -80,8 +61,8 @@ func captureOneJSONPathMetric(url, name, query string) (float64, float64, error)
 	}
 
 	// Evaluate the JSON path
-	jp := jsonpath.New(name)
-	if err := jp.Parse(query); err != nil {
+	jp := jsonpath.New(m.Name)
+	if err := jp.Parse(m.Query); err != nil {
 		return 0, 0, err
 	}
 	values, err := jp.FindResults(data)
@@ -94,18 +75,18 @@ func captureOneJSONPathMetric(url, name, query string) (float64, float64, error)
 		v := reflect.ValueOf(values[0][0].Interface())
 		switch v.Kind() {
 		case reflect.Float64:
-			return v.Float(), 0, nil
+			return v.Float(), math.NaN(), nil
 		case reflect.String:
 			v, err := strconv.ParseFloat(v.String(), 64)
 			if err != nil {
 				return 0, 0, err
 			}
-			return v, 0, nil
+			return v, math.NaN(), nil
 		default:
 			return 0, 0, fmt.Errorf("could not convert match to a floating point number")
 		}
 	}
 
 	// If we made it this far we weren't able to extract the value
-	return 0, 0, fmt.Errorf("query '%s' did not match", query)
+	return 0, 0, fmt.Errorf("query '%s' did not match", m.Query)
 }

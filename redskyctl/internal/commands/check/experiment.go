@@ -18,6 +18,7 @@ package check
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -199,8 +200,12 @@ func checkMetric(lint Linter, metric *redskyv1beta1.Metric) {
 		}
 	}
 
-	if metric.Scheme != "" && strings.ToLower(metric.Scheme) == "http" && strings.ToLower(metric.Scheme) != "https" {
-		lint.Error().Invalid("scheme", metric.Scheme, "http", "https")
+	if metric.URL != "" {
+		if u, err := url.Parse(metric.URL); err != nil {
+			lint.Error().Failed("url", err)
+		} else if s := strings.ToLower(u.Scheme); s != "" && s != "http" && s != "https" {
+			lint.Error().Invalid("scheme", u.Scheme, "http", "https")
+		}
 	}
 
 	if _, _, err := template.New().RenderMetricQueries(metric, &redskyv1beta1.Trial{}, nil); err != nil {

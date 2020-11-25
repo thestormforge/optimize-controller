@@ -26,7 +26,6 @@ import (
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/generate/experiment/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 var zero = resource.MustParse("0")
@@ -108,7 +107,6 @@ func addDurationMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) err
 
 	m := k8s.NewObjectiveMetric(obj, `{{ duration .StartTime .CompletionTime }}`)
 	m.Type = ""
-	m.Port = intstr.FromInt(0)
 
 	exp := k8s.FindOrAddExperiment(list)
 	exp.Spec.Metrics = append(exp.Spec.Metrics, m)

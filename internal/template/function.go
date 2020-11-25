@@ -25,6 +25,7 @@ import (
 
 	"github.com/Masterminds/sprig"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 // FuncMap returns the functions used for template evaluation
@@ -37,6 +38,7 @@ func FuncMap() template.FuncMap {
 		"duration":          duration,
 		"percent":           percent,
 		"resourceRequests":  resourceRequests,
+		"indexResource":     indexResource,
 		"cpuUtilization":    cpuUtilization,
 		"memoryUtilization": memoryUtilization,
 		"cpuRequests":       cpuRequests,
@@ -91,4 +93,13 @@ func resourceRequests(pods corev1.PodList, weights string) (float64, error) {
 		}
 	}
 	return totalResources, nil
+}
+
+// indexResource returns a quantity from a resource list.
+func indexResource(rl corev1.ResourceList, key string) *resource.Quantity {
+	// Solves two problems:
+	// 1. You can't do something like `{{ index someresourcelist "cpu" }}` because the key types won't match
+	// 2. A resource list gives you a quantity, but you need a pointer to a quantity to invoke functions
+	v := rl[corev1.ResourceName(key)]
+	return &v
 }

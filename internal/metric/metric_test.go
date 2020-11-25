@@ -17,23 +17,21 @@ limitations under the License.
 package metric
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
-	"strconv"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/intstr"
+	metricsv1beta1 "k8s.io/metrics/pkg/apis/metrics/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
@@ -48,21 +46,9 @@ func TestCaptureMetric(t *testing.T) {
 
 	jsonHttpTest := jsonPathHttpTestServer()
 	defer jsonHttpTest.Close()
-	jurl, err := url.Parse(jsonHttpTest.URL)
-	require.NoError(t, err)
-	jsonHttpTestIP, jPort, err := net.SplitHostPort(jurl.Host)
-	require.NoError(t, err)
-	jsonHttpTestPort, err := strconv.ParseInt(jPort, 10, 32)
-	require.NoError(t, err)
 
 	promHttpTest := promHttpTestServer()
 	defer promHttpTest.Close()
-	purl, err := url.Parse(promHttpTest.URL)
-	require.NoError(t, err)
-	promHttpTestIP, pPort, err := net.SplitHostPort(purl.Host)
-	require.NoError(t, err)
-	promHttpTestPort, err := strconv.ParseInt(pPort, 10, 32)
-	require.NoError(t, err)
 
 	testCases := []struct {
 		desc     string
@@ -71,48 +57,44 @@ func TestCaptureMetric(t *testing.T) {
 		expected float64
 	}{
 		{
-			desc: "default local",
+			desc: "default kubernetes",
 			metric: &redskyv1beta1.Metric{
 				Name:  "testMetric",
 				Query: "{{duration .StartTime .CompletionTime}}",
 			},
-			obj:      &corev1.PodList{},
 			expected: 5,
 		},
 		{
-			desc: "explicit local",
+			desc: "explicit kubernetes",
 			metric: &redskyv1beta1.Metric{
 				Name:  "testMetric",
 				Query: "{{duration .StartTime .CompletionTime}}",
-				Type:  redskyv1beta1.MetricLocal,
+				Type:  redskyv1beta1.MetricKubernetes,
 			},
-			obj:      &corev1.PodList{},
 			expected: 5,
 		},
 		{
-			desc: "default prometheus",
+			desc: "kubernetes target",
 			metric: &redskyv1beta1.Metric{
 				Name:  "testMetric",
-				Query: "scalar(prometheus_build_info)",
-				Type:  redskyv1beta1.MetricPrometheus,
+				Query: "{{with index .Target.Items 0}}{{ (indexResource .Usage \"cpu\").MilliValue }}{{ end }}",
+				Type:  redskyv1beta1.MetricKubernetes,
 			},
-			obj: &corev1.ServiceList{
-				Items: []corev1.Service{
+			obj: &metricsv1beta1.NodeMetricsList{
+				Items: []metricsv1beta1.NodeMetrics{
 					{
-						Spec: corev1.ServiceSpec{
-							ClusterIP: promHttpTestIP,
-							Ports: []corev1.ServicePort{
-								{
-									Name:     "testPort",
-									Protocol: corev1.ProtocolTCP,
-									Port:     int32(promHttpTestPort),
-								},
-							},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "minikube",
+						},
+						Timestamp: metav1.Now(),
+						Window:    metav1.Duration{Duration: 1 * time.Minute},
+						Usage: corev1.ResourceList{
+							"cpu": resource.MustParse("289m"),
 						},
 					},
 				},
 			},
-			expected: 1,
+			expected: 289,
 		},
 		{
 			desc: "prometheus url",
@@ -126,27 +108,12 @@ func TestCaptureMetric(t *testing.T) {
 		},
 
 		{
-			desc: "default jonPath",
+			desc: "jsonpath url",
 			metric: &redskyv1beta1.Metric{
 				Name:  "testMetric",
 				Query: "{.current_response_time_percentile_95}",
 				Type:  redskyv1beta1.MetricJSONPath,
-			},
-			obj: &corev1.ServiceList{
-				Items: []corev1.Service{
-					{
-						Spec: corev1.ServiceSpec{
-							ClusterIP: jsonHttpTestIP,
-							Ports: []corev1.ServicePort{
-								{
-									Name:     "testPort",
-									Protocol: corev1.ProtocolTCP,
-									Port:     int32(jsonHttpTestPort),
-								},
-							},
-						},
-					},
-				},
+				URL:   jsonHttpTest.URL,
 			},
 			expected: 5,
 		},
@@ -162,7 +129,7 @@ func TestCaptureMetric(t *testing.T) {
 				},
 			}
 
-			duration, _, err := CaptureMetric(log, tc.metric, trial, tc.obj)
+			duration, _, err := CaptureMetric(context.TODO(), log, trial, tc.metric, tc.obj)
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expected, duration)
 		})
@@ -183,213 +150,4 @@ func promHttpTestServer() *httptest.Server {
 		fmt.Fprint(w, resp)
 		return
 	}))
-}
-
-func TestToURL(t *testing.T) {
-	testCases := []struct {
-		desc     string
-		metric   *redskyv1beta1.Metric
-		obj      *corev1.ServiceList
-		expected []string
-	}{
-		{
-			desc:   "single port",
-			metric: &redskyv1beta1.Metric{},
-			obj: &corev1.ServiceList{
-				Items: []corev1.Service{
-					{
-						Spec: corev1.ServiceSpec{
-							ClusterIP: "10.0.0.1",
-							Ports: []corev1.ServicePort{
-								{
-									Name:     "testPort",
-									Protocol: corev1.ProtocolTCP,
-									Port:     9090,
-								},
-							},
-						},
-					},
-				},
-			},
-			expected: []string{"http://10.0.0.1:9090/"},
-		},
-
-		{
-			desc:   "single port headless",
-			metric: &redskyv1beta1.Metric{},
-			obj: &corev1.ServiceList{
-				Items: []corev1.Service{
-					{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      "headless",
-							Namespace: "default",
-						},
-						Spec: corev1.ServiceSpec{
-							ClusterIP: "None",
-							Ports: []corev1.ServicePort{
-								{
-									Name:     "testPort",
-									Protocol: corev1.ProtocolTCP,
-									Port:     9090,
-								},
-							},
-						},
-					},
-				},
-			},
-			expected: []string{"http://headless.default:9090/"},
-		},
-
-		{
-			desc:   "multi port",
-			metric: &redskyv1beta1.Metric{},
-			obj: &corev1.ServiceList{
-				Items: []corev1.Service{
-					{
-						Spec: corev1.ServiceSpec{
-							ClusterIP: "10.0.0.1",
-							Ports: []corev1.ServicePort{
-								{
-									Name:     "testPort",
-									Protocol: corev1.ProtocolTCP,
-									Port:     9090,
-								},
-								{
-									Name:     "testPort1",
-									Protocol: corev1.ProtocolTCP,
-									Port:     9091,
-								},
-							},
-						},
-					},
-				},
-			},
-			expected: []string{"http://10.0.0.1:9090/", "http://10.0.0.1:9091/"},
-		},
-
-		{
-			desc: "metric port name",
-			metric: &redskyv1beta1.Metric{
-				Port: intstr.Parse("uberport"),
-			},
-			obj: &corev1.ServiceList{
-				Items: []corev1.Service{
-					{
-						Spec: corev1.ServiceSpec{
-							ClusterIP: "10.0.0.1",
-							Ports: []corev1.ServicePort{
-								{
-									Name:     "uberport",
-									Protocol: corev1.ProtocolTCP,
-									Port:     9090,
-								},
-								{
-									Name:     "testPort1",
-									Protocol: corev1.ProtocolTCP,
-									Port:     9091,
-								},
-							},
-						},
-					},
-				},
-			},
-			expected: []string{"http://10.0.0.1:9090/"},
-		},
-
-		{
-			desc: "metric port number",
-			metric: &redskyv1beta1.Metric{
-				Port: intstr.Parse("9090"),
-			},
-			obj: &corev1.ServiceList{
-				Items: []corev1.Service{
-					{
-						Spec: corev1.ServiceSpec{
-							ClusterIP: "10.0.0.1",
-							Ports: []corev1.ServicePort{
-								{
-									Name:     "testPort",
-									Protocol: corev1.ProtocolTCP,
-									Port:     9090,
-								},
-								{
-									Name:     "testPort1",
-									Protocol: corev1.ProtocolTCP,
-									Port:     9091,
-								},
-							},
-						},
-					},
-				},
-			},
-			expected: []string{"http://10.0.0.1:9090/"},
-		},
-
-		{
-			desc: "metric port number headless",
-			metric: &redskyv1beta1.Metric{
-				Port: intstr.Parse("9090"),
-			},
-			obj: &corev1.ServiceList{
-				Items: []corev1.Service{
-					{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      "headless",
-							Namespace: "default",
-						},
-						Spec: corev1.ServiceSpec{
-							ClusterIP: "None",
-							Ports: []corev1.ServicePort{
-								{
-									Name:     "testPort",
-									Protocol: corev1.ProtocolTCP,
-									Port:     9090,
-								},
-								{
-									Name:     "testPort1",
-									Protocol: corev1.ProtocolTCP,
-									Port:     9091,
-								},
-							},
-						},
-					},
-				},
-			},
-			expected: []string{"http://headless.default:9090/"},
-		},
-
-		{
-			desc: "metric port name not matched with single svc port",
-			metric: &redskyv1beta1.Metric{
-				Port: intstr.Parse("uberport"),
-			},
-			obj: &corev1.ServiceList{
-				Items: []corev1.Service{
-					{
-						Spec: corev1.ServiceSpec{
-							ClusterIP: "10.0.0.1",
-							Ports: []corev1.ServicePort{
-								{
-									Name:     "testPort1",
-									Protocol: corev1.ProtocolTCP,
-									Port:     9091,
-								},
-							},
-						},
-					},
-				},
-			},
-			expected: []string{"http://10.0.0.1:9091/"},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(fmt.Sprintf("%q", tc.desc), func(t *testing.T) {
-			output, err := toURL(tc.obj, tc.metric)
-
-			assert.NoError(t, err)
-
-			assert.Equal(t, tc.expected, output)
-		})
-	}
 }

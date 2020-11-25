@@ -26,7 +26,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/kustomize/api/resmap"
 )
 
@@ -126,7 +125,6 @@ func NewObjectiveMetric(obj *redskyappsv1alpha1.Objective, query string) redskyv
 	defer func() { obj.Implemented = true }()
 	return redskyv1beta1.Metric{
 		Type:     redskyv1beta1.MetricPrometheus,
-		Port:     intstr.FromInt(9090),
 		Query:    query,
 		Minimize: true,
 		Name:     obj.Name,

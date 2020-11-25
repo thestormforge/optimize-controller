@@ -19,6 +19,8 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"math"
+	"net/url"
 	"strconv"
 
 	"github.com/go-logr/logr"
@@ -30,7 +32,9 @@ import (
 	"github.com/thestormforge/optimize-controller/internal/validation"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -138,11 +142,13 @@ func (r *MetricReconciler) evaluateMetrics(ctx context.Context, t *redskyv1beta1
 }
 
 func (r *MetricReconciler) collectMetrics(ctx context.Context, t *redskyv1beta1.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
-	// Index the metric definitions
+	// Fetch the experiment
 	exp := &redskyv1beta1.Experiment{}
 	if err := r.Get(ctx, t.ExperimentNamespacedName(), exp); err != nil {
 		return &ctrl.Result{}, err
 	}
+
+	// Index the metric definitions
 	metrics := make(map[string]*redskyv1beta1.Metric, len(exp.Spec.Metrics))
 	for i := range exp.Spec.Metrics {
 		metrics[exp.Spec.Metrics[i].Name] = &exp.Spec.Metrics[i]
@@ -156,40 +162,34 @@ func (r *MetricReconciler) collectMetrics(ctx context.Context, t *redskyv1beta1.
 			continue
 		}
 
-		// Capture the metric
-		var captureError error
-		if target, err := r.target(ctx, t.Namespace, metrics[v.Name]); err != nil {
-			captureError = err
-		} else if value, stddev, err := metric.CaptureMetric(log, metrics[v.Name], t, target); err != nil {
-			if merr, ok := err.(*metric.CaptureError); ok && merr.RetryAfter > 0 {
-				// Do not count retries against the remaining attempts
-				return &ctrl.Result{RequeueAfter: merr.RetryAfter}, nil
-			}
-			captureError = err
-		} else {
-			v.AttemptsRemaining = 0
-			v.Value = strconv.FormatFloat(value, 'f', -1, 64)
-			if stddev != 0 {
-				v.Error = strconv.FormatFloat(stddev, 'f', -1, 64)
-			}
+		// Use a defaulted DEEP COPY of the metric so we can safely make changes
+		m := metricWithDefaults(t, metrics[v.Name])
+
+		// This is strictly for converted v1alpha1 experiments
+		if err := r.resolveLegacyURL(ctx, t, m); err != nil {
+			return r.collectionAttempt(ctx, log, t, v, probeTime, err)
 		}
 
-		// Handle any errors the occurred while collecting the value
-		if captureError != nil && v.AttemptsRemaining > 0 {
-			v.AttemptsRemaining = v.AttemptsRemaining - 1
-			if v.AttemptsRemaining == 0 {
-				trial.ApplyCondition(&t.Status, redskyv1beta1.TrialFailed, corev1.ConditionTrue, "MetricFailed", captureError.Error(), probeTime)
-				if merr, ok := captureError.(*metric.CaptureError); ok {
-					// Metric errors contain additional information which should be logged for debugging
-					log.Error(merr, "Metric collection failed", "address", merr.Address, "query", merr.Query, "completionTime", merr.CompletionTime)
-				}
-			}
+		// Do any Kube API lookups while we have the API client
+		target, err := r.target(ctx, t, m)
+		if err != nil {
+			return r.collectionAttempt(ctx, log, t, v, probeTime, err)
 		}
 
-		// We have started collecting metrics (success or fail), transition into a false status
-		trial.ApplyCondition(&t.Status, redskyv1beta1.TrialObserved, corev1.ConditionFalse, "", "", probeTime)
-		err := r.Update(ctx, t)
-		return controller.RequeueConflict(err)
+		// Capture the metric value
+		value, valueError, err := metric.CaptureMetric(ctx, log, t, m, target)
+		if err != nil {
+			return r.collectionAttempt(ctx, log, t, v, probeTime, err)
+		}
+
+		// Success, record the value and mark it as collected
+		v.AttemptsRemaining = 0
+		v.Value = strconv.FormatFloat(value, 'f', -1, 64)
+		if !math.IsNaN(valueError) {
+			v.Error = strconv.FormatFloat(valueError, 'f', -1, 64)
+		}
+
+		return r.collectionAttempt(ctx, log, t, v, probeTime, nil)
 	}
 
 	// Wait until all metrics have been collected to fail the trial for an out of bounds metric
@@ -211,49 +211,131 @@ func (r *MetricReconciler) collectMetrics(ctx context.Context, t *redskyv1beta1.
 	return controller.RequeueConflict(err)
 }
 
-func (r *MetricReconciler) target(ctx context.Context, namespace string, m *redskyv1beta1.Metric) (runtime.Object, error) {
-	switch m.Type {
-	case redskyv1beta1.MetricPods:
-		// Use the selector to get a list of pods
-		target := &corev1.PodList{}
-		sel, err := meta.MatchingSelector(m.Selector)
-		if err != nil {
-			return nil, err
-		}
+// collectionAttempt updates the status of the trial based on the outcome of an attempt to collect metric values.
+func (r *MetricReconciler) collectionAttempt(ctx context.Context, log logr.Logger, t *redskyv1beta1.Trial, v *redskyv1beta1.Value, probeTime *metav1.Time, err error) (*ctrl.Result, error) {
+	// Do not count retries against the remaining attempts
+	if merr, ok := err.(*metric.CaptureError); ok && merr.RetryAfter > 0 {
+		return &ctrl.Result{RequeueAfter: merr.RetryAfter}, nil
+	}
 
-		if err = r.List(ctx, target, client.InNamespace(namespace), sel); err != nil {
-			return nil, err
-		}
+	// Update the probe time and ensure that trial observed is still explicitly false (i.e. we have started observation but it is not complete)
+	trial.ApplyCondition(&t.Status, redskyv1beta1.TrialObserved, corev1.ConditionFalse, "", "", probeTime)
 
-		return target, nil
-	case redskyv1beta1.MetricPrometheus, redskyv1beta1.MetricJSONPath:
-		// Both Prometheus and JSONPath target a service
-		target := &corev1.ServiceList{}
+	// Decrement the attempts remaining, if there are no attempts left, fail the trial
+	if v.AttemptsRemaining > 0 {
+		v.AttemptsRemaining--
+		if v.AttemptsRemaining == 0 {
+			trial.ApplyCondition(&t.Status, redskyv1beta1.TrialFailed, corev1.ConditionTrue, "MetricFailed", err.Error(), probeTime)
 
-		if m.URL != "" {
-			return target, nil
-		}
-
-		// Default label selector to `app: prometheus` if not specified
-		labelSelector := m.Selector
-		if labelSelector == nil && m.Type == redskyv1beta1.MetricPrometheus {
-			labelSelector = &metav1.LabelSelector{
-				MatchLabels: map[string]string{"app": "prometheus"},
+			// Metric errors contain additional information which should be logged for debugging
+			if merr, ok := err.(*metric.CaptureError); ok {
+				log.Error(merr, "Metric collection failed", "address", merr.Address, "query", merr.Query, "completionTime", merr.CompletionTime)
 			}
 		}
+	}
 
-		sel, err := meta.MatchingSelector(labelSelector)
-		if err != nil {
-			return nil, err
-		}
+	// Record the update
+	return controller.RequeueConflict(r.Update(ctx, t))
+}
 
-		if err = r.List(ctx, target, client.InNamespace(namespace), sel); err != nil {
-			return nil, err
-		}
-
-		return target, nil
-	default:
-		// Assume no target is necessary
+// target looks up the Kubernetes object (if any) associated with a metric.
+func (r *MetricReconciler) target(ctx context.Context, t *redskyv1beta1.Trial, m *redskyv1beta1.Metric) (runtime.Object, error) {
+	if m.Type != redskyv1beta1.MetricKubernetes {
 		return nil, nil
 	}
+
+	// Get the target reference, default to the trial itself if there is no reference
+	targetRef := m.TargetRef
+	if targetRef == nil {
+		return t, nil
+	}
+
+	// If no explicit namespace is specified, use the trial namespace
+	namespace := targetRef.Namespace
+	if namespace == "" {
+		namespace = t.Namespace
+	}
+
+	// If a name is specified, just get a single object
+	if targetRef.Name != "" {
+		target := &unstructured.Unstructured{}
+		target.SetGroupVersionKind(targetRef.GroupVersionKind())
+		if err := r.Get(ctx, types.NamespacedName{Namespace: namespace, Name: m.Name}, target); err != nil {
+			return nil, err
+		}
+		return target, nil
+	}
+
+	// Convert the selector from a Kubernetes object to something the client can use
+	sel, err := meta.MatchingSelector(m.Selector)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch the list of matching resources
+	target := &unstructured.UnstructuredList{}
+	target.SetGroupVersionKind(targetRef.GroupVersionKind())
+	if err := r.List(ctx, target, client.InNamespace(namespace), sel); err != nil {
+		return nil, err
+	}
+	return target, nil
+}
+
+func (r *MetricReconciler) resolveLegacyURL(ctx context.Context, t *redskyv1beta1.Trial, m *redskyv1beta1.Metric) error {
+	if m.Type != redskyv1beta1.MetricPrometheus && m.Type != redskyv1beta1.MetricJSONPath {
+		return nil
+	}
+
+	// Look for the special placeholder hostname that indicates we should look up a service
+	u, err := url.Parse(m.URL)
+	if err != nil || u.Hostname() != "redskyops.dev" {
+		return err
+	}
+
+	// Convert the selector
+	if m.Selector == nil && m.Type == redskyv1beta1.MetricPrometheus {
+		m.Selector = &metav1.LabelSelector{MatchLabels: map[string]string{"app": "prometheus"}}
+	}
+	sel, err := meta.MatchingSelector(m.Selector)
+	if err != nil {
+		return err
+	}
+
+	// Fetch the service
+	namespace := m.TargetRef.Namespace
+	if namespace == "" {
+		namespace = t.Namespace
+	}
+	list := &corev1.ServiceList{}
+	if err := r.List(ctx, list, client.InNamespace(namespace), sel); err != nil {
+		return err
+	}
+
+	// Mimic legacy behavior to reconstruct host names
+	// NOTE: We are not doing port name resolution or matching multiple sockets: if you
+	// were relying on that behavior, you must migrate to a newer schema with explicit URLs.
+	if len(list.Items) > 0 {
+		host := list.Items[0].Spec.ClusterIP
+		if host == "None" {
+			host = fmt.Sprintf("%s.%s", list.Items[0].Name, list.Items[0].Namespace)
+		}
+		if port := u.Port(); port != "" {
+			host += ":" + port
+		}
+		u.Host = host
+		m.URL = u.String()
+	}
+
+	return nil
+}
+
+// metricWithDefaults returns a deep copy of the supplied metric with default values filled in.
+func metricWithDefaults(t *redskyv1beta1.Trial, in *redskyv1beta1.Metric) *redskyv1beta1.Metric {
+	m := in.DeepCopy()
+
+	if m.Type == redskyv1beta1.MetricPrometheus && m.URL == "" {
+		m.URL = fmt.Sprintf("http://redsky-%s-prometheus:9090/", t.Namespace)
+	}
+
+	return m
 }
