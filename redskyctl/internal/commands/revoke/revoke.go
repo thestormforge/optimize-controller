@@ -50,8 +50,8 @@ func NewCommand(o *Options) *cobra.Command {
 		RunE:   commander.WithContextE(o.revoke),
 	}
 
-	// NOTE: --name is an alias of --context for backwards compatibility
 	cmd.Flags().StringVar(&o.Config.Overrides.Context, "name", "", "name of the server configuration to de-authorize")
+	_ = cmd.Flags().MarkDeprecated("name", "use --context instead")
 
 	return cmd
 }

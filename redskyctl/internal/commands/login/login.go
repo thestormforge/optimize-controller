@@ -94,8 +94,8 @@ func NewCommand(o *Options) *cobra.Command {
 		RunE:              commander.WithContextE(o.login),
 	}
 
-	// NOTE: --name is an alias of --context for backwards compatibility
 	cmd.Flags().StringVar(&o.Config.Overrides.Context, "name", "", "name of the server configuration to authorize")
+	_ = cmd.Flags().MarkDeprecated("name", "use --context instead")
 
 	cmd.Flags().StringVar(&o.Environment, "env", "", "override the execution environment")
 	cmd.Flags().StringVar(&o.Server, "server", "", "override the Red Sky API server identifier")
