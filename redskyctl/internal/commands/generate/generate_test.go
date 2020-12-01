@@ -92,11 +92,11 @@ func TestGenerate(t *testing.T) {
 				"install",
 				"--skip-secret",
 				"--image",
-				"gcr.io/redskyops/funsies:latest",
+				"ghcr.io/thestormforge/funsies:latest",
 			},
 			expectedError: false,
 			expectedPatterns: []string{
-				"image: gcr.io/redskyops/funsies:latest",
+				"image: ghcr.io/thestormforge/funsies:latest",
 			},
 			unexpectedPatterns: []string{
 				fmt.Sprintf("%s: %s", "image", kustomize.BuildImage),
