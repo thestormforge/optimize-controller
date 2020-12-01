@@ -10,12 +10,12 @@ builds:
       - amd64
     ldflags:
       - '-s -w'
-      - '-X github.com/redskyops/redskyops-controller/internal/version.Version=v{{ .Version }}'
-      - '-X github.com/redskyops/redskyops-controller/internal/version.GitCommit={{ .FullCommit }}'
-      - '-X github.com/redskyops/redskyops-controller/internal/version.BuildMetadata={{ .Env.BUILD_METADATA }}'
-      - '-X github.com/redskyops/redskyops-controller/internal/setup.Image={{ .Env.SETUPTOOLS_IMG }}'
-      - '-X github.com/redskyops/redskyops-controller/internal/setup.ImagePullPolicy={{ .Env.PULL_POLICY }}'
-      - '-X github.com/redskyops/redskyops-controller/redskyctl/internal/kustomize.BuildImage={{ .Env.IMG }}'
+      - '-X github.com/thestormforge/optimize-controller/internal/version.Version=v{{ .Version }}'
+      - '-X github.com/thestormforge/optimize-controller/internal/version.GitCommit={{ .FullCommit }}'
+      - '-X github.com/thestormforge/optimize-controller/internal/version.BuildMetadata={{ .Env.BUILD_METADATA }}'
+      - '-X github.com/thestormforge/optimize-controller/internal/setup.Image={{ .Env.SETUPTOOLS_IMG }}'
+      - '-X github.com/thestormforge/optimize-controller/internal/setup.ImagePullPolicy={{ .Env.PULL_POLICY }}'
+      - '-X github.com/thestormforge/optimize-controller/redskyctl/internal/kustomize.BuildImage={{ .Env.IMG }}'
     hooks:
       post:
         - hack/codesign.sh "{{ .Path }}"

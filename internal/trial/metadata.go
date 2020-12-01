@@ -19,7 +19,7 @@ package trial
 import (
 	"strings"
 
-	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
+	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 )
 
 // GetInitializers returns the initializers for the specified trial

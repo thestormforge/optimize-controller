@@ -21,8 +21,8 @@ import (
 	"context"
 	"io"
 
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
 )
 
 // Options is the configuration for initialization

@@ -23,12 +23,12 @@ import (
 	"os"
 	"sync"
 
-	"github.com/redskyops/redskyops-controller/internal/setup"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/authorize_cluster"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/grant_permissions"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/kustomize"
 	"github.com/spf13/cobra"
+	"github.com/thestormforge/optimize-controller/internal/setup"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/authorize_cluster"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/grant_permissions"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/kustomize"
 	"github.com/thestormforge/optimize-go/pkg/config"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 )

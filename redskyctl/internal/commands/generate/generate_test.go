@@ -23,11 +23,11 @@ import (
 	"os"
 	"testing"
 
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/generate"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/kustomize"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/generate"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/kustomize"
 	"github.com/thestormforge/optimize-go/pkg/config"
 )
 

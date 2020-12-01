@@ -24,9 +24,9 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/redskyops/redskyops-controller/internal/version"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
+	"github.com/thestormforge/optimize-controller/internal/version"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
 )
 
 // TODO Should we have the option to initiate the download? (and exec `xattr -d com.apple.quarantine` on macOS? Until we get notarized...)

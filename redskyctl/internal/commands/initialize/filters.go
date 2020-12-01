@@ -17,7 +17,7 @@ limitations under the License.
 package initialize
 
 import (
-	"github.com/redskyops/redskyops-controller/internal/version"
+	"github.com/thestormforge/optimize-controller/internal/version"
 	"sigs.k8s.io/kustomize/api/filters/labels"
 	"sigs.k8s.io/kustomize/api/resid"
 	"sigs.k8s.io/kustomize/api/types"

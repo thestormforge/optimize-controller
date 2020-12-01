@@ -22,8 +22,8 @@ import (
 	"time"
 
 	"github.com/pkg/browser"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
 )
 
 // Options is the configuration for displaying the results UI

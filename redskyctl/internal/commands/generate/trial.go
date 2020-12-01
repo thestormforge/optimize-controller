@@ -19,12 +19,12 @@ package generate
 import (
 	"fmt"
 
-	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
-	"github.com/redskyops/redskyops-controller/internal/experiment"
-	"github.com/redskyops/redskyops-controller/internal/server"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/experiments"
 	"github.com/spf13/cobra"
+	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	"github.com/thestormforge/optimize-controller/internal/experiment"
+	"github.com/thestormforge/optimize-controller/internal/server"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/experiments"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/redskyapi/experiments/v1alpha1"
 )
 

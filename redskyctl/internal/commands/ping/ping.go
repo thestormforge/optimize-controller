@@ -24,9 +24,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/redskyops/redskyops-controller/internal/version"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
+	"github.com/thestormforge/optimize-controller/internal/version"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
 	"github.com/thestormforge/optimize-go/pkg/config"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/redskyapi/experiments/v1alpha1"
 	"golang.org/x/oauth2"

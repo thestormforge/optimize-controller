@@ -20,9 +20,9 @@ import (
 	"context"
 	"io"
 
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/initialize"
 	"github.com/spf13/cobra"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/initialize"
 	"github.com/thestormforge/optimize-go/pkg/config"
 )
 

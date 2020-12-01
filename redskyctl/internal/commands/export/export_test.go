@@ -24,10 +24,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/export"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/export"
 	"github.com/thestormforge/optimize-go/pkg/config"
 	"sigs.k8s.io/kustomize/api/filesys"
 )

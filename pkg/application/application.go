@@ -22,7 +22,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
+	"github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	"sigs.k8s.io/kustomize/api/filesys"
 	"sigs.k8s.io/kustomize/api/konfig"
 	"sigs.k8s.io/kustomize/api/krusty"

@@ -17,10 +17,10 @@ limitations under the License.
 package generate
 
 import (
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/authorize_cluster"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/grant_permissions"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/initialize"
 	"github.com/spf13/cobra"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/authorize_cluster"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/grant_permissions"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/initialize"
 	"github.com/thestormforge/optimize-go/pkg/config"
 )
 
