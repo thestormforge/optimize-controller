@@ -23,9 +23,9 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
-	redskyappsv1alpha1 "github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/generate/experiment/k8s"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/generate/experiment/prometheus"
+	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/generate/experiment/k8s"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/generate/experiment/prometheus"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

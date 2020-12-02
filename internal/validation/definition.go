@@ -19,7 +19,7 @@ package validation
 import (
 	"fmt"
 
-	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
+	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	redskyapi "github.com/thestormforge/optimize-go/pkg/redskyapi/experiments/v1alpha1"
 )
 

@@ -22,8 +22,8 @@ import (
 	"os"
 	"path"
 
-	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
-	"github.com/redskyops/redskyops-controller/internal/template"
+	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	"github.com/thestormforge/optimize-controller/internal/template"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

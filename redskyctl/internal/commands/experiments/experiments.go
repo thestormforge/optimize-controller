@@ -23,8 +23,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
 	"github.com/thestormforge/optimize-go/pkg/redskyapi"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/redskyapi/experiments/v1alpha1"
 	"k8s.io/client-go/util/jsonpath"

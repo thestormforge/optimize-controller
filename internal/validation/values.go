@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strconv"
 
-	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
+	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 

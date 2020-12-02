@@ -19,10 +19,10 @@ package experiment
 import (
 	"fmt"
 
-	redskyappsv1alpha1 "github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
-	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
-	meta2 "github.com/redskyops/redskyops-controller/internal/meta"
-	"github.com/redskyops/redskyops-controller/pkg/application"
+	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
+	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	meta2 "github.com/thestormforge/optimize-controller/internal/meta"
+	"github.com/thestormforge/optimize-controller/pkg/application"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/meta"

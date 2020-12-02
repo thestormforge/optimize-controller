@@ -24,8 +24,8 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
 	"github.com/thestormforge/optimize-go/pkg/config"
 	"golang.org/x/net/context/ctxhttp"
 )

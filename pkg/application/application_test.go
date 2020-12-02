@@ -19,8 +19,8 @@ package application
 import (
 	"testing"
 
-	"github.com/redskyops/redskyops-controller/api/apps/v1alpha1"
 	"github.com/stretchr/testify/assert"
+	"github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

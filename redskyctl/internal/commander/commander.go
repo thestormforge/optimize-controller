@@ -22,9 +22,9 @@ import (
 	"io/ioutil"
 	"os"
 
-	redskyv1alpha1 "github.com/redskyops/redskyops-controller/api/v1alpha1"
-	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/spf13/cobra"
+	redskyv1alpha1 "github.com/thestormforge/optimize-controller/api/v1alpha1"
+	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	internalconfig "github.com/thestormforge/optimize-go/pkg/config"
 	"github.com/thestormforge/optimize-go/pkg/redskyapi"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/redskyapi/experiments/v1alpha1"

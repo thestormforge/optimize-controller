@@ -22,14 +22,14 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
-	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
-	"github.com/redskyops/redskyops-controller/internal/controller"
-	"github.com/redskyops/redskyops-controller/internal/experiment"
-	"github.com/redskyops/redskyops-controller/internal/meta"
-	"github.com/redskyops/redskyops-controller/internal/server"
-	"github.com/redskyops/redskyops-controller/internal/trial"
-	"github.com/redskyops/redskyops-controller/internal/validation"
-	"github.com/redskyops/redskyops-controller/internal/version"
+	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	"github.com/thestormforge/optimize-controller/internal/controller"
+	"github.com/thestormforge/optimize-controller/internal/experiment"
+	"github.com/thestormforge/optimize-controller/internal/meta"
+	"github.com/thestormforge/optimize-controller/internal/server"
+	"github.com/thestormforge/optimize-controller/internal/trial"
+	"github.com/thestormforge/optimize-controller/internal/validation"
+	"github.com/thestormforge/optimize-controller/internal/version"
 	"github.com/thestormforge/optimize-go/pkg/config"
 	"github.com/thestormforge/optimize-go/pkg/redskyapi"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/redskyapi/experiments/v1alpha1"
@@ -146,7 +146,7 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			}
 		}
 
-		c, err := redskyapi.NewClient(ctx, cfg, version.UserAgent("redskyops-controller", comment, nil))
+		c, err := redskyapi.NewClient(ctx, cfg, version.UserAgent("optimize-controller", comment, nil))
 		if err != nil {
 			return err
 		}

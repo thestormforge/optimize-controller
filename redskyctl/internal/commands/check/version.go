@@ -24,15 +24,15 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/redskyops/redskyops-controller/internal/version"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
+	"github.com/thestormforge/optimize-controller/internal/version"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
 )
 
-// TODO Should we have the option to initiate the download? (and exec `xattr -d com.apple.quarantine` on macOS? Until we get notarized...)
+// TODO Should we have the option to initiate the download?
 // TODO Should we also check the controller version and tell them to `init` to make the versions match?
 
-var GitHubReleasesURL = "https://api.github.com/repos/redskyops/redskyops-controller/releases"
+var GitHubReleasesURL = "https://api.github.com/repos/thestormforge/optimize-controller/releases"
 
 // VersionOptions are the options for checking the current version of the product
 type VersionOptions struct {

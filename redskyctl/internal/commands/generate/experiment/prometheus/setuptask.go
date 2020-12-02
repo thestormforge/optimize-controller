@@ -17,9 +17,9 @@ limitations under the License.
 package prometheus
 
 import (
-	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
-	"github.com/redskyops/redskyops-controller/internal/setup"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/generate/experiment/k8s"
+	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	"github.com/thestormforge/optimize-controller/internal/setup"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/generate/experiment/k8s"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

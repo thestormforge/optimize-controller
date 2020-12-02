@@ -23,9 +23,9 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commands/kustomize/consts"
 	"github.com/spf13/cobra"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/kustomize/consts"
 )
 
 // ConfigOptions are the options for configuring a Kustomization

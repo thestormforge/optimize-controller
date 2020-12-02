@@ -24,8 +24,8 @@ import (
 	"testing"
 	"time"
 
-	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
 	"github.com/stretchr/testify/assert"
+	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	redskyapi "github.com/thestormforge/optimize-go/pkg/redskyapi/experiments/v1alpha1"
 	"github.com/thestormforge/optimize-go/pkg/redskyapi/experiments/v1alpha1/numstr"
 	corev1 "k8s.io/api/core/v1"

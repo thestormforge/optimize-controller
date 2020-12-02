@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/redskyops/redskyops-controller/api/v1alpha1"
-	"github.com/redskyops/redskyops-controller/api/v1beta1"
+	"github.com/thestormforge/optimize-controller/api/v1alpha1"
+	"github.com/thestormforge/optimize-controller/api/v1beta1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/conversion"

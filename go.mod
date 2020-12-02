@@ -1,4 +1,4 @@
-module github.com/redskyops/redskyops-controller
+module github.com/thestormforge/optimize-controller
 
 go 1.14
 

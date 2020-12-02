@@ -20,9 +20,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/redskyops/redskyops-controller/internal/controller"
-	"github.com/redskyops/redskyops-controller/redskyctl/internal/commander"
 	"github.com/spf13/cobra"
+	"github.com/thestormforge/optimize-controller/internal/controller"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/redskyapi/experiments/v1alpha1"
 )
 

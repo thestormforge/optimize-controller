@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"testing"
 
-	redsky "github.com/redskyops/redskyops-controller/api/v1beta1"
-	"github.com/redskyops/redskyops-controller/internal/setup"
 	"github.com/stretchr/testify/assert"
+	redsky "github.com/thestormforge/optimize-controller/api/v1beta1"
+	"github.com/thestormforge/optimize-controller/internal/setup"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 )
