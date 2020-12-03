@@ -193,12 +193,15 @@ func (r *MetricReconciler) collectMetrics(ctx context.Context, t *redskyv1beta1.
 	}
 
 	// Wait until all metrics have been collected to fail the trial for an out of bounds metric
-	for i := range t.Spec.Values {
-		v := &t.Spec.Values[i]
-		if err := validation.CheckMetricBounds(metrics[v.Name], v); err != nil {
-			trial.ApplyCondition(&t.Status, redskyv1beta1.TrialFailed, corev1.ConditionTrue, "MetricBound", err.Error(), probeTime)
-			err := r.Update(ctx, t)
-			return controller.RequeueConflict(err)
+	// NOTE: We allow baseline trials to go through no matter what
+	if !trial.IsBaseline(t, exp) {
+		for i := range t.Spec.Values {
+			v := &t.Spec.Values[i]
+			if err := validation.CheckMetricBounds(metrics[v.Name], v); err != nil {
+				trial.ApplyCondition(&t.Status, redskyv1beta1.TrialFailed, corev1.ConditionTrue, "MetricBound", err.Error(), probeTime)
+				err := r.Update(ctx, t)
+				return controller.RequeueConflict(err)
+			}
 		}
 	}
 
