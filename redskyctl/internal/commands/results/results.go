@@ -24,10 +24,13 @@ import (
 	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
+	"github.com/thestormforge/optimize-go/pkg/config"
 )
 
 // Options is the configuration for displaying the results UI
 type Options struct {
+	// Config is the Red Sky Configuration to get redirect URLs from
+	Config *config.RedSkyConfig
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
 
@@ -59,12 +62,17 @@ func NewCommand(o *Options) *cobra.Command {
 }
 
 func (o *Options) results() error {
+	s, err := config.CurrentServer(o.Config.Reader())
+	if err != nil {
+		return err
+	}
+
 	u, err := user.Current()
 	if err != nil {
 		return err
 	}
 
-	loc := "https://app.stormforge.io/experiments"
+	loc := s.Application.ExperimentsEndpoint
 
 	// Do not open the browser for root
 	if o.DisplayURL || u.Uid == "0" {

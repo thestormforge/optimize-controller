@@ -36,9 +36,6 @@ type Options struct {
 	Config *config.RedSkyConfig
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
-
-	// Name is the key of the authorization in the configuration to remove
-	Name string
 }
 
 // NewCommand creates a new command for executing a logout
@@ -53,14 +50,15 @@ func NewCommand(o *Options) *cobra.Command {
 		RunE:   commander.WithContextE(o.revoke),
 	}
 
-	cmd.Flags().StringVar(&o.Name, "name", "", "name of the server configuration to de-authorize")
+	cmd.Flags().StringVar(&o.Config.Overrides.Context, "name", "", "name of the server configuration to de-authorize")
+	_ = cmd.Flags().MarkDeprecated("name", "use --context instead")
 
 	return cmd
 }
 
 // Run executes the revocation
 func (o *Options) revoke(ctx context.Context) error {
-	ri, err := o.Config.RevocationInfo(o.Name)
+	ri, err := o.Config.RevocationInfo()
 	if err != nil {
 		return err
 	}
