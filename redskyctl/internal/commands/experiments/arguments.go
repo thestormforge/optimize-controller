@@ -86,7 +86,7 @@ func experimentNames(ctx context.Context, api experimentsv1alpha1.API, prefix st
 	// Get the rest of the experiments
 	next := l.Next
 	for next != "" {
-		n, err := api.GetAllExperimentsByPage(ctx, l.Next)
+		n, err := api.GetAllExperimentsByPage(ctx, next)
 		if err != nil {
 			break
 		}
