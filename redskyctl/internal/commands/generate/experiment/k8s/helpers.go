@@ -111,7 +111,11 @@ func TrialJobImage(job string) string {
 	}
 	imageTag := os.Getenv("OPTIMIZE_TRIALS_IMAGE_TAG")
 	if imageTag == "" {
-		imageTag = "0.0.1-" + job
+		imageTagBase := os.Getenv("OPTIMIZE_TRIALS_IMAGE_TAG_BASE")
+		if imageTagBase == "" {
+			imageTagBase = "v0.0.1"
+		}
+		imageTag = imageTagBase + "-" + job
 	}
 	return imageName + ":" + imageTag
 }
