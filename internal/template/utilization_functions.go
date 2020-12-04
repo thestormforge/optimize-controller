@@ -111,12 +111,13 @@ func renderUtilization(metricData MetricData, extraLabelMatchers []string, query
 	// NOTE: Ideally we would use `github.com/prometheus/prometheus/promql/parser#ParseMetricSelector` here
 	// however the dependencies of the Prometheus server conflict.
 
+	// Allow the extra label matchers to be variadic or comma-delimited
+	extraLabelMatchers = strings.Split(strings.Join(extraLabelMatchers, ","), ",")
+
 	// Always include the trial namespace first
 	labelMatchers := make([]string, 0, 1+len(extraLabelMatchers))
 	labelMatchers = append(labelMatchers, fmt.Sprintf("namespace=\"%s\"", metricData.Trial.Namespace))
-
-	// Allow the extra label matchers to be variadic or comma-delimited
-	for _, labelMatcher := range strings.Split(strings.Join(extraLabelMatchers, ","), ",") {
+	for _, labelMatcher := range extraLabelMatchers {
 		if labelMatcher == "" {
 			continue
 		}
