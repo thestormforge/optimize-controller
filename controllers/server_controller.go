@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/go-logr/logr"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
@@ -41,6 +42,11 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+)
+
+const (
+	// DefaultTrialTTL is the default TTL (after "finished") for server suggested trials.
+	DefaultTrialTTL = 48 * time.Hour
 )
 
 // ServerReconciler reconciles a experiment and trial objects with a remote server
@@ -287,6 +293,14 @@ func (r *ServerReconciler) nextTrial(ctx context.Context, log logr.Logger, exp *
 	experiment.PopulateTrialFromTemplate(exp, t)
 	t.Namespace = namespace
 	server.ToClusterTrial(t, &suggestion)
+
+	// Since the trial originated from the server, we can delete it out of the cluster
+	if t.Spec.TTLSecondsAfterFinished == nil {
+		if t.Spec.ApproximateRuntime == nil || t.Spec.ApproximateRuntime.Duration < DefaultTrialTTL {
+			ttlSeconds := int32(DefaultTrialTTL / time.Second)
+			t.Spec.TTLSecondsAfterFinished = &ttlSeconds
+		}
+	}
 
 	// Create the trial
 	if err := r.Create(ctx, t); err != nil {
