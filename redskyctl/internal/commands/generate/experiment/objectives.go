@@ -26,7 +26,6 @@ import (
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/generate/experiment/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -40,7 +39,9 @@ func (g *Generator) addObjectives(list *corev1.List) error {
 		switch {
 
 		case obj.Requests != nil:
-			addRequestsMetric(obj, list)
+			if err := addRequestsMetric(obj, list); err != nil {
+				return err
+			}
 
 		}
 	}
@@ -48,8 +49,11 @@ func (g *Generator) addObjectives(list *corev1.List) error {
 	return nil
 }
 
-func addRequestsMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) {
-	lbl := labels.Set(obj.Requests.Labels).String()
+func addRequestsMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) error {
+	lbl, err := k8s.RestrictedSelector(obj.Requests.Labels)
+	if err != nil {
+		return err
+	}
 
 	cpuWeight := obj.Requests.Weights.Cpu()
 	if cpuWeight == nil {
@@ -97,4 +101,6 @@ func addRequestsMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) {
 
 	// The cost metric requires Prometheus
 	prometheus.AddSetupTask(list)
+
+	return nil
 }

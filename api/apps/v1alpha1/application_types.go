@@ -74,13 +74,13 @@ type Parameters struct {
 // resources (CPU and memory) optimized.
 type ContainerResources struct {
 	// Labels of Kubernetes objects to consider when generating container resources patches.
-	Labels map[string]string `json:"labels,omitempty"`
+	Labels string `json:"labels,omitempty"`
 }
 
 // Replicas specifies which resources in the application should have their replica count optimized.
 type Replicas struct {
 	// Labels of Kubernetes objects to consider when generating replica patches.
-	Labels map[string]string `json:"labels,omitempty"`
+	Labels string `json:"labels,omitempty"`
 }
 
 // Ingress describes the point of ingress to the application.
@@ -148,7 +148,7 @@ type Objective struct {
 // RequestsObjective is used to optimize the resource requests of an application in a specific scenario.
 type RequestsObjective struct {
 	// Labels of the pods which should be considered when collecting cost information.
-	Labels map[string]string `json:"labels,omitempty"`
+	Labels string `json:"labels,omitempty"`
 	// Weights are used to determine which container resources should be optimized.
 	Weights corev1.ResourceList `json:"weights,omitempty"`
 }

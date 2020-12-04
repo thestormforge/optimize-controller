@@ -25,7 +25,9 @@ import (
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/selection"
 	"sigs.k8s.io/kustomize/api/resmap"
 )
 
@@ -118,4 +120,24 @@ func TrialJobImage(job string) string {
 		imageTag = imageTagBase + "-" + job
 	}
 	return imageName + ":" + imageTag
+}
+
+// RestrictedSelector ensures that the supplied selector is restricted to simple equality expressions.
+func RestrictedSelector(selector string) (string, error) {
+	// Make sure the selector is valid
+	sel, err := labels.Parse(selector)
+	if err != nil {
+		return "", err
+	}
+
+	// Iterate over the requirements verifying their restricted nature
+	reqs, _ := sel.Requirements()
+	for _, req := range reqs {
+		if req.Operator() != selection.Equals {
+			return "", fmt.Errorf("requests metric label selector must use the = operator")
+		}
+	}
+
+	// Note that `sel.String()` may be the same as the input, typically without whitespace
+	return sel.String(), nil
 }
