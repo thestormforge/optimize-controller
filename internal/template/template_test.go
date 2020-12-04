@@ -477,3 +477,46 @@ scalar(
   )
 )`
 )
+
+func TestSplitLabelMatcher(t *testing.T) {
+	cases := []struct {
+		labelMatcher string
+		key          string
+		op           string
+		value        string
+	}{
+		{
+			labelMatcher: `foo=bar`,
+			key:          `label_foo`,
+			op:           `=`,
+			value:        `"bar"`,
+		},
+		{
+			labelMatcher: ` foo = bar `,
+			key:          `label_foo`,
+			op:           `=`,
+			value:        `"bar"`,
+		},
+		{
+			labelMatcher: `foo!=bar`,
+			key:          `label_foo`,
+			op:           `!=`,
+			value:        `"bar"`,
+		},
+		{
+			labelMatcher: `foo!="bar"`,
+			key:          `label_foo`,
+			op:           `!=`,
+			value:        `"bar"`,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.labelMatcher, func(t *testing.T) {
+			if key, op, value, err := splitLabelMatcher(c.labelMatcher); assert.NoError(t, err) {
+				assert.Equal(t, c.key, key)
+				assert.Equal(t, c.op, op)
+				assert.Equal(t, c.value, value)
+			}
+		})
+	}
+}
