@@ -126,13 +126,13 @@ func TestObjective_Default(t *testing.T) {
 			objective: Objective{
 				Name: "requests",
 				Requests: &RequestsObjective{
-					Labels: "test=test",
+					MetricSelector: "test=test",
 				},
 			},
 			expected: Objective{
 				Name: "requests",
 				Requests: &RequestsObjective{
-					Labels: "test=test",
+					MetricSelector: "test=test",
 					Weights: corev1.ResourceList{
 						corev1.ResourceCPU:    resource.MustParse("1"),
 						corev1.ResourceMemory: resource.MustParse("1"),

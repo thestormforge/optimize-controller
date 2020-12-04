@@ -54,14 +54,14 @@ func (g *Generator) SetDefaultSelectors() {
 	g.ContainerResourcesSelectors = DefaultContainerResourcesSelectors()
 	if g.Application.Parameters != nil && g.Application.Parameters.ContainerResources != nil {
 		for i := range g.ContainerResourcesSelectors {
-			g.ContainerResourcesSelectors[i].LabelSelector = g.Application.Parameters.ContainerResources.Labels
+			g.ContainerResourcesSelectors[i].LabelSelector = g.Application.Parameters.ContainerResources.LabelSelector
 		}
 	}
 
 	if g.Application.Parameters != nil && g.Application.Parameters.Replicas != nil {
 		g.ReplicaSelectors = DefaultReplicaSelectors()
 		for i := range g.ReplicaSelectors {
-			g.ReplicaSelectors[i].LabelSelector = g.Application.Parameters.Replicas.Labels
+			g.ReplicaSelectors[i].LabelSelector = g.Application.Parameters.Replicas.LabelSelector
 		}
 	}
 }

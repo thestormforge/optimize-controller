@@ -18,6 +18,7 @@ package experiment
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
@@ -31,7 +32,7 @@ import (
 
 var zero = resource.MustParse("0")
 
-const requestsQueryFormat = `({{ cpuRequests . "%s" }} * %d) + ({{ memoryRequests . "%s" | GB }} * %d)`
+const requestsQueryFormat = `({{ cpuRequests . %s }} * %d) + ({{ memoryRequests . %s | GB }} * %d)`
 
 func (g *Generator) addObjectives(list *corev1.List) error {
 	for i := range g.Application.Objectives {
@@ -50,10 +51,7 @@ func (g *Generator) addObjectives(list *corev1.List) error {
 }
 
 func addRequestsMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) error {
-	lbl, err := k8s.RestrictedSelector(obj.Requests.Labels)
-	if err != nil {
-		return err
-	}
+	ms := strconv.Quote(obj.Requests.MetricSelector)
 
 	cpuWeight := obj.Requests.Weights.Cpu()
 	if cpuWeight == nil {
@@ -72,7 +70,7 @@ func addRequestsMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) err
 		Minimize: true,
 		Type:     redskyv1beta1.MetricPrometheus,
 		Port:     intstr.FromInt(9090),
-		Query:    fmt.Sprintf(requestsQueryFormat, lbl, cpuWeight.Value(), lbl, memoryWeight.Value()),
+		Query:    fmt.Sprintf(requestsQueryFormat, ms, cpuWeight.Value(), ms, memoryWeight.Value()),
 		Min:      obj.Min,
 		Max:      obj.Max,
 		Optimize: obj.Optimize,
@@ -88,14 +86,14 @@ func addRequestsMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) err
 			Optimize: &nonOptimized,
 			Type:     redskyv1beta1.MetricPrometheus,
 			Port:     intstr.FromInt(9090),
-			Query:    fmt.Sprintf("{{ cpuRequests . \"%s\" }}", lbl),
+			Query:    fmt.Sprintf("{{ cpuRequests . %s }}", ms),
 		}, redskyv1beta1.Metric{
 			Name:     obj.Name + "-memory-requests",
 			Minimize: true,
 			Optimize: &nonOptimized,
 			Type:     redskyv1beta1.MetricPrometheus,
 			Port:     intstr.FromInt(9090),
-			Query:    fmt.Sprintf("{{ memoryRequests . \"%s\" | GB }}", lbl),
+			Query:    fmt.Sprintf("{{ memoryRequests . %s | GB }}", ms),
 		})
 	}
 
