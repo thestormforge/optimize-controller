@@ -116,7 +116,7 @@ func renderUtilization(metricData MetricData, extraLabelMatchers []string, query
 
 	// Always include the trial namespace first
 	labelMatchers := make([]string, 0, 1+len(extraLabelMatchers))
-	labelMatchers = append(labelMatchers, fmt.Sprintf("namespace=\"%s\"", metricData.Trial.Namespace))
+	labelMatchers = append(labelMatchers, fmt.Sprintf("namespace=%q", metricData.Trial.Namespace))
 	for _, labelMatcher := range extraLabelMatchers {
 		if labelMatcher == "" {
 			continue
