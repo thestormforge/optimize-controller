@@ -18,6 +18,7 @@ package experiment
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
@@ -26,13 +27,12 @@ import (
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/generate/experiment/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 var zero = resource.MustParse("0")
 
-const requestsQueryFormat = `({{ cpuRequests . "%s" }} * %d) + ({{ memoryRequests . "%s" | GB }} * %d)`
+const requestsQueryFormat = `({{ cpuRequests . %s }} * %d) + ({{ memoryRequests . %s | GB }} * %d)`
 
 func (g *Generator) addObjectives(list *corev1.List) error {
 	for i := range g.Application.Objectives {
@@ -40,7 +40,9 @@ func (g *Generator) addObjectives(list *corev1.List) error {
 		switch {
 
 		case obj.Requests != nil:
-			addRequestsMetric(obj, list)
+			if err := addRequestsMetric(obj, list); err != nil {
+				return err
+			}
 
 		}
 	}
@@ -48,8 +50,8 @@ func (g *Generator) addObjectives(list *corev1.List) error {
 	return nil
 }
 
-func addRequestsMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) {
-	lbl := labels.Set(obj.Requests.Labels).String()
+func addRequestsMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) error {
+	ms := strconv.Quote(obj.Requests.MetricSelector)
 
 	cpuWeight := obj.Requests.Weights.Cpu()
 	if cpuWeight == nil {
@@ -68,7 +70,7 @@ func addRequestsMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) {
 		Minimize: true,
 		Type:     redskyv1beta1.MetricPrometheus,
 		Port:     intstr.FromInt(9090),
-		Query:    fmt.Sprintf(requestsQueryFormat, lbl, cpuWeight.Value(), lbl, memoryWeight.Value()),
+		Query:    fmt.Sprintf(requestsQueryFormat, ms, cpuWeight.Value(), ms, memoryWeight.Value()),
 		Min:      obj.Min,
 		Max:      obj.Max,
 		Optimize: obj.Optimize,
@@ -84,17 +86,19 @@ func addRequestsMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) {
 			Optimize: &nonOptimized,
 			Type:     redskyv1beta1.MetricPrometheus,
 			Port:     intstr.FromInt(9090),
-			Query:    fmt.Sprintf("{{ cpuRequests . \"%s\" }}", lbl),
+			Query:    fmt.Sprintf("{{ cpuRequests . %s }}", ms),
 		}, redskyv1beta1.Metric{
 			Name:     obj.Name + "-memory-requests",
 			Minimize: true,
 			Optimize: &nonOptimized,
 			Type:     redskyv1beta1.MetricPrometheus,
 			Port:     intstr.FromInt(9090),
-			Query:    fmt.Sprintf("{{ memoryRequests . \"%s\" | GB }}", lbl),
+			Query:    fmt.Sprintf("{{ memoryRequests . %s | GB }}", ms),
 		})
 	}
 
 	// The cost metric requires Prometheus
 	prometheus.AddSetupTask(list)
+
+	return nil
 }

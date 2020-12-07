@@ -26,7 +26,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/kustomize/api/filesys"
 )
 
@@ -54,17 +53,15 @@ func (g *Generator) SetDefaultSelectors() {
 	// TODO This is kind of a hack: we are just adding labels (if present) to the default selectors
 	g.ContainerResourcesSelectors = DefaultContainerResourcesSelectors()
 	if g.Application.Parameters != nil && g.Application.Parameters.ContainerResources != nil {
-		ls := labels.Set(g.Application.Parameters.ContainerResources.Labels).String()
 		for i := range g.ContainerResourcesSelectors {
-			g.ContainerResourcesSelectors[i].LabelSelector = ls
+			g.ContainerResourcesSelectors[i].LabelSelector = g.Application.Parameters.ContainerResources.LabelSelector
 		}
 	}
 
 	if g.Application.Parameters != nil && g.Application.Parameters.Replicas != nil {
 		g.ReplicaSelectors = DefaultReplicaSelectors()
-		ls := labels.Set(g.Application.Parameters.Replicas.Labels).String()
 		for i := range g.ReplicaSelectors {
-			g.ReplicaSelectors[i].LabelSelector = ls
+			g.ReplicaSelectors[i].LabelSelector = g.Application.Parameters.Replicas.LabelSelector
 		}
 	}
 }

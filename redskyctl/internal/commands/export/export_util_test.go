@@ -110,9 +110,7 @@ func createTempApplication(t *testing.T, filename string) (*app.Application, []b
 		Resources: []string{filename},
 		Parameters: &app.Parameters{
 			ContainerResources: &app.ContainerResources{
-				Labels: map[string]string{
-					"component": "postgres",
-				},
+				LabelSelector: "component=postgres",
 			},
 		},
 		Scenarios: []app.Scenario{
@@ -134,7 +132,7 @@ func createTempApplication(t *testing.T, filename string) (*app.Application, []b
 				Name: "cost",
 				Max:  resource.NewQuantity(100, resource.DecimalExponent),
 				Requests: &app.RequestsObjective{
-					Labels: map[string]string{"everybody": "yes"},
+					MetricSelector: "everybody=yes",
 					Weights: corev1.ResourceList{
 						corev1.ResourceCPU:    resource.MustParse("100m"),
 						corev1.ResourceMemory: resource.MustParse("100M"),
