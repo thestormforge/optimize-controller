@@ -74,7 +74,7 @@ func NewRedskyctlCommand() *cobra.Command {
 	rootCmd.AddCommand(experiments.NewGetCommand(&experiments.GetOptions{Options: experiments.Options{Config: cfg}, ChunkSize: 500}))
 	rootCmd.AddCommand(experiments.NewLabelCommand(&experiments.LabelOptions{Options: experiments.Options{Config: cfg}}))
 	rootCmd.AddCommand(experiments.NewSuggestCommand(&experiments.SuggestOptions{Options: experiments.Options{Config: cfg}}))
-	rootCmd.AddCommand(results.NewCommand(&results.Options{}))
+	rootCmd.AddCommand(results.NewCommand(&results.Options{Config: cfg}))
 
 	// Administrative Commands
 	rootCmd.AddCommand(login.NewCommand(&login.Options{Config: cfg}))
