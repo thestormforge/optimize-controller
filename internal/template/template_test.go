@@ -382,13 +382,15 @@ scalar(
           increase(container_cpu_usage_seconds_total{container="", image=""}[5s])
         ) by (pod)
         *
-        on (pod) group_left kube_pod_labels{namespace="default",label_component="bob",label_component="tom"}
+        on (pod) group_left
+        max_over_time(kube_pod_labels{namespace="default",label_component="bob",label_component="tom"}[5s])
       )
       /
       sum(
         sum_over_time(kube_pod_container_resource_requests_cpu_cores[5s:1s])
         *
-        on (pod) group_left kube_pod_labels{namespace="default",label_component="bob",label_component="tom"}
+        on (pod) group_left
+        max_over_time(kube_pod_labels{namespace="default",label_component="bob",label_component="tom"}[5s])
       )
     )
   * 100, 0.0001)
@@ -403,13 +405,15 @@ scalar(
           increase(container_cpu_usage_seconds_total{container="", image=""}[5s])
         ) by (pod)
         *
-        on (pod) group_left kube_pod_labels{namespace="default"}
+        on (pod) group_left
+        max_over_time(kube_pod_labels{namespace="default"}[5s])
       )
       /
       sum(
         sum_over_time(kube_pod_container_resource_requests_cpu_cores[5s:1s])
         *
-        on (pod) group_left kube_pod_labels{namespace="default"}
+        on (pod) group_left
+        max_over_time(kube_pod_labels{namespace="default"}[5s])
       )
     )
   * 100, 0.0001)
@@ -424,7 +428,8 @@ scalar(
           container_memory_max_usage_bytes
         ) by (pod)
         *
-        on (pod) group_left kube_pod_labels{namespace="default",label_component="bob",label_component="tom"}
+        on (pod) group_left
+        max_over_time(kube_pod_labels{namespace="default",label_component="bob",label_component="tom"}[5s])
         /
         sum(
           kube_pod_container_resource_requests_memory_bytes
@@ -443,7 +448,8 @@ scalar(
           container_memory_max_usage_bytes
         ) by (pod)
         *
-        on (pod) group_left kube_pod_labels{namespace="default"}
+        on (pod) group_left
+        max_over_time(kube_pod_labels{namespace="default"}[5s])
         /
         sum(
           kube_pod_container_resource_requests_memory_bytes
@@ -458,7 +464,8 @@ scalar(
   sum(
     avg_over_time(kube_pod_container_resource_requests_memory_bytes[5s])
     *
-    on (pod) group_left kube_pod_labels{namespace="default",label_component="bob",label_component="tom"}
+    on (pod) group_left
+    max_over_time(kube_pod_labels{namespace="default",label_component="bob",label_component="tom"}[5s])
   )
 )`
 
@@ -467,7 +474,8 @@ scalar(
   sum(
     avg_over_time(kube_pod_container_resource_requests_cpu_cores[5s])
     *
-    on (pod) group_left kube_pod_labels{namespace="default",label_component="bob",label_component="tom"}
+    on (pod) group_left
+    max_over_time(kube_pod_labels{namespace="default",label_component="bob",label_component="tom"}[5s])
   )
 )`
 
@@ -476,7 +484,8 @@ scalar(
   sum(
     avg_over_time(kube_pod_container_resource_requests_memory_bytes[5s])
     *
-    on (pod) group_left kube_pod_labels{namespace="default",label_my_super_cool_label_with_fluffy_bunnies="789"}
+    on (pod) group_left
+    max_over_time(kube_pod_labels{namespace="default",label_my_super_cool_label_with_fluffy_bunnies="789"}[5s])
   )
 )`
 )

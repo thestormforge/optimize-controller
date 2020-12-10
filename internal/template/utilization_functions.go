@@ -37,13 +37,15 @@ scalar(
           increase(container_cpu_usage_seconds_total{container="", image=""}[{{ .Range }}])
         ) by (pod)
         *
-        on (pod) group_left kube_pod_labels{{ .Labels }}
+        on (pod) group_left
+        max_over_time(kube_pod_labels{{ .Labels }}[{{ .Range }}])
       )
       /
       sum(
         sum_over_time(kube_pod_container_resource_requests_cpu_cores[{{ .Range }}:1s])
         *
-        on (pod) group_left kube_pod_labels{{ .Labels }}
+        on (pod) group_left
+        max_over_time(kube_pod_labels{{ .Labels }}[{{ .Range }}])
       )
     )
   * 100, 0.0001)
@@ -62,7 +64,8 @@ scalar(
           container_memory_max_usage_bytes
         ) by (pod)
         *
-        on (pod) group_left kube_pod_labels{{ .Labels }}
+        on (pod) group_left
+        max_over_time(kube_pod_labels{{ .Labels }}[{{ .Range }}])
         /
         sum(
           kube_pod_container_resource_requests_memory_bytes
@@ -81,7 +84,8 @@ scalar(
   sum(
     avg_over_time(kube_pod_container_resource_requests_cpu_cores[{{ .Range }}])
     *
-    on (pod) group_left kube_pod_labels{{ .Labels }}
+    on (pod) group_left
+    max_over_time(kube_pod_labels{{ .Labels }}[{{ .Range }}])
   )
 )`
 
@@ -94,7 +98,8 @@ scalar(
   sum(
     avg_over_time(kube_pod_container_resource_requests_memory_bytes[{{ .Range }}])
     *
-    on (pod) group_left kube_pod_labels{{ .Labels }}
+    on (pod) group_left
+    max_over_time(kube_pod_labels{{ .Labels }}[{{ .Range }}])
   )
 )`
 
