@@ -23,7 +23,7 @@ import (
 	"os"
 	"time"
 
-	redskyv1beta1 "github.com/redskyops/redskyops-controller/api/v1beta1"
+	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	datadog "github.com/zorkian/go-datadog-api"
 )
 
