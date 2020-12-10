@@ -28,6 +28,13 @@ import (
 	conv "sigs.k8s.io/controller-runtime/pkg/conversion"
 )
 
+const (
+	// LegacyHostnamePlaceholder is a special hostname (that should never, ever occur in practice) used to mark
+	// URLs which have been generated from legacy `Service` selectors. When the controller encounters this hostname
+	// it should be replaced by the resolved service's cluster IP address (if applicable) or name.
+	LegacyHostnamePlaceholder = "redskyops.dev"
+)
+
 var _ conv.Convertible = &Experiment{}
 
 func (in *Experiment) ConvertTo(hub conv.Hub) error {
@@ -189,7 +196,7 @@ func toURL(m *Metric) string {
 	// Use a special placeholder for the host
 	u := url.URL{
 		Scheme: m.Scheme,
-		Host:   "redskyops.dev",
+		Host:   LegacyHostnamePlaceholder,
 	}
 
 	// Completely ignore named ports

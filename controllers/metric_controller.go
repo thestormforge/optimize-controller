@@ -24,6 +24,8 @@ import (
 	"strconv"
 
 	"github.com/go-logr/logr"
+
+	redskyv1alpha1 "github.com/thestormforge/optimize-controller/api/v1alpha1"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	"github.com/thestormforge/optimize-controller/internal/controller"
 	"github.com/thestormforge/optimize-controller/internal/meta"
@@ -148,10 +150,10 @@ func (r *MetricReconciler) collectMetrics(ctx context.Context, t *redskyv1beta1.
 		return &ctrl.Result{}, err
 	}
 
-	// Index the metric definitions
+	// Index a DEEP COPY of the metric definitions so we can safely make changes
 	metrics := make(map[string]*redskyv1beta1.Metric, len(exp.Spec.Metrics))
 	for i := range exp.Spec.Metrics {
-		metrics[exp.Spec.Metrics[i].Name] = &exp.Spec.Metrics[i]
+		metrics[exp.Spec.Metrics[i].Name] = exp.Spec.Metrics[i].DeepCopy()
 	}
 
 	// Iterate over the metric values, looking for remaining attempts
@@ -162,11 +164,9 @@ func (r *MetricReconciler) collectMetrics(ctx context.Context, t *redskyv1beta1.
 			continue
 		}
 
-		// Use a defaulted DEEP COPY of the metric so we can safely make changes
-		m := metricWithDefaults(t, metrics[v.Name])
-
-		// This is strictly for converted v1alpha1 experiments
-		if err := r.resolveLegacyURL(ctx, t, m); err != nil {
+		// Apply defaults to our local copy of the metric definition
+		m := metrics[v.Name]
+		if err := r.applyMetricDefaults(ctx, t, m); err != nil {
 			return r.collectionAttempt(ctx, log, t, v, probeTime, err)
 		}
 
@@ -221,17 +221,18 @@ func (r *MetricReconciler) collectionAttempt(ctx context.Context, log logr.Logge
 	// Update the probe time and ensure that trial observed is still explicitly false (i.e. we have started observation but it is not complete)
 	trial.ApplyCondition(&t.Status, redskyv1beta1.TrialObserved, corev1.ConditionFalse, "", "", probeTime)
 
-	// Decrement the attempts remaining, if there are no attempts left, fail the trial
-	if v.AttemptsRemaining > 0 {
-		v.AttemptsRemaining--
-		if v.AttemptsRemaining == 0 {
-			trial.ApplyCondition(&t.Status, redskyv1beta1.TrialFailed, corev1.ConditionTrue, "MetricFailed", err.Error(), probeTime)
+	// If there was only one attempt remaining, mark the trial as failed
+	if v.AttemptsRemaining == 1 {
+		trial.ApplyCondition(&t.Status, redskyv1beta1.TrialFailed, corev1.ConditionTrue, "MetricFailed", err.Error(), probeTime)
+		v.AttemptsRemaining = 0
 
-			// Metric errors contain additional information which should be logged for debugging
-			if merr, ok := err.(*metric.CaptureError); ok {
-				log.Error(merr, "Metric collection failed", "address", merr.Address, "query", merr.Query, "completionTime", merr.CompletionTime)
-			}
+		// Metric errors contain additional information which should be logged for debugging
+		if merr, ok := err.(*metric.CaptureError); ok {
+			log.Error(merr, "Metric collection failed", "address", merr.Address, "query", merr.Query, "completionTime", merr.CompletionTime)
 		}
+	} else if v.AttemptsRemaining > 0 {
+		// Decrement the attempts remaining
+		v.AttemptsRemaining--
 	}
 
 	// Record the update
@@ -281,6 +282,20 @@ func (r *MetricReconciler) target(ctx context.Context, t *redskyv1beta1.Trial, m
 	return target, nil
 }
 
+// applyMetricDefaults fills in default values for the supplied metric.
+func (r *MetricReconciler) applyMetricDefaults(ctx context.Context, t *redskyv1beta1.Trial, m *redskyv1beta1.Metric) error {
+	// Give Prometheus metrics a default URL
+	if m.Type == redskyv1beta1.MetricPrometheus && m.URL == "" {
+		m.URL = fmt.Sprintf("http://redsky-%s-prometheus:9090/", t.Namespace)
+	}
+
+	// This is strictly for converted v1alpha1 experiments; we should remove it eventually
+	return r.resolveLegacyURL(ctx, t, m)
+}
+
+// resolveLegacyURL checks for the legacy hostname placeholder and replaces it with a hostname determined by
+// looking up a Kubernetes Service object. This roughly corresponds to the original behavior of the controller
+// where URL based metrics were defined using Service selectors instead of actual URLs.
 func (r *MetricReconciler) resolveLegacyURL(ctx context.Context, t *redskyv1beta1.Trial, m *redskyv1beta1.Metric) error {
 	if m.Type != redskyv1beta1.MetricPrometheus && m.Type != redskyv1beta1.MetricJSONPath {
 		return nil
@@ -288,7 +303,7 @@ func (r *MetricReconciler) resolveLegacyURL(ctx context.Context, t *redskyv1beta
 
 	// Look for the special placeholder hostname that indicates we should look up a service
 	u, err := url.Parse(m.URL)
-	if err != nil || u.Hostname() != "redskyops.dev" {
+	if err != nil || u.Hostname() != redskyv1alpha1.LegacyHostnamePlaceholder {
 		return err
 	}
 
@@ -327,15 +342,4 @@ func (r *MetricReconciler) resolveLegacyURL(ctx context.Context, t *redskyv1beta
 	}
 
 	return nil
-}
-
-// metricWithDefaults returns a deep copy of the supplied metric with default values filled in.
-func metricWithDefaults(t *redskyv1beta1.Trial, in *redskyv1beta1.Metric) *redskyv1beta1.Metric {
-	m := in.DeepCopy()
-
-	if m.Type == redskyv1beta1.MetricPrometheus && m.URL == "" {
-		m.URL = fmt.Sprintf("http://redsky-%s-prometheus:9090/", t.Namespace)
-	}
-
-	return m
 }
