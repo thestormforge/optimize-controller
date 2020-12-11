@@ -18,7 +18,6 @@ package v1alpha1
 
 import (
 	"encoding/json"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -118,7 +117,7 @@ type LocustScenario struct {
 	// The rate per second in which users are spawned.
 	SpawnRate *int `json:"spawnRate,omitempty"`
 	// Stop after the specified amount of time.
-	RunTime *time.Duration `json:"runTime,omitempty"`
+	RunTime *metav1.Duration `json:"runTime,omitempty"`
 }
 
 // Objective describes the goal of the optimization in terms of specific metrics. Note that only
