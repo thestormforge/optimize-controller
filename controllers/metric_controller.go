@@ -36,7 +36,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -246,29 +245,28 @@ func (r *MetricReconciler) target(ctx context.Context, t *redskyv1beta1.Trial, m
 	}
 
 	// Get the target reference, default to the trial itself if there is no reference
-	targetRef := m.TargetRef
-	if targetRef == nil {
+	targetRef := m.Target
+	if m.Target == nil || m.Target.Kind == "" {
 		return t, nil
 	}
 
 	// If no explicit namespace is specified, use the trial namespace
-	namespace := targetRef.Namespace
-	if namespace == "" {
-		namespace = t.Namespace
+	if targetRef.Namespace == "" {
+		targetRef.Namespace = t.Namespace
 	}
 
 	// If a name is specified, just get a single object
 	if targetRef.Name != "" {
 		target := &unstructured.Unstructured{}
 		target.SetGroupVersionKind(targetRef.GroupVersionKind())
-		if err := r.Get(ctx, types.NamespacedName{Namespace: namespace, Name: m.Name}, target); err != nil {
+		if err := r.Get(ctx, targetRef.NamespacedName(), target); err != nil {
 			return nil, err
 		}
 		return target, nil
 	}
 
 	// Convert the selector from a Kubernetes object to something the client can use
-	sel, err := meta.MatchingSelector(m.Selector)
+	sel, err := meta.MatchingSelector(targetRef.LabelSelector)
 	if err != nil {
 		return nil, err
 	}
@@ -276,7 +274,7 @@ func (r *MetricReconciler) target(ctx context.Context, t *redskyv1beta1.Trial, m
 	// Fetch the list of matching resources
 	target := &unstructured.UnstructuredList{}
 	target.SetGroupVersionKind(targetRef.GroupVersionKind())
-	if err := r.List(ctx, target, client.InNamespace(namespace), sel); err != nil {
+	if err := r.List(ctx, target, client.InNamespace(targetRef.Namespace), sel); err != nil {
 		return nil, err
 	}
 	return target, nil
@@ -287,6 +285,12 @@ func (r *MetricReconciler) applyMetricDefaults(ctx context.Context, t *redskyv1b
 	// Give Prometheus metrics a default URL
 	if m.Type == redskyv1beta1.MetricPrometheus && m.URL == "" {
 		m.URL = fmt.Sprintf("http://redsky-%s-prometheus:9090/", t.Namespace)
+	}
+
+	// Default to the trial namespace
+	if m.Target != nil && m.Target.Namespace == "" {
+		// TODO How do we exclude non-namespaced kinds from this default?
+		m.Target.Namespace = t.Namespace
 	}
 
 	// This is strictly for converted v1alpha1 experiments; we should remove it eventually
@@ -307,17 +311,22 @@ func (r *MetricReconciler) resolveLegacyURL(ctx context.Context, t *redskyv1beta
 		return err
 	}
 
-	// Convert the selector
-	if m.Selector == nil && m.Type == redskyv1beta1.MetricPrometheus {
-		m.Selector = &metav1.LabelSelector{MatchLabels: map[string]string{"app": "prometheus"}}
+	// Default the target
+	if m.Target == nil {
+		m.Target = &redskyv1beta1.ResourceTarget{}
 	}
-	sel, err := meta.MatchingSelector(m.Selector)
+
+	// Convert the selector
+	if m.Target.LabelSelector == nil && m.Type == redskyv1beta1.MetricPrometheus {
+		m.Target.LabelSelector = &metav1.LabelSelector{MatchLabels: map[string]string{"app": "prometheus"}}
+	}
+	sel, err := meta.MatchingSelector(m.Target.LabelSelector)
 	if err != nil {
 		return err
 	}
 
 	// Fetch the service
-	namespace := m.TargetRef.Namespace
+	namespace := m.Target.Namespace
 	if namespace == "" {
 		namespace = t.Namespace
 	}

@@ -872,7 +872,7 @@ func autoConvert_v1alpha1_Metric_To_v1beta1_Metric(in *Metric, out *v1beta1.Metr
 	out.Query = in.Query
 	out.ErrorQuery = in.ErrorQuery
 	// WARNING: in.Scheme requires manual conversion: does not exist in peer-type
-	out.Selector = in.Selector
+	// WARNING: in.Selector requires manual conversion: does not exist in peer-type
 	// WARNING: in.Port requires manual conversion: does not exist in peer-type
 	// WARNING: in.Path requires manual conversion: does not exist in peer-type
 	return nil
@@ -888,8 +888,7 @@ func autoConvert_v1beta1_Metric_To_v1alpha1_Metric(in *v1beta1.Metric, out *Metr
 	out.Query = in.Query
 	out.ErrorQuery = in.ErrorQuery
 	// WARNING: in.URL requires manual conversion: does not exist in peer-type
-	// WARNING: in.TargetRef requires manual conversion: does not exist in peer-type
-	out.Selector = in.Selector
+	// WARNING: in.Target requires manual conversion: does not exist in peer-type
 	return nil
 }
 

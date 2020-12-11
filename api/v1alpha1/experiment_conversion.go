@@ -17,11 +17,11 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/thestormforge/optimize-controller/api/v1beta1"
 	"net/url"
 	"strings"
 
-	corev1 "k8s.io/api/core/v1"
+	"github.com/thestormforge/optimize-controller/api/v1beta1"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -115,11 +115,15 @@ func Convert_v1beta1_Metric_To_v1alpha1_Metric(in *v1beta1.Metric, out *Metric, 
 
 	switch in.Type {
 	case v1beta1.MetricKubernetes:
-		if in.TargetRef == nil {
+		if in.Target == nil || in.Target.Kind == "" {
 			out.Type = "local"
-		} else if in.TargetRef.Kind == "Pod" && in.TargetRef.APIVersion == "v1" {
+		} else if in.Target.Kind == "Pod" && in.Target.APIVersion == "v1" {
 			out.Type = "pods"
 		}
+	}
+
+	if in.Target != nil {
+		out.Selector = in.Target.LabelSelector
 	}
 
 	return nil
@@ -138,10 +142,17 @@ func Convert_v1alpha1_Metric_To_v1beta1_Metric(in *Metric, out *v1beta1.Metric, 
 
 	case "pods":
 		out.Type = v1beta1.MetricKubernetes
-		out.TargetRef = &corev1.ObjectReference{
+		out.Target = &v1beta1.ResourceTarget{
 			Kind:       "Pod",
 			APIVersion: "v1",
 		}
+	}
+
+	if in.Selector != nil {
+		if out.Target == nil {
+			out.Target = &v1beta1.ResourceTarget{}
+		}
+		out.Target.LabelSelector = in.Selector
 	}
 
 	return nil
@@ -159,7 +170,7 @@ func fromURL(m *v1beta1.Metric, u *url.URL) (scheme string, port intstr.IntOrStr
 
 	if p := u.Port(); p != "" {
 		port = intstr.Parse(p)
-	} else if m.Type == v1beta1.MetricPrometheus && isBuiltInPrometheusSelector(m.Selector) {
+	} else if m.Type == v1beta1.MetricPrometheus && m.Target != nil && isBuiltInPrometheusSelector(m.Target.LabelSelector) {
 		port = intstr.FromInt(9090)
 	}
 

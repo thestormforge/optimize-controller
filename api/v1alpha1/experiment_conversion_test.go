@@ -21,7 +21,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -62,8 +61,10 @@ func TestConvert_v1alpha1_Metric_To_v1beta1_Metric(t *testing.T) {
 				Type:  redskyv1beta1.MetricJSONPath,
 				Query: `{.total}`,
 				URL:   "http://redskyops.dev:5000/metrics",
-				Selector: &metav1.LabelSelector{
-					MatchLabels: map[string]string{"component": "result-exporter"},
+				Target: &redskyv1beta1.ResourceTarget{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{"component": "result-exporter"},
+					},
 				},
 			},
 		},
@@ -84,12 +85,12 @@ func TestConvert_v1alpha1_Metric_To_v1beta1_Metric(t *testing.T) {
 				Minimize: true,
 				Type:     redskyv1beta1.MetricKubernetes,
 				Query:    `{{resourceRequests .Pods "cpu=0.022,memory=0.000000000003"}}`,
-				TargetRef: &corev1.ObjectReference{
-					Kind:       "Pod",
+				Target: &redskyv1beta1.ResourceTarget{
 					APIVersion: "v1",
-				},
-				Selector: &metav1.LabelSelector{
-					MatchLabels: map[string]string{"app": "voting-app"},
+					Kind:       "Pod",
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{"app": "voting-app"},
+					},
 				},
 			},
 		},
@@ -113,8 +114,10 @@ func TestConvert_v1alpha1_Metric_To_v1beta1_Metric(t *testing.T) {
 				Minimize: true,
 				Type:     redskyv1beta1.MetricPrometheus,
 				Query:    `({{ cpuRequests . "app=postgres" }} * 17) + ({{ memoryRequests . "app=postgres" | GB }} * 3)`,
-				Selector: &metav1.LabelSelector{
-					MatchLabels: map[string]string{"app": "prometheus"},
+				Target: &redskyv1beta1.ResourceTarget{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{"app": "prometheus"},
+					},
 				},
 			},
 		},

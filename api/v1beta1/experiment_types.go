@@ -20,8 +20,36 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
+
+// ResourceTarget contains enough information to reference either a single target resource by name, or a group
+// of target resources by label.
+type ResourceTarget struct {
+	// API version of the referent.
+	APIVersion string `json:"apiVersion,omitempty"`
+	// Kind of the referent.
+	Kind string `json:"kind,omitempty"`
+	// Namespace of the referent.
+	Namespace string `json:"namespace,omitempty"`
+
+	// Name of the referent, if blank then the selector is used to match a list of resources.
+	Name string `json:"name,omitempty"`
+	// LabelSelector matches labels when the name is left unspecified.
+	*metav1.LabelSelector `json:",inline"`
+}
+
+// GroupVersionKind returns the GVK for the target reference.
+func (r *ResourceTarget) GroupVersionKind() schema.GroupVersionKind {
+	return schema.FromAPIVersionAndKind(r.APIVersion, r.Kind)
+}
+
+// NamespacedName returns the namespaced name for the target reference.
+func (r *ResourceTarget) NamespacedName() types.NamespacedName {
+	return types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
+}
 
 // Optimization is a configuration setting for the optimizer
 type Optimization struct {
@@ -119,12 +147,8 @@ type Metric struct {
 
 	// URL to use when querying remote metric sources.
 	URL string `json:"url,omitempty"`
-
-	// Target reference of the Kubernetes object to query for metric information. Can be used
-	// in conjunction with the selector when the name is empty. Mutually exclusive with the URL.
-	TargetRef *corev1.ObjectReference `json:"targetRef,omitempty"`
-	// Selector matching to apply in conjunction with the target reference.
-	Selector *metav1.LabelSelector `json:"selector,omitempty"`
+	// Target reference of the Kubernetes object to query for metric information.
+	Target *ResourceTarget `json:"target,omitempty"`
 }
 
 // PatchReadinessGate contains a reference to a condition

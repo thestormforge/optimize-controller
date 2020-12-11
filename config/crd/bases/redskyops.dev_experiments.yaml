@@ -3951,9 +3951,13 @@ spec:
                       type: boolean
                     query:
                       type: string
-                    selector:
+                    target:
                       type: object
                       properties:
+                        apiVersion:
+                          type: string
+                        kind:
+                          type: string
                         matchExpressions:
                           type: array
                           items:
@@ -3974,22 +3978,9 @@ spec:
                           type: object
                           additionalProperties:
                             type: string
-                    targetRef:
-                      type: object
-                      properties:
-                        apiVersion:
-                          type: string
-                        fieldPath:
-                          type: string
-                        kind:
-                          type: string
                         name:
                           type: string
                         namespace:
-                          type: string
-                        resourceVersion:
-                          type: string
-                        uid:
                           type: string
                     type:
                       type: string

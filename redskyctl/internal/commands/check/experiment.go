@@ -189,10 +189,6 @@ func checkMetric(lint Linter, metric *redskyv1beta1.Metric) {
 		lint.Error().Missing("query")
 	}
 
-	if metric.Type == redskyv1beta1.MetricPrometheus && metric.Selector == nil {
-		lint.Error().Missing("selector for Prometheus metric")
-	}
-
 	if metric.Type == redskyv1beta1.MetricJSONPath {
 		// TODO We need to render the template first
 		if !strings.Contains(metric.Query, "{") {
