@@ -16,7 +16,7 @@ case "$1" in
       kubectl wait --for condition=Available=true --timeout 120s deployment.apps ${namePrefix}prometheus-server
     }
   ;;
-  default)
+  *)
     waitFn() { :; }
   ;;
 esac
