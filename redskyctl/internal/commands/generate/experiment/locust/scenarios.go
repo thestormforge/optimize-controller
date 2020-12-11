@@ -75,7 +75,7 @@ func AddTrialJob(sc *redskyappsv1alpha1.Scenario, app *redskyappsv1alpha1.Applic
 	}
 	if runTime := runTime(sc.Locust); runTime != nil {
 		pod.Containers[0].Env = append(pod.Containers[0].Env, *runTime)
-		exp.Spec.TrialTemplate.Spec.ApproximateRuntime = &metav1.Duration{Duration: *sc.Locust.RunTime}
+		exp.Spec.TrialTemplate.Spec.ApproximateRuntime = sc.Locust.RunTime
 	}
 
 	// Add a ConfigMap with the Locust file
@@ -170,8 +170,11 @@ func runTime(s *redskyappsv1alpha1.LocustScenario) *corev1.EnvVar {
 	if s.RunTime == nil {
 		return nil
 	}
+
+	// Just give Locust the number of seconds
+	// See: https://github.com/locustio/locust/blob/1f30d36d8f8d646eccb55aab7080fa69bf35c0d7/locust/util/timespan.py
 	return &corev1.EnvVar{
 		Name:  "RUN_TIME",
-		Value: s.RunTime.String(),
+		Value: fmt.Sprintf("%.0f", s.RunTime.Seconds()),
 	}
 }
