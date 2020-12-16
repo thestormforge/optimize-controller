@@ -44,9 +44,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 )
 
-const (
-	// DefaultTrialTTL is the default TTL (after "finished") for server suggested trials.
-	DefaultTrialTTL = 48 * time.Hour
+var (
+	defaultServerTrialTTLSecondsAfterFinished = int32((4 * time.Hour) / time.Second)
+	defaultServerTrialTTLSecondsAfterFailure  = int32((48 * time.Hour) / time.Second)
 )
 
 // ServerReconciler reconciles a experiment and trial objects with a remote server
@@ -294,12 +294,10 @@ func (r *ServerReconciler) nextTrial(ctx context.Context, log logr.Logger, exp *
 	t.Namespace = namespace
 	server.ToClusterTrial(t, &suggestion)
 
-	// Since the trial originated from the server, we can delete it out of the cluster
-	if t.Spec.TTLSecondsAfterFinished == nil {
-		if t.Spec.ApproximateRuntime == nil || t.Spec.ApproximateRuntime.Duration < DefaultTrialTTL {
-			ttlSeconds := int32(DefaultTrialTTL / time.Second)
-			t.Spec.TTLSecondsAfterFinished = &ttlSeconds
-		}
+	// Since the trial originated from the server, we can delete it out of the cluster (require both TTLs to be unset)
+	if t.Spec.TTLSecondsAfterFinished == nil && t.Spec.TTLSecondsAfterFailure == nil {
+		t.Spec.TTLSecondsAfterFinished = &defaultServerTrialTTLSecondsAfterFinished
+		t.Spec.TTLSecondsAfterFailure = &defaultServerTrialTTLSecondsAfterFailure
 	}
 
 	// Create the trial
