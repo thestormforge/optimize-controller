@@ -42,7 +42,7 @@ const (
 // TODO Split this into trial.go and experiment.go ?
 
 // FromCluster converts cluster state to API state
-func FromCluster(in *redskyv1beta1.Experiment) (redskyapi.ExperimentName, *redskyapi.Experiment, *redskyapi.TrialAssignments) {
+func FromCluster(in *redskyv1beta1.Experiment) (redskyapi.ExperimentName, *redskyapi.Experiment, *redskyapi.TrialAssignments, error) {
 	out := &redskyapi.Experiment{}
 	out.ExperimentMeta.LastModified = in.CreationTimestamp.Time
 	out.ExperimentMeta.SelfURL = in.Annotations[redskyv1beta1.AnnotationExperimentURL]
@@ -92,9 +92,17 @@ func FromCluster(in *redskyv1beta1.Experiment) (redskyapi.ExperimentName, *redsk
 		if p.Baseline != nil {
 			var v numstr.NumberOrString
 			if p.Baseline.Type == intstr.String {
-				v = numstr.FromString(p.Baseline.StrVal)
+				vs := p.Baseline.StrVal
+				if !stringSliceContains(p.Values, vs) {
+					return nil, nil, nil, fmt.Errorf("baseline out of range for parameter '%s'", p.Name)
+				}
+				v = numstr.FromString(vs)
 			} else {
-				v = numstr.FromInt64(int64(p.Baseline.IntVal))
+				vi := p.Baseline.IntVal
+				if vi < p.Min || vi > p.Max {
+					return nil, nil, nil, fmt.Errorf("baseline out of range for parameter '%s'", p.Name)
+				}
+				v = numstr.FromInt64(int64(vi))
 			}
 			baseline.Assignments = append(baseline.Assignments, redskyapi.Assignment{
 				ParameterName: p.Name,
@@ -149,13 +157,15 @@ func FromCluster(in *redskyv1beta1.Experiment) (redskyapi.ExperimentName, *redsk
 		})
 	}
 
-	// We need all of the assignments to include the baseline
-	if len(baseline.Assignments) == 0 || len(baseline.Assignments) != len(out.Parameters) {
+	// Check that we have the correct number of assignments on the baseline
+	if len(baseline.Assignments) == 0 {
 		baseline = nil
+	} else if len(baseline.Assignments) != len(out.Parameters) {
+		return nil, nil, nil, fmt.Errorf("baseline must be specified on all or none of the parameters")
 	}
 
 	n := redskyapi.NewExperimentName(in.Name)
-	return n, out, baseline
+	return n, out, baseline, nil
 }
 
 // ToCluster converts API state to cluster state
@@ -290,4 +300,13 @@ func FailExperiment(exp *redskyv1beta1.Experiment, reason string, err error) boo
 	exp.SetReplicas(0)
 	experiment.ApplyCondition(&exp.Status, redskyv1beta1.ExperimentFailed, corev1.ConditionTrue, reason, err.Error(), nil)
 	return true
+}
+
+func stringSliceContains(a []string, x string) bool {
+	for _, s := range a {
+		if s == x {
+			return true
+		}
+	}
+	return false
 }

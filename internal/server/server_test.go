@@ -228,8 +228,8 @@ func TestFromCluster(t *testing.T) {
 				Spec: redskyv1beta1.ExperimentSpec{
 					Parameters: []redskyv1beta1.Parameter{
 						{Name: "one", Min: 0, Max: 1, Baseline: &one},
-						{Name: "two", Min: 0, Max: 1, Baseline: &two},
-						{Name: "three", Min: 0, Max: 1, Baseline: &three},
+						{Name: "two", Min: 0, Max: 2, Baseline: &two},
+						{Name: "three", Values: []string{"three"}, Baseline: &three},
 					},
 				},
 			},
@@ -243,12 +243,12 @@ func TestFromCluster(t *testing.T) {
 					{
 						Type:   redskyapi.ParameterTypeInteger,
 						Name:   "two",
-						Bounds: &redskyapi.Bounds{Min: "0", Max: "1"},
+						Bounds: &redskyapi.Bounds{Min: "0", Max: "2"},
 					},
 					{
-						Type:   redskyapi.ParameterTypeInteger,
+						Type:   redskyapi.ParameterTypeCategorical,
 						Name:   "three",
-						Bounds: &redskyapi.Bounds{Min: "0", Max: "1"},
+						Values: []string{"three"},
 					},
 				},
 			},
@@ -295,10 +295,12 @@ func TestFromCluster(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			name, out, baseline := FromCluster(c.in)
-			assert.Equal(t, c.in.Name, name.Name())
-			assert.Equal(t, c.out, out)
-			assert.Equal(t, c.baseline, baseline)
+			name, out, baseline, err := FromCluster(c.in)
+			if assert.NoError(t, err) {
+				assert.Equal(t, c.in.Name, name.Name())
+				assert.Equal(t, c.out, out)
+				assert.Equal(t, c.baseline, baseline)
+			}
 		})
 	}
 }
