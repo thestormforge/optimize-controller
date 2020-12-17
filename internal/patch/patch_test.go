@@ -167,6 +167,21 @@ metadata:
 			},
 			attemptsRemaining: 0,
 		},
+		{
+			desc:  "patchTrial - optional name",
+			trial: trial,
+			patchTemplate: &redsky.PatchTemplate{
+				Type:  redsky.PatchStrategic,
+				Patch: patchSpec,
+				TargetRef: &corev1.ObjectReference{
+					Kind:       "Job",
+					APIVersion: "batch/v1",
+					Name:       "",
+					Namespace:  trial.Namespace,
+				},
+			},
+			attemptsRemaining: 0,
+		},
 	}
 
 	for _, tc := range testCases {
