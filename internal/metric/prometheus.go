@@ -52,6 +52,9 @@ func capturePrometheusMetric(log logr.Logger, m *redskyv1beta1.Metric, target ru
 }
 
 func captureOnePrometheusMetric(log logr.Logger, address, query, errorQuery string, completionTime time.Time) (float64, float64, error) {
+	ctx := context.TODO()
+	var value, valueError float64
+
 	// Get the Prometheus client based on the metric URL
 	// TODO Cache these by URL
 	c, err := prom.NewClient(prom.Config{Address: address})
@@ -61,25 +64,9 @@ func captureOnePrometheusMetric(log logr.Logger, address, query, errorQuery stri
 	promAPI := promv1.NewAPI(c)
 
 	// Make sure Prometheus is ready
-	targets, err := promAPI.Targets(context.TODO())
+	queryTime, err := checkReady(ctx, promAPI, completionTime)
 	if err != nil {
 		return 0, 0, err
-	}
-
-	queryTime := completionTime
-	for _, target := range targets.Active {
-		if target.Health != promv1.HealthGood {
-			continue
-		}
-
-		if target.LastScrape.Before(completionTime) {
-			// TODO Can we make a more informed delay?
-			return 0, 0, &CaptureError{RetryAfter: 5 * time.Second}
-		}
-
-		if target.LastScrape.After(queryTime) {
-			queryTime = target.LastScrape
-		}
 	}
 
 	// If we needed to adjust the query time, log it so we have a record of the actual time being used
@@ -88,43 +75,68 @@ func captureOnePrometheusMetric(log logr.Logger, address, query, errorQuery stri
 	}
 
 	// Execute query
-	v, _, err := promAPI.Query(context.TODO(), query, queryTime)
+	value, err = queryScalar(ctx, promAPI, query, queryTime)
 	if err != nil {
 		return 0, 0, err
 	}
-
-	// Only accept scalar results
-	if v.Type() != model.ValScalar {
-		return 0, 0, fmt.Errorf("expected scalar query result, got %s", v.Type())
-	}
-
-	// Scalar result
-	result := float64(v.(*model.Scalar).Value)
-	if math.IsNaN(result) {
+	if math.IsNaN(value) {
 		err := &CaptureError{Message: "metric data not available", Address: address, Query: query, CompletionTime: completionTime}
-
 		if strings.HasPrefix(query, "scalar(") {
 			err.Message += " (the scalar function may have received an input vector whose size is not 1)"
 		}
-
 		return 0, 0, err
 	}
 
 	// Execute the error query (if configured)
-	var errorResult float64
 	if errorQuery != "" {
-		ev, _, err := promAPI.Query(context.TODO(), errorQuery, completionTime)
+		valueError, err = queryScalar(ctx, promAPI, errorQuery, queryTime)
 		if err != nil {
 			return 0, 0, err
 		}
-		if ev.Type() != model.ValScalar {
-			return 0, 0, fmt.Errorf("expected scalar error query result, got %s", v.Type())
+	}
+
+	// Ignore NaN for the value error
+	if math.IsNaN(valueError) {
+		valueError = 0
+	}
+
+	return value, valueError, nil
+}
+
+func checkReady(ctx context.Context, api promv1.API, t time.Time) (time.Time, error) {
+	targets, err := api.Targets(ctx)
+	if err != nil {
+		return t, err
+	}
+
+	queryTime := t
+	for _, target := range targets.Active {
+		if target.Health != promv1.HealthGood {
+			continue
 		}
-		errorResult = float64(v.(*model.Scalar).Value)
-		if math.IsNaN(errorResult) {
-			errorResult = 0
+
+		if target.LastScrape.Before(t) {
+			// TODO Can we make a more informed delay?
+			return t, &CaptureError{RetryAfter: 5 * time.Second}
+		}
+
+		if target.LastScrape.After(queryTime) {
+			queryTime = target.LastScrape
 		}
 	}
 
-	return result, errorResult, nil
+	return queryTime, nil
+}
+
+func queryScalar(ctx context.Context, api promv1.API, q string, t time.Time) (float64, error) {
+	v, _, err := api.Query(ctx, q, t)
+	if err != nil {
+		return 0, err
+	}
+
+	if v.Type() != model.ValScalar {
+		return 0, fmt.Errorf("expected scalar query result, got %s", v.Type())
+	}
+
+	return float64(v.(*model.Scalar).Value), nil
 }
