@@ -64,21 +64,27 @@ func captureOnePrometheusMetric(log logr.Logger, address, query, errorQuery stri
 	promAPI := promv1.NewAPI(c)
 
 	// Make sure Prometheus is ready
-	queryTime, err := checkReady(ctx, promAPI, completionTime)
+	lastScrapeTime, err := checkReady(ctx, promAPI, completionTime)
 	if err != nil {
 		return 0, 0, err
-	}
-
-	// If we needed to adjust the query time, log it so we have a record of the actual time being used
-	if !queryTime.Equal(completionTime) {
-		log.WithValues("queryTime", queryTime).Info("Adjusted completion time for Prometheus query")
 	}
 
 	// Execute query
-	value, err = queryScalar(ctx, promAPI, query, queryTime)
+	value, err = queryScalar(ctx, promAPI, query, completionTime)
 	if err != nil {
 		return 0, 0, err
 	}
+
+	// If we got NaN, it might be a Pushgateway metric that won't have a value unless we query from the scrape time
+	if math.IsNaN(value) && lastScrapeTime.After(completionTime) {
+		log.WithValues("lastScrapeTime", lastScrapeTime).Info("Retrying Prometheus query to include final scrape")
+		value, err = queryScalar(ctx, promAPI, query, lastScrapeTime)
+		if err != nil {
+			return 0, 0, err
+		}
+	}
+
+	// If it is still NaN, the problem is mostly likely that the query does not account for missing data
 	if math.IsNaN(value) {
 		err := &CaptureError{Message: "metric data not available", Address: address, Query: query, CompletionTime: completionTime}
 		if strings.HasPrefix(query, "scalar(") {
@@ -89,7 +95,7 @@ func captureOnePrometheusMetric(log logr.Logger, address, query, errorQuery stri
 
 	// Execute the error query (if configured)
 	if errorQuery != "" {
-		valueError, err = queryScalar(ctx, promAPI, errorQuery, queryTime)
+		valueError, err = queryScalar(ctx, promAPI, errorQuery, completionTime)
 		if err != nil {
 			return 0, 0, err
 		}
@@ -109,23 +115,23 @@ func checkReady(ctx context.Context, api promv1.API, t time.Time) (time.Time, er
 		return t, err
 	}
 
-	queryTime := t
+	lastScrape := t
 	for _, target := range targets.Active {
 		if target.Health != promv1.HealthGood {
 			continue
 		}
 
 		if target.LastScrape.Before(t) {
-			// TODO Can we make a more informed delay?
+			// TODO If we knew the scrape interval we could make a more informed delay
 			return t, &CaptureError{RetryAfter: 5 * time.Second}
 		}
 
-		if target.LastScrape.After(queryTime) {
-			queryTime = target.LastScrape
+		if target.LastScrape.After(lastScrape) {
+			lastScrape = target.LastScrape
 		}
 	}
 
-	return queryTime, nil
+	return lastScrape, nil
 }
 
 func queryScalar(ctx context.Context, api promv1.API, q string, t time.Time) (float64, error) {
