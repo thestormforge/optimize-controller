@@ -261,37 +261,6 @@ func TestFromCluster(t *testing.T) {
 				},
 			},
 		},
-		{
-			desc: "baseline missing",
-			in: &redskyv1beta1.Experiment{
-				Spec: redskyv1beta1.ExperimentSpec{
-					Parameters: []redskyv1beta1.Parameter{
-						{Name: "one", Min: 0, Max: 1, Baseline: &one},
-						{Name: "two", Min: 0, Max: 1, Baseline: &two},
-						{Name: "three", Min: 0, Max: 1},
-					},
-				},
-			},
-			out: &redskyapi.Experiment{
-				Parameters: []redskyapi.Parameter{
-					{
-						Type:   redskyapi.ParameterTypeInteger,
-						Name:   "one",
-						Bounds: &redskyapi.Bounds{Min: "0", Max: "1"},
-					},
-					{
-						Type:   redskyapi.ParameterTypeInteger,
-						Name:   "two",
-						Bounds: &redskyapi.Bounds{Min: "0", Max: "1"},
-					},
-					{
-						Type:   redskyapi.ParameterTypeInteger,
-						Name:   "three",
-						Bounds: &redskyapi.Bounds{Min: "0", Max: "1"},
-					},
-				},
-			},
-		},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
