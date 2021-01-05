@@ -23,6 +23,7 @@ import (
 	redsky "github.com/thestormforge/optimize-controller/api/v1beta1"
 	"github.com/thestormforge/optimize-controller/internal/template"
 	"github.com/thestormforge/optimize-controller/internal/trial"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -58,9 +59,14 @@ func RenderTemplate(te *template.Engine, t *redsky.Trial, p *redsky.PatchTemplat
 		ref.Namespace = t.Namespace
 	}
 
-	// Validate the reference
-	if ref.Name == "" || ref.Kind == "" {
-		return nil, nil, fmt.Errorf("invalid patch reference")
+	// Make sure the kind is set
+	if ref.Kind == "" {
+		return nil, nil, fmt.Errorf("invalid patch reference: missing kind")
+	}
+
+	// Only allow an empty name for jobs (the only job you can patch is the trial job itself so we don't need the name)
+	if ref.Name == "" && ref.GroupVersionKind() != batchv1.SchemeGroupVersion.WithKind("Job") {
+		return nil, nil, fmt.Errorf("invalid patch reference: missing name")
 	}
 
 	return ref, data, nil
