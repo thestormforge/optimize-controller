@@ -52,6 +52,9 @@ func capturePrometheusMetric(log logr.Logger, m *redskyv1beta1.Metric, target ru
 }
 
 func captureOnePrometheusMetric(log logr.Logger, address, query, errorQuery string, completionTime time.Time) (float64, float64, error) {
+	ctx := context.TODO()
+	var value, valueError float64
+
 	// Get the Prometheus client based on the metric URL
 	// TODO Cache these by URL
 	c, err := prom.NewClient(prom.Config{Address: address})
@@ -61,70 +64,85 @@ func captureOnePrometheusMetric(log logr.Logger, address, query, errorQuery stri
 	promAPI := promv1.NewAPI(c)
 
 	// Make sure Prometheus is ready
-	targets, err := promAPI.Targets(context.TODO())
+	lastScrapeTime, err := checkReady(ctx, promAPI, completionTime)
 	if err != nil {
 		return 0, 0, err
 	}
 
-	queryTime := completionTime
+	// Execute query
+	value, err = queryScalar(ctx, promAPI, query, completionTime)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	// If we got NaN, it might be a Pushgateway metric that won't have a value unless we query from the scrape time
+	if math.IsNaN(value) && lastScrapeTime.After(completionTime) {
+		log.WithValues("lastScrapeTime", lastScrapeTime).Info("Retrying Prometheus query to include final scrape")
+		value, err = queryScalar(ctx, promAPI, query, lastScrapeTime)
+		if err != nil {
+			return 0, 0, err
+		}
+	}
+
+	// If it is still NaN, the problem is mostly likely that the query does not account for missing data
+	if math.IsNaN(value) {
+		err := &CaptureError{Message: "metric data not available", Address: address, Query: query, CompletionTime: completionTime}
+		if strings.HasPrefix(query, "scalar(") {
+			err.Message += " (the scalar function may have received an input vector whose size is not 1)"
+		}
+		return 0, 0, err
+	}
+
+	// Execute the error query (if configured)
+	if errorQuery != "" {
+		valueError, err = queryScalar(ctx, promAPI, errorQuery, completionTime)
+		if err != nil {
+			return 0, 0, err
+		}
+	}
+
+	// Ignore NaN for the value error
+	if math.IsNaN(valueError) {
+		valueError = 0
+	}
+
+	return value, valueError, nil
+}
+
+func checkReady(ctx context.Context, api promv1.API, t time.Time) (time.Time, error) {
+	targets, err := api.Targets(ctx)
+	if err != nil {
+		return t, err
+	}
+
+	lastScrape := t
 	for _, target := range targets.Active {
 		if target.Health != promv1.HealthGood {
 			continue
 		}
 
-		if target.LastScrape.Before(completionTime) {
-			// TODO Can we make a more informed delay?
-			return 0, 0, &CaptureError{RetryAfter: 5 * time.Second}
+		if target.LastScrape.Before(t) {
+			// TODO If we knew the scrape interval we could make a more informed delay
+			return t, &CaptureError{RetryAfter: 5 * time.Second}
 		}
 
-		if target.LastScrape.After(queryTime) {
-			queryTime = target.LastScrape
+		if target.LastScrape.After(lastScrape) {
+			lastScrape = target.LastScrape
 		}
 	}
 
-	// If we needed to adjust the query time, log it so we have a record of the actual time being used
-	if !queryTime.Equal(completionTime) {
-		log.WithValues("queryTime", queryTime).Info("Adjusted completion time for Prometheus query")
-	}
+	return lastScrape, nil
+}
 
-	// Execute query
-	v, _, err := promAPI.Query(context.TODO(), query, queryTime)
+func queryScalar(ctx context.Context, api promv1.API, q string, t time.Time) (float64, error) {
+	v, _, err := api.Query(ctx, q, t)
 	if err != nil {
-		return 0, 0, err
+		return 0, err
 	}
 
-	// Only accept scalar results
 	if v.Type() != model.ValScalar {
-		return 0, 0, fmt.Errorf("expected scalar query result, got %s", v.Type())
+		return 0, fmt.Errorf("expected scalar query result, got %s", v.Type())
 	}
 
-	// Scalar result
-	result := float64(v.(*model.Scalar).Value)
-	if math.IsNaN(result) {
-		err := &CaptureError{Message: "metric data not available", Address: address, Query: query, CompletionTime: completionTime}
-
-		if strings.HasPrefix(query, "scalar(") {
-			err.Message += " (the scalar function may have received an input vector whose size is not 1)"
-		}
-
-		return 0, 0, err
-	}
-
-	// Execute the error query (if configured)
-	var errorResult float64
-	if errorQuery != "" {
-		ev, _, err := promAPI.Query(context.TODO(), errorQuery, completionTime)
-		if err != nil {
-			return 0, 0, err
-		}
-		if ev.Type() != model.ValScalar {
-			return 0, 0, fmt.Errorf("expected scalar error query result, got %s", v.Type())
-		}
-		errorResult = float64(v.(*model.Scalar).Value)
-		if math.IsNaN(errorResult) {
-			errorResult = 0
-		}
-	}
-
-	return result, errorResult, nil
+	return float64(v.(*model.Scalar).Value), nil
 }
