@@ -200,7 +200,16 @@ func (r *ServerReconciler) listTrials(ctx context.Context, trialList *redskyv1be
 // server will be copied back into cluster along with the URLs needed for future interactions with server.
 func (r *ServerReconciler) createExperiment(ctx context.Context, log logr.Logger, exp *redskyv1beta1.Experiment) (*ctrl.Result, error) {
 	// Convert the cluster state into a server representation
-	n, e, b := server.FromCluster(exp)
+	n, e, b, err := server.FromCluster(exp)
+	if err != nil {
+		if server.FailExperiment(exp, "InvalidExperimentDefinition", err) {
+			err := r.Update(ctx, exp)
+			return controller.RequeueConflict(err)
+		}
+		return &ctrl.Result{}, err
+	}
+
+	// Create the experiment remotely
 	ee, err := r.ExperimentsAPI.CreateExperiment(ctx, n, *e)
 	if err != nil {
 		if server.FailExperiment(exp, "ServerCreateFailed", err) {
