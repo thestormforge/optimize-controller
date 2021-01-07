@@ -36,5 +36,3 @@ require (
 )
 
 replace k8s.io/klog => github.com/istio/klog v0.0.0-20190424230111-fb7481ea8bcf
-
-replace github.com/thestormforge/optimize-go => ../optimize-go

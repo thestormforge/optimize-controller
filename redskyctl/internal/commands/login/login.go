@@ -255,13 +255,17 @@ func (o *Options) requireForceIfNameExists(cfg *config.Config) error {
 func (o *Options) takeOffline(t *oauth2.Token) error {
 	// Normally clients should consider the access token as opaque, however if the user does not have a namespace
 	// there is nothing we can do with the access token (except get "not activated" errors) so we should at least check
-
-	keys, err := o.Config.PublicKeys(context.TODO())
+	srv, err := config.CurrentServer(o.Config.Reader())
 	if err != nil {
 		return err
 	}
 
-	tokenBytes, err := jws.VerifyWithJWKSet([]byte(t.AccessToken), keys.(*jwk.Set), nil)
+	set, err := jwk.Fetch(srv.Authorization.JSONWebKeySetURI)
+	if err != nil {
+		return err
+	}
+
+	tokenBytes, err := jws.VerifyWithJWKSet([]byte(t.AccessToken), set, nil)
 	if err != nil {
 		return err
 	}
@@ -282,6 +286,7 @@ func (o *Options) takeOffline(t *oauth2.Token) error {
 	if err := o.Config.Update(config.SaveToken(o.Config.Overrides.Context, t)); err != nil {
 		return err
 	}
+
 	if err := o.Config.Write(); err != nil {
 		return err
 	}

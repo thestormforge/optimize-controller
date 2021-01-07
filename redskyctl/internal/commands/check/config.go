@@ -96,7 +96,6 @@ func tenantID(r config.Reader) (string, error) {
 
 	token, err := jwt.ParseString(
 		az.Credential.TokenCredential.AccessToken,
-		jwt.WithValidate(true),
 	)
 	if err != nil {
 		return "", err
