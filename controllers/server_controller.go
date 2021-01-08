@@ -31,9 +31,9 @@ import (
 	"github.com/thestormforge/optimize-controller/internal/trial"
 	"github.com/thestormforge/optimize-controller/internal/validation"
 	"github.com/thestormforge/optimize-controller/internal/version"
+	"github.com/thestormforge/optimize-go/pkg/api"
+	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"github.com/thestormforge/optimize-go/pkg/config"
-	"github.com/thestormforge/optimize-go/pkg/redskyapi"
-	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/redskyapi/experiments/v1alpha1"
 	"golang.org/x/time/rate"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -138,11 +138,21 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if r.ExperimentsAPI == nil {
 		ctx := context.Background()
 
-		// Create a new Red Sky API
+		// Load the configuration
 		cfg := &config.RedSkyConfig{}
 		if err := cfg.Load(); err != nil {
 			return err
 		}
+
+		// Get the Experiments API endpoint from the configuration
+		// NOTE: The current version of the configuration has an explicit configuration for the
+		// experiments endpoint which would duplicate the "/experiments/" path segment
+		srv, err := config.CurrentServer(cfg.Reader())
+		if err != nil {
+			return err
+		}
+
+		address := strings.TrimSuffix(srv.API.ExperimentsEndpoint, "/experiments/")
 
 		// Compute the UA string comment using the Kube API server information
 		var comment string
@@ -152,18 +162,24 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			}
 		}
 
-		c, err := redskyapi.NewClient(ctx, cfg, version.UserAgent("optimize-controller", comment, nil))
+		rt, err := cfg.Authorize(ctx, version.UserAgent("optimize-controller", comment, nil))
 		if err != nil {
 			return err
 		}
-		api := experimentsv1alpha1.NewAPI(c)
+
+		// Create a new Experiment API client
+		c, err := api.NewClient(address, rt)
+		if err != nil {
+			return err
+		}
+		expAPI := experimentsv1alpha1.NewAPI(c)
 
 		// An unauthorized error means we will never be able to connect without changing the credentials and restarting
-		if _, err := api.Options(ctx); experimentsv1alpha1.IsUnauthorized(err) {
-			r.Log.Info("Red Sky API is unavailable, skipping setup", "message", err.Error())
+		if _, err := expAPI.Options(ctx); experimentsv1alpha1.IsUnauthorized(err) {
+			r.Log.Info("Experiments API is unavailable, skipping setup", "message", err.Error())
 			return nil
 		}
-		r.ExperimentsAPI = api
+		r.ExperimentsAPI = expAPI
 	}
 
 	// Enforce a one trial per-second creation limit (no burst! that is the whole point)

@@ -41,8 +41,8 @@ import (
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/results"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/revoke"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/version"
+	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"github.com/thestormforge/optimize-go/pkg/config"
-	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/redskyapi/experiments/v1alpha1"
 )
 
 // NewRedskyctlCommand creates a new top-level redskyctl command

@@ -21,13 +21,14 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	redskyv1alpha1 "github.com/thestormforge/optimize-controller/api/v1alpha1"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	"github.com/thestormforge/optimize-go/pkg/api"
+	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	internalconfig "github.com/thestormforge/optimize-go/pkg/config"
-	"github.com/thestormforge/optimize-go/pkg/redskyapi"
-	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/redskyapi/experiments/v1alpha1"
 	"golang.org/x/oauth2"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -74,17 +75,29 @@ func StreamsPreRun(streams *IOStreams) func(cmd *cobra.Command, args []string) {
 }
 
 // SetExperimentsAPI creates a new experiments API interface from the supplied configuration
-func SetExperimentsAPI(api *experimentsv1alpha1.API, cfg redskyapi.Config, cmd *cobra.Command) error {
+func SetExperimentsAPI(expAPI *experimentsv1alpha1.API, cfg *internalconfig.RedSkyConfig, cmd *cobra.Command) error {
 	ctx := cmd.Context()
-
-	// Reuse the OAuth2 base transport for the API calls
-	t := oauth2.NewClient(ctx, nil).Transport
-	c, err := redskyapi.NewClient(ctx, cfg, t)
+	srv, err := internalconfig.CurrentServer(cfg.Reader())
 	if err != nil {
 		return err
 	}
 
-	*api = experimentsv1alpha1.NewAPI(c)
+	// NOTE: We should use `srv.Identifier` but technically this version of the configuration
+	// exposes this double counted "/experiments/" endpoint
+	address := strings.TrimSuffix(srv.API.ExperimentsEndpoint, "/experiments/")
+
+	// Reuse the OAuth2 base transport for the API calls
+	t, err := cfg.Authorize(ctx, oauth2.NewClient(ctx, nil).Transport)
+	if err != nil {
+		return err
+	}
+
+	c, err := api.NewClient(address, t)
+	if err != nil {
+		return err
+	}
+
+	*expAPI = experimentsv1alpha1.NewAPI(c)
 	return nil
 }
 

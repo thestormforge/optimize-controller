@@ -25,8 +25,8 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
-	"github.com/thestormforge/optimize-go/pkg/redskyapi"
-	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/redskyapi/experiments/v1alpha1"
+	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
+	"github.com/thestormforge/optimize-go/pkg/config"
 	"k8s.io/client-go/util/jsonpath"
 )
 
@@ -59,7 +59,7 @@ func normalizeType(t string) (normalType resourceType, pluralType string, err er
 // Options are the common options for interacting with the Red Sky Experiments API
 type Options struct {
 	// Config is the Red Sky Control Configuration
-	Config redskyapi.Config
+	Config *config.RedSkyConfig
 	// ExperimentsAPI is used to interact with the Red Sky Experiments API
 	ExperimentsAPI experimentsv1alpha1.API
 	// Printer is the resource printer used to render objects from the Red Sky Experiments API

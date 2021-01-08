@@ -25,7 +25,7 @@ import (
 	"github.com/thestormforge/optimize-controller/internal/server"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/experiments"
-	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/redskyapi/experiments/v1alpha1"
+	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 )
 
 type TrialOptions struct {

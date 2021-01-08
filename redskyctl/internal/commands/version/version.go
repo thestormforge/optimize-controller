@@ -28,8 +28,8 @@ import (
 	"github.com/thestormforge/optimize-controller/internal/version"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/kustomize"
+	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"github.com/thestormforge/optimize-go/pkg/config"
-	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/redskyapi/experiments/v1alpha1"
 )
 
 // TODO Add support for getting Red Sky server version
