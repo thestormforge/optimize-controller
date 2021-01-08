@@ -21,7 +21,7 @@ import (
 	"crypto/sha1"
 	"fmt"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/spf13/cobra"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
@@ -93,12 +93,16 @@ func tenantID(r config.Reader) (string, error) {
 	if az.Credential.TokenCredential == nil {
 		return "", nil
 	}
-	mc := jwt.MapClaims{}
-	if _, _, err := new(jwt.Parser).ParseUnverified(az.Credential.TokenCredential.AccessToken, mc); err != nil {
+
+	token, err := jwt.ParseString(
+		az.Credential.TokenCredential.AccessToken,
+	)
+	if err != nil {
 		return "", err
 	}
-	if tenant, ok := mc["https://carbonrelay.com/claims/namespace"].(string); ok {
-		th := sha1.Sum([]byte(tenant))
+
+	if tenant, ok := token.PrivateClaims()["https://carbonrelay.com/claims/namespace"]; ok {
+		th := sha1.Sum([]byte(tenant.(string)))
 		return fmt.Sprintf("%x", th[0:4]), nil
 	}
 	return "", fmt.Errorf("unable to determine tenant identifier")
