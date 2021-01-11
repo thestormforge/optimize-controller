@@ -23,6 +23,7 @@ import (
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // IsFinished checks to see if the specified trial is finished
@@ -85,6 +86,38 @@ func IsTrialJobReference(t *redskyv1beta1.Trial, ref *corev1.ObjectReference) bo
 	// ...otherwise the trial name must match by prefix
 	if !strings.HasPrefix(t.Name, ref.Name) {
 		return false
+	}
+
+	return true
+}
+
+// IsBaseline checks to see if the supplied trial is a baseline for an experiment.
+func IsBaseline(t *redskyv1beta1.Trial, exp *redskyv1beta1.Experiment) bool {
+	// Trials that were created as baselines should be labeled as such
+	if t.Labels["baseline"] == "true" {
+		return true
+	}
+
+	// Index the parameter definitions
+	baseline := make(map[string]intstr.IntOrString, len(exp.Spec.Parameters))
+	for i := range exp.Spec.Parameters {
+		if b := exp.Spec.Parameters[i].Baseline; b != nil {
+			baseline[exp.Spec.Parameters[i].Name] = *b
+		}
+	}
+
+	// Only consider a baseline if it is complete
+	if len(baseline) != len(exp.Spec.Parameters) {
+		return false
+	}
+
+	// Check this trial against the experiment's baseline
+	for i := range t.Spec.Assignments {
+		if b, ok := baseline[t.Spec.Assignments[i].Name]; ok {
+			if b != t.Spec.Assignments[i].Value {
+				return false
+			}
+		}
 	}
 
 	return true
