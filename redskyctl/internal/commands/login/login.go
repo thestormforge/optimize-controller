@@ -25,7 +25,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/lestrrat-go/jwx/jws"
+	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/mdp/qrterminal/v3"
 	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
@@ -253,18 +255,38 @@ func (o *Options) requireForceIfNameExists(cfg *config.Config) error {
 func (o *Options) takeOffline(t *oauth2.Token) error {
 	// Normally clients should consider the access token as opaque, however if the user does not have a namespace
 	// there is nothing we can do with the access token (except get "not activated" errors) so we should at least check
-	getKey := func(t *jwt.Token) (interface{}, error) { return o.Config.PublicKey(context.TODO(), t.Header["kid"]) }
-	if token, err := new(jwt.Parser).Parse(t.AccessToken, getKey); err == nil {
-		if c, ok := token.Claims.(jwt.MapClaims); ok {
-			if ns := c["https://carbonrelay.com/claims/namespace"]; ns == "default" || ns == "" {
-				return fmt.Errorf("account is not activated")
-			}
-		}
+	srv, err := config.CurrentServer(o.Config.Reader())
+	if err != nil {
+		return err
+	}
+
+	set, err := jwk.Fetch(srv.Authorization.JSONWebKeySetURI)
+	if err != nil {
+		return err
+	}
+
+	tokenBytes, err := jws.VerifyWithJWKSet([]byte(t.AccessToken), set, nil)
+	if err != nil {
+		return err
+	}
+
+	token, err := jwt.ParseBytes(
+		tokenBytes,
+		jwt.WithValidate(true),
+	)
+	if err != nil {
+		return err
+	}
+
+	ns, ok := token.PrivateClaims()["https://carbonrelay.com/claims/namespace"]
+	if !ok || ns.(string) == "default" || ns.(string) == "" {
+		return fmt.Errorf("account is not activated")
 	}
 
 	if err := o.Config.Update(config.SaveToken(o.Config.Overrides.Context, t)); err != nil {
 		return err
 	}
+
 	if err := o.Config.Write(); err != nil {
 		return err
 	}
