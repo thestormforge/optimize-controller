@@ -74,7 +74,7 @@ func (r *applicationResource) patch(name nameGen) (*redskyv1beta1.PatchTemplate,
 	for i := range r.replicaPaths {
 		replicas := "{{ .Values." + name(&r.targetRef, r.replicaPaths[i], "replicas") + " }}"
 		value := yaml.NewScalarRNode(replicas)
-		value.YNode().Tag = yaml.IntTag
+		value.YNode().Tag = yaml.NodeTagInt
 		if err := patch.PipeE(
 			&yaml.PathGetter{Path: r.replicaPaths[i], Create: yaml.ScalarNode},
 			yaml.FieldSetter{Value: value, OverrideStyle: true},
