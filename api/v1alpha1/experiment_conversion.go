@@ -114,8 +114,10 @@ func Convert_v1beta1_Metric_To_v1alpha1_Metric(in *v1beta1.Metric, out *Metric, 
 	out.Scheme, out.Port, out.Path = fromURL(in, u)
 
 	switch in.Type {
-	case v1beta1.MetricKubernetes:
-		if in.Target == nil || in.Target.Kind == "" {
+	case v1beta1.MetricKubernetes, "":
+		if in.Target == nil {
+			out.Type = ""
+		} else if in.Target.Kind == "" {
 			out.Type = "local"
 		} else if in.Target.Kind == "PodList" && in.Target.APIVersion == "v1" {
 			out.Type = "pods"
@@ -141,7 +143,7 @@ func Convert_v1alpha1_Metric_To_v1beta1_Metric(in *Metric, out *v1beta1.Metric, 
 		out.Type = v1beta1.MetricKubernetes
 
 	case "pods":
-		out.Type = v1beta1.MetricKubernetes
+		out.Type = "" // Use the default type (i.e. v1beta1.MetricKubernetes)
 		out.Target = &v1beta1.ResourceTarget{
 			Kind:       "PodList",
 			APIVersion: "v1",

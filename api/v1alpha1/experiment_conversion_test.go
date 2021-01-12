@@ -79,11 +79,10 @@ func TestConvert_v1alpha1_Metric_To_v1beta1_Metric(t *testing.T) {
 					MatchLabels: map[string]string{"app": "voting-app"},
 				},
 			},
-			// In v1beta1 you need to change the type to "kubernetes" and add a pod target reference
+			// In v1beta1 you need to change the type to "kubernetes" (default type) and add a pod list target reference
 			v1beta1Metric: redskyv1beta1.Metric{
 				Name:     "cost",
 				Minimize: true,
-				Type:     redskyv1beta1.MetricKubernetes,
 				Query:    `{{resourceRequests .Pods "cpu=0.022,memory=0.000000000003"}}`,
 				Target: &redskyv1beta1.ResourceTarget{
 					APIVersion: "v1",

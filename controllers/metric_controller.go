@@ -240,7 +240,7 @@ func (r *MetricReconciler) collectionAttempt(ctx context.Context, log logr.Logge
 
 // target looks up the Kubernetes object (if any) associated with a metric.
 func (r *MetricReconciler) target(ctx context.Context, t *redskyv1beta1.Trial, m *redskyv1beta1.Metric) (runtime.Object, error) {
-	if m.Type != redskyv1beta1.MetricKubernetes {
+	if m.Type != redskyv1beta1.MetricKubernetes && m.Type != "" {
 		return nil, nil
 	}
 
