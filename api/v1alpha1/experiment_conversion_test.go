@@ -87,7 +87,7 @@ func TestConvert_v1alpha1_Metric_To_v1beta1_Metric(t *testing.T) {
 				Query:    `{{resourceRequests .Pods "cpu=0.022,memory=0.000000000003"}}`,
 				Target: &redskyv1beta1.ResourceTarget{
 					APIVersion: "v1",
-					Kind:       "Pod",
+					Kind:       "PodList",
 					LabelSelector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{"app": "voting-app"},
 					},

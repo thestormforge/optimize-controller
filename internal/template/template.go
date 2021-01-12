@@ -41,12 +41,10 @@ type PatchData struct {
 
 // MetricData represents a trial during metric evaluation
 type MetricData struct {
-	// Trial
+	// Trial is a copy of the trial being evaluated.
 	Trial *redskyv1beta1.Trial
-	// Target
+	// Target is the object matched by the resource target of a Kubernetes metric.
 	Target runtime.Object
-	// List of pods from the trial namespace (same as Target only if target is a PodList otherwise nil, here for backwards compatibility)
-	Pods *corev1.PodList
 
 	// The time at which the trial run started (possibly adjusted)
 	StartTime time.Time
@@ -56,6 +54,23 @@ type MetricData struct {
 	Range string
 	// Trial assignments
 	Values map[string]interface{}
+}
+
+// Pods returns the metric target as a list of pods if possible, nil otherwise.
+// Deprecated: Templates should use the `.Target` pipeline instead of `.Pods`.
+func (m *MetricData) Pods() *corev1.PodList {
+	if pods, ok := m.Target.(*corev1.PodList); ok {
+		return pods
+	}
+
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+	pods := &corev1.PodList{}
+	if err := scheme.Convert(m.Target, pods, nil); err != nil {
+		return nil
+	}
+
+	return pods
 }
 
 func newPatchData(t *redskyv1beta1.Trial) *PatchData {
@@ -79,9 +94,6 @@ func newMetricData(t *redskyv1beta1.Trial, target runtime.Object) *MetricData {
 	d := &MetricData{
 		Trial:  t.DeepCopy(),
 		Target: target,
-	}
-	if pods, ok := target.(*corev1.PodList); ok {
-		d.Pods = pods
 	}
 
 	d.Values = make(map[string]interface{}, len(t.Spec.Assignments))
