@@ -138,9 +138,9 @@ type Metric struct {
 	// Indicator that this metric should be optimized (default: true)
 	Optimize *bool `json:"optimize,omitempty"`
 
-	// The metric collection type, one of: local|pods|prometheus|datadog|jsonpath, default: local
+	// The metric collection type, one of: kubernetes|prometheus|datadog|jsonpath, default: kubernetes
 	Type MetricType `json:"type,omitempty"`
-	// Collection type specific query, e.g. Go template for "local", PromQL for "prometheus" or a JSON pointer expression (with curly braces) for "jsonpath"
+	// Collection type specific query, e.g. Go template for "kubernetes", PromQL for "prometheus" or a JSON pointer expression (with curly braces) for "jsonpath"
 	Query string `json:"query"`
 	// Collection type specific query for the error associated with collected metric value
 	ErrorQuery string `json:"errorQuery,omitempty"`
