@@ -119,7 +119,7 @@ func Convert_v1beta1_Metric_To_v1alpha1_Metric(in *v1beta1.Metric, out *Metric, 
 			out.Type = ""
 		} else if in.Target.Kind == "" {
 			out.Type = "local"
-		} else if in.Target.Kind == "PodList" && in.Target.APIVersion == "v1" {
+		} else if in.Target.Kind == "PodList" && (in.Target.APIVersion == "v1" || in.Target.APIVersion == "") {
 			out.Type = "pods"
 		}
 	}
@@ -145,8 +145,7 @@ func Convert_v1alpha1_Metric_To_v1beta1_Metric(in *Metric, out *v1beta1.Metric, 
 	case "pods":
 		out.Type = "" // Use the default type (i.e. v1beta1.MetricKubernetes)
 		out.Target = &v1beta1.ResourceTarget{
-			Kind:       "PodList",
-			APIVersion: "v1",
+			Kind: "PodList",
 		}
 	}
 
