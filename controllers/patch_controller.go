@@ -151,7 +151,7 @@ func (r *PatchReconciler) evaluatePatchOperations(ctx context.Context, t *redsky
 		}
 
 		// Add a readiness check if necessary
-		if rc, err := r.createReadinessCheck(t, p, ref); err != nil {
+		if rc, err := r.createReadinessCheck(t, ref, p.ReadinessGates); err != nil {
 			return &ctrl.Result{}, err
 		} else if rc != nil {
 			t.Status.ReadinessChecks = append(t.Status.ReadinessChecks, *rc)
@@ -209,9 +209,9 @@ func (r *PatchReconciler) applyPatches(ctx context.Context, t *redskyv1beta1.Tri
 }
 
 // createReadinessCheck creates a readiness check for a patch operation
-func (r *PatchReconciler) createReadinessCheck(t *redskyv1beta1.Trial, p *redskyv1beta1.PatchTemplate, ref *corev1.ObjectReference) (*redskyv1beta1.ReadinessCheck, error) {
-	// Do not create a readiness check on the trial job
-	if trial.IsTrialJobReference(t, ref) {
+func (r *PatchReconciler) createReadinessCheck(t *redskyv1beta1.Trial, ref *corev1.ObjectReference, readinessGates []redskyv1beta1.PatchReadinessGate) (*redskyv1beta1.ReadinessCheck, error) {
+	// Do not create a readiness check on the trial job or if there is already an explicit readiness gate
+	if trial.IsTrialJobReference(t, ref) || hasTrialReadinessGate(t, ref) {
 		return nil, nil
 	}
 
@@ -225,13 +225,13 @@ func (r *PatchReconciler) createReadinessCheck(t *redskyv1beta1.Trial, p *redsky
 	}
 
 	// Add configured and default readiness conditions
-	for i := range p.ReadinessGates {
-		rc.ConditionTypes = append(rc.ConditionTypes, p.ReadinessGates[i].ConditionType)
+	for i := range readinessGates {
+		rc.ConditionTypes = append(rc.ConditionTypes, readinessGates[i].ConditionType)
 	}
 
 	// Check for a "legacy" patch that has no explicit (not even empty) readiness gates and apply settings consistent
 	// with earlier versions of the product (we should re-visit this)
-	if p.ReadinessGates == nil {
+	if readinessGates == nil {
 		rc.ConditionTypes = append(rc.ConditionTypes, ready.ConditionTypeAppReady)
 		rc.InitialDelaySeconds = 1
 	}
@@ -241,4 +241,27 @@ func (r *PatchReconciler) createReadinessCheck(t *redskyv1beta1.Trial, p *redsky
 		return nil, nil
 	}
 	return rc, nil
+}
+
+// hasTrialReadinessGate checks to see if the trial has an explicit readiness gate for the supplied
+// object reference. If there is a readiness gate defined by the user, we do not need to add an
+// implicit readiness check because of the patch.
+func hasTrialReadinessGate(t *redskyv1beta1.Trial, ref *corev1.ObjectReference) bool {
+	// There is no way to have a readiness gate in a different namespace from the trial
+	if ref.Namespace != t.Namespace {
+		return false
+	}
+
+	for _, rg := range t.Spec.ReadinessGates {
+		// Readiness gate MAY match this object by label selector, but it's not something we can deal with now
+		if rg.Selector != nil || rg.Name == "" {
+			continue
+		}
+
+		if rg.Name == ref.Name && rg.Kind == ref.Kind && rg.APIVersion == ref.APIVersion {
+			return true
+		}
+	}
+
+	return false
 }
