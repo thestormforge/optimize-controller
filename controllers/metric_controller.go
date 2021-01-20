@@ -159,7 +159,7 @@ func (r *MetricReconciler) collectMetrics(ctx context.Context, t *redskyv1beta1.
 	log := r.Log.WithValues("trial", fmt.Sprintf("%s/%s", t.Namespace, t.Name))
 	for i := range t.Spec.Values {
 		v := &t.Spec.Values[i]
-		if v.AttemptsRemaining == 0 {
+		if v.AttemptsRemaining <= 0 {
 			continue
 		}
 
@@ -221,17 +221,14 @@ func (r *MetricReconciler) collectionAttempt(ctx context.Context, log logr.Logge
 	trial.ApplyCondition(&t.Status, redskyv1beta1.TrialObserved, corev1.ConditionFalse, "", "", probeTime)
 
 	// If there was only one attempt remaining, mark the trial as failed
-	if v.AttemptsRemaining == 1 {
+	v.AttemptsRemaining--
+	if v.AttemptsRemaining <= 0 {
 		trial.ApplyCondition(&t.Status, redskyv1beta1.TrialFailed, corev1.ConditionTrue, "MetricFailed", err.Error(), probeTime)
-		v.AttemptsRemaining = 0
 
 		// Metric errors contain additional information which should be logged for debugging
 		if merr, ok := err.(*metric.CaptureError); ok {
 			log.Error(merr, "Metric collection failed", "address", merr.Address, "query", merr.Query, "completionTime", merr.CompletionTime)
 		}
-	} else if v.AttemptsRemaining > 0 {
-		// Decrement the attempts remaining
-		v.AttemptsRemaining--
 	}
 
 	// Record the update
@@ -245,36 +242,30 @@ func (r *MetricReconciler) target(ctx context.Context, t *redskyv1beta1.Trial, m
 	}
 
 	// Get the target reference, default to the trial itself if there is no reference
-	targetRef := m.Target
 	if m.Target == nil || m.Target.Kind == "" {
 		return t, nil
 	}
 
-	// If no explicit namespace is specified, use the trial namespace
-	if targetRef.Namespace == "" {
-		targetRef.Namespace = t.Namespace
-	}
-
 	// If a name is specified, just get a single object
-	if targetRef.Name != "" {
+	if m.Target.Name != "" {
 		target := &unstructured.Unstructured{}
-		target.SetGroupVersionKind(targetRef.GroupVersionKind())
-		if err := r.Get(ctx, targetRef.NamespacedName(), target); err != nil {
+		target.SetGroupVersionKind(m.Target.GroupVersionKind())
+		if err := r.Get(ctx, m.Target.NamespacedName(), target); err != nil {
 			return nil, err
 		}
 		return target, nil
 	}
 
 	// Convert the selector from a Kubernetes object to something the client can use
-	sel, err := meta.MatchingSelector(targetRef.LabelSelector)
+	sel, err := meta.MatchingSelector(m.Target.LabelSelector)
 	if err != nil {
 		return nil, err
 	}
 
 	// Fetch the list of matching resources
 	target := &unstructured.UnstructuredList{}
-	target.SetGroupVersionKind(targetRef.GroupVersionKind())
-	if err := r.List(ctx, target, client.InNamespace(targetRef.Namespace), sel); err != nil {
+	target.SetGroupVersionKind(m.Target.GroupVersionKind())
+	if err := r.List(ctx, target, client.InNamespace(m.Target.Namespace), sel); err != nil {
 		return nil, err
 	}
 	return target, nil
@@ -289,7 +280,6 @@ func (r *MetricReconciler) applyMetricDefaults(ctx context.Context, t *redskyv1b
 
 	// Default to the trial namespace
 	if m.Target != nil && m.Target.Namespace == "" {
-		// TODO How do we exclude non-namespaced kinds from this default?
 		m.Target.Namespace = t.Namespace
 	}
 
@@ -305,10 +295,14 @@ func (r *MetricReconciler) resolveLegacyURL(ctx context.Context, t *redskyv1beta
 		return nil
 	}
 
-	// Look for the special placeholder hostname that indicates we should look up a service
 	u, err := url.Parse(m.URL)
-	if err != nil || u.Hostname() != redskyv1alpha1.LegacyHostnamePlaceholder {
+	if err != nil {
 		return err
+	}
+
+	// Look for the special placeholder hostname that indicates we should look up a service
+	if u.Hostname() != redskyv1alpha1.LegacyHostnamePlaceholder {
+		return nil
 	}
 
 	// Default the target
