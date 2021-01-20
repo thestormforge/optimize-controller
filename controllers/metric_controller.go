@@ -310,22 +310,20 @@ func (r *MetricReconciler) resolveLegacyURL(ctx context.Context, t *redskyv1beta
 		m.Target = &redskyv1beta1.ResourceTarget{}
 	}
 
-	// Convert the selector
+	// Default the label selector for Prometheus
 	if m.Target.LabelSelector == nil && m.Type == redskyv1beta1.MetricPrometheus {
 		m.Target.LabelSelector = &metav1.LabelSelector{MatchLabels: map[string]string{"app": "prometheus"}}
 	}
+
+	// Convert the selector
 	sel, err := meta.MatchingSelector(m.Target.LabelSelector)
 	if err != nil {
 		return err
 	}
 
 	// Fetch the service
-	namespace := m.Target.Namespace
-	if namespace == "" {
-		namespace = t.Namespace
-	}
 	list := &corev1.ServiceList{}
-	if err := r.List(ctx, list, client.InNamespace(namespace), sel); err != nil {
+	if err := r.List(ctx, list, client.InNamespace(m.Target.Namespace), sel); err != nil {
 		return err
 	}
 
