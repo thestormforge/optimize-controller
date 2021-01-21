@@ -18,6 +18,7 @@ package commander
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -182,6 +183,34 @@ func AddPreRunE(cmd *cobra.Command, preRunE func(*cobra.Command, []string) error
 		}
 		return nil
 	}
+}
+
+// SetFlagValues updates the named flag usage and completion to include possible choices.
+func SetFlagValues(cmd *cobra.Command, flagName string, values ...string) {
+	f := cmd.Flag(flagName)
+	if f == nil {
+		return
+	}
+
+	// Remove blank values
+	tmp := values[:0]
+	for _, v := range values {
+		if v != "" {
+			tmp = append(tmp, v)
+		}
+	}
+	values = tmp
+
+	f.Usage = fmt.Sprintf("%s; one of: %s", f.Usage, strings.Join(values, "|"))
+	_ = cmd.RegisterFlagCompletionFunc(flagName, func(_ *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		c := make([]string, 0, len(values))
+		for _, v := range values {
+			if strings.HasPrefix(v, toComplete) {
+				c = append(c, v)
+			}
+		}
+		return c, cobra.ShellCompDirectiveNoFileComp
+	})
 }
 
 // MapErrors wraps all of the error returning functions on the supplied command (and it's sub-commands) so that
