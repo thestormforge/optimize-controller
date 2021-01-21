@@ -98,7 +98,7 @@ func NewCommand(o *Options) *cobra.Command {
 		RunE: commander.WithContextE(o.runner),
 	}
 
-	cmd.Flags().StringSliceVarP(&o.inputFiles, "filename", "f", []string{""}, "experiment and related manifests to export, - for stdin")
+	cmd.Flags().StringSliceVarP(&o.inputFiles, "filename", "f", []string{""}, "experiment and related manifest `files` to export, - for stdin")
 	cmd.Flags().BoolVarP(&o.patchOnly, "patch", "p", false, "export only the patch")
 	cmd.Flags().BoolVarP(&o.patchedTarget, "patched-target", "t", false, "export only the patched resource")
 
