@@ -31,6 +31,13 @@ import (
 
 // TODO Accept suggestion inputs from standard input, what formats?
 
+const (
+	DefaultNone    = "none"
+	DefaultMinimum = "min"
+	DefaultMaximum = "max"
+	DefaultRandom  = "rand"
+)
+
 // SuggestOptions includes the configuration for suggesting experiment trials
 type SuggestOptions struct {
 	Options
@@ -60,8 +67,10 @@ func NewSuggestCommand(o *SuggestOptions) *cobra.Command {
 
 	cmd.Flags().StringToStringVarP(&o.Assignments, "assign", "A", nil, "assign an explicit value to a parameter")
 	cmd.Flags().BoolVar(&o.AllowInteractive, "interactive", false, "allow interactive prompts for unspecified parameter assignments")
-	cmd.Flags().StringVar(&o.DefaultBehavior, "default", "", "select the behavior for default values; one of: none|min|max|rand")
+	cmd.Flags().StringVar(&o.DefaultBehavior, "default", "", "select the behavior for default values")
 	cmd.Flags().StringVarP(&o.Labels, "labels", "l", "", "comma separated labels to apply to the trial")
+
+	commander.SetFlagValues(cmd, "default", DefaultNone, DefaultMinimum, DefaultMaximum, DefaultRandom)
 
 	return cmd
 }
@@ -147,16 +156,17 @@ func (o *SuggestOptions) AddLabels(ta *experimentsv1alpha1.TrialAssignments) err
 
 func (o *SuggestOptions) defaultValue(p *experimentsv1alpha1.Parameter) (*numstr.NumberOrString, error) {
 	switch o.DefaultBehavior {
-	case "none":
+	case DefaultNone:
 		return nil, nil
-	case "min":
+	case DefaultMinimum, "minimum":
 		return p.LowerBound()
-	case "max":
+	case DefaultMaximum, "maximum":
 		return p.UpperBound()
-	case "rand":
+	case DefaultRandom, "random":
 		return randomValue(p)
+	default:
+		return nil, fmt.Errorf("unknown default behavior: %q", o.DefaultBehavior)
 	}
-	return nil, nil
 }
 
 func (o *SuggestOptions) assignInteractive(p *experimentsv1alpha1.Parameter, def *numstr.NumberOrString) (*numstr.NumberOrString, error) {
