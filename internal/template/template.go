@@ -24,7 +24,6 @@ import (
 	"time"
 
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -56,21 +55,10 @@ type MetricData struct {
 	Values map[string]interface{}
 }
 
-// Pods returns the metric target as a list of pods if possible, nil otherwise.
+// Pods returns the metric target if available.
 // Deprecated: Templates should use the `.Target` pipeline instead of `.Pods`.
-func (m *MetricData) Pods() *corev1.PodList {
-	if pods, ok := m.Target.(*corev1.PodList); ok {
-		return pods
-	}
-
-	scheme := runtime.NewScheme()
-	_ = corev1.AddToScheme(scheme)
-	pods := &corev1.PodList{}
-	if err := scheme.Convert(m.Target, pods, nil); err != nil {
-		return nil
-	}
-
-	return pods
+func (m *MetricData) Pods() runtime.Object {
+	return m.Target
 }
 
 func newPatchData(t *redskyv1beta1.Trial) *PatchData {

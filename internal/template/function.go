@@ -26,6 +26,7 @@ import (
 	"github.com/Masterminds/sprig"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // FuncMap returns the functions used for template evaluation
@@ -72,7 +73,19 @@ func percent(value int32, percent int32) string {
 }
 
 // resourceRequests uses a map of resource types to weights to calculate a weighted sum of the resource requests
-func resourceRequests(pods corev1.PodList, weights string) (float64, error) {
+func resourceRequests(podList runtime.Object, weights string) (float64, error) {
+	var pods *corev1.PodList
+	if p, ok := podList.(*corev1.PodList); ok {
+		pods = p
+	} else {
+		pods = &corev1.PodList{}
+		scheme := runtime.NewScheme()
+		_ = corev1.AddToScheme(scheme)
+		if err := scheme.Convert(podList, pods, nil); err != nil {
+			return 0.0, fmt.Errorf("unable to get pod list: %w", err)
+		}
+	}
+
 	var totalResources float64
 	parsedWeights := make(map[string]float64)
 
