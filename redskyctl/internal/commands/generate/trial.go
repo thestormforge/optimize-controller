@@ -51,11 +51,11 @@ func NewTrialCommand(o *TrialOptions) *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&o.Filename, "filename", "f", o.Filename, "file that contains the experiment to generate trials for")
-	cmd.Flags().StringVarP(&o.Labels, "labels", "l", "", "comma separated labels to apply to the trial")
+	cmd.Flags().StringVarP(&o.Labels, "labels", "l", "", "comma separated `key=value` labels to apply to the trial")
 
-	cmd.Flags().StringToStringVarP(&o.Assignments, "assign", "A", nil, "assign an explicit value to a parameter")
+	cmd.Flags().StringToStringVarP(&o.Assignments, "assign", "A", nil, "assign an explicit `key=value` to a parameter")
 	cmd.Flags().BoolVar(&o.AllowInteractive, "interactive", o.AllowInteractive, "allow interactive prompts for unspecified parameter assignments")
-	cmd.Flags().StringVar(&o.DefaultBehavior, "default", "", "select the behavior for default values")
+	cmd.Flags().StringVar(&o.DefaultBehavior, "default", "", "select the `behavior` for default values")
 
 	_ = cmd.MarkFlagFilename("filename", "yml", "yaml")
 	_ = cmd.MarkFlagRequired("filename")
