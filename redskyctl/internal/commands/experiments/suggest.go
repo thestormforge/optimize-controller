@@ -156,7 +156,7 @@ func (o *SuggestOptions) AddLabels(ta *experimentsv1alpha1.TrialAssignments) err
 
 func (o *SuggestOptions) defaultValue(p *experimentsv1alpha1.Parameter) (*numstr.NumberOrString, error) {
 	switch o.DefaultBehavior {
-	case DefaultNone:
+	case DefaultNone, "":
 		return nil, nil
 	case DefaultMinimum, "minimum":
 		return p.LowerBound()
