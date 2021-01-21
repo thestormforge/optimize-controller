@@ -215,8 +215,8 @@ func newPrintFlags(meta TableMeta, config map[string]string, additionalFormats m
 func (f *printFlags) addFlags(cmd *cobra.Command) {
 	// We only need an output flag if there is a choice
 	if len(f.allowedFormats) > 1 {
-		allowed := strings.Trim(strings.ReplaceAll(strings.Join(f.allowedFormats, "|"), "||", "|"), "|")
-		cmd.Flags().StringVarP(&f.outputFormat, "output", "o", f.outputFormat, fmt.Sprintf("output `format`. one of: %s", allowed))
+		cmd.Flags().StringVarP(&f.outputFormat, "output", "o", f.outputFormat, "output `format`")
+		SetFlagValues(cmd, "output", f.allowedFormats...)
 	}
 
 	// These flags only work with formats that require metadata, make sure we have at least one

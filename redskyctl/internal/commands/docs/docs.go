@@ -22,6 +22,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
 )
 
 // TODO Add support for fetching Red Sky OpenAPI specification
@@ -48,11 +49,13 @@ func NewCommand(o *Options) *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&o.Directory, "directory", "d", "./", "directory where documentation is written")
-	cmd.Flags().StringVar(&o.DocType, "doc-type", "markdown", "documentation type to write, one of: markdown|man|api")
+	cmd.Flags().StringVar(&o.DocType, "doc-type", "markdown", "documentation type to write")
 	cmd.Flags().StringVar(&o.SourcePath, "source", "", "source path used to find API types")
 
 	_ = cmd.MarkFlagDirname("directory")
 	_ = cmd.MarkFlagDirname("source")
+
+	commander.SetFlagValues(cmd, "doc-type", "markdown", "man", "api")
 
 	return cmd
 }
