@@ -154,7 +154,7 @@ type RequestsObjective struct {
 	Weights corev1.ResourceList `json:"weights,omitempty"`
 }
 
-// LatencyObject is used to optimize the responsiveness of an application in a specific scenario.
+// LatencyObjective is used to optimize the responsiveness of an application in a specific scenario.
 type LatencyObjective struct {
 	// The latency to optimize. Can be one of the following values:
 	// `minimum` (or `min`), `maximum` (or `max`), `mean` (or `average`, `avg`),

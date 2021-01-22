@@ -91,7 +91,7 @@ func AddTrialJob(sc *redskyappsv1alpha1.Scenario, app *redskyappsv1alpha1.Applic
 
 func ensureLocustFile(s *redskyappsv1alpha1.Scenario, ldr ifc.Loader, list *corev1.List) (*corev1.VolumeMount, *corev1.Volume, error) {
 	if s.Locust.Locustfile == "" {
-		return nil, nil, fmt.Errorf("missing Locust file")
+		return nil, nil, fmt.Errorf("missing Locust file for scenario %q", s.Name)
 	}
 
 	// TODO Try to find it first...
