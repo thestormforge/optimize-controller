@@ -181,8 +181,7 @@ func (r *MetricReconciler) collectMetrics(ctx context.Context, t *redskyv1beta1.
 			return r.collectionAttempt(ctx, log, t, v, probeTime, err)
 		}
 
-		// Success, record the value and mark it as collected
-		v.AttemptsRemaining = 0
+		// Success, record the value
 		v.Value = strconv.FormatFloat(value, 'f', -1, 64)
 		if !math.IsNaN(valueError) {
 			v.Error = strconv.FormatFloat(valueError, 'f', -1, 64)
@@ -217,12 +216,17 @@ func (r *MetricReconciler) collectionAttempt(ctx context.Context, log logr.Logge
 		return &ctrl.Result{RequeueAfter: merr.RetryAfter}, nil
 	}
 
+	// Update the number of remaining attempts
+	v.AttemptsRemaining--
+	if err == nil || v.AttemptsRemaining < 0 {
+		v.AttemptsRemaining = 0
+	}
+
 	// Update the probe time and ensure that trial observed is still explicitly false (i.e. we have started observation but it is not complete)
 	trial.ApplyCondition(&t.Status, redskyv1beta1.TrialObserved, corev1.ConditionFalse, "", "", probeTime)
 
-	// If there was only one attempt remaining, mark the trial as failed
-	v.AttemptsRemaining--
-	if v.AttemptsRemaining <= 0 {
+	// Fail the trial if there is an error and no attempts are left
+	if err != nil && v.AttemptsRemaining == 0 {
 		trial.ApplyCondition(&t.Status, redskyv1beta1.TrialFailed, corev1.ConditionTrue, "MetricFailed", err.Error(), probeTime)
 
 		// Metric errors contain additional information which should be logged for debugging
