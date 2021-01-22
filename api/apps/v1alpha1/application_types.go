@@ -138,6 +138,8 @@ type Objective struct {
 	Requests *RequestsObjective `json:"requests,omitempty"`
 	// Latency is used to optimize the responsiveness of an application.
 	Latency *LatencyObjective `json:"latency,omitempty"`
+	// ErrorRate is used to optimize the failure rate of an application.
+	ErrorRate *ErrorRateObjective `json:"errorRate,omitempty"`
 
 	// Internal use field for marking objectives as having been implemented. For example,
 	// it may be impossible to optimize for some objectives based on the current state.
@@ -176,6 +178,24 @@ const (
 	LatencyPercentile50 LatencyType = "percentile_50"
 	LatencyPercentile95 LatencyType = "percentile_95"
 	LatencyPercentile99 LatencyType = "percentile_99"
+)
+
+// ErrorRateObjective is used to optimize the error rate of an application in a specific scenario.
+type ErrorRateObjective struct {
+	// The error rate to optimize. Can be one of the following values: `requests`.
+	ErrorRateType
+}
+
+// UnmarshalJSON allows an error rate objective to be specified as a simple string.
+func (in *ErrorRateObjective) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &in.ErrorRateType)
+}
+
+// ErrorRateType describes something which can fail.
+type ErrorRateType string
+
+const (
+	ErrorRateRequests ErrorRateType = "requests"
 )
 
 // StormForger describes global configuration related to StormForger.

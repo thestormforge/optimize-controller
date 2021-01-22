@@ -33,6 +33,9 @@ func addStormForgerObjectives(app *redskyappsv1alpha1.Application, list *corev1.
 		case obj.Latency != nil:
 			addStormForgerLatencyMetric(obj, list)
 
+		case obj.ErrorRate != nil:
+			addStormForgerErrorRateMetric(obj, list)
+
 		}
 	}
 
@@ -67,6 +70,26 @@ func addStormForgerLatencyMetric(obj *redskyappsv1alpha1.Objective, list *corev1
 		Type:     redskyv1beta1.MetricPrometheus,
 		Port:     intstr.FromInt(9090),
 		Query:    `scalar(` + m + `{job="trialRun",instance="{{ .Trial.Name }}"})`,
+		Min:      obj.Min,
+		Max:      obj.Max,
+		Optimize: obj.Optimize,
+	})
+	obj.Implemented = true
+}
+
+func addStormForgerErrorRateMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) {
+	if obj.ErrorRate.ErrorRateType != redskyappsv1alpha1.ErrorRateRequests {
+		// This is not an error rate that StormForger can produce, skip it
+		return
+	}
+
+	exp := k8s.FindOrAddExperiment(list)
+	exp.Spec.Metrics = append(exp.Spec.Metrics, redskyv1beta1.Metric{
+		Name:     obj.Name,
+		Minimize: true,
+		Type:     redskyv1beta1.MetricPrometheus,
+		Port:     intstr.FromInt(9090),
+		Query:    `scalar(error_ratio{job="trialRun",instance="{{ .Trial.Name }}"})`,
 		Min:      obj.Min,
 		Max:      obj.Max,
 		Optimize: obj.Optimize,
