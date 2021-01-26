@@ -122,12 +122,12 @@ func TrialJobImage(job string) string {
 }
 
 // NewObjectiveMetric creates a new metric for the supplied objective with most fields pre-filled.
-func NewObjectiveMetric(obj *redskyappsv1alpha1.Objective, promQL string) redskyv1beta1.Metric {
+func NewObjectiveMetric(obj *redskyappsv1alpha1.Objective, query string) redskyv1beta1.Metric {
 	defer func() { obj.Implemented = true }()
 	return redskyv1beta1.Metric{
 		Type:     redskyv1beta1.MetricPrometheus,
 		Port:     intstr.FromInt(9090),
-		Query:    promQL,
+		Query:    query,
 		Minimize: true,
 		Name:     obj.Name,
 		Min:      obj.Min,

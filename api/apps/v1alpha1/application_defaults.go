@@ -99,7 +99,7 @@ func (in *StormForgerAccessToken) Default() {
 
 func (in *Objective) Default() {
 	// If there is no explicit configuration, create it by parsing the name
-	if in.Name != "" && in.Requests == nil && in.Latency == nil && in.ErrorRate == nil {
+	if in.Name != "" && in.needsConfig() {
 		switch strings.Map(toName, in.Name) {
 
 		case "cost":
@@ -134,6 +134,9 @@ func (in *Objective) Default() {
 		case "error-rate", "error-ratio", "errors":
 			defaultErrorRateObjective(in, ErrorRateRequests)
 
+		case "duration", "time", "time-elapsed", "elapsed-time":
+			defaultDurationObjective(in, DurationTrial)
+
 		default:
 			latencyName := strings.ReplaceAll(strings.Map(toName, in.Name), "latency", "")
 			if l := FixLatency(LatencyType(latencyName)); l != "" {
@@ -159,10 +162,20 @@ func (in *Objective) Default() {
 			in.Name = defaultObjectiveName("latency", string(in.Latency.LatencyType))
 		case in.ErrorRate != nil:
 			in.Name = defaultObjectiveName("error-rate")
+		case in.Duration != nil:
+			in.Name = defaultObjectiveName("duration")
 		default:
 			// Do nothing, unlike a scenario, an empty objective is allowed to have an empty name
 		}
 	}
+}
+
+// needsConfig tests the objective to see if at least one configuration section is specified.
+func (in *Objective) needsConfig() bool {
+	return in.Requests == nil &&
+		in.Latency == nil &&
+		in.ErrorRate == nil &&
+		in.Duration == nil
 }
 
 func defaultRequestsObjectiveWeights(obj *Objective, weights corev1.ResourceList) {
@@ -198,6 +211,16 @@ func defaultErrorRateObjective(obj *Objective, errorRate ErrorRateType) {
 
 	if obj.ErrorRate.ErrorRateType == "" {
 		obj.ErrorRate.ErrorRateType = errorRate
+	}
+}
+
+func defaultDurationObjective(obj *Objective, duration DurationType) {
+	if obj.Duration == nil {
+		obj.Duration = &DurationObjective{}
+	}
+
+	if obj.Duration.DurationType == "" {
+		obj.Duration.DurationType = duration
 	}
 }
 

@@ -60,10 +60,10 @@ func addLocustLatencyMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List
 		return
 	}
 
-	promQL := `scalar(` + m + `{job="trialRun",instance="{{ .Trial.Name }}"})`
+	query := `scalar(` + m + `{job="trialRun",instance="{{ .Trial.Name }}"})`
 
 	exp := k8s.FindOrAddExperiment(list)
-	exp.Spec.Metrics = append(exp.Spec.Metrics, k8s.NewObjectiveMetric(obj, promQL))
+	exp.Spec.Metrics = append(exp.Spec.Metrics, k8s.NewObjectiveMetric(obj, query))
 }
 
 func addLocustErrorRateMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) {
@@ -72,8 +72,8 @@ func addLocustErrorRateMetric(obj *redskyappsv1alpha1.Objective, list *corev1.Li
 		return
 	}
 
-	promQL := `scalar(failure_count{job="trialRun",instance="{{ .Trial.Name }}"} / request_count{job="trialRun",instance="{{ .Trial.Name }}"})`
+	query := `scalar(failure_count{job="trialRun",instance="{{ .Trial.Name }}"} / request_count{job="trialRun",instance="{{ .Trial.Name }}"})`
 
 	exp := k8s.FindOrAddExperiment(list)
-	exp.Spec.Metrics = append(exp.Spec.Metrics, k8s.NewObjectiveMetric(obj, promQL))
+	exp.Spec.Metrics = append(exp.Spec.Metrics, k8s.NewObjectiveMetric(obj, query))
 }

@@ -60,10 +60,10 @@ func addStormForgerLatencyMetric(obj *redskyappsv1alpha1.Objective, list *corev1
 		return
 	}
 
-	promQL := `scalar(` + m + `{job="trialRun",instance="{{ .Trial.Name }}"})`
+	query := `scalar(` + m + `{job="trialRun",instance="{{ .Trial.Name }}"})`
 
 	exp := k8s.FindOrAddExperiment(list)
-	exp.Spec.Metrics = append(exp.Spec.Metrics, k8s.NewObjectiveMetric(obj, promQL))
+	exp.Spec.Metrics = append(exp.Spec.Metrics, k8s.NewObjectiveMetric(obj, query))
 }
 
 func addStormForgerErrorRateMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) {
@@ -72,8 +72,8 @@ func addStormForgerErrorRateMetric(obj *redskyappsv1alpha1.Objective, list *core
 		return
 	}
 
-	promQL := `scalar(error_ratio{job="trialRun",instance="{{ .Trial.Name }}"})`
+	query := `scalar(error_ratio{job="trialRun",instance="{{ .Trial.Name }}"})`
 
 	exp := k8s.FindOrAddExperiment(list)
-	exp.Spec.Metrics = append(exp.Spec.Metrics, k8s.NewObjectiveMetric(obj, promQL))
+	exp.Spec.Metrics = append(exp.Spec.Metrics, k8s.NewObjectiveMetric(obj, query))
 }

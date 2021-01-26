@@ -26,6 +26,7 @@ import (
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/generate/experiment/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 var zero = resource.MustParse("0")
@@ -47,6 +48,11 @@ func (g *Generator) addObjectives(list *corev1.List) error {
 				return err
 			}
 
+		case obj.Duration != nil:
+			if err := addDurationMetric(obj, list); err != nil {
+				return err
+			}
+
 		}
 	}
 
@@ -54,6 +60,7 @@ func (g *Generator) addObjectives(list *corev1.List) error {
 }
 
 func addRequestsMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) error {
+	// Generate the query
 	ms := strconv.Quote(obj.Requests.MetricSelector)
 
 	cpuWeight := obj.Requests.Weights.Cpu()
@@ -66,8 +73,10 @@ func addRequestsMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) err
 		memoryWeight = &zero
 	}
 
+	query := fmt.Sprintf(requestsQueryFormat, ms, cpuWeight.Value(), ms, memoryWeight.Value())
+
 	// Add the cost metric to the experiment
-	req := k8s.NewObjectiveMetric(obj, fmt.Sprintf(requestsQueryFormat, ms, cpuWeight.Value(), ms, memoryWeight.Value()))
+	req := k8s.NewObjectiveMetric(obj, query)
 	exp := k8s.FindOrAddExperiment(list)
 	exp.Spec.Metrics = append(exp.Spec.Metrics, req)
 
@@ -88,6 +97,21 @@ func addRequestsMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) err
 
 	// The cost metric requires Prometheus
 	prometheus.AddSetupTask(list)
+
+	return nil
+}
+
+func addDurationMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) error {
+	if obj.Duration.DurationType != redskyappsv1alpha1.DurationTrial {
+		return nil
+	}
+
+	m := k8s.NewObjectiveMetric(obj, `{{ duration .StartTime .CompletionTime }}`)
+	m.Type = ""
+	m.Port = intstr.FromInt(0)
+
+	exp := k8s.FindOrAddExperiment(list)
+	exp.Spec.Metrics = append(exp.Spec.Metrics, m)
 
 	return nil
 }
