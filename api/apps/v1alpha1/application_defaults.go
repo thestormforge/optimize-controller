@@ -134,6 +134,9 @@ func (in *Objective) Default() {
 			corev1.ResourceMemory: resource.MustParse("1"),
 		})
 
+	case "error-rate", "error-ratio", "errors":
+		defaultErrorRateObjective(in, ErrorRateRequests)
+
 	default:
 
 		latency := LatencyType(strings.ReplaceAll(in.Name, "latency", ""))
@@ -187,12 +190,27 @@ func defaultLatencyObjective(obj *Objective, latency LatencyType) {
 	}
 }
 
+func defaultErrorRateObjective(obj *Objective, errorRate ErrorRateType) {
+	if obj.ErrorRate == nil {
+		if countConfigs(obj) != 0 {
+			return
+		}
+		obj.ErrorRate = &ErrorRateObjective{}
+	}
+
+	if obj.ErrorRate.ErrorRateType == "" {
+		obj.ErrorRate.ErrorRateType = errorRate
+	}
+}
+
 func defaultObjectiveName(obj *Objective) {
 	switch {
 	case obj.Requests != nil:
 		obj.Name = "requests"
 	case obj.Latency != nil:
 		obj.Name = "latency-" + string(obj.Latency.LatencyType)
+	case obj.ErrorRate != nil:
+		obj.Name = "error-rate"
 	}
 }
 
@@ -202,6 +220,9 @@ func countConfigs(obj *Objective) int {
 		c++
 	}
 	if obj.Latency != nil {
+		c++
+	}
+	if obj.ErrorRate != nil {
 		c++
 	}
 	return c
