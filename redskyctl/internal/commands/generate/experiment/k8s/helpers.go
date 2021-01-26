@@ -26,6 +26,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/kustomize/api/resmap"
 )
 
@@ -118,4 +119,19 @@ func TrialJobImage(job string) string {
 		imageTag = imageTagBase + "-" + job
 	}
 	return imageName + ":" + imageTag
+}
+
+// NewObjectiveMetric creates a new metric for the supplied objective with most fields pre-filled.
+func NewObjectiveMetric(obj *redskyappsv1alpha1.Objective, promQL string) redskyv1beta1.Metric {
+	defer func() { obj.Implemented = true }()
+	return redskyv1beta1.Metric{
+		Type:     redskyv1beta1.MetricPrometheus,
+		Port:     intstr.FromInt(9090),
+		Query:    promQL,
+		Minimize: true,
+		Name:     obj.Name,
+		Min:      obj.Min,
+		Max:      obj.Max,
+		Optimize: obj.Optimize,
+	}
 }

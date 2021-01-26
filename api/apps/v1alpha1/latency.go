@@ -28,12 +28,14 @@ import (
 
 // FixLatency returns a constant value from a user entered value.
 func FixLatency(in LatencyType) LatencyType {
-	switch strings.Map(func(r rune) rune {
+	effectiveName := strings.Map(func(r rune) rune {
 		if !unicode.IsLetter(r) && !unicode.IsDigit(r) {
 			return -1
 		}
-		return unicode.ToLower(r)
-	}, string(in)) {
+		return toName(r)
+	}, string(in))
+
+	switch effectiveName {
 
 	case "minimum", "min":
 		return LatencyMinimum

@@ -95,13 +95,14 @@ func (g *Generator) Generate() (*corev1.List, error) {
 		return nil, err
 	}
 
-	// Add metrics based on the objectives of the application
-	if err := g.addObjectives(list); err != nil {
+	// Add a trial job based on the scenario of the application
+	// NOTE: Some objectives may have scenario specific implementations which will also be implemented
+	if err := g.addScenario(arm, list); err != nil {
 		return nil, err
 	}
 
-	// Add a trial job based on the scenario of the application
-	if err := g.addScenario(arm, list); err != nil {
+	// Add metrics based on the objectives of the application
+	if err := g.addObjectives(list); err != nil {
 		return nil, err
 	}
 
