@@ -22,7 +22,6 @@ import (
 	"strings"
 
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/generate/experiment/k8s"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/generate/experiment/prometheus"
 	corev1 "k8s.io/api/core/v1"
@@ -36,11 +35,21 @@ const requestsQueryFormat = `({{ cpuRequests . %s }} * %d) + ({{ memoryRequests 
 
 func (g *Generator) addObjectives(list *corev1.List) error {
 	for i := range g.Application.Objectives {
+		// Skip over objectives which have already been implemented using scenario specific logic
+		if g.Application.Objectives[i].Implemented {
+			continue
+		}
+
 		obj := &g.Application.Objectives[i]
 		switch {
 
 		case obj.Requests != nil:
 			if err := addRequestsMetric(obj, list); err != nil {
+				return err
+			}
+
+		case obj.Duration != nil:
+			if err := addDurationMetric(obj, list); err != nil {
 				return err
 			}
 
@@ -51,6 +60,7 @@ func (g *Generator) addObjectives(list *corev1.List) error {
 }
 
 func addRequestsMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) error {
+	// Generate the query
 	ms := strconv.Quote(obj.Requests.MetricSelector)
 
 	cpuWeight := obj.Requests.Weights.Cpu()
@@ -63,42 +73,45 @@ func addRequestsMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) err
 		memoryWeight = &zero
 	}
 
+	query := fmt.Sprintf(requestsQueryFormat, ms, cpuWeight.Value(), ms, memoryWeight.Value())
+
 	// Add the cost metric to the experiment
+	req := k8s.NewObjectiveMetric(obj, query)
 	exp := k8s.FindOrAddExperiment(list)
-	exp.Spec.Metrics = append(exp.Spec.Metrics, redskyv1beta1.Metric{
-		Name:     obj.Name,
-		Minimize: true,
-		Type:     redskyv1beta1.MetricPrometheus,
-		Port:     intstr.FromInt(9090),
-		Query:    fmt.Sprintf(requestsQueryFormat, ms, cpuWeight.Value(), ms, memoryWeight.Value()),
-		Min:      obj.Min,
-		Max:      obj.Max,
-		Optimize: obj.Optimize,
-	})
-	obj.Implemented = true
+	exp.Spec.Metrics = append(exp.Spec.Metrics, req)
 
 	// If the name contains "cost" and the weights are non-zero, add non-optimized metrics for each request
 	if strings.Contains(obj.Name, "cost") && !cpuWeight.IsZero() && !memoryWeight.IsZero() && (obj.Optimize == nil || *obj.Optimize) {
 		nonOptimized := false
-		exp.Spec.Metrics = append(exp.Spec.Metrics, redskyv1beta1.Metric{
-			Name:     obj.Name + "-cpu-requests",
-			Minimize: true,
-			Optimize: &nonOptimized,
-			Type:     redskyv1beta1.MetricPrometheus,
-			Port:     intstr.FromInt(9090),
-			Query:    fmt.Sprintf("{{ cpuRequests . %s }}", ms),
-		}, redskyv1beta1.Metric{
-			Name:     obj.Name + "-memory-requests",
-			Minimize: true,
-			Optimize: &nonOptimized,
-			Type:     redskyv1beta1.MetricPrometheus,
-			Port:     intstr.FromInt(9090),
-			Query:    fmt.Sprintf("{{ memoryRequests . %s | GB }}", ms),
-		})
+		exp.Spec.Metrics = append(exp.Spec.Metrics,
+			k8s.NewObjectiveMetric(&redskyappsv1alpha1.Objective{
+				Name:     req.Name + "-cpu-requests",
+				Optimize: &nonOptimized,
+			}, fmt.Sprintf("{{ cpuRequests . %s }}", ms)),
+			k8s.NewObjectiveMetric(&redskyappsv1alpha1.Objective{
+				Name:     req.Name + "-memory-requests",
+				Optimize: &nonOptimized,
+			}, fmt.Sprintf("{{ memoryRequests . %s | GB }}", ms)),
+		)
 	}
 
 	// The cost metric requires Prometheus
 	prometheus.AddSetupTask(list)
+
+	return nil
+}
+
+func addDurationMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) error {
+	if obj.Duration.DurationType != redskyappsv1alpha1.DurationTrial {
+		return nil
+	}
+
+	m := k8s.NewObjectiveMetric(obj, `{{ duration .StartTime .CompletionTime }}`)
+	m.Type = ""
+	m.Port = intstr.FromInt(0)
+
+	exp := k8s.FindOrAddExperiment(list)
+	exp.Spec.Metrics = append(exp.Spec.Metrics, m)
 
 	return nil
 }

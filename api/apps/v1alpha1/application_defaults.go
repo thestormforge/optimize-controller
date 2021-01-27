@@ -24,7 +24,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 func init() {
@@ -34,6 +33,7 @@ func init() {
 const (
 	StormForgerAccessTokenSecretName = "stormforger-service-account"
 	StormForgerAccessTokenSecretKey  = "accessToken"
+	defaultName                      = "default"
 )
 
 // Register the defaulting function for the application root object.
@@ -41,8 +41,6 @@ func RegisterDefaults(s *runtime.Scheme) error {
 	s.AddTypeDefaultingFunc(&Application{}, func(obj interface{}) { obj.(*Application).Default() })
 	return nil
 }
-
-var _ admission.Defaulter = &Application{}
 
 func (in *Application) Default() {
 	for i := range in.Scenarios {
@@ -55,22 +53,19 @@ func (in *Application) Default() {
 
 	in.StormForger.Default()
 
+	// Count the number of objectives, this is necessary to accurately compute experiment names
 	in.initialObjectiveCount = len(in.Objectives)
 }
 
 func (in *Scenario) Default() {
 	if in.Name == "" {
-		if in.StormForger != nil && in.StormForger.TestCase != "" {
-			in.Name = cleanName(in.StormForger.TestCase)
-		} else if in.StormForger != nil && in.StormForger.TestCaseFile != "" {
-			in.Name = cleanName(in.StormForger.TestCaseFile)
-		} else if in.Locust != nil && in.Locust.Locustfile != "" {
-			in.Name = cleanName(in.Locust.Locustfile)
-			if in.Name == "locustfile" {
-				in.Name = "default"
-			}
-		} else {
-			in.Name = "default"
+		switch {
+		case in.StormForger != nil:
+			in.Name = defaultScenarioName(in.StormForger.TestCase, in.StormForger.TestCaseFile)
+		case in.Locust != nil:
+			in.Name = defaultScenarioName(in.Locust.Locustfile)
+		default:
+			in.Name = defaultName
 		}
 	}
 }
@@ -103,66 +98,88 @@ func (in *StormForgerAccessToken) Default() {
 }
 
 func (in *Objective) Default() {
-	switch strings.ToLower(in.Name) {
+	// If there is no explicit configuration, create it by parsing the name
+	if in.Name != "" && in.needsConfig() {
+		switch strings.Map(toName, in.Name) {
 
-	case "cost":
-		// TODO This should be smart enough to know if there is application wide cloud provider configuration
-		defaultRequestsObjectiveWeights(in, corev1.ResourceList{
-			corev1.ResourceCPU:    resource.MustParse("17"),
-			corev1.ResourceMemory: resource.MustParse("3"),
-		})
-
-	case "cost-gcp", "gcp-cost":
-		defaultRequestsObjectiveWeights(in, corev1.ResourceList{
-			corev1.ResourceCPU:    resource.MustParse("17"),
-			corev1.ResourceMemory: resource.MustParse("2"),
-		})
-
-	case "cost-aws", "aws-cost":
-		defaultRequestsObjectiveWeights(in, corev1.ResourceList{
-			corev1.ResourceCPU:    resource.MustParse("18"),
-			corev1.ResourceMemory: resource.MustParse("5"),
-		})
-
-	case "cpu-requests", "cpu":
-		defaultRequestsObjectiveWeights(in, corev1.ResourceList{
-			corev1.ResourceCPU: resource.MustParse("1"),
-		})
-
-	case "memory-requests", "memory":
-		defaultRequestsObjectiveWeights(in, corev1.ResourceList{
-			corev1.ResourceMemory: resource.MustParse("1"),
-		})
-
-	case "error-rate", "error-ratio", "errors":
-		defaultErrorRateObjective(in, ErrorRateRequests)
-
-	default:
-
-		latency := LatencyType(strings.ReplaceAll(in.Name, "latency", ""))
-		latency = FixLatency(latency)
-		if latency != "" {
-			defaultLatencyObjective(in, latency)
-		}
-
-		if in.Requests != nil && in.Requests.Weights == nil {
+		case "cost":
+			// TODO This should be smart enough to know if there is application wide cloud provider configuration
 			defaultRequestsObjectiveWeights(in, corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("1"),
+				corev1.ResourceCPU:    resource.MustParse("17"),
+				corev1.ResourceMemory: resource.MustParse("3"),
+			})
+
+		case "cost-gcp", "gcp-cost":
+			defaultRequestsObjectiveWeights(in, corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("17"),
+				corev1.ResourceMemory: resource.MustParse("2"),
+			})
+
+		case "cost-aws", "aws-cost":
+			defaultRequestsObjectiveWeights(in, corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("18"),
+				corev1.ResourceMemory: resource.MustParse("5"),
+			})
+
+		case "cpu-requests", "cpu":
+			defaultRequestsObjectiveWeights(in, corev1.ResourceList{
+				corev1.ResourceCPU: resource.MustParse("1"),
+			})
+
+		case "memory-requests", "memory":
+			defaultRequestsObjectiveWeights(in, corev1.ResourceList{
 				corev1.ResourceMemory: resource.MustParse("1"),
 			})
-		}
 
-		if in.Name == "" {
-			defaultObjectiveName(in)
+		case "error-rate", "error-ratio", "errors":
+			defaultErrorRateObjective(in, ErrorRateRequests)
+
+		case "duration", "time", "time-elapsed", "elapsed-time":
+			defaultDurationObjective(in, DurationTrial)
+
+		default:
+			latencyName := strings.ReplaceAll(strings.Map(toName, in.Name), "latency", "")
+			if l := FixLatency(LatencyType(latencyName)); l != "" {
+				defaultLatencyObjective(in, l)
+			}
+		}
+	}
+
+	// If there are no explicit request weights, use 1
+	if in.Requests != nil && in.Requests.Weights == nil {
+		defaultRequestsObjectiveWeights(in, corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("1"),
+			corev1.ResourceMemory: resource.MustParse("1"),
+		})
+	}
+
+	// Default the name only after the rest of the state is consistent
+	if in.Name == "" {
+		switch {
+		case in.Requests != nil:
+			in.Name = defaultObjectiveName("requests")
+		case in.Latency != nil:
+			in.Name = defaultObjectiveName("latency", string(in.Latency.LatencyType))
+		case in.ErrorRate != nil:
+			in.Name = defaultObjectiveName("error-rate")
+		case in.Duration != nil:
+			in.Name = defaultObjectiveName("duration")
+		default:
+			// Do nothing, unlike a scenario, an empty objective is allowed to have an empty name
 		}
 	}
 }
 
+// needsConfig tests the objective to see if at least one configuration section is specified.
+func (in *Objective) needsConfig() bool {
+	return in.Requests == nil &&
+		in.Latency == nil &&
+		in.ErrorRate == nil &&
+		in.Duration == nil
+}
+
 func defaultRequestsObjectiveWeights(obj *Objective, weights corev1.ResourceList) {
 	if obj.Requests == nil {
-		if countConfigs(obj) != 0 {
-			return
-		}
 		obj.Requests = &RequestsObjective{}
 	}
 
@@ -179,9 +196,6 @@ func defaultRequestsObjectiveWeights(obj *Objective, weights corev1.ResourceList
 
 func defaultLatencyObjective(obj *Objective, latency LatencyType) {
 	if obj.Latency == nil {
-		if countConfigs(obj) != 0 {
-			return
-		}
 		obj.Latency = &LatencyObjective{}
 	}
 
@@ -192,9 +206,6 @@ func defaultLatencyObjective(obj *Objective, latency LatencyType) {
 
 func defaultErrorRateObjective(obj *Objective, errorRate ErrorRateType) {
 	if obj.ErrorRate == nil {
-		if countConfigs(obj) != 0 {
-			return
-		}
 		obj.ErrorRate = &ErrorRateObjective{}
 	}
 
@@ -203,37 +214,51 @@ func defaultErrorRateObjective(obj *Objective, errorRate ErrorRateType) {
 	}
 }
 
-func defaultObjectiveName(obj *Objective) {
-	switch {
-	case obj.Requests != nil:
-		obj.Name = "requests"
-	case obj.Latency != nil:
-		obj.Name = "latency-" + string(obj.Latency.LatencyType)
-	case obj.ErrorRate != nil:
-		obj.Name = "error-rate"
+func defaultDurationObjective(obj *Objective, duration DurationType) {
+	if obj.Duration == nil {
+		obj.Duration = &DurationObjective{}
+	}
+
+	if obj.Duration.DurationType == "" {
+		obj.Duration.DurationType = duration
 	}
 }
 
-func countConfigs(obj *Objective) int {
-	var c int
-	if obj.Requests != nil {
-		c++
+func defaultScenarioName(values ...string) string {
+	for _, in := range values {
+		name := filepath.Base(in)
+		if name == "." || name == "locustfile.py" {
+			continue
+		}
+
+		name = strings.TrimSuffix(name, filepath.Ext(name))
+		name = strings.Map(toName, name)
+
+		return name
 	}
-	if obj.Latency != nil {
-		c++
-	}
-	if obj.ErrorRate != nil {
-		c++
-	}
-	return c
+
+	return defaultName
 }
 
-func cleanName(in string) string {
-	name := filepath.Base(in)
-	name = strings.TrimSuffix(name, filepath.Ext(name))
-	name = strings.Map(func(r rune) rune {
-		// TODO Other special characters?
-		return unicode.ToLower(r)
-	}, name)
-	return name
+func defaultObjectiveName(values ...string) string {
+	nonEmpty := values[:0]
+	for _, v := range values {
+		if v != "" {
+			nonEmpty = append(nonEmpty, v)
+		}
+	}
+
+	if len(nonEmpty) > 0 {
+		return strings.Join(nonEmpty, "-")
+	}
+
+	return defaultName
+}
+
+func toName(r rune) rune {
+	// TODO Other special characters?
+	if r == '_' {
+		return '-'
+	}
+	return unicode.ToLower(r)
 }

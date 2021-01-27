@@ -140,6 +140,8 @@ type Objective struct {
 	Latency *LatencyObjective `json:"latency,omitempty"`
 	// ErrorRate is used to optimize the failure rate of an application.
 	ErrorRate *ErrorRateObjective `json:"errorRate,omitempty"`
+	// Duration is used to optimize the elapsed time of an application performing a fixed amount of work.
+	Duration *DurationObjective `json:"duration,omitempty"`
 
 	// Internal use field for marking objectives as having been implemented. For example,
 	// it may be impossible to optimize for some objectives based on the current state.
@@ -196,6 +198,24 @@ type ErrorRateType string
 
 const (
 	ErrorRateRequests ErrorRateType = "requests"
+)
+
+// DurationObjective is used to optimize the amount of time elapsed in a specific scenario.
+type DurationObjective struct {
+	// The duration to optimize. Can be one of the following values: `trial`.
+	DurationType
+}
+
+// UnmarshalJSON allows a timing objective to be specified as a simple string.
+func (in *DurationObjective) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &in.DurationType)
+}
+
+// DurationType describes something which occurs over an arbitrary time interval.
+type DurationType string
+
+const (
+	DurationTrial DurationType = "trial"
 )
 
 // StormForger describes global configuration related to StormForger.

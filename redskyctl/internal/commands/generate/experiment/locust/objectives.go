@@ -18,10 +18,8 @@ package locust
 
 import (
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/generate/experiment/k8s"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // addLocustObjectives adds metrics for objectives supported by Locust.
@@ -62,19 +60,10 @@ func addLocustLatencyMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List
 		return
 	}
 
-	// Filter the metric to match what was sent to the Push Gateway
+	query := `scalar(` + m + `{job="trialRun",instance="{{ .Trial.Name }}"})`
+
 	exp := k8s.FindOrAddExperiment(list)
-	exp.Spec.Metrics = append(exp.Spec.Metrics, redskyv1beta1.Metric{
-		Name:     obj.Name,
-		Minimize: true,
-		Type:     redskyv1beta1.MetricPrometheus,
-		Port:     intstr.FromInt(9090),
-		Query:    `scalar(` + m + `{job="trialRun",instance="{{ .Trial.Name }}"})`,
-		Min:      obj.Min,
-		Max:      obj.Max,
-		Optimize: obj.Optimize,
-	})
-	obj.Implemented = true
+	exp.Spec.Metrics = append(exp.Spec.Metrics, k8s.NewObjectiveMetric(obj, query))
 }
 
 func addLocustErrorRateMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) {
@@ -83,16 +72,8 @@ func addLocustErrorRateMetric(obj *redskyappsv1alpha1.Objective, list *corev1.Li
 		return
 	}
 
+	query := `scalar(failure_count{job="trialRun",instance="{{ .Trial.Name }}"} / request_count{job="trialRun",instance="{{ .Trial.Name }}"})`
+
 	exp := k8s.FindOrAddExperiment(list)
-	exp.Spec.Metrics = append(exp.Spec.Metrics, redskyv1beta1.Metric{
-		Name:     obj.Name,
-		Minimize: true,
-		Type:     redskyv1beta1.MetricPrometheus,
-		Port:     intstr.FromInt(9090),
-		Query:    `scalar(failure_count{job="trialRun",instance="{{ .Trial.Name }}"} / request_count{job="trialRun",instance="{{ .Trial.Name }}"})`,
-		Min:      obj.Min,
-		Max:      obj.Max,
-		Optimize: obj.Optimize,
-	})
-	obj.Implemented = true
+	exp.Spec.Metrics = append(exp.Spec.Metrics, k8s.NewObjectiveMetric(obj, query))
 }
