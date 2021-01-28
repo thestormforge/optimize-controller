@@ -43,7 +43,14 @@ type ResourceTarget struct {
 
 // GroupVersionKind returns the GVK for the target reference.
 func (r *ResourceTarget) GroupVersionKind() schema.GroupVersionKind {
-	return schema.FromAPIVersionAndKind(r.APIVersion, r.Kind)
+	// NOTE: schema.FromAPIVersionAndKind is discouraged and neglects the default "v1" case
+	if r.APIVersion == "" {
+		return schema.GroupVersionKind{Version: "v1", Kind: r.Kind}
+	}
+	if gv, err := schema.ParseGroupVersion(r.APIVersion); err == nil {
+		return gv.WithKind(r.Kind)
+	}
+	return schema.GroupVersionKind{Kind: r.Kind}
 }
 
 // NamespacedName returns the namespaced name for the target reference.
