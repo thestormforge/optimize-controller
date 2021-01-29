@@ -44,8 +44,15 @@ func TestToIntWithRange(t *testing.T) {
 			name:     corev1.ResourceCPU,
 			input:    "250m",
 			baseline: 250,
-			min:      125,
+			min:      120,
 			max:      500,
+		},
+		{
+			name:     corev1.ResourceCPU,
+			input:    "2505m",
+			baseline: 2505,
+			min:      1250,
+			max:      5020,
 		},
 		{
 			name:     corev1.ResourceCPU,

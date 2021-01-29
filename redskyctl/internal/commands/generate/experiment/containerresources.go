@@ -233,8 +233,8 @@ func toIntWithRange(name corev1.ResourceName, q resource.Quantity) (value *intst
 		max = int32(math.Pow(2, math.Ceil(math.Log2(float64(scaled.IntVal*2)))))
 	case corev1.ResourceCPU:
 		scaled = intstr.FromInt(int(q.ScaledValue(resource.Milli)))
-		min = int32((float64(scaled.IntVal) / 200) * 100)
-		max = int32((float64(scaled.IntVal) / 50) * 100)
+		min = int32(math.Floor(float64(scaled.IntVal)/20)) * 10
+		max = int32(math.Ceil(float64(scaled.IntVal)/10)) * 20
 	}
 
 	return &scaled, min, max
