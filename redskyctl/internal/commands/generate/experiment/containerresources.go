@@ -186,17 +186,11 @@ func (r *applicationResource) containerResourcesParameters(name nameGen) []redsk
 		var minCPU, maxCPU int32 = 100, 4000
 
 		if q, ok := r.containerResources[i][corev1.ResourceMemory]; ok {
-			scaled := intstr.FromInt(int(q.ScaledValue(resource.Mega)))
-			baselineMemory = &scaled
-			minMemory = int32(math.Pow(2, math.Ceil(math.Log2(float64(scaled.IntVal/2)))))
-			maxMemory = int32(math.Pow(2, math.Ceil(math.Log2(float64(scaled.IntVal*2)))))
+			baselineMemory, minMemory, maxMemory = toIntWithRange(corev1.ResourceMemory, q)
 		}
 
 		if q, ok := r.containerResources[i][corev1.ResourceCPU]; ok {
-			scaled := intstr.FromInt(int(q.ScaledValue(resource.Milli)))
-			baselineCPU = &scaled
-			minCPU = int32(float64(scaled.IntVal/200) * 100)
-			maxCPU = int32(float64(scaled.IntVal/50) * 100)
+			baselineCPU, minCPU, maxCPU = toIntWithRange(corev1.ResourceCPU, q)
 		}
 
 		parameters = append(parameters, redskyv1beta1.Parameter{
@@ -226,4 +220,22 @@ func materializeResourceList(node *yaml.MapNode) corev1.ResourceList {
 		}
 	}
 	return resources.Requests
+}
+
+// toIntWithRange returns the quantity as an int value with a default range.
+func toIntWithRange(name corev1.ResourceName, q resource.Quantity) (value *intstr.IntOrString, min int32, max int32) {
+	var scaled intstr.IntOrString
+
+	switch name {
+	case corev1.ResourceMemory:
+		scaled = intstr.FromInt(int(q.ScaledValue(resource.Mega)))
+		min = int32(math.Pow(2, math.Ceil(math.Log2(float64(scaled.IntVal/2)))))
+		max = int32(math.Pow(2, math.Ceil(math.Log2(float64(scaled.IntVal*2)))))
+	case corev1.ResourceCPU:
+		scaled = intstr.FromInt(int(q.ScaledValue(resource.Milli)))
+		min = int32((float64(scaled.IntVal) / 200) * 100)
+		max = int32((float64(scaled.IntVal) / 50) * 100)
+	}
+
+	return &scaled, min, max
 }
