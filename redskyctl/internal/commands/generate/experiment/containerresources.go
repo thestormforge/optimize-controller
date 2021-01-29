@@ -18,6 +18,7 @@ package experiment
 
 import (
 	"encoding/json"
+	"math"
 	"regexp"
 
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
@@ -181,17 +182,22 @@ func (r *applicationResource) containerResourcesParameters(name nameGen) []redsk
 	parameters := make([]redskyv1beta1.Parameter, 0, len(r.containerResourcesPaths)*2)
 	for i := range r.containerResourcesPaths {
 		var baselineMemory, baselineCPU *intstr.IntOrString
+		var minMemory, maxMemory int32 = 128, 4096
+		var minCPU, maxCPU int32 = 100, 4000
+
 		if q, ok := r.containerResources[i][corev1.ResourceMemory]; ok {
 			scaled := intstr.FromInt(int(q.ScaledValue(resource.Mega)))
 			baselineMemory = &scaled
+			minMemory = int32(math.Pow(2, math.Ceil(math.Log2(float64(scaled.IntVal/2)))))
+			maxMemory = int32(math.Pow(2, math.Ceil(math.Log2(float64(scaled.IntVal*2)))))
 		}
-		var minMemory, maxMemory int32 = 128, 4096
 
 		if q, ok := r.containerResources[i][corev1.ResourceCPU]; ok {
 			scaled := intstr.FromInt(int(q.ScaledValue(resource.Milli)))
 			baselineCPU = &scaled
+			minCPU = int32(float64(scaled.IntVal/200) * 100)
+			maxCPU = int32(float64(scaled.IntVal/50) * 100)
 		}
-		var minCPU, maxCPU int32 = 100, 4000
 
 		parameters = append(parameters, redskyv1beta1.Parameter{
 			Name:     name(&r.targetRef, r.containerResourcesPaths[i], "memory"),
