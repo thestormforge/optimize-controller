@@ -1,17 +1,17 @@
 /*
- Copyright 2021 GramLabs, Inc.
+Copyright 2021 GramLabs, Inc.
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-     http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 */
 
 package experiment
@@ -99,6 +99,20 @@ func TestToIntWithRange(t *testing.T) {
 		{
 			name:     corev1.ResourceMemory,
 			input:    "4000M",
+			baseline: 4000,
+			min:      1024,
+			max:      8192,
+		},
+		{
+			name:     corev1.ResourceMemory,
+			input:    "4Gi",
+			baseline: 4295,
+			min:      2048,
+			max:      16384,
+		},
+		{
+			name:     corev1.ResourceMemory,
+			input:    "4G",
 			baseline: 4000,
 			min:      1024,
 			max:      8192,
