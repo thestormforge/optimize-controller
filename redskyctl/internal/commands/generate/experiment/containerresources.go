@@ -229,7 +229,7 @@ func toIntWithRange(name corev1.ResourceName, q resource.Quantity) (value *intst
 	switch name {
 	case corev1.ResourceMemory:
 		scaled = intstr.FromInt(int(q.ScaledValue(resource.Mega)))
-		min = int32(math.Pow(2, math.Ceil(math.Log2(float64(scaled.IntVal/2)))))
+		min = int32(math.Pow(2, math.Floor(math.Log2(float64(scaled.IntVal/2)))))
 		max = int32(math.Pow(2, math.Ceil(math.Log2(float64(scaled.IntVal*2)))))
 	case corev1.ResourceCPU:
 		scaled = intstr.FromInt(int(q.ScaledValue(resource.Milli)))

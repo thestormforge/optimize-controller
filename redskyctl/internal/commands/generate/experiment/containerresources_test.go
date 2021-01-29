@@ -58,14 +58,14 @@ func TestToIntWithRange(t *testing.T) {
 			name:     corev1.ResourceMemory,
 			input:    "64Mi",
 			baseline: 68,
-			min:      64,
+			min:      32,
 			max:      256,
 		},
 		{
 			name:     corev1.ResourceMemory,
 			input:    "128Mi",
 			baseline: 135,
-			min:      128,
+			min:      64,
 			max:      512,
 		},
 		{
@@ -93,14 +93,14 @@ func TestToIntWithRange(t *testing.T) {
 			name:     corev1.ResourceMemory,
 			input:    "4000Mi",
 			baseline: 4195,
-			min:      4096,
+			min:      2048,
 			max:      16384,
 		},
 		{
 			name:     corev1.ResourceMemory,
 			input:    "4000M",
 			baseline: 4000,
-			min:      2048,
+			min:      1024,
 			max:      8192,
 		},
 	}
