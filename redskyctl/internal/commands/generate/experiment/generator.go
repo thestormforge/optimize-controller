@@ -27,6 +27,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"sigs.k8s.io/kustomize/api/filesys"
+	"sigs.k8s.io/kustomize/api/hasher"
 )
 
 // Generator generates an application experiment.
@@ -106,6 +107,10 @@ func (g *Generator) Generate() (*corev1.List, error) {
 		return nil, err
 	}
 
+	// We need to ensure cluster resources have a unique name based on the experiment to avoid conflict
+	experimentName := application.ExperimentName(&g.Application)
+	clusterRoleNameSuffix := fmt.Sprintf("-%s", hasher.Hash(experimentName)[0:6])
+
 	// Update the metadata of the generated objects
 	for i := range list.Items {
 		// Get a generic accessor for the list item
@@ -124,10 +129,15 @@ func (g *Generator) Generate() (*corev1.List, error) {
 
 		case *redskyv1beta1.Experiment:
 			acc.SetNamespace(g.Application.Namespace)
-			acc.SetName(application.ExperimentName(&g.Application))
+			acc.SetName(experimentName)
 			labelExperiment(&g.Application, obj)
 
+		case *rbacv1.ClusterRole:
+			obj.Name += clusterRoleNameSuffix
+
 		case *rbacv1.ClusterRoleBinding:
+			obj.Name += clusterRoleNameSuffix
+			obj.RoleRef.Name += clusterRoleNameSuffix
 			for i := range obj.Subjects {
 				if obj.Subjects[i].Namespace == "" {
 					obj.Subjects[i].Namespace = g.Application.Namespace
