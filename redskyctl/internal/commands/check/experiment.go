@@ -19,6 +19,7 @@ package check
 import (
 	"context"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -86,16 +87,32 @@ func (o *ExperimentOptions) checkExperiment(ctx context.Context) error {
 		return err
 	}
 
-	// Create a logger for reporting issues
-	// NOTE: We are using logr and zap because that is what controller-runtime uses (zap could probably go)
-	logger := zapr.NewLogger(zap.New(zapcore.NewCore(zapcore.NewConsoleEncoder(zapcore.EncoderConfig{
-		MessageKey:  "msg",
-		LevelKey:    "level",
-		EncodeLevel: zapcore.LowercaseColorLevelEncoder,
-	}), zapcore.AddSync(o.ErrOut), zapcore.ErrorLevel)))
+	// Create a zapr logger for reporting issues
+	// NOTE: We are using logr and zap because that is what controller-runtime uses
+	var hasError bool
+	logger := zapr.NewLogger(zap.New(zapcore.NewCore(zapcore.NewConsoleEncoder(
+		zapcore.EncoderConfig{
+			MessageKey:  "msg",
+			LevelKey:    "level",
+			EncodeLevel: zapcore.LowercaseColorLevelEncoder,
+		}),
+		zapcore.AddSync(o.ErrOut),
+		zapcore.ErrorLevel),
+		zap.Hooks(func(e zapcore.Entry) error {
+			if e.Level == zapcore.ErrorLevel {
+				hasError = true
+			}
+			return nil
+		})))
 
 	// Use a linter to inspect the experiment
 	experiment.Walk(ctx, &linter{logger: logger}, exp)
+
+	// TODO Ideally we would just return an error here, but it would look strange alongside the other output
+	if hasError {
+		os.Exit(1)
+	}
+
 	return nil
 }
 
@@ -132,7 +149,16 @@ func (l *linter) Visit(ctx context.Context, obj interface{}) experiment.Visitor 
 		}
 
 	case *redskyv1beta1.Metric:
-		// TODO Check that type is one of the allowed values
+		switch o.Type {
+		case
+			redskyv1beta1.MetricKubernetes,
+			redskyv1beta1.MetricPrometheus,
+			redskyv1beta1.MetricJSONPath,
+			redskyv1beta1.MetricDatadog,
+			"": // Type is valid
+		default:
+			lint.V(vError).Info("Metric type is invalid", "type", o.Type)
+		}
 
 		if o.Query == "" {
 			lint.V(vError).Info("Metric query is required")
@@ -147,7 +173,10 @@ func (l *linter) Visit(ctx context.Context, obj interface{}) experiment.Visitor 
 				if !strings.Contains(q, "{") {
 					lint.V(vWarn).Info("JSON Path query should contain an {} expression", "query", o.Query)
 				}
-				// TODO Check if "scalar" is present on PromQL?
+			case redskyv1beta1.MetricPrometheus:
+				if !strings.Contains(q, "scalar") {
+					lint.V(vWarn).Info("Prometheus query may require explicit scalar conversion", "query", o.Query)
+				}
 			}
 		}
 
@@ -228,14 +257,11 @@ func isCoreKind(kind string) bool {
 }
 
 func metricQueryDryRun(m *redskyv1beta1.Metric) (string, string, error) {
-	t := &redskyv1beta1.Trial{}
-
 	// Try to dummy out the target object to avoid failures
-	var target *unstructured.Unstructured
+	target := &unstructured.Unstructured{}
 	if m.Target != nil {
-		target = &unstructured.Unstructured{}
 		target.SetGroupVersionKind(m.Target.GroupVersionKind())
 	}
 
-	return template.New().RenderMetricQueries(m, t, target)
+	return template.New().RenderMetricQueries(m, &redskyv1beta1.Trial{}, target)
 }
