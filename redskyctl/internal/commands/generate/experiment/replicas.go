@@ -154,6 +154,16 @@ func (r *applicationResource) replicasParameters(name nameGen) []redskyv1beta1.P
 		baselineReplicas := intstr.FromInt(int(r.replicas[i]))
 		var minReplicas, maxReplicas int32 = 1, 5
 
+		// Do not explicitly enable something that was disabled
+		if baselineReplicas.IntVal <= 0 {
+			continue
+		}
+
+		// Only adjust the max replica count if necessary
+		if baselineReplicas.IntVal > maxReplicas {
+			maxReplicas = baselineReplicas.IntVal
+		}
+
 		parameters = append(parameters, redskyv1beta1.Parameter{
 			Name:     name(&r.targetRef, r.replicaPaths[i], "replicas"),
 			Min:      minReplicas,

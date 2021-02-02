@@ -18,6 +18,7 @@ package experiment
 
 import (
 	"encoding/json"
+	"math"
 	"regexp"
 
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
@@ -180,18 +181,8 @@ func (r *applicationResource) saveContainerResourcesPaths(node *yaml.RNode, sel 
 func (r *applicationResource) containerResourcesParameters(name nameGen) []redskyv1beta1.Parameter {
 	parameters := make([]redskyv1beta1.Parameter, 0, len(r.containerResourcesPaths)*2)
 	for i := range r.containerResourcesPaths {
-		var baselineMemory, baselineCPU *intstr.IntOrString
-		if q, ok := r.containerResources[i][corev1.ResourceMemory]; ok {
-			scaled := intstr.FromInt(int(q.ScaledValue(resource.Mega)))
-			baselineMemory = &scaled
-		}
-		var minMemory, maxMemory int32 = 128, 4096
-
-		if q, ok := r.containerResources[i][corev1.ResourceCPU]; ok {
-			scaled := intstr.FromInt(int(q.ScaledValue(resource.Milli)))
-			baselineCPU = &scaled
-		}
-		var minCPU, maxCPU int32 = 100, 4000
+		baselineMemory, minMemory, maxMemory := toIntWithRange(r.containerResources[i], corev1.ResourceMemory)
+		baselineCPU, minCPU, maxCPU := toIntWithRange(r.containerResources[i], corev1.ResourceCPU)
 
 		parameters = append(parameters, redskyv1beta1.Parameter{
 			Name:     name(&r.targetRef, r.containerResourcesPaths[i], "memory"),
@@ -220,4 +211,41 @@ func materializeResourceList(node *yaml.MapNode) corev1.ResourceList {
 		}
 	}
 	return resources.Requests
+}
+
+// toIntWithRange returns the quantity as an int value with a default range.
+func toIntWithRange(resources corev1.ResourceList, name corev1.ResourceName) (value *intstr.IntOrString, min int32, max int32) {
+	q, ok := resources[name]
+	if ok {
+		value = new(intstr.IntOrString)
+	}
+
+	switch name {
+	case corev1.ResourceMemory:
+		min, max = 128, 4096
+		if value != nil {
+			*value = intstr.FromInt(int(q.ScaledValue(resource.Mega)))
+			min = int32(math.Pow(2, math.Floor(math.Log2(float64(value.IntVal/2)))))
+			setMax(&max, value.IntVal, int32(math.Pow(2, math.Ceil(math.Log2(float64(value.IntVal*2))))))
+		}
+
+	case corev1.ResourceCPU:
+		min, max = 100, 4000
+		if value != nil {
+			*value = intstr.FromInt(int(q.ScaledValue(resource.Milli)))
+			min = int32(math.Floor(float64(value.IntVal)/20)) * 10
+			setMax(&max, value.IntVal, int32(math.Ceil(float64(value.IntVal)/10))*20)
+		}
+	}
+
+	return value, min, max
+}
+
+// setMax ensures the computed upper bound is capped by the larger of the baseline value or the default maximum.
+func setMax(m *int32, v, b int32) {
+	if v > *m {
+		*m = v
+	} else if b < *m {
+		*m = b
+	}
 }
