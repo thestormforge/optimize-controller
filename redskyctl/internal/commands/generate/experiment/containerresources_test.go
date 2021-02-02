@@ -52,7 +52,7 @@ func TestToIntWithRange(t *testing.T) {
 			input:    "2505m",
 			baseline: 2505,
 			min:      1250,
-			max:      5020,
+			max:      4000,
 		},
 		{
 			name:     corev1.ResourceCPU,
@@ -94,40 +94,41 @@ func TestToIntWithRange(t *testing.T) {
 			input:    "4.0",
 			baseline: 4000,
 			min:      2000,
-			max:      8000,
+			max:      4000,
 		},
 		{
 			name:     corev1.ResourceMemory,
 			input:    "4000Mi",
 			baseline: 4195,
 			min:      2048,
-			max:      16384,
+			max:      4195,
 		},
 		{
 			name:     corev1.ResourceMemory,
 			input:    "4000M",
 			baseline: 4000,
 			min:      1024,
-			max:      8192,
+			max:      4096,
 		},
 		{
 			name:     corev1.ResourceMemory,
 			input:    "4Gi",
 			baseline: 4295,
 			min:      2048,
-			max:      16384,
+			max:      4295,
 		},
 		{
 			name:     corev1.ResourceMemory,
 			input:    "4G",
 			baseline: 4000,
 			min:      1024,
-			max:      8192,
+			max:      4096,
 		},
 	}
 	for _, c := range cases {
 		t.Run(string(c.name)+c.input, func(t *testing.T) {
-			baseline, min, max := toIntWithRange(c.name, resource.MustParse(c.input))
+			resources := map[corev1.ResourceName]resource.Quantity{c.name: resource.MustParse(c.input)}
+			baseline, min, max := toIntWithRange(resources, c.name)
 			assert.Equal(t, c.baseline, baseline.IntVal, "baseline")
 			assert.Equal(t, c.min, min, "minimum")
 			assert.Equal(t, c.max, max, "maximum")
