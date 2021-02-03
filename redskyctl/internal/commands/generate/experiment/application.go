@@ -18,6 +18,7 @@ package experiment
 
 import (
 	"bytes"
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -44,6 +45,11 @@ type applicationResource struct {
 	replicaPaths [][]string
 	// replicas are the actual replica values found at the corresponding path index.
 	replicas []int32
+
+	// configMapPaths are the YAML paths to the values in the config map.
+	configMapPaths [][]string
+	// configMapValues describe the value of each config map key.
+	configMapValues []configMapValue
 }
 
 // saveTargetReference updates the resource reference from the supplied document node.
@@ -105,6 +111,21 @@ func (r *applicationResource) patch(name nameGen) (*redskyv1beta1.PatchTemplate,
 		}
 	}
 
+	for i := range r.configMapPaths {
+		value := yaml.NewScalarRNode(fmt.Sprintf("%s{{ .Values.%s }}%s",
+			r.configMapValues[i].Prefix,
+			name(&r.targetRef, nil, r.configMapPaths[i][1]),
+			r.configMapValues[i].Suffix))
+		value.YNode().Tag = r.configMapValues[i].Tag
+		value.YNode().Style = r.configMapValues[i].Style
+		if err := patch.PipeE(
+			&yaml.PathGetter{Path: r.configMapPaths[i], Create: yaml.ScalarNode},
+			yaml.FieldSetter{Value: value, OverrideStyle: true},
+		); err != nil {
+			return nil, err
+		}
+	}
+
 	// Render the patch and add it to the list of patches
 	var buf bytes.Buffer
 	if err := yaml.NewEncoder(&buf).Encode(patch.Document()); err != nil {
@@ -139,6 +160,7 @@ func patchExperiment(ars []*applicationResource, list *corev1.List) error {
 		exp.Spec.Patches = append(exp.Spec.Patches, *patch)
 		exp.Spec.Parameters = append(exp.Spec.Parameters, ar.containerResourcesParameters(name)...)
 		exp.Spec.Parameters = append(exp.Spec.Parameters, ar.replicasParameters(name)...)
+		exp.Spec.Parameters = append(exp.Spec.Parameters, ar.configMapParameters(name)...)
 	}
 
 	return nil
@@ -170,6 +192,16 @@ func mergeOrAppend(ars []*applicationResource, ar *applicationResource) []*appli
 
 			r.replicaPaths = append(r.replicaPaths, ar.replicaPaths[i])
 			r.replicas = append(r.replicas, ar.replicas[i])
+		}
+
+		// Merge the data keys
+		for i := range ar.configMapPaths {
+			if hasPath(r.configMapPaths, ar.configMapPaths[i]) {
+				continue
+			}
+
+			r.configMapPaths = append(r.configMapPaths, ar.configMapPaths[i])
+			r.configMapValues = append(r.configMapValues, ar.configMapValues[i])
 		}
 
 		return ars
