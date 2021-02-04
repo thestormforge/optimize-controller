@@ -68,13 +68,21 @@ func (g *Generator) SetDefaultSelectors() {
 		}
 	}
 
-	if g.Application.Parameters != nil && len(g.Application.Parameters.ConfigMaps) > 0 {
+	if g.Application.Parameters != nil {
 		for _, cm := range g.Application.Parameters.ConfigMaps {
+			nv := cm.NumericValue
+			if nv == nil {
+				nv = &redskyappsv1alpha1.NumericParameter{}
+			}
+
 			g.ConfigMapKeySelectors = append(g.ConfigMapKeySelectors, ConfigMapKeySelector{
 				Name:               cm.Name,
 				Key:                cm.Key,
-				NumericValue:       cm.NumericValue,
-				StringValue:        cm.StringValue,
+				NumericPrefix:      nv.Prefix,
+				NumericSuffix:      nv.Suffix,
+				NumericMin:         nv.Min,
+				NumericMax:         nv.Max,
+				StringValues:       cm.StringValue,
 				CreateIfNotPresent: true,
 			})
 		}

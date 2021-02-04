@@ -21,7 +21,6 @@ import (
 	"strconv"
 	"strings"
 
-	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/kustomize/api/resid"
@@ -45,11 +44,16 @@ type ConfigMapKeySelector struct {
 	Key string `json:"key,omitempty"`
 	// Create the config map entry even if the original object does not contain it.
 	CreateIfNotPresent bool `json:"create,omitempty"`
-
-	// Specification of a numeric value to optimize. Mutually exclusive with the string specification.
-	NumericValue *redskyappsv1alpha1.NumericParameter `json:"numericValue,omitempty"`
-	// Specification of possible string values. Mutually exclusive with the numeric specification.
-	StringValue redskyappsv1alpha1.StringParameter `json:"stringValue,omitempty"`
+	// Prefix for numeric values.
+	NumericPrefix string `json:"numericPrefix,omitempty"`
+	// Suffix for numeric values.
+	NumericSuffix string `json:"numericSuffix,omitempty"`
+	// The minimum numeric value.
+	NumericMin int32 `json:"numericMin,omitempty"`
+	// The maximum numeric value.
+	NumericMax int32 `json:"numericMax,omitempty"`
+	// The allowed string values.
+	StringValues []string `json:"stringValues,omitempty"`
 }
 
 // selector returns this selector as a Kustomize Selector.
@@ -138,43 +142,46 @@ func (r *applicationResource) saveConfigMapKeys(node *yaml.RNode, sel ConfigMapK
 	return node.PipeE(
 		yaml.Lookup(path...),
 		yaml.FilterFunc(func(node *yaml.RNode) (*yaml.RNode, error) {
-			if mn := node.Field(sel.Key); mn != nil || sel.CreateIfNotPresent {
-				cmv := configMapValue{}
-
-				if mn != nil {
-					cmv.Value = mn.Value.YNode().Value
-					cmv.Tag = mn.Value.YNode().Tag
-					cmv.Style = mn.Value.YNode().Style
-				}
-
-				// We need to verify that value we discovered in fact matches the specification requested. In theory
-				// non-matching keys could just be silently ignored, but that may lead to unexpected behavior in
-				// terms of missing parameters on the generated experiment: it is safer just to fail outright.
-
-				if sel.NumericValue != nil {
-					cmv.Prefix = sel.NumericValue.Prefix
-					cmv.Suffix = sel.NumericValue.Suffix
-					cmv.Min = sel.NumericValue.Min
-					cmv.Max = sel.NumericValue.Max
-
-					if v := cmv.cleanValue(); v != "" {
-						if d, err := strconv.ParseInt(v, 10, 32); err != nil {
-							return nil, fmt.Errorf("expected %q to be a numeric value", v)
-						} else if int32(d) < cmv.Min || int32(d) > cmv.Max {
-							return nil, fmt.Errorf("expected %q to be a numeric value in the range %d to %d", v, cmv.Min, cmv.Max)
-						}
-					}
-				} else {
-					cmv.Values = sel.StringValue
-
-					if v := cmv.cleanValue(); v != "" && !cmv.hasValue(v) {
-						return nil, fmt.Errorf("expected %q to be one of: %s", v, strings.Join(cmv.Values, ", "))
-					}
-				}
-
-				r.configMapPaths = append(r.configMapPaths, append(path, sel.Key))
-				r.configMapValues = append(r.configMapValues, cmv)
+			mn := node.Field(sel.Key)
+			if mn == nil && !sel.CreateIfNotPresent {
+				return nil, nil
 			}
+
+			cmv := configMapValue{}
+			if mn != nil {
+				cmv.Value = mn.Value.YNode().Value
+				cmv.Tag = mn.Value.YNode().Tag
+				cmv.Style = mn.Value.YNode().Style
+			}
+
+			// We need to verify that value we discovered in fact matches the specification requested. In theory
+			// non-matching keys could just be silently ignored, but that may lead to unexpected behavior in
+			// terms of missing parameters on the generated experiment: it is safer just to fail outright.
+
+			if sel.NumericMin > 0 || sel.NumericMax > 0 {
+				cmv.Prefix = sel.NumericPrefix
+				cmv.Suffix = sel.NumericSuffix
+				cmv.Min = sel.NumericMin
+				cmv.Max = sel.NumericMax
+
+				if v := cmv.cleanValue(); v != "" {
+					if d, err := strconv.ParseInt(v, 10, 32); err != nil {
+						return nil, fmt.Errorf("expected %q to be a numeric value", v)
+					} else if int32(d) < cmv.Min || int32(d) > cmv.Max {
+						return nil, fmt.Errorf("expected %q to be a numeric value in the range %d to %d", v, cmv.Min, cmv.Max)
+					}
+				}
+			} else {
+				cmv.Values = sel.StringValues
+
+				if v := cmv.cleanValue(); v != "" && !cmv.hasValue(v) {
+					return nil, fmt.Errorf("expected %q to be one of: %s", v, strings.Join(cmv.Values, ", "))
+				}
+			}
+
+			r.configMapPaths = append(r.configMapPaths, append(path, sel.Key))
+			r.configMapValues = append(r.configMapValues, cmv)
+
 			return nil, nil
 		}))
 }
