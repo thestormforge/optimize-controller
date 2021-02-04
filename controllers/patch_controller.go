@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"sort"
 
 	"github.com/go-logr/logr"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
@@ -158,6 +159,12 @@ func (r *PatchReconciler) evaluatePatchOperations(ctx context.Context, t *redsky
 		}
 	}
 
+	// Sort the patch operations so configuration patches are applied first
+	sort.SliceStable(t.Status.PatchOperations, func(i, j int) bool {
+		return isConfigReference(&t.Status.PatchOperations[i].TargetRef) &&
+			!isConfigReference(&t.Status.PatchOperations[j].TargetRef)
+	})
+
 	// Add back any pre-existing readiness checks
 	t.Status.ReadinessChecks = append(t.Status.ReadinessChecks, readinessChecks...)
 
@@ -264,4 +271,11 @@ func hasTrialReadinessGate(t *redskyv1beta1.Trial, ref *corev1.ObjectReference) 
 	}
 
 	return false
+}
+
+// isConfigReference returns true if the object reference points to a "configuration object". By identifying
+// configuration objects we can move them earlier in the patching process: this helps ensure subsequent objects
+// referencing the configuration objects get the correct state.
+func isConfigReference(ref *corev1.ObjectReference) bool {
+	return ref.APIVersion == "v1" && (ref.Kind == "ConfigMap" || ref.Kind == "Secret")
 }

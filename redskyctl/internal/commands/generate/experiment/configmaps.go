@@ -132,6 +132,8 @@ func (g *Generator) scanForConfigMapKeys(ars []*applicationResource, rm resmap.R
 		}
 	}
 
+	// TODO Scan the ResMap for _references_ to the ConfigMap and patch the pod template annotations of those objects
+
 	return ars, nil
 }
 
