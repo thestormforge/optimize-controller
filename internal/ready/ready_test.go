@@ -126,6 +126,41 @@ func TestReadinessChecker_CheckConditions(t *testing.T) {
 				},
 			},
 		},
+		{
+			desc:           "pod-status-not-ready",
+			conditionTypes: []string{ConditionTypePodReady},
+			ready:          false,
+			err: &ReadinessError{
+				Reason: "Error",
+				error:  "container error",
+			},
+			objs: []runtime.Object{
+				&appsv1.StatefulSet{
+					Spec: appsv1.StatefulSetSpec{
+						Selector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{"test": "test"},
+						},
+					},
+				},
+				&corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"test": "test"}},
+					Spec: corev1.PodSpec{
+						RestartPolicy: corev1.RestartPolicyNever,
+					},
+					Status: corev1.PodStatus{
+						ContainerStatuses: []corev1.ContainerStatus{
+							{
+								State: corev1.ContainerState{
+									Terminated: &corev1.ContainerStateTerminated{
+										Reason: "Error",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	ctx := context.TODO()

@@ -269,29 +269,28 @@ func (r *ReadinessChecker) podFailed(ctx context.Context, obj *unstructured.Unst
 	// Iterate over the pods looking for failures
 	for i := range list.Items {
 		p := &list.Items[i]
+
 		for _, c := range p.Status.Conditions {
 			// Check for unschedulable pods
 			if c.Type == corev1.PodScheduled && c.Status == corev1.ConditionFalse && c.Reason == corev1.PodReasonUnschedulable {
 				return &ReadinessError{error: "pod unschedulable", Reason: c.Reason, Message: c.Message}
 			}
+		}
 
-			// Check the container status
-			var cs []corev1.ContainerStatus
-			cs = append(cs, p.Status.InitContainerStatuses...)
-			cs = append(cs, p.Status.ContainerStatuses...)
-			for _, cc := range cs {
-				if !cc.Ready {
-					switch {
-					case cc.State.Waiting != nil:
-						if cc.RestartCount > 0 && cc.State.Waiting.Reason == "CrashLoopBackOff" {
-							return &ReadinessError{error: "container crash loop back off", Reason: cc.State.Waiting.Reason, Message: cc.State.Waiting.Message}
-						}
+		// Check the container status
+		var containerStatuses []corev1.ContainerStatus
+		containerStatuses = append(containerStatuses, p.Status.InitContainerStatuses...)
+		containerStatuses = append(containerStatuses, p.Status.ContainerStatuses...)
 
-					case cc.State.Terminated != nil:
-						if p.Spec.RestartPolicy == corev1.RestartPolicyNever && cc.RestartCount == 0 && cc.State.Terminated.Reason == "Error" {
-							return &ReadinessError{error: "container error", Reason: cc.State.Terminated.Reason, Message: cc.State.Terminated.Message}
-						}
-					}
+		for _, status := range containerStatuses {
+			if status.Ready {
+				continue
+			}
+
+			switch {
+			case status.State.Terminated != nil:
+				if p.Spec.RestartPolicy == corev1.RestartPolicyNever && status.State.Terminated.Reason == "Error" {
+					return &ReadinessError{error: "container error", Reason: status.State.Terminated.Reason, Message: status.State.Terminated.Message}
 				}
 			}
 		}
