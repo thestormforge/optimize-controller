@@ -287,11 +287,14 @@ func (r *ReadinessChecker) podFailed(ctx context.Context, obj *unstructured.Unst
 				continue
 			}
 
-			switch {
-			case status.State.Terminated != nil:
-				if p.Spec.RestartPolicy == corev1.RestartPolicyNever && status.State.Terminated.Reason == "Error" {
-					return &ReadinessError{error: "container error", Reason: status.State.Terminated.Reason, Message: status.State.Terminated.Message}
-				}
+			// Handle containers that will never restart
+			if p.Spec.RestartPolicy == corev1.RestartPolicyNever && status.State.Terminated != nil && status.State.Terminated.Reason == "Error" {
+				return &ReadinessError{error: "container error", Reason: status.State.Terminated.Reason, Message: status.State.Terminated.Message}
+			}
+
+			// Handle OOM issues
+			if status.LastTerminationState.Terminated != nil && status.LastTerminationState.Terminated.Reason == "OOMKilled" {
+				return &ReadinessError{error: "container error", Reason: status.LastTerminationState.Terminated.Reason}
 			}
 		}
 	}
