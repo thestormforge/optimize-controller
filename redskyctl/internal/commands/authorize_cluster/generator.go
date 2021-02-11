@@ -214,11 +214,15 @@ func (o *GeneratorOptions) registeredClientInformation(ctx context.Context, ctrl
 		ctx = context.WithValue(ctx, oauth2.HTTPClient, oauth2.NewClient(ctx, tt.Source))
 	}
 
+	// Ignore errors or missing information and just register a new client
 	info, err := registration.Read(ctx, ctrl.RegistrationClientURI, ctrl.RegistrationAccessToken)
 	if err != nil {
-		// Ignore errors and just register a new client
 		return nil
 	}
+	if info.ClientID == "" || info.ClientSecret == "" {
+		return nil
+	}
+
 	return info
 }
 
@@ -238,7 +242,7 @@ func localClientInformation(ctrl *config.Controller) *registration.ClientInforma
 			resp.ClientSecret = v.Value
 		}
 	}
-	if resp.ClientID == "" {
+	if resp.ClientID == "" || resp.ClientSecret == "" {
 		return nil
 	}
 	return resp
