@@ -294,7 +294,14 @@ func (r *ReadinessChecker) podFailed(ctx context.Context, obj *unstructured.Unst
 
 			// Handle OOM issues
 			if status.LastTerminationState.Terminated != nil && status.LastTerminationState.Terminated.Reason == "OOMKilled" {
-				return &ReadinessError{error: "container error", Reason: status.LastTerminationState.Terminated.Reason}
+				message := status.LastTerminationState.Terminated.Reason
+				reason := status.LastTerminationState.Terminated.Reason
+
+				if status.State.Waiting != nil {
+					message = fmt.Sprintf("%s: %s", status.LastTerminationState.Terminated.Reason, status.State.Waiting.Message)
+				}
+
+				return &ReadinessError{error: "container error", Reason: reason, Message: message}
 			}
 		}
 	}
