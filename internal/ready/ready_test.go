@@ -166,8 +166,9 @@ func TestReadinessChecker_CheckConditions(t *testing.T) {
 			conditionTypes: []string{ConditionTypePodReady},
 			ready:          false,
 			err: &ReadinessError{
-				Reason: "OOMKilled",
-				error:  "container error",
+				Reason:  "OOMKilled",
+				Message: "OOMKilled: back-off 5m0s restarting failed container",
+				error:   "container error",
 			},
 			objs: []runtime.Object{
 				&appsv1.StatefulSet{
@@ -188,6 +189,11 @@ func TestReadinessChecker_CheckConditions(t *testing.T) {
 								LastTerminationState: corev1.ContainerState{
 									Terminated: &corev1.ContainerStateTerminated{
 										Reason: "OOMKilled",
+									},
+								},
+								State: corev1.ContainerState{
+									Waiting: &corev1.ContainerStateWaiting{
+										Message: "back-off 5m0s restarting failed container",
 									},
 								},
 							},
