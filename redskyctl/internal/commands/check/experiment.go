@@ -17,20 +17,34 @@ limitations under the License.
 package check
 
 import (
-	"fmt"
+	"context"
 	"net/url"
+	"os"
 	"strings"
 
+	"github.com/go-logr/logr"
+	"github.com/go-logr/zapr"
 	"github.com/spf13/cobra"
+	redskyv1alpha1 "github.com/thestormforge/optimize-controller/api/v1alpha1"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	"github.com/thestormforge/optimize-controller/internal/experiment"
 	"github.com/thestormforge/optimize-controller/internal/template"
+	"github.com/thestormforge/optimize-controller/internal/validation"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
-	batchv1 "k8s.io/api/batch/v1"
-	"k8s.io/api/batch/v1beta1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	batchv1beta1 "k8s.io/api/batch/v1beta1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/scheme"
+)
+
+// Define linter log levels
+// NOTE: It is unclear why zapr is reversing the sign of the level.
+const (
+	vError = int(-zapcore.ErrorLevel)
+	vWarn  = int(-zapcore.WarnLevel)
 )
 
 // ExperimentOptions are the options for checking an experiment manifest
@@ -49,7 +63,7 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 		Long:  "Check an experiment manifest",
 
 		PreRun: commander.StreamsPreRun(&o.IOStreams),
-		RunE:   commander.WithoutArgsE(o.checkExperiment),
+		RunE:   commander.WithContextE(o.checkExperiment),
 	}
 
 	cmd.Flags().StringVarP(&o.Filename, "filename", "f", "", "`file` that contains the experiment to check")
@@ -60,209 +74,179 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 	return cmd
 }
 
-func (o *ExperimentOptions) checkExperiment() error {
+func (o *ExperimentOptions) checkExperiment(ctx context.Context) error {
 	r, err := o.IOStreams.OpenFile(o.Filename)
 	if err != nil {
 		return err
 	}
 
 	// Unmarshal the experiment
-	experiment := &redskyv1beta1.Experiment{}
+	exp := &redskyv1beta1.Experiment{}
 	rr := commander.NewResourceReader()
-	if err := rr.ReadInto(r, experiment); err != nil {
+	if err := rr.ReadInto(r, exp); err != nil {
 		return err
 	}
 
-	// Check that everything looks right
-	linter := &AllTheLint{}
-	checkExperiment(linter.For("experiment"), experiment)
+	// Create a zapr logger for reporting issues
+	// NOTE: We are using logr and zap because that is what controller-runtime uses
+	var hasError bool
+	logger := zapr.NewLogger(zap.New(zapcore.NewCore(zapcore.NewConsoleEncoder(
+		zapcore.EncoderConfig{
+			MessageKey:  "msg",
+			LevelKey:    "level",
+			EncodeLevel: zapcore.LowercaseColorLevelEncoder,
+		}),
+		zapcore.AddSync(o.ErrOut),
+		zapcore.ErrorLevel),
+		zap.Hooks(func(e zapcore.Entry) error {
+			if e.Level == zapcore.ErrorLevel {
+				hasError = true
+			}
+			return nil
+		})))
 
-	// Share the results
-	// TODO Filter/sort?
-	for _, p := range linter.Problems {
-		_, _ = fmt.Fprintln(o.Out, p.Message)
+	// Use a linter to inspect the experiment
+	experiment.Walk(ctx, &linter{logger: logger}, exp)
+
+	// TODO Ideally we would just return an error here, but it would look strange alongside the other output
+	if hasError {
+		os.Exit(1)
 	}
 
 	return nil
 }
 
-func checkExperiment(lint Linter, experiment *redskyv1beta1.Experiment) {
-
-	if !checkTypeMeta(lint.For("metadata"), &experiment.TypeMeta) {
-		return
-	}
-
-	checkParameters(lint.For("spec", "parameters"), experiment.Spec.Parameters)
-	checkMetrics(lint.For("spec", "metrics"), experiment.Spec.Metrics)
-	checkPatches(lint.For("spec", "patches"), experiment.Spec.Patches)
-	checkTrialTemplate(lint.For("spec", "template"), &experiment.Spec.TrialTemplate)
-
-	// TODO Some checks are higher level and need a combination of pieces: e.g. selector/template matching
-
+type linter struct {
+	logger logr.Logger
 }
 
-func checkTypeMeta(lint Linter, typeMeta *metav1.TypeMeta) bool {
-	// TODO Should we have a "fatal" severity (i.e. -1) instead of trying to keep track of "ok"?
-	ok := true
+func (l *linter) Visit(ctx context.Context, obj interface{}) experiment.Visitor {
+	// Add the current path to the logger
+	lint := l.logger.WithValues("path", strings.Join(experiment.WalkPath(ctx), "/"))
 
-	if typeMeta.Kind != "Experiment" {
-		lint.For("metadata").Error().Invalid("kind", typeMeta.Kind, "Experiment")
-		ok = false
-	}
+	switch o := obj.(type) {
 
-	if typeMeta.APIVersion != redskyv1beta1.GroupVersion.String() {
-		lint.For("metadata").Error().Invalid("apiVersion", typeMeta.APIVersion, redskyv1beta1.GroupVersion.String())
-		ok = false
-	}
-
-	return ok
-}
-
-func checkParameters(lint Linter, parameters []redskyv1beta1.Parameter) {
-
-	if len(parameters) == 0 {
-		lint.Error().Missing("parameters")
-	}
-
-	var baseline int
-	for i := range parameters {
-		checkParameter(lint.For(i), &parameters[i])
-		if parameters[i].Baseline != nil {
-			baseline++
+	case []redskyv1beta1.Parameter:
+		if l := len(o); l == 0 {
+			lint.V(vError).Info("Parameters are required")
+		} else if b := countBaselines(o); b > 0 && b != l {
+			lint.V(vError).Info("Baseline must be specified on all parameters")
 		}
-	}
 
-	if baseline > 0 && baseline != len(parameters) {
-		lint.Warning().Missing("baseline: should be on all parameters or none")
-	}
+	case []redskyv1beta1.Metric:
+		if len(o) == 0 {
+			lint.V(vError).Info("Metrics are required")
+		}
 
-}
+	case *redskyv1beta1.Parameter:
+		if len(o.Values) > 0 && (o.Min != 0 || o.Max != 0) {
+			// NOTE: This won't hit on v1alpha1 converted experiments because min/max get reset
+			lint.V(vWarn).Info("Parameter has both a numeric and string range defined")
+		} else if o.Max <= o.Min && (o.Max != 0 || o.Min != 0) {
+			lint.V(vError).Info("Parameter minimum must be strictly less then maximum", "min", o.Min, "max", o.Max)
+		} else if o.Baseline != nil {
+			checkBaseline(lint, o)
+		}
 
-func checkParameter(lint Linter, parameter *redskyv1beta1.Parameter) {
+	case *redskyv1beta1.Metric:
+		switch o.Type {
+		case
+			redskyv1beta1.MetricKubernetes,
+			redskyv1beta1.MetricPrometheus,
+			redskyv1beta1.MetricJSONPath,
+			redskyv1beta1.MetricDatadog,
+			"": // Type is valid
+		default:
+			lint.V(vError).Info("Metric type is invalid", "type", o.Type)
+		}
 
-	if parameter.Baseline != nil {
-		if parameter.Baseline.Type == intstr.String {
-			if parameter.Min > 0 || parameter.Max > 0 {
-				lint.For().Error().Invalid("baseline", parameter.Baseline, "<number>")
-			} else if len(parameter.Values) > 0 {
-				var allowed []interface{}
-				for _, v := range parameter.Values {
-					if parameter.Baseline.StrVal != v {
-						allowed = append(allowed, v)
-					}
-				}
-				if len(allowed) == len(parameter.Values) {
-					lint.For().Error().Invalid("baseline", parameter.Baseline, allowed...)
-				}
-			}
+		if o.Query == "" {
+			lint.V(vError).Info("Metric query is required")
 		} else {
-			if len(parameter.Values) > 0 {
-				lint.For().Error().Invalid("baseline", parameter.Baseline, parameter.Values)
-			} else if parameter.Min != parameter.Max {
-				if parameter.Baseline.IntVal < parameter.Min {
-					lint.For().Error().Invalid("baseline", parameter.Baseline, fmt.Sprintf("<greater than %d>", parameter.Min))
+			q, _, err := metricQueryDryRun(o)
+			if err != nil {
+				lint.Error(err, "Metric query failed to render", "query", o.Query)
+			}
+
+			switch o.Type {
+			case redskyv1beta1.MetricJSONPath:
+				if !strings.Contains(q, "{") {
+					lint.V(vWarn).Info("JSON Path query should contain an {} expression", "query", o.Query)
 				}
-				if parameter.Baseline.IntVal > parameter.Max {
-					lint.For().Error().Invalid("baseline", parameter.Baseline, fmt.Sprintf("<less than %d>", parameter.Max))
+			case redskyv1beta1.MetricPrometheus:
+				if !strings.Contains(q, "scalar") {
+					lint.V(vWarn).Info("Prometheus query may require explicit scalar conversion", "query", o.Query)
 				}
 			}
 		}
+
+		if o.Min != nil && o.Max != nil && o.Min.Cmp(*o.Max) <= 0 {
+			lint.V(vError).Info("Metric minimum must be strictly less then maximum")
+		}
+
+		if u, err := url.Parse(o.URL); err != nil {
+			lint.V(vError).Info("Metric has invalid URL")
+		} else if u.Hostname() == redskyv1alpha1.LegacyHostnamePlaceholder {
+			lint.V(vWarn).Info("Metric requires manual conversion to latest version for URL")
+		}
+
+	case *redskyv1beta1.PatchTemplate:
+		if o.TargetRef != nil {
+			if o.TargetRef.Kind == "" {
+				// TODO Is kind required? Can you just have the namespace and the rest of the ref in the patch?
+				lint.V(vError).Info("Patch target kind is required")
+			} else if !isCoreKind(o.TargetRef.Kind) && o.TargetRef.APIVersion == "" {
+				lint.V(vError).Info("Patch target apiVersion is required")
+			}
+		}
+
+		if _, err := template.New().RenderPatch(o, &redskyv1beta1.Trial{}); err != nil {
+			lint.Error(err, "Patch is not valid")
+		}
+
+	case *batchv1beta1.JobTemplateSpec:
+		if o.Spec.BackoffLimit != nil && *o.Spec.BackoffLimit != 0 {
+			lint.V(vWarn).Info("Job backoffLimit should be 0", "backoffLimit", *o.Spec.BackoffLimit)
+		}
+
 	}
 
+	// Return the linter to continue walking through the experiment
+	return l
 }
 
-func checkMetrics(lint Linter, metrics []redskyv1beta1.Metric) {
-
-	if len(metrics) == 0 {
-		lint.Error().Missing("metrics")
-	}
-
-	for i := range metrics {
-		checkMetric(lint.For(i), &metrics[i])
-	}
-
-}
-
-func checkMetric(lint Linter, metric *redskyv1beta1.Metric) {
-
-	if metric.Query == "" {
-		lint.Error().Missing("query")
-	}
-
-	if metric.Type == redskyv1beta1.MetricJSONPath {
-		// TODO We need to render the template first
-		if !strings.Contains(metric.Query, "{") {
-			lint.Error().Invalid("query", metric.Query)
+func countBaselines(params []redskyv1beta1.Parameter) int {
+	var b int
+	for i := range params {
+		if params[i].Baseline != nil {
+			b++
 		}
 	}
+	return b
+}
 
-	if metric.URL != "" {
-		if u, err := url.Parse(metric.URL); err != nil {
-			lint.Error().Failed("url", err)
-		} else if s := strings.ToLower(u.Scheme); s != "" && s != "http" && s != "https" {
-			lint.Error().Invalid("scheme", u.Scheme, "http", "https")
+func checkBaseline(lint logr.Logger, p *redskyv1beta1.Parameter) {
+	switch p.Baseline.Type {
+	case intstr.String:
+		if p.Min != 0 || p.Max != 0 {
+			lint.V(vError).Info("Parameter defines a numeric range but has a string baseline value")
+		} else if len(p.Values) == 0 {
+			lint.V(vError).Info("Parameter has a string baseline but no values")
+		} else if !validation.CheckParameterValue(p, *p.Baseline) {
+			lint.V(vError).Info("Parameter baseline is not in range", "values", strings.Join(p.Values, ","), "baseline", p.Baseline.StrVal)
+		}
+
+	case intstr.Int:
+		if len(p.Values) > 0 {
+			lint.V(vError).Info("Parameter defines a string range but has a numeric baseline value")
+		} else if p.Min == 0 && p.Max == 0 {
+			lint.V(vError).Info("Parameter has a numeric baseline but no min or max")
+		} else if p.Min != p.Max && !validation.CheckParameterValue(p, *p.Baseline) {
+			lint.V(vError).Info("Parameter baseline is not in range", "min", p.Min, "max", p.Max, "baseline", p.Baseline.IntVal)
 		}
 	}
-
-	if _, _, err := template.New().RenderMetricQueries(metric, &redskyv1beta1.Trial{}, nil); err != nil {
-		lint.Error().Failed("query", err)
-	}
-
 }
 
-func checkPatches(lint Linter, patches []redskyv1beta1.PatchTemplate) {
-
-	if len(patches) == 0 {
-		lint.Error().Missing("patches")
-	}
-
-	for i := range patches {
-		checkPatch(lint.For(i), &patches[i])
-	}
-
-}
-
-func checkPatch(lint Linter, patch *redskyv1beta1.PatchTemplate) {
-
-	if patch.TargetRef.APIVersion == "" {
-		// TODO Is is OK to skip this for the core kinds or should we still require "v1"?
-		if !isCoreKind(patch.TargetRef.Kind) {
-			lint.Error().Missing("API version")
-		}
-	}
-
-	if patch.TargetRef.Kind == "" {
-		lint.Error().Missing("kind")
-	}
-
-	if _, err := template.New().RenderPatch(patch, &redskyv1beta1.Trial{}); err != nil {
-		lint.Error().Failed("patch", err)
-	}
-
-}
-
-func checkTrialTemplate(lint Linter, template *redskyv1beta1.TrialTemplateSpec) {
-	checkTrial(lint.For("spec"), &template.Spec)
-}
-
-func checkTrial(lint Linter, trial *redskyv1beta1.TrialSpec) {
-	if trial.JobTemplate != nil {
-		checkJobTemplate(lint.For("jobTemplate"), trial.JobTemplate)
-	}
-}
-
-func checkJobTemplate(lint Linter, template *v1beta1.JobTemplateSpec) {
-	checkJob(lint.For("spec"), &template.Spec)
-}
-
-func checkJob(lint Linter, job *batchv1.JobSpec) {
-	if job.BackoffLimit != nil && *job.BackoffLimit != 0 {
-		// TODO Instead of "Invalid" can we have "Suggested"?
-		lint.Warning().Invalid("backoffLimit", *job.BackoffLimit, 0)
-	}
-}
-
-// Check if a kind is one of the known core types
 func isCoreKind(kind string) bool {
 	for coreKind := range scheme.Scheme.KnownTypes(schema.GroupVersion{Version: "v1"}) {
 		if coreKind == kind {
@@ -270,4 +254,14 @@ func isCoreKind(kind string) bool {
 		}
 	}
 	return false
+}
+
+func metricQueryDryRun(m *redskyv1beta1.Metric) (string, string, error) {
+	// Try to dummy out the target object to avoid failures
+	target := &unstructured.Unstructured{}
+	if m.Target != nil {
+		target.SetGroupVersionKind(m.Target.GroupVersionKind())
+	}
+
+	return template.New().RenderMetricQueries(m, &redskyv1beta1.Trial{}, target)
 }

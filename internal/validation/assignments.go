@@ -56,11 +56,7 @@ func CheckAssignments(t *redskyv1beta1.Trial, exp *redskyv1beta1.Experiment) err
 	// Verify against the parameter specifications
 	for _, p := range exp.Spec.Parameters {
 		if a, ok := assignments[p.Name]; ok {
-			if a.Type == intstr.String {
-				if !contains(p.Values, a.StrVal) {
-					err.OutOfBounds = append(err.OutOfBounds, p.Name)
-				}
-			} else if a.IntVal < p.Min || a.IntVal > p.Max {
+			if !CheckParameterValue(&p, a) {
 				err.OutOfBounds = append(err.OutOfBounds, p.Name)
 			}
 			delete(assignments, p.Name)
@@ -77,6 +73,14 @@ func CheckAssignments(t *redskyv1beta1.Trial, exp *redskyv1beta1.Experiment) err
 		return nil
 	}
 	return err
+}
+
+// CheckParameterValue ensures the supplied value in range for the parameter.
+func CheckParameterValue(p *redskyv1beta1.Parameter, v intstr.IntOrString) bool {
+	if v.Type == intstr.String {
+		return contains(p.Values, v.StrVal)
+	}
+	return v.IntVal >= p.Min && v.IntVal <= p.Max
 }
 
 func contains(values []string, strVal string) bool {

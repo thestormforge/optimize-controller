@@ -9,7 +9,7 @@ require (
 	github.com/Masterminds/sprig v2.20.0+incompatible
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/go-logr/logr v0.1.0
-	github.com/go-logr/zapr v0.1.1 // indirect
+	github.com/go-logr/zapr v0.1.1
 	github.com/huandu/xstrings v1.2.0 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/lestrrat-go/jwx v1.0.6
@@ -22,6 +22,7 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/thestormforge/optimize-go v0.0.8
 	github.com/zorkian/go-datadog-api v2.24.0+incompatible
+	go.uber.org/zap v1.10.0
 	golang.org/x/net v0.0.0-20200904194848-62affa334b73
 	golang.org/x/oauth2 v0.0.0-20200902213428-5d25da1a8d43
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
