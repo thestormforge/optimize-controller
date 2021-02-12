@@ -3949,19 +3949,15 @@ spec:
                       type: string
                     optimize:
                       type: boolean
-                    path:
-                      type: string
-                    port:
-                      anyOf:
-                      - type: string
-                      - type: integer
                     query:
                       type: string
-                    scheme:
-                      type: string
-                    selector:
+                    target:
                       type: object
                       properties:
+                        apiVersion:
+                          type: string
+                        kind:
+                          type: string
                         matchExpressions:
                           type: array
                           items:
@@ -3982,7 +3978,13 @@ spec:
                           type: object
                           additionalProperties:
                             type: string
+                        name:
+                          type: string
+                        namespace:
+                          type: string
                     type:
+                      type: string
+                    url:
                       type: string
               namespaceSelector:
                 type: object

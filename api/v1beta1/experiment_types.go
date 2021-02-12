@@ -20,8 +20,43 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
+
+// ResourceTarget contains enough information to reference either a single target resource by name, or a group
+// of target resources by label.
+type ResourceTarget struct {
+	// API version of the referent.
+	APIVersion string `json:"apiVersion,omitempty"`
+	// Kind of the referent.
+	Kind string `json:"kind,omitempty"`
+	// Namespace of the referent.
+	Namespace string `json:"namespace,omitempty"`
+
+	// Name of the referent, if blank then the selector is used to match a list of resources.
+	Name string `json:"name,omitempty"`
+	// LabelSelector matches labels when the name is left unspecified.
+	*metav1.LabelSelector `json:",inline"`
+}
+
+// GroupVersionKind returns the GVK for the target reference.
+func (r *ResourceTarget) GroupVersionKind() schema.GroupVersionKind {
+	// NOTE: schema.FromAPIVersionAndKind is discouraged and neglects the default "v1" case
+	if r.APIVersion == "" {
+		return schema.GroupVersionKind{Version: "v1", Kind: r.Kind}
+	}
+	if gv, err := schema.ParseGroupVersion(r.APIVersion); err == nil {
+		return gv.WithKind(r.Kind)
+	}
+	return schema.GroupVersionKind{Kind: r.Kind}
+}
+
+// NamespacedName returns the namespaced name for the target reference.
+func (r *ResourceTarget) NamespacedName() types.NamespacedName {
+	return types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
+}
 
 // Optimization is a configuration setting for the optimizer
 type Optimization struct {
@@ -85,12 +120,10 @@ type SumConstraint struct {
 type MetricType string
 
 const (
-	// MetricLocal metrics are Go Templates evaluated against the trial itself. No external service is consulted, primarily
-	// useful for extracting start and completion times.
-	MetricLocal MetricType = "local"
-	// MetricPods metrics are similar to local metrics, however the list of pods in the trial namespace matched by the selector
-	// is also available.
-	MetricPods MetricType = "pods"
+	// MetricKubernetes metrics issue Kubernetes API requests using the target reference and selector (if no
+	// reference is supplied, the trial itself is assumed). Queries are Go Templates evaluated against the
+	// the result of the API call.
+	MetricKubernetes MetricType = "kubernetes"
 	// MetricPrometheus metrics issue PromQL queries to a matched service. Queries MUST evaluate to a scalar value.
 	MetricPrometheus MetricType = "prometheus"
 	// MetricDatadog metrics issue queries to the Datadog service. Requires API and application key configuration.
@@ -112,25 +145,17 @@ type Metric struct {
 	// Indicator that this metric should be optimized (default: true)
 	Optimize *bool `json:"optimize,omitempty"`
 
-	// The metric collection type, one of: local|pods|prometheus|datadog|jsonpath, default: local
+	// The metric collection type, one of: kubernetes|prometheus|datadog|jsonpath, default: kubernetes
 	Type MetricType `json:"type,omitempty"`
-	// Collection type specific query, e.g. Go template for "local", PromQL for "prometheus" or a JSON pointer expression (with curly braces) for "jsonpath"
+	// Collection type specific query, e.g. Go template for "kubernetes", PromQL for "prometheus" or a JSON pointer expression (with curly braces) for "jsonpath"
 	Query string `json:"query"`
 	// Collection type specific query for the error associated with collected metric value
 	ErrorQuery string `json:"errorQuery,omitempty"`
 
-	// The scheme to use when collecting metrics
-	Scheme string `json:"scheme,omitempty"`
-	// Selector matching services to collect this metric from, only the first matched service to provide a value is used
-	Selector *metav1.LabelSelector `json:"selector,omitempty"`
-	// The port number or name on the matched service to collect the metric value from
-	Port intstr.IntOrString `json:"port,omitempty"`
-	// URL path component used to collect the metric value from an endpoint (used as a prefix for the Prometheus API)
-	Path string `json:"path,omitempty"`
-	// URL to query for fetching metrics.
-	// If this parameter is specified, it will be preferred over Scheme, Selector, Port, and Path.
-	// This is only used for MetricPrometheus and MetricJSONPath metric types.
-	URL string `json:"-"`
+	// URL to use when querying remote metric sources.
+	URL string `json:"url,omitempty"`
+	// Target reference of the Kubernetes object to query for metric information.
+	Target *ResourceTarget `json:"target,omitempty"`
 }
 
 // PatchReadinessGate contains a reference to a condition

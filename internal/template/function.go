@@ -25,6 +25,8 @@ import (
 
 	"github.com/Masterminds/sprig"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // FuncMap returns the functions used for template evaluation
@@ -37,6 +39,7 @@ func FuncMap() template.FuncMap {
 		"duration":          duration,
 		"percent":           percent,
 		"resourceRequests":  resourceRequests,
+		"indexResource":     indexResource,
 		"cpuUtilization":    cpuUtilization,
 		"memoryUtilization": memoryUtilization,
 		"cpuRequests":       cpuRequests,
@@ -70,7 +73,19 @@ func percent(value int32, percent int32) string {
 }
 
 // resourceRequests uses a map of resource types to weights to calculate a weighted sum of the resource requests
-func resourceRequests(pods corev1.PodList, weights string) (float64, error) {
+func resourceRequests(podList runtime.Object, weights string) (float64, error) {
+	var pods *corev1.PodList
+	if p, ok := podList.(*corev1.PodList); ok {
+		pods = p
+	} else {
+		pods = &corev1.PodList{}
+		scheme := runtime.NewScheme()
+		_ = corev1.AddToScheme(scheme)
+		if err := scheme.Convert(podList, pods, nil); err != nil {
+			return 0.0, fmt.Errorf("unable to get pod list: %w", err)
+		}
+	}
+
 	var totalResources float64
 	parsedWeights := make(map[string]float64)
 
@@ -91,4 +106,13 @@ func resourceRequests(pods corev1.PodList, weights string) (float64, error) {
 		}
 	}
 	return totalResources, nil
+}
+
+// indexResource returns a quantity from a resource list.
+func indexResource(rl corev1.ResourceList, key string) *resource.Quantity {
+	// Solves two problems:
+	// 1. You can't do something like `{{ index someresourcelist "cpu" }}` because the key types won't match
+	// 2. A resource list gives you a quantity, but you need a pointer to a quantity to invoke functions
+	v := rl[corev1.ResourceName(key)]
+	return &v
 }

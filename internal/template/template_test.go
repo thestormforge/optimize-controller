@@ -124,7 +124,6 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 			metric: redskyv1beta1.Metric{
 				Name:  "testMetric",
 				Query: "{{duration .StartTime .CompletionTime}}",
-				Type:  redskyv1beta1.MetricLocal,
 			},
 			trial: redskyv1beta1.Trial{
 				Status: redskyv1beta1.TrialStatus{
@@ -141,7 +140,6 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 			metric: redskyv1beta1.Metric{
 				Name:  "testMetric",
 				Query: "{{percent .Values.test 5}}",
-				Type:  redskyv1beta1.MetricLocal,
 			},
 			trial: redskyv1beta1.Trial{
 				Spec: redskyv1beta1.TrialSpec{
@@ -162,7 +160,6 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 			metric: redskyv1beta1.Metric{
 				Name:  "testMetric",
 				Query: `{{resourceRequests .Pods "cpu=0.05,memory=0.005"}}`,
-				Type:  redskyv1beta1.MetricLocal,
 			},
 			target: &corev1.PodList{
 				Items: []corev1.Pod{
@@ -195,7 +192,6 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 			metric: redskyv1beta1.Metric{
 				Name:  "testMetric",
 				Query: `{{cpuUtilization . "component=bob,component=tom"}}`,
-				Type:  redskyv1beta1.MetricLocal,
 			},
 			trial: redskyv1beta1.Trial{
 				ObjectMeta: metav1.ObjectMeta{
@@ -214,7 +210,6 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 			metric: redskyv1beta1.Metric{
 				Name:  "testMetric",
 				Query: `{{cpuUtilization .}}`,
-				Type:  redskyv1beta1.MetricLocal,
 			},
 			trial: redskyv1beta1.Trial{
 				ObjectMeta: metav1.ObjectMeta{
@@ -233,7 +228,6 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 			metric: redskyv1beta1.Metric{
 				Name:  "testMetric",
 				Query: `{{memoryUtilization . "component=bob,component=tom"}}`,
-				Type:  redskyv1beta1.MetricLocal,
 			},
 			trial: redskyv1beta1.Trial{
 				ObjectMeta: metav1.ObjectMeta{
@@ -252,7 +246,6 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 			metric: redskyv1beta1.Metric{
 				Name:  "testMetric",
 				Query: `{{memoryUtilization .}}`,
-				Type:  redskyv1beta1.MetricLocal,
 			},
 			trial: redskyv1beta1.Trial{
 				ObjectMeta: metav1.ObjectMeta{
@@ -271,7 +264,6 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 			metric: redskyv1beta1.Metric{
 				Name:  "testMetric",
 				Query: `{{cpuRequests . "component=bob,component=tom"}}`,
-				Type:  redskyv1beta1.MetricLocal,
 			},
 			trial: redskyv1beta1.Trial{
 				ObjectMeta: metav1.ObjectMeta{
@@ -290,7 +282,6 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 			metric: redskyv1beta1.Metric{
 				Name:  "testMetric",
 				Query: `{{memoryRequests . "component=bob,component=tom"}}`,
-				Type:  redskyv1beta1.MetricLocal,
 			},
 			trial: redskyv1beta1.Trial{
 				ObjectMeta: metav1.ObjectMeta{
@@ -309,7 +300,6 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 			metric: redskyv1beta1.Metric{
 				Name:  "testMetric",
 				Query: `{{ "1234" | GB }}`,
-				Type:  redskyv1beta1.MetricLocal,
 			},
 			trial: redskyv1beta1.Trial{
 				ObjectMeta: metav1.ObjectMeta{
@@ -328,7 +318,6 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 			metric: redskyv1beta1.Metric{
 				Name:  "testMetric",
 				Query: `{{ "1234" | GiB }}`,
-				Type:  redskyv1beta1.MetricLocal,
 			},
 			trial: redskyv1beta1.Trial{
 				ObjectMeta: metav1.ObjectMeta{
@@ -347,7 +336,6 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 			metric: redskyv1beta1.Metric{
 				Name:  "testMetric",
 				Query: `{{memoryRequests . "my/super.cool.label-with-fluffy/bunnies=789"}}`,
-				Type:  redskyv1beta1.MetricLocal,
 			},
 			trial: redskyv1beta1.Trial{
 				ObjectMeta: metav1.ObjectMeta{

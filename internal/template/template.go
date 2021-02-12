@@ -24,7 +24,6 @@ import (
 	"time"
 
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -41,8 +40,11 @@ type PatchData struct {
 
 // MetricData represents a trial during metric evaluation
 type MetricData struct {
-	// Trial metadata
-	Trial metav1.ObjectMeta
+	// Trial is a copy of the trial being evaluated.
+	Trial *redskyv1beta1.Trial
+	// Target is the object matched by the resource target of a Kubernetes metric.
+	Target runtime.Object
+
 	// The time at which the trial run started (possibly adjusted)
 	StartTime time.Time
 	// The time at which the trial run completed
@@ -51,8 +53,12 @@ type MetricData struct {
 	Range string
 	// Trial assignments
 	Values map[string]interface{}
-	// List of pods from the trial namespace (only available for "pods" type metrics)
-	Pods *corev1.PodList
+}
+
+// Pods returns the metric target if available.
+// Deprecated: Templates should use the `.Target` pipeline instead of `.Pods`.
+func (m *MetricData) Pods() runtime.Object {
+	return m.Target
 }
 
 func newPatchData(t *redskyv1beta1.Trial) *PatchData {
@@ -73,9 +79,10 @@ func newPatchData(t *redskyv1beta1.Trial) *PatchData {
 }
 
 func newMetricData(t *redskyv1beta1.Trial, target runtime.Object) *MetricData {
-	d := &MetricData{}
-
-	t.ObjectMeta.DeepCopyInto(&d.Trial)
+	d := &MetricData{
+		Trial:  t.DeepCopy(),
+		Target: target,
+	}
 
 	d.Values = make(map[string]interface{}, len(t.Spec.Assignments))
 	for _, a := range t.Spec.Assignments {
@@ -84,10 +91,6 @@ func newMetricData(t *redskyv1beta1.Trial, target runtime.Object) *MetricData {
 		} else {
 			d.Values[a.Name] = a.Value.IntVal
 		}
-	}
-
-	if pods, ok := target.(*corev1.PodList); ok {
-		d.Pods = pods
 	}
 
 	if t.Status.StartTime != nil {

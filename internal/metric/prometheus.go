@@ -28,36 +28,29 @@ import (
 	promv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
-func capturePrometheusMetric(log logr.Logger, m *redskyv1beta1.Metric, target runtime.Object, completionTime time.Time) (value float64, stddev float64, err error) {
-	var urls []string
-
-	if urls, err = toURL(target, m); err != nil {
-		return value, stddev, err
-	}
-
-	for _, u := range urls {
-		if value, stddev, err = captureOnePrometheusMetric(log, u, m.Query, m.ErrorQuery, completionTime); err == nil {
-			break
-		}
-
-		if _, ok := err.(*CaptureError); ok {
-			return value, stddev, err
-		}
-	}
-
-	return value, stddev, err
+// CaptureError describes problems that arise while capturing Prometheus metric values.
+type CaptureError struct {
+	// A description of what went wrong
+	Message string
+	// The URL that was used to capture the metric
+	Address string
+	// The metric query that failed
+	Query string
+	// The completion time at which the query was executed
+	CompletionTime time.Time
+	// The minimum amount of time until the metric is expected to be available
+	RetryAfter time.Duration
 }
 
-func captureOnePrometheusMetric(log logr.Logger, address, query, errorQuery string, completionTime time.Time) (float64, float64, error) {
-	ctx := context.TODO()
-	var value, valueError float64
+func (e *CaptureError) Error() string {
+	return e.Message
+}
 
-	// Get the Prometheus client based on the metric URL
-	// TODO Cache these by URL
-	c, err := prom.NewClient(prom.Config{Address: address})
+func capturePrometheusMetric(ctx context.Context, log logr.Logger, m *redskyv1beta1.Metric, completionTime time.Time) (value float64, valueError float64, err error) {
+	// Get the Prometheus API
+	c, err := prom.NewClient(prom.Config{Address: m.URL})
 	if err != nil {
 		return 0, 0, err
 	}
@@ -70,7 +63,7 @@ func captureOnePrometheusMetric(log logr.Logger, address, query, errorQuery stri
 	}
 
 	// Execute query
-	value, err = queryScalar(ctx, promAPI, query, completionTime)
+	value, err = queryScalar(ctx, promAPI, m.Query, completionTime)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -78,7 +71,7 @@ func captureOnePrometheusMetric(log logr.Logger, address, query, errorQuery stri
 	// If we got NaN, it might be a Pushgateway metric that won't have a value unless we query from the scrape time
 	if math.IsNaN(value) && lastScrapeTime.After(completionTime) {
 		log.WithValues("lastScrapeTime", lastScrapeTime).Info("Retrying Prometheus query to include final scrape")
-		value, err = queryScalar(ctx, promAPI, query, lastScrapeTime)
+		value, err = queryScalar(ctx, promAPI, m.Query, lastScrapeTime)
 		if err != nil {
 			return 0, 0, err
 		}
@@ -86,24 +79,19 @@ func captureOnePrometheusMetric(log logr.Logger, address, query, errorQuery stri
 
 	// If it is still NaN, the problem is mostly likely that the query does not account for missing data
 	if math.IsNaN(value) {
-		err := &CaptureError{Message: "metric data not available", Address: address, Query: query, CompletionTime: completionTime}
-		if strings.HasPrefix(query, "scalar(") {
+		err := &CaptureError{Message: "metric data not available", Address: m.URL, Query: m.Query, CompletionTime: completionTime}
+		if strings.HasPrefix(m.Query, "scalar(") {
 			err.Message += " (the scalar function may have received an input vector whose size is not 1)"
 		}
 		return 0, 0, err
 	}
 
 	// Execute the error query (if configured)
-	if errorQuery != "" {
-		valueError, err = queryScalar(ctx, promAPI, errorQuery, completionTime)
+	if m.ErrorQuery != "" {
+		valueError, err = queryScalar(ctx, promAPI, m.ErrorQuery, completionTime)
 		if err != nil {
 			return 0, 0, err
 		}
-	}
-
-	// Ignore NaN for the value error
-	if math.IsNaN(valueError) {
-		valueError = 0
 	}
 
 	return value, valueError, nil
