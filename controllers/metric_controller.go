@@ -279,7 +279,7 @@ func (r *MetricReconciler) target(ctx context.Context, t *redskyv1beta1.Trial, m
 func (r *MetricReconciler) applyMetricDefaults(ctx context.Context, t *redskyv1beta1.Trial, m *redskyv1beta1.Metric) error {
 	// Give Prometheus metrics a default URL
 	if m.Type == redskyv1beta1.MetricPrometheus && m.URL == "" {
-		m.URL = fmt.Sprintf("http://redsky-%s-prometheus:9090/", t.Namespace)
+		m.URL = fmt.Sprintf("http://redsky-%[1]s-prometheus.%[1]s:9090/", t.Namespace)
 	}
 
 	// Default to the trial namespace
