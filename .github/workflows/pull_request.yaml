@@ -10,8 +10,6 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v2
-      - name: Verify License Header
-        uses: talos-systems/conform@v0.1.0-alpha.19
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
