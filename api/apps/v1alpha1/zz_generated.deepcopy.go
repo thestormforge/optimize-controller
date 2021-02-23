@@ -21,6 +21,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"github.com/thestormforge/konjure/pkg/konjure"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -33,8 +34,10 @@ func (in *Application) DeepCopyInto(out *Application) {
 	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
 	if in.Resources != nil {
 		in, out := &in.Resources, &out.Resources
-		*out = make([]string, len(*in))
-		copy(*out, *in)
+		*out = make(konjure.Resources, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
 	}
 	if in.Parameters != nil {
 		in, out := &in.Parameters, &out.Parameters

@@ -17,18 +17,18 @@ limitations under the License.
 package application
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"strings"
 	"unicode"
 
+	"github.com/thestormforge/konjure/pkg/konjure"
 	"github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	"sigs.k8s.io/kustomize/api/filesys"
-	"sigs.k8s.io/kustomize/api/konfig"
-	"sigs.k8s.io/kustomize/api/krusty"
+	"sigs.k8s.io/kustomize/api/provider"
 	"sigs.k8s.io/kustomize/api/resmap"
-	"sigs.k8s.io/kustomize/api/types"
-	"sigs.k8s.io/kustomize/kyaml/yaml"
+	"sigs.k8s.io/kustomize/kyaml/kio"
 )
 
 // FilterScenarios retains only the named scenario on the supplied application. Removing unused
@@ -174,45 +174,20 @@ func (e *AmbiguousNameError) Error() string {
 
 // LoadResources loads all of the resources for an application, using the supplied file system
 // to load file based resources (if necessary).
-func LoadResources(app *v1alpha1.Application, fs filesys.FileSystem) (resmap.ResMap, error) {
-	// Get the current working directory so we can intercept requests for the Kustomization
-	cwd, _, err := fs.CleanedAbs(".")
+func LoadResources(app *v1alpha1.Application, _ filesys.FileSystem) (resmap.ResMap, error) {
+	var buf bytes.Buffer
+	err := kio.Pipeline{
+		Inputs:  []kio.Reader{app.Resources},
+		Filters: []kio.Filter{&konjure.Filter{Depth: 100}},
+		Outputs: []kio.Writer{&kio.ByteWriter{Writer: &buf}},
+	}.Execute()
 	if err != nil {
 		return nil, err
 	}
 
-	// Wrap the file system so it thinks the current directory is a kustomize root with our resources.
-	// This is necessary to ensure that relative paths are resolved correctly and that files are not
-	// treated like directories. If the current directory really is a kustomize root, that kustomization
-	// will be hidden to prefer loading just the resources that are part of the experiment configuration.
-	fSys := &kustomizationFileSystem{
-		FileSystem:            fs,
-		KustomizationFileName: cwd.Join(konfig.DefaultKustomizationFileName()),
-		Kustomization: types.Kustomization{
-			Resources: app.Resources,
-		},
-	}
-
-	// Turn off the load restrictions so we can load arbitrary files (e.g. /dev/fd/...)
-	o := krusty.MakeDefaultOptions()
-	o.LoadRestrictions = types.LoadRestrictionsNone
-	return krusty.MakeKustomizer(fSys, o).Run(".")
-}
-
-// kustomizationFileSystem is a wrapper around a real file system that injects a Kustomization at
-// a pre-determined location. This has the effect of creating a kustomize root in memory even if
-// there is no kustomization.yaml on disk.
-type kustomizationFileSystem struct {
-	filesys.FileSystem
-	KustomizationFileName string
-	Kustomization         types.Kustomization
-}
-
-func (fs *kustomizationFileSystem) ReadFile(path string) ([]byte, error) {
-	if path == fs.KustomizationFileName {
-		return yaml.Marshal(fs.Kustomization)
-	}
-	return fs.FileSystem.ReadFile(path)
+	dp := provider.NewDefaultDepProvider()
+	f := resmap.NewFactory(dp.GetResourceFactory(), dp.GetConflictDetectorFactory())
+	return f.NewResMapFromBytes(buf.Bytes())
 }
 
 func cleanName(n string) string {
