@@ -44,10 +44,19 @@ func Walk(ctx context.Context, v Visitor, obj interface{}) {
 		Walk(withPath(ctx, "spec"), v, &o.Spec)
 
 	case *redskyv1beta1.ExperimentSpec:
+		Walk(withPath(ctx, "optimization"), v, o.Optimization)
 		Walk(withPath(ctx, "parameters"), v, o.Parameters)
 		Walk(withPath(ctx, "metrics"), v, o.Metrics)
 		Walk(withPath(ctx, "patches"), v, o.Patches)
 		Walk(withPath(ctx, "trialTemplate"), v, &o.TrialTemplate)
+
+	case []redskyv1beta1.Optimization:
+		for i := range o {
+			Walk(withPath(ctx, map[string]string{"name": o[i].Name}), v, &o[i])
+		}
+
+	case *redskyv1beta1.Optimization:
+		// Do nothing
 
 	case []redskyv1beta1.Parameter:
 		for i := range o {
