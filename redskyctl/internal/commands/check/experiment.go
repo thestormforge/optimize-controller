@@ -20,6 +20,7 @@ import (
 	"context"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -87,17 +88,26 @@ func (o *ExperimentOptions) checkExperiment(ctx context.Context) error {
 		return err
 	}
 
+	// Create a new linter for traversing the experiment and reporting errors
+	l := &linter{}
+
+	// Set the recommended budget to 20x the number of parameters up to 400 trials
+	l.minExperimentBudget = 20 * len(exp.Spec.Parameters)
+	if l.minExperimentBudget > 400 {
+		l.minExperimentBudget = 400
+	}
+
 	// Create a zapr logger for reporting issues
 	// NOTE: We are using logr and zap because that is what controller-runtime uses
 	var hasError bool
-	logger := zapr.NewLogger(zap.New(zapcore.NewCore(zapcore.NewConsoleEncoder(
+	l.logger = zapr.NewLogger(zap.New(zapcore.NewCore(zapcore.NewConsoleEncoder(
 		zapcore.EncoderConfig{
 			MessageKey:  "msg",
 			LevelKey:    "level",
 			EncodeLevel: zapcore.LowercaseColorLevelEncoder,
 		}),
 		zapcore.AddSync(o.ErrOut),
-		zapcore.ErrorLevel),
+		zapcore.WarnLevel),
 		zap.Hooks(func(e zapcore.Entry) error {
 			if e.Level == zapcore.ErrorLevel {
 				hasError = true
@@ -105,8 +115,8 @@ func (o *ExperimentOptions) checkExperiment(ctx context.Context) error {
 			return nil
 		})))
 
-	// Use a linter to inspect the experiment
-	experiment.Walk(ctx, &linter{logger: logger}, exp)
+	// Use the linter to inspect the experiment
+	experiment.Walk(ctx, l, exp)
 
 	// TODO Ideally we would just return an error here, but it would look strange alongside the other output
 	if hasError {
@@ -118,6 +128,9 @@ func (o *ExperimentOptions) checkExperiment(ctx context.Context) error {
 
 type linter struct {
 	logger logr.Logger
+
+	// The minimum recommended value for the experiment budget optimization parameter.
+	minExperimentBudget int
 }
 
 func (l *linter) Visit(ctx context.Context, obj interface{}) experiment.Visitor {
@@ -125,6 +138,16 @@ func (l *linter) Visit(ctx context.Context, obj interface{}) experiment.Visitor 
 	lint := l.logger.WithValues("path", strings.Join(experiment.WalkPath(ctx), "/"))
 
 	switch o := obj.(type) {
+
+	case *redskyv1beta1.Optimization:
+		switch o.Name {
+		case "experimentBudget":
+			if eb, err := strconv.Atoi(o.Value); err != nil {
+				lint.Error(err, "Optimization parameter value must be an integer", "value", o.Value)
+			} else if l.minExperimentBudget > 0 && l.minExperimentBudget > eb {
+				lint.V(vWarn).Info("Experiment budget should be increased", "experimentBudget", eb, "recommended", l.minExperimentBudget)
+			}
+		}
 
 	case []redskyv1beta1.Parameter:
 		if l := len(o); l == 0 {
