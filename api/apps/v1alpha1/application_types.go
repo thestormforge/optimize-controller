@@ -67,8 +67,6 @@ type Parameters struct {
 	ContainerResources *ContainerResources `json:"containerResources,omitempty"`
 	// Information related to the discovery of replica parameters.
 	Replicas *Replicas `json:"replicas,omitempty"`
-	// Information related to the discovery of ConfigMaps.
-	ConfigMaps []ConfigMaps `json:"configMaps,omitempty"`
 }
 
 // ContainerResources specifies which resources in the application should have their container
@@ -83,33 +81,6 @@ type Replicas struct {
 	// Label selector of Kubernetes objects to consider when generating replica patches.
 	LabelSelector string `json:"labelSelector,omitempty"`
 }
-
-// ConfigMaps specifies configuration maps which should be updated.
-type ConfigMaps struct {
-	// Name of the ConfigMap to patch.
-	Name string `json:"name"`
-	// Data key within the ConfigMap to patch.
-	Key string `json:"key"`
-	// Specification of a numeric value to optimize. Mutually exclusive with the string specification.
-	NumericValue *NumericParameter `json:"numericValue,omitempty"`
-	// Specification of possible string values. Mutually exclusive with the numeric specification.
-	StringValue StringParameter `json:"stringValue,omitempty"`
-}
-
-// NumericParameter is a specification of numeric parameter to optimize.
-type NumericParameter struct {
-	// A prefix that appears before the numeric value.
-	Prefix string `json:"prefix,omitempty"`
-	// A suffix that appears after the numeric value.
-	Suffix string `json:"suffix,omitempty"`
-	// The minimum allowed value.
-	Min int32 `json:"min"`
-	// The maximum allowed value.
-	Max int32 `json:"max"`
-}
-
-// StringParameter is a specification of string parameter to optimize.
-type StringParameter []string
 
 // Ingress describes the point of ingress to the application.
 type Ingress struct {

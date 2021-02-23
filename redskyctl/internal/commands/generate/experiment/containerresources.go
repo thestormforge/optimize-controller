@@ -62,7 +62,7 @@ func (rs *ContainerResourcesSelector) fieldSpec() types.FieldSpec {
 	}
 }
 
-// selector returns this selector as a Kustomize Selector.
+// selector resturns this selector as a Kustomize Selector.
 func (rs *ContainerResourcesSelector) selector() types.Selector {
 	return types.Selector{
 		Gvk:                rs.Gvk,

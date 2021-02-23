@@ -38,8 +38,6 @@ type Generator struct {
 	ContainerResourcesSelectors []ContainerResourcesSelector
 	// ReplicaSelectors are the selectors for determining what application resources to scan for desired replica counts.
 	ReplicaSelectors []ReplicaSelector
-	// ConfigMapKeySelectors are the selectors for determining which config map keys should be scanned.
-	ConfigMapKeySelectors []ConfigMapKeySelector
 	// File system to use when looking for resources, generally a pass through to the OS file system.
 	fs filesys.FileSystem
 }
@@ -67,26 +65,6 @@ func (g *Generator) SetDefaultSelectors() {
 			g.ReplicaSelectors[i].LabelSelector = g.Application.Parameters.Replicas.LabelSelector
 		}
 	}
-
-	if g.Application.Parameters != nil {
-		for _, cm := range g.Application.Parameters.ConfigMaps {
-			nv := cm.NumericValue
-			if nv == nil {
-				nv = &redskyappsv1alpha1.NumericParameter{}
-			}
-
-			g.ConfigMapKeySelectors = append(g.ConfigMapKeySelectors, ConfigMapKeySelector{
-				Name:               cm.Name,
-				Key:                cm.Key,
-				NumericPrefix:      nv.Prefix,
-				NumericSuffix:      nv.Suffix,
-				NumericMin:         nv.Min,
-				NumericMax:         nv.Max,
-				StringValues:       cm.StringValue,
-				CreateIfNotPresent: true,
-			})
-		}
-	}
 }
 
 // Generate scans the application and produces a list of Kubernetes objects representing an the experiment
@@ -109,12 +87,6 @@ func (g *Generator) Generate() (*corev1.List, error) {
 
 	// Scan the application resources for replicas and add the parameters and patches necessary
 	ars, err = g.scanForReplicas(ars, arm)
-	if err != nil {
-		return nil, err
-	}
-
-	// Scan the application resources for config map keys and add the parameters and patches necessary
-	ars, err = g.scanForConfigMapKeys(ars, arm)
 	if err != nil {
 		return nil, err
 	}
