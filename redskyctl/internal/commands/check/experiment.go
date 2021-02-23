@@ -91,8 +91,11 @@ func (o *ExperimentOptions) checkExperiment(ctx context.Context) error {
 	// Create a new linter for traversing the experiment and reporting errors
 	l := &linter{}
 
-	// Set the recommended budget to 20x the number of parameters
+	// Set the recommended budget to 20x the number of parameters up to 400 trials
 	l.minExperimentBudget = 20 * len(exp.Spec.Parameters)
+	if l.minExperimentBudget > 400 {
+		l.minExperimentBudget = 400
+	}
 
 	// Create a zapr logger for reporting issues
 	// NOTE: We are using logr and zap because that is what controller-runtime uses
