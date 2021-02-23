@@ -14,25 +14,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package locust
+package stormforger
 
 import (
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
-	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/generate/experiment/k8s"
+	"github.com/thestormforge/optimize-controller/internal/application/experiment/k8s"
 	corev1 "k8s.io/api/core/v1"
 )
 
-// addLocustObjectives adds metrics for objectives supported by Locust.
-func addLocustObjectives(app *redskyappsv1alpha1.Application, list *corev1.List) error {
+// addStormForgerObjectives adds metrics for objectives supported by StormForger.
+func addStormForgerObjectives(app *redskyappsv1alpha1.Application, list *corev1.List) error {
 	for i := range app.Objectives {
 		obj := &app.Objectives[i]
 		switch {
 
 		case obj.Latency != nil:
-			addLocustLatencyMetric(obj, list)
+			addStormForgerLatencyMetric(obj, list)
 
 		case obj.ErrorRate != nil:
-			addLocustErrorRateMetric(obj, list)
+			addStormForgerErrorRateMetric(obj, list)
 
 		}
 	}
@@ -40,23 +40,23 @@ func addLocustObjectives(app *redskyappsv1alpha1.Application, list *corev1.List)
 	return nil
 }
 
-func addLocustLatencyMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) {
+func addStormForgerLatencyMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) {
 	var m string
 	switch redskyappsv1alpha1.FixLatency(obj.Latency.LatencyType) {
 	case redskyappsv1alpha1.LatencyMinimum:
-		m = "min_response_time"
+		m = "min"
 	case redskyappsv1alpha1.LatencyMaximum:
-		m = "max_response_time"
+		m = "max"
 	case redskyappsv1alpha1.LatencyMean:
-		m = "average_response_time"
+		m = "mean"
 	case redskyappsv1alpha1.LatencyPercentile50:
-		m = "p50"
+		m = "median"
 	case redskyappsv1alpha1.LatencyPercentile95:
-		m = "p95"
+		m = "percentile_95"
 	case redskyappsv1alpha1.LatencyPercentile99:
-		m = "p99"
+		m = "percentile_99"
 	default:
-		// This is not a latency measure that Locust can produce, skip it
+		// This is not a latency measure that StormForger can produce, skip it
 		return
 	}
 
@@ -66,13 +66,13 @@ func addLocustLatencyMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List
 	exp.Spec.Metrics = append(exp.Spec.Metrics, k8s.NewObjectiveMetric(obj, query))
 }
 
-func addLocustErrorRateMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) {
+func addStormForgerErrorRateMetric(obj *redskyappsv1alpha1.Objective, list *corev1.List) {
 	if obj.ErrorRate.ErrorRateType != redskyappsv1alpha1.ErrorRateRequests {
-		// This is not an error rate that Locust can produce, skip it
+		// This is not an error rate that StormForger can produce, skip it
 		return
 	}
 
-	query := `scalar(failure_count{job="trialRun",instance="{{ .Trial.Name }}"} / request_count{job="trialRun",instance="{{ .Trial.Name }}"})`
+	query := `scalar(error_ratio{job="trialRun",instance="{{ .Trial.Name }}"})`
 
 	exp := k8s.FindOrAddExperiment(list)
 	exp.Spec.Metrics = append(exp.Spec.Metrics, k8s.NewObjectiveMetric(obj, query))

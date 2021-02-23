@@ -17,8 +17,8 @@ limitations under the License.
 package experiment
 
 import (
-	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/generate/experiment/locust"
-	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/generate/experiment/stormforger"
+	"github.com/thestormforge/optimize-controller/internal/application/experiment/locust"
+	"github.com/thestormforge/optimize-controller/internal/application/experiment/stormforger"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/kustomize/api/resmap"
 )

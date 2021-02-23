@@ -25,9 +25,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/thestormforge/konjure/pkg/konjure"
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
-	"github.com/thestormforge/optimize-controller/pkg/application"
+	"github.com/thestormforge/optimize-controller/internal/application"
+	"github.com/thestormforge/optimize-controller/internal/application/experiment"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
-	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/generate/experiment"
 	"github.com/thestormforge/optimize-go/pkg/config"
 	"sigs.k8s.io/kustomize/api/filesys"
 )
