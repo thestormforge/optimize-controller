@@ -18,18 +18,17 @@ package generate
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/thestormforge/konjure/pkg/konjure"
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	"github.com/thestormforge/optimize-controller/pkg/application"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/generate/experiment"
 	"github.com/thestormforge/optimize-go/pkg/config"
 	"sigs.k8s.io/kustomize/api/filesys"
-	"sigs.k8s.io/kustomize/api/konfig"
 )
 
 type ExperimentOptions struct {
@@ -134,17 +133,13 @@ func (o *ExperimentOptions) generate() error {
 
 func (o *ExperimentOptions) filterResources(app *redskyappsv1alpha1.Application) error {
 	// Add additional resources (this allows addition manifests to be added when invoking the CLI)
-	app.Resources = append(app.Resources, o.Resources...)
+	if len(o.Resources) > 0 {
+		app.Resources = append(app.Resources, konjure.NewResource(o.Resources...))
+	}
 
-	// Check to see if there is a Kustomization root at the same location as the file
-	if len(app.Resources) == 0 && o.Filename != "" {
-		dir := filepath.Dir(o.Filename)
-		for _, n := range konfig.RecognizedKustomizationFileNames() {
-			if _, err := os.Stat(filepath.Join(dir, n)); err == nil {
-				app.Resources = append(app.Resources, dir)
-				break
-			}
-		}
+	// If there are no resources, assume the directory of the input file (or "." if no file is specified)
+	if len(app.Resources) == 0 {
+		app.Resources = append(app.Resources, konjure.NewResource(filepath.Dir(o.Filename)))
 	}
 
 	return nil

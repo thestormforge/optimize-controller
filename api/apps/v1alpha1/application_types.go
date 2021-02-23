@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	"encoding/json"
 
+	"github.com/thestormforge/konjure/pkg/konjure"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,7 +35,7 @@ type Application struct {
 
 	// Resources are references to application resources to consider in the generation of the experiment.
 	// These strings are the same format as used by Kustomize.
-	Resources []string `json:"resources,omitempty"`
+	Resources konjure.Resources `json:"resources,omitempty"`
 
 	// Parameters specifies additional details about the experiment parameters.
 	Parameters *Parameters `json:"parameters,omitempty"`

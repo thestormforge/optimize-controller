@@ -20,10 +20,11 @@ require (
 	github.com/spf13/cobra v1.1.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.6.1
+	github.com/thestormforge/konjure v0.3.0-beta.3
 	github.com/thestormforge/optimize-go v0.0.8
 	github.com/zorkian/go-datadog-api v2.24.0+incompatible
 	go.uber.org/zap v1.10.0
-	golang.org/x/net v0.0.0-20200904194848-62affa334b73
+	golang.org/x/net v0.0.0-20201110031124-69a78807bb2b
 	golang.org/x/oauth2 v0.0.0-20200902213428-5d25da1a8d43
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
 	k8s.io/api v0.17.2
@@ -33,7 +34,7 @@ require (
 	k8s.io/metrics v0.17.2
 	sigs.k8s.io/controller-runtime v0.5.0
 	sigs.k8s.io/kustomize/api v0.7.1
-	sigs.k8s.io/kustomize/kyaml v0.10.5
+	sigs.k8s.io/kustomize/kyaml v0.10.10
 	sigs.k8s.io/yaml v1.2.0
 )
 
