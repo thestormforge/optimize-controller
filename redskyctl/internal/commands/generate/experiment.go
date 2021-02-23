@@ -43,6 +43,8 @@ type ExperimentOptions struct {
 	Resources  []string
 	Scenario   string
 	Objectives []string
+
+	IncludeResources bool
 }
 
 // Other possible options:
@@ -76,6 +78,7 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 	cmd.Flags().StringArrayVarP(&o.Resources, "resources", "r", nil, "additional resources to consider")
 	cmd.Flags().StringVarP(&o.Scenario, "scenario", "s", o.Scenario, "the application scenario to generate an experiment for")
 	cmd.Flags().StringArrayVar(&o.Objectives, "objectives", o.Objectives, "the application objectives to generate an experiment for")
+	cmd.Flags().BoolVar(&o.IncludeResources, "include-resources", false, "include the application resources in the output")
 
 	_ = cmd.MarkFlagRequired("filename")
 	_ = cmd.MarkFlagFilename("filename", "yml", "yaml")
@@ -86,6 +89,7 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 
 func (o *ExperimentOptions) generate() error {
 	g := experiment.NewGenerator(filesys.MakeFsOnDisk())
+	g.IncludeApplicationResources = o.IncludeResources
 
 	if o.Filename != "" {
 		r, err := o.IOStreams.OpenFile(o.Filename)
