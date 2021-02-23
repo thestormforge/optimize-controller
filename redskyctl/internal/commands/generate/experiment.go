@@ -74,13 +74,12 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 		RunE: commander.WithoutArgsE(o.generate),
 	}
 
-	cmd.Flags().StringVarP(&o.Filename, "filename", "f", o.Filename, "file that contains the experiment configuration")
+	cmd.Flags().StringVarP(&o.Filename, "filename", "f", o.Filename, "file that contains the application definition")
 	cmd.Flags().StringArrayVarP(&o.Resources, "resources", "r", nil, "additional resources to consider")
 	cmd.Flags().StringVarP(&o.Scenario, "scenario", "s", o.Scenario, "the application scenario to generate an experiment for")
 	cmd.Flags().StringArrayVar(&o.Objectives, "objectives", o.Objectives, "the application objectives to generate an experiment for")
 	cmd.Flags().BoolVar(&o.IncludeResources, "include-resources", false, "include the application resources in the output")
 
-	_ = cmd.MarkFlagRequired("filename")
 	_ = cmd.MarkFlagFilename("filename", "yml", "yaml")
 
 	commander.SetKubePrinter(&o.Printer, cmd, nil)
@@ -170,9 +169,15 @@ func (o *ExperimentOptions) defaultNamespace() string {
 }
 
 func (o *ExperimentOptions) defaultName() string {
+	// Use the working directory
+	filename := o.Filename
+	if filename == "" || filepath.Dir(filename) == "/dev/fd" {
+		filename = "./default"
+	}
+
 	// Use the directory name
-	if af, err := filepath.Abs(o.Filename); err == nil {
-		if d := filepath.Base(filepath.Dir(af)); d != "." {
+	if af, err := filepath.Abs(filename); err == nil {
+		if d := filepath.Base(filepath.Dir(af)); d != "." && d != "/" {
 			return d
 		}
 	}
