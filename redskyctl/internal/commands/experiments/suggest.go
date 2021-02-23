@@ -32,10 +32,11 @@ import (
 // TODO Accept suggestion inputs from standard input, what formats?
 
 const (
-	DefaultNone    = "none"
-	DefaultMinimum = "min"
-	DefaultMaximum = "max"
-	DefaultRandom  = "rand"
+	DefaultNone     = "none"
+	DefaultMinimum  = "min"
+	DefaultMaximum  = "max"
+	DefaultRandom   = "rand"
+	DefaultBaseline = "base"
 )
 
 // SuggestOptions includes the configuration for suggesting experiment trials
@@ -46,6 +47,7 @@ type SuggestOptions struct {
 	AllowInteractive bool
 	DefaultBehavior  string
 	Labels           string
+	Baselines        map[string]*numstr.NumberOrString
 }
 
 // NewSuggestCommand creates a new suggestion command
@@ -164,6 +166,8 @@ func (o *SuggestOptions) defaultValue(p *experimentsv1alpha1.Parameter) (*numstr
 		return p.UpperBound()
 	case DefaultRandom, "random":
 		return randomValue(p)
+	case DefaultBaseline, "baseline":
+		return o.Baselines[p.Name], nil
 	default:
 		return nil, fmt.Errorf("unknown default behavior: %q", o.DefaultBehavior)
 	}

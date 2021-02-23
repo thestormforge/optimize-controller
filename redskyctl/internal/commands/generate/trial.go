@@ -26,6 +26,7 @@ import (
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/experiments"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
+	"github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1/numstr"
 )
 
 type TrialOptions struct {
@@ -65,6 +66,7 @@ func NewTrialCommand(o *TrialOptions) *cobra.Command {
 		experiments.DefaultMinimum,
 		experiments.DefaultMaximum,
 		experiments.DefaultRandom,
+		experiments.DefaultBaseline, // This option is unique to the Kube based implementation
 	)
 
 	commander.SetKubePrinter(&o.Printer, cmd, nil)
@@ -90,9 +92,15 @@ func (o *TrialOptions) generate() error {
 	}
 
 	// Convert the experiment so we can use it to collect the suggested assignments
-	_, serverExperiment, _, err := server.FromCluster(exp)
+	_, serverExperiment, baselines, err := server.FromCluster(exp)
 	if err != nil {
 		return err
+	}
+	if baselines != nil {
+		o.Baselines = make(map[string]*numstr.NumberOrString)
+		for _, a := range baselines.Assignments {
+			o.Baselines[a.ParameterName] = &a.Value
+		}
 	}
 	ta := experimentsv1alpha1.TrialAssignments{}
 	if err := o.SuggestAssignments(serverExperiment, &ta); err != nil {
