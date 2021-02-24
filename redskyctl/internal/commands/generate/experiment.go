@@ -20,6 +20,7 @@ import (
 	"context"
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	"github.com/spf13/cobra"
 	"github.com/thestormforge/konjure/pkg/konjure"
@@ -169,19 +170,46 @@ func (o *ExperimentOptions) defaultNamespace() string {
 }
 
 func (o *ExperimentOptions) defaultName() string {
-	// Use the working directory
-	filename := o.Filename
-	if filename == "" || filepath.Dir(filename) == "/dev/fd" {
-		filename = "./default"
-	}
-
-	// Use the directory name
-	if af, err := filepath.Abs(filename); err == nil {
-		if d := filepath.Base(filepath.Dir(af)); d != "." && d != "/" {
-			return d
+	var d, f = o.Filename, ""
+	for {
+		// Split the path, discard everything if this was a file descriptor path
+		d, f = filepath.Split(d)
+		if d == "/dev/fd/" {
+			d, f = "", ""
 		}
-	}
 
-	// We cannot return empty, use default
-	return "default"
+		// Trim the first extension
+		f = strings.TrimSuffix(f, filepath.Ext(f))
+
+		// https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-subdomain-names
+		f = strings.Map(dnsSubdomainChars, f)
+		f = strings.Trim(f, "-.")
+		if len(f) > 253 {
+			f = f[0:253]
+		}
+
+		// If the name is good, return it
+		if f != "" && f != "application" && f != "app" {
+			return f
+		}
+
+		// Ensure the directory is an absolute path for remaining iterations
+		ad, err := filepath.Abs(d)
+		if err != nil || d == "/" {
+			return "default"
+		}
+
+		// Walk up the tree
+		d = ad
+	}
+}
+
+func dnsSubdomainChars(r rune) rune {
+	if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' || r == '.' {
+		return r
+	}
+	if r >= 'A' && r <= 'Z' {
+		return unicode.ToLower(r)
+	}
+	return -1
 }
