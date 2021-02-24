@@ -26,6 +26,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/kustomize/api/filesys"
 	"sigs.k8s.io/kustomize/api/hasher"
 )
@@ -38,6 +40,8 @@ type Generator struct {
 	ContainerResourcesSelectors []ContainerResourcesSelector
 	// ReplicaSelectors are the selectors for determining what application resources to scan for desired replica counts.
 	ReplicaSelectors []ReplicaSelector
+	// IncludeApplicationResources is a flag indicating that the application resources should be included in the output.
+	IncludeApplicationResources bool
 	// File system to use when looking for resources, generally a pass through to the OS file system.
 	fs filesys.FileSystem
 }
@@ -150,6 +154,13 @@ func (g *Generator) Generate() (*corev1.List, error) {
 	for i := range g.Application.Objectives {
 		if !g.Application.Objectives[i].Implemented {
 			return nil, fmt.Errorf("generated experiment cannot optimize objective: %s", g.Application.Objectives[i].Name)
+		}
+	}
+
+	// If requested, append the actual application resources to the output
+	if g.IncludeApplicationResources {
+		for _, r := range arm.Resources() {
+			list.Items = append(list.Items, runtime.RawExtension{Object: &unstructured.Unstructured{Object: r.Map()}})
 		}
 	}
 
