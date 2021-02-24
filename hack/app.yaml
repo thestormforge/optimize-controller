@@ -1,0 +1,30 @@
+kind: Application
+metadata:
+  name: ci
+
+resources:
+- hack/nginx.yaml
+
+ingress:
+  url: http://nginx
+
+scenarios:
+- name: 10-user-load
+  locust:
+    locustfile: hack/locustfile.py
+    users: 10
+    spawnRate: 2
+    runTime: 30s
+
+objectives:
+# Test push gateway
+- latency: p95
+# Test built in metrics
+- name: cost
+  requests:
+    metricSelector: app=nginx
+# Test out kube metrics
+## This indirectly gets covered with built in metrics
+- optimize: false
+  duration: trial
+
