@@ -24,6 +24,9 @@ import (
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	"github.com/thestormforge/optimize-controller/internal/application/experiment/k8s"
 	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/kustomize/api/resmap"
+	"sigs.k8s.io/kustomize/api/types"
+	"sigs.k8s.io/kustomize/kyaml/filtersutil"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
@@ -38,6 +41,11 @@ type applicationResourceParameter interface {
 	parameters(name resNameGen) ([]redskyv1beta1.Parameter, error)
 }
 
+type applicationResourceSelector interface {
+	selector() types.Selector
+	findParameters(node *yaml.RNode) ([]applicationResourceParameter, error)
+}
+
 // applicationResource is an individual application resource with one or more tunable parameters.
 type applicationResource struct {
 	// targetRef is the reference to the resource.
@@ -48,6 +56,8 @@ type applicationResource struct {
 
 // anode is an application resource parameter value node in a YAML document.
 type anode struct {
+	// TODO Does having the target ref here help instead of having applicationResource at all?
+
 	fieldPath []string
 	value     *yaml.Node
 }
@@ -147,6 +157,41 @@ func patchExperiment(ars []*applicationResource, list *corev1.List) error {
 	}
 
 	return nil
+}
+
+func scan(ars []*applicationResource, rm resmap.ResMap, sel applicationResourceSelector) ([]*applicationResource, error) {
+	// Select the matching resources
+	resources, err := rm.Select(sel.selector())
+	if err != nil {
+		return nil, err
+	}
+
+	for _, r := range resources {
+		// Get the YAML tree representation of the resource
+		node, err := filtersutil.GetRNode(r)
+		if err != nil {
+			return nil, err
+		}
+
+		// Find the parameters
+		p, err := sel.findParameters(node)
+		if err != nil {
+			return nil, err
+		}
+		if len(p) == 0 {
+			continue
+		}
+
+		// Scan the document tree for information to add to the application resource
+		ar := &applicationResource{params: p}
+		if err := ar.saveTargetReference(node); err != nil {
+			return nil, err
+		}
+
+		ars = mergeOrAppend(ars, ar)
+	}
+
+	return ars, nil
 }
 
 // mergeOrAppend appends an application resource pointer unless it already exists, in which case the

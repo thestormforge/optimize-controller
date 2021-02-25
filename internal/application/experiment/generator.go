@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/kustomize/api/filesys"
 	"sigs.k8s.io/kustomize/api/hasher"
+	"sigs.k8s.io/kustomize/api/resid"
 )
 
 // Generator generates an application experiment.
@@ -71,6 +72,60 @@ func (g *Generator) SetDefaultSelectors() {
 	}
 }
 
+// DefaultContainerResourcesSelectors returns the default container resource selectors. These selectors match
+// the default role created by the `grant_permissions` code.
+func DefaultContainerResourcesSelectors() []ContainerResourcesSelector {
+	return []ContainerResourcesSelector{
+		{
+			Gvk:                resid.Gvk{Group: "apps", Kind: "Deployment"},
+			Path:               "/spec/template/spec/containers",
+			CreateIfNotPresent: true,
+		},
+		{
+			Gvk:                resid.Gvk{Group: "extensions", Kind: "Deployment"},
+			Path:               "/spec/template/spec/containers",
+			CreateIfNotPresent: true,
+		},
+		{
+			Gvk:                resid.Gvk{Group: "apps", Kind: "StatefulSet"},
+			Path:               "/spec/template/spec/containers",
+			CreateIfNotPresent: true,
+		},
+		{
+			Gvk:                resid.Gvk{Group: "extensions", Kind: "StatefulSet"},
+			Path:               "/spec/template/spec/containers",
+			CreateIfNotPresent: true,
+		},
+	}
+}
+
+// DefaultReplicaSelectors returns the default replica selectors. These selectors match
+// the default role created by the `grant_permissions` code.
+func DefaultReplicaSelectors() []ReplicaSelector {
+	return []ReplicaSelector{
+		{
+			Gvk:                resid.Gvk{Group: "apps", Kind: "Deployment"},
+			Path:               "/spec/replicas",
+			CreateIfNotPresent: true,
+		},
+		{
+			Gvk:                resid.Gvk{Group: "extensions", Kind: "Deployment"},
+			Path:               "/spec/replicas",
+			CreateIfNotPresent: true,
+		},
+		{
+			Gvk:                resid.Gvk{Group: "apps", Kind: "StatefulSet"},
+			Path:               "/spec/replicas",
+			CreateIfNotPresent: true,
+		},
+		{
+			Gvk:                resid.Gvk{Group: "extensions", Kind: "StatefulSet"},
+			Path:               "/spec/replicas",
+			CreateIfNotPresent: true,
+		},
+	}
+}
+
 // Generate scans the application and produces a list of Kubernetes objects representing an the experiment
 func (g *Generator) Generate() (*corev1.List, error) {
 	// Load all of the application resources
@@ -83,16 +138,22 @@ func (g *Generator) Generate() (*corev1.List, error) {
 	list := &corev1.List{}
 	ars := make([]*applicationResource, 0, arm.Size())
 
+	// TODO Consolidate into a single list
+
 	// Scan the application resources for requests/limits and add the parameters and patches necessary
-	ars, err = g.scanForContainerResources(ars, arm)
-	if err != nil {
-		return nil, err
+	for _, sel := range g.ContainerResourcesSelectors {
+		ars, err = scan(ars, arm, &sel)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Scan the application resources for replicas and add the parameters and patches necessary
-	ars, err = g.scanForReplicas(ars, arm)
-	if err != nil {
-		return nil, err
+	for _, sel := range g.ReplicaSelectors {
+		ars, err = scan(ars, arm, &sel)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Add parameters and patches discovered from the application

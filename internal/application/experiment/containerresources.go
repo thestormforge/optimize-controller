@@ -26,9 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/kustomize/api/resid"
-	"sigs.k8s.io/kustomize/api/resmap"
 	"sigs.k8s.io/kustomize/api/types"
-	"sigs.k8s.io/kustomize/kyaml/filtersutil"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
@@ -89,84 +87,21 @@ func (rs *ContainerResourcesSelector) matchesContainerName(name string) bool {
 	return containerName.MatchString(name)
 }
 
-// DefaultContainerResourcesSelectors returns the default container resource selectors. These selectors match
-// the default role created by the `grant_permissions` code.
-func DefaultContainerResourcesSelectors() []ContainerResourcesSelector {
-	return []ContainerResourcesSelector{
-		{
-			Gvk:                resid.Gvk{Group: "apps", Kind: "Deployment"},
-			Path:               "/spec/template/spec/containers",
-			CreateIfNotPresent: true,
-		},
-		{
-			Gvk:                resid.Gvk{Group: "extensions", Kind: "Deployment"},
-			Path:               "/spec/template/spec/containers",
-			CreateIfNotPresent: true,
-		},
-		{
-			Gvk:                resid.Gvk{Group: "apps", Kind: "StatefulSet"},
-			Path:               "/spec/template/spec/containers",
-			CreateIfNotPresent: true,
-		},
-		{
-			Gvk:                resid.Gvk{Group: "extensions", Kind: "StatefulSet"},
-			Path:               "/spec/template/spec/containers",
-			CreateIfNotPresent: true,
-		},
-	}
-}
+func (rs *ContainerResourcesSelector) findParameters(node *yaml.RNode) ([]applicationResourceParameter, error) {
+	var result []applicationResourceParameter
 
-// scanForContainerResources scans the supplied resource map for container resources matching the selector.
-func (g *Generator) scanForContainerResources(ars []*applicationResource, rm resmap.ResMap) ([]*applicationResource, error) {
-	for _, sel := range g.ContainerResourcesSelectors {
-		// Select the matching resources
-		resources, err := rm.Select(sel.selector())
-		if err != nil {
-			return nil, err
-		}
-
-		for _, r := range resources {
-			// Get the YAML tree representation of the resource
-			node, err := filtersutil.GetRNode(r)
-			if err != nil {
-				return nil, err
-			}
-
-			// Scan the document tree for information to add to the application resource
-			ar := &applicationResource{}
-			if err := ar.saveTargetReference(node); err != nil {
-				return nil, err
-			}
-			if err := ar.saveContainerResourcesPaths(node, sel); err != nil {
-				// TODO Ignore errors if the resource doesn't have a matching resources path
-				return nil, err
-			}
-			if len(ar.params) == 0 {
-				continue
-			}
-
-			// Make sure we only get the newly discovered parts
-			ars = mergeOrAppend(ars, ar)
-		}
-	}
-
-	return ars, nil
-}
-
-// saveResourcesPaths extracts the paths to the `resources` elements from the supplied node.
-func (r *applicationResource) saveContainerResourcesPaths(node *yaml.RNode, sel ContainerResourcesSelector) error {
-	path := sel.fieldSpec().PathSlice()
-	return node.PipeE(
+	path := rs.fieldSpec().PathSlice() // Path to the containers list
+	err := node.PipeE(
 		yaml.Lookup(path...),
 		yaml.FilterFunc(func(node *yaml.RNode) (*yaml.RNode, error) {
 			return nil, node.VisitElements(func(node *yaml.RNode) error {
 				rl := node.Field("resources")
-				if rl == nil && !sel.CreateIfNotPresent {
+				if rl == nil && !rs.CreateIfNotPresent {
 					return nil
 				}
 
 				name := node.Field("name").Value.YNode().Value
-				if !sel.matchesContainerName(name) {
+				if !rs.matchesContainerName(name) {
 					return nil
 				}
 
@@ -176,10 +111,16 @@ func (r *applicationResource) saveContainerResourcesPaths(node *yaml.RNode, sel 
 					p.value = rl.Value.YNode()
 				}
 
-				r.params = append(r.params, &p)
+				result = append(result, &p)
 				return nil
 			})
 		}))
+
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
 
 type containerResourcesParameter struct {
@@ -187,18 +128,11 @@ type containerResourcesParameter struct {
 }
 
 func (p *containerResourcesParameter) patch(name resNameGen) (yaml.Filter, error) {
-	// Construct limits/requests values
-	memory := "{{ .Values." + name(p.fieldPath, "memory") + " }}M"
-	cpu := "{{ .Values." + name(p.fieldPath, "cpu") + " }}m"
-	values, err := yaml.NewRNode(&yaml.Node{Kind: yaml.MappingNode}).Pipe(
-		yaml.Tee(yaml.SetField("memory", yaml.NewScalarRNode(memory))),
-		yaml.Tee(yaml.SetField("cpu", yaml.NewScalarRNode(cpu))),
-	)
-	if err != nil {
-		return nil, err
-	}
+	values := yaml.NewMapRNode(&map[string]string{
+		"memory": "{{ .Values." + name(p.fieldPath, "memory") + " }}M",
+		"cpu":    "{{ .Values." + name(p.fieldPath, "cpu") + " }}m",
+	})
 
-	// Aggregate the limits/requests on the patch
 	return yaml.Tee(
 		&yaml.PathGetter{Path: p.fieldPath, Create: yaml.MappingNode},
 		yaml.Tee(yaml.SetField("limits", values)),
