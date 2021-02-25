@@ -141,7 +141,7 @@ func (g *Generator) scanForContainerResources(ars []*applicationResource, rm res
 				// TODO Ignore errors if the resource doesn't have a matching resources path
 				return nil, err
 			}
-			if len(ar.containerResourcesPaths) == 0 {
+			if len(ar.params) == 0 {
 				continue
 			}
 
@@ -170,47 +170,70 @@ func (r *applicationResource) saveContainerResourcesPaths(node *yaml.RNode, sel 
 					return nil
 				}
 
-				r.containerResourcesPaths = append(r.containerResourcesPaths, append(path, "[name="+name+"]", "resources"))
-				r.containerResources = append(r.containerResources, materializeResourceList(rl))
+				p := containerResourcesParameter{}
+				p.fieldPath = append(path, "[name="+name+"]", "resources")
+				if rl != nil {
+					p.value = rl.Value.YNode()
+				}
+
+				r.params = append(r.params, &p)
 				return nil
 			})
 		}))
 }
 
-// resourcesParameters returns the parameters required for optimizing the discovered resources sections.
-func (r *applicationResource) containerResourcesParameters(name nameGen) []redskyv1beta1.Parameter {
-	parameters := make([]redskyv1beta1.Parameter, 0, len(r.containerResourcesPaths)*2)
-	for i := range r.containerResourcesPaths {
-		baselineMemory, minMemory, maxMemory := toIntWithRange(r.containerResources[i], corev1.ResourceMemory)
-		baselineCPU, minCPU, maxCPU := toIntWithRange(r.containerResources[i], corev1.ResourceCPU)
-
-		parameters = append(parameters, redskyv1beta1.Parameter{
-			Name:     name(&r.targetRef, r.containerResourcesPaths[i], "memory"),
-			Min:      minMemory,
-			Max:      maxMemory,
-			Baseline: baselineMemory,
-		}, redskyv1beta1.Parameter{
-			Name:     name(&r.targetRef, r.containerResourcesPaths[i], "cpu"),
-			Min:      minCPU,
-			Max:      maxCPU,
-			Baseline: baselineCPU,
-		})
-	}
-	return parameters
+type containerResourcesParameter struct {
+	anode
 }
 
-// materializeResourceList returns a resource list from the supplied node.
-func materializeResourceList(node *yaml.MapNode) corev1.ResourceList {
-	resources := struct {
+func (p *containerResourcesParameter) patch(name resNameGen) (yaml.Filter, error) {
+	// Construct limits/requests values
+	memory := "{{ .Values." + name(p.fieldPath, "memory") + " }}M"
+	cpu := "{{ .Values." + name(p.fieldPath, "cpu") + " }}m"
+	values, err := yaml.NewRNode(&yaml.Node{Kind: yaml.MappingNode}).Pipe(
+		yaml.Tee(yaml.SetField("memory", yaml.NewScalarRNode(memory))),
+		yaml.Tee(yaml.SetField("cpu", yaml.NewScalarRNode(cpu))),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Aggregate the limits/requests on the patch
+	return yaml.Tee(
+		&yaml.PathGetter{Path: p.fieldPath, Create: yaml.MappingNode},
+		yaml.Tee(yaml.SetField("limits", values)),
+		yaml.Tee(yaml.SetField("requests", values)),
+	), nil
+}
+
+func (p *containerResourcesParameter) parameters(name resNameGen) ([]redskyv1beta1.Parameter, error) {
+	// ResourceList (actually Quantities) don't unmarshal as YAML so we need to round trip through JSON
+	data, err := yaml.NewRNode(p.value).MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+	r := struct {
 		Limits   corev1.ResourceList `json:"limits"`
 		Requests corev1.ResourceList `json:"requests"`
 	}{}
-	if node != nil {
-		if data, err := node.Value.MarshalJSON(); err == nil {
-			_ = json.Unmarshal(data, &resources)
-		}
+	if err := json.Unmarshal(data, &r); err != nil {
+		return nil, err
 	}
-	return resources.Requests
+
+	baselineMemory, minMemory, maxMemory := toIntWithRange(r.Requests, corev1.ResourceMemory)
+	baselineCPU, minCPU, maxCPU := toIntWithRange(r.Requests, corev1.ResourceCPU)
+
+	return []redskyv1beta1.Parameter{{
+		Name:     name(p.fieldPath, "memory"),
+		Min:      minMemory,
+		Max:      maxMemory,
+		Baseline: baselineMemory,
+	}, {
+		Name:     name(p.fieldPath, "cpu"),
+		Min:      minCPU,
+		Max:      maxCPU,
+		Baseline: baselineCPU,
+	}}, nil
 }
 
 // toIntWithRange returns the quantity as an int value with a default range.

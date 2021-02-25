@@ -116,7 +116,7 @@ func (g *Generator) scanForReplicas(ars []*applicationResource, rm resmap.ResMap
 				// TODO Ignore errors if the resource doesn't have a matching resources path
 				return nil, err
 			}
-			if len(ar.replicaPaths) == 0 {
+			if len(ar.params) == 0 {
 				continue
 			}
 
@@ -138,38 +138,51 @@ func (r *applicationResource) saveReplicaPaths(node *yaml.RNode, sel ReplicaSele
 				return node, nil
 			}
 
-			var replicas int32 = 1
-			_ = node.YNode().Decode(&replicas)
+			r.params = append(r.params, &replicaParameter{
+				anode: anode{
+					fieldPath: node.FieldPath(),
+					value:     node.YNode(),
+				},
+			})
 
-			r.replicaPaths = append(r.replicaPaths, node.FieldPath())
-			r.replicas = append(r.replicas, replicas)
 			return node, nil
 		}))
 }
 
-// replicasParameters returns the parameters required for optimizing the discovered replicas.
-func (r *applicationResource) replicasParameters(name nameGen) []redskyv1beta1.Parameter {
-	parameters := make([]redskyv1beta1.Parameter, 0, len(r.replicaPaths))
-	for i := range r.replicaPaths {
-		baselineReplicas := intstr.FromInt(int(r.replicas[i]))
-		var minReplicas, maxReplicas int32 = 1, 5
+type replicaParameter struct {
+	anode
+}
 
-		// Do not explicitly enable something that was disabled
-		if baselineReplicas.IntVal <= 0 {
-			continue
-		}
+func (p *replicaParameter) patch(name resNameGen) (yaml.Filter, error) {
+	value := yaml.NewScalarRNode("{{ .Values." + name(p.fieldPath, "replicas") + " }}")
+	value.YNode().Tag = yaml.NodeTagInt
+	return yaml.Tee(
+		&yaml.PathGetter{Path: p.fieldPath, Create: yaml.ScalarNode},
+		yaml.FieldSetter{Value: value, OverrideStyle: true},
+	), nil
+}
 
-		// Only adjust the max replica count if necessary
-		if baselineReplicas.IntVal > maxReplicas {
-			maxReplicas = baselineReplicas.IntVal
-		}
-
-		parameters = append(parameters, redskyv1beta1.Parameter{
-			Name:     name(&r.targetRef, r.replicaPaths[i], "replicas"),
-			Min:      minReplicas,
-			Max:      maxReplicas,
-			Baseline: &baselineReplicas,
-		})
+func (p *replicaParameter) parameters(name resNameGen) ([]redskyv1beta1.Parameter, error) {
+	var v int
+	if err := p.value.Decode(&v); err != nil {
+		return nil, err
 	}
-	return parameters
+	if v <= 0 {
+		return nil, nil
+	}
+
+	baselineReplicas := intstr.FromInt(v)
+	var minReplicas, maxReplicas int32 = 1, 5
+
+	// Only adjust the max replica count if necessary
+	if baselineReplicas.IntVal > maxReplicas {
+		maxReplicas = baselineReplicas.IntVal
+	}
+
+	return []redskyv1beta1.Parameter{{
+		Name:     name(p.fieldPath, "replicas"),
+		Min:      minReplicas,
+		Max:      maxReplicas,
+		Baseline: &baselineReplicas,
+	}}, nil
 }

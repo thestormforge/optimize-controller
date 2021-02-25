@@ -30,20 +30,26 @@ import (
 // nameGen is a function that produces parameter names.
 type nameGen func(ref *corev1.ObjectReference, path []string, name string) string
 
-// applicationResource is an individual application resource that requires patching.
+type resNameGen func(path []string, name string) string
+
+// applicationResourceParameter is a tunable parameter of an application resources.
+type applicationResourceParameter interface {
+	patch(name resNameGen) (yaml.Filter, error)
+	parameters(name resNameGen) ([]redskyv1beta1.Parameter, error)
+}
+
+// applicationResource is an individual application resource with one or more tunable parameters.
 type applicationResource struct {
 	// targetRef is the reference to the resource.
 	targetRef corev1.ObjectReference
+	// params is the list of parameters to tune on the resource.
+	params []applicationResourceParameter
+}
 
-	// containerResourcesPaths are the YAML paths to the `resources` elements.
-	containerResourcesPaths [][]string
-	// containerResources are the actual `resources` found at the corresponding path index.
-	containerResources []corev1.ResourceList
-
-	// replicaPaths are the YAML paths to the `replicas` fields.
-	replicaPaths [][]string
-	// replicas are the actual replica values found at the corresponding path index.
-	replicas []int32
+// anode is an application resource parameter value node in a YAML document.
+type anode struct {
+	fieldPath []string
+	value     *yaml.Node
 }
 
 // saveTargetReference updates the resource reference from the supplied document node.
@@ -71,38 +77,18 @@ func (r *applicationResource) patch(name nameGen) (*redskyv1beta1.PatchTemplate,
 		Content: []*yaml.Node{{Kind: yaml.MappingNode}},
 	})
 
-	for i := range r.replicaPaths {
-		replicas := "{{ .Values." + name(&r.targetRef, r.replicaPaths[i], "replicas") + " }}"
-		value := yaml.NewScalarRNode(replicas)
-		value.YNode().Tag = yaml.NodeTagInt
-		if err := patch.PipeE(
-			&yaml.PathGetter{Path: r.replicaPaths[i], Create: yaml.ScalarNode},
-			yaml.FieldSetter{Value: value, OverrideStyle: true},
-		); err != nil {
-			return nil, err
-		}
-	}
-
-	for i := range r.containerResourcesPaths {
-		// Construct limits/requests values
-		memory := "{{ .Values." + name(&r.targetRef, r.containerResourcesPaths[i], "memory") + " }}M"
-		cpu := "{{ .Values." + name(&r.targetRef, r.containerResourcesPaths[i], "cpu") + " }}m"
-		values, err := yaml.NewRNode(&yaml.Node{Kind: yaml.MappingNode}).Pipe(
-			yaml.Tee(yaml.SetField("memory", yaml.NewScalarRNode(memory))),
-			yaml.Tee(yaml.SetField("cpu", yaml.NewScalarRNode(cpu))),
-		)
+	// Aggregate the filters and apply them to the patch node
+	resName := func(p []string, n string) string { return name(&r.targetRef, p, n) }
+	filters := make([]yaml.Filter, 0, len(r.params))
+	for _, p := range r.params {
+		f, err := p.patch(resName)
 		if err != nil {
 			return nil, err
 		}
-
-		// Aggregate the limits/requests on the patch
-		if err := patch.PipeE(
-			&yaml.PathGetter{Path: r.containerResourcesPaths[i], Create: yaml.MappingNode},
-			yaml.Tee(yaml.SetField("limits", values)),
-			yaml.Tee(yaml.SetField("requests", values)),
-		); err != nil {
-			return nil, err
-		}
+		filters = append(filters, f)
+	}
+	if err := patch.PipeE(filters...); err != nil {
+		return nil, err
 	}
 
 	// Render the patch and add it to the list of patches
@@ -120,6 +106,22 @@ func (r *applicationResource) patch(name nameGen) (*redskyv1beta1.PatchTemplate,
 	}, nil
 }
 
+// parameters returns the experiment parameters for the resource.
+func (r *applicationResource) parameters(name nameGen) ([]redskyv1beta1.Parameter, error) {
+	// Just aggregate all of the individual parameters
+	resName := func(p []string, n string) string { return name(&r.targetRef, p, n) }
+	var result []redskyv1beta1.Parameter
+	for _, p := range r.params {
+		ps, err := p.parameters(resName)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, ps...)
+	}
+
+	return result, nil
+}
+
 func patchExperiment(ars []*applicationResource, list *corev1.List) error {
 	if len(ars) == 0 {
 		return nil
@@ -135,10 +137,13 @@ func patchExperiment(ars []*applicationResource, list *corev1.List) error {
 		if err != nil {
 			return err
 		}
-
 		exp.Spec.Patches = append(exp.Spec.Patches, *patch)
-		exp.Spec.Parameters = append(exp.Spec.Parameters, ar.containerResourcesParameters(name)...)
-		exp.Spec.Parameters = append(exp.Spec.Parameters, ar.replicasParameters(name)...)
+
+		parameters, err := ar.parameters(name)
+		if err != nil {
+			return err
+		}
+		exp.Spec.Parameters = append(exp.Spec.Parameters, parameters...)
 	}
 
 	return nil
@@ -148,65 +153,25 @@ func patchExperiment(ars []*applicationResource, list *corev1.List) error {
 // distinct parts are combined.
 func mergeOrAppend(ars []*applicationResource, ar *applicationResource) []*applicationResource {
 	for _, r := range ars {
-		if r.targetRef != ar.targetRef {
-			continue
+		if r.targetRef == ar.targetRef {
+			r.params = append(r.params, ar.params...)
+			return ars
 		}
-
-		// Merge the container resources
-		for i := range ar.containerResourcesPaths {
-			if hasPath(r.containerResourcesPaths, ar.containerResourcesPaths[i]) {
-				continue
-			}
-
-			r.containerResourcesPaths = append(r.containerResourcesPaths, ar.containerResourcesPaths[i])
-			r.containerResources = append(r.containerResources, ar.containerResources[i])
-		}
-
-		// Merge the replicas
-		for i := range ar.replicaPaths {
-			if hasPath(r.replicaPaths, ar.replicaPaths[i]) {
-				continue
-			}
-
-			r.replicaPaths = append(r.replicaPaths, ar.replicaPaths[i])
-			r.replicas = append(r.replicas, ar.replicas[i])
-		}
-
-		return ars
 	}
 
 	return append(ars, ar)
 }
 
-func hasPath(paths [][]string, path []string) bool {
-OUTER:
-	for i := range paths {
-		if len(paths[i]) != len(path) {
-			continue OUTER
-		}
-
-		for j := range paths[i] {
-			if paths[i][j] != path[j] {
-				continue OUTER
-			}
-		}
-
-		return true
-	}
-
-	return false
-}
-
 // parameterNamePrefix returns a name generator function that produces a prefix based
 // on the distinct elements found in the object references of the supplied container resources.
-func parameterNamePrefix(crs []*applicationResource) nameGen {
+func parameterNamePrefix(ars []*applicationResource) nameGen {
 	// Index the object references by kind and name
 	names := make(map[string]map[string]struct{})
-	for _, cr := range crs {
-		if ns := names[cr.targetRef.Kind]; ns == nil {
-			names[cr.targetRef.Kind] = make(map[string]struct{})
+	for _, ar := range ars {
+		if ns := names[ar.targetRef.Kind]; ns == nil {
+			names[ar.targetRef.Kind] = make(map[string]struct{})
 		}
-		names[cr.targetRef.Kind][cr.targetRef.Name] = struct{}{}
+		names[ar.targetRef.Kind][ar.targetRef.Name] = struct{}{}
 	}
 
 	// Determine which prefixes we need
@@ -232,9 +197,9 @@ func parameterNamePrefix(crs []*applicationResource) nameGen {
 // parameterName returns a name generator function that produces a unique parameter
 // name given a prefix (computed from a list of container resources) and the supplied
 // container resources (which is assumed to have been considered when computing the prefix).
-func parameterName(prefix nameGen, cr *applicationResource) nameGen {
+func parameterName(prefix nameGen, ar *applicationResource) nameGen {
 	// Determine if the path is necessary
-	needsPath := len(cr.containerResourcesPaths) > 1
+	needsPath := len(ar.params) > 1
 
 	return func(ref *corev1.ObjectReference, path []string, name string) string {
 		var parts []string

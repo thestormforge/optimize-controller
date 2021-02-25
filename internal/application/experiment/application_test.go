@@ -17,10 +17,13 @@ limitations under the License.
 package experiment
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
 func TestParameterNames(t *testing.T) {
@@ -41,8 +44,8 @@ func TestParameterNames(t *testing.T) {
 						Kind: "Deployment",
 						Name: "test",
 					},
-					containerResourcesPaths: [][]string{
-						{"spec", "template", "spec", "containers", "[name=test]", "resources"},
+					params: []applicationResourceParameter{
+						&testParameter{path: []string{"spec", "template", "spec", "containers", "[name=test]", "resources"}},
 					},
 				},
 			},
@@ -60,9 +63,9 @@ func TestParameterNames(t *testing.T) {
 						Kind: "Deployment",
 						Name: "test",
 					},
-					containerResourcesPaths: [][]string{
-						{"spec", "template", "spec", "containers", "[name=test1]", "resources"},
-						{"spec", "template", "spec", "containers", "[name=test2]", "resources"},
+					params: []applicationResourceParameter{
+						&testParameter{path: []string{"spec", "template", "spec", "containers", "[name=test1]", "resources"}},
+						&testParameter{path: []string{"spec", "template", "spec", "containers", "[name=test2]", "resources"}},
 					},
 				},
 			},
@@ -82,8 +85,8 @@ func TestParameterNames(t *testing.T) {
 						Kind: "Deployment",
 						Name: "test1",
 					},
-					containerResourcesPaths: [][]string{
-						{"spec", "template", "spec", "containers", "[name=test]", "resources"},
+					params: []applicationResourceParameter{
+						&testParameter{path: []string{"spec", "template", "spec", "containers", "[name=test]", "resources"}},
 					},
 				},
 				{
@@ -91,8 +94,8 @@ func TestParameterNames(t *testing.T) {
 						Kind: "Deployment",
 						Name: "test2",
 					},
-					containerResourcesPaths: [][]string{
-						{"spec", "template", "spec", "containers", "[name=test]", "resources"},
+					params: []applicationResourceParameter{
+						&testParameter{path: []string{"spec", "template", "spec", "containers", "[name=test]", "resources"}},
 					},
 				},
 			},
@@ -112,9 +115,9 @@ func TestParameterNames(t *testing.T) {
 						Kind: "Deployment",
 						Name: "test1",
 					},
-					containerResourcesPaths: [][]string{
-						{"spec", "template", "spec", "containers", "[name=test1]", "resources"},
-						{"spec", "template", "spec", "containers", "[name=test2]", "resources"},
+					params: []applicationResourceParameter{
+						&testParameter{path: []string{"spec", "template", "spec", "containers", "[name=test1]", "resources"}},
+						&testParameter{path: []string{"spec", "template", "spec", "containers", "[name=test2]", "resources"}},
 					},
 				},
 				{
@@ -122,8 +125,8 @@ func TestParameterNames(t *testing.T) {
 						Kind: "Deployment",
 						Name: "test2",
 					},
-					containerResourcesPaths: [][]string{
-						{"spec", "template", "spec", "containers", "[name=test]", "resources"},
+					params: []applicationResourceParameter{
+						&testParameter{path: []string{"spec", "template", "spec", "containers", "[name=test]", "resources"}},
 					},
 				},
 			},
@@ -141,14 +144,26 @@ func TestParameterNames(t *testing.T) {
 		t.Run(c.desc, func(t *testing.T) {
 			p := parameterNamePrefix(c.ars)
 			var actual []string
-			for _, cr := range c.ars {
-				pn := parameterName(p, cr)
-				for i := range cr.containerResourcesPaths {
-					actual = append(actual, pn(&cr.targetRef, cr.containerResourcesPaths[i], "cpu"))
-					actual = append(actual, pn(&cr.targetRef, cr.containerResourcesPaths[i], "memory"))
+			for _, ar := range c.ars {
+				pn := parameterName(p, ar)
+				for i := range ar.params {
+					actual = append(actual, pn(&ar.targetRef, ar.params[i].(*testParameter).path, "cpu"))
+					actual = append(actual, pn(&ar.targetRef, ar.params[i].(*testParameter).path, "memory"))
 				}
 			}
 			assert.Equal(t, c.expected, actual)
 		})
 	}
+}
+
+type testParameter struct {
+	path []string
+}
+
+func (t testParameter) patch(resNameGen) (yaml.Filter, error) {
+	return nil, fmt.Errorf("not implemented for testing")
+}
+
+func (t testParameter) parameters(name resNameGen) ([]redskyv1beta1.Parameter, error) {
+	return nil, fmt.Errorf("not implemented for testing")
 }
