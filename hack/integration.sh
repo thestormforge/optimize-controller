@@ -18,15 +18,15 @@ echo "Create nginx deployment"
 kubectl apply -f hack/nginx.yaml
 
 echo "Create ci experiment"
-${REDSKYCTL_BIN} generate experiment -f hack/app.yaml > hack/experiment.yaml
-kubectl apply -f hack/experiment.yaml
+${REDSKYCTL_BIN} generate experiment -f hack/app.yaml | \
+  kubectl apply -f -
 
 echo "Create new trial"
+${REDSKYCTL_BIN} generate experiment -f hack/app.yaml | \
 ${REDSKYCTL_BIN} generate trial \
-  --assign cpu=50 \
-  --assign memory=50 \
-  -f hack/experiment.yaml | \
-    kubectl create -f -
+	--default base \
+  -f - | \
+  kubectl create -f -
 
 kubectl get trial -o wide
 
