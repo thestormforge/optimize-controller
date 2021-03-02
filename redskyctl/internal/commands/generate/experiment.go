@@ -26,7 +26,7 @@ import (
 	"github.com/thestormforge/konjure/pkg/konjure"
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	"github.com/thestormforge/optimize-controller/internal/application"
-	"github.com/thestormforge/optimize-controller/internal/experiment/generation"
+	"github.com/thestormforge/optimize-controller/internal/experiment"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
 	"github.com/thestormforge/optimize-go/pkg/config"
 	"sigs.k8s.io/kustomize/kyaml/kio"
@@ -81,7 +81,7 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 }
 
 func (o *ExperimentOptions) generate() error {
-	g := generation.Generator{
+	g := experiment.Generator{
 		IncludeApplicationResources: o.IncludeResources,
 	}
 

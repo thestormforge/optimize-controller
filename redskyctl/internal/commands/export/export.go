@@ -31,7 +31,6 @@ import (
 	redsky "github.com/thestormforge/optimize-controller/api/v1beta1"
 	apppkg "github.com/thestormforge/optimize-controller/internal/application"
 	"github.com/thestormforge/optimize-controller/internal/experiment"
-	"github.com/thestormforge/optimize-controller/internal/experiment/generation"
 	"github.com/thestormforge/optimize-controller/internal/patch"
 	"github.com/thestormforge/optimize-controller/internal/server"
 	"github.com/thestormforge/optimize-controller/internal/template"
@@ -365,7 +364,7 @@ func (o *Options) generateExperiment() error {
 	onDiskFS := filesys.MakeFsOnDisk()
 	list := &corev1.List{}
 
-	gen := generation.Generator{Application: *o.application, DefaultReader: o.In}
+	gen := experiment.Generator{Application: *o.application, DefaultReader: o.In}
 	gen.SetDefaultSelectors()
 
 	err := gen.Execute(kio.WriterFunc(func(nodes []*yaml.RNode) error {

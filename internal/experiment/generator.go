@@ -1,5 +1,5 @@
 /*
-Copyright 2021 GramLabs, Inc.
+Copyright 2020 GramLabs, Inc.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,23 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package generation
+package experiment
 
 import (
-	"crypto/md5"
-	"fmt"
 	"io"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 
 	"github.com/thestormforge/konjure/pkg/konjure"
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	"github.com/thestormforge/optimize-controller/internal/application"
+	"github.com/thestormforge/optimize-controller/internal/experiment/generation"
 	"github.com/thestormforge/optimize-controller/internal/scan"
-	"github.com/yujunz/go-getter"
-	"sigs.k8s.io/kustomize/api/types"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/kio/filters"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
@@ -40,9 +33,9 @@ type Generator struct {
 	// The definition of the application to generate an experiment for.
 	Application redskyappsv1alpha1.Application
 	// ContainerResourcesSelectors are the selectors for determining what application resources to scan for resources lists.
-	ContainerResourcesSelectors []ContainerResourcesSelector
+	ContainerResourcesSelectors []generation.ContainerResourcesSelector
 	// ReplicaSelectors are the selectors for determining what application resources to scan for desired replica counts.
-	ReplicaSelectors []ReplicaSelector
+	ReplicaSelectors []generation.ReplicaSelector
 	// IncludeApplicationResources is a flag indicating that the application resources should be included in the output.
 	IncludeApplicationResources bool
 	// Default reader to use instead of stdin.
@@ -61,7 +54,7 @@ func (g *Generator) SetDefaultSelectors() {
 	if g.Application.Parameters != nil && g.Application.Parameters.ContainerResources != nil {
 		crsLabelSelector = g.Application.Parameters.ContainerResources.LabelSelector
 	}
-	g.ContainerResourcesSelectors = []ContainerResourcesSelector{
+	g.ContainerResourcesSelectors = []generation.ContainerResourcesSelector{
 		{
 			GenericSelector: scan.GenericSelector{
 				Group:         "apps|extensions",
@@ -84,7 +77,7 @@ func (g *Generator) SetDefaultSelectors() {
 
 	// Only add replica selectors if the parameter is explicitly configured
 	if g.Application.Parameters != nil && g.Application.Parameters.Replicas != nil {
-		g.ReplicaSelectors = []ReplicaSelector{
+		g.ReplicaSelectors = []generation.ReplicaSelector{
 			{
 				GenericSelector: scan.GenericSelector{
 					Group:         "apps|extensions",
@@ -129,7 +122,7 @@ func (g *Generator) Execute(output kio.Writer) error {
 		Filters: []kio.Filter{
 			&konjure.Filter{Depth: 100, DefaultReader: g.DefaultReader, KeepStatus: true},
 			g.newScannerFilter(),
-			&ApplicationFilter{Application: &g.Application},
+			&generation.ApplicationFilter{Application: &g.Application},
 			kio.FilterAll(yaml.Clear("status")),
 			&filters.FormatFilter{UseSchema: true},
 		},
@@ -141,7 +134,7 @@ func (g *Generator) Execute(output kio.Writer) error {
 
 func (g *Generator) newScannerFilter() kio.Filter {
 	scanner := &scan.Scanner{
-		Transformer: &Transformer{
+		Transformer: &generation.Transformer{
 			DefaultExperimentName:       application.ExperimentName(&g.Application),
 			MergeGenerated:              len(g.Application.Scenarios) > 1,
 			IncludeApplicationResources: g.IncludeApplicationResources,
@@ -161,7 +154,7 @@ func (g *Generator) newScannerFilter() kio.Filter {
 	// TODO ConfigMapSelector?
 
 	// The application selector should run last so it can fill in anything that is missing
-	scanner.Selectors = append(scanner.Selectors, &ApplicationSelector{Application: &g.Application})
+	scanner.Selectors = append(scanner.Selectors, &generation.ApplicationSelector{Application: &g.Application})
 
 	return scanner
 }
