@@ -170,13 +170,15 @@ func (s *StormForgerSource) stormForgerConfigMapName() string {
 
 func (s *StormForgerSource) stormForgerEnv() ([]corev1.EnvVar, error) {
 	testCase := s.Scenario.StormForger.TestCase
-	if testCase == "" {
+	if !strings.Contains(testCase, "/") {
 		if s.Application.StormForger == nil || s.Application.StormForger.Organization == "" {
 			return nil, fmt.Errorf("missing StormForger organization")
 		}
-		testCase = fmt.Sprintf("%s/%s-%s", s.Application.StormForger.Organization, s.Application.Name, s.Scenario.Name)
-	} else if !strings.Contains(testCase, "/") && s.Application.StormForger != nil && s.Application.StormForger.Organization != "" {
-		testCase = s.Application.StormForger.Organization + "/" + testCase
+		if testCase != "" {
+			testCase = s.Application.StormForger.Organization + "/" + testCase
+		} else {
+			testCase = fmt.Sprintf("%s/%s-%s", s.Application.StormForger.Organization, s.Application.Name, s.Scenario.Name)
+		}
 	}
 
 	var accessToken *corev1.SecretKeySelector
