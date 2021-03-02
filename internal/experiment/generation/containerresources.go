@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package experiment
+package generation
 
 import (
 	"encoding/json"
@@ -22,27 +22,16 @@ import (
 	"regexp"
 
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	"github.com/thestormforge/optimize-controller/internal/scan"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"sigs.k8s.io/kustomize/api/resid"
-	"sigs.k8s.io/kustomize/api/types"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
-// ContainerResourcesSelector identifies zero or more container resources specifications.
-// NOTE: This object is basically a combination of a Kustomize FieldSpec and a Selector.
+// ContainerResourcesSelector scans for container resources specifications (requests/limits).
 type ContainerResourcesSelector struct {
-	// Type information of the resources to consider.
-	resid.Gvk `json:",inline,omitempty"`
-	// Namespace of the resources to consider.
-	Namespace string `json:"namespace,omitempty"`
-	// Name of the resources to consider.
-	Name string `json:"name,omitempty"`
-	// Annotation selector of resources to consider.
-	AnnotationSelector string `json:"annotationSelector,omitempty"`
-	// Label selector of resources to consider.
-	LabelSelector string `json:"labelSelector,omitempty"`
+	scan.GenericSelector
 	// Path to the list of containers.
 	Path string `json:"path,omitempty"`
 	// Create container resource specifications even if the original object does not contain them.
@@ -51,62 +40,31 @@ type ContainerResourcesSelector struct {
 	ContainerName string `json:"containerName,omitempty"`
 }
 
-// fieldSpec returns this selector as a Kustomize FieldSpec.
-func (rs *ContainerResourcesSelector) fieldSpec() types.FieldSpec {
-	return types.FieldSpec{
-		Gvk:                rs.Gvk,
-		Path:               rs.Path,
-		CreateIfNotPresent: rs.CreateIfNotPresent,
-	}
-}
+var _ scan.Selector = &ContainerResourcesSelector{}
 
-// selector returns this selector as a Kustomize Selector.
-func (rs *ContainerResourcesSelector) selector() types.Selector {
-	return types.Selector{
-		Gvk:                rs.Gvk,
-		Namespace:          rs.Namespace,
-		Name:               rs.Name,
-		AnnotationSelector: rs.AnnotationSelector,
-		LabelSelector:      rs.LabelSelector,
-	}
-}
+// Map inspects the supplied resource for container resources specifications.
+func (s *ContainerResourcesSelector) Map(node *yaml.RNode, meta yaml.ResourceMeta) ([]interface{}, error) {
+	var result []interface{}
 
-// matchesContainerName checks to see if the specified container name is matched.
-func (rs *ContainerResourcesSelector) matchesContainerName(name string) bool {
-	// Treat empty like ".*"
-	if rs.ContainerName == "" {
-		return true
-	}
-
-	containerName, err := regexp.Compile("^" + rs.ContainerName + "$")
-	if err != nil {
-		// Kustomize panics. Not sure where it validates. We will just fall back to exact match
-		return rs.ContainerName == name
-	}
-
-	return containerName.MatchString(name)
-}
-
-func (rs *ContainerResourcesSelector) findParameters(node *yaml.RNode) ([]applicationResourceParameter, error) {
-	var result []applicationResourceParameter
-
-	path := rs.fieldSpec().PathSlice() // Path to the containers list
+	path := splitPath(s.Path) // Path to the containers list
 	err := node.PipeE(
 		yaml.Lookup(path...),
 		yaml.FilterFunc(func(node *yaml.RNode) (*yaml.RNode, error) {
 			return nil, node.VisitElements(func(node *yaml.RNode) error {
 				rl := node.Field("resources")
-				if rl == nil && !rs.CreateIfNotPresent {
+				if rl == nil && !s.CreateIfNotPresent {
 					return nil
 				}
 
 				name := node.Field("name").Value.YNode().Value
-				if !rs.matchesContainerName(name) {
+				if !s.matchesContainerName(name) {
 					return nil
 				}
 
-				p := containerResourcesParameter{}
-				p.fieldPath = append(path, "[name="+name+"]", "resources")
+				p := containerResourcesParameter{pnode{
+					meta:      meta,
+					fieldPath: append(path, "[name="+name+"]", "resources"),
+				}}
 				if rl != nil {
 					p.value = rl.Value.YNode()
 				}
@@ -123,14 +81,37 @@ func (rs *ContainerResourcesSelector) findParameters(node *yaml.RNode) ([]applic
 	return result, nil
 }
 
-type containerResourcesParameter struct {
-	anode
+// matchesContainerName checks to see if the specified container name is matched.
+func (s *ContainerResourcesSelector) matchesContainerName(name string) bool {
+	// Treat empty like ".*"
+	if s.ContainerName == "" {
+		return true
+	}
+
+	containerName, err := regexp.Compile("^(?:" + s.ContainerName + ")$")
+	if err != nil {
+		// Kustomize panics. Not sure where it validates. We will just fall back to exact match
+		return s.ContainerName == name
+	}
+
+	return containerName.MatchString(name)
 }
 
-func (p *containerResourcesParameter) patch(name resNameGen) (yaml.Filter, error) {
+// containerResourcesParameter is used to record the position of a container resources specification
+// found by the selector during scanning.
+type containerResourcesParameter struct {
+	pnode
+}
+
+var _ PatchSource = &containerResourcesParameter{}
+var _ ParameterSource = &containerResourcesParameter{}
+
+// Patch produces a YAML filter for updating a strategic merge patch with a parameterized
+// container resources specification.
+func (p *containerResourcesParameter) Patch(name ParameterNamer) (yaml.Filter, error) {
 	values := yaml.NewMapRNode(&map[string]string{
-		"memory": "{{ .Values." + name(p.fieldPath, "memory") + " }}M",
-		"cpu":    "{{ .Values." + name(p.fieldPath, "cpu") + " }}m",
+		"memory": "{{ .Values." + name(p.meta, p.fieldPath, "memory") + " }}M",
+		"cpu":    "{{ .Values." + name(p.meta, p.fieldPath, "cpu") + " }}m",
 	})
 
 	return yaml.Tee(
@@ -140,8 +121,9 @@ func (p *containerResourcesParameter) patch(name resNameGen) (yaml.Filter, error
 	), nil
 }
 
-func (p *containerResourcesParameter) parameters(name resNameGen) ([]redskyv1beta1.Parameter, error) {
-	// ResourceList (actually Quantities) don't unmarshal as YAML so we need to round trip through JSON
+// Parameters lists the parameters used by the patch.
+func (p *containerResourcesParameter) Parameters(name ParameterNamer) ([]redskyv1beta1.Parameter, error) {
+	// ResourceList (actually, Quantities) don't unmarshal as YAML so we need to round trip through JSON
 	data, err := yaml.NewRNode(p.value).MarshalJSON()
 	if err != nil {
 		return nil, err
@@ -158,12 +140,12 @@ func (p *containerResourcesParameter) parameters(name resNameGen) ([]redskyv1bet
 	baselineCPU, minCPU, maxCPU := toIntWithRange(r.Requests, corev1.ResourceCPU)
 
 	return []redskyv1beta1.Parameter{{
-		Name:     name(p.fieldPath, "memory"),
+		Name:     name(p.meta, p.fieldPath, "memory"),
 		Min:      minMemory,
 		Max:      maxMemory,
 		Baseline: baselineMemory,
 	}, {
-		Name:     name(p.fieldPath, "cpu"),
+		Name:     name(p.meta, p.fieldPath, "cpu"),
 		Min:      minCPU,
 		Max:      maxCPU,
 		Baseline: baselineCPU,

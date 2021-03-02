@@ -14,75 +14,46 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package experiment
+package generation
 
 import (
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	"github.com/thestormforge/optimize-controller/internal/scan"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"sigs.k8s.io/kustomize/api/resid"
-	"sigs.k8s.io/kustomize/api/types"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
 // ReplicaSelector identifies zero or more replica specifications.
-// NOTE: This object is basically a combination of a Kustomize FieldSpec and a Selector.
 type ReplicaSelector struct {
-	// Type information of the resources to consider.
-	resid.Gvk `json:",inline,omitempty"`
-	// Namespace of the resources to consider.
-	Namespace string `json:"namespace,omitempty"`
-	// Name of the resources to consider.
-	Name string `json:"name,omitempty"`
-	// Annotation selector of resources to consider.
-	AnnotationSelector string `json:"annotationSelector,omitempty"`
-	// Label selector of resources to consider.
-	LabelSelector string `json:"labelSelector,omitempty"`
+	scan.GenericSelector
 	// Path to the replica field.
 	Path string `json:"path,omitempty"`
 	// Create container resource specifications even if the original object does not contain them.
 	CreateIfNotPresent bool `json:"create,omitempty"`
 }
 
-// fieldSpec returns this selector as a Kustomize FieldSpec.
-func (rs *ReplicaSelector) fieldSpec() types.FieldSpec {
-	return types.FieldSpec{
-		Gvk:                rs.Gvk,
-		Path:               rs.Path,
-		CreateIfNotPresent: rs.CreateIfNotPresent,
-	}
-}
+var _ scan.Selector = &ReplicaSelector{}
 
-// selector resturns this selector as a Kustomize Selector.
-func (rs *ReplicaSelector) selector() types.Selector {
-	return types.Selector{
-		Gvk:                rs.Gvk,
-		Namespace:          rs.Namespace,
-		Name:               rs.Name,
-		AnnotationSelector: rs.AnnotationSelector,
-		LabelSelector:      rs.LabelSelector,
-	}
-}
+func (s *ReplicaSelector) Map(node *yaml.RNode, meta yaml.ResourceMeta) ([]interface{}, error) {
+	var result []interface{}
 
-func (rs *ReplicaSelector) findParameters(node *yaml.RNode) ([]applicationResourceParameter, error) {
-	var result []applicationResourceParameter
-
-	path := rs.fieldSpec().PathSlice()
+	path := splitPath(s.Path)
 	err := node.PipeE(
 		&yaml.PathGetter{Path: path, Create: yaml.ScalarNode},
 		yaml.FilterFunc(func(node *yaml.RNode) (*yaml.RNode, error) {
-			if node.YNode().Value == "" && !rs.CreateIfNotPresent {
+			if node.YNode().Value == "" && !s.CreateIfNotPresent {
 				return node, nil
 			}
 
-			result = append(result, &replicaParameter{
-				anode: anode{
-					fieldPath: node.FieldPath(),
-					value:     node.YNode(),
-				},
-			})
+			result = append(result, &replicaParameter{pnode: pnode{
+				meta:      meta,
+				fieldPath: node.FieldPath(),
+				value:     node.YNode(),
+			}})
 
 			return node, nil
 		}))
+
 	if err != nil {
 		return nil, err
 	}
@@ -91,11 +62,14 @@ func (rs *ReplicaSelector) findParameters(node *yaml.RNode) ([]applicationResour
 }
 
 type replicaParameter struct {
-	anode
+	pnode
 }
 
-func (p *replicaParameter) patch(name resNameGen) (yaml.Filter, error) {
-	value := yaml.NewScalarRNode("{{ .Values." + name(p.fieldPath, "replicas") + " }}")
+var _ PatchSource = &replicaParameter{}
+var _ ParameterSource = &replicaParameter{}
+
+func (p *replicaParameter) Patch(name ParameterNamer) (yaml.Filter, error) {
+	value := yaml.NewScalarRNode("{{ .Values." + name(p.meta, p.fieldPath, "replicas") + " }}")
 	value.YNode().Tag = yaml.NodeTagInt
 	return yaml.Tee(
 		&yaml.PathGetter{Path: p.fieldPath, Create: yaml.ScalarNode},
@@ -103,7 +77,7 @@ func (p *replicaParameter) patch(name resNameGen) (yaml.Filter, error) {
 	), nil
 }
 
-func (p *replicaParameter) parameters(name resNameGen) ([]redskyv1beta1.Parameter, error) {
+func (p *replicaParameter) Parameters(name ParameterNamer) ([]redskyv1beta1.Parameter, error) {
 	var v int
 	if err := p.value.Decode(&v); err != nil {
 		return nil, err
@@ -121,7 +95,7 @@ func (p *replicaParameter) parameters(name resNameGen) ([]redskyv1beta1.Paramete
 	}
 
 	return []redskyv1beta1.Parameter{{
-		Name:     name(p.fieldPath, "replicas"),
+		Name:     name(p.meta, p.fieldPath, "replicas"),
 		Min:      minReplicas,
 		Max:      maxReplicas,
 		Baseline: &baselineReplicas,

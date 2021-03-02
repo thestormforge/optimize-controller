@@ -26,17 +26,15 @@ import (
 	"github.com/thestormforge/konjure/pkg/konjure"
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	"github.com/thestormforge/optimize-controller/internal/application"
-	"github.com/thestormforge/optimize-controller/internal/application/experiment"
+	"github.com/thestormforge/optimize-controller/internal/experiment/generation"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
 	"github.com/thestormforge/optimize-go/pkg/config"
-	"sigs.k8s.io/kustomize/api/filesys"
+	"sigs.k8s.io/kustomize/kyaml/kio"
 )
 
 type ExperimentOptions struct {
 	// Config is the Red Sky Configuration used to generate the role binding
 	Config *config.RedSkyConfig
-	// Printer is the resource printer used to render generated objects
-	Printer commander.ResourcePrinter
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
 
@@ -58,11 +56,7 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 		Long:  "Generate an experiment from an application descriptor",
 
 		Annotations: map[string]string{
-			"KustomizePluginKind":           "Application",
-			commander.PrinterAllowedFormats: "json,yaml",
-			commander.PrinterOutputFormat:   "yaml",
-			commander.PrinterHideStatus:     "true",
-			commander.PrinterStreamList:     "true",
+			"KustomizePluginKind": "Application",
 		},
 
 		PreRun: func(cmd *cobra.Command, args []string) {
@@ -83,13 +77,13 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 
 	_ = cmd.MarkFlagFilename("filename", "yml", "yaml")
 
-	commander.SetKubePrinter(&o.Printer, cmd, nil)
 	return cmd
 }
 
 func (o *ExperimentOptions) generate() error {
-	g := experiment.NewGenerator(filesys.MakeFsOnDisk())
-	g.IncludeApplicationResources = o.IncludeResources
+	g := generation.Generator{
+		IncludeApplicationResources: o.IncludeResources,
+	}
 
 	if o.Filename != "" {
 		r, err := o.IOStreams.OpenFile(o.Filename)
@@ -127,12 +121,7 @@ func (o *ExperimentOptions) generate() error {
 	g.SetDefaultSelectors()
 
 	// Generate the experiment
-	list, err := g.Generate()
-	if err != nil {
-		return err
-	}
-
-	return o.Printer.PrintObj(list, o.Out)
+	return g.Execute(&kio.ByteWriter{Writer: o.Out})
 }
 
 func (o *ExperimentOptions) filterResources(app *redskyappsv1alpha1.Application) error {

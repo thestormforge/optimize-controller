@@ -30,8 +30,8 @@ import (
 	app "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	redsky "github.com/thestormforge/optimize-controller/api/v1beta1"
 	apppkg "github.com/thestormforge/optimize-controller/internal/application"
-	experimentctl "github.com/thestormforge/optimize-controller/internal/application/experiment"
 	"github.com/thestormforge/optimize-controller/internal/experiment"
+	"github.com/thestormforge/optimize-controller/internal/experiment/generation"
 	"github.com/thestormforge/optimize-controller/internal/patch"
 	"github.com/thestormforge/optimize-controller/internal/server"
 	"github.com/thestormforge/optimize-controller/internal/template"
@@ -39,6 +39,7 @@ import (
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/kustomize"
 	experimentsapi "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"github.com/thestormforge/optimize-go/pkg/config"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -361,13 +362,38 @@ func (o *Options) generateExperiment() error {
 	// Filter application experiment to only the relevant pieces
 	apppkg.FilterByExperimentName(o.application, o.trialName[:strings.LastIndex(o.trialName, "-")])
 
-	//gen := experimentctl.NewGenerator(o.Fs)
 	onDiskFS := filesys.MakeFsOnDisk()
-	gen := experimentctl.NewGenerator(onDiskFS)
-	gen.Application = *o.application
+	list := &corev1.List{}
+
+	gen := generation.Generator{Application: *o.application, DefaultReader: o.In}
 	gen.SetDefaultSelectors()
 
-	list, err := gen.Generate()
+	err := gen.Execute(kio.WriterFunc(func(nodes []*yaml.RNode) error {
+		list.Items = make([]runtime.RawExtension, 0, len(nodes))
+		for _, node := range nodes {
+			// RNodes are for YAML manipulation, we need a JSON form for runtime
+			data, err := node.MarshalJSON()
+			if err != nil {
+				return err
+			}
+
+			if m, err := node.GetMeta(); err == nil && m.Kind == "Experiment" {
+				// Make sure the experiment is typed or it won't be recognized
+				exp := &redsky.Experiment{}
+				if err := json.Unmarshal(data, exp); err != nil {
+					return err
+				}
+				list.Items = append(list.Items, runtime.RawExtension{Object: exp})
+			} else {
+				obj := &unstructured.Unstructured{}
+				if err := obj.UnmarshalJSON(data); err != nil {
+					return err
+				}
+				list.Items = append(list.Items, runtime.RawExtension{Object: obj})
+			}
+		}
+		return nil
+	}))
 	if err != nil {
 		return err
 	}
