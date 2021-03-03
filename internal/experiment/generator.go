@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
+// Generator is use to create an experiment definition.
 type Generator struct {
 	// The definition of the application to generate an experiment for.
 	Application redskyappsv1alpha1.Application
@@ -102,31 +103,16 @@ func (g *Generator) SetDefaultSelectors() {
 
 // Execute the experiment generation pipeline, sending the results to the supplied writer.
 func (g *Generator) Execute(output kio.Writer) error {
-	// Hack the sort order used by the format filter to make experiments sort more naturally
-	yaml.FieldOrder["parameters"] = 100
-	yaml.FieldOrder["metrics"] = 200
-	yaml.FieldOrder["targetRef"] = 100
-	yaml.FieldOrder["patch"] = 200
-	yaml.FieldOrder["baseline"] = 100
-	yaml.FieldOrder["min"] = 200
-	yaml.FieldOrder["max"] = 300
-	defer func() {
-		delete(yaml.FieldOrder, "parameters")
-		delete(yaml.FieldOrder, "metrics")
-		delete(yaml.FieldOrder, "targetRef")
-		delete(yaml.FieldOrder, "patch")
-		delete(yaml.FieldOrder, "baseline")
-		delete(yaml.FieldOrder, "min")
-		delete(yaml.FieldOrder, "max")
-	}()
-
-	// Execute the pipeline
 	return kio.Pipeline{
 		Inputs: []kio.Reader{
 			g.Application.Resources,
 		},
 		Filters: []kio.Filter{
-			&konjure.Filter{Depth: 100, DefaultReader: g.DefaultReader, KeepStatus: true},
+			&konjure.Filter{
+				Depth:         100,
+				DefaultReader: g.DefaultReader,
+				KeepStatus:    true,
+			},
 			g.newScannerFilter(),
 			&generation.ApplicationFilter{Application: &g.Application},
 			kio.FilterAll(yaml.Clear("status")),
