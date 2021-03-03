@@ -27,12 +27,19 @@ import (
 // interface. The "*Selector" fields are treated as Kubernetes selectors, all
 // other fields are regular expressions for matching metadata.
 type GenericSelector struct {
-	Group              string `json:"group,omitempty"`
-	Version            string `json:"version,omitempty"`
-	Kind               string `json:"kind,omitempty"`
-	Namespace          string `json:"namespace,omitempty"`
-	Name               string `json:"name,omitempty"`
-	LabelSelector      string `json:"labelSelector,omitempty"`
+	// Regular expression matching the group.
+	Group string `json:"group,omitempty"`
+	// Regular expression matching the version.
+	Version string `json:"version,omitempty"`
+	// Regular expression matching the kind.
+	Kind string `json:"kind,omitempty"`
+	// Regular expression matching the namespace.
+	Namespace string `json:"namespace,omitempty"`
+	// Regular expression matching the name.
+	Name string `json:"name,omitempty"`
+	// Kubernetes selector matching the labels.
+	LabelSelector string `json:"labelSelector,omitempty"`
+	// Kubernetes selector matching the annotations.
 	AnnotationSelector string `json:"annotationSelector,omitempty"`
 }
 

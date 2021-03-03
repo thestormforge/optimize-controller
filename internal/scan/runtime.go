@@ -18,12 +18,14 @@ package scan
 
 import (
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
+	redskyv1alpha1 "github.com/thestormforge/optimize-controller/api/v1alpha1"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/json"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
@@ -41,12 +43,15 @@ var Scheme = runtime.NewScheme()
 
 func init() {
 	_ = clientgoscheme.AddToScheme(Scheme)
+	_ = redskyv1alpha1.AddToScheme(Scheme)
 	_ = redskyv1beta1.AddToScheme(Scheme)
 	_ = redskyappsv1alpha1.AddToScheme(Scheme)
 }
 
 // ObjectSlices allows a slice of object instances to be read as resource nodes.
 type ObjectSlice []runtime.Object
+
+var _ kio.Reader = ObjectSlice{}
 
 // Read converts the objects to JSON and then to YAML RNodes.
 func (os ObjectSlice) Read() ([]*yaml.RNode, error) {
@@ -80,6 +85,8 @@ func (os ObjectSlice) Read() ([]*yaml.RNode, error) {
 // ObjectList allows a generic list type to be used as a KYAML writer to provide
 // interoperability between the YAML streaming and runtime objects.
 type ObjectList corev1.List
+
+var _ kio.Writer = &ObjectList{}
 
 // Write converts the resource nodes into runtime objects.
 func (o *ObjectList) Write(nodes []*yaml.RNode) error {

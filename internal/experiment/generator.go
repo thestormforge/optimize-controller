@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
-// Generator is use to create an experiment definition.
+// Generator is used to create an experiment definition.
 type Generator struct {
 	// The definition of the application to generate an experiment for.
 	Application redskyappsv1alpha1.Application
