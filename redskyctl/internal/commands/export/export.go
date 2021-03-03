@@ -32,6 +32,7 @@ import (
 	apppkg "github.com/thestormforge/optimize-controller/internal/application"
 	"github.com/thestormforge/optimize-controller/internal/experiment"
 	"github.com/thestormforge/optimize-controller/internal/patch"
+	"github.com/thestormforge/optimize-controller/internal/scan"
 	"github.com/thestormforge/optimize-controller/internal/server"
 	"github.com/thestormforge/optimize-controller/internal/template"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
@@ -366,34 +367,7 @@ func (o *Options) generateExperiment() error {
 
 	gen := experiment.Generator{Application: *o.application, DefaultReader: o.In}
 	gen.SetDefaultSelectors()
-
-	err := gen.Execute(kio.WriterFunc(func(nodes []*yaml.RNode) error {
-		list.Items = make([]runtime.RawExtension, 0, len(nodes))
-		for _, node := range nodes {
-			// RNodes are for YAML manipulation, we need a JSON form for runtime
-			data, err := node.MarshalJSON()
-			if err != nil {
-				return err
-			}
-
-			if m, err := node.GetMeta(); err == nil && m.Kind == "Experiment" {
-				// Make sure the experiment is typed or it won't be recognized
-				exp := &redsky.Experiment{}
-				if err := json.Unmarshal(data, exp); err != nil {
-					return err
-				}
-				list.Items = append(list.Items, runtime.RawExtension{Object: exp})
-			} else {
-				obj := &unstructured.Unstructured{}
-				if err := obj.UnmarshalJSON(data); err != nil {
-					return err
-				}
-				list.Items = append(list.Items, runtime.RawExtension{Object: obj})
-			}
-		}
-		return nil
-	}))
-	if err != nil {
+	if err := gen.Execute((*scan.ObjectList)(list)); err != nil {
 		return err
 	}
 

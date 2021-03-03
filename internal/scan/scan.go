@@ -22,6 +22,7 @@ import (
 
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/json"
@@ -242,6 +243,38 @@ func (os ObjectSlice) Read() ([]*yaml.RNode, error) {
 	return result, nil
 }
 
+// ObjectList allows a generic list type to be used as a KYAML writer to provide
+// interoperability between the YAML streaming and runtime objects.
+type ObjectList corev1.List
+
+// Write converts the resource nodes into runtime objects.
+func (o *ObjectList) Write(nodes []*yaml.RNode) error {
+	for _, node := range nodes {
+		data, err := node.MarshalJSON()
+		if err != nil {
+			return err
+		}
+
+		u := &unstructured.Unstructured{}
+		if err := u.UnmarshalJSON(data); err != nil {
+			return err
+		}
+
+		obj := newObjectForKind(u)
+		if err := Scheme.Convert(u, obj, runtime.InternalGroupVersioner); err != nil {
+			return err
+		}
+
+		o.Items = append(o.Items, runtime.RawExtension{Object: obj})
+	}
+
+	return nil
+}
+
+// clearCreationTimestamp is a dumb problem to have. Creation times are always
+// serialized as JSON "null" (the Go JSON encoder does not have "omitempty" for
+// generic structs); they should have been specified as a pointer to avoid this
+// problem. But they weren't.
 func clearCreationTimestamp(node *yaml.RNode) (*yaml.RNode, error) {
 	var err error
 	switch node.YNode().Kind {
@@ -258,5 +291,19 @@ func clearCreationTimestamp(node *yaml.RNode) (*yaml.RNode, error) {
 			return node.PipeE(yaml.FilterFunc(clearCreationTimestamp))
 		})
 	}
+
 	return node, err
+}
+
+// newObjectForKind uses the scheme to create a new typed object of the kind
+// of the supplied object. If a new typed object cannot be created, the supplied
+// object is returned.
+func newObjectForKind(obj runtime.Object) runtime.Object {
+	if gvks, _, _ := Scheme.ObjectKinds(obj); len(gvks) > 0 {
+		if typed, err := Scheme.New(gvks[0]); err == nil {
+			return typed
+		}
+	}
+
+	return obj
 }
