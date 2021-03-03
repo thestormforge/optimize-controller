@@ -53,7 +53,7 @@ type Application struct {
 	StormForger *StormForger `json:"stormForger,omitempty"`
 
 	// A count of the initial objectives, internally used to in name generation.
-	initialObjectiveCount int
+	initialObjectiveCount int `json:"-"`
 }
 
 // HasDefaultObjectives checks to see if the current number of objectives matches what
