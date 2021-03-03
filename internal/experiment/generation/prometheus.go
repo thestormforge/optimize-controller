@@ -48,6 +48,12 @@ func (p *BuiltInPrometheus) Update(exp *redskyv1beta1.Experiment) error {
 
 func (p *BuiltInPrometheus) Read() ([]*yaml.RNode, error) {
 	result := scan.ObjectSlice{
+		&corev1.ServiceAccount{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: p.ServiceAccountName,
+			},
+		},
+
 		&rbacv1.ClusterRole{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: p.ClusterRoleName,
@@ -81,12 +87,6 @@ func (p *BuiltInPrometheus) Read() ([]*yaml.RNode, error) {
 					APIGroups: []string{""},
 					Resources: []string{"pods"},
 				},
-			},
-		},
-
-		&corev1.ServiceAccount{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: p.ServiceAccountName,
 			},
 		},
 

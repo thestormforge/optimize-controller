@@ -107,11 +107,17 @@ func (g *Generator) Execute(output kio.Writer) error {
 	yaml.FieldOrder["metrics"] = 200
 	yaml.FieldOrder["targetRef"] = 100
 	yaml.FieldOrder["patch"] = 200
+	yaml.FieldOrder["baseline"] = 100
+	yaml.FieldOrder["min"] = 200
+	yaml.FieldOrder["max"] = 300
 	defer func() {
 		delete(yaml.FieldOrder, "parameters")
 		delete(yaml.FieldOrder, "metrics")
 		delete(yaml.FieldOrder, "targetRef")
 		delete(yaml.FieldOrder, "patch")
+		delete(yaml.FieldOrder, "baseline")
+		delete(yaml.FieldOrder, "min")
+		delete(yaml.FieldOrder, "max")
 	}()
 
 	// Execute the pipeline

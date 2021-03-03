@@ -62,7 +62,7 @@ func (s *StormForgerSource) Update(exp *redskyv1beta1.Experiment) error {
 	}
 
 	// The test case file can be blank, in which case it must be uploaded to StormForger ahead of time
-	if s.Scenario.StormForger.TestCaseFile == "" {
+	if s.Scenario.StormForger.TestCaseFile != "" {
 		pod.Containers[0].VolumeMounts = append(pod.Containers[0].VolumeMounts, corev1.VolumeMount{
 			Name:      "test-case-file",
 			ReadOnly:  true,
