@@ -54,7 +54,7 @@ func (in *Application) Default() {
 	in.StormForger.Default()
 
 	// Count the number of objectives, this is necessary to accurately compute experiment names
-	in.initialObjectiveCount = len(in.Objectives)
+	in.InitialObjectiveCount = len(in.Objectives)
 }
 
 func (in *Scenario) Default() {
