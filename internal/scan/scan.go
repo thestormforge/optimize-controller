@@ -32,7 +32,7 @@ type Selector interface {
 // turns them back into resource nodes. The original resource nodes used
 // to generate the inputs are also made available.
 type Transformer interface {
-	Filter(nodes []*yaml.RNode, selected []interface{}) ([]*yaml.RNode, error)
+	Transform(nodes []*yaml.RNode, selected []interface{}) ([]*yaml.RNode, error)
 }
 
 // Scanner is used to map resource nodes to an intermediate type and back to
@@ -74,5 +74,5 @@ func (s *Scanner) Filter(nodes []*yaml.RNode) ([]*yaml.RNode, error) {
 		}
 	}
 
-	return s.Transformer.Filter(nodes, selected)
+	return s.Transformer.Transform(nodes, selected)
 }
