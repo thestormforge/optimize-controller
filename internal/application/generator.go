@@ -18,10 +18,12 @@ package application
 
 import (
 	"io"
+	"path/filepath"
 
 	"github.com/thestormforge/konjure/pkg/konjure"
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	"github.com/thestormforge/optimize-controller/internal/scan"
+	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/kio/filters"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
@@ -61,16 +63,69 @@ func (g *Generator) Select(nodes []*yaml.RNode) ([]*yaml.RNode, error) {
 	return nodes, nil
 }
 
+// Map scans for useful information to include in the application definition
 func (g *Generator) Map(node *yaml.RNode, meta yaml.ResourceMeta) ([]interface{}, error) {
-	return nil, nil
+	var result []interface{}
+
+	// If the resource stream already contains an application, we will use that
+	// as a starting point for the rest of the generation.
+	if meta.Kind == "Application" && meta.APIVersion == redskyappsv1alpha1.GroupVersion.String() {
+		data, err := node.MarshalJSON()
+		if err != nil {
+			return nil, err
+		}
+
+		app := &redskyappsv1alpha1.Application{}
+		if err := json.Unmarshal(data, app); err != nil {
+			return nil, err
+		}
+
+		result = append(result, app)
+	}
+
+	return result, nil
 }
 
+// Transform converts the scan information into an application definition.
 func (g *Generator) Transform(_ []*yaml.RNode, selected []interface{}) ([]*yaml.RNode, error) {
 	result := scan.ObjectSlice{}
 
-	app := &redskyappsv1alpha1.Application{
-		Resources: g.Resources,
+	app := &redskyappsv1alpha1.Application{}
+	for _, sel := range selected {
+		switch s := sel.(type) {
+
+		case *redskyappsv1alpha1.Application:
+			g.merge(s, app)
+
+		}
 	}
+
+	g.apply(app)
+	if err := g.clean(app); err != nil {
+		return nil, err
+	}
+
+	result = append(result, app)
+	return result.Read()
+}
+
+// merge a source application into another application.
+func (g *Generator) merge(src, dst *redskyappsv1alpha1.Application) {
+	if src.Name != "" {
+		dst.Name = src.Name
+	}
+	if src.Namespace != "" {
+		dst.Namespace = src.Namespace
+	}
+
+	dst.Resources = append(dst.Resources, src.Resources...)
+	dst.Scenarios = append(dst.Scenarios, src.Scenarios...)
+	dst.Objectives = append(dst.Objectives, src.Objectives...)
+}
+
+// apply adds the generator configuration to the supplied application
+func (g *Generator) apply(app *redskyappsv1alpha1.Application) {
+	app.Resources = append(app.Resources, g.Resources...)
 
 	for _, o := range g.Objectives {
 		app.Objectives = append(app.Objectives, redskyappsv1alpha1.Objective{Name: o})
@@ -79,7 +134,28 @@ func (g *Generator) Transform(_ []*yaml.RNode, selected []interface{}) ([]*yaml.
 	if g.Name != "" {
 		app.Name = g.Name
 	}
+}
 
-	result = append(result, app)
-	return result.Read()
+// clean ensures that the application state is reasonable.
+func (g *Generator) clean(app *redskyappsv1alpha1.Application) error {
+	resources := konjure.Resources{}
+	for _, r := range app.Resources {
+		if r.Resource != nil {
+			var rstr []string
+			for _, rr := range r.Resource.Resources {
+				if rr != "-" && filepath.Dir(rr) != "/dev/fd" {
+					rstr = append(rstr, rr)
+				}
+			}
+			if len(rstr) == 0 {
+				continue
+			}
+			r.Resource.Resources = rstr
+		}
+
+		resources = append(resources, r)
+	}
+	app.Resources = resources
+
+	return nil
 }
