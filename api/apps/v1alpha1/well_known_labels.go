@@ -30,4 +30,8 @@ const (
 
 	// AnnotationLastScanned is the timestamp of the last application scan.
 	AnnotationLastScanned = "apps.stormforge.io/last-scanned"
+
+	// AnnotationUserConfirmed represents the approval from the UI that the generated
+	// experiment is OK to run ( replicas = 1 ).
+	AnnotationUserConfirmed = "apps.stormforge.io/confirmed"
 )
