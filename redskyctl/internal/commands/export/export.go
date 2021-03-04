@@ -29,16 +29,17 @@ import (
 	"github.com/spf13/cobra"
 	app "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	redsky "github.com/thestormforge/optimize-controller/api/v1beta1"
+	apppkg "github.com/thestormforge/optimize-controller/internal/application"
 	"github.com/thestormforge/optimize-controller/internal/experiment"
 	"github.com/thestormforge/optimize-controller/internal/patch"
+	"github.com/thestormforge/optimize-controller/internal/scan"
 	"github.com/thestormforge/optimize-controller/internal/server"
 	"github.com/thestormforge/optimize-controller/internal/template"
-	apppkg "github.com/thestormforge/optimize-controller/pkg/application"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
-	experimentctl "github.com/thestormforge/optimize-controller/redskyctl/internal/commands/generate/experiment"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/kustomize"
 	experimentsapi "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"github.com/thestormforge/optimize-go/pkg/config"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -361,14 +362,12 @@ func (o *Options) generateExperiment() error {
 	// Filter application experiment to only the relevant pieces
 	apppkg.FilterByExperimentName(o.application, o.trialName[:strings.LastIndex(o.trialName, "-")])
 
-	//gen := experimentctl.NewGenerator(o.Fs)
 	onDiskFS := filesys.MakeFsOnDisk()
-	gen := experimentctl.NewGenerator(onDiskFS)
-	gen.Application = *o.application
-	gen.SetDefaultSelectors()
+	list := &corev1.List{}
 
-	list, err := gen.Generate()
-	if err != nil {
+	gen := experiment.Generator{Application: *o.application, DefaultReader: o.In}
+	gen.SetDefaultSelectors()
+	if err := gen.Execute((*scan.ObjectList)(list)); err != nil {
 		return err
 	}
 

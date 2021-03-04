@@ -53,13 +53,13 @@ type Application struct {
 	StormForger *StormForger `json:"stormForger,omitempty"`
 
 	// A count of the initial objectives, internally used to in name generation.
-	initialObjectiveCount int
+	InitialObjectiveCount int `json:"-"`
 }
 
 // HasDefaultObjectives checks to see if the current number of objectives matches what
 // was present when the application was last defaulted.
 func (in *Application) HasDefaultObjectives() bool {
-	return in.initialObjectiveCount > 0 && len(in.Objectives) == in.initialObjectiveCount
+	return in.InitialObjectiveCount > 0 && len(in.Objectives) == in.InitialObjectiveCount
 }
 
 // Parameters describes the strategy for tuning the application.

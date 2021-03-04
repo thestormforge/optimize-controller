@@ -20,8 +20,9 @@ require (
 	github.com/spf13/cobra v1.1.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.6.1
-	github.com/thestormforge/konjure v0.3.0-beta.3
+	github.com/thestormforge/konjure v0.3.0-beta.4
 	github.com/thestormforge/optimize-go v0.0.8
+	github.com/yujunz/go-getter v1.5.1-lite.0.20201201013212-6d9c071adddf
 	github.com/zorkian/go-datadog-api v2.24.0+incompatible
 	go.uber.org/zap v1.10.0
 	golang.org/x/net v0.0.0-20201110031124-69a78807bb2b
