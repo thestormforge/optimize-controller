@@ -37,9 +37,9 @@ type StormForgerSource struct {
 	Application *redskyappsv1alpha1.Application
 }
 
-var _ ExperimentSource = &LocustSource{} // Update trial job
-var _ MetricSource = &LocustSource{}     // StormForger specific metrics
-var _ kio.Reader = &LocustSource{}       // ConfigMap for the test case file
+var _ ExperimentSource = &StormForgerSource{} // Update trial job
+var _ MetricSource = &StormForgerSource{}     // StormForger specific metrics
+var _ kio.Reader = &StormForgerSource{}       // ConfigMap for the test case file
 
 func (s *StormForgerSource) Update(exp *redskyv1beta1.Experiment) error {
 	if s.Scenario == nil || s.Application == nil {

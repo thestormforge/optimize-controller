@@ -83,14 +83,14 @@ func (s *ContainerResourcesSelector) Map(node *yaml.RNode, meta yaml.ResourceMet
 
 // matchesContainerName checks to see if the specified container name is matched.
 func (s *ContainerResourcesSelector) matchesContainerName(name string) bool {
-	// Treat empty like ".*"
 	if s.ContainerName == "" {
+		// Treat empty like ".*"
 		return true
 	}
 
 	containerName, err := regexp.Compile("^(?:" + s.ContainerName + ")$")
 	if err != nil {
-		// Kustomize panics. Not sure where it validates. We will just fall back to exact match
+		// Invalid regexp may still be an exact match on the actual name
 		return s.ContainerName == name
 	}
 

@@ -22,6 +22,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strings"
 
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
@@ -32,13 +34,22 @@ import (
 
 func init() {
 	// Hack the sort order used by the format filter to make experiments sort more naturally
-	yaml.FieldOrder["parameters"] = 100
-	yaml.FieldOrder["metrics"] = 200
-	yaml.FieldOrder["targetRef"] = 100
-	yaml.FieldOrder["patch"] = 200
-	yaml.FieldOrder["baseline"] = 100
-	yaml.FieldOrder["min"] = 200
-	yaml.FieldOrder["max"] = 300
+	addFieldOrder := func(obj interface{}, order int) {
+		t := reflect.Indirect(reflect.ValueOf(obj)).Type()
+		for i := 0; i < t.NumField(); i++ {
+			if tag := strings.Split(t.Field(i).Tag.Get("json"), ",")[0]; tag != "" {
+				if _, ok := yaml.FieldOrder[tag]; !ok {
+					yaml.FieldOrder[tag] = order
+				}
+				order++
+			}
+		}
+	}
+
+	addFieldOrder(&redskyv1beta1.ExperimentSpec{}, 200)
+	addFieldOrder(&redskyv1beta1.Parameter{}, 300)
+	addFieldOrder(&redskyv1beta1.PatchTemplate{}, 400)
+	addFieldOrder(&redskyv1beta1.Metric{}, 500)
 }
 
 // newObjectiveMetric creates a new metric for the supplied objective with most fields pre-filled.
