@@ -19,6 +19,7 @@ package application
 import (
 	"io"
 	"path/filepath"
+	"time"
 
 	"github.com/thestormforge/konjure/pkg/konjure"
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
@@ -50,6 +51,7 @@ func (g *Generator) Execute(output kio.Writer) error {
 				Transformer: g,
 			},
 			kio.FilterAll(yaml.Clear("status")),
+			// TODO We should have an optional filter that annotates the application with comments
 			&filters.FormatFilter{UseSchema: true},
 		},
 		Outputs:               []kio.Writer{output},
@@ -114,8 +116,25 @@ func (g *Generator) merge(src, dst *redskyappsv1alpha1.Application) {
 	if src.Name != "" {
 		dst.Name = src.Name
 	}
+
 	if src.Namespace != "" {
 		dst.Namespace = src.Namespace
+	}
+
+	if len(dst.Labels) > 0 {
+		for k, v := range src.Labels {
+			dst.Labels[k] = v
+		}
+	} else {
+		dst.Labels = src.Labels
+	}
+
+	if len(dst.Annotations) > 0 {
+		for k, v := range src.Annotations {
+			dst.Annotations[k] = v
+		}
+	} else {
+		dst.Annotations = src.Annotations
 	}
 
 	dst.Resources = append(dst.Resources, src.Resources...)
@@ -125,14 +144,19 @@ func (g *Generator) merge(src, dst *redskyappsv1alpha1.Application) {
 
 // apply adds the generator configuration to the supplied application
 func (g *Generator) apply(app *redskyappsv1alpha1.Application) {
+	if g.Name != "" {
+		app.Name = g.Name
+	}
+
+	if app.Annotations == nil {
+		app.Annotations = make(map[string]string)
+	}
+	app.Annotations[redskyappsv1alpha1.AnnotationLastScanned] = time.Now().UTC().Format(time.RFC3339)
+
 	app.Resources = append(app.Resources, g.Resources...)
 
 	for _, o := range g.Objectives {
 		app.Objectives = append(app.Objectives, redskyappsv1alpha1.Objective{Name: o})
-	}
-
-	if g.Name != "" {
-		app.Name = g.Name
 	}
 }
 

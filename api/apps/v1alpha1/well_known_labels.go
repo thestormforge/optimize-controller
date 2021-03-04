@@ -24,4 +24,7 @@ const (
 
 	// LabelScenario is the application scenario associated with an object.
 	LabelScenario = "redskyops.dev/scenario"
+
+	// AnnotationLastScanned is the timestamp of the last application scan.
+	AnnotationLastScanned = "apps.stormforge.io/last-scanned"
 )
