@@ -22,10 +22,12 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type CustomSource struct {
@@ -45,8 +47,8 @@ func (s *CustomSource) Update(exp *redskyv1beta1.Experiment) error {
 		exp.Spec.TrialTemplate.Spec.InitialDelaySeconds = d
 	}
 
-	if rt := s.Scenario.Custom.ApproximateRuntime; rt != nil {
-		exp.Spec.TrialTemplate.Spec.ApproximateRuntime = rt.DeepCopy()
+	if rt := s.Scenario.Custom.ApproximateRuntimeSeconds; rt > 0 {
+		exp.Spec.TrialTemplate.Spec.ApproximateRuntime = &metav1.Duration{Duration: time.Duration(rt) * time.Second}
 	}
 
 	if s.Scenario.Custom.Image != "" {

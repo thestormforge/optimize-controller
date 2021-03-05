@@ -134,7 +134,7 @@ type CustomScenario struct {
 	// Additional delay before starting the trial pod.
 	InitialDelaySeconds int32 `json:"initialDelaySeconds,omitempty"`
 	// The estimated amount of time the trial should last.
-	ApproximateRuntime *metav1.Duration `json:"approximateRuntime,omitempty"`
+	ApproximateRuntimeSeconds int32 `json:"approximateRuntimeSeconds,omitempty"`
 	// Override the image of the first container in the trial pod.
 	Image string `json:"image,omitempty"`
 }

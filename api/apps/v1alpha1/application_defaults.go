@@ -293,7 +293,7 @@ func defaultCustomObjectiveName(custom *CustomObjective) string {
 		return '-'
 	}, query), "-") {
 		switch part {
-		case "", "or", "and", "unless", "on", "ignoring":
+		case "", "or", "and", "unless", "on", "ignoring", "scalar":
 			continue
 		default:
 			name = append(name, part)
