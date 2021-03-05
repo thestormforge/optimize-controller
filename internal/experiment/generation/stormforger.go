@@ -147,6 +147,9 @@ func (s *StormForgerSource) Metrics() ([]redskyv1beta1.Metric, error) {
 		obj := &s.Application.Objectives[i]
 		switch {
 
+		case obj.Implemented:
+			// Do nothing
+
 		case obj.Latency != nil:
 			if l := s.stormForgerLatency(obj.Latency.LatencyType); l != "" {
 				query := `scalar(` + l + `{job="trialRun",instance="{{ .Trial.Name }}"})`

@@ -28,12 +28,17 @@ type DurationMetricsSource struct {
 var _ MetricSource = &DurationMetricsSource{}
 
 func (s *DurationMetricsSource) Metrics() ([]redskyv1beta1.Metric, error) {
-	if s.Objective.Duration.DurationType != redskyappsv1alpha1.DurationTrial {
-		return nil, nil
+	var result []redskyv1beta1.Metric
+	if s.Objective.Implemented {
+		return result, nil
 	}
 
-	result := []redskyv1beta1.Metric{newObjectiveMetric(s.Objective, `{{ duration .StartTime .CompletionTime }}`)}
-	result[0].Type = ""
+	switch s.Objective.Duration.DurationType {
+	case redskyappsv1alpha1.DurationTrial:
+		m := newObjectiveMetric(s.Objective, `{{ duration .StartTime .CompletionTime }}`)
+		m.Type = ""
+		result = append(result, m)
+	}
 
 	return result, nil
 }

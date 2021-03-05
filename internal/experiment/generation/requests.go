@@ -38,6 +38,9 @@ var _ MetricSource = &RequestsMetricsSource{}
 
 func (s *RequestsMetricsSource) Metrics() ([]redskyv1beta1.Metric, error) {
 	var result []redskyv1beta1.Metric
+	if s.Objective.Implemented {
+		return result, nil
+	}
 
 	// Generate the query
 	ms := strconv.Quote(s.Objective.Requests.MetricSelector)
