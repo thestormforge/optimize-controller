@@ -109,13 +109,13 @@ func (in *Objective) Default() {
 				corev1.ResourceMemory: resource.MustParse("3"),
 			})
 
-		case "cost-gcp", "gcp-cost":
+		case "cost-gcp", "gcp-cost", "cost-gke", "gke-cost":
 			defaultRequestsObjectiveWeights(in, corev1.ResourceList{
 				corev1.ResourceCPU:    resource.MustParse("17"),
 				corev1.ResourceMemory: resource.MustParse("2"),
 			})
 
-		case "cost-aws", "aws-cost":
+		case "cost-aws", "aws-cost", "cost-eks", "eks-cost":
 			defaultRequestsObjectiveWeights(in, corev1.ResourceList{
 				corev1.ResourceCPU:    resource.MustParse("18"),
 				corev1.ResourceMemory: resource.MustParse("5"),
