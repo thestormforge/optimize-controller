@@ -90,10 +90,11 @@ func (s *CustomSource) Metrics() ([]redskyv1beta1.Metric, error) {
 
 			var weights []string
 			for n, q := range obj.Requests.Weights {
-				w := float64(q.Value()) / 1000
+				var scale float64 = 1
 				if n == corev1.ResourceMemory {
-					w = w / math.Pow(1000, 3) // Adjust memory weight from byte to gb
+					scale = 4 // Adjust memory weight from byte to gb
 				}
+				w := float64(q.Value()) / math.Pow(1000, scale)
 				weights = append(weights, fmt.Sprintf("%s=%s", n, strconv.FormatFloat(w, 'f', -1, 64)))
 			}
 			query := fmt.Sprintf("{{ resourceRequests .Target %q }}", strings.Join(weights, ","))
