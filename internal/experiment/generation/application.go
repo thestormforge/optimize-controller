@@ -50,6 +50,8 @@ func (s *ApplicationSelector) Map(*yaml.RNode, yaml.ResourceMeta) ([]interface{}
 			result = append(result, &StormForgerSource{Scenario: scenario, Application: s.Application})
 		case scenario.Locust != nil:
 			result = append(result, &LocustSource{Scenario: scenario, Application: s.Application})
+		case scenario.Custom != nil:
+			result = append(result, &CustomSource{Scenario: scenario, Application: s.Application})
 		}
 	}
 

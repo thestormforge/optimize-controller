@@ -23,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
@@ -127,4 +128,52 @@ func loadApplicationData(app *redskyappsv1alpha1.Application, src string) ([]byt
 	}
 
 	return ioutil.ReadFile(dst)
+}
+
+var metricSelectorPattern = regexp.MustCompile(`([a-zA-Z_][a-zA-Z0-9_]*)(=|!=|=~|!~)"([a-zA-Z0-9\-|]+)"`)
+
+// convertPrometheusSelector converts a Prometheus metric selector to a Kubernetes
+// label selector. This is necessary because objectives like "Requests" define their
+// "selector" as a Prometheus selector: in order for that to work with a metric
+// with `type: kubernetes` (or `type: ""`), we must first convert it over.
+func convertPrometheusSelector(metricSelector string) (*metav1.LabelSelector, error) {
+	if metricSelector == "" {
+		return nil, nil
+	}
+
+	labelSelector := &metav1.LabelSelector{}
+	for _, ms := range strings.Split(metricSelector, ",") {
+		parts := metricSelectorPattern.FindStringSubmatch(ms)
+		if len(parts) != 4 {
+			return nil, fmt.Errorf("invalid metric selector")
+		}
+
+		switch parts[2] {
+		case "=":
+			if labelSelector.MatchLabels == nil {
+				labelSelector.MatchLabels = make(map[string]string)
+			}
+			labelSelector.MatchLabels[parts[1]] = parts[3]
+		case "!=":
+			labelSelector.MatchExpressions = append(labelSelector.MatchExpressions, metav1.LabelSelectorRequirement{
+				Key:      parts[1],
+				Operator: metav1.LabelSelectorOpNotIn,
+				Values:   []string{parts[3]},
+			})
+		case "=~":
+			labelSelector.MatchExpressions = append(labelSelector.MatchExpressions, metav1.LabelSelectorRequirement{
+				Key:      parts[1],
+				Operator: metav1.LabelSelectorOpIn,
+				Values:   strings.Split(parts[3], "|"),
+			})
+		case "!~":
+			labelSelector.MatchExpressions = append(labelSelector.MatchExpressions, metav1.LabelSelectorRequirement{
+				Key:      parts[1],
+				Operator: metav1.LabelSelectorOpNotIn,
+				Values:   strings.Split(parts[3], "|"),
+			})
+		}
+	}
+
+	return labelSelector, nil
 }

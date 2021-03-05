@@ -64,6 +64,8 @@ func (in *Scenario) Default() {
 			in.Name = defaultScenarioName(in.StormForger.TestCase, in.StormForger.TestCaseFile)
 		case in.Locust != nil:
 			in.Name = defaultScenarioName(in.Locust.Locustfile)
+		case in.Custom != nil:
+			in.Name = defaultCustomScenarioName(in.Custom)
 		default:
 			in.Name = defaultName
 		}
@@ -234,6 +236,39 @@ func defaultScenarioName(values ...string) string {
 		name = strings.TrimSuffix(name, filepath.Ext(name))
 		name = strings.Map(toName, name)
 
+		return name
+	}
+
+	return defaultName
+}
+
+func defaultCustomScenarioName(custom *CustomScenario) string {
+	image := custom.Image
+
+	// Check the pod name or the first container
+	if custom.PodTemplate != nil {
+		if custom.PodTemplate.Name != "" {
+			return custom.PodTemplate.Name
+		}
+
+		containers := custom.PodTemplate.Spec.Containers
+		if len(containers) > 0 {
+			if containers[0].Name != "" {
+				return containers[0].Name
+			}
+			if image == "" {
+				image = containers[0].Image
+			}
+		}
+	}
+
+	// Try to take the basename of the image
+	if image != "" {
+		name := image
+		name = name[strings.LastIndex(name, "/")+1:]
+		if pos := strings.Index(name, ":"); pos > 0 {
+			name = name[0:pos]
+		}
 		return name
 	}
 

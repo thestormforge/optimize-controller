@@ -97,6 +97,8 @@ type Scenario struct {
 	StormForger *StormForgerScenario `json:"stormforger,omitempty"`
 	// Locust configuration for the scenario.
 	Locust *LocustScenario `json:"locust,omitempty"`
+	// Custom configuration for the scenario.
+	Custom *CustomScenario `json:"custom,omitempty"`
 }
 
 // StormForgerScenario is used to generate load using StormForger.
@@ -119,6 +121,22 @@ type LocustScenario struct {
 	SpawnRate *int `json:"spawnRate,omitempty"`
 	// Stop after the specified amount of time.
 	RunTime *metav1.Duration `json:"runTime,omitempty"`
+}
+
+// CustomScenario is used for advanced cases where more flexibility is required.
+type CustomScenario struct {
+	// Enables Prometheus Push Gateway support for objectives that require it.
+	// The `PUSHGATEWAY_URL` environment variable will be added to all
+	// containers when the trial job starts.
+	EnablePushGateway bool `json:"pushGateway,omitempty"`
+	// The default specification of a pod to use for executing a trial.
+	PodTemplate *corev1.PodTemplateSpec `json:"podTemplate,omitempty"`
+	// Additional delay before starting the trial pod.
+	InitialDelaySeconds int32 `json:"initialDelaySeconds,omitempty"`
+	// The estimated amount of time the trial should last.
+	ApproximateRuntime *metav1.Duration `json:"approximateRuntime,omitempty"`
+	// Override the image of the first container in the trial pod.
+	Image string `json:"image,omitempty"`
 }
 
 // Objective describes the goal of the optimization in terms of specific metrics. Note that only
