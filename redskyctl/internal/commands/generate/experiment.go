@@ -52,9 +52,10 @@ type ExperimentOptions struct {
 
 func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "experiment",
-		Short: "Generate an experiment",
-		Long:  "Generate an experiment from an application descriptor",
+		Use:     "experiment",
+		Aliases: []string{"exp"},
+		Short:   "Generate an experiment",
+		Long:    "Generate an experiment from an application descriptor",
 
 		Annotations: map[string]string{
 			"KustomizePluginKind": "Application",
