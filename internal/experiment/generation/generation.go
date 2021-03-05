@@ -29,6 +29,9 @@ import (
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	"github.com/thestormforge/optimize-controller/internal/application"
 	"github.com/yujunz/go-getter"
+	batchv1beta1 "k8s.io/api/batch/v1beta1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/kustomize/api/types"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
@@ -68,6 +71,14 @@ func newObjectiveMetric(obj *redskyappsv1alpha1.Objective, query string) redskyv
 		Max:      obj.Max,
 		Optimize: obj.Optimize,
 	}
+}
+
+// ensureTrialJobPod returns the pod template for the trial job, creating the job template if necessary.
+func ensureTrialJobPod(exp *redskyv1beta1.Experiment) *corev1.PodTemplateSpec {
+	if exp.Spec.TrialTemplate.Spec.JobTemplate == nil {
+		exp.Spec.TrialTemplate.Spec.JobTemplate = &batchv1beta1.JobTemplateSpec{}
+	}
+	return &exp.Spec.TrialTemplate.Spec.JobTemplate.Spec.Template
 }
 
 // splitPath splits a string based path, honoring backslash escaped slashes.
