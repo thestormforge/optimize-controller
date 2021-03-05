@@ -161,6 +161,8 @@ type Objective struct {
 	ErrorRate *ErrorRateObjective `json:"errorRate,omitempty"`
 	// Duration is used to optimize the elapsed time of an application performing a fixed amount of work.
 	Duration *DurationObjective `json:"duration,omitempty"`
+	// Custom is used to optimize against externally defined metrics.
+	Custom *CustomObjective `json:"custom,omitempty"`
 
 	// Internal use field for marking objectives as having been implemented. For example,
 	// it may be impossible to optimize for some objectives based on the current state.
@@ -236,6 +238,33 @@ type DurationType string
 const (
 	DurationTrial DurationType = "trial"
 )
+
+// CustomObjective is used in advanced cases to configure external metric sources.
+type CustomObjective struct {
+	// Define a custom optimization metric using Prometheus.
+	Prometheus *CustomPrometheusObjective `json:"prometheus,omitempty"`
+	// Default a custom optimization metric using Datadog.
+	Datadog *CustomDatadogObjective `json:"datadog,omitempty"`
+	// Flag indicating the goal of optimization should be to maximize a metric.
+	Maximize bool `json:"maximize,omitempty"`
+}
+
+// CustomPrometheusObjective is used to define an external optimization metric from Prometheus.
+type CustomPrometheusObjective struct {
+	// The PromQL query to execute; the result of this query MUST be a scalar value.
+	Query string `json:"query"`
+	// The URL of the Prometheus deployment, leave blank to leverage a Prometheus instance
+	// whose lifecycle it tied to the trial.
+	URL string `json:"url,omitempty"`
+}
+
+// CustomDatadogObjective is used to define an external optimization metric from DataDog.
+type CustomDatadogObjective struct {
+	// The [Datadog](https://docs.datadoghq.com/tracing/trace_search_and_analytics/query_syntax/) query to execute.
+	Query string `json:"query"`
+	// The aggregator to use on the query results (one of: avg, last, max, min, sum).
+	Aggregator string `json:"aggregator,omitempty"`
+}
 
 // StormForger describes global configuration related to StormForger.
 type StormForger struct {

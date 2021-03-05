@@ -19,6 +19,7 @@ package generation
 import (
 	"fmt"
 	"math"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -112,6 +113,24 @@ func (s *CustomSource) Metrics() ([]redskyv1beta1.Metric, error) {
 				LabelSelector: labelSelector,
 			}
 			result = append(result, m)
+
+		case obj.Custom != nil:
+			var m redskyv1beta1.Metric
+			switch {
+			case obj.Custom.Prometheus != nil:
+				m = newObjectiveMetric(obj, obj.Custom.Prometheus.Query)
+				m.URL = obj.Custom.Prometheus.URL
+			case obj.Custom.Datadog != nil:
+				m = newObjectiveMetric(obj, obj.Custom.Datadog.Query)
+				m.Type = redskyv1beta1.MetricDatadog
+				if obj.Custom.Datadog.Aggregator != "" {
+					m.URL = "?" + url.Values{"aggregator": []string{obj.Custom.Datadog.Aggregator}}.Encode()
+				}
+			}
+
+			m.Minimize = !obj.Custom.Maximize
+			result = append(result, m)
+
 		}
 	}
 
