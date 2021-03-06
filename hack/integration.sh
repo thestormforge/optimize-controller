@@ -30,8 +30,16 @@ ${REDSKYCTL_BIN} generate trial \
 
 kubectl get trial -o wide
 
-echo "Wait for trial to complete (120s timeout)"
+Stats() {
+	kubectl get po -o wide
+  kubectl get trial -o wide
+}
+
+trap Stats EXIT
+
+waitTime=300s
+echo "Wait for trial to complete (${waitTime} timeout)"
 kubectl wait trial \
   -l redskyops.dev/application=ci \
   --for condition=redskyops.dev/trial-complete \
-  --timeout 120s
+  --timeout ${waitTime}
