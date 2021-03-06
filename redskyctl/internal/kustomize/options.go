@@ -26,6 +26,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/thestormforge/optimize-controller/config"
 	"sigs.k8s.io/kustomize/api/filesys"
 	"sigs.k8s.io/kustomize/api/krusty"
 	"sigs.k8s.io/kustomize/api/types"
@@ -52,23 +53,14 @@ func defaultOptions() *Kustomize {
 	}
 }
 
-func WithEmbedResources(efs embed.FS) Option {
+// WithResources updates the kustomization with the specified list of
+// Assets and writes them to the in memory filesystem.
+func WithResources(efs embed.FS) Option {
 	return func(k *Kustomize) (err error) {
-		k.kustomize = &types.Kustomization{
-			Namespace: defaultNamespace,
-			Images: []types.Image{
-				{
-					Name:    defaultImage,
-					NewName: strings.Split(BuildImage, ":")[0],
-					NewTag:  strings.Split(BuildImage, ":")[1],
-				},
-			},
-			// There's a chance this could be fragile, but since its only
-			// intended use is for our installation, we'll give it a shot
-			Resources: []string{"default"},
-		}
+		// There's a chance this could be fragile, but since its only
+		// intended use is for our installation, we'll give it a shot
+		k.kustomize.Resources = []string{"default"}
 
-		// io.FS walkDir
 		err = fs.WalkDir(efs, ".", func(path string, info os.DirEntry, err error) error {
 			if err != nil {
 				return err
@@ -83,35 +75,13 @@ func WithEmbedResources(efs embed.FS) Option {
 				return err
 			}
 
-			if err = k.fs.WriteFile(filepath.Join("/", path), b); err != nil {
+			if err = k.fs.WriteFile(filepath.Join(k.Base, path), b); err != nil {
 				return err
 			}
 			return nil
 		})
 
 		return err
-	}
-}
-
-// WithResources updates the kustomization with the specified list of
-// Assets and writes them to the in memory filesystem.
-func WithResources(a map[string]*Asset) Option {
-	return func(k *Kustomize) (err error) {
-		// Write out all assets to in memory filesystem
-		for name, asset := range a {
-			k.kustomize.Resources = append(k.kustomize.Resources, name)
-
-			var assetBytes []byte
-			if assetBytes, err = asset.Bytes(); err != nil {
-				return err
-			}
-
-			if err = k.fs.WriteFile(filepath.Join(k.Base, name), assetBytes); err != nil {
-				return err
-			}
-
-		}
-		return nil
 	}
 }
 
@@ -154,7 +124,7 @@ func WithInstall() Option {
 		}
 
 		// Pull in the default bundled resources
-		if err := WithResources(Assets)(k); err != nil {
+		if err := WithResources(config.Content)(k); err != nil {
 			return err
 		}
 

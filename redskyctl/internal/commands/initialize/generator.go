@@ -24,7 +24,6 @@ import (
 	"sync"
 
 	"github.com/spf13/cobra"
-	controllerYamls "github.com/thestormforge/optimize-controller/config"
 	"github.com/thestormforge/optimize-controller/internal/setup"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/authorize_cluster"
@@ -156,7 +155,7 @@ func (o *GeneratorOptions) generateApplication() (io.Reader, error) {
 	}
 
 	yamls, err := kustomize.Yamls(
-		kustomize.WithEmbedResources(controllerYamls.Content),
+		kustomize.WithInstall(),
 		kustomize.WithNamespace(ctrl.Namespace),
 		kustomize.WithImage(o.Image),
 		kustomize.WithImagePullPolicy(setup.ImagePullPolicy),
