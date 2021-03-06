@@ -18,7 +18,10 @@ package kustomize
 
 import (
 	"bytes"
+	"embed"
 	"fmt"
+	"io/fs"
+	"os"
 	"path/filepath"
 	"strings"
 	"text/template"
@@ -46,6 +49,47 @@ func defaultOptions() *Kustomize {
 		fs:         fs,
 		Kustomizer: krusty.MakeKustomizer(fs, krusty.MakeDefaultOptions()),
 		kustomize:  &types.Kustomization{},
+	}
+}
+
+func WithEmbedResources(efs embed.FS) Option {
+	return func(k *Kustomize) (err error) {
+		k.kustomize = &types.Kustomization{
+			Namespace: defaultNamespace,
+			Images: []types.Image{
+				{
+					Name:    defaultImage,
+					NewName: strings.Split(BuildImage, ":")[0],
+					NewTag:  strings.Split(BuildImage, ":")[1],
+				},
+			},
+			// There's a chance this could be fragile, but since its only
+			// intended use is for our installation, we'll give it a shot
+			Resources: []string{"default"},
+		}
+
+		// io.FS walkDir
+		err = fs.WalkDir(efs, ".", func(path string, info os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+
+			if info.IsDir() {
+				return nil
+			}
+
+			b, err := fs.ReadFile(efs, path)
+			if err != nil {
+				return err
+			}
+
+			if err = k.fs.WriteFile(filepath.Join("/", path), b); err != nil {
+				return err
+			}
+			return nil
+		})
+
+		return err
 	}
 }
 

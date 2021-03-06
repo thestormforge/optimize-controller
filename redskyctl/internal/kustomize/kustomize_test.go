@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/thestormforge/optimize-controller/config"
 	"sigs.k8s.io/kustomize/api/types"
 )
 
@@ -84,6 +85,19 @@ func Test(t *testing.T) {
 				Secret:    true,
 			},
 		},
+		{
+			desc:    "with embedfs",
+			options: []Option{WithEmbedResources(config.Content), WithAPI(true)},
+			expected: struct {
+				Namespace string
+				Image     string
+				Secret    bool
+			}{
+				Namespace: "redsky-system",
+				Image:     BuildImage,
+				Secret:    true,
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -113,3 +127,20 @@ func Test(t *testing.T) {
 		})
 	}
 }
+
+/*
+func TestEmbedFS(t *testing.T) {
+	k, err := NewKustomization(
+		WithEmbedResources(config.Content),
+	)
+	assert.NoError(t, err)
+
+	res, err := k.Run(k.Base)
+	assert.NoError(t, err)
+
+	yml, err := res.AsYaml()
+	assert.NoError(t, err)
+
+	fmt.Println(string(yml))
+}
+*/
