@@ -29,7 +29,9 @@ import (
 	"github.com/thestormforge/optimize-controller/internal/experiment"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
 	"github.com/thestormforge/optimize-go/pkg/config"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/kustomize/kyaml/kio"
+	"sigs.k8s.io/kustomize/kyaml/kio/kioutil"
 )
 
 type ExperimentOptions struct {
@@ -92,6 +94,8 @@ func (o *ExperimentOptions) generate() error {
 		if err := rr.ReadInto(r, &o.Generator.Application); err != nil {
 			return err
 		}
+
+		metav1.SetMetaDataAnnotation(&o.Generator.Application.ObjectMeta, kioutil.PathAnnotation, o.Filename)
 	}
 
 	if err := o.filterResources(&o.Generator.Application); err != nil {
