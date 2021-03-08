@@ -18,6 +18,7 @@ package generate
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"strings"
 	"unicode"
@@ -94,8 +95,6 @@ func (o *ExperimentOptions) generate() error {
 		if err := rr.ReadInto(r, &o.Generator.Application); err != nil {
 			return err
 		}
-
-		metav1.SetMetaDataAnnotation(&o.Generator.Application.ObjectMeta, kioutil.PathAnnotation, o.Filename)
 	}
 
 	if err := o.filterResources(&o.Generator.Application); err != nil {
@@ -107,6 +106,11 @@ func (o *ExperimentOptions) generate() error {
 	}
 
 	if err := application.FilterObjectives(&o.Generator.Application, o.Objectives); err != nil {
+		return err
+	}
+
+	// Make sure we have a path on the application to use as a base for resolving relative file paths
+	if err := o.setPath(); err != nil {
 		return err
 	}
 
@@ -136,6 +140,23 @@ func (o *ExperimentOptions) filterResources(app *redskyappsv1alpha1.Application)
 		app.Resources = append(app.Resources, konjure.NewResource(filepath.Dir(o.Filename)))
 	}
 
+	return nil
+}
+
+func (o *ExperimentOptions) setPath() error {
+	path := o.Filename
+	if path == "" || path == "-" || filepath.Dir(path) == "/dev/fd" {
+		pwd, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+
+		// The filename here could be anything, the important part is the directory so
+		// when you do not supply `-f`, relative paths resolve against the working directory
+		path = filepath.Join(pwd, "app.yaml")
+	}
+
+	metav1.SetMetaDataAnnotation(&o.Generator.Application.ObjectMeta, kioutil.PathAnnotation, path)
 	return nil
 }
 
