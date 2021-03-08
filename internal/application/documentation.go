@@ -27,21 +27,25 @@ import (
 
 // headComments is the mapping of field names to desired comments.
 var headComments = map[string]string{
+
 	"resources": `
 Resources define where you application's Kubernetes resources come from. These can be URL-like
 values such as file paths, HTTP URLs, or Git repository URLs. They can also be more complex
 definitions such references to in-cluster objects or Helm charts.
 `,
+
 	"parameters": `
 Parameters control what parts of you application will be optimized.
 
 Reference: https://docs.stormforge.io/reference/application/v1alpha1/#parameters
 `,
+
 	"scenarios": `
 Scenarios determine how you application will be put under load during optimization.
 
 Reference: https://docs.stormforge.io/reference/application/v1alpha1/#scenario
 `,
+
 	"objectives": `
 Objectives are used to define what you are trying to optimize about your application. Most
 objectives correspond to metrics observed over the course of an observation trial, for
@@ -91,7 +95,7 @@ func (f *DocumentationFilter) annotateApplication(app *yaml.RNode) error {
 		n.HeadComment = strings.Join(os.Args, " ")
 	}
 
-	// Required is map of field name to required preceding field name
+	// Required is a map of field name to required preceding field name.
 	// This is used to ensure even empty (and otherwise omitted) fields can be
 	// included for documentation purposes.
 	required := map[string]string{
@@ -113,6 +117,11 @@ func (f *DocumentationFilter) annotateApplication(app *yaml.RNode) error {
 	return nil
 }
 
+// missingRequiredContent adds top level fields which may have been empty and therefore
+// emitted during the initial Go to YAML encoding process. The supplied map is used
+// to track which fields have already been encountered and which fields must precede
+// the current field (identified by "key"). The resulting list of nodes are suitable
+// for inclusion in the content of a mapping node.
 func missingRequiredContent(key string, required map[string]string) []*yaml.Node {
 	// As soon as we encounter a key, remove it so it does not get double added
 	for k, v := range required {

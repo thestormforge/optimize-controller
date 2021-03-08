@@ -52,6 +52,7 @@ func NewApplicationCommand(o *ApplicationOptions) *cobra.Command {
 
 	cmd.Flags().StringVar(&o.Generator.Name, "name", "", "set the application `name`")
 	cmd.Flags().StringSliceVar(&o.Generator.Objectives, "objectives", []string{"p95-latency", "cost"}, "specify the application optimization `obj`ectives")
+	cmd.Flags().BoolVar(&o.Generator.Documentation.Disabled, "no-comments", false, "suppress documentation comments on output")
 	cmd.Flags().StringArrayVarP(&o.Resources, "resources", "r", nil, "additional resources to consider")
 	cmd.Flags().StringArrayVar(&o.DefaultResource.Namespaces, "namespace", nil, "select resources from a specific namespace")
 	cmd.Flags().StringVar(&o.DefaultResource.NamespaceSelector, "ns-selector", "", "`sel`ect resources from labeled namespaces")
