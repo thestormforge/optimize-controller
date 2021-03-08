@@ -164,6 +164,7 @@ func (o *GeneratorOptions) generateApplication() (io.Reader, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return bytes.NewReader(yamls), nil
 }
 

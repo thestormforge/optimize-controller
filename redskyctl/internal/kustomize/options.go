@@ -18,11 +18,15 @@ package kustomize
 
 import (
 	"bytes"
+	"embed"
 	"fmt"
+	"io/fs"
+	"os"
 	"path/filepath"
 	"strings"
 	"text/template"
 
+	"github.com/thestormforge/optimize-controller/config"
 	"sigs.k8s.io/kustomize/api/filesys"
 	"sigs.k8s.io/kustomize/api/krusty"
 	"sigs.k8s.io/kustomize/api/types"
@@ -51,23 +55,33 @@ func defaultOptions() *Kustomize {
 
 // WithResources updates the kustomization with the specified list of
 // Assets and writes them to the in memory filesystem.
-func WithResources(a map[string]*Asset) Option {
+func WithResources(efs embed.FS) Option {
 	return func(k *Kustomize) (err error) {
-		// Write out all assets to in memory filesystem
-		for name, asset := range a {
-			k.kustomize.Resources = append(k.kustomize.Resources, name)
+		// There's a chance this could be fragile, but since its only
+		// intended use is for our installation, we'll give it a shot
+		k.kustomize.Resources = []string{"default"}
 
-			var assetBytes []byte
-			if assetBytes, err = asset.Bytes(); err != nil {
+		err = fs.WalkDir(efs, ".", func(path string, info os.DirEntry, err error) error {
+			if err != nil {
 				return err
 			}
 
-			if err = k.fs.WriteFile(filepath.Join(k.Base, name), assetBytes); err != nil {
+			if info.IsDir() {
+				return nil
+			}
+
+			b, err := fs.ReadFile(efs, path)
+			if err != nil {
 				return err
 			}
 
-		}
-		return nil
+			if err = k.fs.WriteFile(filepath.Join(k.Base, path), b); err != nil {
+				return err
+			}
+			return nil
+		})
+
+		return err
 	}
 }
 
@@ -110,7 +124,7 @@ func WithInstall() Option {
 		}
 
 		// Pull in the default bundled resources
-		if err := WithResources(Assets)(k); err != nil {
+		if err := WithResources(config.Content)(k); err != nil {
 			return err
 		}
 
