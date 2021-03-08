@@ -34,6 +34,7 @@ type Generator struct {
 	Name          string
 	Resources     konjure.Resources
 	Objectives    []string
+	Documentation DocumentationFilter
 	DefaultReader io.Reader
 }
 
@@ -51,8 +52,8 @@ func (g *Generator) Execute(output kio.Writer) error {
 				Transformer: g,
 			},
 			kio.FilterAll(yaml.Clear("status")),
-			// TODO We should have an optional filter that annotates the application with comments
 			&filters.FormatFilter{UseSchema: true},
+			&g.Documentation, // Documentation is added last so everything is sorted
 		},
 		Outputs:               []kio.Writer{output},
 		ContinueOnEmptyResult: true,
