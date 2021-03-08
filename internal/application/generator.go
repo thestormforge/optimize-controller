@@ -42,11 +42,7 @@ func (g *Generator) Execute(output kio.Writer) error {
 	return kio.Pipeline{
 		Inputs: []kio.Reader{g.Resources},
 		Filters: []kio.Filter{
-			&konjure.Filter{
-				Depth:         100,
-				DefaultReader: g.DefaultReader,
-				KeepStatus:    true,
-			},
+			scan.NewKonjureFilter(g.DefaultReader),
 			&scan.Scanner{
 				Selectors:   []scan.Selector{g},
 				Transformer: g,

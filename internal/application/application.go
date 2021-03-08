@@ -23,8 +23,8 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/thestormforge/konjure/pkg/konjure"
 	"github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
+	"github.com/thestormforge/optimize-controller/internal/scan"
 	"sigs.k8s.io/kustomize/api/filesys"
 	"sigs.k8s.io/kustomize/api/provider"
 	"sigs.k8s.io/kustomize/api/resmap"
@@ -175,10 +175,13 @@ func (e *AmbiguousNameError) Error() string {
 // LoadResources loads all of the resources for an application, using the supplied file system
 // to load file based resources (if necessary).
 func LoadResources(app *v1alpha1.Application, _ filesys.FileSystem) (resmap.ResMap, error) {
+	kf := scan.NewKonjureFilter(nil)
+	kf.KeepStatus = false
+
 	var buf bytes.Buffer
 	err := kio.Pipeline{
 		Inputs:  []kio.Reader{app.Resources},
-		Filters: []kio.Filter{&konjure.Filter{Depth: 100}},
+		Filters: []kio.Filter{kf},
 		Outputs: []kio.Writer{&kio.ByteWriter{Writer: &buf}},
 	}.Execute()
 	if err != nil {

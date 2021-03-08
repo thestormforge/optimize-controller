@@ -19,7 +19,6 @@ package experiment
 import (
 	"io"
 
-	"github.com/thestormforge/konjure/pkg/konjure"
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	"github.com/thestormforge/optimize-controller/internal/application"
 	"github.com/thestormforge/optimize-controller/internal/experiment/generation"
@@ -108,11 +107,7 @@ func (g *Generator) Execute(output kio.Writer) error {
 			g.Application.Resources,
 		},
 		Filters: []kio.Filter{
-			&konjure.Filter{
-				Depth:         100,
-				DefaultReader: g.DefaultReader,
-				KeepStatus:    true,
-			},
+			scan.NewKonjureFilter(g.DefaultReader),
 			g.newScannerFilter(),
 			&generation.ApplicationFilter{Application: &g.Application},
 			kio.FilterAll(yaml.Clear("status")),
