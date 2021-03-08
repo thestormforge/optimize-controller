@@ -24,6 +24,7 @@ import (
 	"github.com/thestormforge/konjure/pkg/konjure"
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	"github.com/thestormforge/optimize-controller/internal/scan"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/kio/filters"
@@ -141,14 +142,12 @@ func (g *Generator) merge(src, dst *redskyappsv1alpha1.Application) {
 
 // apply adds the generator configuration to the supplied application
 func (g *Generator) apply(app *redskyappsv1alpha1.Application) {
+	now := time.Now().UTC().Format(time.RFC3339)
+	metav1.SetMetaDataAnnotation(&app.ObjectMeta, redskyappsv1alpha1.AnnotationLastScanned, now)
+
 	if g.Name != "" {
 		app.Name = g.Name
 	}
-
-	if app.Annotations == nil {
-		app.Annotations = make(map[string]string)
-	}
-	app.Annotations[redskyappsv1alpha1.AnnotationLastScanned] = time.Now().UTC().Format(time.RFC3339)
 
 	app.Resources = append(app.Resources, g.Resources...)
 
@@ -159,22 +158,28 @@ func (g *Generator) apply(app *redskyappsv1alpha1.Application) {
 
 // clean ensures that the application state is reasonable.
 func (g *Generator) clean(app *redskyappsv1alpha1.Application) error {
-	resources := konjure.Resources{}
+	var resources []konjure.Resource
 	for _, r := range app.Resources {
-		if r.Resource != nil {
-			var rstr []string
+		switch {
+		case r.Resource != nil:
+			var resourceSpecs []string
 			for _, rr := range r.Resource.Resources {
-				if rr != "-" && filepath.Dir(rr) != "/dev/fd" {
-					rstr = append(rstr, rr)
+				// If the resource is specific to the current process, do not
+				// include it in the output
+				if rr == "-" || filepath.Dir(rr) == "/dev/fd" {
+					continue
 				}
-			}
-			if len(rstr) == 0 {
-				continue
-			}
-			r.Resource.Resources = rstr
-		}
 
-		resources = append(resources, r)
+				resourceSpecs = append(resourceSpecs, rr)
+			}
+			if len(resourceSpecs) > 0 {
+				r.Resource.Resources = resourceSpecs
+				resources = append(resources, r)
+			}
+
+		default:
+			resources = append(resources, r)
+		}
 	}
 	app.Resources = resources
 
