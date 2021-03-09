@@ -142,10 +142,15 @@ func (o *Options) readInput() error {
 			return err
 		}
 
+		path, err := filepath.Abs(filename)
+		if err != nil {
+			return err
+		}
+
 		kioInputs = append(kioInputs, &kio.ByteReader{
 			Reader: bytes.NewReader(data),
 			SetAnnotations: map[string]string{
-				kioutil.PathAnnotation: filename,
+				kioutil.PathAnnotation: path,
 			},
 		})
 
