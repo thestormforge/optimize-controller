@@ -359,10 +359,7 @@ func (o *Options) runner(ctx context.Context) error {
 	output := kio.Pipeline{
 		Inputs:  []kio.Reader{&kio.ByteReader{Reader: bytes.NewReader(yamls)}},
 		Filters: []kio.Filter{kio.FilterFunc(filterPatch(patches))},
-		Outputs: []kio.Writer{kio.ByteWriter{
-			Writer:           o.Out,
-			ClearAnnotations: []string{kioutil.PathAnnotation},
-		}},
+		Outputs: []kio.Writer{o.YAMLWriter()},
 	}
 	if err := output.Execute(); err != nil {
 		return err

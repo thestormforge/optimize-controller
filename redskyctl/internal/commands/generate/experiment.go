@@ -30,7 +30,6 @@ import (
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
 	"github.com/thestormforge/optimize-go/pkg/config"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/kio/kioutil"
 )
 
@@ -125,7 +124,7 @@ func (o *ExperimentOptions) generate() error {
 	o.Generator.SetDefaultSelectors()
 
 	// Generate the experiment
-	return o.Generator.Execute(&kio.ByteWriter{Writer: o.Out})
+	return o.Generator.Execute(o.YAMLWriter())
 }
 
 func (o *ExperimentOptions) filterResources(app *redskyappsv1alpha1.Application) error {
