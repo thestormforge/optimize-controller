@@ -107,7 +107,7 @@ func (f *DocumentationFilter) annotateApplication(app *yaml.RNode) error {
 
 	// Each key and value are elements in the content list, iterate over even indices
 	var content []*yaml.Node
-	for i := 0; i < len(n.Content); i = i + 2 {
+	for i := 0; i < len(n.Content); i = yaml.IncrementFieldIndex(i) {
 		n.Content[i].HeadComment = headComments[n.Content[i].Value]
 		content = append(content, missingRequiredContent(n.Content[i].Value, required)...)
 		content = append(content, n.Content[i], n.Content[i+1])
