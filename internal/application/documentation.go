@@ -102,6 +102,7 @@ func (f *DocumentationFilter) annotateApplication(app *yaml.RNode) error {
 		"parameters": "resources",
 		"scenarios":  "parameters",
 		"objectives": "scenarios",
+		"":           "objectives",
 	}
 
 	// Each key and value are elements in the content list, iterate over even indices
@@ -111,7 +112,9 @@ func (f *DocumentationFilter) annotateApplication(app *yaml.RNode) error {
 		content = append(content, missingRequiredContent(n.Content[i].Value, required)...)
 		content = append(content, n.Content[i], n.Content[i+1])
 	}
-	n.Content = content
+
+	// Make sure all the required content has been produced
+	n.Content = append(content, missingRequiredContent("", required)...)
 
 	return nil
 }
