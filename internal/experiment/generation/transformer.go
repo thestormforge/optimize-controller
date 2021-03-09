@@ -72,7 +72,7 @@ type Transformer struct {
 
 var _ scan.Transformer = &Transformer{}
 
-func (t *Transformer) Filter(nodes []*yaml.RNode, selected []interface{}) ([]*yaml.RNode, error) {
+func (t *Transformer) Transform(nodes []*yaml.RNode, selected []interface{}) ([]*yaml.RNode, error) {
 	var result []*yaml.RNode
 
 	// Parameter names need to be computed based on what resources were selected by the scan

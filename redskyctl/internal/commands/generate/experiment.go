@@ -18,6 +18,7 @@ package generate
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"strings"
 	"unicode"
@@ -29,21 +30,23 @@ import (
 	"github.com/thestormforge/optimize-controller/internal/experiment"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
 	"github.com/thestormforge/optimize-go/pkg/config"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/kustomize/kyaml/kio"
+	"sigs.k8s.io/kustomize/kyaml/kio/kioutil"
 )
 
 type ExperimentOptions struct {
-	// Config is the Red Sky Configuration used to generate the role binding
+	// Config is the Red Sky Configuration used to generate the experiment
 	Config *config.RedSkyConfig
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
+
+	Generator experiment.Generator
 
 	Filename   string
 	Resources  []string
 	Scenario   string
 	Objectives []string
-
-	IncludeResources bool
 }
 
 // Other possible options:
@@ -65,6 +68,7 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 				o.Filename = args[0]
 			}
 			commander.SetStreams(&o.IOStreams, cmd)
+			o.Generator.DefaultReader = cmd.InOrStdin()
 		},
 		RunE: commander.WithoutArgsE(o.generate),
 	}
@@ -73,7 +77,7 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 	cmd.Flags().StringArrayVarP(&o.Resources, "resources", "r", nil, "additional resources to consider")
 	cmd.Flags().StringVarP(&o.Scenario, "scenario", "s", o.Scenario, "the application scenario to generate an experiment for")
 	cmd.Flags().StringArrayVar(&o.Objectives, "objectives", o.Objectives, "the application objectives to generate an experiment for")
-	cmd.Flags().BoolVar(&o.IncludeResources, "include-resources", false, "include the application resources in the output")
+	cmd.Flags().BoolVar(&o.Generator.IncludeApplicationResources, "include-resources", false, "include the application resources in the output")
 
 	_ = cmd.MarkFlagFilename("filename", "yml", "yaml")
 
@@ -81,10 +85,6 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 }
 
 func (o *ExperimentOptions) generate() error {
-	g := experiment.Generator{
-		IncludeApplicationResources: o.IncludeResources,
-	}
-
 	if o.Filename != "" {
 		r, err := o.IOStreams.OpenFile(o.Filename)
 		if err != nil {
@@ -92,36 +92,41 @@ func (o *ExperimentOptions) generate() error {
 		}
 
 		rr := commander.NewResourceReader()
-		if err := rr.ReadInto(r, &g.Application); err != nil {
+		if err := rr.ReadInto(r, &o.Generator.Application); err != nil {
 			return err
 		}
 	}
 
-	if err := o.filterResources(&g.Application); err != nil {
+	if err := o.filterResources(&o.Generator.Application); err != nil {
 		return err
 	}
 
-	if err := application.FilterScenarios(&g.Application, o.Scenario); err != nil {
+	if err := application.FilterScenarios(&o.Generator.Application, o.Scenario); err != nil {
 		return err
 	}
 
-	if err := application.FilterObjectives(&g.Application, o.Objectives); err != nil {
+	if err := application.FilterObjectives(&o.Generator.Application, o.Objectives); err != nil {
+		return err
+	}
+
+	// Make sure we have a path on the application to use as a base for resolving relative file paths
+	if err := o.setPath(); err != nil {
 		return err
 	}
 
 	// Make sure there is an explicit namespace and name
-	if g.Application.Namespace == "" {
-		g.Application.Namespace = o.defaultNamespace()
+	if o.Generator.Application.Namespace == "" {
+		o.Generator.Application.Namespace = o.defaultNamespace()
 	}
-	if g.Application.Name == "" {
-		g.Application.Name = o.defaultName()
+	if o.Generator.Application.Name == "" {
+		o.Generator.Application.Name = o.defaultName()
 	}
 
 	// Configure how we filter the application resources when looking for requests/limits
-	g.SetDefaultSelectors()
+	o.Generator.SetDefaultSelectors()
 
 	// Generate the experiment
-	return g.Execute(&kio.ByteWriter{Writer: o.Out})
+	return o.Generator.Execute(&kio.ByteWriter{Writer: o.Out})
 }
 
 func (o *ExperimentOptions) filterResources(app *redskyappsv1alpha1.Application) error {
@@ -135,6 +140,23 @@ func (o *ExperimentOptions) filterResources(app *redskyappsv1alpha1.Application)
 		app.Resources = append(app.Resources, konjure.NewResource(filepath.Dir(o.Filename)))
 	}
 
+	return nil
+}
+
+func (o *ExperimentOptions) setPath() error {
+	path := o.Filename
+	if path == "" || path == "-" || filepath.Dir(path) == "/dev/fd" {
+		pwd, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+
+		// The filename here could be anything, the important part is the directory so
+		// when you do not supply `-f`, relative paths resolve against the working directory
+		path = filepath.Join(pwd, "app.yaml")
+	}
+
+	metav1.SetMetaDataAnnotation(&o.Generator.Application.ObjectMeta, kioutil.PathAnnotation, path)
 	return nil
 }
 
