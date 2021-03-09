@@ -31,11 +31,10 @@ import (
 // for this project. The supplied default reader is used when the "-" is requested.
 func NewKonjureFilter(workingDir string, defaultReader io.Reader) *konjure.Filter {
 	return &konjure.Filter{
-		Depth:         100,
-		DefaultReader: defaultReader,
-		KeepStatus:    true,
-
-		// Override the default behaviors for execution
+		Depth:             100,
+		DefaultReader:     defaultReader,
+		KeepStatus:        true,
+		WorkingDirectory:  workingDir,
 		KubectlExecutor:   kubectl,
 		KustomizeExecutor: kustomize,
 	}

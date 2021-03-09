@@ -588,8 +588,8 @@ github.com/stretchr/testify v1.5.1/go.mod h1:5W2xD1RspED5o8YsWQXVCued0rvSQ+mT+I5
 github.com/stretchr/testify v1.6.1 h1:hDPOHmpOpP40lSULcqw7IrRb/u7w6RpDC9399XyoNd0=
 github.com/stretchr/testify v1.6.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/subosito/gotenv v1.2.0/go.mod h1:N0PQaV/YGNqwC0u51sEeR/aUtSLEXKX9iv69rRypqCw=
-github.com/thestormforge/konjure v0.3.0-beta.5 h1:WHZECa4ea9Y86BIjsk0kqqNXlFZOxeOTx5sljYM8xks=
-github.com/thestormforge/konjure v0.3.0-beta.5/go.mod h1:8gIqMRKShWB7ejEA+JCN8DUeeDe9CTIc3eXyniFdNj8=
+github.com/thestormforge/konjure v0.3.0-beta.6 h1:0wVQ7Ms5BfXwY+DIFv2VA1w0wvAqndYby6I8T41sbm0=
+github.com/thestormforge/konjure v0.3.0-beta.6/go.mod h1:8gIqMRKShWB7ejEA+JCN8DUeeDe9CTIc3eXyniFdNj8=
 github.com/thestormforge/optimize-go v0.0.8 h1:nIdz5pSz00eHzBS8Ueti3xmNP9MB9l15/NTob6k6Whg=
 github.com/thestormforge/optimize-go v0.0.8/go.mod h1:ZWRi49lIlw4g3JyP9Aog+zQI/rb7+81HOyHcccVqnfU=
 github.com/tidwall/pretty v1.0.0/go.mod h1:XNkn88O1ChpSDQmQeStsy+sBenx6DDtFZJxhVysOjyk=
