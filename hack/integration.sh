@@ -25,7 +25,7 @@ kubectl apply -f hack/nginx.yaml
 
 Stats() {
   ${REDSKYCTL_BIN} generate experiment -f hack/app.yaml
-	kubectl get po -o wide
+  kubectl get pods -o wide
   kubectl get trial -o wide
   kubectl logs -n redsky-system -l control-plane=controller-manager
 }
@@ -39,7 +39,7 @@ ${REDSKYCTL_BIN} generate experiment -f hack/app.yaml | \
 echo "Create new trial"
 ${REDSKYCTL_BIN} generate experiment -f hack/app.yaml | \
 ${REDSKYCTL_BIN} generate trial \
-	--default base \
+  --default base \
   -f - | \
   kubectl create -f -
 
