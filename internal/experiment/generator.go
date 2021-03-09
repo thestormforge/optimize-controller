@@ -102,12 +102,13 @@ func (g *Generator) SetDefaultSelectors() {
 
 // Execute the experiment generation pipeline, sending the results to the supplied writer.
 func (g *Generator) Execute(output kio.Writer) error {
+	pwd := application.WorkingDirectory(&g.Application)
 	return kio.Pipeline{
 		Inputs: []kio.Reader{
 			g.Application.Resources,
 		},
 		Filters: []kio.Filter{
-			scan.NewKonjureFilter(g.DefaultReader),
+			scan.NewKonjureFilter(pwd, g.DefaultReader),
 			g.newScannerFilter(),
 			&generation.ApplicationFilter{Application: &g.Application},
 			kio.FilterAll(yaml.Clear("status")),

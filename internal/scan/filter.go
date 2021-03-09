@@ -29,7 +29,7 @@ import (
 
 // NewKonjureFilter creates a new Konjure filter with the default settings
 // for this project. The supplied default reader is used when the "-" is requested.
-func NewKonjureFilter(defaultReader io.Reader) *konjure.Filter {
+func NewKonjureFilter(workingDir string, defaultReader io.Reader) *konjure.Filter {
 	return &konjure.Filter{
 		Depth:         100,
 		DefaultReader: defaultReader,

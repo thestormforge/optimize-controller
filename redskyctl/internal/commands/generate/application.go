@@ -17,6 +17,8 @@ limitations under the License.
 package generate
 
 import (
+	"os"
+
 	"github.com/spf13/cobra"
 	konjurev1beta2 "github.com/thestormforge/konjure/pkg/api/core/v1beta2"
 	"github.com/thestormforge/konjure/pkg/konjure"
@@ -43,9 +45,11 @@ func NewApplicationCommand(o *ApplicationOptions) *cobra.Command {
 		Short: "Generate an application",
 		Long:  "Generate an application descriptor",
 
-		PreRun: func(cmd *cobra.Command, args []string) {
+		PreRunE: func(cmd *cobra.Command, args []string) (err error) {
 			commander.SetStreams(&o.IOStreams, cmd)
 			o.Generator.DefaultReader = cmd.InOrStdin()
+			o.Generator.WorkingDirectory, err = os.Getwd()
+			return
 		},
 		RunE: commander.WithoutArgsE(o.generate),
 	}

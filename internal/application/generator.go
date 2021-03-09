@@ -32,18 +32,19 @@ import (
 )
 
 type Generator struct {
-	Name          string
-	Resources     konjure.Resources
-	Objectives    []string
-	Documentation DocumentationFilter
-	DefaultReader io.Reader
+	Name             string
+	Resources        konjure.Resources
+	Objectives       []string
+	Documentation    DocumentationFilter
+	WorkingDirectory string
+	DefaultReader    io.Reader
 }
 
 func (g *Generator) Execute(output kio.Writer) error {
 	return kio.Pipeline{
 		Inputs: []kio.Reader{g.Resources},
 		Filters: []kio.Filter{
-			scan.NewKonjureFilter(g.DefaultReader),
+			scan.NewKonjureFilter(g.WorkingDirectory, g.DefaultReader),
 			&scan.Scanner{
 				Selectors:   []scan.Selector{g},
 				Transformer: g,
