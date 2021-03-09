@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"unicode"
 
@@ -29,6 +30,7 @@ import (
 	"sigs.k8s.io/kustomize/api/provider"
 	"sigs.k8s.io/kustomize/api/resmap"
 	"sigs.k8s.io/kustomize/kyaml/kio"
+	"sigs.k8s.io/kustomize/kyaml/kio/kioutil"
 )
 
 // FilterScenarios retains only the named scenario on the supplied application. Removing unused
@@ -172,10 +174,20 @@ func (e *AmbiguousNameError) Error() string {
 	return fmt.Sprintf("ambiguous name '%s'", e.Name)
 }
 
+// WorkingDirectory returns the directory the application was loaded from. This
+// directory should be used as the effective working directory when resolving relative
+// paths found in the application definition.
+func WorkingDirectory(app *redskyappsv1alpha1.Application) string {
+	if path := app.Annotations[kioutil.PathAnnotation]; path != "" {
+		return filepath.Dir(path)
+	}
+	return ""
+}
+
 // LoadResources loads all of the resources for an application, using the supplied file system
 // to load file based resources (if necessary).
 func LoadResources(app *redskyappsv1alpha1.Application, _ filesys.FileSystem) (resmap.ResMap, error) {
-	kf := scan.NewKonjureFilter(nil)
+	kf := scan.NewKonjureFilter(WorkingDirectory(app), nil)
 	kf.KeepStatus = false
 
 	var buf bytes.Buffer
