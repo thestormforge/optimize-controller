@@ -17,13 +17,6 @@ limitations under the License.
 package generate
 
 import (
-	"bufio"
-	"bytes"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"strings"
-
 	"github.com/spf13/cobra"
 	konjurev1beta2 "github.com/thestormforge/konjure/pkg/api/core/v1beta2"
 	"github.com/thestormforge/konjure/pkg/konjure"
@@ -82,10 +75,6 @@ func (o *ApplicationOptions) generate() error {
 		o.Generator.Resources = append(o.Generator.Resources, konjure.Resource{Kubernetes: &o.DefaultResource})
 	}
 
-	// Prefer Git resources if possible, this will make the resulting application more portable
-	// Note that using Git will be slower then if we just referenced the file system directly
-	o.preferGit()
-
 	// Generate the application
 	return o.Generator.Execute(&kio.ByteWriter{Writer: o.Out})
 }
@@ -96,86 +85,4 @@ func (o *ApplicationOptions) isDefaultResourceEmpty() bool {
 		o.DefaultResource.NamespaceSelector == "" &&
 		len(o.DefaultResource.Types) == 0 &&
 		o.DefaultResource.LabelSelector == ""
-}
-
-func (o *ApplicationOptions) preferGit() {
-	var resources []konjure.Resource
-	for _, r := range o.Generator.Resources {
-		switch {
-		case r.Resource != nil:
-			var resourceSpecs []string
-			for _, rr := range r.Resource.Resources {
-				if gr := o.asGitResource(rr); gr != nil {
-					resources = append(resources, konjure.Resource{Git: gr})
-					continue
-				}
-
-				resourceSpecs = append(resourceSpecs, rr)
-			}
-			if len(resourceSpecs) > 0 {
-				r.Resource.Resources = resourceSpecs
-				resources = append(resources, r)
-			}
-
-		default:
-			resources = append(resources, r)
-		}
-
-	}
-	o.Generator.Resources = resources
-}
-
-// asGitResource tests to see if the supplied path points to a Git resource. Git reference
-// will be more portable when recorded in an app.yaml file because they are not specific to
-// the current workstation.
-func (o *ApplicationOptions) asGitResource(path string) *konjurev1beta2.Git {
-	// These will fail in stat, may as well just save the call
-	for _, prefix := range []string{"http://", "https://", "git::", "git@"} {
-		if strings.HasPrefix(path, prefix) {
-			return nil
-		}
-	}
-
-	var dir, file = path, ""
-	if fi, err := os.Stat(dir); err != nil {
-		return nil
-	} else if !fi.IsDir() {
-		dir, file = filepath.Split(dir)
-	}
-
-	// Assume we only want this to work with origin
-	remote := runGit(dir, "remote", "get-url", "origin")
-	if len(remote) != 1 {
-		return nil
-	}
-
-	revParse := runGit(dir, "rev-parse", "--show-prefix", "--abbrev-ref", "HEAD")
-	if len(revParse) != 2 {
-		return nil
-	}
-	if revParse[1] == "master" {
-		revParse[1] = ""
-	}
-
-	return &konjurev1beta2.Git{
-		Repository: remote[0],
-		Refspec:    revParse[1],
-		Context:    revParse[0] + file,
-	}
-}
-
-func runGit(dir string, args ...string) []string {
-	cmd := exec.Command("git", args...)
-	cmd.Dir = dir
-	out, err := cmd.Output()
-	if err != nil {
-		return nil
-	}
-
-	var lines []string
-	scanner := bufio.NewScanner(bytes.NewReader(out))
-	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
-	}
-	return lines
 }
