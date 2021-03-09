@@ -33,6 +33,9 @@ import (
 	"golang.org/x/oauth2"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"sigs.k8s.io/kustomize/kyaml/kio"
+	"sigs.k8s.io/kustomize/kyaml/kio/filters"
+	"sigs.k8s.io/kustomize/kyaml/kio/kioutil"
 )
 
 // TODO Terminal type for commands whose produce character level interactions (as opposed to byte level implied by the direct streams)
@@ -59,6 +62,18 @@ func (s *IOStreams) OpenFile(filename string) (io.ReadCloser, error) {
 		return ioutil.NopCloser(s.In), nil
 	}
 	return os.Open(filename)
+}
+
+// YAMLWriter returns a resource node writer for the current output stream. The writer
+// is configured to strip common annotations used during pipeline processing.
+func (s *IOStreams) YAMLWriter() kio.Writer {
+	return &kio.ByteWriter{
+		Writer: s.Out,
+		ClearAnnotations: []string{
+			kioutil.PathAnnotation,
+			filters.FmtAnnotation,
+		},
+	}
 }
 
 // SetStreams updates the streams using the supplied command

@@ -18,7 +18,6 @@ package generate
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"strings"
 	"unicode"
@@ -31,7 +30,6 @@ import (
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
 	"github.com/thestormforge/optimize-go/pkg/config"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/kio/kioutil"
 )
 
@@ -126,7 +124,7 @@ func (o *ExperimentOptions) generate() error {
 	o.Generator.SetDefaultSelectors()
 
 	// Generate the experiment
-	return o.Generator.Execute(&kio.ByteWriter{Writer: o.Out})
+	return o.Generator.Execute(o.YAMLWriter())
 }
 
 func (o *ExperimentOptions) filterResources(app *redskyappsv1alpha1.Application) error {
@@ -143,17 +141,18 @@ func (o *ExperimentOptions) filterResources(app *redskyappsv1alpha1.Application)
 	return nil
 }
 
-func (o *ExperimentOptions) setPath() error {
+func (o *ExperimentOptions) setPath() (err error) {
 	path := o.Filename
 	if path == "" || path == "-" || filepath.Dir(path) == "/dev/fd" {
-		pwd, err := os.Getwd()
-		if err != nil {
-			return err
-		}
-
 		// The filename here could be anything, the important part is the directory so
 		// when you do not supply `-f`, relative paths resolve against the working directory
-		path = filepath.Join(pwd, "app.yaml")
+		path = "app.yaml"
+	}
+
+	// Ensure the path is absolute, relative to the current working directory
+	path, err = filepath.Abs(path)
+	if err != nil {
+		return err
 	}
 
 	metav1.SetMetaDataAnnotation(&o.Generator.Application.ObjectMeta, kioutil.PathAnnotation, path)

@@ -27,9 +27,9 @@ import (
 
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	"github.com/thestormforge/optimize-controller/internal/application"
 	"github.com/yujunz/go-getter"
 	"sigs.k8s.io/kustomize/api/types"
-	"sigs.k8s.io/kustomize/kyaml/kio/kioutil"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
@@ -96,17 +96,15 @@ func loadApplicationData(app *redskyappsv1alpha1.Application, src string) ([]byt
 	dst := filepath.Join(os.TempDir(), fmt.Sprintf("load-application-data-%x", md5.Sum([]byte(src))))
 	defer os.Remove(dst)
 
-	var opts []getter.ClientOption
-
 	// Only set the working directory to directory of the file the app.yaml was loaded from,
 	// we MUST NOT set this to the process working directory or relative paths in the app.yaml
 	// will be dependent on what directory you run the process from. If the path annotation is
 	// not present on the application, we MUST fail to load relative paths.
-	if path := app.Annotations[kioutil.PathAnnotation]; path != "" {
-		opts = append(opts, func(c *getter.Client) error {
-			c.Pwd = filepath.Dir(path)
+	opts := []getter.ClientOption{
+		func(c *getter.Client) error {
+			c.Pwd = application.WorkingDirectory(app)
 			return nil
-		})
+		},
 	}
 
 	if err := getter.GetFile(dst, src, opts...); err != nil {

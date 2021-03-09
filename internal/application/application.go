@@ -20,21 +20,23 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"unicode"
 
-	"github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
+	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	"github.com/thestormforge/optimize-controller/internal/scan"
 	"sigs.k8s.io/kustomize/api/filesys"
 	"sigs.k8s.io/kustomize/api/provider"
 	"sigs.k8s.io/kustomize/api/resmap"
 	"sigs.k8s.io/kustomize/kyaml/kio"
+	"sigs.k8s.io/kustomize/kyaml/kio/kioutil"
 )
 
 // FilterScenarios retains only the named scenario on the supplied application. Removing unused
 // scenarios may be useful for some types of application operations. If the requested scenario
 // cannot be found, an error is returned.
-func FilterScenarios(app *v1alpha1.Application, scenario string) error {
+func FilterScenarios(app *redskyappsv1alpha1.Application, scenario string) error {
 	if scenario == "" {
 		if len(app.Scenarios) > 1 {
 			names := make([]string, 0, len(app.Scenarios))
@@ -75,14 +77,14 @@ func FilterScenarios(app *v1alpha1.Application, scenario string) error {
 // FilterObjectives retains and re-orders the named scenarios on the supplied application. Removing
 // unused objectives may be useful for some types of application operations. If the requested
 // objectives cannot be found, an error is returned.
-func FilterObjectives(app *v1alpha1.Application, objectives []string) error {
+func FilterObjectives(app *redskyappsv1alpha1.Application, objectives []string) error {
 	// No filter, keep all objectives
 	if len(objectives) == 0 {
 		return nil
 	}
 
 	// Keep will have the same explicit order as the requested objectives
-	keep := make([]v1alpha1.Objective, 0, len(objectives))
+	keep := make([]redskyappsv1alpha1.Objective, 0, len(objectives))
 	unknown := make([]string, 0, len(objectives))
 
 FOUND:
@@ -106,7 +108,7 @@ FOUND:
 
 // ExperimentName returns the name of an experiment corresponding to the application state. Before
 // passing an application, be sure to filter scenarios and objectives.
-func ExperimentName(application *v1alpha1.Application) string {
+func ExperimentName(application *redskyappsv1alpha1.Application) string {
 	// Default the application to avoid empty names (deep copy first so we don't impact the caller)
 	app := application.DeepCopy()
 	app.Default()
@@ -133,7 +135,7 @@ func ExperimentName(application *v1alpha1.Application) string {
 // application name is "a", there are scenarios named "s" and "s-s" and objectives named
 // "s-o" and "o" then the experiment name "a-s-s-o" could be "s" and "s-o" OR "s-s" and "o".
 // Callers should have a back up plan for invoking `Filter*` methods independently.
-func FilterByExperimentName(app *v1alpha1.Application, name string) error {
+func FilterByExperimentName(app *redskyappsv1alpha1.Application, name string) error {
 	e := newLexer(app, name)
 
 	// Eat the application name at the start (it will error if they don't match)
@@ -172,10 +174,20 @@ func (e *AmbiguousNameError) Error() string {
 	return fmt.Sprintf("ambiguous name '%s'", e.Name)
 }
 
+// WorkingDirectory returns the directory the application was loaded from. This
+// directory should be used as the effective working directory when resolving relative
+// paths found in the application definition.
+func WorkingDirectory(app *redskyappsv1alpha1.Application) string {
+	if path := app.Annotations[kioutil.PathAnnotation]; path != "" {
+		return filepath.Dir(path)
+	}
+	return ""
+}
+
 // LoadResources loads all of the resources for an application, using the supplied file system
 // to load file based resources (if necessary).
-func LoadResources(app *v1alpha1.Application, _ filesys.FileSystem) (resmap.ResMap, error) {
-	kf := scan.NewKonjureFilter(nil)
+func LoadResources(app *redskyappsv1alpha1.Application, _ filesys.FileSystem) (resmap.ResMap, error) {
+	kf := scan.NewKonjureFilter(WorkingDirectory(app), nil)
 	kf.KeepStatus = false
 
 	var buf bytes.Buffer
@@ -218,7 +230,7 @@ type experimentNameLexer struct {
 
 var errEos = errors.New("eos")
 
-func newLexer(application *v1alpha1.Application, name string) *experimentNameLexer {
+func newLexer(application *redskyappsv1alpha1.Application, name string) *experimentNameLexer {
 	// Build the token library from the defaulted application
 	app := application.DeepCopy()
 	app.Default()
