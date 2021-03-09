@@ -48,6 +48,7 @@ import (
 	"sigs.k8s.io/kustomize/api/resid"
 	"sigs.k8s.io/kustomize/api/types"
 	"sigs.k8s.io/kustomize/kyaml/kio"
+	"sigs.k8s.io/kustomize/kyaml/kio/kioutil"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
@@ -141,7 +142,12 @@ func (o *Options) readInput() error {
 			return err
 		}
 
-		kioInputs = append(kioInputs, &kio.ByteReader{Reader: bytes.NewReader(data)})
+		kioInputs = append(kioInputs, &kio.ByteReader{
+			Reader: bytes.NewReader(data),
+			SetAnnotations: map[string]string{
+				kioutil.PathAnnotation: filename,
+			},
+		})
 
 		// Track all of the input files so we can use them as kustomize resources later on
 		o.resources[filepath.Base(filename)] = struct{}{}
@@ -348,7 +354,10 @@ func (o *Options) runner(ctx context.Context) error {
 	output := kio.Pipeline{
 		Inputs:  []kio.Reader{&kio.ByteReader{Reader: bytes.NewReader(yamls)}},
 		Filters: []kio.Filter{kio.FilterFunc(filterPatch(patches))},
-		Outputs: []kio.Writer{kio.ByteWriter{Writer: o.Out}},
+		Outputs: []kio.Writer{kio.ByteWriter{
+			Writer:           o.Out,
+			ClearAnnotations: []string{kioutil.PathAnnotation},
+		}},
 	}
 	if err := output.Execute(); err != nil {
 		return err
