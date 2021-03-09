@@ -29,28 +29,27 @@ import (
 var headComments = map[string]string{
 
 	"resources": `
-Resources define where you application's Kubernetes resources come from. These can be URL-like
-values such as file paths, HTTP URLs, or Git repository URLs. They can also be more complex
-definitions such references to in-cluster objects or Helm charts.
+Resources define where you application's Kubernetes resources come from. These
+can be URL-like values such as file paths, HTTP URLs, or Git repository URLs.
+They can also be more complex definitions such references to in-cluster objects
+or Helm charts.
 `,
 
 	"parameters": `
 Parameters control what parts of you application will be optimized.
-
 Reference: https://docs.stormforge.io/reference/application/v1alpha1/#parameters
 `,
 
 	"scenarios": `
-Scenarios determine how you application will be put under load during optimization.
-
+Scenarios determine how you application will be put under load during
+optimization.
 Reference: https://docs.stormforge.io/reference/application/v1alpha1/#scenario
 `,
 
 	"objectives": `
-Objectives are used to define what you are trying to optimize about your application. Most
-objectives correspond to metrics observed over the course of an observation trial, for
-example: "p95-latency".
-
+Objectives are used to define what you are trying to optimize about your
+application. Most objectives correspond to metrics observed over the course of
+an observation trial, for example: "p95-latency".
 Reference: https://docs.stormforge.io/reference/application/v1alpha1/#objective
 `,
 }
@@ -108,7 +107,7 @@ func (f *DocumentationFilter) annotateApplication(app *yaml.RNode) error {
 	// Each key and value are elements in the content list, iterate over even indices
 	var content []*yaml.Node
 	for i := 0; i < len(n.Content); i = i + 2 {
-		n.Content[i].HeadComment = softWrap(headComments[n.Content[i].Value], 80)
+		n.Content[i].HeadComment = headComments[n.Content[i].Value]
 		content = append(content, missingRequiredContent(n.Content[i].Value, required)...)
 		content = append(content, n.Content[i], n.Content[i+1])
 	}
@@ -145,7 +144,7 @@ func missingRequiredContent(key string, required map[string]string) []*yaml.Node
 		Kind:        yaml.ScalarNode,
 		Tag:         yaml.NodeTagString,
 		Value:       req,
-		HeadComment: softWrap(headComments[req], 80),
+		HeadComment: headComments[req],
 	})
 
 	// Add an empty value
@@ -166,35 +165,4 @@ func missingRequiredContent(key string, required map[string]string) []*yaml.Node
 	}
 
 	return result
-}
-
-// softWrap is a naive wrapper that really doesn't try very hard.
-func softWrap(comment string, width int) string {
-	if len(comment) <= width {
-		return comment
-	}
-
-	// Preserve leading newlines
-	var lines []string
-	if strings.HasPrefix(comment, "\n") {
-		lines = append(lines, "")
-	}
-
-	// Split the comment into "words" (simple English words) and re-join around the width
-	var words []string
-	for _, word := range strings.Fields(comment) {
-		if line := strings.Join(words, " "); len(line) >= width {
-			lines = append(lines, line)
-			words = nil
-		}
-
-		words = append(words, word)
-	}
-
-	// Don't leave anything behind
-	if len(words) > 0 {
-		lines = append(lines, strings.Join(words, " "))
-	}
-
-	return strings.Join(lines, "\n")
 }
