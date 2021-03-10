@@ -212,7 +212,7 @@ func (g *Generator) clean(app *redskyappsv1alpha1.Application) error {
 func (g *Generator) readScenario() (*redskyappsv1alpha1.Scenario, error) {
 	// Make sure the file exists
 	if _, err := os.Lstat(g.ScenarioFile); err != nil {
-		return nil, err
+		return nil, nil
 	}
 
 	// This is a really basic assumption given we only support two scenario flavors right now
