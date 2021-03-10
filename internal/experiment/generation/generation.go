@@ -51,6 +51,9 @@ func init() {
 	addFieldOrder(&redskyv1beta1.Parameter{}, 300)
 	addFieldOrder(&redskyv1beta1.PatchTemplate{}, 400)
 	addFieldOrder(&redskyv1beta1.Metric{}, 500)
+
+	// TODO We should probably move this code to a more generic YAML package
+	addFieldOrder(&redskyappsv1alpha1.Application{}, 600)
 }
 
 // newObjectiveMetric creates a new metric for the supplied objective with most fields pre-filled.

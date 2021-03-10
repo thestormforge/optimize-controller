@@ -18,6 +18,7 @@ package application
 
 import (
 	"io"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -31,13 +32,22 @@ import (
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
+// Generator is use to generate application definitions.
 type Generator struct {
-	Name             string
-	Resources        konjure.Resources
-	Objectives       []string
-	Documentation    DocumentationFilter
+	// The name of the application to generate.
+	Name string
+	// The collection of resources defining the application.
+	Resources konjure.Resources
+	// File name containing a description of the load to generate.
+	ScenarioFile string
+	// The list of objective names to include in the application
+	Objectives []string
+	// The filter to provide additional documentation in the generated YAML.
+	Documentation DocumentationFilter
+	// An explicit working directory used to relativize file paths.
 	WorkingDirectory string
-	DefaultReader    io.Reader
+	// Override for the stdin stream.
+	DefaultReader io.Reader
 }
 
 func (g *Generator) Execute(output kio.Writer) error {
@@ -101,7 +111,10 @@ func (g *Generator) Transform(_ []*yaml.RNode, selected []interface{}) ([]*yaml.
 		}
 	}
 
-	g.apply(app)
+	if err := g.apply(app); err != nil {
+		return nil, err
+	}
+
 	if err := g.clean(app); err != nil {
 		return nil, err
 	}
@@ -142,7 +155,7 @@ func (g *Generator) merge(src, dst *redskyappsv1alpha1.Application) {
 }
 
 // apply adds the generator configuration to the supplied application
-func (g *Generator) apply(app *redskyappsv1alpha1.Application) {
+func (g *Generator) apply(app *redskyappsv1alpha1.Application) error {
 	now := time.Now().UTC().Format(time.RFC3339)
 	metav1.SetMetaDataAnnotation(&app.ObjectMeta, redskyappsv1alpha1.AnnotationLastScanned, now)
 
@@ -152,9 +165,17 @@ func (g *Generator) apply(app *redskyappsv1alpha1.Application) {
 
 	app.Resources = append(app.Resources, g.Resources...)
 
+	if s, err := g.readScenario(); err != nil {
+		return err
+	} else if s != nil {
+		app.Scenarios = append(app.Scenarios, *s)
+	}
+
 	for _, o := range g.Objectives {
 		app.Objectives = append(app.Objectives, redskyappsv1alpha1.Objective{Name: o})
 	}
+
+	return nil
 }
 
 // clean ensures that the application state is reasonable.
@@ -185,4 +206,31 @@ func (g *Generator) clean(app *redskyappsv1alpha1.Application) error {
 	app.Resources = resources
 
 	return nil
+}
+
+// readScenario attempts to create a scenario for the application.
+func (g *Generator) readScenario() (*redskyappsv1alpha1.Scenario, error) {
+	// Make sure the file exists
+	if _, err := os.Lstat(g.ScenarioFile); err != nil {
+		return nil, err
+	}
+
+	// This is a really basic assumption given we only support two scenario flavors right now
+	switch filepath.Ext(g.ScenarioFile) {
+	case ".js":
+		return &redskyappsv1alpha1.Scenario{
+			StormForger: &redskyappsv1alpha1.StormForgerScenario{
+				TestCaseFile: g.ScenarioFile,
+			},
+		}, nil
+
+	case ".py":
+		return &redskyappsv1alpha1.Scenario{
+			Locust: &redskyappsv1alpha1.LocustScenario{
+				Locustfile: g.ScenarioFile,
+			},
+		}, nil
+	}
+
+	return nil, nil
 }

@@ -92,7 +92,7 @@ type Ingress struct {
 // Scenario describes a specific pattern of load to optimize the application for.
 type Scenario struct {
 	// The name of scenario.
-	Name string `json:"name"`
+	Name string `json:"name,omitempty"`
 	// StormForger configuration for the scenario.
 	StormForger *StormForgerScenario `json:"stormforger,omitempty"`
 	// Locust configuration for the scenario.
@@ -127,7 +127,7 @@ type Objective struct {
 	// The name of the objective. If no objective specific configuration is supplied, the name is
 	// used to derive a configuration. For example, any valid latency (prefixed or suffixed with
 	// "latency") will configure a default latency objective.
-	Name string `json:"name"`
+	Name string `json:"name,omitempty"`
 	// The upper bound for the objective.
 	Max *resource.Quantity `json:"max,omitempty"`
 	// The lower bound for the objective.
