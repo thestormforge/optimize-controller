@@ -22,7 +22,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/BurntSushi/toml"
+	"github.com/pelletier/go-toml"
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	"github.com/thestormforge/optimize-controller/internal/scan"
@@ -46,9 +46,14 @@ func (s *StormForgerSource) Update(exp *redskyv1beta1.Experiment) error {
 		return nil
 	}
 
-	env, err := s.stormForgerEnv()
-	if err != nil {
-		return err
+	org, tc := s.stormForgerTestCase()
+	if org == "" {
+		return fmt.Errorf("missing StormForger organization")
+	}
+
+	accessToken := s.stormForgerAccessToken(org)
+	if accessToken == nil {
+		return fmt.Errorf("missing StormForger authorization")
 	}
 
 	exp.Spec.TrialTemplate.Spec.JobTemplate = &batchv1beta1.JobTemplateSpec{}
@@ -57,7 +62,20 @@ func (s *StormForgerSource) Update(exp *redskyv1beta1.Experiment) error {
 		{
 			Name:  "stormforger",
 			Image: trialJobImage("stormforger"),
-			Env:   env,
+			Env: []corev1.EnvVar{
+				{
+					Name: "TITLE",
+					ValueFrom: &corev1.EnvVarSource{
+						FieldRef: &corev1.ObjectFieldSelector{
+							FieldPath: "metadata.name",
+						},
+					},
+				},
+				{
+					Name:  "TEST_CASE",
+					Value: fmt.Sprintf("%s/%s", org, tc),
+				},
+			},
 		},
 	}
 
@@ -69,9 +87,8 @@ func (s *StormForgerSource) Update(exp *redskyv1beta1.Experiment) error {
 			MountPath: "/forge-init.d",
 		})
 		pod.Containers[0].Env = append(pod.Containers[0].Env, corev1.EnvVar{
-			Name: "TEST_CASE_FILE",
-			// TODO filepath.Base is broken here if TestCaseFile is a URL with a query parameter
-			Value: filepath.Join("/forge-init.d", filepath.Base(s.Scenario.StormForger.TestCaseFile)),
+			Name:  "TEST_CASE_FILE",
+			Value: "/forge-init.d/" + tc + ".js",
 		})
 		pod.Volumes = append(pod.Volumes, corev1.Volume{
 			Name: "test-case-file",
@@ -97,11 +114,21 @@ func (s *StormForgerSource) Update(exp *redskyv1beta1.Experiment) error {
 		pod.Containers[0].Env = append(pod.Containers[0].Env, corev1.EnvVar{Name: "TARGET", Value: ingressURL})
 	}
 
+	// Add a reference to the access token
+	pod.Containers[0].Env = append(pod.Containers[0].Env, corev1.EnvVar{
+		Name: "STORMFORGER_JWT",
+		ValueFrom: &corev1.EnvVarSource{
+			SecretKeyRef: accessToken.SecretKeyRef,
+		},
+	})
+
 	return nil
 }
 
 func (s *StormForgerSource) Read() ([]*yaml.RNode, error) {
 	result := scan.ObjectSlice{}
+
+	org, tc := s.stormForgerTestCase()
 
 	// If there is a test case file, create a ConfigMap for it
 	if s.Scenario.StormForger.TestCaseFile != "" {
@@ -112,28 +139,25 @@ func (s *StormForgerSource) Read() ([]*yaml.RNode, error) {
 
 		cm := &corev1.ConfigMap{}
 		cm.Name = s.stormForgerConfigMapName()
-		// TODO filepath.Base is broken here if TestCaseFile is a URL with a query parameter
-		cm.Data = map[string]string{filepath.Base(s.Scenario.StormForger.TestCaseFile): string(data)}
+		cm.Data = map[string]string{tc + ".js": string(data)}
 		result = append(result, cm)
 	}
 
 	// Include a secret with the access token, if necessary
-	if accessToken := s.stormForgerAccessToken(); accessToken != nil {
+	if accessToken := s.stormForgerAccessToken(org); accessToken != nil {
+		secret := &corev1.Secret{}
+		secret.Name = accessToken.SecretKeyRef.Name
 		switch {
 		case accessToken.File != "":
 			data, err := loadApplicationData(s.Application, accessToken.File)
 			if err != nil {
 				return nil, err
 			}
-			secret := &corev1.Secret{}
-			secret.Name = redskyappsv1alpha1.StormForgerAccessTokenSecretName
-			secret.Data = map[string][]byte{redskyappsv1alpha1.StormForgerAccessTokenSecretKey: data}
+			secret.Data = map[string][]byte{accessToken.SecretKeyRef.Key: data}
 			result = append(result, secret)
 
 		case accessToken.Literal != "":
-			secret := &corev1.Secret{}
-			secret.Name = redskyappsv1alpha1.StormForgerAccessTokenSecretName
-			secret.Data = map[string][]byte{redskyappsv1alpha1.StormForgerAccessTokenSecretKey: []byte(accessToken.Literal)}
+			secret.Data = map[string][]byte{accessToken.SecretKeyRef.Key: []byte(accessToken.Literal)}
 			result = append(result, secret)
 		}
 	}
@@ -164,56 +188,70 @@ func (s *StormForgerSource) Metrics() ([]redskyv1beta1.Metric, error) {
 	return result, nil
 }
 
+func (s *StormForgerSource) stormForgerTestCase() (org, name string) {
+	parts := strings.Split(s.Scenario.StormForger.TestCase, "/")
+	if len(parts) == 2 {
+		org = parts[0]
+		name = parts[1]
+	} else {
+		name = parts[0]
+	}
+
+	if org == "" && s.Application.StormForger != nil {
+		org = s.Application.StormForger.Organization
+	}
+
+	if name == "" {
+		name = fmt.Sprintf("%s-%s", s.Application.Name, s.Scenario.Name)
+	}
+
+	return
+}
+
 func (s *StormForgerSource) stormForgerConfigMapName() string {
 	return fmt.Sprintf("%s-test-case-file", s.Scenario.Name)
 }
 
-func (s *StormForgerSource) stormForgerEnv() ([]corev1.EnvVar, error) {
-	testCase := s.Scenario.StormForger.TestCase
-	if !strings.Contains(testCase, "/") {
-		if s.Application.StormForger == nil || s.Application.StormForger.Organization == "" {
-			return nil, fmt.Errorf("missing StormForger organization")
+// stormForgerAccessToken returns the effective access token information.
+func (s *StormForgerSource) stormForgerAccessToken(org string) *redskyappsv1alpha1.StormForgerAccessToken {
+	// This helper function ensures we return something with a populated secret key ref
+	fixRef := func(accessToken *redskyappsv1alpha1.StormForgerAccessToken) *redskyappsv1alpha1.StormForgerAccessToken {
+		if accessToken.SecretKeyRef == nil {
+			accessToken.SecretKeyRef = &corev1.SecretKeySelector{}
 		}
-		if testCase != "" {
-			testCase = s.Application.StormForger.Organization + "/" + testCase
-		} else {
-			testCase = fmt.Sprintf("%s/%s-%s", s.Application.StormForger.Organization, s.Application.Name, s.Scenario.Name)
+
+		if accessToken.SecretKeyRef.Name == "" {
+			accessToken.SecretKeyRef.Name = redskyappsv1alpha1.StormForgerAccessTokenSecretName
 		}
+
+		if accessToken.SecretKeyRef.Key == "" {
+			accessToken.SecretKeyRef.Key = org
+		}
+
+		return accessToken
 	}
 
-	var accessToken *corev1.SecretKeySelector
+	// Use the access token specified in the application
 	if s.Application.StormForger != nil && s.Application.StormForger.AccessToken != nil {
-		accessToken = s.Application.StormForger.AccessToken.SecretKeyRef
+		return fixRef(s.Application.StormForger.AccessToken.DeepCopy())
 	}
-	if accessToken == nil {
-		accessToken = &corev1.SecretKeySelector{
-			LocalObjectReference: corev1.LocalObjectReference{
-				Name: redskyappsv1alpha1.StormForgerAccessTokenSecretName,
-			},
-			Key: redskyappsv1alpha1.StormForgerAccessTokenSecretKey,
+
+	// Check the config file to see if there is something we can use
+	if usr, err := user.Current(); err == nil {
+		if config, err := toml.LoadFile(filepath.Join(usr.HomeDir, ".stormforger.toml")); err == nil {
+			// NOTE: The `[org].jwt` isn't a thing, but we need a way to configure tokens for multiple
+			// organizations since service accounts are associated only with a single organization
+			for _, key := range []string{org + ".jwt", "jwt"} {
+				if v := config.Get(key); v != nil {
+					return fixRef(&redskyappsv1alpha1.StormForgerAccessToken{
+						Literal: v.(string),
+					})
+				}
+			}
 		}
 	}
 
-	return []corev1.EnvVar{
-		{
-			Name: "TITLE",
-			ValueFrom: &corev1.EnvVarSource{
-				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: "metadata.name",
-				},
-			},
-		},
-		{
-			Name:  "TEST_CASE",
-			Value: testCase,
-		},
-		{
-			Name: "STORMFORGER_JWT",
-			ValueFrom: &corev1.EnvVarSource{
-				SecretKeyRef: accessToken,
-			},
-		},
-	}, nil
+	return nil
 }
 
 func (s *StormForgerSource) stormForgerLatency(lt redskyappsv1alpha1.LatencyType) string {
@@ -233,23 +271,4 @@ func (s *StormForgerSource) stormForgerLatency(lt redskyappsv1alpha1.LatencyType
 	default:
 		return ""
 	}
-}
-
-func (s *StormForgerSource) stormForgerAccessToken() *redskyappsv1alpha1.StormForgerAccessToken {
-	if s.Application.StormForger != nil && s.Application.StormForger.AccessToken != nil {
-		return s.Application.StormForger.AccessToken
-	}
-
-	if usr, err := user.Current(); err == nil {
-		cfg := struct {
-			JWT string
-		}{}
-		if _, err := toml.DecodeFile(filepath.Join(usr.HomeDir, ".stormforger.toml"), &cfg); err == nil {
-			return &redskyappsv1alpha1.StormForgerAccessToken{
-				Literal: cfg.JWT,
-			}
-		}
-	}
-
-	return nil
 }

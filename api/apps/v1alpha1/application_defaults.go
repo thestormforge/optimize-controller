@@ -31,8 +31,7 @@ func init() {
 }
 
 const (
-	StormForgerAccessTokenSecretName = "stormforger-service-account"
-	StormForgerAccessTokenSecretKey  = "accessToken"
+	StormForgerAccessTokenSecretName = "stormforger-service-accounts"
 	defaultName                      = "default"
 )
 
@@ -51,8 +50,6 @@ func (in *Application) Default() {
 		in.Objectives[i].Default()
 	}
 
-	in.StormForger.Default()
-
 	// Count the number of objectives, this is necessary to accurately compute experiment names
 	in.InitialObjectiveCount = len(in.Objectives)
 }
@@ -66,33 +63,6 @@ func (in *Scenario) Default() {
 			in.Name = defaultScenarioName(in.Locust.Locustfile)
 		default:
 			in.Name = defaultName
-		}
-	}
-}
-
-func (in *StormForger) Default() {
-	if in == nil {
-		return
-	}
-
-	in.AccessToken.Default()
-}
-
-func (in *StormForgerAccessToken) Default() {
-	if in == nil {
-		return
-	}
-
-	if in.File == "" && in.Literal == "" && in.SecretKeyRef == nil {
-		in.SecretKeyRef = &corev1.SecretKeySelector{}
-	}
-
-	if in.SecretKeyRef != nil {
-		if in.SecretKeyRef.Name == "" {
-			in.SecretKeyRef.Name = StormForgerAccessTokenSecretName
-		}
-		if in.SecretKeyRef.Key == "" {
-			in.SecretKeyRef.Key = StormForgerAccessTokenSecretKey
 		}
 	}
 }
