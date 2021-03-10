@@ -57,10 +57,13 @@ func NewApplicationCommand(o *ApplicationOptions) *cobra.Command {
 	cmd.Flags().StringVar(&o.Generator.Name, "name", "", "set the application `name`")
 	cmd.Flags().StringSliceVar(&o.Generator.Objectives, "objectives", []string{"p95-latency", "cost"}, "specify the application optimization `obj`ectives")
 	cmd.Flags().BoolVar(&o.Generator.Documentation.Disabled, "no-comments", false, "suppress documentation comments on output")
+	cmd.Flags().StringVar(&o.Generator.ScenarioFile, "test-case-file", "", "specify either a StormForger (.js) or Locust (.py) test case `file`")
 	cmd.Flags().StringArrayVarP(&o.Resources, "resources", "r", nil, "additional resources to consider")
 	cmd.Flags().StringArrayVar(&o.DefaultResource.Namespaces, "namespace", nil, "select resources from a specific namespace")
 	cmd.Flags().StringVar(&o.DefaultResource.NamespaceSelector, "ns-selector", "", "`sel`ect resources from labeled namespaces")
 	cmd.Flags().StringVarP(&o.DefaultResource.LabelSelector, "selector", "l", "", "`sel`ect only labeled resources")
+
+	_ = cmd.MarkFlagFilename("test-case-file", "js", "py")
 
 	return cmd
 }
