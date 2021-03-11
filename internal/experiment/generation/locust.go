@@ -41,7 +41,7 @@ func (s *LocustSource) Update(exp *redskyv1beta1.Experiment) error {
 		return nil
 	}
 
-	pod := ensureTrialJobPod(exp).Spec
+	pod := &ensureTrialJobPod(exp).Spec
 	pod.Containers = []corev1.Container{
 		{
 			Name:  "locust",

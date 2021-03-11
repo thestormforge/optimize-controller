@@ -50,7 +50,7 @@ func (s *StormForgerSource) Update(exp *redskyv1beta1.Experiment) error {
 		return err
 	}
 
-	pod := ensureTrialJobPod(exp).Spec
+	pod := &ensureTrialJobPod(exp).Spec
 	pod.Containers = []corev1.Container{
 		{
 			Name:  "stormforger",
