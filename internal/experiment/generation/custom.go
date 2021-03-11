@@ -140,6 +140,9 @@ func (s *CustomSource) objectiveMetrics() ([]redskyv1beta1.Metric, error) {
 	if s.Objective.Implemented {
 		return result, nil
 	}
+	if s.Objective.Name == "" {
+		return nil, fmt.Errorf("custom objective must have a name")
+	}
 
 	var m redskyv1beta1.Metric
 	m.Minimize = !s.Objective.Custom.Maximize

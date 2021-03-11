@@ -147,8 +147,6 @@ func (in *Objective) Default() {
 			in.Name = defaultObjectiveName("error-rate")
 		case in.Duration != nil:
 			in.Name = defaultObjectiveName("duration")
-		case in.Custom != nil:
-			in.Name = defaultCustomObjectiveName(in.Custom)
 		default:
 			// Do nothing, unlike a scenario, an empty objective is allowed to have an empty name
 		}
@@ -268,39 +266,6 @@ func defaultObjectiveName(values ...string) string {
 
 	if len(nonEmpty) > 0 {
 		return strings.Join(nonEmpty, "-")
-	}
-
-	return defaultName
-}
-
-func defaultCustomObjectiveName(custom *CustomObjective) string {
-	var query string
-	switch {
-	case custom.Prometheus != nil:
-		query = custom.Prometheus.Query
-	case custom.Datadog != nil:
-		query = custom.Datadog.Query
-	}
-
-	// This just tries to make a name out of the query by stripping out
-	// the non-alphanumerics and some token words.
-	var name []string
-	for _, part := range strings.Split(strings.Map(func(r rune) rune {
-		r = unicode.ToLower(r)
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
-			return r
-		}
-		return '-'
-	}, query), "-") {
-		switch part {
-		case "", "or", "and", "unless", "on", "ignoring", "scalar":
-			continue
-		default:
-			name = append(name, part)
-		}
-	}
-	if n := strings.Join(name, "-"); n != "" {
-		return n
 	}
 
 	return defaultName
