@@ -114,8 +114,9 @@ func checkReady(ctx context.Context, api promv1.API, t time.Time) (time.Time, er
 			return t, &CaptureError{RetryAfter: 5 * time.Second}
 		}
 
-		if target.LastScrape.After(lastScrape) {
-			lastScrape = target.LastScrape
+		// TODO This should use `target.LastScrapeDuration` once it is available
+		if ls := target.LastScrape.Add(3 * time.Second); ls.After(lastScrape) {
+			lastScrape = ls
 		}
 	}
 
