@@ -41,9 +41,10 @@ type ApplicationOptions struct {
 
 func NewApplicationCommand(o *ApplicationOptions) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "application",
-		Short: "Generate an application",
-		Long:  "Generate an application descriptor",
+		Use:     "application",
+		Aliases: []string{"app"},
+		Short:   "Generate an application",
+		Long:    "Generate an application descriptor",
 
 		PreRunE: func(cmd *cobra.Command, args []string) (err error) {
 			commander.SetStreams(&o.IOStreams, cmd)

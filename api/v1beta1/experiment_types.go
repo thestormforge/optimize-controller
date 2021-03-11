@@ -180,10 +180,10 @@ const (
 type PatchTemplate struct {
 	// The patch type, one of: strategic|merge|json, default: strategic
 	Type PatchType `json:"type,omitempty"`
-	// A Go Template that evaluates to valid patch
-	Patch string `json:"patch"`
 	// Direct reference to the object the patch should be applied to
 	TargetRef *corev1.ObjectReference `json:"targetRef,omitempty"`
+	// A Go Template that evaluates to valid patch
+	Patch string `json:"patch"`
 	// ReadinessGates will be evaluated for patch target readiness. A patch target is ready if all conditions specified
 	// in the readiness gates have a status equal to "True". If no readiness gates are specified, some target types may
 	// have default gates assigned to them. Some condition checks may result in errors, e.g. a condition type of "Ready"

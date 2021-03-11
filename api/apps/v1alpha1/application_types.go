@@ -97,6 +97,8 @@ type Scenario struct {
 	StormForger *StormForgerScenario `json:"stormforger,omitempty"`
 	// Locust configuration for the scenario.
 	Locust *LocustScenario `json:"locust,omitempty"`
+	// Custom configuration for the scenario.
+	Custom *CustomScenario `json:"custom,omitempty"`
 }
 
 // StormForgerScenario is used to generate load using StormForger.
@@ -121,6 +123,22 @@ type LocustScenario struct {
 	RunTime *metav1.Duration `json:"runTime,omitempty"`
 }
 
+// CustomScenario is used for advanced cases where more flexibility is required.
+type CustomScenario struct {
+	// Enables Prometheus Push Gateway support for objectives that require it.
+	// The `PUSHGATEWAY_URL` environment variable will be added to all
+	// containers when the trial job starts.
+	UsePushGateway bool `json:"pushGateway,omitempty"`
+	// The default specification of a pod to use for executing a trial.
+	PodTemplate *corev1.PodTemplateSpec `json:"podTemplate,omitempty"`
+	// Additional delay before starting the trial pod.
+	InitialDelaySeconds int32 `json:"initialDelaySeconds,omitempty"`
+	// The estimated amount of time the trial should last.
+	ApproximateRuntimeSeconds int32 `json:"approximateRuntimeSeconds,omitempty"`
+	// Override the image of the first container in the trial pod.
+	Image string `json:"image,omitempty"`
+}
+
 // Objective describes the goal of the optimization in terms of specific metrics. Note that only
 // one objective configuration can be specified at a time.
 type Objective struct {
@@ -143,6 +161,8 @@ type Objective struct {
 	ErrorRate *ErrorRateObjective `json:"errorRate,omitempty"`
 	// Duration is used to optimize the elapsed time of an application performing a fixed amount of work.
 	Duration *DurationObjective `json:"duration,omitempty"`
+	// Custom is used to optimize against externally defined metrics.
+	Custom *CustomObjective `json:"custom,omitempty"`
 
 	// Internal use field for marking objectives as having been implemented. For example,
 	// it may be impossible to optimize for some objectives based on the current state.
@@ -218,6 +238,33 @@ type DurationType string
 const (
 	DurationTrial DurationType = "trial"
 )
+
+// CustomObjective is used in advanced cases to configure external metric sources.
+type CustomObjective struct {
+	// Define a custom optimization metric using Prometheus.
+	Prometheus *CustomPrometheusObjective `json:"prometheus,omitempty"`
+	// Default a custom optimization metric using Datadog.
+	Datadog *CustomDatadogObjective `json:"datadog,omitempty"`
+	// Flag indicating the goal of optimization should be to maximize a metric.
+	Maximize bool `json:"maximize,omitempty"`
+}
+
+// CustomPrometheusObjective is used to define an external optimization metric from Prometheus.
+type CustomPrometheusObjective struct {
+	// The PromQL query to execute; the result of this query MUST be a scalar value.
+	Query string `json:"query"`
+	// The URL of the Prometheus deployment, leave blank to leverage a Prometheus instance
+	// whose lifecycle it tied to the trial.
+	URL string `json:"url,omitempty"`
+}
+
+// CustomDatadogObjective is used to define an external optimization metric from DataDog.
+type CustomDatadogObjective struct {
+	// The [Datadog](https://docs.datadoghq.com/tracing/trace_search_and_analytics/query_syntax/) query to execute.
+	Query string `json:"query"`
+	// The aggregator to use on the query results (one of: avg, last, max, min, sum).
+	Aggregator string `json:"aggregator,omitempty"`
+}
 
 // StormForger describes global configuration related to StormForger.
 type StormForger struct {

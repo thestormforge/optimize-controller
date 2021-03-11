@@ -72,7 +72,7 @@ func (os ObjectSlice) Read() ([]*yaml.RNode, error) {
 			return nil, err
 		}
 
-		if err := node.PipeE(yaml.FilterFunc(clearCreationTimestamp)); err != nil {
+		if err := node.PipeE(yaml.FilterFunc(fixConversion)); err != nil {
 			return nil, err
 		}
 
@@ -112,11 +112,9 @@ func (o *ObjectList) Write(nodes []*yaml.RNode) error {
 	return nil
 }
 
-// clearCreationTimestamp is a dumb problem to have. Creation times are always
-// serialized as JSON "null" (the Go JSON encoder does not have "omitempty" for
-// generic structs); they should have been specified as a pointer to avoid this
-// problem. But they weren't.
-func clearCreationTimestamp(node *yaml.RNode) (*yaml.RNode, error) {
+// fixConversion recursively clears out bad fields that tend to be problematic with
+// the various conversion mechanisms.
+func fixConversion(node *yaml.RNode) (*yaml.RNode, error) {
 	var err error
 	switch node.YNode().Kind {
 	case yaml.MappingNode:
@@ -124,12 +122,16 @@ func clearCreationTimestamp(node *yaml.RNode) (*yaml.RNode, error) {
 			return node, err
 		}
 
+		if removed, err := node.Pipe(yaml.FieldClearer{Name: "resources", IfEmpty: true}); err != nil || removed != nil {
+			return node, err
+		}
+
 		err = node.VisitFields(func(node *yaml.MapNode) error {
-			return node.Value.PipeE(yaml.FilterFunc(clearCreationTimestamp))
+			return node.Value.PipeE(yaml.FilterFunc(fixConversion))
 		})
 	case yaml.SequenceNode:
 		err = node.VisitElements(func(node *yaml.RNode) error {
-			return node.PipeE(yaml.FilterFunc(clearCreationTimestamp))
+			return node.PipeE(yaml.FilterFunc(fixConversion))
 		})
 	}
 

@@ -1071,8 +1071,8 @@ func Convert_v1alpha1_PatchTemplate_To_v1beta1_PatchTemplate(in *PatchTemplate, 
 
 func autoConvert_v1beta1_PatchTemplate_To_v1alpha1_PatchTemplate(in *v1beta1.PatchTemplate, out *PatchTemplate, s conversion.Scope) error {
 	out.Type = PatchType(in.Type)
-	out.Patch = in.Patch
 	out.TargetRef = in.TargetRef
+	out.Patch = in.Patch
 	if in.ReadinessGates != nil {
 		in, out := &in.ReadinessGates, &out.ReadinessGates
 		*out = make([]PatchReadinessGate, len(*in))

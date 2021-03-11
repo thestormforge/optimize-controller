@@ -61,6 +61,8 @@ func (in *Scenario) Default() {
 			in.Name = defaultScenarioName(in.StormForger.TestCase, in.StormForger.TestCaseFile)
 		case in.Locust != nil:
 			in.Name = defaultScenarioName(in.Locust.Locustfile)
+		case in.Custom != nil:
+			in.Name = defaultCustomScenarioName(in.Custom)
 		default:
 			in.Name = defaultName
 		}
@@ -70,36 +72,8 @@ func (in *Scenario) Default() {
 func (in *Objective) Default() {
 	// If there is no explicit configuration, create it by parsing the name
 	if in.Name != "" && in.needsConfig() {
-		switch strings.Map(toName, in.Name) {
-
-		case "cost":
-			// TODO This should be smart enough to know if there is application wide cloud provider configuration
-			defaultRequestsObjectiveWeights(in, corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("17"),
-				corev1.ResourceMemory: resource.MustParse("3"),
-			})
-
-		case "cost-gcp", "gcp-cost":
-			defaultRequestsObjectiveWeights(in, corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("17"),
-				corev1.ResourceMemory: resource.MustParse("2"),
-			})
-
-		case "cost-aws", "aws-cost":
-			defaultRequestsObjectiveWeights(in, corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("18"),
-				corev1.ResourceMemory: resource.MustParse("5"),
-			})
-
-		case "cpu-requests", "cpu":
-			defaultRequestsObjectiveWeights(in, corev1.ResourceList{
-				corev1.ResourceCPU: resource.MustParse("1"),
-			})
-
-		case "memory-requests", "memory":
-			defaultRequestsObjectiveWeights(in, corev1.ResourceList{
-				corev1.ResourceMemory: resource.MustParse("1"),
-			})
+		name := strings.Map(toName, in.Name)
+		switch name {
 
 		case "error-rate", "error-ratio", "errors":
 			defaultErrorRateObjective(in, ErrorRateRequests)
@@ -108,19 +82,28 @@ func (in *Objective) Default() {
 			defaultDurationObjective(in, DurationTrial)
 
 		default:
-			latencyName := strings.ReplaceAll(strings.Map(toName, in.Name), "latency", "")
+			if w := DefaultCostWeights(name); w != nil {
+				defaultRequestsObjectiveWeights(in, w)
+			}
+
+			latencyName := strings.ReplaceAll(name, "latency", "")
 			if l := FixLatency(LatencyType(latencyName)); l != "" {
 				defaultLatencyObjective(in, l)
 			}
 		}
 	}
 
-	// If there are no explicit request weights, use 1
+	// The request may have a selector but still needs weights
 	if in.Requests != nil && in.Requests.Weights == nil {
-		defaultRequestsObjectiveWeights(in, corev1.ResourceList{
-			corev1.ResourceCPU:    resource.MustParse("1"),
-			corev1.ResourceMemory: resource.MustParse("1"),
-		})
+		w := DefaultCostWeights(in.Name)
+		if w == nil {
+			// If there are no explicit request weights, use 1
+			w = corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("1"),
+				corev1.ResourceMemory: resource.MustParse("1"),
+			}
+		}
+		defaultRequestsObjectiveWeights(in, w)
 	}
 
 	// Default the name only after the rest of the state is consistent
@@ -204,6 +187,39 @@ func defaultScenarioName(values ...string) string {
 		name = strings.TrimSuffix(name, filepath.Ext(name))
 		name = strings.Map(toName, name)
 
+		return name
+	}
+
+	return defaultName
+}
+
+func defaultCustomScenarioName(custom *CustomScenario) string {
+	image := custom.Image
+
+	// Check the pod name or the first container
+	if custom.PodTemplate != nil {
+		if custom.PodTemplate.Name != "" {
+			return custom.PodTemplate.Name
+		}
+
+		containers := custom.PodTemplate.Spec.Containers
+		if len(containers) > 0 {
+			if containers[0].Name != "" {
+				return containers[0].Name
+			}
+			if image == "" {
+				image = containers[0].Image
+			}
+		}
+	}
+
+	// Try to take the basename of the image
+	if image != "" {
+		name := image
+		name = name[strings.LastIndex(name, "/")+1:]
+		if pos := strings.Index(name, ":"); pos > 0 {
+			name = name[0:pos]
+		}
 		return name
 	}
 

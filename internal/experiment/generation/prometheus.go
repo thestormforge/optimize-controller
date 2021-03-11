@@ -23,7 +23,6 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/kustomize/kyaml/kio"
-	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
 type BuiltInPrometheus struct {
@@ -31,23 +30,35 @@ type BuiltInPrometheus struct {
 	ClusterRoleName        string
 	ServiceAccountName     string
 	ClusterRoleBindingName string
+
+	scan.ObjectSlice
 }
 
 var _ ExperimentSource = &BuiltInPrometheus{} // Service Account name and Setup Task
 var _ kio.Reader = &BuiltInPrometheus{}       // RBAC
 
 func (p *BuiltInPrometheus) Update(exp *redskyv1beta1.Experiment) error {
+	// Detect if we need built-in Prometheus by checking the generated metrics
+	var needsPrometheus bool
+	for _, m := range exp.Spec.Metrics {
+		if m.Type == redskyv1beta1.MetricPrometheus && m.URL == "" {
+			needsPrometheus = true
+			break
+		}
+	}
+
+	if !needsPrometheus {
+		return nil
+	}
+
 	exp.Spec.TrialTemplate.Spec.SetupServiceAccountName = p.ServiceAccountName
 	exp.Spec.TrialTemplate.Spec.SetupTasks = append(exp.Spec.TrialTemplate.Spec.SetupTasks,
 		redskyv1beta1.SetupTask{
 			Name: p.SetupTaskName,
 			Args: []string{"prometheus", "$(MODE)"},
 		})
-	return nil
-}
 
-func (p *BuiltInPrometheus) Read() ([]*yaml.RNode, error) {
-	result := scan.ObjectSlice{
+	p.ObjectSlice = append(p.ObjectSlice,
 		&corev1.ServiceAccount{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: p.ServiceAccountName,
@@ -106,7 +117,7 @@ func (p *BuiltInPrometheus) Read() ([]*yaml.RNode, error) {
 				},
 			},
 		},
-	}
+	)
 
-	return result.Read()
+	return nil
 }

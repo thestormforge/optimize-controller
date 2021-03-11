@@ -22,7 +22,6 @@ import (
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	"github.com/thestormforge/optimize-controller/internal/scan"
-	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
@@ -38,12 +37,11 @@ var _ MetricSource = &LocustSource{}     // Locust specific metrics
 var _ kio.Reader = &LocustSource{}       // ConfigMap for the locustfile.py
 
 func (s *LocustSource) Update(exp *redskyv1beta1.Experiment) error {
-	if s.Scenario == nil {
+	if s.Scenario == nil || s.Application == nil {
 		return nil
 	}
 
-	exp.Spec.TrialTemplate.Spec.JobTemplate = &batchv1beta1.JobTemplateSpec{}
-	pod := &exp.Spec.TrialTemplate.Spec.JobTemplate.Spec.Template.Spec
+	pod := &ensureTrialJobPod(exp).Spec
 	pod.Containers = []corev1.Container{
 		{
 			Name:  "locust",
@@ -110,6 +108,9 @@ func (s *LocustSource) Metrics() ([]redskyv1beta1.Metric, error) {
 	for i := range s.Application.Objectives {
 		obj := &s.Application.Objectives[i]
 		switch {
+
+		case obj.Implemented:
+			// Do nothing
 
 		case obj.Latency != nil:
 			if l := s.locustLatency(obj.Latency.LatencyType); l != "" {

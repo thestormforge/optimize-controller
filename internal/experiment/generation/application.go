@@ -40,7 +40,6 @@ func (s *ApplicationSelector) Select([]*yaml.RNode) ([]*yaml.RNode, error) {
 // Map ignores inputs (it should just be the null node from select) and produces additional markers for transform.
 func (s *ApplicationSelector) Map(*yaml.RNode, yaml.ResourceMeta) ([]interface{}, error) {
 	var result []interface{}
-	var needsPrometheus bool
 
 	// NOTE: We iterate by index and obtain pointers because some of these evaluate for side effects
 
@@ -49,10 +48,10 @@ func (s *ApplicationSelector) Map(*yaml.RNode, yaml.ResourceMeta) ([]interface{}
 		switch {
 		case scenario.StormForger != nil:
 			result = append(result, &StormForgerSource{Scenario: scenario, Application: s.Application})
-			needsPrometheus = true
 		case scenario.Locust != nil:
 			result = append(result, &LocustSource{Scenario: scenario, Application: s.Application})
-			needsPrometheus = true
+		case scenario.Custom != nil:
+			result = append(result, &CustomSource{Scenario: scenario, Application: s.Application})
 		}
 	}
 
@@ -60,23 +59,22 @@ func (s *ApplicationSelector) Map(*yaml.RNode, yaml.ResourceMeta) ([]interface{}
 		objective := &s.Application.Objectives[i]
 		switch {
 		case objective.Implemented:
-			// Do nothing, there must have been a scenario specific implementation
+			// Do nothing
 		case objective.Requests != nil:
 			result = append(result, &RequestsMetricsSource{Objective: objective})
-			needsPrometheus = true
 		case objective.Duration != nil:
 			result = append(result, &DurationMetricsSource{Objective: objective})
+		case objective.Custom != nil:
+			result = append(result, &CustomSource{Objective: objective})
 		}
 	}
 
-	if needsPrometheus {
-		result = append(result, &BuiltInPrometheus{
-			SetupTaskName:          "monitoring",
-			ClusterRoleName:        "redsky-prometheus",
-			ServiceAccountName:     "redsky-setup",
-			ClusterRoleBindingName: "redsky-setup-prometheus",
-		})
-	}
+	result = append(result, &BuiltInPrometheus{
+		SetupTaskName:          "monitoring",
+		ClusterRoleName:        "redsky-prometheus",
+		ServiceAccountName:     "redsky-setup",
+		ClusterRoleBindingName: "redsky-setup-prometheus",
+	})
 
 	return result, nil
 }

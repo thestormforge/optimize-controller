@@ -23,12 +23,16 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	"github.com/thestormforge/optimize-controller/internal/application"
 	"github.com/yujunz/go-getter"
+	batchv1beta1 "k8s.io/api/batch/v1beta1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/kustomize/api/types"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
@@ -68,6 +72,14 @@ func newObjectiveMetric(obj *redskyappsv1alpha1.Objective, query string) redskyv
 		Max:      obj.Max,
 		Optimize: obj.Optimize,
 	}
+}
+
+// ensureTrialJobPod returns the pod template for the trial job, creating the job template if necessary.
+func ensureTrialJobPod(exp *redskyv1beta1.Experiment) *corev1.PodTemplateSpec {
+	if exp.Spec.TrialTemplate.Spec.JobTemplate == nil {
+		exp.Spec.TrialTemplate.Spec.JobTemplate = &batchv1beta1.JobTemplateSpec{}
+	}
+	return &exp.Spec.TrialTemplate.Spec.JobTemplate.Spec.Template
 }
 
 // splitPath splits a string based path, honoring backslash escaped slashes.
@@ -116,4 +128,52 @@ func loadApplicationData(app *redskyappsv1alpha1.Application, src string) ([]byt
 	}
 
 	return ioutil.ReadFile(dst)
+}
+
+var metricSelectorPattern = regexp.MustCompile(`([a-zA-Z_][a-zA-Z0-9_]*)(=|!=|=~|!~)"([a-zA-Z0-9\-|]+)"`)
+
+// convertPrometheusSelector converts a Prometheus metric selector to a Kubernetes
+// label selector. This is necessary because objectives like "Requests" define their
+// "selector" as a Prometheus selector: in order for that to work with a metric
+// with `type: kubernetes` (or `type: ""`), we must first convert it over.
+func convertPrometheusSelector(metricSelector string) (*metav1.LabelSelector, error) {
+	if metricSelector == "" {
+		return nil, nil
+	}
+
+	labelSelector := &metav1.LabelSelector{}
+	for _, ms := range strings.Split(metricSelector, ",") {
+		parts := metricSelectorPattern.FindStringSubmatch(ms)
+		if len(parts) != 4 {
+			return nil, fmt.Errorf("invalid metric selector")
+		}
+
+		switch parts[2] {
+		case "=":
+			if labelSelector.MatchLabels == nil {
+				labelSelector.MatchLabels = make(map[string]string)
+			}
+			labelSelector.MatchLabels[parts[1]] = parts[3]
+		case "!=":
+			labelSelector.MatchExpressions = append(labelSelector.MatchExpressions, metav1.LabelSelectorRequirement{
+				Key:      parts[1],
+				Operator: metav1.LabelSelectorOpNotIn,
+				Values:   []string{parts[3]},
+			})
+		case "=~":
+			labelSelector.MatchExpressions = append(labelSelector.MatchExpressions, metav1.LabelSelectorRequirement{
+				Key:      parts[1],
+				Operator: metav1.LabelSelectorOpIn,
+				Values:   strings.Split(parts[3], "|"),
+			})
+		case "!~":
+			labelSelector.MatchExpressions = append(labelSelector.MatchExpressions, metav1.LabelSelectorRequirement{
+				Key:      parts[1],
+				Operator: metav1.LabelSelectorOpNotIn,
+				Values:   strings.Split(parts[3], "|"),
+			})
+		}
+	}
+
+	return labelSelector, nil
 }
