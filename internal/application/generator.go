@@ -18,7 +18,6 @@ package application
 
 import (
 	"io"
-	"os"
 	"path/filepath"
 	"time"
 
@@ -210,9 +209,9 @@ func (g *Generator) clean(app *redskyappsv1alpha1.Application) error {
 
 // readScenario attempts to create a scenario for the application.
 func (g *Generator) readScenario() (*redskyappsv1alpha1.Scenario, error) {
-	// Make sure the file exists
-	if _, err := os.Lstat(g.ScenarioFile); err != nil {
-		return nil, err
+	// If there is no scenario file, do nothing
+	if g.ScenarioFile == "" {
+		return nil, nil
 	}
 
 	// This is a really basic assumption given we only support two scenario flavors right now
