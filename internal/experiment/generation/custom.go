@@ -32,6 +32,7 @@ import (
 
 type CustomSource struct {
 	Scenario    *redskyappsv1alpha1.Scenario
+	Objective   *redskyappsv1alpha1.Objective
 	Application *redskyappsv1alpha1.Application
 }
 
@@ -82,6 +83,14 @@ func (s *CustomSource) Update(exp *redskyv1beta1.Experiment) error {
 }
 
 func (s *CustomSource) Metrics() ([]redskyv1beta1.Metric, error) {
+	if s.Objective != nil {
+		return s.objectiveMetrics()
+	}
+
+	return s.scenarioMetrics()
+}
+
+func (s *CustomSource) scenarioMetrics() ([]redskyv1beta1.Metric, error) {
 	var result []redskyv1beta1.Metric
 	for i := range s.Application.Objectives {
 		obj := &s.Application.Objectives[i]
@@ -120,24 +129,34 @@ func (s *CustomSource) Metrics() ([]redskyv1beta1.Metric, error) {
 			}
 			result = append(result, m)
 
-		case obj.Custom != nil:
-			var m redskyv1beta1.Metric
-			switch {
-			case obj.Custom.Prometheus != nil:
-				m = newObjectiveMetric(obj, obj.Custom.Prometheus.Query)
-				m.URL = obj.Custom.Prometheus.URL
-			case obj.Custom.Datadog != nil:
-				m = newObjectiveMetric(obj, obj.Custom.Datadog.Query)
-				m.Type = redskyv1beta1.MetricDatadog
-				if obj.Custom.Datadog.Aggregator != "" {
-					m.URL = "?" + url.Values{"aggregator": []string{obj.Custom.Datadog.Aggregator}}.Encode()
-				}
-			}
-
-			m.Minimize = !obj.Custom.Maximize
-			result = append(result, m)
-
 		}
+	}
+
+	return result, nil
+}
+
+func (s *CustomSource) objectiveMetrics() ([]redskyv1beta1.Metric, error) {
+	var result []redskyv1beta1.Metric
+	if s.Objective.Implemented {
+		return result, nil
+	}
+
+	var m redskyv1beta1.Metric
+	m.Minimize = !s.Objective.Custom.Maximize
+
+	switch {
+	case s.Objective.Custom.Prometheus != nil:
+		m = newObjectiveMetric(s.Objective, s.Objective.Custom.Prometheus.Query)
+		m.URL = s.Objective.Custom.Prometheus.URL
+		result = append(result, m)
+
+	case s.Objective.Custom.Datadog != nil:
+		m = newObjectiveMetric(s.Objective, s.Objective.Custom.Datadog.Query)
+		m.Type = redskyv1beta1.MetricDatadog
+		if s.Objective.Custom.Datadog.Aggregator != "" {
+			m.URL = "?" + url.Values{"aggregator": []string{s.Objective.Custom.Datadog.Aggregator}}.Encode()
+		}
+		result = append(result, m)
 	}
 
 	return result, nil
