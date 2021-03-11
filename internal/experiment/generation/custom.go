@@ -39,6 +39,10 @@ var _ ExperimentSource = &CustomSource{}
 var _ MetricSource = &CustomSource{}
 
 func (s *CustomSource) Update(exp *redskyv1beta1.Experiment) error {
+	if s.Scenario == nil || s.Application == nil {
+		return nil
+	}
+
 	if s.Scenario.Custom.PodTemplate != nil {
 		s.Scenario.Custom.PodTemplate.DeepCopyInto(ensureTrialJobPod(exp))
 	}

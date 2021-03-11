@@ -37,7 +37,7 @@ var _ MetricSource = &LocustSource{}     // Locust specific metrics
 var _ kio.Reader = &LocustSource{}       // ConfigMap for the locustfile.py
 
 func (s *LocustSource) Update(exp *redskyv1beta1.Experiment) error {
-	if s.Scenario == nil {
+	if s.Scenario == nil || s.Application == nil {
 		return nil
 	}
 
