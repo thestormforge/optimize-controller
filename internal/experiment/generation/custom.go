@@ -100,7 +100,7 @@ func (s *CustomSource) scenarioMetrics() ([]redskyv1beta1.Metric, error) {
 			// Do nothing
 
 		case obj.Requests != nil:
-			if s.Scenario.Custom.EnablePushGateway {
+			if s.Scenario.Custom.UsePushGateway {
 				continue
 			}
 

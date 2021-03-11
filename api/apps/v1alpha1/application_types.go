@@ -128,7 +128,7 @@ type CustomScenario struct {
 	// Enables Prometheus Push Gateway support for objectives that require it.
 	// The `PUSHGATEWAY_URL` environment variable will be added to all
 	// containers when the trial job starts.
-	EnablePushGateway bool `json:"pushGateway,omitempty"`
+	UsePushGateway bool `json:"pushGateway,omitempty"`
 	// The default specification of a pod to use for executing a trial.
 	PodTemplate *corev1.PodTemplateSpec `json:"podTemplate,omitempty"`
 	// Additional delay before starting the trial pod.
