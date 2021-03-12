@@ -29,9 +29,6 @@ data:
       - regex: ^container_cpu_usage_seconds_total|container_memory_max_usage_bytes$
         source_labels: [ __name__ ]
         action: keep
-      # Drop labels we dont care about
-      - regex: ^container|image|pod|namespace$
-        action: labelkeep
     - job_name: kube-state-metrics
       scheme: http
       static_configs:
