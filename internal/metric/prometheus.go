@@ -70,7 +70,7 @@ func capturePrometheusMetric(ctx context.Context, log logr.Logger, m *redskyv1be
 
 	// If we got NaN, it might be a Pushgateway metric that won't have a value unless we query from the scrape time
 	if math.IsNaN(value) && lastScrapeTime.After(completionTime) {
-		log.WithValues("lastScrapeTime", lastScrapeTime).Info("Retrying Prometheus query to include final scrape")
+		log.Info("Retrying Prometheus query to include final scrape", "lastScrapeTime", lastScrapeTime, "completionTime", completionTime)
 		value, err = queryScalar(ctx, promAPI, m.Query, lastScrapeTime)
 		if err != nil {
 			return 0, 0, err
@@ -98,6 +98,11 @@ func capturePrometheusMetric(ctx context.Context, log logr.Logger, m *redskyv1be
 }
 
 func checkReady(ctx context.Context, api promv1.API, t time.Time) (time.Time, error) {
+	// Choose lower then normal default scrape parameters
+	// TODO We could use `api.Config` to get the actual values (global defaults and per-target settings)
+	scrapeInterval := 5 * time.Second // Prometheus default is 1m
+	scrapeTimeout := 3 * time.Second  // Prometheus default is 10s
+
 	targets, err := api.Targets(ctx)
 	if err != nil {
 		return t, err
@@ -106,16 +111,23 @@ func checkReady(ctx context.Context, api promv1.API, t time.Time) (time.Time, er
 	lastScrape := t
 	for _, target := range targets.Active {
 		if target.Health != promv1.HealthGood {
-			continue
+			return t, &CaptureError{
+				Message:    fmt.Sprintf("scrape target is unhealthy (%s): %s", target.Health, target.LastError),
+				Address:    target.ScrapeURL,
+				RetryAfter: scrapeInterval,
+			}
 		}
 
 		if target.LastScrape.Before(t) {
-			// TODO If we knew the scrape interval we could make a more informed delay
-			return t, &CaptureError{RetryAfter: 5 * time.Second}
+			return t, &CaptureError{
+				Message:    "waiting for final scrape",
+				Address:    target.ScrapeURL,
+				RetryAfter: scrapeInterval,
+			}
 		}
 
 		// TODO This should use `target.LastScrapeDuration` once it is available
-		if ls := target.LastScrape.Add(3 * time.Second); ls.After(lastScrape) {
+		if ls := target.LastScrape.Add(scrapeTimeout); ls.After(lastScrape) {
 			lastScrape = ls
 		}
 	}

@@ -27,7 +27,7 @@ Stats() {
   ${REDSKYCTL_BIN} generate experiment -f hack/app.yaml
   kubectl get pods -o wide
   kubectl get trial -o wide
-  kubectl logs -n redsky-system -l control-plane=controller-manager
+  kubectl logs -n redsky-system -l control-plane=controller-manager --tail=-1
 }
 
 trap Stats EXIT
