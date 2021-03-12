@@ -1,111 +1,111 @@
-name: Pull Request
-on:
-  pull_request:
-    branches:
-      - master
-jobs:
-  test:
-    name: Unit Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v2
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: ^1.16
-      - name: Cache Go Modules
-        uses: actions/cache@v1
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-      - name: Cache Go Cache
-        uses: actions/cache@v1
-        with:
-          path: ~/.cache
-          key: ${{ runner.os }}-gotestcache-${{ hashFiles('**.go') }}
-          restore-keys: |
-            ${{ runner.os }}-gotestcache-
-      - name: Run tests
-        run: |
-          hack/install_kustomize.sh
-          make test
-  build:
-    name: Build and Deploy
-    runs-on: ubuntu-latest
-    env:
-      BUILD_METADATA: build.${{ github.run_number }}
-      GIT_COMMIT: ${{ github.sha }}
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v2
-      - name: Unshallow
-        run: git fetch --prune --unshallow
-      # Launch KinD early so we can do other things while the control plane converges
-      - name: KinD (Kubernetes in Docker) Initialization
-        uses: helm/kind-action@v1.1.0
-        with:
-          version: v0.10.0
-          wait: 0s
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: ^1.16
-      - name: Cache Go Modules
-        uses: actions/cache@v1
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-      - name: Cache Go Cache
-        uses: actions/cache@v1
-        with:
-          path: ~/.cache
-          key: ${{ runner.os }}-gobuildcache-${{ hashFiles('**.go') }}
-          restore-keys: |
-            ${{ runner.os }}-gobuildcache-
-      - name: Bootstrap
-        run: |
-          DOCKER_REGISTRY="ghcr.io/thestormforge"
-          DOCKER_TAG="sha-$(git rev-parse --short HEAD)"
-          echo "IMAGE_TAG=pr-${{ github.event.number }}" >> $GITHUB_ENV
-          echo "IMG=${DOCKER_REGISTRY}/optimize-controller:${DOCKER_TAG}" >> $GITHUB_ENV
-          echo "REDSKYCTL_IMG=${DOCKER_REGISTRY}/redskyctl:${DOCKER_TAG}" >> $GITHUB_ENV
-          echo "SETUPTOOLS_IMG=${DOCKER_REGISTRY}/setuptools:${DOCKER_TAG}" >> $GITHUB_ENV
-          echo "PULL_POLICY=" >> $GITHUB_ENV
-      - name: Build controller
-        run: |
-          hack/install_kustomize.sh
-          make docker-build-ci
-      - name: Build tool
-        uses: goreleaser/goreleaser-action@v2
-        with:
-          args: release --skip-sign --rm-dist
-      - name: Push Docker images
-        if: github.event.pull_request.head.repo.fork == false
-        run: |
-          echo "${{ secrets.BMASTERS_TOKEN }}" | docker login "ghcr.io" -u "${{ secrets.BMASTERS_ACTOR }}" --password-stdin
-          make docker-push
-          docker-push() {
-            docker tag "$1" "$2"
-            docker push "$2"
-          }
-          docker-push "${IMG}" "${IMG%%:*}:${IMAGE_TAG}"
-          docker-push "${REDSKYCTL_IMG}" "${REDSKYCTL_IMG%%:*}:${IMAGE_TAG}"
-          docker-push "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:${IMAGE_TAG}"
-      - name: Upload macOS binary
-        uses: actions/upload-artifact@v2
-        with:
-          name: redskyctl_darwin_amd64
-          path: dist/redskyctl-darwin-amd64.tar.gz
-      - name: Upload Linux binary
-        uses: actions/upload-artifact@v2
-        with:
-          name: redskyctl_linux_amd64
-          path: dist/redskyctl-linux-amd64.tar.gz
-      - name: Run integration tests
-        run: |
-          hack/integration.sh
+#name: Pull Request
+#on:
+#  pull_request:
+#    branches:
+#      - master
+#jobs:
+#  test:
+#    name: Unit Tests
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Check out code
+#        uses: actions/checkout@v2
+#      - name: Set up Go
+#        uses: actions/setup-go@v2
+#        with:
+#          go-version: ^1.16
+#      - name: Cache Go Modules
+#        uses: actions/cache@v1
+#        with:
+#          path: ~/go/pkg/mod
+#          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+#          restore-keys: |
+#            ${{ runner.os }}-go-
+#      - name: Cache Go Cache
+#        uses: actions/cache@v1
+#        with:
+#          path: ~/.cache
+#          key: ${{ runner.os }}-gotestcache-${{ hashFiles('**.go') }}
+#          restore-keys: |
+#            ${{ runner.os }}-gotestcache-
+#      - name: Run tests
+#        run: |
+#          hack/install_kustomize.sh
+#          make test
+#  build:
+#    name: Build and Deploy
+#    runs-on: ubuntu-latest
+#    env:
+#      BUILD_METADATA: build.${{ github.run_number }}
+#      GIT_COMMIT: ${{ github.sha }}
+#    steps:
+#      - name: Check out code
+#        uses: actions/checkout@v2
+#      - name: Unshallow
+#        run: git fetch --prune --unshallow
+#      # Launch KinD early so we can do other things while the control plane converges
+#      - name: KinD (Kubernetes in Docker) Initialization
+#        uses: helm/kind-action@v1.1.0
+#        with:
+#          version: v0.10.0
+#          wait: 0s
+#      - name: Set up Go
+#        uses: actions/setup-go@v2
+#        with:
+#          go-version: ^1.16
+#      - name: Cache Go Modules
+#        uses: actions/cache@v1
+#        with:
+#          path: ~/go/pkg/mod
+#          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+#          restore-keys: |
+#            ${{ runner.os }}-go-
+#      - name: Cache Go Cache
+#        uses: actions/cache@v1
+#        with:
+#          path: ~/.cache
+#          key: ${{ runner.os }}-gobuildcache-${{ hashFiles('**.go') }}
+#          restore-keys: |
+#            ${{ runner.os }}-gobuildcache-
+#      - name: Bootstrap
+#        run: |
+#          DOCKER_REGISTRY="ghcr.io/thestormforge"
+#          DOCKER_TAG="sha-$(git rev-parse --short HEAD)"
+#          echo "IMAGE_TAG=pr-${{ github.event.number }}" >> $GITHUB_ENV
+#          echo "IMG=${DOCKER_REGISTRY}/optimize-controller:${DOCKER_TAG}" >> $GITHUB_ENV
+#          echo "REDSKYCTL_IMG=${DOCKER_REGISTRY}/redskyctl:${DOCKER_TAG}" >> $GITHUB_ENV
+#          echo "SETUPTOOLS_IMG=${DOCKER_REGISTRY}/setuptools:${DOCKER_TAG}" >> $GITHUB_ENV
+#          echo "PULL_POLICY=" >> $GITHUB_ENV
+#      - name: Build controller
+#        run: |
+#          hack/install_kustomize.sh
+#          make docker-build-ci
+#      - name: Build tool
+#        uses: goreleaser/goreleaser-action@v2
+#        with:
+#          args: release --skip-sign --rm-dist
+#      - name: Push Docker images
+#        if: github.event.pull_request.head.repo.fork == false
+#        run: |
+#          echo "${{ secrets.BMASTERS_TOKEN }}" | docker login "ghcr.io" -u "${{ secrets.BMASTERS_ACTOR }}" --password-stdin
+#          make docker-push
+#          docker-push() {
+#            docker tag "$1" "$2"
+#            docker push "$2"
+#          }
+#          docker-push "${IMG}" "${IMG%%:*}:${IMAGE_TAG}"
+#          docker-push "${REDSKYCTL_IMG}" "${REDSKYCTL_IMG%%:*}:${IMAGE_TAG}"
+#          docker-push "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:${IMAGE_TAG}"
+#      - name: Upload macOS binary
+#        uses: actions/upload-artifact@v2
+#        with:
+#          name: redskyctl_darwin_amd64
+#          path: dist/redskyctl-darwin-amd64.tar.gz
+#      - name: Upload Linux binary
+#        uses: actions/upload-artifact@v2
+#        with:
+#          name: redskyctl_linux_amd64
+#          path: dist/redskyctl-linux-amd64.tar.gz
+#      - name: Run integration tests
+#        run: |
+#          hack/integration.sh
