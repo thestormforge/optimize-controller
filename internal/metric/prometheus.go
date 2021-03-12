@@ -70,7 +70,7 @@ func capturePrometheusMetric(ctx context.Context, log logr.Logger, m *redskyv1be
 
 	// If we got NaN, it might be a Pushgateway metric that won't have a value unless we query from the scrape time
 	if math.IsNaN(value) && lastScrapeTime.After(completionTime) {
-		log.WithValues("lastScrapeTime", lastScrapeTime).Info("Retrying Prometheus query to include final scrape")
+		log.Info("Retrying Prometheus query to include final scrape", "lastScrapeTime", lastScrapeTime, "completionTime", completionTime)
 		value, err = queryScalar(ctx, promAPI, m.Query, lastScrapeTime)
 		if err != nil {
 			return 0, 0, err
