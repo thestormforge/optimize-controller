@@ -57,7 +57,7 @@ func capturePrometheusMetric(ctx context.Context, log logr.Logger, m *redskyv1be
 	promAPI := promv1.NewAPI(c)
 
 	// Make sure Prometheus is ready
-	lastScrapeTime, err := checkReady(ctx, log, promAPI, completionTime)
+	lastScrapeTime, err := checkReady(ctx, promAPI, completionTime)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -97,7 +97,7 @@ func capturePrometheusMetric(ctx context.Context, log logr.Logger, m *redskyv1be
 	return value, valueError, nil
 }
 
-func checkReady(ctx context.Context, log logr.Logger, api promv1.API, t time.Time) (time.Time, error) {
+func checkReady(ctx context.Context, api promv1.API, t time.Time) (time.Time, error) {
 	// Choose lower then normal default scrape parameters
 	// TODO We could use `api.Config` to get the actual values (global defaults and per-target settings)
 	scrapeInterval := 5 * time.Second // Prometheus default is 1m
@@ -111,16 +111,19 @@ func checkReady(ctx context.Context, log logr.Logger, api promv1.API, t time.Tim
 	lastScrape := t
 	for _, target := range targets.Active {
 		if target.Health != promv1.HealthGood {
-			log.Info("Skipping unhealthy target", "health", target.Health, "scrapeURL", target.ScrapeURL, "lastError", target.LastError)
-			continue
-		}
-
-		if target.LastError != "" {
-			return t, &CaptureError{RetryAfter: scrapeInterval, Message: target.LastError}
+			return t, &CaptureError{
+				Message:    fmt.Sprintf("scrape target is unhealthy (%s): %s", target.Health, target.LastError),
+				Address:    target.ScrapeURL,
+				RetryAfter: scrapeInterval,
+			}
 		}
 
 		if target.LastScrape.Before(t) {
-			return t, &CaptureError{RetryAfter: scrapeInterval, Message: "waiting for final scrape"}
+			return t, &CaptureError{
+				Message:    "waiting for final scrape",
+				Address:    target.ScrapeURL,
+				RetryAfter: scrapeInterval,
+			}
 		}
 
 		// TODO This should use `target.LastScrapeDuration` once it is available
