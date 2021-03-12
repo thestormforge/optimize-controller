@@ -80,8 +80,8 @@ func capturePrometheusMetric(ctx context.Context, log logr.Logger, m *redskyv1be
 
 	// If it is still NaN, the problem is mostly likely that the query does not account for missing data
 	if math.IsNaN(value) {
-		err := &CaptureError{Message: "metric data not available", Address: m.URL, Query: m.Query, CompletionTime: completionTime, RetryAfter: 3 * time.Second}
-		//err := &CaptureError{Message: "metric data not available", Address: m.URL, Query: m.Query, CompletionTime: completionTime}
+		//err := &CaptureError{Message: "metric data not available", Address: m.URL, Query: m.Query, CompletionTime: completionTime, RetryAfter: 3 * time.Second}
+		err := &CaptureError{Message: "metric data not available", Address: m.URL, Query: m.Query, CompletionTime: completionTime}
 		if strings.HasPrefix(m.Query, "scalar(") {
 			err.Message += " (the scalar function may have received an input vector whose size is not 1)"
 		}
