@@ -45,6 +45,34 @@ ${REDSKYCTL_BIN} generate trial \
 
 kubectl get trial -o wide
 
+waitTime=300s
+echo "Wait for trial to complete (${waitTime} timeout)"
+kubectl wait trial \
+  -l redskyops.dev/application=ci \
+  --for condition=redskyops.dev/trial-complete \
+  --timeout ${waitTime}
+
+echo "Remove default experiment"
+${REDSKYCTL_BIN} generate experiment -f hack/app.yaml | \
+  kubectl delete -f -
+
+# =======
+# Wait for all resources to clean up
+sleep 30
+# =======
+
+echo "Create ci experiment"
+${REDSKYCTL_BIN} generate experiment -f hack/app_kube.yaml | \
+  kubectl apply -f -
+
+echo "Create new trial"
+${REDSKYCTL_BIN} generate experiment -f hack/app_kube.yaml | \
+${REDSKYCTL_BIN} generate trial \
+  --default base \
+  -f - | \
+  kubectl create -f -
+
+kubectl get trial -o wide
 
 waitTime=300s
 echo "Wait for trial to complete (${waitTime} timeout)"
