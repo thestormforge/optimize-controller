@@ -159,6 +159,8 @@ func (r *MetricReconciler) collectMetrics(ctx context.Context, t *redskyv1beta1.
 	log := r.Log.WithValues("trial", fmt.Sprintf("%s/%s", t.Namespace, t.Name))
 	for i := range t.Spec.Values {
 		v := &t.Spec.Values[i]
+		log.Info("collecting", "values", v)
+
 		if v.AttemptsRemaining <= 0 {
 			continue
 		}
