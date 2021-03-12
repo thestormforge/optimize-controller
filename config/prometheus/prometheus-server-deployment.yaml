@@ -21,7 +21,7 @@ spec:
         args:
         - --collectors=pods
         imagePullPolicy: IfNotPresent
-        image: "quay.io/coreos/kube-state-metrics:v1.9.7"
+        image: "quay.io/coreos/kube-state-metrics:v1.9.8"
         ports:
         - containerPort: 8080
         livenessProbe:
@@ -44,7 +44,7 @@ spec:
             cpu: 100m
             memory: 200M
       - name: prometheus-pushgateway
-        image: "prom/pushgateway:v1.3.0"
+        image: "prom/pushgateway:v1.4.0"
         imagePullPolicy: "IfNotPresent"
         args:
         ports:
@@ -69,7 +69,7 @@ spec:
             cpu: 100m
             memory: 50M
       - name: prometheus-server
-        image: "prom/prometheus:v2.21.0"
+        image: "prom/prometheus:v2.25.0"
         imagePullPolicy: "IfNotPresent"
         args:
           - --storage.tsdb.retention.time=1d
@@ -108,7 +108,7 @@ spec:
           - name: storage-volume
             mountPath: /data
       - name: configmap-reloader
-        image: "jimmidyson/configmap-reload:v0.4.0"
+        image: "jimmidyson/configmap-reload:v0.5.0"
         imagePullPolicy: "IfNotPresent"
         args:
           - --volume-dir=/etc/config
