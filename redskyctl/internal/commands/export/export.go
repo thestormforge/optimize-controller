@@ -370,7 +370,6 @@ func (o *Options) generateExperiment() error {
 	// Filter application experiment to only the relevant pieces
 	apppkg.FilterByExperimentName(o.application, o.trialName[:strings.LastIndex(o.trialName, "-")])
 
-	onDiskFS := filesys.MakeFsOnDisk()
 	list := &corev1.List{}
 
 	gen := experiment.Generator{Application: *o.application, DefaultReader: o.In}
@@ -403,17 +402,19 @@ func (o *Options) generateExperiment() error {
 	}
 
 	// Load up all application resources
-	res, err := apppkg.LoadResources(o.application, onDiskFS)
+	var buf bytes.Buffer
+	err := kio.Pipeline{
+		Inputs:  []kio.Reader{o.application.Resources},
+		Filters: []kio.Filter{scan.NewKonjureFilter(apppkg.WorkingDirectory(o.application), o.In)},
+		Outputs: []kio.Writer{&kio.ByteWriter{
+			Writer: &buf,
+		}},
+	}.Execute()
 	if err != nil {
 		return err
 	}
 
-	resYaml, err := res.AsYaml()
-	if err != nil {
-		return err
-	}
-
-	if err := o.Fs.WriteFile("resources.yaml", resYaml); err != nil {
+	if err := o.Fs.WriteFile("resources.yaml", buf.Bytes()); err != nil {
 		return err
 	}
 
