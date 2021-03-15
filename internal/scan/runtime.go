@@ -103,10 +103,10 @@ func (o *ObjectList) Write(nodes []*yaml.RNode) error {
 
 		obj := newObjectForKind(u)
 		if err := Scheme.Convert(u, obj, runtime.InternalGroupVersioner); err != nil {
-			return err
+			o.Items = append(o.Items, runtime.RawExtension{Raw: data})
+		} else {
+			o.Items = append(o.Items, runtime.RawExtension{Object: obj})
 		}
-
-		o.Items = append(o.Items, runtime.RawExtension{Object: obj})
 	}
 
 	return nil
@@ -144,6 +144,7 @@ func fixConversion(node *yaml.RNode) (*yaml.RNode, error) {
 func newObjectForKind(obj runtime.Object) runtime.Object {
 	if gvks, _, _ := Scheme.ObjectKinds(obj); len(gvks) > 0 {
 		if typed, err := Scheme.New(gvks[0]); err == nil {
+			typed.GetObjectKind().SetGroupVersionKind(gvks[0])
 			return typed
 		}
 	}
