@@ -116,6 +116,7 @@ func (g *Generator) Execute(output kio.Writer) error {
 			&scan.Scanner{
 				Transformer: &generation.Transformer{
 					IncludeApplicationResources: g.IncludeApplicationResources,
+					MergeGenerated:              len(g.Application.Scenarios) > 1,
 				},
 				Selectors: g.selectors(),
 			},
