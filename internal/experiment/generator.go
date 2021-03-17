@@ -17,6 +17,7 @@ limitations under the License.
 package experiment
 
 import (
+	"fmt"
 	"io"
 
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
@@ -102,47 +103,90 @@ func (g *Generator) SetDefaultSelectors() {
 
 // Execute the experiment generation pipeline, sending the results to the supplied writer.
 func (g *Generator) Execute(output kio.Writer) error {
-	pwd := application.WorkingDirectory(&g.Application)
 	return kio.Pipeline{
 		Inputs: []kio.Reader{
+			// Read the resource from the application
 			g.Application.Resources,
 		},
 		Filters: []kio.Filter{
-			scan.NewKonjureFilter(pwd, g.DefaultReader),
-			g.newScannerFilter(),
-			&generation.ApplicationFilter{Application: &g.Application},
-			kio.FilterAll(yaml.Clear("status")),
+			// Expand resource references using Konjure
+			scan.NewKonjureFilter(application.WorkingDirectory(&g.Application), g.DefaultReader),
+
+			// Scan the resources and transform them into an experiment (and it's supporting resources)
+			&scan.Scanner{
+				Transformer: &generation.Transformer{
+					IncludeApplicationResources: g.IncludeApplicationResources,
+				},
+				Selectors: g.selectors(),
+			},
+
+			// Label the generated resources
+			kio.FilterAll(yaml.SetLabel(redskyappsv1alpha1.LabelApplication, g.Application.Name)),
+			kio.FilterAll(generation.SetNamespace(g.Application.Namespace)),
+			kio.FilterAll(generation.SetExperimentName(g.experimentName())),
+			kio.FilterAll(generation.SetExperimentLabel(redskyappsv1alpha1.LabelApplication, g.Application.Name)),
+			kio.FilterAll(generation.SetExperimentLabel(redskyappsv1alpha1.LabelScenario, g.scenarioName())),
+
+			// Apply Kubernetes formatting conventions and clean up the objects
 			&filters.FormatFilter{UseSchema: true},
+			kio.FilterAll(yaml.ClearAnnotation(filters.FmtAnnotation)),
+			kio.FilterAll(yaml.Clear("status")),
 		},
 		Outputs: []kio.Writer{
+			// Validate the resulting resources before sending them to the supplier writer
+			kio.WriterFunc(g.validate),
 			output,
 		},
 	}.Execute()
 }
 
-func (g *Generator) newScannerFilter() kio.Filter {
-	scanner := &scan.Scanner{
-		Transformer: &generation.Transformer{
-			DefaultExperimentName:       application.ExperimentName(&g.Application),
-			MergeGenerated:              len(g.Application.Scenarios) > 1,
-			IncludeApplicationResources: g.IncludeApplicationResources,
-		},
-	}
+// experimentName returns the effective experiment name being generated.
+func (g *Generator) experimentName() string {
+	return application.ExperimentName(&g.Application)
+}
 
+// scenarioName returns the scenario name iff there is only one scenario present.
+func (g *Generator) scenarioName() string {
+	if len(g.Application.Scenarios) == 1 {
+		return g.Application.Scenarios[0].Name
+	}
+	return ""
+}
+
+// selectors returns the selectors used to make discoveries during the scan.
+func (g *Generator) selectors() []scan.Selector {
+	var result []scan.Selector
+
+	// Container resource selectors look for resource requests/limits
 	for i := range g.ContainerResourcesSelectors {
-		scanner.Selectors = append(scanner.Selectors, &g.ContainerResourcesSelectors[i])
+		result = append(result, &g.ContainerResourcesSelectors[i])
 	}
 
+	// Replica selectors look for horizontally scalable resources
 	for i := range g.ReplicaSelectors {
-		scanner.Selectors = append(scanner.Selectors, &g.ReplicaSelectors[i])
+		result = append(result, &g.ReplicaSelectors[i])
 	}
 
 	// TODO EnvVarSelector
 	// TODO IngressSelector
 	// TODO ConfigMapSelector?
 
-	// The application selector should run last so it can fill in anything that is missing
-	scanner.Selectors = append(scanner.Selectors, &generation.ApplicationSelector{Application: &g.Application})
+	// The application selector runs last and looks at the application configuration itself
+	result = append(result, &generation.ApplicationSelector{
+		Application: &g.Application,
+	})
 
-	return scanner
+	return result
+}
+
+// validate is basically just a hook to perform final verifications before actually emitting anything.
+func (g *Generator) validate([]*yaml.RNode) error {
+
+	for i := range g.Application.Objectives {
+		if !g.Application.Objectives[i].Implemented {
+			return fmt.Errorf("generated experiment cannot optimize objective: %s", g.Application.Objectives[i].Name)
+		}
+	}
+
+	return nil
 }
