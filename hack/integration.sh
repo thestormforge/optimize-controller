@@ -42,6 +42,7 @@ generateAndWait() {
     -f - | \
     kubectl create -f -
 
+  kubectl get pods -o wide
   kubectl get trial -o wide
 
   waitTime=300s
