@@ -60,8 +60,8 @@ func init() {
 	addFieldOrder(&redskyappsv1alpha1.Application{}, 600)
 }
 
-// newObjectiveMetric creates a new metric for the supplied objective with most fields pre-filled.
-func newObjectiveMetric(obj *redskyappsv1alpha1.Objective, query string) redskyv1beta1.Metric {
+// newGoalMetric creates a new metric for the supplied goal with most fields pre-filled.
+func newGoalMetric(obj *redskyappsv1alpha1.Goal, query string) redskyv1beta1.Metric {
 	defer func() { obj.Implemented = true }()
 	return redskyv1beta1.Metric{
 		Type:     redskyv1beta1.MetricPrometheus,

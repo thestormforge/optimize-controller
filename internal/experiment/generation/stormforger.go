@@ -33,6 +33,7 @@ import (
 
 type StormForgerSource struct {
 	Scenario    *redskyappsv1alpha1.Scenario
+	Objective   *redskyappsv1alpha1.Objective
 	Application *redskyappsv1alpha1.Application
 }
 
@@ -165,23 +166,27 @@ func (s *StormForgerSource) Read() ([]*yaml.RNode, error) {
 
 func (s *StormForgerSource) Metrics() ([]redskyv1beta1.Metric, error) {
 	var result []redskyv1beta1.Metric
-	for i := range s.Application.Objectives {
-		obj := &s.Application.Objectives[i]
+	if s.Objective == nil {
+		return result, nil
+	}
+
+	for i := range s.Objective.Goals {
+		goal := &s.Objective.Goals[i]
 		switch {
 
-		case obj.Implemented:
+		case goal.Implemented:
 			// Do nothing
 
-		case obj.Latency != nil:
-			if l := s.stormForgerLatency(obj.Latency.LatencyType); l != "" {
+		case goal.Latency != nil:
+			if l := s.stormForgerLatency(goal.Latency.LatencyType); l != "" {
 				query := `scalar(` + l + `{job="trialRun",instance="{{ .Trial.Name }}"})`
-				result = append(result, newObjectiveMetric(obj, query))
+				result = append(result, newGoalMetric(goal, query))
 			}
 
-		case obj.ErrorRate != nil:
-			if obj.ErrorRate.ErrorRateType == redskyappsv1alpha1.ErrorRateRequests {
+		case goal.ErrorRate != nil:
+			if goal.ErrorRate.ErrorRateType == redskyappsv1alpha1.ErrorRateRequests {
 				query := `scalar(error_ratio{job="trialRun",instance="{{ .Trial.Name }}"})`
-				result = append(result, newObjectiveMetric(obj, query))
+				result = append(result, newGoalMetric(goal, query))
 			}
 
 		}

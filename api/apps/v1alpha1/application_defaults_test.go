@@ -74,64 +74,64 @@ func TestScenario_Default(t *testing.T) {
 	}
 }
 
-func TestObjective_Default(t *testing.T) {
+func TestGoal_Default(t *testing.T) {
 	cases := []struct {
-		desc      string
-		objective Objective
-		expected  Objective
+		desc     string
+		goal     Goal
+		expected Goal
 	}{
 		{
 			desc: "empty",
 		},
 		{
 			desc: "latency prefix",
-			objective: Objective{
+			goal: Goal{
 				Name: "latency-p95",
 			},
-			expected: Objective{
+			expected: Goal{
 				Name: "latency-p95",
-				Latency: &LatencyObjective{
+				Latency: &LatencyGoal{
 					LatencyType: LatencyPercentile95,
 				},
 			},
 		},
 		{
 			desc: "latency suffix",
-			objective: Objective{
+			goal: Goal{
 				Name: "avg-latency",
 			},
-			expected: Objective{
+			expected: Goal{
 				Name: "avg-latency",
-				Latency: &LatencyObjective{
+				Latency: &LatencyGoal{
 					LatencyType: LatencyMean,
 				},
 			},
 		},
 		{
 			desc: "latency generated name",
-			objective: Objective{
-				Latency: &LatencyObjective{
+			goal: Goal{
+				Latency: &LatencyGoal{
 					LatencyType: LatencyMean,
 				},
 			},
-			expected: Objective{
+			expected: Goal{
 				Name: "latency-mean",
-				Latency: &LatencyObjective{
+				Latency: &LatencyGoal{
 					LatencyType: LatencyMean,
 				},
 			},
 		},
 		{
 			desc: "requests missing weight",
-			objective: Objective{
+			goal: Goal{
 				Name: "requests",
-				Requests: &RequestsObjective{
+				Requests: &RequestsGoal{
 					MetricSelector: "test=test",
 				},
 			},
-			expected: Objective{
+			expected: Goal{
 				Name: "requests",
-				Requests: &RequestsObjective{
+				Requests: &RequestsGoal{
 					MetricSelector: "test=test",
 					Weights: corev1.ResourceList{
 						corev1.ResourceCPU:    resource.MustParse("1"),
@@ -143,7 +143,7 @@ func TestObjective_Default(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			actual := c.objective
+			actual := c.goal
 			actual.Default()
 			assert.Equal(t, c.expected, actual)
 		})

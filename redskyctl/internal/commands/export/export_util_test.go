@@ -130,13 +130,17 @@ func createTempApplication(t *testing.T, filename string) (*app.Application, []b
 		},
 		Objectives: []app.Objective{
 			{
-				Name: "cost",
-				Max:  resource.NewQuantity(100, resource.DecimalExponent),
-				Requests: &app.RequestsObjective{
-					MetricSelector: "everybody=yes",
-					Weights: corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("100m"),
-						corev1.ResourceMemory: resource.MustParse("100M"),
+				Goals: []app.Goal{
+					{
+						Name: "cost",
+						Max:  resource.NewQuantity(100, resource.DecimalExponent),
+						Requests: &app.RequestsGoal{
+							MetricSelector: "everybody=yes",
+							Weights: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("100m"),
+								corev1.ResourceMemory: resource.MustParse("100M"),
+							},
+						},
 					},
 				},
 			},

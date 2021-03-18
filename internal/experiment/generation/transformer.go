@@ -18,6 +18,7 @@ package generation
 
 import (
 	"bytes"
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -62,22 +63,20 @@ type MetricSource interface {
 // Transformer is used to convert all of the output from the selectors, only selector output
 // matching the "*Source" interfaces are supported.
 type Transformer struct {
-	// The default name to use for the experiment (any ExperimentSource could theoretically override it).
-	DefaultExperimentName string
-	// Perform a merge on the result stream to account for duplicate resources.
-	MergeGenerated bool
 	// Flag indicating the all of the resources that were scanned should also be included in the output.
 	IncludeApplicationResources bool
 }
 
 var _ scan.Transformer = &Transformer{}
 
+// Transform converts a scan of the supplied nodes into an experiment definition.
 func (t *Transformer) Transform(nodes []*yaml.RNode, selected []interface{}) ([]*yaml.RNode, error) {
 	var result []*yaml.RNode
 
 	// Parameter names need to be computed based on what resources were selected by the scan
 	name := parameterNamer(selected)
 
+	// Start with a new experiment and collect the scan results into it
 	exp := redskyv1beta1.Experiment{}
 	patches := make(map[corev1.ObjectReference][]yaml.Filter)
 	for _, sel := range selected {
@@ -130,9 +129,12 @@ func (t *Transformer) Transform(nodes []*yaml.RNode, selected []interface{}) ([]
 		return nil, err
 	}
 
-	// Set the default name on the experiment
-	if exp.Name == "" {
-		exp.Name = t.DefaultExperimentName
+	// Perform some simple validation
+	if len(exp.Spec.Parameters) == 0 {
+		return nil, fmt.Errorf("invalid experiment, no parameters found")
+	}
+	if len(exp.Spec.Metrics) == 0 {
+		return nil, fmt.Errorf("invalid experiment, no metrics found")
 	}
 
 	// Serialize the experiment as a YAML node
@@ -141,17 +143,6 @@ func (t *Transformer) Transform(nodes []*yaml.RNode, selected []interface{}) ([]
 	} else {
 		result = append(expNode, result...) // Put the experiment at the front
 	}
-
-	// Only merge the generate resources if it is configured. This may be necessary
-	// to deal with duplication in the result stream, for example, if multiple
-	// scenarios are present on the application at the time of generation.
-	if t.MergeGenerated {
-		if merged, err := (&filters.MergeFilter{}).Filter(result); err == nil {
-			result = merged
-		}
-	}
-
-	// TODO We should annotate everything up to this point as having been generated...
 
 	// If requested, append the actual application resources to the output
 	if t.IncludeApplicationResources {

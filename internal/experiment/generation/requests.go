@@ -31,45 +31,45 @@ var zero = resource.MustParse("0")
 const requestsQueryFormat = `({{ cpuRequests . %s }} * %d) + ({{ memoryRequests . %s | GB }} * %d)`
 
 type RequestsMetricsSource struct {
-	Objective *redskyappsv1alpha1.Objective
+	Goal *redskyappsv1alpha1.Goal
 }
 
 var _ MetricSource = &RequestsMetricsSource{}
 
 func (s *RequestsMetricsSource) Metrics() ([]redskyv1beta1.Metric, error) {
 	var result []redskyv1beta1.Metric
-	if s.Objective.Implemented {
+	if s.Goal == nil || s.Goal.Implemented {
 		return result, nil
 	}
 
 	// Generate the query
-	ms := strconv.Quote(s.Objective.Requests.MetricSelector)
+	ms := strconv.Quote(s.Goal.Requests.MetricSelector)
 
-	cpuWeight := s.Objective.Requests.Weights.Cpu()
+	cpuWeight := s.Goal.Requests.Weights.Cpu()
 	if cpuWeight == nil {
 		cpuWeight = &zero
 	}
 
-	memoryWeight := s.Objective.Requests.Weights.Memory()
+	memoryWeight := s.Goal.Requests.Weights.Memory()
 	if memoryWeight == nil {
 		memoryWeight = &zero
 	}
 
 	query := fmt.Sprintf(requestsQueryFormat, ms, cpuWeight.Value(), ms, memoryWeight.Value())
-	result = append(result, newObjectiveMetric(s.Objective, query))
+	result = append(result, newGoalMetric(s.Goal, query))
 
 	// If the name contains "cost" and the weights are non-zero, add non-optimized metrics for each request
-	if strings.Contains(s.Objective.Name, "cost") &&
+	if strings.Contains(s.Goal.Name, "cost") &&
 		!cpuWeight.IsZero() && !memoryWeight.IsZero() &&
-		(s.Objective.Optimize == nil || *s.Objective.Optimize) {
+		(s.Goal.Optimize == nil || *s.Goal.Optimize) {
 
 		nonOptimized := false
 		result = append(result,
-			newObjectiveMetric(&redskyappsv1alpha1.Objective{
+			newGoalMetric(&redskyappsv1alpha1.Goal{
 				Name:     result[0].Name + "-cpu-requests",
 				Optimize: &nonOptimized,
 			}, fmt.Sprintf("{{ cpuRequests . %s }}", ms)),
-			newObjectiveMetric(&redskyappsv1alpha1.Objective{
+			newGoalMetric(&redskyappsv1alpha1.Goal{
 				Name:     result[0].Name + "-memory-requests",
 				Optimize: &nonOptimized,
 			}, fmt.Sprintf("{{ memoryRequests . %s | GB }}", ms)),

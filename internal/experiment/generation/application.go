@@ -25,6 +25,8 @@ import (
 // ApplicationSelector is responsible for "scanning" the application definition itself.
 type ApplicationSelector struct {
 	Application *redskyappsv1alpha1.Application
+	Scenario    *redskyappsv1alpha1.Scenario
+	Objective   *redskyappsv1alpha1.Objective
 }
 
 var _ scan.Selector = &ApplicationSelector{}
@@ -43,29 +45,27 @@ func (s *ApplicationSelector) Map(*yaml.RNode, yaml.ResourceMeta) ([]interface{}
 
 	// NOTE: We iterate by index and obtain pointers because some of these evaluate for side effects
 
-	for i := range s.Application.Scenarios {
-		scenario := &s.Application.Scenarios[i]
+	if s.Scenario != nil {
 		switch {
-		case scenario.StormForger != nil:
-			result = append(result, &StormForgerSource{Scenario: scenario, Application: s.Application})
-		case scenario.Locust != nil:
-			result = append(result, &LocustSource{Scenario: scenario, Application: s.Application})
-		case scenario.Custom != nil:
-			result = append(result, &CustomSource{Scenario: scenario, Application: s.Application})
+		case s.Scenario.StormForger != nil:
+			result = append(result, &StormForgerSource{Scenario: s.Scenario, Objective: s.Objective, Application: s.Application})
+		case s.Scenario.Locust != nil:
+			result = append(result, &LocustSource{Scenario: s.Scenario, Objective: s.Objective, Application: s.Application})
+		case s.Scenario.Custom != nil:
+			result = append(result, &CustomSource{Scenario: s.Scenario, Objective: s.Objective, Application: s.Application})
 		}
 	}
 
-	for i := range s.Application.Objectives {
-		objective := &s.Application.Objectives[i]
-		switch {
-		case objective.Implemented:
-			// Do nothing
-		case objective.Requests != nil:
-			result = append(result, &RequestsMetricsSource{Objective: objective})
-		case objective.Duration != nil:
-			result = append(result, &DurationMetricsSource{Objective: objective})
-		case objective.Custom != nil:
-			result = append(result, &CustomSource{Objective: objective})
+	if s.Objective != nil {
+		for i := range s.Objective.Goals {
+			switch {
+			case s.Objective.Goals[i].Requests != nil:
+				result = append(result, &RequestsMetricsSource{Goal: &s.Objective.Goals[i]})
+			case s.Objective.Goals[i].Duration != nil:
+				result = append(result, &DurationMetricsSource{Goal: &s.Objective.Goals[i]})
+			case s.Objective.Goals[i].Custom != nil:
+				result = append(result, &CustomSource{Goal: &s.Objective.Goals[i]})
+			}
 		}
 	}
 

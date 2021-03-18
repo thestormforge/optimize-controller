@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 	"unicode"
@@ -70,25 +71,42 @@ func (in *Scenario) Default() {
 }
 
 func (in *Objective) Default() {
+	for i := range in.Goals {
+		in.Goals[i].Default()
+	}
+
+	if in.Name == "" {
+		switch len(in.Goals) {
+		case 1:
+			in.Name = in.Goals[0].Name
+		case 2:
+			in.Name = fmt.Sprintf("%s-vs-%s", in.Goals[0].Name, in.Goals[1].Name)
+		default:
+			in.Name = defaultName
+		}
+	}
+}
+
+func (in *Goal) Default() {
 	// If there is no explicit configuration, create it by parsing the name
 	if in.Name != "" && in.needsConfig() {
 		name := strings.Map(toName, in.Name)
 		switch name {
 
 		case "error-rate", "error-ratio", "errors":
-			defaultErrorRateObjective(in, ErrorRateRequests)
+			defaultErrorRateGoal(in, ErrorRateRequests)
 
 		case "duration", "time", "time-elapsed", "elapsed-time":
-			defaultDurationObjective(in, DurationTrial)
+			defaultDurationGoal(in, DurationTrial)
 
 		default:
 			if w := DefaultCostWeights(name); w != nil {
-				defaultRequestsObjectiveWeights(in, w)
+				defaultRequestsGoalWeights(in, w)
 			}
 
 			latencyName := strings.ReplaceAll(name, "latency", "")
 			if l := FixLatency(LatencyType(latencyName)); l != "" {
-				defaultLatencyObjective(in, l)
+				defaultLatencyGoal(in, l)
 			}
 		}
 	}
@@ -103,7 +121,7 @@ func (in *Objective) Default() {
 				corev1.ResourceMemory: resource.MustParse("1"),
 			}
 		}
-		defaultRequestsObjectiveWeights(in, w)
+		defaultRequestsGoalWeights(in, w)
 	}
 
 	// Default the name only after the rest of the state is consistent
@@ -118,62 +136,63 @@ func (in *Objective) Default() {
 		case in.Duration != nil:
 			in.Name = defaultObjectiveName("duration")
 		default:
-			// Do nothing, unlike a scenario, an empty objective is allowed to have an empty name
+			// Do nothing, an empty goal is allowed to have an empty name
 		}
 	}
 }
 
 // needsConfig tests the objective to see if at least one configuration section is specified.
-func (in *Objective) needsConfig() bool {
+func (in *Goal) needsConfig() bool {
 	return in.Requests == nil &&
 		in.Latency == nil &&
 		in.ErrorRate == nil &&
-		in.Duration == nil
+		in.Duration == nil &&
+		in.Custom == nil
 }
 
-func defaultRequestsObjectiveWeights(obj *Objective, weights corev1.ResourceList) {
-	if obj.Requests == nil {
-		obj.Requests = &RequestsObjective{}
+func defaultRequestsGoalWeights(goal *Goal, weights corev1.ResourceList) {
+	if goal.Requests == nil {
+		goal.Requests = &RequestsGoal{}
 	}
 
-	if obj.Requests.Weights == nil {
-		obj.Requests.Weights = make(corev1.ResourceList)
+	if goal.Requests.Weights == nil {
+		goal.Requests.Weights = make(corev1.ResourceList)
 	}
 
 	for k, v := range weights {
-		if _, ok := obj.Requests.Weights[k]; !ok {
-			obj.Requests.Weights[k] = v
+		if _, ok := goal.Requests.Weights[k]; !ok {
+			goal.Requests.Weights[k] = v
 		}
 	}
 }
 
-func defaultLatencyObjective(obj *Objective, latency LatencyType) {
-	if obj.Latency == nil {
-		obj.Latency = &LatencyObjective{}
+func defaultLatencyGoal(goal *Goal, latency LatencyType) {
+	if goal.Latency == nil {
+		goal.Latency = &LatencyGoal{}
 	}
 
-	if obj.Latency.LatencyType == "" {
-		obj.Latency.LatencyType = latency
-	}
-}
-
-func defaultErrorRateObjective(obj *Objective, errorRate ErrorRateType) {
-	if obj.ErrorRate == nil {
-		obj.ErrorRate = &ErrorRateObjective{}
-	}
-
-	if obj.ErrorRate.ErrorRateType == "" {
-		obj.ErrorRate.ErrorRateType = errorRate
+	if goal.Latency.LatencyType == "" {
+		goal.Latency.LatencyType = latency
 	}
 }
 
-func defaultDurationObjective(obj *Objective, duration DurationType) {
-	if obj.Duration == nil {
-		obj.Duration = &DurationObjective{}
+func defaultErrorRateGoal(goal *Goal, errorRate ErrorRateType) {
+	if goal.ErrorRate == nil {
+		goal.ErrorRate = &ErrorRateGoal{}
 	}
 
-	if obj.Duration.DurationType == "" {
-		obj.Duration.DurationType = duration
+	if goal.ErrorRate.ErrorRateType == "" {
+		goal.ErrorRate.ErrorRateType = errorRate
+	}
+}
+
+func defaultDurationGoal(goal *Goal, duration DurationType) {
+	if goal.Duration == nil {
+		goal.Duration = &DurationGoal{}
+	}
+
+	if goal.Duration.DurationType == "" {
+		goal.Duration.DurationType = duration
 	}
 }
 

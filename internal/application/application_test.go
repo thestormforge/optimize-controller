@@ -20,130 +20,45 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
+	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestExperimentName(t *testing.T) {
 	cases := []struct {
-		name string
-		app  v1alpha1.Application
+		applicationName string
+		scenario        string
+		objective       string
+		expected        string
 	}{
 		{
-			name: "application-testcase-objective",
-			app: v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{Name: "application"},
-				Scenarios: []v1alpha1.Scenario{
-					{
-						// NOTE: This relies on the behavior of `Application.Default()`
-						StormForger: &v1alpha1.StormForgerScenario{TestCase: "testCase"},
-					},
-				},
-				Objectives: []v1alpha1.Objective{
-					{
-						Name: "objective",
-					},
-				},
-			},
+			applicationName: "this-is-a-really-really-long-name-that-is-exactly-63-characters",
+			scenario:        "xxx",
+			objective:       "xxx",
+			expected:        "this-is-a-really-really-long-name-that-is-exactly-63-c-018f4d7f",
 		},
-
 		{
-			name: "application-scenario-objective",
-			app: v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{Name: "application"},
-				Scenarios: []v1alpha1.Scenario{
-					{
-						Name:        "scenario",
-						StormForger: &v1alpha1.StormForgerScenario{TestCase: "testCase"},
-					},
-				},
-				Objectives: []v1alpha1.Objective{
-					{
-						Name:     "objective",
-						Requests: &v1alpha1.RequestsObjective{},
-					},
-				},
-			},
+			applicationName: "scenario-and-objective-are-normalized",
+			scenario:        "FOO?", // These are not a valid scenario/objective names
+			objective:       "BAR!",
+			expected:        "scenario-and-objective-are-normalized-8843d7f9",
+		},
+		{
+			applicationName: "scenario-and-objective-are-normalized",
+			scenario:        "foo",
+			objective:       "bar",
+			expected:        "scenario-and-objective-are-normalized-8843d7f9", // This matches the hash of the invalid names
 		},
 	}
 	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			assert.Equal(t, c.name, ExperimentName(&c.app))
-		})
-	}
-}
-
-func TestFilterByExperimentName(t *testing.T) {
-	cases := []struct {
-		experiment     string
-		application    string
-		scenarioNames  []string
-		objectiveNames []string
-		err            string
-	}{
-		{
-			experiment:     "simple-default-one",
-			application:    "simple",
-			scenarioNames:  []string{"test", "default"},
-			objectiveNames: []string{"one", "two"},
-		},
-
-		{
-			experiment:     "app-app-sce-sce-obj2-obj1",
-			application:    "app-app",
-			scenarioNames:  []string{"sce-sce-sce", "sce-sce"},
-			objectiveNames: []string{"obj1", "obj2", "obj3"},
-		},
-
-		{
-			experiment:     "app-sce-sce-obj",
-			application:    "app",
-			scenarioNames:  []string{"sce", "sce-sce"},
-			objectiveNames: []string{"sce-obj", "obj"},
-			err:            "ambiguous name 'app-sce-sce-obj'",
-		},
-		{
-			experiment:     "app-sce-sce-obj",
-			application:    "app",
-			scenarioNames:  []string{"sce", "sce-sce"},
-			objectiveNames: []string{"sce-obj", "x"},
-		},
-
-		{
-			experiment:     "case-myscenario-test2-test1",
-			application:    "case",
-			scenarioNames:  []string{"MyScenario"},
-			objectiveNames: []string{"Test_2", "Test_1"},
-		},
-
-		{
-			experiment:     "app-blackfriday-latency",
-			application:    "app",
-			scenarioNames:  []string{"cybermonday", "blackfriday"},
-			objectiveNames: []string{"cost", "throughput"},
-			err:            "invalid name 'app-blackfriday-latency', could not find cost, throughput",
-		},
-	}
-	for _, c := range cases {
-		t.Run(c.experiment, func(t *testing.T) {
-			// Build an application with the all the necessary parts
-			app := &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{Name: c.application},
-			}
-			for _, n := range c.scenarioNames {
-				app.Scenarios = append(app.Scenarios, v1alpha1.Scenario{Name: n})
-			}
-			for _, n := range c.objectiveNames {
-				app.Objectives = append(app.Objectives, v1alpha1.Objective{Name: n})
-			}
-
-			// Filter the experiment using the name and verify it produces the same name
-			err := FilterByExperimentName(app, c.experiment)
-			if c.err != "" {
-				assert.EqualError(t, err, c.err)
-			} else if assert.NoError(t, err) {
-				assert.Equal(t, c.experiment, ExperimentName(app))
-			}
+		t.Run(c.applicationName, func(t *testing.T) {
+			actual := ExperimentName(&redskyappsv1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: c.applicationName,
+				},
+			}, c.scenario, c.objective)
+			assert.Equal(t, c.expected, actual)
+			assert.LessOrEqual(t, len(actual), 63)
 		})
 	}
 }
