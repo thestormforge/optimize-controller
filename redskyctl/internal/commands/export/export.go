@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -69,6 +68,13 @@ type Options struct {
 	experiment  *redsky.Experiment
 	application *app.Application
 	resources   map[string]struct{}
+}
+
+// trialDetails contains information about a trial collected from the Experiments API.
+type trialDetails struct {
+	Assignments *experimentsapi.TrialAssignments
+	Experiment  string
+	Application string
 }
 
 // NewCommand creates a command for performing an export
@@ -171,13 +177,13 @@ func (o *Options) readInput() error {
 	return nil
 }
 
-func (o *Options) extractApplication() error {
+func (o *Options) extractApplication(trial *trialDetails) error {
 	var appBuf bytes.Buffer
 
 	// Render Experiment
 	appInput := kio.Pipeline{
 		Inputs:  []kio.Reader{&kio.ByteReader{Reader: bytes.NewReader(o.inputData)}},
-		Filters: []kio.Filter{kio.FilterFunc(filter("Application"))},
+		Filters: []kio.Filter{kio.FilterFunc(filter("Application", trial.Application))},
 		Outputs: []kio.Writer{kio.ByteWriter{Writer: &appBuf}},
 	}
 	if err := appInput.Execute(); err != nil {
@@ -194,13 +200,13 @@ func (o *Options) extractApplication() error {
 	return commander.NewResourceReader().ReadInto(ioutil.NopCloser(&appBuf), o.application)
 }
 
-func (o *Options) extractExperiment() error {
+func (o *Options) extractExperiment(trial *trialDetails) error {
 	var experimentBuf bytes.Buffer
 
 	// Render Experiment
 	experimentInput := kio.Pipeline{
 		Inputs:  []kio.Reader{&kio.ByteReader{Reader: bytes.NewReader(o.inputData)}},
-		Filters: []kio.Filter{kio.FilterFunc(filter("Experiment"))},
+		Filters: []kio.Filter{kio.FilterFunc(filter("Experiment", trial.Experiment))},
 		Outputs: []kio.Writer{kio.ByteWriter{Writer: &experimentBuf}},
 	}
 	if err := experimentInput.Execute(); err != nil {
@@ -218,7 +224,7 @@ func (o *Options) extractExperiment() error {
 }
 
 // filter returns a filter function to exctract a specified `kind` from the input.
-func filter(kind string) kio.FilterFunc {
+func filter(kind, name string) kio.FilterFunc {
 	return func(input []*yaml.RNode) ([]*yaml.RNode, error) {
 		var output kio.ResourceNodeSlice
 		for i := range input {
@@ -227,6 +233,9 @@ func filter(kind string) kio.FilterFunc {
 				return nil, err
 			}
 			if m.Kind != kind {
+				continue
+			}
+			if name != "" && m.Name != name {
 				continue
 			}
 			output = append(output, input[i])
@@ -276,49 +285,44 @@ func filterPatch(patches []types.Patch) kio.FilterFunc {
 }
 
 func (o *Options) runner(ctx context.Context) error {
-	if o.trialName == "" {
-		return fmt.Errorf("a trial name must be specified")
+	// look up trial from api
+	trialDetails, err := o.getTrialDetails(ctx)
+	if err != nil {
+		return err
 	}
 
 	if err := o.readInput(); err != nil {
 		return err
 	}
 
-	// See if we have been given an applcation
-	if err := o.extractApplication(); err != nil {
-		return fmt.Errorf("got an error when looking for application: %w", err)
-	}
-
 	// See if we have been given an experiment
-	if err := o.extractExperiment(); err != nil {
+	if err := o.extractExperiment(trialDetails); err != nil {
 		return fmt.Errorf("got an error when looking for experiment: %w", err)
 	}
 
-	switch {
-	case o.application != nil:
-		if err := o.generateExperiment(); err != nil {
+	// See if we have been given an application
+	if o.experiment == nil {
+		if err := o.extractApplication(trialDetails); err != nil {
+			return fmt.Errorf("got an error when looking for application: %w", err)
+		}
+
+		if o.application == nil {
+			return fmt.Errorf("unable to find an application %q", trialDetails.Application)
+		}
+
+		if err := o.generateExperiment(trialDetails); err != nil {
 			return err
 		}
-	case o.experiment != nil:
-		// Dont need to do anything special
-	default:
-		return fmt.Errorf("unable to identify an experiment or application")
 	}
 
 	// At this point we must have an experiment
 	if o.experiment == nil {
-		return fmt.Errorf("unable to find an experiment")
-	}
-
-	// look up trial from api
-	trialItem, err := o.getTrialByID(ctx, o.experiment.Name)
-	if err != nil {
-		return err
+		return fmt.Errorf("unable to find an experiment %q", trialDetails.Experiment)
 	}
 
 	trial := &redsky.Trial{}
 	experiment.PopulateTrialFromTemplate(o.experiment, trial)
-	server.ToClusterTrial(trial, &trialItem.TrialAssignments)
+	server.ToClusterTrial(trial, trialDetails.Assignments)
 
 	// render patches
 	patches, err := createKustomizePatches(o.experiment.Spec.Patches, trial)
@@ -366,9 +370,9 @@ func (o *Options) runner(ctx context.Context) error {
 	return nil
 }
 
-func (o *Options) generateExperiment() error {
+func (o *Options) generateExperiment(trial *trialDetails) error {
 	// Filter application experiment to only the relevant pieces
-	apppkg.FilterByExperimentName(o.application, o.trialName[:strings.LastIndex(o.trialName, "-")])
+	apppkg.FilterByExperimentName(o.application, trial.Experiment)
 
 	list := &corev1.List{}
 
@@ -423,55 +427,53 @@ func (o *Options) generateExperiment() error {
 	return nil
 }
 
-func (o *Options) getTrialByID(ctx context.Context, experimentName string) (*experimentsapi.TrialItem, error) {
+// getTrialDetails returns information about the requested trial.
+func (o *Options) getTrialDetails(ctx context.Context) (*trialDetails, error) {
+	if o.trialName == "" {
+		return nil, fmt.Errorf("a trial name must be specified")
+	}
+	if o.ExperimentsAPI == nil {
+		return nil, fmt.Errorf("unable to connect to api server")
+	}
+
+	experimentName, trialNumber := experimentsapi.SplitTrialName(o.trialName)
+	if trialNumber < 0 {
+		return nil, fmt.Errorf("invalid trial name %q", o.trialName)
+	}
+
+	exp, err := o.ExperimentsAPI.GetExperimentByName(ctx, experimentName)
+	if err != nil {
+		return nil, err
+	}
+	if exp.TrialsURL == "" {
+		return nil, fmt.Errorf("unable to find trials for experiment")
+	}
+
+	// Capture details about the trial provenance
+	result := &trialDetails{
+		Experiment:  experimentName.Name(),
+		Application: exp.Labels["application"],
+	}
+
 	query := &experimentsapi.TrialListQuery{
 		Status: []experimentsapi.TrialStatus{experimentsapi.TrialCompleted},
 	}
-
-	trialList, err := o.getTrials(ctx, experimentName, query)
+	trialList, err := o.ExperimentsAPI.GetAllTrials(ctx, exp.TrialsURL, query)
 	if err != nil {
 		return nil, err
 	}
 
-	// Cut off just the trial number from the trial name
-	trialNum := o.trialName[strings.LastIndex(o.trialName, "-")+1:]
-	trialNumber, err := strconv.Atoi(trialNum)
-	if err != nil {
-		return nil, err
-	}
-
-	// Isolate the given trial we want by number
-	var wantedTrial *experimentsapi.TrialItem
-	for _, trial := range trialList.Trials {
-		if trial.Number == int64(trialNumber) {
-			wantedTrial = &trial
+	for i := range trialList.Trials {
+		if trialList.Trials[i].Number == trialNumber {
+			result.Assignments = &trialList.Trials[i].TrialAssignments
 			break
 		}
 	}
 
-	if wantedTrial == nil {
+	if result.Assignments == nil {
 		return nil, fmt.Errorf("trial not found")
 	}
-
-	return wantedTrial, nil
-}
-
-// getTrials gets all trials from the redsky api for a given experiment.
-func (o *Options) getTrials(ctx context.Context, experimentName string, query *experimentsapi.TrialListQuery) (trialList experimentsapi.TrialList, err error) {
-	if o.ExperimentsAPI == nil {
-		return trialList, fmt.Errorf("unable to connect to api server")
-	}
-
-	experiment, err := o.ExperimentsAPI.GetExperimentByName(ctx, experimentsapi.NewExperimentName(experimentName))
-	if err != nil {
-		return trialList, err
-	}
-
-	if experiment.TrialsURL == "" {
-		return trialList, fmt.Errorf("unable to identify trial")
-	}
-
-	return o.ExperimentsAPI.GetAllTrials(ctx, experiment.TrialsURL, query)
+	return result, nil
 }
 
 // createKustomizePatches translates a patchTemplate into a kustomize (json) patch
