@@ -39,8 +39,8 @@ type Generator struct {
 	Resources konjure.Resources
 	// File name containing a description of the load to generate.
 	ScenarioFile string
-	// The list of objective names to include in the application
-	Objectives []string
+	// The list of goal names to include in the application
+	Goals []string
 	// The filter to provide additional documentation in the generated YAML.
 	Documentation DocumentationFilter
 	// An explicit working directory used to relativize file paths.
@@ -170,8 +170,10 @@ func (g *Generator) apply(app *redskyappsv1alpha1.Application) error {
 		app.Scenarios = append(app.Scenarios, *s)
 	}
 
-	for _, o := range g.Objectives {
-		app.Objectives = append(app.Objectives, redskyappsv1alpha1.Objective{Name: o})
+	if o, err := g.readObjective(); err != nil {
+		return err
+	} else if o != nil {
+		app.Objectives = append(app.Objectives, *o)
 	}
 
 	return nil
@@ -232,4 +234,18 @@ func (g *Generator) readScenario() (*redskyappsv1alpha1.Scenario, error) {
 	}
 
 	return nil, nil
+}
+
+// readObjective attempts to create an objective for the application.
+func (g *Generator) readObjective() (*redskyappsv1alpha1.Objective, error) {
+	if len(g.Goals) == 0 {
+		return nil, nil
+	}
+
+	obj := &redskyappsv1alpha1.Objective{}
+	for _, goal := range g.Goals {
+		obj.Goals = append(obj.Goals, redskyappsv1alpha1.Goal{Name: goal})
+	}
+
+	return obj, nil
 }
