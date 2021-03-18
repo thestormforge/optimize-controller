@@ -53,7 +53,8 @@ func FromCluster(in *redskyv1beta1.Experiment) (redskyapi.ExperimentName, *redsk
 	if l := len(in.ObjectMeta.Labels); l > 0 {
 		out.Labels = make(map[string]string, l)
 		for k, v := range in.ObjectMeta.Labels {
-			out.Labels[strings.TrimPrefix(k, "redskyops.dev/")] = v
+			k = strings.TrimPrefix(k, "redskyops.dev/")
+			out.Labels[k] = v
 		}
 	}
 

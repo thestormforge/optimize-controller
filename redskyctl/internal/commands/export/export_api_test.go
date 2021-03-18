@@ -62,6 +62,10 @@ func (f *fakeRedSkyServer) GetExperimentByName(ctx context.Context, name experim
 			TrialsURL: "http://sometrial",
 		},
 		DisplayName: "postgres-example",
+		Labels: map[string]string{
+			// NOTE: If the application label is not present, we will accept any application
+			"application": "sampleApplication",
+		},
 		Metrics: []experimentsapi.Metric{
 			{
 				Name:     "cost",
