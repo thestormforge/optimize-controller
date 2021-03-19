@@ -46,7 +46,7 @@ type Application struct {
 	// The list of scenarios to optimize the application for.
 	Scenarios []Scenario `json:"scenarios,omitempty"`
 
-	// The list of objectives to optimizat the application for.
+	// The list of objectives to optimize the application for.
 	Objectives []Objective `json:"objectives,omitempty"`
 
 	// StormForger allows you to configure StormForger to apply load on your application.
@@ -139,12 +139,20 @@ type CustomScenario struct {
 	Image string `json:"image,omitempty"`
 }
 
-// Objective describes the goal of the optimization in terms of specific metrics. Note that only
-// one objective configuration can be specified at a time.
+// Objective describes the goals of the optimization in terms of specific metrics.
 type Objective struct {
-	// The name of the objective. If no objective specific configuration is supplied, the name is
-	// used to derive a configuration. For example, any valid latency (prefixed or suffixed with
-	// "latency") will configure a default latency objective.
+	// The name of the objective. If omitted, a default name will be generated
+	// based on the goals.
+	Name string `json:"name,omitempty"`
+	// The list of goals for the objective.
+	Goals []Goal `json:"goals,omitempty"`
+}
+
+// Goal is an individual component of an objective.
+type Goal struct {
+	// The name of the goal. If no specific configuration is supplied, the name is
+	// used to derive a configuration. For example, any valid latency (prefixed or
+	// suffixed with "latency") will configure a default latency goal.
 	Name string `json:"name,omitempty"`
 	// The upper bound for the objective.
 	Max *resource.Quantity `json:"max,omitempty"`
@@ -154,31 +162,33 @@ type Objective struct {
 	Optimize *bool `json:"optimize,omitempty"`
 
 	// Requests is used to optimize the resources consumed by an application.
-	Requests *RequestsObjective `json:"requests,omitempty"`
+	Requests *RequestsGoal `json:"requests,omitempty"`
 	// Latency is used to optimize the responsiveness of an application.
-	Latency *LatencyObjective `json:"latency,omitempty"`
+	Latency *LatencyGoal `json:"latency,omitempty"`
 	// ErrorRate is used to optimize the failure rate of an application.
-	ErrorRate *ErrorRateObjective `json:"errorRate,omitempty"`
+	ErrorRate *ErrorRateGoal `json:"errorRate,omitempty"`
 	// Duration is used to optimize the elapsed time of an application performing a fixed amount of work.
-	Duration *DurationObjective `json:"duration,omitempty"`
+	Duration *DurationGoal `json:"duration,omitempty"`
 	// Custom is used to optimize against externally defined metrics.
-	Custom *CustomObjective `json:"custom,omitempty"`
+	Custom *CustomGoal `json:"custom,omitempty"`
+
+	// IMPORTANT: Remember to update `isEmptyConfig` when adding new goal types
 
 	// Internal use field for marking objectives as having been implemented. For example,
 	// it may be impossible to optimize for some objectives based on the current state.
 	Implemented bool `json:"-"`
 }
 
-// RequestsObjective is used to optimize the resource requests of an application in a specific scenario.
-type RequestsObjective struct {
+// RequestsGoal is used to optimize the resource requests of an application in a specific scenario.
+type RequestsGoal struct {
 	// Labels of the pods which should be considered when collecting cost information.
 	MetricSelector string `json:"metricSelector,omitempty"`
 	// Weights are used to determine which container resources should be optimized.
 	Weights corev1.ResourceList `json:"weights,omitempty"`
 }
 
-// LatencyObjective is used to optimize the responsiveness of an application in a specific scenario.
-type LatencyObjective struct {
+// LatencyGoal is used to optimize the responsiveness of an application in a specific scenario.
+type LatencyGoal struct {
 	// The latency to optimize. Can be one of the following values:
 	// `minimum` (or `min`), `maximum` (or `max`), `mean` (or `average`, `avg`),
 	// `percentile_50` (or `p50`, `median`, `med`), `percentile_95` (or `p95`),
@@ -187,7 +197,7 @@ type LatencyObjective struct {
 }
 
 // UnmarshalJSON allows a latency objective to be specified as a simple string.
-func (in *LatencyObjective) UnmarshalJSON(data []byte) error {
+func (in *LatencyGoal) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &in.LatencyType)
 }
 
@@ -203,14 +213,14 @@ const (
 	LatencyPercentile99 LatencyType = "percentile_99"
 )
 
-// ErrorRateObjective is used to optimize the error rate of an application in a specific scenario.
-type ErrorRateObjective struct {
+// ErrorRateGoal is used to optimize the error rate of an application in a specific scenario.
+type ErrorRateGoal struct {
 	// The error rate to optimize. Can be one of the following values: `requests`.
 	ErrorRateType
 }
 
 // UnmarshalJSON allows an error rate objective to be specified as a simple string.
-func (in *ErrorRateObjective) UnmarshalJSON(data []byte) error {
+func (in *ErrorRateGoal) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &in.ErrorRateType)
 }
 
@@ -221,14 +231,14 @@ const (
 	ErrorRateRequests ErrorRateType = "requests"
 )
 
-// DurationObjective is used to optimize the amount of time elapsed in a specific scenario.
-type DurationObjective struct {
+// DurationGoal is used to optimize the amount of time elapsed in a specific scenario.
+type DurationGoal struct {
 	// The duration to optimize. Can be one of the following values: `trial`.
 	DurationType
 }
 
 // UnmarshalJSON allows a timing objective to be specified as a simple string.
-func (in *DurationObjective) UnmarshalJSON(data []byte) error {
+func (in *DurationGoal) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &in.DurationType)
 }
 
@@ -239,18 +249,18 @@ const (
 	DurationTrial DurationType = "trial"
 )
 
-// CustomObjective is used in advanced cases to configure external metric sources.
-type CustomObjective struct {
+// CustomGoal is used in advanced cases to configure external metric sources.
+type CustomGoal struct {
 	// Define a custom optimization metric using Prometheus.
-	Prometheus *CustomPrometheusObjective `json:"prometheus,omitempty"`
+	Prometheus *CustomPrometheusGoal `json:"prometheus,omitempty"`
 	// Default a custom optimization metric using Datadog.
-	Datadog *CustomDatadogObjective `json:"datadog,omitempty"`
+	Datadog *CustomDatadogGoal `json:"datadog,omitempty"`
 	// Flag indicating the goal of optimization should be to maximize a metric.
 	Maximize bool `json:"maximize,omitempty"`
 }
 
-// CustomPrometheusObjective is used to define an external optimization metric from Prometheus.
-type CustomPrometheusObjective struct {
+// CustomPrometheusGoal is used to define an external optimization metric from Prometheus.
+type CustomPrometheusGoal struct {
 	// The PromQL query to execute; the result of this query MUST be a scalar value.
 	Query string `json:"query"`
 	// The URL of the Prometheus deployment, leave blank to leverage a Prometheus instance
@@ -258,8 +268,8 @@ type CustomPrometheusObjective struct {
 	URL string `json:"url,omitempty"`
 }
 
-// CustomDatadogObjective is used to define an external optimization metric from DataDog.
-type CustomDatadogObjective struct {
+// CustomDatadogGoal is used to define an external optimization metric from DataDog.
+type CustomDatadogGoal struct {
 	// The [Datadog](https://docs.datadoghq.com/tracing/trace_search_and_analytics/query_syntax/) query to execute.
 	Query string `json:"query"`
 	// The aggregator to use on the query results (one of: avg, last, max, min, sum).

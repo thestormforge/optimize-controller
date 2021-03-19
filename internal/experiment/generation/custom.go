@@ -33,6 +33,7 @@ import (
 type CustomSource struct {
 	Scenario    *redskyappsv1alpha1.Scenario
 	Objective   *redskyappsv1alpha1.Objective
+	Goal        *redskyappsv1alpha1.Goal
 	Application *redskyappsv1alpha1.Application
 }
 
@@ -83,29 +84,37 @@ func (s *CustomSource) Update(exp *redskyv1beta1.Experiment) error {
 }
 
 func (s *CustomSource) Metrics() ([]redskyv1beta1.Metric, error) {
-	if s.Objective != nil {
-		return s.objectiveMetrics()
+	if s.Scenario != nil {
+		return s.scenarioMetrics()
 	}
 
-	return s.scenarioMetrics()
+	if s.Goal != nil {
+		return s.goalMetrics()
+	}
+
+	return nil, nil
 }
 
 func (s *CustomSource) scenarioMetrics() ([]redskyv1beta1.Metric, error) {
 	var result []redskyv1beta1.Metric
-	for i := range s.Application.Objectives {
-		obj := &s.Application.Objectives[i]
+	if s.Objective == nil {
+		return result, nil
+	}
+
+	for i := range s.Objective.Goals {
+		goal := &s.Objective.Goals[i]
 		switch {
 
-		case obj.Implemented:
+		case goal.Implemented:
 			// Do nothing
 
-		case obj.Requests != nil:
+		case goal.Requests != nil:
 			if s.Scenario.Custom.UsePushGateway {
 				continue
 			}
 
 			var weights []string
-			for n, q := range obj.Requests.Weights {
+			for n, q := range goal.Requests.Weights {
 				var scale float64 = 1
 				if n == corev1.ResourceMemory {
 					scale = 4 // Adjust memory weight from byte to gb
@@ -115,12 +124,12 @@ func (s *CustomSource) scenarioMetrics() ([]redskyv1beta1.Metric, error) {
 			}
 			query := fmt.Sprintf("{{ resourceRequests .Target %q }}", strings.Join(weights, ","))
 
-			labelSelector, err := convertPrometheusSelector(obj.Requests.MetricSelector)
+			labelSelector, err := convertPrometheusSelector(goal.Requests.MetricSelector)
 			if err != nil {
 				return nil, err
 			}
 
-			m := newObjectiveMetric(obj, query)
+			m := newGoalMetric(goal, query)
 			m.Type = ""
 			m.Target = &redskyv1beta1.ResourceTarget{
 				APIVersion:    "v1",
@@ -135,29 +144,29 @@ func (s *CustomSource) scenarioMetrics() ([]redskyv1beta1.Metric, error) {
 	return result, nil
 }
 
-func (s *CustomSource) objectiveMetrics() ([]redskyv1beta1.Metric, error) {
+func (s *CustomSource) goalMetrics() ([]redskyv1beta1.Metric, error) {
 	var result []redskyv1beta1.Metric
-	if s.Objective.Implemented {
+	if s.Goal == nil || s.Goal.Implemented {
 		return result, nil
 	}
-	if s.Objective.Name == "" {
+	if s.Goal.Name == "" {
 		return nil, fmt.Errorf("custom objective must have a name")
 	}
 
 	var m redskyv1beta1.Metric
-	m.Minimize = !s.Objective.Custom.Maximize
+	m.Minimize = !s.Goal.Custom.Maximize
 
 	switch {
-	case s.Objective.Custom.Prometheus != nil:
-		m = newObjectiveMetric(s.Objective, s.Objective.Custom.Prometheus.Query)
-		m.URL = s.Objective.Custom.Prometheus.URL
+	case s.Goal.Custom.Prometheus != nil:
+		m = newGoalMetric(s.Goal, s.Goal.Custom.Prometheus.Query)
+		m.URL = s.Goal.Custom.Prometheus.URL
 		result = append(result, m)
 
-	case s.Objective.Custom.Datadog != nil:
-		m = newObjectiveMetric(s.Objective, s.Objective.Custom.Datadog.Query)
+	case s.Goal.Custom.Datadog != nil:
+		m = newGoalMetric(s.Goal, s.Goal.Custom.Datadog.Query)
 		m.Type = redskyv1beta1.MetricDatadog
-		if s.Objective.Custom.Datadog.Aggregator != "" {
-			m.URL = "?" + url.Values{"aggregator": []string{s.Objective.Custom.Datadog.Aggregator}}.Encode()
+		if s.Goal.Custom.Datadog.Aggregator != "" {
+			m.URL = "?" + url.Values{"aggregator": []string{s.Goal.Custom.Datadog.Aggregator}}.Encode()
 		}
 		result = append(result, m)
 	}

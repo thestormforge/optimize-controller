@@ -75,6 +75,8 @@ type trialDetails struct {
 	Assignments *experimentsapi.TrialAssignments
 	Experiment  string
 	Application string
+	Scenario    string
+	Objective   string
 }
 
 // NewCommand creates a command for performing an export
@@ -371,13 +373,21 @@ func (o *Options) runner(ctx context.Context) error {
 }
 
 func (o *Options) generateExperiment(trial *trialDetails) error {
-	// Filter application experiment to only the relevant pieces
-	apppkg.FilterByExperimentName(o.application, trial.Experiment)
-
 	list := &corev1.List{}
 
-	gen := experiment.Generator{Application: *o.application, DefaultReader: o.In}
+	gen := experiment.Generator{
+		Application:    *o.application,
+		ExperimentName: trial.Experiment,
+		Scenario:       trial.Scenario,
+		Objective:      trial.Objective,
+		DefaultReader:  o.In,
+	}
+
 	gen.SetDefaultSelectors()
+	if gen.Scenario == "" && gen.Objective == "" {
+		gen.Scenario, gen.Objective = apppkg.GuessScenarioAndObjective(&gen.Application, gen.ExperimentName)
+	}
+
 	if err := gen.Execute((*scan.ObjectList)(list)); err != nil {
 		return err
 	}
@@ -453,6 +463,8 @@ func (o *Options) getTrialDetails(ctx context.Context) (*trialDetails, error) {
 	result := &trialDetails{
 		Experiment:  experimentName.Name(),
 		Application: exp.Labels["application"],
+		Scenario:    exp.Labels["scenario"],
+		Objective:   exp.Labels["objective"],
 	}
 
 	query := &experimentsapi.TrialListQuery{

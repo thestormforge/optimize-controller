@@ -20,14 +20,15 @@ scenarios:
     runTime: 30s
 
 objectives:
-# Test push gateway
-- latency: p95
-# Test built in metrics
-- name: cost
-  requests:
-    metricSelector: app=nginx
-# Test out kube metrics
-## This indirectly gets covered with built in metrics
-- optimize: false
-  duration: trial
+- goals:
+  # Test push gateway
+  - latency: p95
+  # Test built in metrics
+  - name: cost
+    requests:
+      metricSelector: app=nginx
+  # Test out kube metrics
+  ## This indirectly gets covered with built in metrics
+  - optimize: false
+    duration: trial
 

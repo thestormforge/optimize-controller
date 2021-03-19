@@ -65,6 +65,7 @@ func (f *fakeRedSkyServer) GetExperimentByName(ctx context.Context, name experim
 		Labels: map[string]string{
 			// NOTE: If the application label is not present, we will accept any application
 			"application": "sampleApplication",
+			"scenario":    "how-do-you-make-a-tissue-dance",
 		},
 		Metrics: []experimentsapi.Metric{
 			{

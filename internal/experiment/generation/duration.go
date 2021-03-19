@@ -22,20 +22,20 @@ import (
 )
 
 type DurationMetricsSource struct {
-	Objective *redskyappsv1alpha1.Objective
+	Goal *redskyappsv1alpha1.Goal
 }
 
 var _ MetricSource = &DurationMetricsSource{}
 
 func (s *DurationMetricsSource) Metrics() ([]redskyv1beta1.Metric, error) {
 	var result []redskyv1beta1.Metric
-	if s.Objective.Implemented {
+	if s.Goal == nil || s.Goal.Implemented {
 		return result, nil
 	}
 
-	switch s.Objective.Duration.DurationType {
+	switch s.Goal.Duration.DurationType {
 	case redskyappsv1alpha1.DurationTrial:
-		m := newObjectiveMetric(s.Objective, `{{ duration .StartTime .CompletionTime }}`)
+		m := newGoalMetric(s.Goal, `{{ duration .StartTime .CompletionTime }}`)
 		m.Type = ""
 		result = append(result, m)
 	}

@@ -25,7 +25,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/thestormforge/konjure/pkg/konjure"
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
-	"github.com/thestormforge/optimize-controller/internal/application"
 	"github.com/thestormforge/optimize-controller/internal/experiment"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
 	"github.com/thestormforge/optimize-go/pkg/config"
@@ -41,10 +40,8 @@ type ExperimentOptions struct {
 
 	Generator experiment.Generator
 
-	Filename   string
-	Resources  []string
-	Scenario   string
-	Objectives []string
+	Filename  string
+	Resources []string
 }
 
 // Other possible options:
@@ -74,8 +71,9 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 
 	cmd.Flags().StringVarP(&o.Filename, "filename", "f", o.Filename, "file that contains the application definition")
 	cmd.Flags().StringArrayVarP(&o.Resources, "resources", "r", nil, "additional resources to consider")
-	cmd.Flags().StringVarP(&o.Scenario, "scenario", "s", o.Scenario, "the application scenario to generate an experiment for")
-	cmd.Flags().StringArrayVar(&o.Objectives, "objectives", o.Objectives, "the application objectives to generate an experiment for")
+	cmd.Flags().StringVar(&o.Generator.ExperimentName, "name", o.Generator.ExperimentName, "override the experiment `name`")
+	cmd.Flags().StringVarP(&o.Generator.Scenario, "scenario", "s", o.Generator.Scenario, "the application scenario to generate an experiment for")
+	cmd.Flags().StringVar(&o.Generator.Objective, "objective", o.Generator.Objective, "the application objective to generate an experiment for")
 	cmd.Flags().BoolVar(&o.Generator.IncludeApplicationResources, "include-resources", false, "include the application resources in the output")
 
 	_ = cmd.MarkFlagFilename("filename", "yml", "yaml")
@@ -97,14 +95,6 @@ func (o *ExperimentOptions) generate() error {
 	}
 
 	if err := o.filterResources(&o.Generator.Application); err != nil {
-		return err
-	}
-
-	if err := application.FilterScenarios(&o.Generator.Application, o.Scenario); err != nil {
-		return err
-	}
-
-	if err := application.FilterObjectives(&o.Generator.Application, o.Objectives); err != nil {
 		return err
 	}
 
