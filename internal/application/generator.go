@@ -244,7 +244,9 @@ func (g *Generator) readObjective() (*redskyappsv1alpha1.Objective, error) {
 
 	obj := &redskyappsv1alpha1.Objective{}
 	for _, goal := range g.Goals {
-		obj.Goals = append(obj.Goals, redskyappsv1alpha1.Goal{Name: goal})
+		if goal != "" {
+			obj.Goals = append(obj.Goals, redskyappsv1alpha1.Goal{Name: goal})
+		}
 	}
 
 	return obj, nil

@@ -42,12 +42,15 @@ func GetScenario(app *redskyappsv1alpha1.Application, scenario string) (*redskya
 	var names []string
 	for i := range app.Scenarios {
 		names = append(names, app.Scenarios[i].Name)
-		if cleanName(app.Scenarios[i].Name) == cleanScenario {
-			if result != nil {
-				return nil, fmt.Errorf("scenario name %q is ambiguous", scenario)
-			}
-			result = &app.Scenarios[i]
+		if cleanName(app.Scenarios[i].Name) != cleanScenario {
+			continue
 		}
+
+		if result != nil {
+			return nil, fmt.Errorf("scenario name %q is ambiguous", scenario)
+		}
+
+		result = &app.Scenarios[i]
 	}
 
 	if result != nil {
@@ -76,12 +79,15 @@ func GetObjective(app *redskyappsv1alpha1.Application, objective string) (*redsk
 	var names []string
 	for i := range app.Objectives {
 		names = append(names, app.Objectives[i].Name)
-		if cleanName(app.Objectives[i].Name) == cleanObjective {
-			if result != nil {
-				return nil, fmt.Errorf("objective name %q is ambiguous", objective)
-			}
-			result = &app.Objectives[i]
+		if cleanName(app.Objectives[i].Name) != cleanObjective {
+			continue
 		}
+
+		if result != nil {
+			return nil, fmt.Errorf("objective name %q is ambiguous", objective)
+		}
+
+		result = &app.Objectives[i]
 	}
 
 	if result != nil {
@@ -145,7 +151,7 @@ func cleanName(n string) string {
 		if r >= '0' && r <= '9' {
 			return r
 		}
-		if r == '-' || r == '.' {
+		if r == '-' {
 			return r
 		}
 		return -1

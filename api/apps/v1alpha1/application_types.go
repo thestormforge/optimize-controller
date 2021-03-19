@@ -141,7 +141,8 @@ type CustomScenario struct {
 
 // Objective describes the goals of the optimization in terms of specific metrics.
 type Objective struct {
-	// The name of the objective.
+	// The name of the objective. If omitted, a default name will be generated
+	// based on the goals.
 	Name string `json:"name,omitempty"`
 	// The list of goals for the objective.
 	Goals []Goal `json:"goals,omitempty"`
@@ -170,6 +171,8 @@ type Goal struct {
 	Duration *DurationGoal `json:"duration,omitempty"`
 	// Custom is used to optimize against externally defined metrics.
 	Custom *CustomGoal `json:"custom,omitempty"`
+
+	// IMPORTANT: Remember to update `isEmptyConfig` when adding new goal types
 
 	// Internal use field for marking objectives as having been implemented. For example,
 	// it may be impossible to optimize for some objectives based on the current state.

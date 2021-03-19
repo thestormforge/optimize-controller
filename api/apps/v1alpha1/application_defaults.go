@@ -89,7 +89,7 @@ func (in *Objective) Default() {
 
 func (in *Goal) Default() {
 	// If there is no explicit configuration, create it by parsing the name
-	if in.Name != "" && in.needsConfig() {
+	if in.Name != "" && isEmptyConfig(in) {
 		name := strings.Map(toName, in.Name)
 		switch name {
 
@@ -141,13 +141,13 @@ func (in *Goal) Default() {
 	}
 }
 
-// needsConfig tests the objective to see if at least one configuration section is specified.
-func (in *Goal) needsConfig() bool {
-	return in.Requests == nil &&
-		in.Latency == nil &&
-		in.ErrorRate == nil &&
-		in.Duration == nil &&
-		in.Custom == nil
+// isEmptyConfig tests the goal to see if at least one configuration section is specified.
+func isEmptyConfig(goal *Goal) bool {
+	return goal.Requests == nil &&
+		goal.Latency == nil &&
+		goal.ErrorRate == nil &&
+		goal.Duration == nil &&
+		goal.Custom == nil
 }
 
 func defaultRequestsGoalWeights(goal *Goal, weights corev1.ResourceList) {
