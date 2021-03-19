@@ -140,7 +140,6 @@ func jsonPathHttpTestServer() *httptest.Server {
 	response := map[string]int{"current_response_time_percentile_95": 5}
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(response)
-		return
 	}))
 }
 
@@ -148,6 +147,5 @@ func promHttpTestServer() *httptest.Server {
 	resp := `{"status":"success","data":{"resultType":"scalar","result":[1595471900.283,"1"]}}`
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, resp)
-		return
 	}))
 }
