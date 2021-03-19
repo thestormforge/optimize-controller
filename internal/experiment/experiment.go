@@ -122,6 +122,17 @@ func summarize(exp *redskyv1beta1.Experiment, activeTrials int32, totalTrials in
 	return PhaseIdle
 }
 
+func IsFinished(exp *redskyv1beta1.Experiment) bool {
+	for _, c := range exp.Status.Conditions {
+		if c.Status == corev1.ConditionTrue {
+			if c.Type == redskyv1beta1.ExperimentComplete || c.Type == redskyv1beta1.ExperimentFailed {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func ApplyCondition(status *redskyv1beta1.ExperimentStatus, conditionType redskyv1beta1.ExperimentConditionType, conditionStatus corev1.ConditionStatus, reason, message string, time *metav1.Time) {
 	if time == nil {
 		now := metav1.Now()
