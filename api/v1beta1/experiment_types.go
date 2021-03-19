@@ -212,6 +212,8 @@ type TrialTemplateSpec struct {
 type ExperimentConditionType string
 
 const (
+	// ExperimentComplete is a condition that indicates the experiment completed successfully
+	ExperimentComplete ExperimentConditionType = "redskyops.dev/experiment-complete"
 	// ExperimentFailed is a condition that indicates an experiment failed
 	ExperimentFailed ExperimentConditionType = "redskyops.dev/experiment-failed"
 )

@@ -274,6 +274,8 @@ func (r *ServerReconciler) unlinkExperiment(ctx context.Context, log logr.Logger
 	delete(exp.GetAnnotations(), redskyv1beta1.AnnotationExperimentURL)
 	delete(exp.GetAnnotations(), redskyv1beta1.AnnotationNextTrialURL)
 
+	experiment.ApplyCondition(&exp.Status, redskyv1beta1.ExperimentComplete, corev1.ConditionTrue, "", "", nil)
+
 	// Update the experiment
 	if err := r.Update(ctx, exp); err != nil {
 		return controller.RequeueConflict(err)
