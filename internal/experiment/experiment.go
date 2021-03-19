@@ -19,8 +19,6 @@ package experiment
 import (
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	"github.com/thestormforge/optimize-controller/internal/controller"
-	"github.com/thestormforge/optimize-controller/internal/meta"
-	"github.com/thestormforge/optimize-controller/internal/server"
 	"github.com/thestormforge/optimize-controller/internal/trial"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -113,7 +111,7 @@ func summarize(exp *redskyv1beta1.Experiment, activeTrials int32, totalTrials in
 	}
 
 	if totalTrials == 0 {
-		if meta.HasFinalizer(exp, server.Finalizer) {
+		if exp.Annotations[redskyv1beta1.AnnotationExperimentURL] != "" {
 			return PhaseCreated
 		}
 		return PhaseEmpty
