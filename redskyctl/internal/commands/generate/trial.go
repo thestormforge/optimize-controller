@@ -129,17 +129,18 @@ func (o *TrialOptions) generate() error {
 	t.Finalizers = nil
 	t.Annotations = nil
 
-	// If requested, convert the trial into a job
-if o.Job == "" {
-  return o.Printer.PrintObj(t, o.Out)
-}
+	// Print the trial directly if no job conversion was requested
+	if o.Job == "" {
+		return o.Printer.PrintObj(t, o.Out)
+	}
 
-obj, err := newJob(t, o.Job, o.JobTrialNumber)
-if err != nil {
-  return err
-}
-  		
-return o.Printer.PrintObj(obj, o.Out)
+	// Convert the trial into a job
+	job, err := newJob(t, o.Job, o.JobTrialNumber)
+	if err != nil {
+		return err
+	}
+
+	return o.Printer.PrintObj(job, o.Out)
 }
 
 func newJob(t *redskyv1beta1.Trial, mode string, trialNumber int) (*batchv1.Job, error) {
