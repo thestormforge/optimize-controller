@@ -130,15 +130,16 @@ func (o *TrialOptions) generate() error {
 	t.Annotations = nil
 
 	// If requested, convert the trial into a job
-	var obj interface{} = t
-	if o.Job != "" {
-		obj, err = newJob(t, o.Job, o.JobTrialNumber)
-		if err != nil {
-			return err
-		}
-	}
+if o.Job == "" {
+  return o.Printer.PrintObj(t, o.Out)
+}
 
-	return o.Printer.PrintObj(obj, o.Out)
+obj, err := newJob(t, o.Job, o.JobTrialNumber)
+if err != nil {
+  return err
+}
+  		
+return o.Printer.PrintObj(obj, o.Out)
 }
 
 func newJob(t *redskyv1beta1.Trial, mode string, trialNumber int) (*batchv1.Job, error) {
