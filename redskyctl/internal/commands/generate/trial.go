@@ -18,21 +18,27 @@ package generate
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	"github.com/thestormforge/optimize-controller/internal/experiment"
 	"github.com/thestormforge/optimize-controller/internal/server"
+	"github.com/thestormforge/optimize-controller/internal/setup"
+	"github.com/thestormforge/optimize-controller/internal/trial"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/experiments"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1/numstr"
+	batchv1 "k8s.io/api/batch/v1"
 )
 
 type TrialOptions struct {
 	experiments.SuggestOptions
 
-	Filename string
+	Filename       string
+	Job            string
+	JobTrialNumber int
 }
 
 func NewTrialCommand(o *TrialOptions) *cobra.Command {
@@ -52,6 +58,8 @@ func NewTrialCommand(o *TrialOptions) *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&o.Filename, "filename", "f", o.Filename, "file that contains the experiment to generate trials for")
+	cmd.Flags().StringVar(&o.Job, "job", "", "generate the specified trial job; one of: trial|create|delete")
+	cmd.Flags().IntVar(&o.JobTrialNumber, "job-trial-number", 0, "explicitly set the trial number when generating jobs")
 	cmd.Flags().StringVarP(&o.Labels, "labels", "l", "", "comma separated `key=value` labels to apply to the trial")
 
 	cmd.Flags().StringToStringVarP(&o.Assignments, "assign", "A", nil, "assign an explicit `key=value` to a parameter")
@@ -121,5 +129,42 @@ func (o *TrialOptions) generate() error {
 	t.Finalizers = nil
 	t.Annotations = nil
 
-	return o.Printer.PrintObj(t, o.Out)
+	// Print the trial directly if no job conversion was requested
+	if o.Job == "" {
+		return o.Printer.PrintObj(t, o.Out)
+	}
+
+	// Convert the trial into a job
+	job, err := newJob(t, o.Job, o.JobTrialNumber)
+	if err != nil {
+		return err
+	}
+
+	return o.Printer.PrintObj(job, o.Out)
+}
+
+func newJob(t *redskyv1beta1.Trial, mode string, trialNumber int) (*batchv1.Job, error) {
+	// Make sure the trial has a name when generating the jobs or we produce invalid output
+	if t.Name == "" {
+		t.Name = fmt.Sprintf("%s%d", t.GenerateName, trialNumber)
+	}
+
+	// If the mode is "trial" generate the actual trial job instead of a setup job
+	if strings.EqualFold(mode, "trial") {
+		return trial.NewJob(t), nil
+	}
+
+	// Create the setup job
+	job, err := setup.NewJob(t, mode)
+	if err != nil {
+		return nil, err
+	}
+
+	// Instead of checking ahead of time for setup tasks, check the number of containers
+	// on the job. This will better account for things like the "skip" settings.
+	if len(job.Spec.Template.Spec.Containers) == 0 {
+		return nil, nil
+	}
+
+	return job, nil
 }
