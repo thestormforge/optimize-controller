@@ -121,6 +121,14 @@ func TestSummarize(t *testing.T) {
 				Spec: redsky.ExperimentSpec{
 					Replicas: &zeroReplicas,
 				},
+				Status: redsky.ExperimentStatus{
+					Conditions: []redsky.ExperimentCondition{
+						{
+							Type:   redsky.ExperimentComplete,
+							Status: corev1.ConditionTrue,
+						},
+					},
+				},
 			},
 			expectedPhase: PhaseCompleted,
 		},

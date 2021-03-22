@@ -74,10 +74,8 @@ func (r *ServerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	// Create the experiment on the server
-	if exp.GetAnnotations()[redskyv1beta1.AnnotationExperimentURL] == "" && exp.Replicas() > 0 {
-		if result, err := r.createExperiment(ctx, log, exp); result != nil {
-			return *result, err
-		}
+	if result, err := r.createExperiment(ctx, log, exp); result != nil {
+		return *result, err
 	}
 
 	// Get the current list of trials
@@ -215,6 +213,16 @@ func (r *ServerReconciler) listTrials(ctx context.Context, trialList *redskyv1be
 // createExperiment will create a new experiment on the server using the cluster state; any default values from the
 // server will be copied back into cluster along with the URLs needed for future interactions with server.
 func (r *ServerReconciler) createExperiment(ctx context.Context, log logr.Logger, exp *redskyv1beta1.Experiment) (*ctrl.Result, error) {
+	// If the server finalizer is already present, do not try to recreate the experiment on the server
+	if meta.HasFinalizer(exp, server.Finalizer) {
+		return nil, nil
+	}
+
+	// Rely on the status to prevent re-running an already run experiment
+	if experiment.IsFinished(exp) {
+		return nil, nil
+	}
+
 	// Convert the cluster state into a server representation
 	n, e, b, err := server.FromCluster(exp)
 	if err != nil {
@@ -226,6 +234,7 @@ func (r *ServerReconciler) createExperiment(ctx context.Context, log logr.Logger
 	}
 
 	// Create the experiment remotely
+	// TODO This should check for an existing URL annotation before using the name (needs a new version of optimize-go)
 	ee, err := r.ExperimentsAPI.CreateExperiment(ctx, n, *e)
 	if err != nil {
 		if server.FailExperiment(exp, "ServerCreateFailed", err) {
@@ -273,6 +282,8 @@ func (r *ServerReconciler) unlinkExperiment(ctx context.Context, log logr.Logger
 
 	delete(exp.GetAnnotations(), redskyv1beta1.AnnotationExperimentURL)
 	delete(exp.GetAnnotations(), redskyv1beta1.AnnotationNextTrialURL)
+
+	experiment.ApplyCondition(&exp.Status, redskyv1beta1.ExperimentComplete, corev1.ConditionTrue, "", "", nil)
 
 	// Update the experiment
 	if err := r.Update(ctx, exp); err != nil {

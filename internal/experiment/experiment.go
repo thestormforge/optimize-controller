@@ -85,14 +85,16 @@ func UpdateStatus(exp *redskyv1beta1.Experiment, trialList *redskyv1beta1.TrialL
 }
 
 func summarize(exp *redskyv1beta1.Experiment, activeTrials int32, totalTrials int) string {
-	remote := exp.Annotations[redskyv1beta1.AnnotationExperimentURL] != "" // TODO Or check for the server finalizer?
-
 	if !exp.GetDeletionTimestamp().IsZero() {
 		return PhaseDeleted
 	}
 
 	for _, c := range exp.Status.Conditions {
 		switch c.Type {
+		case redskyv1beta1.ExperimentComplete:
+			if c.Status == corev1.ConditionTrue {
+				return PhaseCompleted
+			}
 		case redskyv1beta1.ExperimentFailed:
 			if c.Status == corev1.ConditionTrue {
 				return PhaseFailed
@@ -105,20 +107,28 @@ func summarize(exp *redskyv1beta1.Experiment, activeTrials int32, totalTrials in
 	}
 
 	if exp.Replicas() == 0 {
-		if remote && exp.Annotations[redskyv1beta1.AnnotationNextTrialURL] == "" {
-			return PhaseCompleted
-		}
 		return PhasePaused
 	}
 
 	if totalTrials == 0 {
-		if remote {
+		if exp.Annotations[redskyv1beta1.AnnotationExperimentURL] != "" {
 			return PhaseCreated
 		}
 		return PhaseEmpty
 	}
 
 	return PhaseIdle
+}
+
+func IsFinished(exp *redskyv1beta1.Experiment) bool {
+	for _, c := range exp.Status.Conditions {
+		if c.Status == corev1.ConditionTrue {
+			if c.Type == redskyv1beta1.ExperimentComplete || c.Type == redskyv1beta1.ExperimentFailed {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func ApplyCondition(status *redskyv1beta1.ExperimentStatus, conditionType redskyv1beta1.ExperimentConditionType, conditionStatus corev1.ConditionStatus, reason, message string, time *metav1.Time) {
