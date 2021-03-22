@@ -18,30 +18,23 @@ package experiment
 
 import (
 	"bytes"
+	"context"
 	"log"
 
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
+	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/kustomize/kyaml/kio"
+	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
 // This doesnt necessarily need to live here, but seemed to make sense
-func Run(appCh chan *redskyappsv1alpha1.Application) {
-	for app := range appCh {
-		// TODO
-		//
-		// How do we want to scope the app.yaml here?
-		//
-		// Should we assume that since we're in control of the endpoint that is generating
-		// the app.yaml, we should only ever have 1 scenario/objective?
-		// Or should we support fetching app.yaml from any endpoint
-		// at which point we need to select an appropriate scenario/objective and handle
-		// all the same nuances from the redskyctl generate experiment -
-		// name/namespace/objective/scenario/resources location
-		//
-		// Do annotations here make sense to provide that hint around which
-		// objective/scenario to pick?
+func Run(kclient client.Client, appCh chan *redskyappsv1alpha1.Application) {
+	// api applicationsv1alpha1.API
 
+	for app := range appCh {
 		if app.Namespace == "" || app.Name == "" {
+			// api.UpdateStatus("failed")
 			log.Println("bad app.yaml")
 			continue
 		}
@@ -49,10 +42,6 @@ func Run(appCh chan *redskyappsv1alpha1.Application) {
 		g := &Generator{
 			Application: *app,
 		}
-
-		// TODO
-		// (larger note above) how do we want to handle scenario/objective filtering?
-		g.SetDefaultSelectors()
 
 		var inputsBuf bytes.Buffer
 
@@ -65,16 +54,26 @@ func Run(appCh chan *redskyappsv1alpha1.Application) {
 			continue
 		}
 
-		// Do we want to look for annotations to trigger the start of the experiment?
-		// ex, `stormforge.dev/application-verified: true` translates to `exp.spec.replicas = 1`
+		exp := &redskyv1beta1.Experiment{}
+		if err := yaml.Unmarshal(inputsBuf.Bytes(), exp); err != nil {
+			// api.UpdateStatus("failed")
+			log.Println(err)
+			continue
+		}
+
+		if _, ok := app.Annotations[redskyappsv1alpha1.AnnotationUserConfirmed]; !ok {
+			var replicas int32 = 0
+			exp.Spec.Replicas = &replicas
+		}
 
 		// TODO
-		// What next with the generated experiment?
-		//
-		// handle creation here?
-		// // just experiment.yaml, no rbac?
-		// maybe send up to some api for preview/confirmation?
-		// maybe both?
-		// maybe neither?
+		// How should we handle the rejection of an application ( user wanted to make
+		// changes, so we need to delete the old experiment )
+
+		if err := kclient.Create(context.Background(), exp); err != nil {
+			// api.UpdateStatus("failed")
+			log.Println("bad experiment")
+			continue
+		}
 	}
 }
