@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -48,6 +49,25 @@ var (
 	defaultServerTrialTTLSecondsAfterFinished = int32((4 * time.Hour) / time.Second)
 	defaultServerTrialTTLSecondsAfterFailure  = int32((48 * time.Hour) / time.Second)
 )
+
+// trialCreationRateLimit returns the configured rate for allowing trial creations, the
+// default (and minimum allowed) rate is 1 trial per second.
+func trialCreationRateLimit(log logr.Logger) rate.Limit {
+	// NOTE: If we are changing this to a lot of different values, it should be moved to the configuration
+	trialCreationInterval, ok := os.LookupEnv("REDSKY_TRIAL_CREATION_INTERVAL")
+	if !ok {
+		return rate.Limit(1)
+	}
+
+	d, err := time.ParseDuration(trialCreationInterval)
+	if err != nil || d < time.Second {
+		log.Info("Ignoring invalid custom trial creation interval", "trialCreationInterval", trialCreationInterval)
+		return rate.Limit(1)
+	}
+
+	log.Info("Using custom trial creation interval", "trialCreationInterval", trialCreationInterval)
+	return rate.Every(d)
+}
 
 // ServerReconciler reconciles a experiment and trial objects with a remote server
 type ServerReconciler struct {
@@ -180,8 +200,8 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		r.ExperimentsAPI = expAPI
 	}
 
-	// Enforce a one trial per-second creation limit (no burst! that is the whole point)
-	r.trialCreation = rate.NewLimiter(1, 1)
+	// Enforce trial creation rate limit (no burst! that is the whole point)
+	r.trialCreation = rate.NewLimiter(trialCreationRateLimit(r.Log), 1)
 
 	// To search for namespaces by name, we need to index them
 	_ = mgr.GetCache().IndexField(&corev1.Namespace{}, "metadata.name", func(obj runtime.Object) []string { return []string{obj.(*corev1.Namespace).Name} })
@@ -298,11 +318,15 @@ func (r *ServerReconciler) unlinkExperiment(ctx context.Context, log logr.Logger
 // a trial; if the cluster can not accommodate additional trials at the time of invocation, not action will be taken
 func (r *ServerReconciler) nextTrial(ctx context.Context, log logr.Logger, exp *redskyv1beta1.Experiment, trialList *redskyv1beta1.TrialList) (*ctrl.Result, error) {
 	// Enforce a rate limit on trial creation
-	if res := r.trialCreation.Reserve(); res.OK() {
-		if d := res.Delay(); d > 0 {
-			res.Cancel()
-			return &ctrl.Result{RequeueAfter: d}, nil
-		}
+	res := r.trialCreation.Reserve()
+	if !res.OK() {
+		// This should never happen, if it does, just drop the reconciliation
+		log.Info("Trial creation reservation failed", "limit", r.trialCreation.Limit(), "burst", r.trialCreation.Burst())
+		return nil, nil
+	}
+	if d := res.Delay(); d > 0 {
+		res.Cancel()
+		return &ctrl.Result{RequeueAfter: d}, nil
 	}
 
 	// Determine the namespace (if any) to use for the trial
