@@ -29,8 +29,12 @@ import (
 )
 
 // This doesnt necessarily need to live here, but seemed to make sense
-func Run(kclient client.Client, appCh chan *redskyappsv1alpha1.Application) {
+func Run(kclient client.Client) {
 	// api applicationsv1alpha1.API
+	// Just a placeholder chan to illustrate what we'll be doing
+	// eventually this will be replaced with something from the api
+	// ex, for app := range <- api.Watch() {
+	appCh := make(chan *redskyappsv1alpha1.Application)
 
 	for app := range appCh {
 		if app.Namespace == "" || app.Name == "" {
