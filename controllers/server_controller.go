@@ -73,6 +73,7 @@ type ServerReconciler struct {
 	Log            logr.Logger
 	Scheme         *runtime.Scheme
 	ExperimentsAPI experimentsv1alpha1.API
+	// ApplicationsAPI applicationsv1alpha1.API
 
 	trialCreation *rate.Limiter
 }
@@ -98,6 +99,11 @@ func (r *ServerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	// Create the experiment on the server
 	if result, err := r.createExperiment(ctx, log, exp); result != nil {
+		/*
+			if exp.GetAnnotations()[redskyv1beta1.AnnotationsApplication] != "" {
+				r.ApplicationsAPI.UpdateStatus("failed")
+			}
+		*/
 		return *result, err
 	}
 
