@@ -303,6 +303,46 @@ func FailExperiment(exp *redskyv1beta1.Experiment, reason string, err error) boo
 	return true
 }
 
+// IsServerSyncDisabled checks to see if server synchronization should be disabled.
+func IsServerSyncDisabled(exp *redskyv1beta1.Experiment) bool {
+	switch strings.ToLower(exp.GetAnnotations()[redskyv1beta1.AnnotationServerSync]) {
+	case "disabled", "false":
+		// DO NOT perform server synchronization
+		return true
+	default:
+		// Server sync IS NOT disabled, allow server sync
+		return false
+	}
+}
+
+// DeleteServerExperiment checks to see if the supplied experiment should be
+// deleted from the server upon completion. Normally, we do not actually want to
+// delete the experiment from the server in order to preserve the data, for
+// example, in a multi-cluster experiment we would require that the experiment
+// still exist for all the other clusters. We also want to ensure results are
+// visible in the UI after the experiment ends in the cluster (deleting the
+// server experiments means it won't be available to the UI anymore. We also
+// would not want a `reset` (which deletes the CRD) to wipe out all the data on
+// the server.
+func DeleteServerExperiment(exp *redskyv1beta1.Experiment) bool {
+	// As a special case, check to see if synchronization is disabled. This would
+	// be the case if someone tried disabling server synchronization mid-run,
+	// presumably with the intent of not having the server experiment at the end.
+	if IsServerSyncDisabled(exp) {
+		return true
+	}
+
+	switch strings.ToLower(exp.GetAnnotations()[redskyv1beta1.AnnotationServerSync]) {
+	case "delete-completed", "delete":
+		// Allow the server representation of the experiment to be deleted, for
+		// example to facilitate debugging or with initial experiment setup.
+		return true
+	default:
+		// DO NOT delete the server experiment
+		return false
+	}
+}
+
 func stringSliceContains(a []string, x string) bool {
 	for _, s := range a {
 		if s == x {

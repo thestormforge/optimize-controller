@@ -73,6 +73,11 @@ func (r *ServerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, controller.IgnoreNotFound(err)
 	}
 
+	// Check to see if the experiment is exempt from server operations
+	if server.IsServerSyncDisabled(exp) {
+		return ctrl.Result{}, nil
+	}
+
 	// Create the experiment on the server
 	if result, err := r.createExperiment(ctx, log, exp); result != nil {
 		return *result, err
@@ -276,16 +281,19 @@ func (r *ServerReconciler) unlinkExperiment(ctx context.Context, log logr.Logger
 		return nil, nil
 	}
 
-	// We do not actually delete the experiment from the server to preserve the data, for example, in a multi-cluster
-	// experiment we would require that the experiment still exist for all the other clusters.
-	// We also would not want a reset (which deletes the CRD) to wipe out the data on the server
+	// Check to see if we should delete the experiment on the server
+	// NOTE: Deleting the server experiment is unusual, we normally want to preserve the server data
+	if u := exp.GetAnnotations()[redskyv1beta1.AnnotationExperimentURL]; u != "" && server.DeleteServerExperiment(exp) {
+		if err := r.ExperimentsAPI.DeleteExperiment(ctx, u); controller.IgnoreNotFound(err) != nil {
+			log.Error(err, "Failed to delete server experiment")
+		}
+	}
 
+	// Update the in-cluster experiment to reflect it is no-longer linked to the server
+	experiment.ApplyCondition(&exp.Status, redskyv1beta1.ExperimentComplete, corev1.ConditionTrue, "", "", nil)
 	delete(exp.GetAnnotations(), redskyv1beta1.AnnotationExperimentURL)
 	delete(exp.GetAnnotations(), redskyv1beta1.AnnotationNextTrialURL)
-
-	experiment.ApplyCondition(&exp.Status, redskyv1beta1.ExperimentComplete, corev1.ConditionTrue, "", "", nil)
-
-	// Update the experiment
+	delete(exp.GetAnnotations(), redskyv1beta1.AnnotationReportTrialURL)
 	if err := r.Update(ctx, exp); err != nil {
 		return controller.RequeueConflict(err)
 	}
