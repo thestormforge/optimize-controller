@@ -36,12 +36,16 @@ func NewKonjureFilter(workingDir string, defaultReader io.Reader) *konjure.Filte
 		DefaultReader:     defaultReader,
 		KeepStatus:        true,
 		WorkingDirectory:  workingDir,
-		KubectlExecutor:   kubectl,
-		KustomizeExecutor: kustomize,
+		KubectlExecutor:   KubectlExecutor(NewMinikubectl).Output,
+		KustomizeExecutor: KustomizeExecutor(krusty.MakeKustomizer).Output,
 	}
 }
 
-func kubectl(cmd *exec.Cmd) ([]byte, error) {
+// KubectlExecutor runs kubectl commands using Minikubectl.
+type KubectlExecutor func() *Minikubectl
+
+// Output runs the supplied kubectl command and returns its output.
+func (factoryFn KubectlExecutor) Output(cmd *exec.Cmd) ([]byte, error) {
 	// If LookPath found the kubectl binary, it is safer to just use it. That
 	// way the cluster version doesn't need to be in the compatibility range of
 	// whatever client-go we were compiled with.
@@ -50,7 +54,7 @@ func kubectl(cmd *exec.Cmd) ([]byte, error) {
 	}
 
 	// Kustomize has a clown. We have minikubectl.
-	k := newMinikubectl()
+	k := factoryFn()
 
 	// Create and populate a new flag set
 	flags := pflag.NewFlagSet("minikubectl", pflag.ContinueOnError)
@@ -71,7 +75,11 @@ func kubectl(cmd *exec.Cmd) ([]byte, error) {
 	return k.Run(flags.Args())
 }
 
-func kustomize(cmd *exec.Cmd) ([]byte, error) {
+// KustomizeExecutor runs kustomize commands using Krusty.
+type KustomizeExecutor func(fSys filesys.FileSystem, o *krusty.Options) *krusty.Kustomizer
+
+// Output runs the supplied kustomize command and returns its output.
+func (factoryFn KustomizeExecutor) Output(cmd *exec.Cmd) ([]byte, error) {
 	// If the command path is absolute, it was found by LookPath. In this
 	// case we will just fork so the embedded version of Kustomize does not
 	// becoming a limiting factor.
@@ -93,7 +101,7 @@ func kustomize(cmd *exec.Cmd) ([]byte, error) {
 	}
 
 	// Run the Kustomization in process
-	rm, err := krusty.MakeKustomizer(fs, opts).Run(cmd.Args[1])
+	rm, err := factoryFn(fs, opts).Run(cmd.Args[1])
 	if err != nil {
 		return nil, err
 	}

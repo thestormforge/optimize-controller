@@ -26,19 +26,19 @@ import (
 	"k8s.io/cli-runtime/pkg/resource"
 )
 
-// minikubectl is just a miniature in-process kubectl for us to use to avoid
+// Minikubectl is just a miniature in-process kubectl for us to use to avoid
 // a binary dependency on the tool itself.
-type minikubectl struct {
+type Minikubectl struct {
 	*genericclioptions.ConfigFlags
 	*genericclioptions.ResourceBuilderFlags
 	*genericclioptions.PrintFlags
 	IgnoreNotFound bool
 }
 
-// newMinikubectl creates a new minikubectl, the empty state is not usable.
-func newMinikubectl() *minikubectl {
+// NewMinikubectl creates a new minikubectl, the empty state is not usable.
+func NewMinikubectl() *Minikubectl {
 	outputFormat := ""
-	return &minikubectl{
+	return &Minikubectl{
 		ConfigFlags: genericclioptions.NewConfigFlags(false),
 		ResourceBuilderFlags: genericclioptions.NewResourceBuilderFlags().
 			WithLabelSelector("").
@@ -52,7 +52,7 @@ func newMinikubectl() *minikubectl {
 }
 
 // AddFlags configures the supplied flag set with the recognized flags.
-func (k *minikubectl) AddFlags(flags *pflag.FlagSet) {
+func (k *Minikubectl) AddFlags(flags *pflag.FlagSet) {
 	k.ConfigFlags.AddFlags(flags)
 	k.ResourceBuilderFlags.AddFlags(flags)
 
@@ -64,7 +64,7 @@ func (k *minikubectl) AddFlags(flags *pflag.FlagSet) {
 }
 
 // Complete validates we can execute against the supplied arguments.
-func (k *minikubectl) Complete(args []string) error {
+func (k *Minikubectl) Complete(args []string) error {
 	if len(args) == 0 || args[0] != "get" {
 		return fmt.Errorf("minikubectl only supports get")
 	}
@@ -73,7 +73,7 @@ func (k *minikubectl) Complete(args []string) error {
 }
 
 // Run executes the supplied arguments and returns the output as bytes.
-func (k *minikubectl) Run(args []string) ([]byte, error) {
+func (k *Minikubectl) Run(args []string) ([]byte, error) {
 	v := k.ResourceBuilderFlags.ToBuilder(k.ConfigFlags, args[1:]).Do()
 
 	// Create a printer to dump the objects
