@@ -375,12 +375,16 @@ func (o *Options) runner(ctx context.Context) error {
 func (o *Options) generateExperiment(trial *trialDetails) error {
 	list := &corev1.List{}
 
+	opts := scan.FilterOptions{
+		DefaultReader: o.In,
+	}
+
 	gen := experiment.Generator{
 		Application:    *o.application,
 		ExperimentName: trial.Experiment,
 		Scenario:       trial.Scenario,
 		Objective:      trial.Objective,
-		DefaultReader:  o.In,
+		FilterOptions:  opts,
 	}
 
 	gen.SetDefaultSelectors()
@@ -419,7 +423,7 @@ func (o *Options) generateExperiment(trial *trialDetails) error {
 	var buf bytes.Buffer
 	err := kio.Pipeline{
 		Inputs:  []kio.Reader{o.application.Resources},
-		Filters: []kio.Filter{scan.NewKonjureFilter(apppkg.WorkingDirectory(o.application), o.In)},
+		Filters: []kio.Filter{opts.NewFilter(apppkg.WorkingDirectory(o.application))},
 		Outputs: []kio.Writer{&kio.ByteWriter{
 			Writer: &buf,
 		}},

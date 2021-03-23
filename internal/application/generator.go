@@ -17,7 +17,6 @@ limitations under the License.
 package application
 
 import (
-	"io"
 	"path/filepath"
 	"time"
 
@@ -45,15 +44,15 @@ type Generator struct {
 	Documentation DocumentationFilter
 	// An explicit working directory used to relativize file paths.
 	WorkingDirectory string
-	// Override for the stdin stream.
-	DefaultReader io.Reader
+	// Configure the filter options.
+	scan.FilterOptions
 }
 
 func (g *Generator) Execute(output kio.Writer) error {
 	return kio.Pipeline{
 		Inputs: []kio.Reader{g.Resources},
 		Filters: []kio.Filter{
-			scan.NewKonjureFilter(g.WorkingDirectory, g.DefaultReader),
+			g.FilterOptions.NewFilter(g.WorkingDirectory),
 			&scan.Scanner{
 				Selectors:   []scan.Selector{g},
 				Transformer: g,

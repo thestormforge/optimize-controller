@@ -28,17 +28,33 @@ import (
 	"sigs.k8s.io/kustomize/api/types"
 )
 
-// NewKonjureFilter creates a new Konjure filter with the default settings
-// for this project. The supplied default reader is used when the "-" is requested.
-func NewKonjureFilter(workingDir string, defaultReader io.Reader) *konjure.Filter {
-	return &konjure.Filter{
+// FilterOptions allow the behavior of the Konjure filter to be customized.
+type FilterOptions struct {
+	DefaultReader     io.Reader
+	KubectlExecutor   func(cmd *exec.Cmd) ([]byte, error)
+	KustomizeExecutor func(cmd *exec.Cmd) ([]byte, error)
+}
+
+// NewFilter creates a new filter with the supplied working directory.
+func (o *FilterOptions) NewFilter(workingDirectory string) *konjure.Filter {
+	f := &konjure.Filter{
 		Depth:             100,
-		DefaultReader:     defaultReader,
 		KeepStatus:        true,
-		WorkingDirectory:  workingDir,
-		KubectlExecutor:   kubectl,
-		KustomizeExecutor: kustomize,
+		WorkingDirectory:  workingDirectory,
+		DefaultReader:     o.DefaultReader,
+		KubectlExecutor:   o.KubectlExecutor,
+		KustomizeExecutor: o.KustomizeExecutor,
 	}
+
+	if f.KubectlExecutor == nil {
+		f.KubectlExecutor = kubectl
+	}
+
+	if f.KustomizeExecutor == nil {
+		f.KustomizeExecutor = kustomize
+	}
+
+	return f
 }
 
 func kubectl(cmd *exec.Cmd) ([]byte, error) {
