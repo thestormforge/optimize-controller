@@ -46,14 +46,27 @@ type Generator struct {
 
 // Execute the experiment generation pipeline, sending the results to the supplied writer.
 func (g *Generator) Execute(output kio.Writer) error {
-	scenario, err := application.GetScenario(&g.Application, g.Scenario)
+	pipeline, err := g.Pipeline()
 	if err != nil {
 		return err
 	}
 
+	pipeline.Filters = append([]kio.Filter{scan.NewKonjureFilter(application.WorkingDirectory(&g.Application), g.DefaultReader)}, pipeline.Filters...)
+
+	pipeline.Outputs = append(pipeline.Outputs, output)
+
+	return pipeline.Execute()
+}
+
+func (g *Generator) Pipeline() (kio.Pipeline, error) {
+	scenario, err := application.GetScenario(&g.Application, g.Scenario)
+	if err != nil {
+		return kio.Pipeline{}, err
+	}
+
 	objective, err := application.GetObjective(&g.Application, g.Objective)
 	if err != nil {
-		return err
+		return kio.Pipeline{}, err
 	}
 
 	// Compute the effective scenario, objective, and experiment names
@@ -107,9 +120,8 @@ func (g *Generator) Execute(output kio.Writer) error {
 		Outputs: []kio.Writer{
 			// Validate the resulting resources before sending them to the supplied writer
 			kio.WriterFunc(g.validate),
-			output,
 		},
-	}.Execute()
+	}, nil
 }
 
 // selectors returns the selectors used to make discoveries during the scan.
