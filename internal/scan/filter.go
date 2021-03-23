@@ -71,8 +71,7 @@ func (factoryFn KubectlExecutor) Output(cmd *exec.Cmd) ([]byte, error) {
 		return cmd.Output()
 	}
 
-	// Run minikubectl with the remaining arguments
-	return k.Run(flags.Args())
+	return k.Run()
 }
 
 // KustomizeExecutor runs kustomize commands using Krusty.
