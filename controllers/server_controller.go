@@ -56,13 +56,13 @@ func trialCreationRateLimit(log logr.Logger) rate.Limit {
 	// NOTE: If we are changing this to a lot of different values, it should be moved to the configuration
 	trialCreationInterval, ok := os.LookupEnv("REDSKY_TRIAL_CREATION_INTERVAL")
 	if !ok {
-		return rate.Limit(1)
+		return rate.Every(time.Second)
 	}
 
 	d, err := time.ParseDuration(trialCreationInterval)
 	if err != nil || d < time.Second {
 		log.Info("Ignoring invalid custom trial creation interval", "trialCreationInterval", trialCreationInterval)
-		return rate.Limit(1)
+		return rate.Every(time.Second)
 	}
 
 	log.Info("Using custom trial creation interval", "trialCreationInterval", trialCreationInterval)
