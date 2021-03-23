@@ -23,26 +23,22 @@ import (
 	"github.com/spf13/pflag"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 )
 
-// Minikubectl is just a miniature in-process kubectl for us to use to avoid
+// minikubectl is just a miniature in-process kubectl for us to use to avoid
 // a binary dependency on the tool itself.
-type Minikubectl struct {
+type minikubectl struct {
 	*genericclioptions.ConfigFlags
 	*genericclioptions.ResourceBuilderFlags
 	*genericclioptions.PrintFlags
 	IgnoreNotFound bool
-
-	genericclioptions.ResourceFinder
-	printers.ResourcePrinter
 }
 
-// NewMinikubectl creates a new minikubectl, the empty state is not usable.
-func NewMinikubectl() *Minikubectl {
+// newMinikubectl creates a new minikubectl, the empty state is not usable.
+func newMinikubectl() *minikubectl {
 	outputFormat := ""
-	return &Minikubectl{
+	return &minikubectl{
 		ConfigFlags: genericclioptions.NewConfigFlags(false),
 		ResourceBuilderFlags: genericclioptions.NewResourceBuilderFlags().
 			WithLabelSelector("").
@@ -56,7 +52,7 @@ func NewMinikubectl() *Minikubectl {
 }
 
 // AddFlags configures the supplied flag set with the recognized flags.
-func (k *Minikubectl) AddFlags(flags *pflag.FlagSet) {
+func (k *minikubectl) AddFlags(flags *pflag.FlagSet) {
 	k.ConfigFlags.AddFlags(flags)
 	k.ResourceBuilderFlags.AddFlags(flags)
 
@@ -68,35 +64,27 @@ func (k *Minikubectl) AddFlags(flags *pflag.FlagSet) {
 }
 
 // Complete validates we can execute against the supplied arguments.
-func (k *Minikubectl) Complete(args []string) (err error) {
-	// Verify we are only being asked to do a get
+func (k *minikubectl) Complete(args []string) error {
 	if len(args) == 0 || args[0] != "get" {
 		return fmt.Errorf("minikubectl only supports get")
 	}
 
-	// Get a resource finder
-	if k.ResourceFinder == nil {
-		k.ResourceFinder = k.ResourceBuilderFlags.ToBuilder(k.ConfigFlags, args[1:])
-	}
-
-	// Get a resource printer
-	if k.ResourcePrinter == nil {
-		k.ResourcePrinter, err = k.PrintFlags.ToPrinter()
-		if err != nil {
-			return err
-		}
-	}
-
-	return
+	return nil
 }
 
 // Run executes the supplied arguments and returns the output as bytes.
-func (k *Minikubectl) Run() ([]byte, error) {
-	v := k.ResourceFinder.Do()
+func (k *minikubectl) Run(args []string) ([]byte, error) {
+	v := k.ResourceBuilderFlags.ToBuilder(k.ConfigFlags, args[1:]).Do()
+
+	// Create a printer to dump the objects
+	printer, err := k.PrintFlags.ToPrinter()
+	if err != nil {
+		return nil, err
+	}
 
 	// Use the printer to render everything into a byte buffer
 	var b bytes.Buffer
-	err := v.Visit(func(info *resource.Info, err error) error {
+	err = v.Visit(func(info *resource.Info, err error) error {
 		if err != nil {
 			if k.IgnoreNotFound && apierrors.IsNotFound(err) {
 				return nil
@@ -104,7 +92,7 @@ func (k *Minikubectl) Run() ([]byte, error) {
 			return err
 		}
 
-		return k.ResourcePrinter.PrintObj(info.Object, &b)
+		return printer.PrintObj(info.Object, &b)
 	})
 	if err != nil {
 		return nil, err

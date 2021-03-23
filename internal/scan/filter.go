@@ -36,16 +36,12 @@ func NewKonjureFilter(workingDir string, defaultReader io.Reader) *konjure.Filte
 		DefaultReader:     defaultReader,
 		KeepStatus:        true,
 		WorkingDirectory:  workingDir,
-		KubectlExecutor:   KubectlExecutor(NewMinikubectl).Output,
-		KustomizeExecutor: KustomizeExecutor(krusty.MakeKustomizer).Output,
+		KubectlExecutor:   kubectl,
+		KustomizeExecutor: kustomize,
 	}
 }
 
-// KubectlExecutor runs kubectl commands using Minikubectl.
-type KubectlExecutor func() *Minikubectl
-
-// Output runs the supplied kubectl command and returns its output.
-func (factoryFn KubectlExecutor) Output(cmd *exec.Cmd) ([]byte, error) {
+func kubectl(cmd *exec.Cmd) ([]byte, error) {
 	// If LookPath found the kubectl binary, it is safer to just use it. That
 	// way the cluster version doesn't need to be in the compatibility range of
 	// whatever client-go we were compiled with.
@@ -54,7 +50,7 @@ func (factoryFn KubectlExecutor) Output(cmd *exec.Cmd) ([]byte, error) {
 	}
 
 	// Kustomize has a clown. We have minikubectl.
-	k := factoryFn()
+	k := newMinikubectl()
 
 	// Create and populate a new flag set
 	flags := pflag.NewFlagSet("minikubectl", pflag.ContinueOnError)
@@ -71,14 +67,11 @@ func (factoryFn KubectlExecutor) Output(cmd *exec.Cmd) ([]byte, error) {
 		return cmd.Output()
 	}
 
-	return k.Run()
+	// Run minikubectl with the remaining arguments
+	return k.Run(flags.Args())
 }
 
-// KustomizeExecutor runs kustomize commands using Krusty.
-type KustomizeExecutor func(fSys filesys.FileSystem, o *krusty.Options) *krusty.Kustomizer
-
-// Output runs the supplied kustomize command and returns its output.
-func (factoryFn KustomizeExecutor) Output(cmd *exec.Cmd) ([]byte, error) {
+func kustomize(cmd *exec.Cmd) ([]byte, error) {
 	// If the command path is absolute, it was found by LookPath. In this
 	// case we will just fork so the embedded version of Kustomize does not
 	// becoming a limiting factor.
@@ -100,7 +93,7 @@ func (factoryFn KustomizeExecutor) Output(cmd *exec.Cmd) ([]byte, error) {
 	}
 
 	// Run the Kustomization in process
-	rm, err := factoryFn(fs, opts).Run(cmd.Args[1])
+	rm, err := krusty.MakeKustomizer(fs, opts).Run(cmd.Args[1])
 	if err != nil {
 		return nil, err
 	}
