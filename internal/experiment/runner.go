@@ -19,71 +19,180 @@ package experiment
 import (
 	"bytes"
 	"context"
+	"errors"
 	"log"
+	"os/exec"
+	"strconv"
 
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	"github.com/thestormforge/optimize-controller/internal/application"
+	"github.com/thestormforge/optimize-controller/internal/scan"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/kustomize/kyaml/kio"
-	"sigs.k8s.io/kustomize/kyaml/yaml"
+	kyaml "sigs.k8s.io/kustomize/kyaml/yaml"
+	"sigs.k8s.io/yaml"
 )
 
+type Runner struct {
+	client        client.Client
+	appCh         chan *redskyappsv1alpha1.Application
+	errCh         chan error
+	kubectlExecFn func(cmd *exec.Cmd) ([]byte, error)
+}
+
+func New(kclient client.Client, appCh chan *redskyappsv1alpha1.Application) (*Runner, chan error) {
+	errCh := make(chan error)
+
+	return &Runner{
+		client: kclient,
+		appCh:  appCh,
+		errCh:  errCh,
+	}, errCh
+}
+
 // This doesnt necessarily need to live here, but seemed to make sense
-func Run(ctx context.Context, kclient client.Client, appCh chan *redskyappsv1alpha1.Application) {
+func (r *Runner) Run(ctx context.Context) {
 	// api applicationsv1alpha1.API
 	// Just a placeholder chan to illustrate what we'll be doing
 	// eventually this will be replaced with something from the api
 	// ex, for app := range <- api.Watch() {
 
-	//appCh := make(chan *redskyappsv1alpha1.Application)
-
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case app := <-appCh:
+		case app := <-r.appCh:
 			if app.Namespace == "" || app.Name == "" {
 				// api.UpdateStatus("failed")
-				log.Println("bad app.yaml")
+				r.errCh <- errors.New("bad app.yaml")
 				continue
 			}
 
 			g := &Generator{
 				Application: *app,
 			}
+			g.SetDefaultSelectors()
+			_, userConfirmed := app.Annotations[redskyappsv1alpha1.AnnotationUserConfirmed]
 
-			var inputsBuf bytes.Buffer
+			var outputsBuf bytes.Buffer
+
+			pipeline, err := g.Pipeline()
+			if err != nil {
+				r.errCh <- errors.New("failed to generate experiment")
+				continue
+			}
+
+			pipeline.Outputs = append(pipeline.Outputs, kio.ByteWriter{Writer: &outputsBuf})
+
+			filter := scan.NewKonjureFilter(application.WorkingDirectory(&g.Application), g.DefaultReader)
+			if r.kubectlExecFn != nil {
+				filter.KubectlExecutor = r.kubectlExecFn
+			}
+
+			pipeline.Filters = append([]kio.Filter{filter}, pipeline.Filters...)
+			pipeline.Filters = append(pipeline.Filters, manageReplicas(userConfirmed))
+
+			if err := pipeline.Execute(); err != nil {
+				r.errCh <- err
+				continue
+			}
+
+			outputBytes := outputsBuf.Bytes()
 
 			// TODO
-			// Since we're using konjure for this, we need to bundle all of the bins konjure supports
-			// inside the controller container
-			// Or should we swap to client libraries?
-			if err := g.Execute(kio.ByteWriter{Writer: &inputsBuf}); err != nil {
-				log.Println(err)
-				continue
-			}
-
+			// During the 'preview' phase, we should probably only create the experiment ( no rbac,
+			// configmap, secret, etc )
+			// Once we're confirmed, we should do the rest
+			// if userConfirmed {
 			exp := &redskyv1beta1.Experiment{}
-			if err := yaml.Unmarshal(inputsBuf.Bytes(), exp); err != nil {
+			if err := yaml.Unmarshal(outputBytes, exp); err != nil {
 				// api.UpdateStatus("failed")
-				log.Println(err)
+				r.errCh <- err
 				continue
-			}
-
-			if _, ok := app.Annotations[redskyappsv1alpha1.AnnotationUserConfirmed]; !ok {
-				var replicas int32 = 0
-				exp.Spec.Replicas = &replicas
 			}
 
 			// TODO
 			// How should we handle the rejection of an application ( user wanted to make
 			// changes, so we need to delete the old experiment )
 
-			if err := kclient.Create(ctx, exp); err != nil {
+			if err := r.client.Create(ctx, exp); err != nil {
 				// api.UpdateStatus("failed")
-				log.Println("bad experiment")
+				log.Println("bad experiment", err)
+				r.errCh <- err
 				continue
 			}
+			// } else {
+			// can/should we use unstructured.Unstructured ?
+			// or corev1.list
+			// or should we iterate through each type and use the appropriate client
+			/*
+				js, err := yaml.YAMLToJSON(outputBytes)
+				if err != nil {
+					log.Println("failed to convert yaml to json")
+					r.errCh <- err
+				}
+
+				ul := &unstructured.UnstructuredList{}
+				if err := ul.UnmarshalJSON(js); err != nil {
+					log.Println("cant unmarshal", err)
+					r.errCh <- err
+					continue
+				}
+				ul.SetGroupVersionKind(schema.FromAPIVersionAndKind("v1", "List"))
+
+				fmt.Println(ul)
+
+				if err := r.client.Create(ctx, ul); err != nil {
+					log.Println("failed to create ul", err)
+					r.errCh <- err
+					continue
+				}
+			*/
+
+			// }
+
+			// log.Println("success")
+			return
 		}
+	}
+}
+
+// filter returns a filter function to exctract a specified `kind` from the input.
+func manageReplicas(ok bool) kio.FilterFunc {
+	return func(input []*kyaml.RNode) ([]*kyaml.RNode, error) {
+		var output kio.ResourceNodeSlice
+		for i := range input {
+			m, err := input[i].GetMeta()
+			if err != nil {
+				return nil, err
+			}
+
+			if m.Kind != "Experiment" {
+				continue
+			}
+
+			numReplicas := 0
+			if ok {
+				numReplicas = 1
+			}
+
+			input[i].Pipe(
+				kyaml.LookupCreate(kyaml.ScalarNode, "spec"),
+				kyaml.SetField("replicas", kyaml.NewScalarRNode(strconv.Itoa(numReplicas))),
+			)
+			// kyaml.LookupCreate
+			// values := kyaml.NewMapRNode(&map[string]string{"replicas": strconv.Itoa(numReplicas)})
+			// kyaml.SetField("spec", values)
+
+			/*
+				if _, err = input[i].Pipe(kyaml.LookupCreate(input[i], "spec", "replicas", strconv.Itoa(numReplicas))); err != nil {
+					return nil, err
+				}
+			*/
+
+			output = append(output, input[i])
+		}
+		return output, nil
 	}
 }

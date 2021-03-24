@@ -2,38 +2,50 @@ package experiment
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os/exec"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	konjurev1beta2 "github.com/thestormforge/konjure/pkg/api/core/v1beta2"
+	"github.com/thestormforge/konjure/pkg/konjure"
+	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
+	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 
 	//lint:ignore SA1019 backed out
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-
-	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 )
 
-func Test(t *testing.T) {
+func TestRunner(t *testing.T) {
 	testCases := []struct {
-		desc string
-		app  *redskyappsv1alpha1.Application
+		desc    string
+		app     *redskyappsv1alpha1.Application
+		err     error
+		expName string
 	}{
 		{
-			desc: "default",
-			app: &redskyappsv1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "sampleApplication",
-					Namespace: "default",
-				},
-				/*
-					Resources: konjure.Resource{
-						Kubernetes: &konjurev1beta2.Kubernetes{},
-					},
-				*/
-			},
+			desc: "no parameters",
+			app:  invalidExperimentNoParams,
+			err:  errors.New("invalid experiment, no parameters found"),
+		},
+		{
+			desc: "no objectives",
+			app:  invalidExperimentNoObjectives,
+			err:  errors.New("invalid experiment, no metrics found"),
+		},
+		{
+			desc:    "success",
+			app:     success,
+			expName: "sampleapplication-a2987cd6",
+		},
+		{
+			desc:    "confirmed",
+			app:     confirmed,
+			expName: "sampleapplication-a2987cd6",
 		},
 	}
 
@@ -41,67 +53,192 @@ func Test(t *testing.T) {
 		t.Run(fmt.Sprintf("%q", tc.desc), func(t *testing.T) {
 
 			scheme := runtime.NewScheme()
-			scheme.AddKnownTypes(redskyv1beta1.GroupVersion, &redskyv1beta1.Experiment{})
-			scheme.AddKnownTypes(redskyappsv1alpha1.GroupVersion, &redskyappsv1alpha1.Application{})
-			// customListKinds := map[schema.GroupVersionResource]string{
-			// 	redskyv1beta1.GroupVersion.WithResource("experiments"): "ExperimentList",
-			// }
-			// client := fake.NewSimpleDynamicClientWithCustomListKinds(scheme, customListKinds)
-			// client := fake.NewSimpleDynamicClient(scheme, &redskyv1beta1.Experiment{}, &redskyappsv1alpha1.Application{})
+			redskyv1beta1.AddToScheme(scheme)
+			redskyappsv1alpha1.AddToScheme(scheme)
+
 			client := fake.NewFakeClientWithScheme(scheme, &redskyv1beta1.Experiment{}, &redskyappsv1alpha1.Application{})
 
-			ctx, _ := context.WithCancel(context.Background())
 			appCh := make(chan *redskyappsv1alpha1.Application)
+			runner, errCh := New(client, appCh)
+			runner.kubectlExecFn = fakeKubectlExec
 
-			go Run(ctx, client, appCh)
+			ctx, cancel := context.WithCancel(context.Background())
 
-			appCh <- tc.app
+			go func() { appCh <- tc.app }()
+			go func() {
+				runner.Run(ctx)
+				cancel()
+			}()
 
-			var err error
-			assert.NoError(t, err)
+			for {
+				select {
+				case <-ctx.Done():
+					if tc.err != nil {
+						return
+					}
+
+					exp := &redskyv1beta1.Experiment{}
+					err := client.Get(ctx, types.NamespacedName{Namespace: "default", Name: tc.expName}, exp)
+					assert.NoError(t, err)
+
+					if _, ok := tc.app.Annotations[redskyappsv1alpha1.AnnotationUserConfirmed]; ok {
+						assert.Equal(t, int32(1), *exp.Spec.Replicas)
+					} else {
+						assert.Equal(t, int32(0), *exp.Spec.Replicas)
+					}
+
+					// fmt.Println(exp)
+					return
+				case err := <-errCh:
+					if tc.err != nil {
+						assert.Error(t, err)
+						assert.Equal(t, tc.err.Error(), err.Error())
+						cancel()
+
+						continue
+					}
+
+					assert.NoError(t, err)
+					cancel()
+				}
+			}
+
 		})
 	}
 }
 
-/*
-  ObjectMeta: metav1.ObjectMeta{
-    Name:      "sampleApplication",
-    Namespace: "default",
-  },
-  Resources: konjure.Resources{konjure.NewResource(filename)},
-  Parameters: &app.Parameters{
-    ContainerResources: &app.ContainerResources{
-      LabelSelector: "component=postgres",
-    },
-  },
-  Scenarios: []app.Scenario{
-    {
-      Name: "how-do-you-make-a-tissue-dance",
-      StormForger: &app.StormForgerScenario{
-        TestCase: "tissue-box",
-      },
-    },
-    {
-      Name: "put-a-little-boogie-in-it",
-      StormForger: &app.StormForgerScenario{
-        TestCase: "boogie",
-      },
-    },
-  },
-  Objectives: []app.Objective{
-    {
-      Goals: []app.Goal{
-        {
-          Name: "cost",
-          Max:  resource.NewQuantity(100, resource.DecimalExponent),
-          Requests: &app.RequestsGoal{
-            MetricSelector: "everybody=yes",
-            Weights: corev1.ResourceList{
-              corev1.ResourceCPU:    resource.MustParse("100m"),
-              corev1.ResourceMemory: resource.MustParse("100M"),
-            },
-          },
-        },
-      },
-    },
-*/
+func fakeKubectlExec(cmd *exec.Cmd) ([]byte, error) {
+	return []byte(`apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  selector:
+    matchLabels:
+      app: nginx
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            memory: 25Mi
+            cpu: 50m
+          requests:
+            memory: 25Mi
+            cpu: 50m`), nil
+}
+
+var invalidExperimentNoParams = &redskyappsv1alpha1.Application{
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      "sampleApplication",
+		Namespace: "default",
+	},
+}
+
+var invalidExperimentNoObjectives = &redskyappsv1alpha1.Application{
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      "sampleApplication",
+		Namespace: "default",
+	},
+	Resources: konjure.Resources{
+		{
+			Kubernetes: &konjurev1beta2.Kubernetes{
+				Namespaces:    []string{"default"},
+				LabelSelector: "app=nginx",
+			},
+		},
+	},
+}
+
+var success = &redskyappsv1alpha1.Application{
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      "sampleApplication",
+		Namespace: "default",
+	},
+	Resources: konjure.Resources{
+		{
+			Kubernetes: &konjurev1beta2.Kubernetes{
+				Namespaces:    []string{"default"},
+				LabelSelector: "app=nginx",
+			},
+		},
+	},
+	Objectives: []redskyappsv1alpha1.Objective{
+		{
+			Goals: []redskyappsv1alpha1.Goal{
+				{
+					Duration: &redskyappsv1alpha1.DurationGoal{
+						DurationType: "trial",
+					},
+				},
+			},
+		},
+	},
+	Scenarios: []redskyappsv1alpha1.Scenario{
+		{
+			Name: "how-do-you-make-a-tissue-dance",
+			StormForger: &redskyappsv1alpha1.StormForgerScenario{
+				TestCase: "put-a-little-boogie-in-it",
+			},
+		},
+	},
+	StormForger: &redskyappsv1alpha1.StormForger{
+		Organization: "sf",
+		AccessToken: &redskyappsv1alpha1.StormForgerAccessToken{
+			Literal: "Why couldn't the bicycle stand up by itself? It was two tired!",
+		},
+	},
+}
+
+var confirmed = &redskyappsv1alpha1.Application{
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      "sampleApplication",
+		Namespace: "default",
+		Annotations: map[string]string{
+			redskyappsv1alpha1.AnnotationUserConfirmed: "true",
+		},
+	},
+	Resources: konjure.Resources{
+		{
+			Kubernetes: &konjurev1beta2.Kubernetes{
+				Namespaces:    []string{"default"},
+				LabelSelector: "app=nginx",
+			},
+		},
+	},
+	Objectives: []redskyappsv1alpha1.Objective{
+		{
+			Goals: []redskyappsv1alpha1.Goal{
+				{
+					Duration: &redskyappsv1alpha1.DurationGoal{
+						DurationType: "trial",
+					},
+				},
+			},
+		},
+	},
+	Scenarios: []redskyappsv1alpha1.Scenario{
+		{
+			Name: "how-do-you-make-a-tissue-dance",
+			StormForger: &redskyappsv1alpha1.StormForgerScenario{
+				TestCase: "put-a-little-boogie-in-it",
+			},
+		},
+	},
+	StormForger: &redskyappsv1alpha1.StormForger{
+		Organization: "sf",
+		AccessToken: &redskyappsv1alpha1.StormForgerAccessToken{
+			Literal: "Why couldn't the bicycle stand up by itself? It was two tired!",
+		},
+	},
+}
