@@ -18,7 +18,6 @@ package experiment
 
 import (
 	"fmt"
-	"io"
 
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	"github.com/thestormforge/optimize-controller/internal/application"
@@ -45,8 +44,8 @@ type Generator struct {
 	ReplicaSelectors []generation.ReplicaSelector
 	// IncludeApplicationResources is a flag indicating that the application resources should be included in the output.
 	IncludeApplicationResources bool
-	// Default reader to use instead of stdin.
-	DefaultReader io.Reader
+	// Configure the filter options.
+	scan.FilterOptions
 }
 
 // SetDefaultSelectors adds the default selectors to the generator, this requires that the application
@@ -139,7 +138,7 @@ func (g *Generator) Execute(output kio.Writer) error {
 		},
 		Filters: []kio.Filter{
 			// Expand resource references using Konjure
-			scan.NewKonjureFilter(application.WorkingDirectory(&g.Application), g.DefaultReader),
+			g.FilterOptions.NewFilter(application.WorkingDirectory(&g.Application)),
 
 			// Scan the resources and transform them into an experiment (and it's supporting resources)
 			&scan.Scanner{

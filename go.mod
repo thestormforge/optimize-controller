@@ -30,6 +30,7 @@ require (
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
 	k8s.io/api v0.17.2
 	k8s.io/apimachinery v0.17.2
+	k8s.io/cli-runtime v0.17.2
 	k8s.io/client-go v0.17.2
 	k8s.io/kubectl v0.17.2
 	k8s.io/metrics v0.17.2
