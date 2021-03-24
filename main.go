@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -136,7 +137,24 @@ func main() {
 	}
 	// +kubebuilder:scaffold:builder
 
-	go experiment.Run(mgr.GetClient())
+	ctx := context.Background()
+	// This'll most likely go away as we get optimize-go updated
+	appCh := make(chan *redskyappsv1alpha1.Application)
+	runner, errCh := experiment.New(mgr.GetClient(), appCh)
+
+	go func() {
+		errLog := ctrl.Log.WithName("generation").WithName("experiment")
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case err := <-errCh:
+				errLog.Error(err, "failed to generate experiment from application")
+			}
+		}
+	}()
+
+	go runner.Run(ctx)
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
