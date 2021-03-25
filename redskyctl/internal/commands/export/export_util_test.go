@@ -111,7 +111,7 @@ func createTempApplication(t *testing.T, filename string) (*app.Application, []b
 		Resources: konjure.Resources{konjure.NewResource(filename)},
 		Parameters: &app.Parameters{
 			ContainerResources: &app.ContainerResources{
-				LabelSelector: "component=postgres",
+				Selector: "component=postgres",
 			},
 		},
 		Scenarios: []app.Scenario{
@@ -135,7 +135,7 @@ func createTempApplication(t *testing.T, filename string) (*app.Application, []b
 						Name: "cost",
 						Max:  resource.NewQuantity(100, resource.DecimalExponent),
 						Requests: &app.RequestsGoal{
-							MetricSelector: "everybody=yes",
+							Selector: "everybody=yes",
 							Weights: corev1.ResourceList{
 								corev1.ResourceCPU:    resource.MustParse("100m"),
 								corev1.ResourceMemory: resource.MustParse("100M"),

@@ -124,7 +124,7 @@ func (s *CustomSource) scenarioMetrics() ([]redskyv1beta1.Metric, error) {
 			}
 			query := fmt.Sprintf("{{ resourceRequests .Target %q }}", strings.Join(weights, ","))
 
-			labelSelector, err := convertPrometheusSelector(goal.Requests.MetricSelector)
+			labelSelector, err := metav1.ParseToLabelSelector(goal.Requests.Selector)
 			if err != nil {
 				return nil, err
 			}

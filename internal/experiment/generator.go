@@ -58,7 +58,7 @@ func (g *Generator) SetDefaultSelectors() {
 	// Always add container resource selectors, conditionally with an explicit label selector
 	var crsLabelSelector string
 	if g.Application.Parameters != nil && g.Application.Parameters.ContainerResources != nil {
-		crsLabelSelector = g.Application.Parameters.ContainerResources.LabelSelector
+		crsLabelSelector = g.Application.Parameters.ContainerResources.Selector
 	}
 	g.ContainerResourcesSelectors = []generation.ContainerResourcesSelector{
 		{
@@ -88,7 +88,7 @@ func (g *Generator) SetDefaultSelectors() {
 				GenericSelector: scan.GenericSelector{
 					Group:         "apps|extensions",
 					Kind:          "Deployment",
-					LabelSelector: g.Application.Parameters.Replicas.LabelSelector,
+					LabelSelector: g.Application.Parameters.Replicas.Selector,
 				},
 				Path:               "/spec/replicas",
 				CreateIfNotPresent: true,
@@ -97,7 +97,7 @@ func (g *Generator) SetDefaultSelectors() {
 				GenericSelector: scan.GenericSelector{
 					Group:         "apps|extensions",
 					Kind:          "StatefulSet",
-					LabelSelector: g.Application.Parameters.Replicas.LabelSelector,
+					LabelSelector: g.Application.Parameters.Replicas.Selector,
 				},
 				Path:               "/spec/replicas",
 				CreateIfNotPresent: true,
