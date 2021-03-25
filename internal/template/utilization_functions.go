@@ -19,16 +19,12 @@ package template
 import (
 	"bytes"
 	"fmt"
-	"regexp"
 	"strings"
 	"text/template"
 
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 )
-
-// https://github.com/prometheus/prometheus/blob/3240cf83f08e448e0b96a4a1f96c0e8b2d51cf61/util/strutil/strconv.go#L23
-var invalidLabelCharRE = regexp.MustCompile(`[^a-zA-Z0-9_]`)
 
 func cpuUtilization(data MetricData, labelSelectors ...string) (string, error) {
 	cpuUtilizationQueryTemplate := `
