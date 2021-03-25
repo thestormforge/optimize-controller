@@ -178,14 +178,14 @@ func (g *Generator) Execute(output kio.Writer) error {
 func (g *Generator) selectors() []scan.Selector {
 	var result []scan.Selector
 
-	// Container resource selectors look for resource requests/limits
-	for i := range g.ContainerResourcesSelectors {
-		result = append(result, &g.ContainerResourcesSelectors[i])
-	}
-
 	// Replica selectors look for horizontally scalable resources
 	for i := range g.ReplicaSelectors {
 		result = append(result, &g.ReplicaSelectors[i])
+	}
+
+	// Container resource selectors look for resource requests/limits
+	for i := range g.ContainerResourcesSelectors {
+		result = append(result, &g.ContainerResourcesSelectors[i])
 	}
 
 	// TODO EnvVarSelector
