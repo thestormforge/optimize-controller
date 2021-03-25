@@ -330,7 +330,28 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 			},
 			expectedQuery: "1234/1073741824",
 		},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			actualQuery, actualErrorQuery, err := eng.RenderMetricQueries(&c.metric, &c.trial, c.target)
+			if assert.NoError(t, err) {
+				assert.Equal(t, c.expectedQuery, actualQuery)
+				assert.Equal(t, c.expectedErrorQuery, actualErrorQuery)
+			}
+		})
+	}
+}
 
+func TestEngine_RenderMetricQueriesFailures(t *testing.T) {
+	eng := New()
+	now := metav1.Now()
+
+	cases := []struct {
+		desc   string
+		metric redskyv1beta1.Metric
+		trial  redskyv1beta1.Trial
+		target runtime.Object
+	}{
 		{
 			desc: "prometheus label key sanitize",
 			metric: redskyv1beta1.Metric{
@@ -346,16 +367,12 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 					CompletionTime: &now,
 				},
 			},
-			expectedQuery: expectedMemoryRequestsQuerySanitized,
 		},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			actualQuery, actualErrorQuery, err := eng.RenderMetricQueries(&c.metric, &c.trial, c.target)
-			if assert.NoError(t, err) {
-				assert.Equal(t, c.expectedQuery, actualQuery)
-				assert.Equal(t, c.expectedErrorQuery, actualErrorQuery)
-			}
+			_, _, err := eng.RenderMetricQueries(&c.metric, &c.trial, c.target)
+			assert.Error(t, err)
 		})
 	}
 }
@@ -477,46 +494,3 @@ scalar(
   )
 )`
 )
-
-func TestSplitLabelMatcher(t *testing.T) {
-	cases := []struct {
-		labelMatcher string
-		key          string
-		op           string
-		value        string
-	}{
-		{
-			labelMatcher: `foo=bar`,
-			key:          `label_foo`,
-			op:           `=`,
-			value:        `"bar"`,
-		},
-		{
-			labelMatcher: ` foo = bar `,
-			key:          `label_foo`,
-			op:           `=`,
-			value:        `"bar"`,
-		},
-		{
-			labelMatcher: `foo!=bar`,
-			key:          `label_foo`,
-			op:           `!=`,
-			value:        `"bar"`,
-		},
-		{
-			labelMatcher: `foo!="bar"`,
-			key:          `label_foo`,
-			op:           `!=`,
-			value:        `"bar"`,
-		},
-	}
-	for _, c := range cases {
-		t.Run(c.labelMatcher, func(t *testing.T) {
-			if key, op, value, err := splitLabelMatcher(c.labelMatcher); assert.NoError(t, err) {
-				assert.Equal(t, c.key, key)
-				assert.Equal(t, c.op, op)
-				assert.Equal(t, c.value, value)
-			}
-		})
-	}
-}

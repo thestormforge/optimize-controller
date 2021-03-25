@@ -20,15 +20,17 @@ import (
 	"bytes"
 	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
 	"text/template"
+
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 )
 
 // https://github.com/prometheus/prometheus/blob/3240cf83f08e448e0b96a4a1f96c0e8b2d51cf61/util/strutil/strconv.go#L23
 var invalidLabelCharRE = regexp.MustCompile(`[^a-zA-Z0-9_]`)
 
-func cpuUtilization(data MetricData, labelMatchers ...string) (string, error) {
+func cpuUtilization(data MetricData, labelSelectors ...string) (string, error) {
 	cpuUtilizationQueryTemplate := `
 scalar(
   round(
@@ -52,10 +54,10 @@ scalar(
   * 100, 0.0001)
 )`
 
-	return renderUtilization(data, labelMatchers, cpuUtilizationQueryTemplate)
+	return renderUtilization(data, labelSelectors, cpuUtilizationQueryTemplate)
 }
 
-func memoryUtilization(data MetricData, labelMatchers ...string) (string, error) {
+func memoryUtilization(data MetricData, labelSelectors ...string) (string, error) {
 	memoryUtilizationQueryTemplate := `
 scalar(
   round(
@@ -76,10 +78,10 @@ scalar(
   * 100, 0.0001)
 )`
 
-	return renderUtilization(data, labelMatchers, memoryUtilizationQueryTemplate)
+	return renderUtilization(data, labelSelectors, memoryUtilizationQueryTemplate)
 }
 
-func cpuRequests(data MetricData, labelMatchers ...string) (string, error) {
+func cpuRequests(data MetricData, labelSelectors ...string) (string, error) {
 	cpuResourcesQueryTemplate := `
 scalar(
   sum(
@@ -90,10 +92,10 @@ scalar(
   )
 )`
 
-	return renderUtilization(data, labelMatchers, cpuResourcesQueryTemplate)
+	return renderUtilization(data, labelSelectors, cpuResourcesQueryTemplate)
 }
 
-func memoryRequests(data MetricData, labelMatchers ...string) (string, error) {
+func memoryRequests(data MetricData, labelSelectors ...string) (string, error) {
 	memoryResourcesQueryTemplate := `
 scalar(
   sum(
@@ -104,30 +106,47 @@ scalar(
   )
 )`
 
-	return renderUtilization(data, labelMatchers, memoryResourcesQueryTemplate)
+	return renderUtilization(data, labelSelectors, memoryResourcesQueryTemplate)
 }
 
-func renderUtilization(metricData MetricData, extraLabelMatchers []string, query string) (string, error) {
-	// NOTE: Ideally we would use `github.com/prometheus/prometheus/promql/parser#ParseMetricSelector` here
-	// however the dependencies of the Prometheus server conflict.
-
-	// Allow the extra label matchers to be variadic or comma-delimited
-	extraLabelMatchers = strings.Split(strings.Join(extraLabelMatchers, ","), ",")
+func renderUtilization(metricData MetricData, labelSelectors []string, query string) (string, error) {
+	// We are accepting Kubernetes label selectors and using them to generate a PromQL metric selector
+	sel, err := labels.Parse(strings.Join(labelSelectors, ","))
+	if err != nil {
+		return "", err
+	}
 
 	// Always include the trial namespace first
-	labelMatchers := make([]string, 0, 1+len(extraLabelMatchers))
+	requirements, _ := sel.Requirements()
+	labelMatchers := make([]string, 0, 1+len(requirements))
 	labelMatchers = append(labelMatchers, fmt.Sprintf("namespace=%q", metricData.Trial.Namespace))
-	for _, labelMatcher := range extraLabelMatchers {
-		if labelMatcher == "" {
-			continue
+	for _, req := range requirements {
+		// Force a "label_" prefix
+		key := strings.TrimPrefix(req.Key(), "label_")
+
+		// If we got this far the cardinality will be correct (e.g. only one element for =)
+		value := strings.Join(req.Values().List(), "|")
+
+		// Convert the operator
+		var op string
+		switch req.Operator() {
+		case selection.Equals, selection.DoubleEquals:
+			op = "="
+		case selection.NotEquals:
+			op = "!="
+		case selection.In:
+			op = "=~"
+		case selection.NotIn:
+			op = "!~"
+		case selection.Exists:
+			// TODO Is there a better way to do this?
+			op = "=~"
+			value = ".+"
+		default:
+			return "", fmt.Errorf("unsupported label selector: %s", req.String())
 		}
 
-		key, op, value, err := splitLabelMatcher(labelMatcher)
-		if err != nil {
-			return "", err
-		}
-
-		labelMatchers = append(labelMatchers, key+op+value)
+		labelMatchers = append(labelMatchers, fmt.Sprintf("label_%s%s%q", key, op, value))
 	}
 
 	// Add the metric selector start and end markers (we know it will be non-empty because of the namespace)
@@ -152,34 +171,4 @@ func renderUtilization(metricData MetricData, extraLabelMatchers []string, query
 	}
 
 	return output.String(), nil
-}
-
-// splitLabelMatcher returns the label name, operator and value from a label matcher.
-func splitLabelMatcher(lm string) (string, string, string, error) {
-	kv := regexp.MustCompile(`(=|!=|=~|!~)`).Split(lm, 2)
-	if len(kv) != 2 {
-		return "", "", "", fmt.Errorf("invalid label matcher: %s", lm)
-	}
-
-	key := strings.TrimSpace(kv[0])
-	op := lm[len(kv[0]) : len(lm)-len(kv[1])]
-	value := strings.TrimSpace(kv[1])
-
-	// Allow quotes to be optional since specifying them in the Go template would make things complicated
-	if !strings.HasPrefix(value, `"`) {
-		value = strconv.Quote(value)
-	}
-
-	// TODO We should remove this
-	// In the case of our built-in Prometheus, we can just alter the scape configs to not include the prefix
-	// In the case of a managed Prometheus we won't have control over this prefix and it may interfere with metric selection
-	if !strings.HasPrefix(key, "label_") {
-		key = "label_" + key
-	}
-
-	// TODO We should remove this
-	// Instead of sanitizing, we should just fail if the key contains invalid values
-	key = invalidLabelCharRE.ReplaceAllString(key, "_")
-
-	return key, op, value, nil
 }
