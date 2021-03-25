@@ -130,11 +130,8 @@ func (t *Transformer) Transform(nodes []*yaml.RNode, selected []interface{}) ([]
 	}
 
 	// Perform some simple validation
-	if len(exp.Spec.Parameters) == 0 {
-		return nil, fmt.Errorf("invalid experiment, no parameters found")
-	}
-	if len(exp.Spec.Metrics) == 0 {
-		return nil, fmt.Errorf("invalid experiment, no metrics found")
+	if err := t.checkExperiment(&exp); err != nil {
+		return nil, err
 	}
 
 	// Serialize the experiment as a YAML node
@@ -185,6 +182,28 @@ func (t *Transformer) renderPatches(patches map[corev1.ObjectReference][]yaml.Fi
 			Patch:     string(data),
 			TargetRef: &ref,
 		})
+	}
+
+	return nil
+}
+
+func (t *Transformer) checkExperiment(exp *redskyv1beta1.Experiment) error {
+	// If there are no parameters or metrics, the experiment isn't valid
+	if len(exp.Spec.Parameters) == 0 {
+		return fmt.Errorf("invalid experiment, no parameters found")
+	}
+	if len(exp.Spec.Metrics) == 0 {
+		return fmt.Errorf("invalid experiment, no metrics found")
+	}
+
+	// Make sure either all baselines are set or none are
+	for i := range exp.Spec.Parameters {
+		if exp.Spec.Parameters[i].Baseline == nil {
+			for j := range exp.Spec.Parameters {
+				exp.Spec.Parameters[j].Baseline = nil
+			}
+			break
+		}
 	}
 
 	return nil

@@ -52,8 +52,11 @@ func (s *ContainerResourcesSelector) Map(node *yaml.RNode, meta yaml.ResourceMet
 		yaml.FilterFunc(func(node *yaml.RNode) (*yaml.RNode, error) {
 			return nil, node.VisitElements(func(node *yaml.RNode) error {
 				rl := node.Field("resources")
-				if rl == nil && !s.CreateIfNotPresent {
-					return nil
+				if rl == nil {
+					if !s.CreateIfNotPresent {
+						return nil
+					}
+					rl = &yaml.MapNode{Value: yaml.NewMapRNode(nil)}
 				}
 
 				name := node.Field("name").Value.YNode().Value
@@ -64,10 +67,8 @@ func (s *ContainerResourcesSelector) Map(node *yaml.RNode, meta yaml.ResourceMet
 				p := containerResourcesParameter{pnode{
 					meta:      meta,
 					fieldPath: append(path, "[name="+name+"]", "resources"),
+					value:     rl.Value.YNode(),
 				}}
-				if rl != nil {
-					p.value = rl.Value.YNode()
-				}
 
 				result = append(result, &p)
 				return nil
