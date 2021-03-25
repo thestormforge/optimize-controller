@@ -135,9 +135,11 @@ func renderUtilization(metricData MetricData, labelSelectors []string, query str
 		case selection.NotIn:
 			op = "!~"
 		case selection.Exists:
-			// TODO Is there a better way to do this?
 			op = "=~"
 			value = ".+"
+		case selection.DoesNotExist:
+			op = "="
+			value = ""
 		default:
 			return "", fmt.Errorf("unsupported label selector: %s", req.String())
 		}
