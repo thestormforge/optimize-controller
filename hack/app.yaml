@@ -23,7 +23,7 @@ objectives:
   # Test built in metrics
   - name: cost
     requests:
-      metricSelector: app=nginx
+      selector: app=nginx
   # Test out kube metrics
   ## This indirectly gets covered with built in metrics
   - optimize: false

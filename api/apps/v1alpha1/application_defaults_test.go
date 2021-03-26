@@ -126,13 +126,13 @@ func TestGoal_Default(t *testing.T) {
 			goal: Goal{
 				Name: "requests",
 				Requests: &RequestsGoal{
-					MetricSelector: "test=test",
+					Selector: "test=test",
 				},
 			},
 			expected: Goal{
 				Name: "requests",
 				Requests: &RequestsGoal{
-					MetricSelector: "test=test",
+					Selector: "test=test",
 					Weights: corev1.ResourceList{
 						corev1.ResourceCPU:    resource.MustParse("1"),
 						corev1.ResourceMemory: resource.MustParse("1"),

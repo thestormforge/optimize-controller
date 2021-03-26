@@ -18,7 +18,6 @@ package generation
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
@@ -28,7 +27,7 @@ import (
 
 var zero = resource.MustParse("0")
 
-const requestsQueryFormat = `({{ cpuRequests . %s }} * %d) + ({{ memoryRequests . %s | GB }} * %d)`
+const requestsQueryFormat = `({{ cpuRequests . %q }} * %d) + ({{ memoryRequests . %q | GB }} * %d)`
 
 type RequestsMetricsSource struct {
 	Goal *redskyappsv1alpha1.Goal
@@ -42,9 +41,6 @@ func (s *RequestsMetricsSource) Metrics() ([]redskyv1beta1.Metric, error) {
 		return result, nil
 	}
 
-	// Generate the query
-	ms := strconv.Quote(s.Goal.Requests.MetricSelector)
-
 	cpuWeight := s.Goal.Requests.Weights.Cpu()
 	if cpuWeight == nil {
 		cpuWeight = &zero
@@ -55,7 +51,7 @@ func (s *RequestsMetricsSource) Metrics() ([]redskyv1beta1.Metric, error) {
 		memoryWeight = &zero
 	}
 
-	query := fmt.Sprintf(requestsQueryFormat, ms, cpuWeight.Value(), ms, memoryWeight.Value())
+	query := fmt.Sprintf(requestsQueryFormat, s.Goal.Requests.Selector, cpuWeight.Value(), s.Goal.Requests.Selector, memoryWeight.Value())
 	result = append(result, newGoalMetric(s.Goal, query))
 
 	// If the name contains "cost" and the weights are non-zero, add non-optimized metrics for each request
@@ -68,11 +64,11 @@ func (s *RequestsMetricsSource) Metrics() ([]redskyv1beta1.Metric, error) {
 			newGoalMetric(&redskyappsv1alpha1.Goal{
 				Name:     result[0].Name + "-cpu-requests",
 				Optimize: &nonOptimized,
-			}, fmt.Sprintf("{{ cpuRequests . %s }}", ms)),
+			}, fmt.Sprintf("{{ cpuRequests . %q }}", s.Goal.Requests.Selector)),
 			newGoalMetric(&redskyappsv1alpha1.Goal{
 				Name:     result[0].Name + "-memory-requests",
 				Optimize: &nonOptimized,
-			}, fmt.Sprintf("{{ memoryRequests . %s | GB }}", ms)),
+			}, fmt.Sprintf("{{ memoryRequests . %q | GB }}", s.Goal.Requests.Selector)),
 		)
 	}
 
