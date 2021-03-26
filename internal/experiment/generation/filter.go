@@ -20,6 +20,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 
+	"github.com/thestormforge/konjure/pkg/filters"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"sigs.k8s.io/kustomize/kyaml/openapi"
@@ -86,11 +87,19 @@ func SetExperimentName(name string) yaml.Filter {
 }
 
 func isExperiment() yaml.Filter {
-	return &kindFilter{apiVersion: []string{redskyv1beta1.GroupVersion.String()}, kind: []string{"Experiment"}}
+	return &nodeResourceMetaFilter{
+		Group:   redskyv1beta1.GroupVersion.Group,
+		Version: redskyv1beta1.GroupVersion.Version,
+		Kind:    "Experiment",
+	}
 }
 
 func isClusterRoleOrBinding() yaml.Filter {
-	return &kindFilter{apiVersion: []string{rbacv1.SchemeGroupVersion.String()}, kind: []string{"ClusterRole", "ClusterRoleBinding"}}
+	return &nodeResourceMetaFilter{
+		Group:   rbacv1.SchemeGroupVersion.Group,
+		Version: rbacv1.SchemeGroupVersion.Version,
+		Kind:    "ClusterRole|ClusterRoleBinding",
+	}
 }
 
 func isNamespaceScoped() yaml.Filter {
@@ -106,40 +115,16 @@ func isNamespaceScoped() yaml.Filter {
 	})
 }
 
-// TODO How does something like this not exist in KYAML?
-type kindFilter struct {
-	kind       []string
-	apiVersion []string
-}
+// TODO Use filters.FilterOne(filters.ResourceMetaFilter{...})
+type nodeResourceMetaFilter filters.ResourceMetaFilter
 
-func (f *kindFilter) Filter(node *yaml.RNode) (*yaml.RNode, error) {
-	kindNode, err := node.Pipe(yaml.Get(yaml.KindField))
-	if err != nil || kindNode == nil || !f.matchKind(kindNode.YNode().Value) {
+func (f *nodeResourceMetaFilter) Filter(node *yaml.RNode) (*yaml.RNode, error) {
+	nodes, err := (*filters.ResourceMetaFilter)(f).Filter([]*yaml.RNode{node})
+	if err != nil {
 		return nil, err
 	}
-
-	apiVersion, err := node.Pipe(yaml.Get(yaml.APIVersionField))
-	if err != nil || apiVersion == nil || !f.matchAPIVersion(apiVersion.YNode().Value) {
-		return nil, err
+	if len(nodes) == 1 {
+		return nodes[0], nil
 	}
-
-	return node, nil
-}
-
-func (f *kindFilter) matchKind(kind string) bool {
-	for _, k := range f.kind {
-		if k == kind {
-			return true
-		}
-	}
-	return false
-}
-
-func (f *kindFilter) matchAPIVersion(apiVersion string) bool {
-	for _, v := range f.apiVersion {
-		if v == apiVersion {
-			return true
-		}
-	}
-	return false
+	return nil, nil
 }
