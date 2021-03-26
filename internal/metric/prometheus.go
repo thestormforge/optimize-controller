@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -38,8 +37,6 @@ type CaptureError struct {
 	Address string
 	// The metric query that failed
 	Query string
-	// The completion time at which the query was executed
-	CompletionTime time.Time
 	// The minimum amount of time until the metric is expected to be available
 	RetryAfter time.Duration
 }
@@ -57,34 +54,32 @@ func capturePrometheusMetric(ctx context.Context, log logr.Logger, m *redskyv1be
 	promAPI := promv1.NewAPI(c)
 
 	// Make sure Prometheus is ready
-	lastScrapeTime, err := checkReady(ctx, promAPI, completionTime)
+	lastScrapeEndTime, err := checkReady(ctx, promAPI, completionTime)
 	if err != nil {
 		return 0, 0, err
 	}
 
-	// Execute query
+	// Execute the query
 	value, err = queryScalar(ctx, promAPI, m.Query, completionTime)
 	if err != nil {
 		return 0, 0, err
 	}
 
-	// If we got NaN, it might be a Pushgateway metric that won't have a value unless we query from the scrape time
-	if math.IsNaN(value) && lastScrapeTime.After(completionTime) {
-		log.Info("Retrying Prometheus query to include final scrape", "lastScrapeTime", lastScrapeTime, "completionTime", completionTime)
+	// If we got NaN, it might be that the final scrape hadn't finished
+	if math.IsNaN(value) && lastScrapeEndTime.After(completionTime) {
+		log.Info("Retrying Prometheus query to include final scrape", "lastScrapeEndTime", lastScrapeEndTime)
 
-		value, err = queryScalar(ctx, promAPI, m.Query, lastScrapeTime)
+		value, err = queryScalar(ctx, promAPI, m.Query, lastScrapeEndTime)
 		if err != nil {
 			return 0, 0, err
 		}
 	}
 
-	// If it is still NaN, the problem is mostly likely that the query does not account for missing data
+	// Treat NaN as an error condition. This may be due to a bad query that does
+	// not account for gaps in the timeline or it might be because Prometheus
+	// never pulled in any matching metrics (despite our best efforts in checkReady)
 	if math.IsNaN(value) {
-		err := &CaptureError{Message: "metric data not available", Address: m.URL, Query: m.Query, CompletionTime: completionTime}
-		if strings.HasPrefix(m.Query, "scalar(") {
-			err.Message += " (the scalar function may have received an input vector whose size is not 1)"
-		}
-		return 0, 0, err
+		return 0, 0, &CaptureError{Message: "metric data not available", Address: m.URL, Query: m.Query}
 	}
 
 	// Execute the error query (if configured)
@@ -140,9 +135,20 @@ func queryScalar(ctx context.Context, api promv1.API, q string, t time.Time) (fl
 		return 0, err
 	}
 
-	if v.Type() != model.ValScalar {
+	switch vt := v.(type) {
+
+	case *model.Scalar:
+		return float64(vt.Value), nil
+
+	case *model.Vector:
+		// Strictly mimic `scalar(q)` by returning NaN if the vector isn't a single element
+		// https://prometheus.io/docs/prometheus/latest/querying/functions/#scalar
+		if len(*vt) != 1 {
+			return math.NaN(), nil
+		}
+		return float64((*vt)[0].Value), nil
+
+	default:
 		return 0, fmt.Errorf("expected scalar query result, got %s", v.Type())
 	}
-
-	return float64(v.(*model.Scalar).Value), nil
 }
