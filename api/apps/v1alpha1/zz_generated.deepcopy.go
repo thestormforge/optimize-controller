@@ -41,8 +41,10 @@ func (in *Application) DeepCopyInto(out *Application) {
 	}
 	if in.Parameters != nil {
 		in, out := &in.Parameters, &out.Parameters
-		*out = new(Parameters)
-		(*in).DeepCopyInto(*out)
+		*out = make([]Parameters, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
 	}
 	if in.Ingress != nil {
 		in, out := &in.Ingress, &out.Ingress

@@ -38,7 +38,7 @@ type Application struct {
 	Resources konjure.Resources `json:"resources,omitempty"`
 
 	// Parameters specifies additional details about the experiment parameters.
-	Parameters *Parameters `json:"parameters,omitempty"`
+	Parameters []Parameters `json:"parameters,omitempty"`
 
 	// Ingress specifies how to find the entry point to the application.
 	Ingress *Ingress `json:"ingress,omitempty"`
