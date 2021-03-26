@@ -155,8 +155,14 @@ func (r *MetricReconciler) collectMetrics(ctx context.Context, t *redskyv1beta1.
 		metrics[exp.Spec.Metrics[i].Name] = exp.Spec.Metrics[i].DeepCopy()
 	}
 
+	// Add more context to the log to help with debugging
+	log := r.Log.WithValues(
+		"trial", fmt.Sprintf("%s/%s", t.Namespace, t.Name),
+		"startTime", t.Status.StartTime.Time,
+		"completionTime", t.Status.CompletionTime.Time,
+	)
+
 	// Iterate over the metric values, looking for remaining attempts
-	log := r.Log.WithValues("trial", fmt.Sprintf("%s/%s", t.Namespace, t.Name))
 	for i := range t.Spec.Values {
 		v := &t.Spec.Values[i]
 		if v.AttemptsRemaining <= 0 {
@@ -231,7 +237,7 @@ func (r *MetricReconciler) collectionAttempt(ctx context.Context, log logr.Logge
 
 		// Metric errors contain additional information which should be logged for debugging
 		if merr, ok := err.(*metric.CaptureError); ok {
-			log.Error(merr, "Metric collection failed", "address", merr.Address, "query", merr.Query, "completionTime", merr.CompletionTime)
+			log.Error(merr, "Metric collection failed", "address", merr.Address, "query", merr.Query)
 		}
 	}
 
