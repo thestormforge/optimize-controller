@@ -19,7 +19,6 @@ package generation
 import (
 	"fmt"
 	"math"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -33,7 +32,6 @@ import (
 type CustomSource struct {
 	Scenario    *redskyappsv1alpha1.Scenario
 	Objective   *redskyappsv1alpha1.Objective
-	Goal        *redskyappsv1alpha1.Goal
 	Application *redskyappsv1alpha1.Application
 }
 
@@ -84,18 +82,6 @@ func (s *CustomSource) Update(exp *redskyv1beta1.Experiment) error {
 }
 
 func (s *CustomSource) Metrics() ([]redskyv1beta1.Metric, error) {
-	if s.Scenario != nil {
-		return s.scenarioMetrics()
-	}
-
-	if s.Goal != nil {
-		return s.goalMetrics()
-	}
-
-	return nil, nil
-}
-
-func (s *CustomSource) scenarioMetrics() ([]redskyv1beta1.Metric, error) {
 	var result []redskyv1beta1.Metric
 	if s.Objective == nil {
 		return result, nil
@@ -139,36 +125,6 @@ func (s *CustomSource) scenarioMetrics() ([]redskyv1beta1.Metric, error) {
 			result = append(result, m)
 
 		}
-	}
-
-	return result, nil
-}
-
-func (s *CustomSource) goalMetrics() ([]redskyv1beta1.Metric, error) {
-	var result []redskyv1beta1.Metric
-	if s.Goal == nil || s.Goal.Implemented {
-		return result, nil
-	}
-	if s.Goal.Name == "" {
-		return nil, fmt.Errorf("custom objective must have a name")
-	}
-
-	var m redskyv1beta1.Metric
-	m.Minimize = !s.Goal.Custom.Maximize
-
-	switch {
-	case s.Goal.Custom.Prometheus != nil:
-		m = newGoalMetric(s.Goal, s.Goal.Custom.Prometheus.Query)
-		m.URL = s.Goal.Custom.Prometheus.URL
-		result = append(result, m)
-
-	case s.Goal.Custom.Datadog != nil:
-		m = newGoalMetric(s.Goal, s.Goal.Custom.Datadog.Query)
-		m.Type = redskyv1beta1.MetricDatadog
-		if s.Goal.Custom.Datadog.Aggregator != "" {
-			m.URL = "?" + url.Values{"aggregator": []string{s.Goal.Custom.Datadog.Aggregator}}.Encode()
-		}
-		result = append(result, m)
 	}
 
 	return result, nil

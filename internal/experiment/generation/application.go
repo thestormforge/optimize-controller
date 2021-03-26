@@ -63,8 +63,10 @@ func (s *ApplicationSelector) Map(*yaml.RNode, yaml.ResourceMeta) ([]interface{}
 				result = append(result, &RequestsMetricsSource{Goal: &s.Objective.Goals[i]})
 			case s.Objective.Goals[i].Duration != nil:
 				result = append(result, &DurationMetricsSource{Goal: &s.Objective.Goals[i]})
-			case s.Objective.Goals[i].Custom != nil:
-				result = append(result, &CustomSource{Goal: &s.Objective.Goals[i]})
+			case s.Objective.Goals[i].Prometheus != nil:
+				result = append(result, &PrometheusMetricsSource{Goal: &s.Objective.Goals[i]})
+			case s.Objective.Goals[i].Datadog != nil:
+				result = append(result, &DatadogMetricsSource{Goal: &s.Objective.Goals[i]})
 			}
 		}
 	}
