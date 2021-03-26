@@ -17,6 +17,7 @@ limitations under the License.
 package generation
 
 import (
+	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	"github.com/thestormforge/optimize-controller/internal/scan"
 	corev1 "k8s.io/api/core/v1"
@@ -24,6 +25,26 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 )
+
+type PrometheusMetricsSource struct {
+	Goal *redskyappsv1alpha1.Goal
+}
+
+var _ MetricSource = &PrometheusMetricsSource{}
+
+func (s *PrometheusMetricsSource) Metrics() ([]redskyv1beta1.Metric, error) {
+	var result []redskyv1beta1.Metric
+	if s.Goal == nil || s.Goal.Implemented {
+		return result, nil
+	}
+
+	m := newGoalMetric(s.Goal, s.Goal.Prometheus.Query)
+	m.URL = s.Goal.Prometheus.URL
+	m.Minimize = !s.Goal.Prometheus.Maximize
+	result = append(result, m)
+
+	return result, nil
+}
 
 type BuiltInPrometheus struct {
 	SetupTaskName          string

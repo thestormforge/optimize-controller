@@ -171,8 +171,10 @@ type Goal struct {
 	ErrorRate *ErrorRateGoal `json:"errorRate,omitempty"`
 	// Duration is used to optimize the elapsed time of an application performing a fixed amount of work.
 	Duration *DurationGoal `json:"duration,omitempty"`
-	// Custom is used to optimize against externally defined metrics.
-	Custom *CustomGoal `json:"custom,omitempty"`
+	// Prometheus is used to optimize against a Prometheus metric.
+	Prometheus *PrometheusGoal `json:"prometheus,omitempty"`
+	// Datadog is used to optimize against a Datadog metric.
+	Datadog *DatadogGoal `json:"datadog,omitempty"`
 
 	// IMPORTANT: Remember to update `isEmptyConfig` when adding new goal types
 
@@ -251,31 +253,25 @@ const (
 	DurationTrial DurationType = "trial"
 )
 
-// CustomGoal is used in advanced cases to configure external metric sources.
-type CustomGoal struct {
-	// Define a custom optimization metric using Prometheus.
-	Prometheus *CustomPrometheusGoal `json:"prometheus,omitempty"`
-	// Default a custom optimization metric using Datadog.
-	Datadog *CustomDatadogGoal `json:"datadog,omitempty"`
-	// Flag indicating the goal of optimization should be to maximize a metric.
-	Maximize bool `json:"maximize,omitempty"`
-}
-
-// CustomPrometheusGoal is used to define an external optimization metric from Prometheus.
-type CustomPrometheusGoal struct {
+// PrometheusGoal is used to define an external optimization metric from Prometheus.
+type PrometheusGoal struct {
 	// The PromQL query to execute; the result of this query MUST be a scalar value.
 	Query string `json:"query"`
 	// The URL of the Prometheus deployment, leave blank to leverage a Prometheus instance
 	// whose lifecycle it tied to the trial.
 	URL string `json:"url,omitempty"`
+	// Flag indicating the goal of optimization should be to maximize a metric.
+	Maximize bool `json:"maximize,omitempty"`
 }
 
-// CustomDatadogGoal is used to define an external optimization metric from DataDog.
-type CustomDatadogGoal struct {
+// DatadogGoal is used to define an external optimization metric from DataDog.
+type DatadogGoal struct {
 	// The [Datadog](https://docs.datadoghq.com/tracing/trace_search_and_analytics/query_syntax/) query to execute.
 	Query string `json:"query"`
 	// The aggregator to use on the query results (one of: avg, last, max, min, sum).
 	Aggregator string `json:"aggregator,omitempty"`
+	// Flag indicating the goal of optimization should be to maximize a metric.
+	Maximize bool `json:"maximize,omitempty"`
 }
 
 // StormForger describes global configuration related to StormForger.

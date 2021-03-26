@@ -147,7 +147,8 @@ func isEmptyConfig(goal *Goal) bool {
 		goal.Latency == nil &&
 		goal.ErrorRate == nil &&
 		goal.Duration == nil &&
-		goal.Custom == nil
+		goal.Prometheus == nil &&
+		goal.Datadog == nil
 }
 
 func defaultRequestsGoalWeights(goal *Goal, weights corev1.ResourceList) {
