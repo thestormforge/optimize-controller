@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/thestormforge/konjure/pkg/filters"
 	app "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	redsky "github.com/thestormforge/optimize-controller/api/v1beta1"
 	apppkg "github.com/thestormforge/optimize-controller/internal/application"
@@ -185,7 +186,7 @@ func (o *Options) extractApplication(trial *trialDetails) error {
 	// Render Experiment
 	appInput := kio.Pipeline{
 		Inputs:  []kio.Reader{&kio.ByteReader{Reader: bytes.NewReader(o.inputData)}},
-		Filters: []kio.Filter{kio.FilterFunc(filter("Application", trial.Application))},
+		Filters: []kio.Filter{&filters.ResourceMetaFilter{Group: app.GroupVersion.Group, Kind: "Application", Name: trial.Application}},
 		Outputs: []kio.Writer{kio.ByteWriter{Writer: &appBuf}},
 	}
 	if err := appInput.Execute(); err != nil {
@@ -208,7 +209,7 @@ func (o *Options) extractExperiment(trial *trialDetails) error {
 	// Render Experiment
 	experimentInput := kio.Pipeline{
 		Inputs:  []kio.Reader{&kio.ByteReader{Reader: bytes.NewReader(o.inputData)}},
-		Filters: []kio.Filter{kio.FilterFunc(filter("Experiment", trial.Experiment))},
+		Filters: []kio.Filter{&filters.ResourceMetaFilter{Group: redsky.GroupVersion.Group, Kind: "Experiment", Name: trial.Experiment}},
 		Outputs: []kio.Writer{kio.ByteWriter{Writer: &experimentBuf}},
 	}
 	if err := experimentInput.Execute(); err != nil {
@@ -223,27 +224,6 @@ func (o *Options) extractExperiment(trial *trialDetails) error {
 	o.experiment = &redsky.Experiment{}
 
 	return commander.NewResourceReader().ReadInto(ioutil.NopCloser(&experimentBuf), o.experiment)
-}
-
-// filter returns a filter function to exctract a specified `kind` from the input.
-func filter(kind, name string) kio.FilterFunc {
-	return func(input []*yaml.RNode) ([]*yaml.RNode, error) {
-		var output kio.ResourceNodeSlice
-		for i := range input {
-			m, err := input[i].GetMeta()
-			if err != nil {
-				return nil, err
-			}
-			if m.Kind != kind {
-				continue
-			}
-			if name != "" && m.Name != name {
-				continue
-			}
-			output = append(output, input[i])
-		}
-		return output, nil
-	}
 }
 
 // filter returns a filter function to exctract a specified `kind` from the input.
