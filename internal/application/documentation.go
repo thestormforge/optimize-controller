@@ -33,23 +33,27 @@ Resources define where you application's Kubernetes resources come from. These
 can be URL-like values such as file paths, HTTP URLs, or Git repository URLs.
 They can also be more complex definitions such references to in-cluster objects
 or Helm charts.
+# Reference: https://docs.stormforge.io/reference/application/v1alpha1/#application
 `,
 
 	"parameters": `
-Parameters control what parts of you application will be optimized.
+Parameters are what our machine learning tunes in order to optimize your
+application settings. You can optionally filter where to discover parameters by
+using the selector (the default selector is "").
 Reference: https://docs.stormforge.io/reference/application/v1alpha1/#parameters
 `,
 
 	"scenarios": `
-Scenarios determine how you application will be put under load during
-optimization.
+Scenarios determine which load test will be used to put your application under
+load during the experiment. You can create one by visiting https://app.stormforger.com/
 Reference: https://docs.stormforge.io/reference/application/v1alpha1/#scenario
 `,
 
 	"objectives": `
-Objectives are used to define what you are trying to optimize about your
-application. Most objectives correspond to metrics observed over the course of
-an observation trial, for example: "p95-latency".
+Objectives are used to define what you want to optimize for. It's best to
+optimize for metrics with inherent trade-offs such as cost and performance.
+Objectives correspond to metrics observed over the course of a trial,
+for example: "p95-latency".
 Reference: https://docs.stormforge.io/reference/application/v1alpha1/#objective
 `,
 }
