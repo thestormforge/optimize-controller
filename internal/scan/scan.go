@@ -17,6 +17,7 @@ limitations under the License.
 package scan
 
 import (
+	"github.com/thestormforge/konjure/pkg/filters"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
@@ -26,6 +27,17 @@ import (
 type Selector interface {
 	Select([]*yaml.RNode) ([]*yaml.RNode, error)
 	Map(node *yaml.RNode, meta yaml.ResourceMeta) ([]interface{}, error)
+}
+
+// GenericSelector can be used to implement the "Select" part of the Selector
+// interface. The "*Selector" fields are treated as Kubernetes selectors, all
+// other fields are regular expressions for matching metadata.
+type GenericSelector filters.ResourceMetaFilter
+
+// Select reduces the supplied resource node slice by only returning those
+// nodes which match this selector.
+func (g *GenericSelector) Select(nodes []*yaml.RNode) ([]*yaml.RNode, error) {
+	return (*filters.ResourceMetaFilter)(g).Filter(nodes)
 }
 
 // Transformer consumes the aggregated outputs from the selectors and
