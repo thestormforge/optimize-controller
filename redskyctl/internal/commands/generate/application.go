@@ -56,7 +56,7 @@ func NewApplicationCommand(o *ApplicationOptions) *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&o.Generator.Name, "name", "", "set the application `name`")
-	cmd.Flags().StringSliceVar(&o.Generator.Goals, "goals", []string{"p95-latency", "cost"}, "specify the application optimization objective")
+	cmd.Flags().StringSliceVar(&o.Generator.Goals, "goals", nil, "specify the application optimization objective")
 	cmd.Flags().BoolVar(&o.Generator.Documentation.Disabled, "no-comments", false, "suppress documentation comments on output")
 	cmd.Flags().StringVar(&o.Generator.ScenarioFile, "test-case-file", "", "specify either a StormForger (.js) or Locust (.py) test case `file`")
 	cmd.Flags().StringArrayVarP(&o.Resources, "resources", "r", nil, "additional resources to consider")
