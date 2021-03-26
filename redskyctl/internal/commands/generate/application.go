@@ -62,7 +62,7 @@ func NewApplicationCommand(o *ApplicationOptions) *cobra.Command {
 	cmd.Flags().StringArrayVarP(&o.Resources, "resources", "r", nil, "additional resources to consider")
 	cmd.Flags().StringArrayVar(&o.DefaultResource.Namespaces, "namespace", nil, "select resources from a specific namespace")
 	cmd.Flags().StringVar(&o.DefaultResource.NamespaceSelector, "ns-selector", "", "`sel`ect resources from labeled namespaces")
-	cmd.Flags().StringVarP(&o.DefaultResource.LabelSelector, "selector", "l", "", "`sel`ect only labeled resources")
+	cmd.Flags().StringVarP(&o.DefaultResource.Selector, "selector", "l", "", "`sel`ect only labeled resources")
 
 	_ = cmd.MarkFlagFilename("test-case-file", "js", "py")
 
@@ -73,9 +73,9 @@ func (o *ApplicationOptions) generate() error {
 	if len(o.Resources) > 0 {
 		// Add explicitly requested resources
 		o.Generator.Resources = append(o.Generator.Resources, konjure.NewResource(o.Resources...))
-	} else if o.DefaultResource.LabelSelector == "" && o.Generator.Name != "" {
+	} else if o.DefaultResource.Selector == "" && o.Generator.Name != "" {
 		// Add a default the label selector based on the name
-		o.DefaultResource.LabelSelector = "app.kubernetes.io/name=" + o.Generator.Name
+		o.DefaultResource.Selector = "app.kubernetes.io/name=" + o.Generator.Name
 	}
 
 	// Only include the default resource if it has values
@@ -92,5 +92,5 @@ func (o *ApplicationOptions) isDefaultResourceEmpty() bool {
 	return len(o.DefaultResource.Namespaces) == 0 &&
 		o.DefaultResource.NamespaceSelector == "" &&
 		len(o.DefaultResource.Types) == 0 &&
-		o.DefaultResource.LabelSelector == ""
+		o.DefaultResource.Selector == ""
 }
