@@ -98,12 +98,11 @@ func (t *Transformer) Transform(nodes []*yaml.RNode, selected []interface{}) ([]
 
 		if ps, ok := sel.(PatchSource); ok {
 			ref := ps.TargetRef()
-			fs := patches[*ref]
 			f, err := ps.Patch(name)
 			if err != nil {
 				return nil, err
 			}
-			patches[*ref] = append(fs, f)
+			patches[*ref] = append(patches[*ref], f)
 		}
 
 		if ms, ok := sel.(MetricSource); ok {
@@ -180,7 +179,7 @@ func (t *Transformer) renderPatches(patches map[corev1.ObjectReference][]yaml.Fi
 		// Add the actual patch to the experiment
 		exp.Spec.Patches = append(exp.Spec.Patches, redskyv1beta1.PatchTemplate{
 			Patch:     string(data),
-			TargetRef: &ref,
+			TargetRef: ref.DeepCopy(),
 		})
 	}
 
