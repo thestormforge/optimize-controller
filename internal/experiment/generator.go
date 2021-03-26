@@ -55,55 +55,63 @@ func (g *Generator) SetDefaultSelectors() {
 	// This bridges the gap between the powerful selection logic that is implemented vs the simple
 	// selection configuration that is actually exposed on the Application.
 
-	// Always add container resource selectors, conditionally with an explicit label selector
-	var crsLabelSelector string
-	if g.Application.Parameters != nil && g.Application.Parameters.ContainerResources != nil {
-		crsLabelSelector = g.Application.Parameters.ContainerResources.Selector
-	}
-	g.ContainerResourcesSelectors = []generation.ContainerResourcesSelector{
-		{
-			GenericSelector: scan.GenericSelector{
-				Group:         "apps|extensions",
-				Kind:          "Deployment",
-				LabelSelector: crsLabelSelector,
-			},
-			Path:               "/spec/template/spec/containers",
-			CreateIfNotPresent: true,
-		},
-		{
-			GenericSelector: scan.GenericSelector{
-				Group:         "apps|extensions",
-				Kind:          "StatefulSet",
-				LabelSelector: crsLabelSelector,
-			},
-			Path:               "/spec/template/spec/containers",
-			CreateIfNotPresent: true,
-		},
+	// Add replica selectors
+	for i := range g.Application.Parameters {
+		switch {
+
+		case g.Application.Parameters[i].ContainerResources != nil:
+			for _, gs := range defaultSelectorKinds() {
+				gs.LabelSelector = g.Application.Parameters[i].ContainerResources.Selector
+				g.ContainerResourcesSelectors = append(g.ContainerResourcesSelectors, generation.ContainerResourcesSelector{
+					GenericSelector:    gs,
+					Path:               "/spec/template/spec/containers",
+					CreateIfNotPresent: true,
+					Resources:          g.Application.Parameters[i].ContainerResources.Resources,
+				})
+			}
+
+		case g.Application.Parameters[i].Replicas != nil:
+			for _, gs := range defaultSelectorKinds() {
+				gs.LabelSelector = g.Application.Parameters[i].Replicas.Selector
+				g.ReplicaSelectors = append(g.ReplicaSelectors, generation.ReplicaSelector{
+					GenericSelector:    gs,
+					Path:               "/spec/replicas",
+					CreateIfNotPresent: true,
+				})
+			}
+		}
+
 	}
 
-	// Only add replica selectors if the parameter is explicitly configured
-	if g.Application.Parameters != nil && g.Application.Parameters.Replicas != nil {
-		g.ReplicaSelectors = []generation.ReplicaSelector{
-			{
-				GenericSelector: scan.GenericSelector{
-					Group:         "apps|extensions",
-					Kind:          "Deployment",
-					LabelSelector: g.Application.Parameters.Replicas.Selector,
-				},
-				Path:               "/spec/replicas",
+	// Do not allow container resource selectors to be empty
+	if len(g.ContainerResourcesSelectors) == 0 {
+		for _, gs := range defaultSelectorKinds() {
+			g.ContainerResourcesSelectors = append(g.ContainerResourcesSelectors, generation.ContainerResourcesSelector{
+				GenericSelector:    gs,
+				Path:               "/spec/template/spec/containers",
 				CreateIfNotPresent: true,
-			},
-			{
-				GenericSelector: scan.GenericSelector{
-					Group:         "apps|extensions",
-					Kind:          "StatefulSet",
-					LabelSelector: g.Application.Parameters.Replicas.Selector,
-				},
-				Path:               "/spec/replicas",
-				CreateIfNotPresent: true,
-			},
+			})
 		}
 	}
+}
+
+func defaultSelectorKinds() []scan.GenericSelector {
+	return []scan.GenericSelector{
+		{Group: "apps|extensions", Kind: "Deployment"},
+		{Group: "apps|extensions", Kind: "StatefulSet"},
+	}
+}
+
+// appendSelectorIfNotExist
+func appendSelectorIfNotExist(selectors []string, selector string) []string {
+	for _, s := range selectors {
+		// TODO We should be working off normalized label selectors
+		if s == selector {
+			return selectors
+		}
+	}
+
+	return append(selectors, selector)
 }
 
 // Execute the experiment generation pipeline, sending the results to the supplied writer.

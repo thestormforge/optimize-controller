@@ -38,7 +38,7 @@ type Application struct {
 	Resources konjure.Resources `json:"resources,omitempty"`
 
 	// Parameters specifies additional details about the experiment parameters.
-	Parameters *Parameters `json:"parameters,omitempty"`
+	Parameters []Parameters `json:"parameters,omitempty"`
 
 	// Ingress specifies how to find the entry point to the application.
 	Ingress *Ingress `json:"ingress,omitempty"`
@@ -75,6 +75,8 @@ type Parameters struct {
 type ContainerResources struct {
 	// Label selector of Kubernetes objects to consider when generating container resources patches.
 	Selector string `json:"selector,omitempty"`
+	// The names of the resources to optimize. Defaults to ["memory", "cpu"].
+	Resources []corev1.ResourceName `json:"resources,omitempty"`
 }
 
 // Replicas specifies which resources in the application should have their replica count optimized.

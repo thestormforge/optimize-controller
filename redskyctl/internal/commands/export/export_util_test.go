@@ -109,9 +109,11 @@ func createTempApplication(t *testing.T, filename string) (*app.Application, []b
 			Namespace: "default",
 		},
 		Resources: konjure.Resources{konjure.NewResource(filename)},
-		Parameters: &app.Parameters{
-			ContainerResources: &app.ContainerResources{
-				Selector: "component=postgres",
+		Parameters: []app.Parameters{
+			{
+				ContainerResources: &app.ContainerResources{
+					Selector: "component=postgres",
+				},
 			},
 		},
 		Scenarios: []app.Scenario{

@@ -18,6 +18,7 @@ package generation
 
 import (
 	"encoding/json"
+	"fmt"
 	"math"
 	"regexp"
 
@@ -38,6 +39,8 @@ type ContainerResourcesSelector struct {
 	CreateIfNotPresent bool `json:"create,omitempty"`
 	// Regular expression matching the container name.
 	ContainerName string `json:"containerName,omitempty"`
+	// Names of the resources to select, defaults to ["memory", "cpu"].
+	Resources []corev1.ResourceName `json:"resources,omitempty"`
 }
 
 var _ scan.Selector = &ContainerResourcesSelector{}
@@ -64,11 +67,14 @@ func (s *ContainerResourcesSelector) Map(node *yaml.RNode, meta yaml.ResourceMet
 					return nil
 				}
 
-				p := containerResourcesParameter{pnode{
-					meta:      meta,
-					fieldPath: append(path, "[name="+name+"]", "resources"),
-					value:     rl.Value.YNode(),
-				}}
+				p := containerResourcesParameter{
+					pnode: pnode{
+						meta:      meta,
+						fieldPath: append(path, "[name="+name+"]", "resources"),
+						value:     rl.Value.YNode(),
+					},
+					resources: s.Resources,
+				}
 
 				result = append(result, &p)
 				return nil
@@ -102,6 +108,7 @@ func (s *ContainerResourcesSelector) matchesContainerName(name string) bool {
 // found by the selector during scanning.
 type containerResourcesParameter struct {
 	pnode
+	resources []corev1.ResourceName
 }
 
 var _ PatchSource = &containerResourcesParameter{}
@@ -110,21 +117,22 @@ var _ ParameterSource = &containerResourcesParameter{}
 // Patch produces a YAML filter for updating a strategic merge patch with a parameterized
 // container resources specification.
 func (p *containerResourcesParameter) Patch(name ParameterNamer) (yaml.Filter, error) {
-	values := yaml.NewMapRNode(&map[string]string{
-		"memory": "{{ .Values." + name(p.meta, p.fieldPath, "memory") + " }}M",
-		"cpu":    "{{ .Values." + name(p.meta, p.fieldPath, "cpu") + " }}m",
-	})
+	patches := make(map[string]string)
+	for _, rn := range p.getResources() {
+		format := toPatchPattern(rn)
+		patches[string(rn)] = fmt.Sprintf(format, name(p.meta, p.fieldPath, string(rn)))
+	}
 
 	return yaml.Tee(
 		&yaml.PathGetter{Path: p.fieldPath, Create: yaml.MappingNode},
-		yaml.Tee(yaml.SetField("limits", values)),
-		yaml.Tee(yaml.SetField("requests", values)),
+		yaml.Tee(yaml.SetField("limits", yaml.NewMapRNode(&patches))),
+		yaml.Tee(yaml.SetField("requests", yaml.NewMapRNode(&patches))),
 	), nil
 }
 
 // Parameters lists the parameters used by the patch.
 func (p *containerResourcesParameter) Parameters(name ParameterNamer) ([]redskyv1beta1.Parameter, error) {
-	// ResourceList (actually, Quantities) don't unmarshal as YAML so we need to round trip through JSON
+	// ResourceList (actually, Quantities) won't unmarshal as YAML so we need to round trip through JSON
 	data, err := yaml.NewRNode(p.value).MarshalJSON()
 	if err != nil {
 		return nil, err
@@ -137,20 +145,39 @@ func (p *containerResourcesParameter) Parameters(name ParameterNamer) ([]redskyv
 		return nil, err
 	}
 
-	baselineMemory, minMemory, maxMemory := toIntWithRange(r.Requests, corev1.ResourceMemory)
-	baselineCPU, minCPU, maxCPU := toIntWithRange(r.Requests, corev1.ResourceCPU)
+	var result []redskyv1beta1.Parameter
+	for _, rn := range p.getResources() {
+		baseline, min, max := toIntWithRange(r.Requests, rn)
+		result = append(result, redskyv1beta1.Parameter{
+			Name:     name(p.meta, p.fieldPath, string(rn)),
+			Min:      min,
+			Max:      max,
+			Baseline: baseline,
+		})
+	}
 
-	return []redskyv1beta1.Parameter{{
-		Name:     name(p.meta, p.fieldPath, "memory"),
-		Min:      minMemory,
-		Max:      maxMemory,
-		Baseline: baselineMemory,
-	}, {
-		Name:     name(p.meta, p.fieldPath, "cpu"),
-		Min:      minCPU,
-		Max:      maxCPU,
-		Baseline: baselineCPU,
-	}}, nil
+	return result, nil
+}
+
+// getResources returns the names of the resources to optimize on.
+func (p *containerResourcesParameter) getResources() []corev1.ResourceName {
+	if len(p.resources) > 0 {
+		return p.resources
+	}
+
+	return []corev1.ResourceName{corev1.ResourceMemory, corev1.ResourceCPU}
+}
+
+// toPatchPattern returns the fmt pattern for a patch of the specified resource name.
+func toPatchPattern(name corev1.ResourceName) string {
+	switch name {
+	case corev1.ResourceMemory:
+		return "{{ .Values.%s }}M"
+	case corev1.ResourceCPU:
+		return "{{ .Values.%s }}m"
+	default:
+		return ""
+	}
 }
 
 // toIntWithRange returns the quantity as an int value with a default range.
