@@ -55,70 +55,50 @@ func (g *Generator) SetDefaultSelectors() {
 	// This bridges the gap between the powerful selection logic that is implemented vs the simple
 	// selection configuration that is actually exposed on the Application.
 
-	// Collect all the label selectors
-	var containerResourcesLabelSelectors, replicaLabelSelectors []string
+	// Add replica selectors
 	for i := range g.Application.Parameters {
 		switch {
 
 		case g.Application.Parameters[i].ContainerResources != nil:
-			containerResourcesLabelSelectors = appendSelectorIfNotExist(containerResourcesLabelSelectors, g.Application.Parameters[i].ContainerResources.Selector)
+			for _, gs := range defaultSelectorKinds() {
+				gs.LabelSelector = g.Application.Parameters[i].ContainerResources.Selector
+				g.ContainerResourcesSelectors = append(g.ContainerResourcesSelectors, generation.ContainerResourcesSelector{
+					GenericSelector:    gs,
+					Path:               "/spec/template/spec/containers",
+					CreateIfNotPresent: true,
+					Resources:          g.Application.Parameters[i].ContainerResources.Resources,
+				})
+			}
 
 		case g.Application.Parameters[i].Replicas != nil:
-			replicaLabelSelectors = appendSelectorIfNotExist(replicaLabelSelectors, g.Application.Parameters[i].Replicas.Selector)
+			for _, gs := range defaultSelectorKinds() {
+				gs.LabelSelector = g.Application.Parameters[i].Replicas.Selector
+				g.ReplicaSelectors = append(g.ReplicaSelectors, generation.ReplicaSelector{
+					GenericSelector:    gs,
+					Path:               "/spec/replicas",
+					CreateIfNotPresent: true,
+				})
+			}
 		}
+
 	}
 
-	// Make sure there is always at least one container resources selector
-	if len(containerResourcesLabelSelectors) == 0 {
-		containerResourcesLabelSelectors = append(containerResourcesLabelSelectors, "")
-	}
-
-	// Add container resources selectors
-	for _, labelSelector := range containerResourcesLabelSelectors {
-		g.ContainerResourcesSelectors = []generation.ContainerResourcesSelector{
-			{
-				GenericSelector: scan.GenericSelector{
-					Group:         "apps|extensions",
-					Kind:          "Deployment",
-					LabelSelector: labelSelector,
-				},
+	// Do not allow container resource selectors to be empty
+	if len(g.ContainerResourcesSelectors) == 0 {
+		for _, gs := range defaultSelectorKinds() {
+			g.ContainerResourcesSelectors = append(g.ContainerResourcesSelectors, generation.ContainerResourcesSelector{
+				GenericSelector:    gs,
 				Path:               "/spec/template/spec/containers",
 				CreateIfNotPresent: true,
-			},
-			{
-				GenericSelector: scan.GenericSelector{
-					Group:         "apps|extensions",
-					Kind:          "StatefulSet",
-					LabelSelector: labelSelector,
-				},
-				Path:               "/spec/template/spec/containers",
-				CreateIfNotPresent: true,
-			},
+			})
 		}
 	}
+}
 
-	// Add replica selectors
-	for _, labelSelector := range replicaLabelSelectors {
-		g.ReplicaSelectors = []generation.ReplicaSelector{
-			{
-				GenericSelector: scan.GenericSelector{
-					Group:         "apps|extensions",
-					Kind:          "Deployment",
-					LabelSelector: labelSelector,
-				},
-				Path:               "/spec/replicas",
-				CreateIfNotPresent: true,
-			},
-			{
-				GenericSelector: scan.GenericSelector{
-					Group:         "apps|extensions",
-					Kind:          "StatefulSet",
-					LabelSelector: labelSelector,
-				},
-				Path:               "/spec/replicas",
-				CreateIfNotPresent: true,
-			},
-		}
+func defaultSelectorKinds() []scan.GenericSelector {
+	return []scan.GenericSelector{
+		{Group: "apps|extensions", Kind: "Deployment"},
+		{Group: "apps|extensions", Kind: "StatefulSet"},
 	}
 }
 

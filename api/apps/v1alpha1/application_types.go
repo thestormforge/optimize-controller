@@ -75,6 +75,8 @@ type Parameters struct {
 type ContainerResources struct {
 	// Label selector of Kubernetes objects to consider when generating container resources patches.
 	Selector string `json:"selector,omitempty"`
+	// The names of the resources to optimize. Defaults to ["memory", "cpu"].
+	Resources []corev1.ResourceName `json:"resources,omitempty"`
 }
 
 // Replicas specifies which resources in the application should have their replica count optimized.
