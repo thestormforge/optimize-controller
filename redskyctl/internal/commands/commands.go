@@ -28,6 +28,7 @@ import (
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/check"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/completion"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/configure"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/debug"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/docs"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/experiments"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/export"
@@ -69,7 +70,7 @@ func NewRedskyctlCommand() *cobra.Command {
 	rootCmd.AddCommand(generate.NewCommand(&generate.Options{Config: cfg}))
 	rootCmd.AddCommand(export.NewCommand(&export.Options{Config: cfg}))
 
-	// Remove Server Commands
+	// Remote Server Commands
 	rootCmd.AddCommand(experiments.NewDeleteCommand(&experiments.DeleteOptions{Options: experiments.Options{Config: cfg}}))
 	rootCmd.AddCommand(experiments.NewGetCommand(&experiments.GetOptions{Options: experiments.Options{Config: cfg}, ChunkSize: 500}))
 	rootCmd.AddCommand(experiments.NewLabelCommand(&experiments.LabelOptions{Options: experiments.Options{Config: cfg}}))
@@ -86,6 +87,7 @@ func NewRedskyctlCommand() *cobra.Command {
 	rootCmd.AddCommand(kustomize.NewCommand())
 	rootCmd.AddCommand(version.NewCommand(&version.Options{Config: cfg}))
 	rootCmd.AddCommand(docs.NewCommand(&docs.Options{}))
+	rootCmd.AddCommand(debug.NewCommand(&debug.Options{Config: cfg}))
 
 	// TODO Add 'backup' and 'restore' maintenance commands ('maint' subcommands?)
 	// TODO We need helpers for doing a "dry run" on patches to make configuration easier
