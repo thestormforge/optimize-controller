@@ -25,6 +25,8 @@ const (
 	AnnotationNextTrialURL = "redskyops.dev/next-trial-url"
 	// AnnotationReportTrialURL is the URL used to report trial observations
 	AnnotationReportTrialURL = "redskyops.dev/report-trial-url"
+	// AnnotationServerSync controls additional behavior around synchronizing the experiment remotely
+	AnnotationServerSync = "redskyops.dev/server-sync"
 
 	// LabelExperiment is the name of the experiment associated with an object
 	LabelExperiment = "redskyops.dev/experiment"
