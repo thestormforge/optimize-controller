@@ -168,6 +168,7 @@ func parseTime(input string, defaultTime time.Time) (metav1.Time, error) {
 		return metav1.NewTime(defaultTime), nil
 	}
 
+	// Look for Unix time (either `<sec-int64>` or `<sec-int64>.<nsec-int64>`)
 	ss := regexp.MustCompile(`^([0-9]+)(?:\.([0-9]+))?$`).FindStringSubmatch(input)
 	if len(ss) == 3 {
 		sec, err := strconv.ParseInt(ss[1], 10, 64)
@@ -181,6 +182,7 @@ func parseTime(input string, defaultTime time.Time) (metav1.Time, error) {
 		return metav1.NewTime(time.Unix(sec, nsec)), nil
 	}
 
+	// Fall back to RFC 3339 time
 	t, err := time.Parse(time.RFC3339Nano, input)
 	return metav1.NewTime(t), err
 }
@@ -231,6 +233,8 @@ func (p *promTest) addHeadComment(pattern string, args ...interface{}) {
 }
 
 func (p *promTest) addTest(t *redskyv1beta1.Trial) error {
+	seriesName := fmt.Sprintf(`up{job="prometheus-pushgateway", instance="redsky-%s-prometheus:9090"}`, t.Namespace)
+	seriesValues := fmt.Sprintf(`0+0x%d`, (t.Status.CompletionTime.Sub(t.Status.StartTime.Time)/(5*time.Second))+2)
 	return p.document.PipeE(
 		yaml.Lookup("tests"),
 		yaml.Append(&yaml.Node{
@@ -250,10 +254,10 @@ func (p *promTest) addTest(t *redskyv1beta1.Trial) error {
 							Kind: yaml.MappingNode,
 							Content: []*yaml.Node{
 								{Kind: yaml.ScalarNode, Value: "series"},
-								{Kind: yaml.ScalarNode, Value: "", Style: yaml.SingleQuotedStyle},
+								{Kind: yaml.ScalarNode, Value: seriesName, Style: yaml.SingleQuotedStyle},
 
 								{Kind: yaml.ScalarNode, Value: "values"},
-								{Kind: yaml.ScalarNode, Value: "", Style: yaml.SingleQuotedStyle},
+								{Kind: yaml.ScalarNode, Value: seriesValues, Style: yaml.SingleQuotedStyle},
 							},
 						},
 					},
