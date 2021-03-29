@@ -74,7 +74,7 @@ func (r *ServerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	// Check to see if the experiment is exempt from server operations
-	if server.IsServerSyncDisabled(exp) {
+	if !server.IsServerSyncEnabled(exp) {
 		return ctrl.Result{}, nil
 	}
 

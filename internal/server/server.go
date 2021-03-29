@@ -303,15 +303,13 @@ func FailExperiment(exp *redskyv1beta1.Experiment, reason string, err error) boo
 	return true
 }
 
-// IsServerSyncDisabled checks to see if server synchronization should be disabled.
-func IsServerSyncDisabled(exp *redskyv1beta1.Experiment) bool {
+// IsServerSyncEnabled checks to see if server synchronization is enabled.
+func IsServerSyncEnabled(exp *redskyv1beta1.Experiment) bool {
 	switch strings.ToLower(exp.GetAnnotations()[redskyv1beta1.AnnotationServerSync]) {
 	case "disabled", "false":
-		// DO NOT perform server synchronization
-		return true
-	default:
-		// Server sync IS NOT disabled, allow server sync
 		return false
+	default:
+		return true
 	}
 }
 
@@ -328,7 +326,7 @@ func DeleteServerExperiment(exp *redskyv1beta1.Experiment) bool {
 	// As a special case, check to see if synchronization is disabled. This would
 	// be the case if someone tried disabling server synchronization mid-run,
 	// presumably with the intent of not having the server experiment at the end.
-	if IsServerSyncDisabled(exp) {
+	if !IsServerSyncEnabled(exp) {
 		return true
 	}
 
