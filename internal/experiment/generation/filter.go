@@ -87,19 +87,19 @@ func SetExperimentName(name string) yaml.Filter {
 }
 
 func isExperiment() yaml.Filter {
-	return &nodeResourceMetaFilter{
+	return filters.FilterOne(&filters.ResourceMetaFilter{
 		Group:   redskyv1beta1.GroupVersion.Group,
 		Version: redskyv1beta1.GroupVersion.Version,
 		Kind:    "Experiment",
-	}
+	})
 }
 
 func isClusterRoleOrBinding() yaml.Filter {
-	return &nodeResourceMetaFilter{
+	return filters.FilterOne(&filters.ResourceMetaFilter{
 		Group:   rbacv1.SchemeGroupVersion.Group,
 		Version: rbacv1.SchemeGroupVersion.Version,
 		Kind:    "ClusterRole|ClusterRoleBinding",
-	}
+	})
 }
 
 func isNamespaceScoped() yaml.Filter {
@@ -113,18 +113,4 @@ func isNamespaceScoped() yaml.Filter {
 		}
 		return node, nil
 	})
-}
-
-// TODO Use filters.FilterOne(filters.ResourceMetaFilter{...})
-type nodeResourceMetaFilter filters.ResourceMetaFilter
-
-func (f *nodeResourceMetaFilter) Filter(node *yaml.RNode) (*yaml.RNode, error) {
-	nodes, err := (*filters.ResourceMetaFilter)(f).Filter([]*yaml.RNode{node})
-	if err != nil {
-		return nil, err
-	}
-	if len(nodes) == 1 {
-		return nodes[0], nil
-	}
-	return nil, nil
 }

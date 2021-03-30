@@ -33,9 +33,10 @@ type Options struct {
 // NewCommand returns a new generate manifests command
 func NewCommand(o *Options) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "generate",
-		Short: "Generate Red Sky Ops objects",
-		Long:  "Generate Red Sky Ops object manifests",
+		Use:     "generate",
+		Aliases: []string{"gen"},
+		Short:   "Generate Red Sky Ops objects",
+		Long:    "Generate Red Sky Ops object manifests",
 	}
 
 	cmd.AddCommand(initialize.NewGeneratorCommand(&initialize.GeneratorOptions{Config: o.Config}))
