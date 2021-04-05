@@ -1,25 +1,58 @@
 #!/bin/sh
 set -e
 
-case "$1" in
-  prometheus)
-    # Generate prometheus manifests
-    shift && cd /workspace/prometheus
+if [ "${1}" == "prometheus" ]; then
+  PROMETHEUS=true
 
-    namePrefix="redsky-"
-    if [ -n "$NAMESPACE" ]; then
-      namePrefix="redsky-$NAMESPACE-"
-    fi
+  # Generate prometheus manifests
+  shift && cd /workspace/prometheus
 
-    kustomize edit set nameprefix "$namePrefix"
-    waitFn() {
-      kubectl wait --for condition=Available=true --timeout 120s deployment.apps ${namePrefix}prometheus-server
-    }
-  ;;
-  *)
-    waitFn() { :; }
-  ;;
-esac
+  namePrefix="redsky-"
+  if [ -n "$NAMESPACE" ]; then
+    namePrefix="redsky-$NAMESPACE-"
+  fi
+
+  kustomize edit set nameprefix "$namePrefix"
+
+  function promCreateWaitFn() {
+    kubectl wait deployment.apps \
+      --for condition=Available=true \
+      --timeout 120s \
+      ${namePrefix}prometheus-server
+  }
+
+  function promDeleteWaitFn() {
+    kubectl wait deployment.apps \
+      --for delete \
+      --timeout 120s \
+      ${namePrefix}prometheus-server
+  }
+fi
+
+function createFn() {
+  # Note, this *must* be create for `generateName` to work properly
+  kubectl create -f -
+}
+
+function createWaitFn() {
+  #if [ -n "$TRIAL" ] && [ -n "$NAMESPACE" ] ; then
+  #    kubectl get sts,deploy,ds --namespace "$NAMESPACE" --selector "redskyops.dev/trial=$TRIAL,redskyops.dev/trial-role=trialResource" -o name | xargs -n 1 kubectl rollout status --namespace "$NAMESPACE"
+  #fi
+  :
+}
+
+function deleteFn() {
+  kubectl delete -f -
+}
+
+function deleteWaitFn() {
+  if [ -n "$TRIAL" ] && [ -n "$NAMESPACE" ]; then
+    kubectl wait pods \
+      --for=delete \
+      --namespace "$NAMESPACE" \
+      --selector "redskyops.dev/trial=$TRIAL,redskyops.dev/trial-role=trialResource"
+  fi
+}
 
 
 # Create the "base" root
@@ -38,8 +71,8 @@ fi
 
 # Add Helm configuration
 if [ -n "$HELM_CONFIG" ] ; then
-    echo "$HELM_CONFIG" | base64 -d > helm.yaml
-    konjure kustomize edit add generator helm.yaml
+  echo "$HELM_CONFIG" | base64 -d > helm.yaml
+  konjure kustomize edit add generator helm.yaml
 fi
 
 
@@ -62,40 +95,49 @@ fi
 
 # Process arguments
 while [ "$#" != "0" ] ; do
-    case "$1" in
-    create)
-        handle () {
-            # Note, this *must* be create for `generateName` to work properly
-            kubectl create -f -
-            #if [ -n "$TRIAL" ] && [ -n "$NAMESPACE" ] ; then
-            #    kubectl get sts,deploy,ds --namespace "$NAMESPACE" --selector "redskyops.dev/trial=$TRIAL,redskyops.dev/trial-role=trialResource" -o name | xargs -n 1 kubectl rollout status --namespace "$NAMESPACE"
-            #fi
-        }
-        shift
-        ;;
-    delete)
-        handle () {
-            kubectl delete -f -
-            if [ -n "$TRIAL" ] && [ -n "$NAMESPACE" ] ; then
-                kubectl wait pods --for=delete --namespace "$NAMESPACE" --selector "redskyops.dev/trial=$TRIAL,redskyops.dev/trial-role=trialResource"
-            fi
-        }
-        waitFn () { :; }
-        shift
-        ;;
-    build)
-        handle () { cat ; }
-        waitFn () { :; }
-        shift
-        ;;
-    *)
-        echo "unknown argument: $1"
-        exit 1
-        ;;
-    esac
+  case "$1" in
+  create)
+    if [ -n "${PROMETHEUS}" ]; then
+      handle () {
+        # Feel like this should be `cat -` but busybox cat doesnt recognize that.
+        yamls=$(cat)
+
+        # We may or may not have resources here, so allow this to fail.
+        printf "${yamls}" | deleteFn || true
+        # Cant use the generic deleteWaitFn because our trials will be different
+        promDeleteWaitFn || true
+
+        printf "${yamls}" | createFn
+        promCreateWaitFn
+      }
+    else
+      handle () {
+        cat | createFn
+        createWaitFn
+      }
+    fi
+
+    break
+    ;;
+  delete)
+    handle () {
+        cat | deleteFn
+        deleteWaitFn
+    }
+
+    break
+    ;;
+  build)
+    handle () { cat ; }
+    break
+    ;;
+  *)
+    echo "unknown argument: $1"
+    exit 1
+    ;;
+  esac
 done
 
 
 # Run Kustomize and pipe it into the handler
 kustomize build --enable_alpha_plugins | handle
-waitFn
