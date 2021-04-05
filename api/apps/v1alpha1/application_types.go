@@ -38,7 +38,7 @@ type Application struct {
 	Resources konjure.Resources `json:"resources,omitempty"`
 
 	// Parameters specifies additional details about the experiment parameters.
-	Parameters []Parameters `json:"parameters,omitempty"`
+	Parameters []Parameter `json:"parameters,omitempty"`
 
 	// Ingress specifies how to find the entry point to the application.
 	Ingress *Ingress `json:"ingress,omitempty"`
@@ -53,8 +53,8 @@ type Application struct {
 	StormForger *StormForger `json:"stormForger,omitempty"`
 }
 
-// Parameters describes the strategy for tuning the application.
-type Parameters struct {
+// Parameter describes the strategy for tuning the application.
+type Parameter struct {
 	// Information related to the discovery of container resources parameters like CPU and memory.
 	ContainerResources *ContainerResources `json:"containerResources,omitempty"`
 	// Information related to the discovery of replica parameters.
