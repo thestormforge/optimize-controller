@@ -60,58 +60,42 @@ func (g *Generator) SetDefaultSelectors() {
 		switch {
 
 		case g.Application.Parameters[i].ContainerResources != nil:
-			for _, gs := range defaultSelectorKinds() {
-				gs.LabelSelector = g.Application.Parameters[i].ContainerResources.Selector
-				g.ContainerResourcesSelectors = append(g.ContainerResourcesSelectors, generation.ContainerResourcesSelector{
-					GenericSelector:    gs,
-					Path:               "/spec/template/spec/containers",
-					CreateIfNotPresent: true,
-					Resources:          g.Application.Parameters[i].ContainerResources.Resources,
-				})
-			}
+			g.ContainerResourcesSelectors = append(g.ContainerResourcesSelectors, generation.ContainerResourcesSelector{
+				GenericSelector: scan.GenericSelector{
+					Group:         "apps|extensions",
+					Kind:          "Deployment|StatefulSet",
+					LabelSelector: g.Application.Parameters[i].ContainerResources.Selector,
+				},
+				Path:               "/spec/template/spec/containers",
+				CreateIfNotPresent: true,
+				Resources:          g.Application.Parameters[i].ContainerResources.Resources,
+			})
 
 		case g.Application.Parameters[i].Replicas != nil:
-			for _, gs := range defaultSelectorKinds() {
-				gs.LabelSelector = g.Application.Parameters[i].Replicas.Selector
-				g.ReplicaSelectors = append(g.ReplicaSelectors, generation.ReplicaSelector{
-					GenericSelector:    gs,
-					Path:               "/spec/replicas",
-					CreateIfNotPresent: true,
-				})
-			}
+			g.ReplicaSelectors = append(g.ReplicaSelectors, generation.ReplicaSelector{
+				GenericSelector: scan.GenericSelector{
+					Group:         "apps|extensions",
+					Kind:          "Deployment|StatefulSet",
+					LabelSelector: g.Application.Parameters[i].Replicas.Selector,
+				},
+				Path:               "/spec/replicas",
+				CreateIfNotPresent: true,
+			})
 		}
 
 	}
 
 	// Do not allow container resource selectors to be empty
 	if len(g.ContainerResourcesSelectors) == 0 {
-		for _, gs := range defaultSelectorKinds() {
-			g.ContainerResourcesSelectors = append(g.ContainerResourcesSelectors, generation.ContainerResourcesSelector{
-				GenericSelector:    gs,
-				Path:               "/spec/template/spec/containers",
-				CreateIfNotPresent: true,
-			})
-		}
+		g.ContainerResourcesSelectors = append(g.ContainerResourcesSelectors, generation.ContainerResourcesSelector{
+			GenericSelector: scan.GenericSelector{
+				Group: "apps|extensions",
+				Kind:  "Deployment|StatefulSet",
+			},
+			Path:               "/spec/template/spec/containers",
+			CreateIfNotPresent: true,
+		})
 	}
-}
-
-func defaultSelectorKinds() []scan.GenericSelector {
-	return []scan.GenericSelector{
-		{Group: "apps|extensions", Kind: "Deployment"},
-		{Group: "apps|extensions", Kind: "StatefulSet"},
-	}
-}
-
-// appendSelectorIfNotExist
-func appendSelectorIfNotExist(selectors []string, selector string) []string {
-	for _, s := range selectors {
-		// TODO We should be working off normalized label selectors
-		if s == selector {
-			return selectors
-		}
-	}
-
-	return append(selectors, selector)
 }
 
 // Execute the experiment generation pipeline, sending the results to the supplied writer.
