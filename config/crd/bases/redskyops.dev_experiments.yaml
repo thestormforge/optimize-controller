@@ -16,8 +16,10 @@ spec:
     kind: Experiment
     listKind: ExperimentList
     plural: experiments
+    shortNames:
+    - exp
     singular: experiment
-  scope: ""
+  scope: Namespaced
   subresources: {}
   version: v1alpha1
   versions:
