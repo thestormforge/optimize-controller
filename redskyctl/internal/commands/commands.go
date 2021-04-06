@@ -41,6 +41,7 @@ import (
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/reset"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/results"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/revoke"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/version"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"github.com/thestormforge/optimize-go/pkg/config"
@@ -69,6 +70,7 @@ func NewRedskyctlCommand() *cobra.Command {
 	rootCmd.AddCommand(authorize_cluster.NewCommand(&authorize_cluster.Options{GeneratorOptions: authorize_cluster.GeneratorOptions{Config: cfg}}))
 	rootCmd.AddCommand(generate.NewCommand(&generate.Options{Config: cfg}))
 	rootCmd.AddCommand(export.NewCommand(&export.Options{Config: cfg}))
+	rootCmd.AddCommand(run.NewCommand(&run.Options{Config: cfg}))
 
 	// Remote Server Commands
 	rootCmd.AddCommand(experiments.NewDeleteCommand(&experiments.DeleteOptions{Options: experiments.Options{Config: cfg}}))
