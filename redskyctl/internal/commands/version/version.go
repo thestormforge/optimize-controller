@@ -103,7 +103,7 @@ func (o *Options) version(ctx context.Context) error {
 		data[o.Product] = version.GetInfo()
 	}
 	// TODO Each of these should be done in go routines and time boxed
-	if v, err := o.controllerVersion(ctx); err != nil {
+	if v, err := o.ControllerVersion(ctx); err != nil {
 		if o.Debug {
 			_, _ = fmt.Fprintln(o.ErrOut, "controller:", err.Error())
 		}
@@ -123,7 +123,7 @@ func (o *Options) version(ctx context.Context) error {
 }
 
 // controllerVersion looks for the controller pod and executes `/manager version` to extract the version information
-func (o *Options) controllerVersion(ctx context.Context) (*version.Info, error) {
+func (o *Options) ControllerVersion(ctx context.Context) (*version.Info, error) {
 	// Get the namespace
 	ns, err := o.Config.SystemNamespace()
 	if err != nil {

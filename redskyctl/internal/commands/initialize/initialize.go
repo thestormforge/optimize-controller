@@ -40,7 +40,7 @@ func NewCommand(o *Options) *cobra.Command {
 		Long:  "Install Red Sky Ops to a cluster",
 
 		PreRun: commander.StreamsPreRun(&o.IOStreams),
-		RunE:   commander.WithContextE(o.initialize),
+		RunE:   commander.WithContextE(o.Initialize),
 	}
 
 	cmd.Flags().BoolVar(&o.Wait, "wait", o.Wait, "wait for resources to be established before returning")
@@ -50,7 +50,7 @@ func NewCommand(o *Options) *cobra.Command {
 	return cmd
 }
 
-func (o *Options) initialize(ctx context.Context) error {
+func (o *Options) Initialize(ctx context.Context) error {
 	install, err := o.generateInstall()
 	if err != nil {
 		return err

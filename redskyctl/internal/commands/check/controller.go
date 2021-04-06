@@ -47,7 +47,7 @@ func NewControllerCommand(o *ControllerOptions) *cobra.Command {
 		Long:  "Check the Red Sky controller",
 
 		PreRun: commander.StreamsPreRun(&o.IOStreams),
-		RunE:   commander.WithContextE(o.checkController),
+		RunE:   commander.WithContextE(o.CheckController),
 	}
 
 	cmd.Flags().BoolVar(&o.Wait, "wait", o.Wait, "wait for the controller to be ready before returning")
@@ -55,7 +55,7 @@ func NewControllerCommand(o *ControllerOptions) *cobra.Command {
 	return cmd
 }
 
-func (o *ControllerOptions) checkController(ctx context.Context) error {
+func (o *ControllerOptions) CheckController(ctx context.Context) error {
 	// Get the namespace
 	ns, err := o.Config.SystemNamespace()
 	if err != nil {
