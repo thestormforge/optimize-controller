@@ -286,11 +286,12 @@ func FromClusterTrial(t *redskyv1beta1.Trial) *redskyapi.TrialValues {
 	return out
 }
 
-// StopExperiment updates the experiment in the event that it should be paused or halted
+// StopExperiment updates the experiment in the event that it should be paused or halted.
 func StopExperiment(exp *redskyv1beta1.Experiment, err error) bool {
 	if rse, ok := err.(*redskyapi.Error); ok && rse.Type == redskyapi.ErrExperimentStopped {
 		exp.SetReplicas(0)
 		delete(exp.GetAnnotations(), redskyv1beta1.AnnotationNextTrialURL)
+		experiment.ApplyCondition(&exp.Status, redskyv1beta1.ExperimentComplete, corev1.ConditionTrue, "Stopped", err.Error(), nil)
 		return true
 	}
 	return false

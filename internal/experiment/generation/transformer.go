@@ -263,7 +263,7 @@ func parameterNamer(selected []interface{}) ParameterNamer {
 			for _, p := range path {
 				if yaml.IsListIndex(p) {
 					if _, value, _ := yaml.SplitIndexNameValue(p); value != "" {
-						parts = append(parts, value) // TODO Split on "-" like we do for names?
+						parts = append(parts, strings.Split(value, "-")...)
 					}
 				}
 			}

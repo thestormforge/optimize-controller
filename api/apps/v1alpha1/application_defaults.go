@@ -50,9 +50,6 @@ func (in *Application) Default() {
 	for i := range in.Objectives {
 		in.Objectives[i].Default()
 	}
-
-	// Count the number of objectives, this is necessary to accurately compute experiment names
-	in.InitialObjectiveCount = len(in.Objectives)
 }
 
 func (in *Scenario) Default() {

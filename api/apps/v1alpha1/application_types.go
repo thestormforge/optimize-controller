@@ -38,7 +38,7 @@ type Application struct {
 	Resources konjure.Resources `json:"resources,omitempty"`
 
 	// Parameters specifies additional details about the experiment parameters.
-	Parameters []Parameters `json:"parameters,omitempty"`
+	Parameters []Parameter `json:"parameters,omitempty"`
 
 	// Ingress specifies how to find the entry point to the application.
 	Ingress *Ingress `json:"ingress,omitempty"`
@@ -51,19 +51,10 @@ type Application struct {
 
 	// StormForger allows you to configure StormForger to apply load on your application.
 	StormForger *StormForger `json:"stormForger,omitempty"`
-
-	// A count of the initial objectives, internally used to in name generation.
-	InitialObjectiveCount int `json:"-"`
 }
 
-// HasDefaultObjectives checks to see if the current number of objectives matches what
-// was present when the application was last defaulted.
-func (in *Application) HasDefaultObjectives() bool {
-	return in.InitialObjectiveCount > 0 && len(in.Objectives) == in.InitialObjectiveCount
-}
-
-// Parameters describes the strategy for tuning the application.
-type Parameters struct {
+// Parameter describes the strategy for tuning the application.
+type Parameter struct {
 	// Information related to the discovery of container resources parameters like CPU and memory.
 	ContainerResources *ContainerResources `json:"containerResources,omitempty"`
 	// Information related to the discovery of replica parameters.
