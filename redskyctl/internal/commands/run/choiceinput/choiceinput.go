@@ -115,11 +115,26 @@ func (m Model) View() string {
 	// TODO This needs to be in columns over 8 (might need right/left support)
 	lines = append(lines, "")
 	for i, c := range m.Choices {
+		var line strings.Builder
+
+		checkboxStyle := termenv.Style{}
+		choiceStyle := termenv.Style{}
+		if m.selected == i && m.Focused() {
+			checkboxStyle = checkboxStyle.Bold()
+			choiceStyle = choiceStyle.Bold()
+		}
+
+		line.WriteString(checkboxStyle.Styled("["))
 		checked := " "
 		if m.selected == i {
 			checked = "x"
 		}
-		lines = append(lines, fmt.Sprintf("[%s] %s", checked, c))
+		line.WriteString(checked)
+		line.WriteString(checkboxStyle.Styled("]"))
+		line.WriteString(" ")
+		line.WriteString(choiceStyle.Styled(c))
+
+		lines = append(lines, line.String())
 	}
 	if len(m.Choices) == 0 {
 		lines = append(lines, fmt.Sprintf("%s %s", m.spinner.View(), m.LoadingMessage))

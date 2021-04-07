@@ -34,13 +34,17 @@ type Model struct {
 	// Message to display while loading.
 	LoadingMessage string
 	// Instructional text to show after the choices.
-	Instructions string
+	Instructions      string
+	InstructionsColor string
 	// Indicates the value does not need to match a choice.
 	Editable bool
+	// Don't give up focus if nothing is selected.
+	Required bool
 
-	highlighted int
-	selected    []int
-	spinner     spinner.Model
+	highlighted  int
+	selected     []int
+	spinner      spinner.Model
+	showRequired bool
 }
 
 func NewModel() Model {
@@ -50,8 +54,9 @@ func NewModel() Model {
 	s.Spinner = spinner.Line
 
 	return Model{
-		Model:   ti,
-		spinner: s,
+		Model:             ti,
+		InstructionsColor: "241",
+		spinner:           s,
 	}
 }
 
@@ -151,6 +156,17 @@ func (m *Model) Toggle(i int) {
 	}
 }
 
+func (m *Model) TryBlur() bool {
+	m.showRequired = false
+	if m.Required && len(m.Values()) == 0 {
+		m.showRequired = true
+		return false
+	}
+
+	m.Blur()
+	return true
+}
+
 func (m Model) View() string {
 	var lines []string
 	if m.Editable {
@@ -162,21 +178,28 @@ func (m Model) View() string {
 	// TODO This needs to be in columns over 8 (might need right/left support)
 	lines = append(lines, "")
 	for i, c := range m.Choices {
-		checked := " "
-		if m.highlighted == i {
-			checked = ">"
-		}
-		for _, s := range m.selected {
-			if s == i {
-				if m.highlighted == s && m.Focused() {
-					checked = "X"
-				} else {
-					checked = "x"
-				}
-			}
+		var line strings.Builder
+
+		checkboxStyle := termenv.Style{}
+		choiceStyle := termenv.Style{}
+		if m.highlighted == i && m.Focused() {
+			checkboxStyle = checkboxStyle.Bold()
+			choiceStyle = choiceStyle.Bold()
 		}
 
-		lines = append(lines, fmt.Sprintf("[%s] %s", checked, c))
+		line.WriteString(checkboxStyle.Styled("["))
+		checked := " "
+		for _, s := range m.selected {
+			if s == i {
+				checked = "x"
+			}
+		}
+		line.WriteString(checked)
+		line.WriteString(checkboxStyle.Styled("]"))
+		line.WriteString(" ")
+		line.WriteString(choiceStyle.Styled(c))
+
+		lines = append(lines, line.String())
 	}
 	if len(m.Choices) == 0 {
 		lines = append(lines, fmt.Sprintf("%s %s", m.spinner.View(), m.LoadingMessage))
@@ -184,7 +207,16 @@ func (m Model) View() string {
 	lines = append(lines, "")
 
 	if m.Focused() {
-		lines = append(lines, termenv.Style{}.Foreground(termenv.ColorProfile().Color("241")).Styled(m.Instructions))
+		instructionsStyle := termenv.Style{}.Foreground(termenv.ColorProfile().Color(m.InstructionsColor))
+
+		instructions := instructionsStyle.Styled(m.Instructions)
+		if m.showRequired {
+			instructions += instructionsStyle.Styled("  |  ")
+			requiredStyle := termenv.Style{}.Foreground(termenv.ANSIRed)
+			instructions += requiredStyle.Styled("value is required")
+		}
+
+		lines = append(lines, instructions)
 	}
 
 	return strings.Join(lines, "\n")

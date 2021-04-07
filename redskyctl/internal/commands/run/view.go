@@ -48,6 +48,7 @@ func (o *Options) initializeModel() {
 	o.generationModel.NamespaceInput.Prompt = "Please select the Kubernetes namespace where your application is running: "
 	o.generationModel.NamespaceInput.LoadingMessage = "Fetching namespaces from Kubernetes ..."
 	o.generationModel.NamespaceInput.Instructions = "up/down: select  |  space: choose  |  enter: continue"
+	o.generationModel.NamespaceInput.Required = true
 
 	o.generationModel.LabelSelectorTemplate = textinput.NewModel()
 	o.generationModel.LabelSelectorTemplate.Prompt = "Specify the label selector for your application resources in the '%s' namespace:\n"
@@ -272,13 +273,26 @@ type input interface {
 	View() string
 }
 
+// requiredInput is an input which may refuse to give up focus if it is required.
+type requiredInput interface {
+	input
+	TryBlur() bool
+}
+
 func focusNext(inputs []input, idx int) int {
 	// The cycle is complete or there are no fields
 	if idx <= 0 || len(inputs) == 0 {
 		return idx
 	}
 
-	inputs[idx-1].Blur()
+	if r, ok := inputs[idx-1].(requiredInput); ok {
+		if !r.TryBlur() {
+			return idx
+		}
+	} else {
+		inputs[idx-1].Blur()
+	}
+
 	if idx >= len(inputs) {
 		return -1
 	}
