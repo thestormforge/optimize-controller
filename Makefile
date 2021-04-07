@@ -94,12 +94,24 @@ docker-build: test docker-build-ci
 docker-build-ci: build docker-build-controller docker-build-setuptools
 
 docker-build-controller:
-	docker build . -t ${IMG} \
+	docker build . \
+		-t ${IMG} \
 		--label "org.opencontainers.image.source=$(shell git remote get-url origin)"
+	docker build . \
+		-t ${IMG}-rhel \
+		-f Dockerfile.rhel \
+		--label "org.opencontainers.image.source=$(shell git remote get-url origin)" \
+		--label "version=${VERSION}"
 
 docker-build-setuptools:
-	docker build config -t ${SETUPTOOLS_IMG} \
+	docker build config \
+		-t ${SETUPTOOLS_IMG} \
 		--label "org.opencontainers.image.source=$(shell git remote get-url origin)"
+	docker build config \
+		-t ${SETUPTOOLS_IMG}-rhel \
+		-f config/Dockerfile.rhel \
+		--label "org.opencontainers.image.source=$(shell git remote get-url origin)" \
+		--label "version=${VERSION}"
 
 # Push the docker images
 docker-push:

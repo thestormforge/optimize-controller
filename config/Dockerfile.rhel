@@ -1,0 +1,51 @@
+# Ref: https://redhat-connect.gitbook.io/partner-guide-for-red-hat-openshift-and-container/program-on-boarding/technical-prerequisites
+# https://www.redhat.com/en/blog/introducing-red-hat-universal-base-image
+# ubi-minimal has curl but no tar
+# so we'll use ubi so we get both curl and tar
+# and not have to deal with subscription licenses for repos
+FROM registry.access.redhat.com/ubi8
+
+# These labels are required for the partner guide
+# https://redhat-connect.gitbook.io/partner-guide-for-red-hat-openshift-and-container/program-on-boarding/technical-prerequisites#dockerfile-requirements
+LABEL name="Optimize - Setup Tools" \
+      maintainer="support@stormforge.io" \
+      vendor="Stormforge" \
+      version="latest" \
+      release="1" \
+      summary="Stormforge Optimize uses machine learning to improve the performance of your application" \
+      description="Stormforge Optimize uses machine learning to improve the performance of your application."
+
+ENV HELM_VERSION="v3.4.1" \
+    HELM_SHA256="538f85b4b73ac6160b30fd0ab4b510441aa3fa326593466e8bf7084a9c288420"
+
+ENV KUBECTL_VERSION="v1.16.15" \
+    KUBECTL_SHA256="e8913069293156ddf55f243814a22d2384fc18b165efb6200606fdeaad146605"
+
+ENV KUSTOMIZE_VERSION="v3.8.7" \
+    KUSTOMIZE_SHA256="4a3372d7bfdffe2eaf729e77f88bc94ce37dc84de55616bfe90aac089bf6fd02"
+
+ENV KONJURE_VERSION="v0.2.1" \
+    KONJURE_SHA256="8bf2a82b389076d80a9bd5f379c330e5d74353ef8fac95f851dd26c26349b61c"
+
+ENV HELM_URL="https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" \
+    KUBECTL_URL="https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
+    KUSTOMIZE_URL="https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" \
+    KONJURE_URL="https://github.com/carbonrelay/konjure/releases/download/${KONJURE_VERSION}/konjure-linux-amd64.tar.gz"
+
+COPY . /workspace/
+
+RUN curl -L "$HELM_URL" | tar xz -C /usr/local/bin --exclude '*/*[^helm]' --strip-components=1 && \
+    curl -L "$KUBECTL_URL" -o /usr/local/bin/kubectl && chmod +x /usr/local/bin/kubectl && \
+    curl -L "$KUSTOMIZE_URL" | tar xz -C /usr/local/bin && \
+    curl -L "$KONJURE_URL" | tar xz -C /usr/local/bin && \
+    mkdir -p /workspace/base && \
+    groupadd -g 1000 -r setup && \
+    adduser -u 1000 -r setup -g setup -m && \
+    chown -R setup /workspace
+
+USER setup:setup
+RUN konjure kustomize init
+
+WORKDIR "/workspace/base"
+ENTRYPOINT ["/workspace/docker-entrypoint.sh"]
+CMD ["build"]
