@@ -278,6 +278,7 @@ type ExperimentStatus struct {
 // +kubebuilder:storageversion
 
 // Experiment is the Schema for the experiments API
+// +kubebuilder:resource:shortName=exp
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase",description="Experiment status"
 type Experiment struct {
 	metav1.TypeMeta `json:",inline"`
