@@ -69,9 +69,13 @@ func (o *Options) initializeModel() {
 	o.generationModel.ObjectiveInput.Prompt = "Please select objectives to optimize: "
 	o.generationModel.ObjectiveInput.Instructions = "up/down: select  |  space: choose  |  enter: continue"
 	o.generationModel.ObjectiveInput.Choices = []string{
-		"p95",
 		"cost",
+		"p50-latency",
+		"p95-latency",
+		"p99-latency",
 	}
+	o.generationModel.ObjectiveInput.Select(0)
+	o.generationModel.ObjectiveInput.Select(2)
 
 }
 
