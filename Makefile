@@ -94,12 +94,17 @@ docker-build: test docker-build-ci
 docker-build-ci: build docker-build-controller docker-build-setuptools
 
 docker-build-controller:
+	# Distroless
 	docker build . \
 		-t ${IMG} \
-		--label "org.opencontainers.image.source=$(shell git remote get-url origin)"
+		--target distroless \
+		--label "org.opencontainers.image.source=$(shell git remote get-url origin)" \
+		--label "version=${VERSION}"
+	# RHEL
 	docker build . \
 		-t ${IMG}-rhel \
-		-f Dockerfile.rhel \
+		--target rhel \
+		--build-arg BASE_IMAGE=registry.access.redhat.com/ubi8-minimal \
 		--label "org.opencontainers.image.source=$(shell git remote get-url origin)" \
 		--label "version=${VERSION}"
 
