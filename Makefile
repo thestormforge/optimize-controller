@@ -97,13 +97,11 @@ docker-build-controller:
 	# Distroless
 	docker build . \
 		-t ${IMG} \
-		--target distroless \
 		--label "org.opencontainers.image.source=$(shell git remote get-url origin)" \
 		--label "version=${VERSION}"
 	# RHEL
 	docker build . \
 		-t ${IMG}-rhel \
-		--target rhel \
 		--build-arg BASE_IMAGE=registry.access.redhat.com/ubi8-minimal \
 		--label "org.opencontainers.image.source=$(shell git remote get-url origin)" \
 		--label "version=${VERSION}"

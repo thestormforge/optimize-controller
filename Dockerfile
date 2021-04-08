@@ -16,14 +16,6 @@ LABEL name="Optimize" \
 WORKDIR /
 COPY ./manager .
 
-ENTRYPOINT ["/manager"]
-
-# === Distroless
-FROM  base as distroless
-
-USER nonroot:nonroot
-
-# === RHEL
-FROM  base as rhel
-
 USER nobody:nobody
+
+ENTRYPOINT ["/manager"]
