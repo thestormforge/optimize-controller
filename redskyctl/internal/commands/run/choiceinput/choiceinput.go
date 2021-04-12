@@ -17,7 +17,6 @@ limitations under the License.
 package choiceinput
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -29,17 +28,19 @@ import (
 type Model struct {
 	// Prompt and text input for the selection.
 	textinput.Model
+
 	// The list of possible choices.
 	Choices []string
-	// Message to display while loading.
-	LoadingMessage string
-	// Instructional text to show after the choices.
-	Instructions string
+
 	// Indicates the value does not need to match a choice.
 	Editable bool
 
+	// Spinner to use while loading.
+	LoadingSpinner spinner.Model
+	// Message to display while loading.
+	LoadingMessage string
+
 	selected int
-	spinner  spinner.Model
 }
 
 func NewModel() Model {
@@ -49,48 +50,52 @@ func NewModel() Model {
 	s.Spinner = spinner.Line
 
 	return Model{
-		Model:   ti,
-		spinner: s,
+		Model:          ti,
+		LoadingSpinner: s,
+		selected:       -1,
 	}
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		if m.Focused() {
-			switch msg.String() {
-			case "up":
-				m.SetSelected(m.selected - 1)
-
-			case "down":
-				m.SetSelected(m.selected + 1)
-
-			}
-		}
-	case tea.WindowSizeMsg:
-		m.SetSelected(m.selected) // Just a refresh
-	}
-
 	var (
 		cmd  tea.Cmd
 		cmds []tea.Cmd
 	)
 
-	m.Model, cmd = m.Model.Update(msg)
+	// Only update the text input if there are choices present
+	if _, isKey := msg.(tea.KeyMsg); len(m.Choices) > 0 || !isKey {
+		m.Model, cmd = m.Model.Update(msg)
+		cmds = append(cmds, cmd)
+	}
+
+	m.LoadingSpinner, cmd = m.LoadingSpinner.Update(msg)
 	cmds = append(cmds, cmd)
 
-	m.spinner, cmd = m.spinner.Update(msg)
-	cmds = append(cmds, cmd)
+	if !m.Focused() {
+		return m, tea.Batch(cmds...)
+	}
+
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+
+		case "up":
+			m.Select(m.selected - 1)
+
+		case "down":
+			m.Select(m.selected + 1)
+
+		}
+	}
 
 	return m, tea.Batch(cmds...)
 }
 
-func (m *Model) SetSelected(i int) {
-	if len(m.Choices) == 0 {
-		m.selected = 0
-		return
-	}
+func (m *Model) IsSelected(i int) bool {
+	return m.selected == i
+}
 
+func (m *Model) Select(i int) {
 	switch {
 	case i < 0:
 		m.selected = len(m.Choices) - 1
@@ -100,50 +105,57 @@ func (m *Model) SetSelected(i int) {
 		m.selected = i
 	}
 
-	m.Model.SetValue(m.Choices[m.selected])
+	if len(m.Choices) > 0 {
+		m.Model.SetValue(m.Choices[m.selected])
+	} else {
+		m.Model.SetValue("")
+	}
 	m.Model.CursorEnd()
 }
 
 func (m Model) View() string {
 	var lines []string
-	if m.Editable {
+
+	// Only render the whole text input if we allow edits
+	if m.Editable && len(m.Choices) > 0 {
 		lines = append(lines, m.Model.View())
 	} else {
 		lines = append(lines, m.Model.Prompt)
 	}
 
-	// TODO This needs to be in columns over 8 (might need right/left support)
-	lines = append(lines, "")
-	for i, c := range m.Choices {
-		var line strings.Builder
-
-		checkboxStyle := termenv.Style{}
-		choiceStyle := termenv.Style{}
-		if m.selected == i && m.Focused() {
-			checkboxStyle = checkboxStyle.Bold()
-			choiceStyle = choiceStyle.Bold()
-		}
-
-		line.WriteString(checkboxStyle.Styled("["))
-		checked := " "
-		if m.selected == i {
-			checked = "x"
-		}
-		line.WriteString(checked)
-		line.WriteString(checkboxStyle.Styled("]"))
-		line.WriteString(" ")
-		line.WriteString(choiceStyle.Styled(c))
-
-		lines = append(lines, line.String())
-	}
+	// If there are no choices yet, show the loading spinner/message
 	if len(m.Choices) == 0 {
-		lines = append(lines, fmt.Sprintf("%s %s", m.spinner.View(), m.LoadingMessage))
-	}
-	lines = append(lines, "")
-
-	if m.Focused() {
-		lines = append(lines, termenv.Style{}.Foreground(termenv.ColorProfile().Color("241")).Styled(m.Instructions))
+		lines = append(lines, "\n", m.LoadingSpinner.View(), m.LoadingMessage)
 	}
 
-	return strings.Join(lines, "\n")
+	// Render the list of choices
+	// TODO This needs to be in columns over 8 (might need right/left support)
+	for i := range m.Choices {
+		lines = append(lines, viewChoice(m.Choices[i], m.IsSelected(i), m.IsSelected(i), m.Focused()))
+	}
+
+	return strings.Join(lines, "")
+}
+
+func viewChoice(value string, selected, highlighted, focused bool) string {
+	var choice strings.Builder
+	var checkboxStyle, choiceStyle termenv.Style
+	checked := " "
+
+	if selected {
+		checked = "x"
+	}
+	if highlighted && focused {
+		checkboxStyle = checkboxStyle.Bold()
+		choiceStyle = choiceStyle.Bold()
+	}
+
+	choice.WriteString("\n")
+	choice.WriteString(checkboxStyle.Styled("["))
+	choice.WriteString(checked)
+	choice.WriteString(checkboxStyle.Styled("]"))
+	choice.WriteString(" ")
+	choice.WriteString(choiceStyle.Styled(value))
+
+	return choice.String()
 }

@@ -23,9 +23,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/charmbracelet/bubbles/textinput"
-	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/choiceinput"
-	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/multichoiceinput"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/form"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
@@ -33,41 +31,49 @@ import (
 // are in a valid state prior to starting.
 func (o *Options) initializeModel() {
 
-	o.generationModel.TestCaseInput = choiceinput.NewModel()
-	o.generationModel.TestCaseInput.Prompt = "Please select a StormForger test case to optimize for: "
-	o.generationModel.TestCaseInput.LoadingMessage = "Fetching test cases from StormForger ..."
-	o.generationModel.TestCaseInput.Instructions = "up/down: select  |  enter: continue"
+	o.generationModel.StormForgerTestCaseInput = form.NewChoiceField()
+	o.generationModel.StormForgerTestCaseInput.Prompt = "\nPlease select a StormForger test case to optimize for:\n"
+	o.generationModel.StormForgerTestCaseInput.LoadingMessage = " Fetching test cases from StormForger ..."
+	o.generationModel.StormForgerTestCaseInput.Instructions = "\nup/down: select  |  enter: continue"
 
-	o.generationModel.LocustNameInput = textinput.NewModel()
-	o.generationModel.LocustNameInput.Prompt = "Please enter a name for your Locust test: "
+	o.generationModel.LocustNameInput = form.NewTextField()
+	o.generationModel.LocustNameInput.Prompt = "\nPlease enter a name for your Locust test: "
+	o.generationModel.LocustNameInput.Enable()
 
-	o.generationModel.LocustfileInput = textinput.NewModel()
-	o.generationModel.LocustfileInput.Prompt = "Enter the location of the locustfile.py you would like to run: "
+	o.generationModel.LocustfileInput = form.NewTextField()
+	o.generationModel.LocustfileInput.Prompt = "\nEnter the location of the locustfile.py you would like to run: "
+	o.generationModel.LocustfileInput.Enable()
 
-	o.generationModel.NamespaceInput = multichoiceinput.NewModel()
-	o.generationModel.NamespaceInput.Prompt = "Please select the Kubernetes namespace where your application is running: "
-	o.generationModel.NamespaceInput.LoadingMessage = "Fetching namespaces from Kubernetes ..."
-	o.generationModel.NamespaceInput.Instructions = "up/down: select  |  space: choose  |  enter: continue"
-	o.generationModel.NamespaceInput.Required = true
+	o.generationModel.NamespaceInput = form.NewMultiChoiceField()
+	o.generationModel.NamespaceInput.Prompt = "\nPlease select the Kubernetes namespace where your application is running:\n"
+	o.generationModel.NamespaceInput.LoadingMessage = " Fetching namespaces from Kubernetes ..."
+	o.generationModel.NamespaceInput.Instructions = "\nup/down: select  |  space: choose  |  enter: continue"
+	o.generationModel.NamespaceInput.Validator = &form.Required{Error: "Required"}
 
-	o.generationModel.LabelSelectorTemplate = textinput.NewModel()
-	o.generationModel.LabelSelectorTemplate.Prompt = "Specify the label selector for your application resources in the '%s' namespace:\n"
-	o.generationModel.LabelSelectorTemplate.Placeholder = "leave blank to select all resources"
+	o.generationModel.LabelSelectorTemplate = func(namespace string) form.TextField {
+		labelSelectorInput := form.NewTextField()
+		labelSelectorInput.Prompt = fmt.Sprintf("\nSpecify the label selector for your application resources in the '%s' namespace:\n", namespace)
+		labelSelectorInput.Placeholder = "leave blank to select all resources"
+		return labelSelectorInput
+	}
 
-	o.generationModel.IngressURLInput = textinput.NewModel()
-	o.generationModel.IngressURLInput.Prompt = "Enter the URL of the endpoint to test: "
+	o.generationModel.IngressURLInput = form.NewTextField()
+	o.generationModel.IngressURLInput.Prompt = "\nEnter the URL of the endpoint to test: "
+	o.generationModel.IngressURLInput.Enable()
 
-	o.generationModel.ContainerResourcesSelectorInput = textinput.NewModel()
-	o.generationModel.ContainerResourcesSelectorInput.Prompt = "Specify the label selector matching resources which should have their memory and CPU optimized:\n"
+	o.generationModel.ContainerResourcesSelectorInput = form.NewTextField()
+	o.generationModel.ContainerResourcesSelectorInput.Prompt = "\nSpecify the label selector matching resources which should have their memory and CPU optimized:\n"
 	o.generationModel.ContainerResourcesSelectorInput.Placeholder = "leave blank to select all resources"
+	o.generationModel.ContainerResourcesSelectorInput.Enable()
 
-	o.generationModel.ReplicasSelectorInput = textinput.NewModel()
-	o.generationModel.ReplicasSelectorInput.Prompt = "Specify the label selector matching resources which can be scaled horizontally:\n"
+	o.generationModel.ReplicasSelectorInput = form.NewTextField()
+	o.generationModel.ReplicasSelectorInput.Prompt = "\nSpecify the label selector matching resources which can be scaled horizontally:\n"
 	o.generationModel.ReplicasSelectorInput.Placeholder = "leave blank to select NO resources"
+	o.generationModel.ReplicasSelectorInput.Enable()
 
-	o.generationModel.ObjectiveInput = multichoiceinput.NewModel()
-	o.generationModel.ObjectiveInput.Prompt = "Please select objectives to optimize: "
-	o.generationModel.ObjectiveInput.Instructions = "up/down: select  |  space: choose  |  enter: continue"
+	o.generationModel.ObjectiveInput = form.NewMultiChoiceField()
+	o.generationModel.ObjectiveInput.Prompt = "\nPlease select objectives to optimize:\n"
+	o.generationModel.ObjectiveInput.Instructions = "\nup/down: select  |  space: choose  |  enter: continue"
 	o.generationModel.ObjectiveInput.Choices = []string{
 		"cost",
 		"p50-latency",
@@ -76,6 +82,7 @@ func (o *Options) initializeModel() {
 	}
 	o.generationModel.ObjectiveInput.Select(0)
 	o.generationModel.ObjectiveInput.Select(2)
+	o.generationModel.ObjectiveInput.Enable()
 
 }
 
@@ -86,7 +93,7 @@ func (o *Options) View() string {
 
 	// The "runModel" is the last model to produce output, but it gets exclusive use of the screen
 	if runModelView := o.runModel.View(); runModelView == "" {
-		lines = append(lines, o.welcomeModel.View())
+		lines = append(lines, o.initializationModel.View())
 		lines = append(lines, o.generationModel.View())
 		lines = append(lines, o.previewModel.View())
 	} else {
@@ -100,7 +107,7 @@ func (o *Options) View() string {
 	if o.lastErr != nil {
 		lines = append(lines, "\n", statusf("❌", " Error: %s", o.lastErr.Error()))
 
-		// This information is usually to useful to not show
+		// This information is usually too useful to not show
 		eerr := &exec.ExitError{}
 		if errors.As(o.lastErr, &eerr) {
 			lines = append(lines, "\n", string(eerr.Stderr))
@@ -110,21 +117,33 @@ func (o *Options) View() string {
 	return strings.Join(lines, "")
 }
 
-// View returns the rendering of the welcome model.
-func (m welcomeModel) View() string {
+// View returns the rendering of the welcome model. To ensure consistent output,
+// this must render progressively as information comes back from the asynchronous
+// initialization commands (e.g. even if the forge version comes back before the
+// kubectl version, we still always render kubectl first, stopping the progression
+// if it isn't available yet).
+func (m initializationModel) View() string {
 	var lines []string
 
 	if m.BuildVersion != "" {
 		lines = append(lines, statusf("😄", "%s %s", m.CommandName, m.BuildVersion))
-		if m.KubectlVersion != "" {
-			lines = append(lines, statusf(" ", " ▪ kubectl %s", m.KubectlVersion))
-			if m.ForgeVersion != "" && m.ForgeVersion != "unknown" {
-				lines = append(lines, statusf(" ", " ▪ forge %s", m.ForgeVersion))
-			}
-		}
+	} else {
+		return strings.Join(lines, "")
 	}
 
-	if m.BuildVersion == "" || m.KubectlVersion == "" || m.ForgeVersion == "" {
+	if m.KubectlVersion != "" {
+		if m.KubectlVersion != unknownVersion {
+			lines = append(lines, statusf(" ", " ▪ kubectl %s", m.KubectlVersion))
+		}
+	} else {
+		return strings.Join(lines, "")
+	}
+
+	if m.ForgeVersion != "" {
+		if m.ForgeVersion != unknownVersion {
+			lines = append(lines, statusf(" ", " ▪ forge %s", m.ForgeVersion))
+		}
+	} else {
 		return strings.Join(lines, "")
 	}
 
@@ -139,9 +158,10 @@ func (m welcomeModel) View() string {
 		return strings.Join(lines, "")
 	}
 
-	if m.InitializationPercent > 0 {
+	if m.InitializationPercent > 0 && m.InitializationPercent < 1 {
 		lines = append(lines, statusf("💾", "Initializing ..."))
 		lines = append(lines, statusf("", " ▪ Using image %s", m.ControllerImage))
+		// TODO Progress bar based on the initialization percentage
 	}
 
 	if m.ControllerVersion != "" && m.ControllerVersion != "unknown" {
@@ -153,20 +173,7 @@ func (m welcomeModel) View() string {
 
 // View returns the rendering of the generation model.
 func (m generationModel) View() string {
-	// Get the fields and the current field index
-	fields := m.fields()
-	idx := m.fieldIndex
-	if idx < 0 {
-		idx = len(fields) // If we wrapped around to -1, we are done, show all fields
-	}
-
-	var lines []string
-	lines = append(lines, "")
-	for i := 0; i < len(fields) && i < idx; i++ {
-		lines = append(lines, fields[i].View())
-	}
-
-	return strings.Join(lines, "\n")
+	return m.form().View()
 }
 
 // View returns the rendering of the preview model.
@@ -267,47 +274,4 @@ func (m runModel) View() string {
 // statusf is used for format a single line status message.
 func statusf(icon, message string, args ...interface{}) string {
 	return fmt.Sprintf("%-2s "+message+"\n", append([]interface{}{icon}, args...)...)
-}
-
-// input is a helper interface to help with sequential fields.
-type input interface {
-	Focus()
-	Focused() bool
-	Blur()
-	View() string
-}
-
-// requiredInput is an input which may refuse to give up focus if it is required.
-type requiredInput interface {
-	input
-	TryBlur() bool
-}
-
-func focusNext(inputs []input, idx int) int {
-	// The cycle is complete or there are no fields
-	if idx <= 0 || len(inputs) == 0 {
-		return idx
-	}
-
-	if r, ok := inputs[idx-1].(requiredInput); ok {
-		if !r.TryBlur() {
-			return idx
-		}
-	} else {
-		inputs[idx-1].Blur()
-	}
-
-	if idx >= len(inputs) {
-		return -1
-	}
-
-	inputs[idx].Focus()
-	return idx + 1
-}
-
-func isLastFocused(inputs []input) bool {
-	if len(inputs) == 0 {
-		return false
-	}
-	return inputs[len(inputs)-1].Focused()
 }

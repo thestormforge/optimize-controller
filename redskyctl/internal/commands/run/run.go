@@ -17,9 +17,7 @@ limitations under the License.
 package run
 
 import (
-	"os"
 	"os/exec"
-	"path/filepath"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -31,8 +29,6 @@ import (
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/kustomize"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"github.com/thestormforge/optimize-go/pkg/config"
-	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/kustomize/kyaml/kio/kioutil"
 )
 
 type Options struct {
@@ -40,17 +36,15 @@ type Options struct {
 	Config *config.RedSkyConfig
 	// ExperimentsAPI is used to interact with the Red Sky Experiments API
 	ExperimentsAPI experimentsv1alpha1.API
-	// Flag indicating that we should produce some extra output
-	Debug bool
 
 	Generator experiment.Generator
 	maybeQuit bool
 	lastErr   error
 
-	welcomeModel    welcomeModel
-	generationModel generationModel
-	previewModel    previewModel
-	runModel        runModel
+	initializationModel initializationModel
+	generationModel     generationModel
+	previewModel        previewModel
+	runModel            runModel
 }
 
 // NewCommand creates a new command for running experiments.
@@ -60,7 +54,7 @@ func NewCommand(o *Options) *cobra.Command {
 		Short: "Run an experiment",
 
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			o.welcomeModel.CommandName = cmd.Root().Name()
+			o.initializationModel.CommandName = cmd.Root().Name()
 			o.Generator.FilterOptions.DefaultReader = cmd.InOrStdin()
 			return commander.SetExperimentsAPI(&o.ExperimentsAPI, o.Config, cmd)
 		},
@@ -72,9 +66,6 @@ func NewCommand(o *Options) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVar(&o.Debug, "debug", false, "enable debug mode")
-	_ = cmd.Flags().MarkHidden("debug")
-
 	return cmd
 }
 
@@ -82,27 +73,21 @@ func (o *Options) Init() tea.Cmd {
 	// None of this works without the real kubectl
 	o.Generator.FilterOptions.KubectlExecutor = func(cmd *exec.Cmd) ([]byte, error) { return cmd.Output() }
 
-	// Try to record the working directory on the application
-	if wd, err := os.Getwd(); err == nil {
-		path := filepath.Join(wd, "app.yaml")
-		meta.SetMetaDataAnnotation(&o.Generator.Application.ObjectMeta, kioutil.PathAnnotation, path)
-	}
-
 	// Make sure there is a value for the controller image
-	if o.welcomeModel.ControllerImage == "" {
-		o.welcomeModel.ControllerImage = kustomize.BuildImage
+	if o.initializationModel.ControllerImage == "" {
+		o.initializationModel.ControllerImage = kustomize.BuildImage
 	}
 
 	// Make sure all the models are in a valid state
 	o.initializeModel()
 
+	// Run a bunch of commands to get things started
 	return tea.Batch(
 		textinput.Blink,
 		spinner.Tick,
 		o.checkBuildVersion,
-		// TODO Should we break up the rest so we are getting something on screen quicker?
-		o.checkForgeVersion,
 		o.checkKubectlVersion,
+		o.checkForgeVersion,
 		o.checkControllerVersion,
 		o.checkAuthorization,
 		o.listKubernetesNamespaces,
@@ -111,71 +96,63 @@ func (o *Options) Init() tea.Cmd {
 
 func (o *Options) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
-
-	// Check for messages we need to handle at the top level
 	switch msg := msg.(type) {
-
 	case tea.KeyMsg:
 		// User initiated exit: ctrl+c or be prompted when you hit esc
-		switch msg.String() {
-		case "ctrl+c":
-			return o, tea.Quit
-		case "esc":
+		switch msg.Type {
+
+		case tea.KeyEsc:
 			o.maybeQuit = true
-			return o, nil
-		case "y", "Y", "enter":
+		case tea.KeyCtrlC:
+			return o, tea.Quit
+
+		default:
 			if o.maybeQuit {
-				return o, tea.Quit
-			}
-		case "n", "N":
-			if o.maybeQuit {
-				o.maybeQuit = false
+				switch msg.String() {
+				case "y", "Y", "enter":
+					return o, tea.Quit
+				case "n", "N":
+					o.maybeQuit = false
+				}
 			}
 		}
 
 	case versionMsg:
 		// Run init if the controller version comes back unknown
-		if msg.Controller.Version == "unknown" {
+		if msg.isControllerUnavailable() {
 			cmds = append(cmds, o.initializeController)
 		}
 
 		// If the forge CLI is present, get the list of test case names
-		if msg.Forge != "" && msg.Forge != "unknown" {
+		if msg.isForgeAvailable() {
 			cmds = append(cmds, o.listStormForgerTestCaseNames)
 		}
 
-	// These messages all modify the application definition used to generate the experiment
-	case resourceMsg:
-		o.Generator.Application.Resources = append(o.Generator.Application.Resources, msg...)
-	case scenarioMsg:
-		o.Generator.Application.Scenarios = append(o.Generator.Application.Scenarios, msg...)
-	case parameterMsg:
-		o.Generator.Application.Parameters = append(o.Generator.Application.Parameters, msg...)
-	case objectiveMsg:
-		o.Generator.Application.Objectives = append(o.Generator.Application.Objectives, msg...)
-	case ingressMsg:
-		o.Generator.Application.Ingress = new(redskyappsv1alpha1.Ingress)
-		*o.Generator.Application.Ingress = redskyappsv1alpha1.Ingress(msg)
+	case applicationMsg:
+		// An application indicates it is time to generate an experiment
+		o.Generator.Application = redskyappsv1alpha1.Application(msg)
+		cmds = append(cmds, o.generateExperiment)
 
-	// Experiment lifecycle
 	case experimentStatusMsg:
 		switch msg {
-		case expPreCreate:
-			cmds = append(cmds, o.generateExperiment)
 		case expConfirmed:
+			// Create the experiment (i.e. run it)
 			cmds = append(cmds, o.createExperiment)
 		case expCreated:
+			// Initiate the status refresh
 			cmds = append(cmds, o.refreshTick())
 		}
 
-	// Handle the timed status checks after the experiment starts
-	case refreshStatusMsg:
-		cmds = append(cmds, o.refreshExperimentStatus)
 	case trialsMsg:
+		// If we got a status refresh, initial another
 		cmds = append(cmds, o.refreshTick())
 
-	// Handle errors so any returning tea.Msg can just return an error
+	case refreshStatusMsg:
+		// Handle a refreshTick by fetching the trials
+		cmds = append(cmds, o.refreshExperimentStatus)
+
 	case error:
+		// Handle errors so any returning tea.Msg can just return an error
 		o.lastErr = msg
 		return o, tea.Quit
 
@@ -189,7 +166,7 @@ func (o *Options) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Update the child models
 	var cmd tea.Cmd
 
-	o.welcomeModel, cmd = o.welcomeModel.Update(msg)
+	o.initializationModel, cmd = o.initializationModel.Update(msg)
 	cmds = append(cmds, cmd)
 
 	o.generationModel, cmd = o.generationModel.Update(msg)

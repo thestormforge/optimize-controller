@@ -25,6 +25,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -42,6 +43,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/kustomize/kyaml/kio"
+	"sigs.k8s.io/kustomize/kyaml/kio/kioutil"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
@@ -74,18 +76,6 @@ func (o *Options) checkKubectlVersion() tea.Msg {
 	return msg
 }
 
-func (o *Options) checkControllerVersion() tea.Msg {
-	ctx := context.TODO()
-	msg := versionMsg{}
-	msg.Controller.Version = unknownVersion
-
-	if v, err := (&versioncmd.Options{Config: o.Config}).ControllerVersion(ctx); err == nil {
-		msg.Controller = *v
-	}
-
-	return msg
-}
-
 func (o *Options) checkForgeVersion() tea.Msg {
 	ctx := context.TODO()
 	msg := versionMsg{}
@@ -97,6 +87,18 @@ func (o *Options) checkForgeVersion() tea.Msg {
 		return msg // Ignore the error, leave version "unknown"
 	}
 	msg.Forge = strings.TrimSpace(string(data))
+
+	return msg
+}
+
+func (o *Options) checkControllerVersion() tea.Msg {
+	ctx := context.TODO()
+	msg := versionMsg{}
+	msg.Controller.Version = unknownVersion
+
+	if v, err := (&versioncmd.Options{Config: o.Config}).ControllerVersion(ctx); err == nil {
+		msg.Controller = *v
+	}
 
 	return msg
 }
@@ -130,16 +132,15 @@ func (o *Options) initializeController() tea.Msg {
 			Config:               o.Config,
 			IOStreams:            discard, // TODO The writer should bump the progress
 			IncludeBootstrapRole: true,
-			Image:                o.welcomeModel.ControllerImage,
+			Image:                o.initializationModel.ControllerImage,
 		},
 		Wait: true,
 	}
+	// TODO How do we safely and asynchronously update the progress?
+	o.initializationModel.InitializationPercent = 0.1
 	if err := initOpts.Initialize(ctx); err != nil {
 		return err
 	}
-
-	// TODO This should be happening asynchronously
-	o.welcomeModel.InitializationPercent = 1.0
 
 	// Now that we are installed, wait for it to become ready again
 	if err := checkOpts.CheckController(ctx); err != nil {
@@ -198,25 +199,12 @@ func (o *Options) listStormForgerTestCaseNames() tea.Msg {
 func (o *Options) generateExperiment() tea.Msg {
 	msg := experimentMsg{}
 
-	// TODO DEMO ONLY HACK
-	if namespaces := o.generationModel.NamespaceInput.Values(); len(namespaces) == 1 {
-		o.Generator.Application.Name = namespaces[0]
-		o.Generator.Application.Namespace = namespaces[0]
-	}
-
 	o.Generator.SetDefaultSelectors()
-	o.Generator.Application.Default()
+
 	if err := o.Generator.Execute(kio.WriterFunc(func(nodes []*yaml.RNode) error {
 		msg = nodes
 		return nil
 	})); err != nil {
-		if o.Debug {
-			if f, err := os.OpenFile(".debug.app.yaml", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600); err == nil {
-				defer f.Close()
-				_ = json.NewEncoder(f).Encode(&o.Generator.Application)
-			}
-		}
-
 		return err
 	}
 
@@ -296,13 +284,24 @@ func (o *Options) refreshTick() tea.Cmd {
 	})
 }
 
-func (m *generationModel) generateResources() tea.Msg {
-	msg := resourceMsg{}
+func (m *generationModel) generateApplication() tea.Msg {
+	msg := applicationMsg{}
 
-	switch m.ResourceMode {
-	case resourceNamespace:
+	if wd, err := os.Getwd(); err == nil {
+		path := filepath.Join(wd, "app.yaml")
+		meta.SetMetaDataAnnotation(&msg.ObjectMeta, kioutil.PathAnnotation, path)
+	}
+
+	if m.NamespaceInput.Enabled() {
+
+		// TODO DEMO ONLY HACK
+		if namespaces := m.NamespaceInput.Values(); len(namespaces) == 1 {
+			msg.Name = namespaces[0]
+			msg.Namespace = namespaces[0]
+		}
+
 		for i, ns := range m.NamespaceInput.Values() {
-			msg = append(msg, konjure.Resource{
+			msg.Resources = append(msg.Resources, konjure.Resource{
 				Kubernetes: &konjurev1beta2.Kubernetes{
 					Namespaces: []string{ns},
 					Selector:   m.LabelSelectorInputs[i].Value(),
@@ -311,73 +310,64 @@ func (m *generationModel) generateResources() tea.Msg {
 		}
 	}
 
-	return msg
-}
-
-func (m *generationModel) generateIngress() tea.Msg {
-	msg := ingressMsg{}
-
-	if u := m.IngressURLInput.Value(); u != "" {
-		msg.URL = u
-	} else {
-		return nil
+	if m.StormForgerTestCaseInput.Enabled() {
+		if testCase := m.StormForgerTestCaseInput.Value(); testCase != "" {
+			msg.Scenarios = append(msg.Scenarios, redskyappsv1alpha1.Scenario{
+				StormForger: &redskyappsv1alpha1.StormForgerScenario{
+					TestCase: testCase,
+				},
+			})
+		}
 	}
 
-	return msg
-}
-
-func (m *generationModel) generateScenarios() tea.Msg {
-	msg := scenarioMsg{}
-
-	switch m.ScenarioMode {
-	case scenarioStormForger:
-		msg = append(msg, redskyappsv1alpha1.Scenario{
-			StormForger: &redskyappsv1alpha1.StormForgerScenario{
-				TestCase: m.TestCaseInput.Value(),
-			},
-		})
-
-	case scenarioLocust:
-		msg = append(msg, redskyappsv1alpha1.Scenario{
-			Name: m.LocustNameInput.Value(),
-			Locust: &redskyappsv1alpha1.LocustScenario{
-				Locustfile: m.LocustfileInput.Value(),
-			},
-		})
+	if m.LocustfileInput.Enabled() {
+		if locustfile := m.LocustfileInput.Value(); locustfile != "" {
+			msg.Scenarios = append(msg.Scenarios, redskyappsv1alpha1.Scenario{
+				Name: m.LocustNameInput.Value(),
+				Locust: &redskyappsv1alpha1.LocustScenario{
+					Locustfile: locustfile,
+				},
+			})
+		}
 	}
 
-	return msg
-}
-
-func (m *generationModel) generateParameters() tea.Msg {
-	msg := parameterMsg{}
-
-	if sel := m.ContainerResourcesSelectorInput.Value(); sel != "" {
-		msg = append(msg, redskyappsv1alpha1.Parameter{
-			ContainerResources: &redskyappsv1alpha1.ContainerResources{
-				Selector: sel,
-			},
-		})
+	if m.IngressURLInput.Enabled() {
+		if u := m.IngressURLInput.Value(); u != "" {
+			msg.Ingress = &redskyappsv1alpha1.Ingress{
+				URL: u,
+			}
+		}
 	}
 
-	if sel := m.ReplicasSelectorInput.Value(); sel != "" {
-		msg = append(msg, redskyappsv1alpha1.Parameter{
-			Replicas: &redskyappsv1alpha1.Replicas{
-				Selector: sel,
-			},
-		})
+	if m.ContainerResourcesSelectorInput.Enabled() {
+		if sel := m.ContainerResourcesSelectorInput.Value(); sel != "" {
+			msg.Parameters = append(msg.Parameters, redskyappsv1alpha1.Parameter{
+				ContainerResources: &redskyappsv1alpha1.ContainerResources{
+					Selector: sel,
+				},
+			})
+		}
 	}
 
-	return msg
-}
-
-func (m *generationModel) generateObjectives() tea.Msg {
-	msg := objectiveMsg{}
-
-	msg = append(msg, redskyappsv1alpha1.Objective{})
-	for _, goal := range m.ObjectiveInput.Values() {
-		msg[0].Goals = append(msg[0].Goals, redskyappsv1alpha1.Goal{Name: goal})
+	if m.ReplicasSelectorInput.Enabled() {
+		if sel := m.ReplicasSelectorInput.Value(); sel != "" {
+			msg.Parameters = append(msg.Parameters, redskyappsv1alpha1.Parameter{
+				Replicas: &redskyappsv1alpha1.Replicas{
+					Selector: sel,
+				},
+			})
+		}
 	}
+
+	if m.ObjectiveInput.Enabled() {
+		msg.Objectives = append(msg.Objectives, redskyappsv1alpha1.Objective{})
+		for _, goal := range m.ObjectiveInput.Values() {
+			msg.Objectives[0].Goals = append(msg.Objectives[0].Goals, redskyappsv1alpha1.Goal{Name: goal})
+		}
+	}
+
+	// Apply all the default values of the application
+	(*redskyappsv1alpha1.Application)(&msg).Default()
 
 	return msg
 }

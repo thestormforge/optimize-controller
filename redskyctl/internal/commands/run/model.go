@@ -17,35 +17,47 @@ limitations under the License.
 package run
 
 import (
-	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	"github.com/thestormforge/optimize-controller/internal/scan"
-	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/choiceinput"
-	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/multichoiceinput"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/form"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
-// welcomeModel is used at the beginning of the run command to print informational messages.
-type welcomeModel struct {
-	CommandName           string
-	BuildVersion          string
-	ForgeVersion          string
-	KubectlVersion        string
-	ControllerVersion     string
-	ControllerImage       string
-	Authorization         authorizationMsg
+// initializationModel is used at the beginning of the run command to print
+// informational messages and initialize the controller.
+// Note: the "version" strings are empty if no information is available (yet),
+// once information is available they are either "unknown" or set to an actual
+// version number.
+type initializationModel struct {
+	// Name of the tool, as invoked by the user.
+	CommandName string
+	// Version of the tool, as embedded by the build.
+	BuildVersion string
+	// Version of the forge command.
+	ForgeVersion string
+	// Version of the kubectl command.
+	KubectlVersion string
+	// Version of the currently running controller.
+	ControllerVersion string
+	// Image name of the controller to use for initialization.
+	ControllerImage string
+	// User authorization state as confirmed by the remote service.
+	Authorization authorizationMsg
+	// Percent of the initialization progress completed (0 to 1).
 	InitializationPercent float64
 }
 
-func (m welcomeModel) Update(msg tea.Msg) (welcomeModel, tea.Cmd) {
+// Update returns a copy of the model after applying the supplied message. If
+// any further action is required, the returned command will be non-nil.
+func (m initializationModel) Update(msg tea.Msg) (initializationModel, tea.Cmd) {
 	switch msg := msg.(type) {
 
 	case versionMsg:
+		// Save non-empty version strings
 		if v := msg.Build.Version; v != "" {
 			m.BuildVersion = v
 		}
@@ -60,145 +72,151 @@ func (m welcomeModel) Update(msg tea.Msg) (welcomeModel, tea.Cmd) {
 		}
 
 	case authorizationMsg:
+		// Save changes to the authorization status
 		m.Authorization = msg
 
 	case tea.KeyMsg:
 		// If the authorization is invalid, check to see if the user wants to ignore it
 		if m.Authorization == azInvalid {
-			switch strings.ToLower(msg.String()) {
-			case "y", "enter":
+			switch msg.String() {
+			case "y", "Y", "enter":
 				return m, func() tea.Msg { return azIgnored }
-			case "n":
+			case "n", "N":
 				return m, tea.Quit
 			}
 		}
 
+	case initializedMsg:
+		// Record a progress update (NOTE: this should only get set to 1 in the completed logic below)
+		m.InitializationPercent = float64(msg)
+
+	}
+
+	// Check to see if the model completed
+	if m.InitializationPercent < 1 &&
+		m.BuildVersion != "" &&
+		m.ForgeVersion != "" &&
+		m.KubectlVersion != "" &&
+		m.ControllerVersion != "" &&
+		m.ControllerVersion != unknownVersion &&
+		m.Authorization != azInvalid {
+		return m, func() tea.Msg { return initializedMsg(1) }
 	}
 
 	return m, nil
 }
 
-type scenarioMode int
-
-const (
-	scenarioStormForger scenarioMode = 1
-	scenarioLocust      scenarioMode = 2
-)
-
-type resourceMode int
-
-const (
-	resourceNamespace resourceMode = 1
-)
-
+// generationModel is used to configure the experiment generator.
 type generationModel struct {
-	ScenarioMode    scenarioMode
-	TestCaseInput   choiceinput.Model
-	LocustNameInput textinput.Model
-	LocustfileInput textinput.Model
+	StormForgerTestCaseInput form.ChoiceField
+	LocustNameInput          form.TextField
+	LocustfileInput          form.TextField
 
-	ResourceMode          resourceMode
-	NamespaceInput        multichoiceinput.Model
-	LabelSelectorTemplate textinput.Model // NOT USED, JUST CLONED
-	LabelSelectorInputs   []textinput.Model
+	NamespaceInput        form.MultiChoiceField
+	LabelSelectorInputs   []form.TextField
+	LabelSelectorTemplate func(namespace string) form.TextField
 
-	IngressURLInput textinput.Model
+	IngressURLInput form.TextField
 
-	ContainerResourcesSelectorInput textinput.Model
-	ReplicasSelectorInput           textinput.Model
+	ContainerResourcesSelectorInput form.TextField
+	ReplicasSelectorInput           form.TextField
 
-	ObjectiveInput multichoiceinput.Model
+	ObjectiveInput form.MultiChoiceField
+}
 
-	fieldIndex int // 0 = disabled, 1 = first field, ... , -1 = finished
-	needsFocus bool
+// form returns a slice of everything on generationModel that implements `form.Field`.
+func (m *generationModel) form() form.Fields {
+	var fields form.Fields
+	fields = append(fields, &m.StormForgerTestCaseInput)
+	fields = append(fields, &m.LocustNameInput, &m.LocustfileInput)
+	fields = append(fields, &m.NamespaceInput)
+	for i := range m.LabelSelectorInputs {
+		fields = append(fields, &m.LabelSelectorInputs[i])
+	}
+	fields = append(fields, &m.IngressURLInput)
+	fields = append(fields, &m.ContainerResourcesSelectorInput, &m.ReplicasSelectorInput)
+	fields = append(fields, &m.ObjectiveInput)
+	return fields
 }
 
 func (m generationModel) Update(msg tea.Msg) (generationModel, tea.Cmd) {
-	var cmds []tea.Cmd
 	switch msg := msg.(type) {
 
-	case versionMsg:
-		installed := func(v string) bool { return v != "" && v != unknownVersion }
+	case initializedMsg:
+		if msg >= 1 {
+			return m, form.Start
+		}
 
-		if installed(msg.Kubectl.ClientVersion.GitVersion) {
-			m.ResourceMode = resourceNamespace
+	case versionMsg:
+		if msg.isForgeAvailable() {
+			m.StormForgerTestCaseInput.Enable()
+			m.LocustNameInput.Disable()
+			m.LocustfileInput.Disable()
+			m.IngressURLInput.Disable() // TODO For now this is exclusive to Locust
 		}
-		if installed(msg.Forge) {
-			m.ScenarioMode = scenarioStormForger
-		}
-		if installed(msg.Controller.Version) {
-			m.fieldIndex = 1
-			m.needsFocus = true
+		if msg.isKubectlAvailable() {
+			m.NamespaceInput.Enable()
+			for i := range m.LabelSelectorInputs {
+				m.LabelSelectorInputs[i].Enable()
+			}
 		}
 
 	case stormForgerTestCaseMsg:
-		m.TestCaseInput.Choices = append(m.TestCaseInput.Choices, msg...)
+		m.StormForgerTestCaseInput.Choices = append(m.StormForgerTestCaseInput.Choices, msg...)
+		m.StormForgerTestCaseInput.Select(0)
 
 	case kubernetesNamespaceMsg:
 		m.NamespaceInput.Choices = append(m.NamespaceInput.Choices, msg...)
 
+	case form.FinishedMsg:
+		return m, m.generateApplication
+
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "enter":
+		switch msg.Type {
+		case tea.KeyEnter:
 			// If we just completed namespace selection, create the per-namespace label selector inputs
 			if m.NamespaceInput.Focused() {
-				for _, ns := range m.NamespaceInput.Values() {
-					ls := m.LabelSelectorTemplate
-					ls.Prompt = fmt.Sprintf(ls.Prompt, ns)
-					m.LabelSelectorInputs = append(m.LabelSelectorInputs, ls)
+				namespaces := m.NamespaceInput.Values()
+				m.LabelSelectorInputs = make([]form.TextField, len(namespaces))
+				for i, namespace := range namespaces {
+					m.LabelSelectorInputs[i] = m.LabelSelectorTemplate(namespace)
+					m.LabelSelectorInputs[i].Enable()
 				}
 			}
 
-			// Based on what is loosing focus, fire an event
-			switch {
-			case isLastFocused(m.scenarioFields()):
-				cmds = append(cmds, m.generateScenarios)
-
-			case isLastFocused(m.resourceFields()):
-				cmds = append(cmds, m.generateResources)
-
-			case isLastFocused(m.ingressFields()):
-				cmds = append(cmds, m.generateIngress)
-
-			case isLastFocused(m.parameterFields()):
-				cmds = append(cmds, m.generateParameters)
-
-			case isLastFocused(m.objectiveFields()):
-				cmds = append(cmds, m.generateObjectives)
-			}
-
-			// Move the focus to the next field, if the result is negative we are done
-			m.fieldIndex = focusNext(m.fields(), m.fieldIndex)
-			if m.fieldIndex < 0 {
-				cmds = append(cmds, func() tea.Msg { return expPreCreate })
-			}
-
-		case "tab":
+		case tea.KeyTab:
 			// Allow "tabbing" through the scenario types from the first input
-			if sf := m.scenarioFields(); len(sf) > 0 && sf[0].Focused() {
-				sf[0].Blur()
-				m.needsFocus = true
-				switch m.ScenarioMode {
-				case scenarioStormForger:
-					m.ScenarioMode = scenarioLocust
-				case scenarioLocust:
-					m.ScenarioMode = scenarioStormForger
-				}
+			// TODO We should probably make a separate message for toggling test case type
+			if m.StormForgerTestCaseInput.Enabled() && m.StormForgerTestCaseInput.Focused() {
+				m.StormForgerTestCaseInput.Blur()
+				m.StormForgerTestCaseInput.Disable()
+
+				m.LocustNameInput.Focus()
+				m.LocustNameInput.Enable()
+				m.LocustfileInput.Enable()
+				m.IngressURLInput.Enable() // TODO For now this is exclusive to Locust
+			} else if m.LocustNameInput.Enabled() && m.LocustNameInput.Focused() && len(m.StormForgerTestCaseInput.Choices) > 0 {
+				m.StormForgerTestCaseInput.Focus()
+				m.StormForgerTestCaseInput.Enable()
+
+				m.LocustNameInput.Blur()
+				m.LocustNameInput.Disable()
+				m.LocustfileInput.Disable()
+				m.IngressURLInput.Disable() // TODO For now this is exclusive to Locust
 			}
 		}
 
 	}
 
-	if m.needsFocus {
-		if f := m.fields(); len(f) > 0 {
-			f[0].Focus()
-			m.needsFocus = false
-		}
-	}
+	var (
+		cmd  tea.Cmd
+		cmds []tea.Cmd
+	)
 
-	var cmd tea.Cmd
+	cmd = m.form().Update(msg)
+	cmds = append(cmds, cmd)
 
-	m.TestCaseInput, cmd = m.TestCaseInput.Update(msg)
+	m.StormForgerTestCaseInput, cmd = m.StormForgerTestCaseInput.Update(msg)
 	cmds = append(cmds, cmd)
 
 	m.LocustNameInput, cmd = m.LocustNameInput.Update(msg)
@@ -230,85 +248,6 @@ func (m generationModel) Update(msg tea.Msg) (generationModel, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m *generationModel) fields() []input {
-	ff := []func() []input{
-		m.scenarioFields,
-		m.resourceFields,
-		m.ingressFields,
-		m.parameterFields,
-		m.objectiveFields,
-	}
-
-	// Collect up to the first nil set of fields. Stopping at the first nil
-	// input slice ensures we can ask questions in the correct order if we are
-	// waiting for async initialization of the input to complete.
-	var result []input
-	for _, f := range ff {
-		if fs := f(); fs != nil {
-			result = append(result, fs...)
-			continue
-		}
-		return result
-	}
-	return result
-}
-
-func (m *generationModel) scenarioFields() []input {
-	var result []input
-
-	switch m.ScenarioMode {
-	case scenarioStormForger:
-		result = append(result, &m.TestCaseInput)
-	case scenarioLocust:
-		result = append(result, &m.LocustNameInput)
-		result = append(result, &m.LocustfileInput)
-	}
-
-	return result
-}
-
-func (m *generationModel) resourceFields() []input {
-	var result []input
-
-	switch m.ResourceMode {
-	case resourceNamespace:
-		result = append(result, &m.NamespaceInput)
-		for i := range m.LabelSelectorInputs {
-			result = append(result, &m.LabelSelectorInputs[i])
-		}
-	}
-
-	return result
-}
-
-func (m *generationModel) ingressFields() []input {
-	result := make([]input, 0)
-
-	// TODO Right now, only ask for URL with Locust
-	if m.ScenarioMode == scenarioLocust {
-		result = append(result, &m.IngressURLInput)
-	}
-
-	return result
-}
-
-func (m *generationModel) parameterFields() []input {
-	result := make([]input, 0)
-
-	result = append(result, &m.ContainerResourcesSelectorInput)
-	result = append(result, &m.ReplicasSelectorInput)
-
-	return result
-}
-
-func (m *generationModel) objectiveFields() []input {
-	result := make([]input, 0)
-
-	result = append(result, &m.ObjectiveInput)
-
-	return result
-}
-
 type previewModel struct {
 	experiment *redskyv1beta1.Experiment
 	confirmed  bool
@@ -331,12 +270,12 @@ func (m previewModel) Update(msg tea.Msg) (previewModel, tea.Cmd) {
 
 	case tea.KeyMsg:
 		if m.experiment != nil && !m.confirmed {
-			switch strings.ToLower(msg.String()) {
-			case "y", "enter":
+			switch msg.String() {
+			case "y", "Y", "enter":
 				m.confirmed = true
 				return m, func() tea.Msg { return expConfirmed }
 
-			case "n":
+			case "n", "N":
 				return m, tea.Quit
 			}
 		}

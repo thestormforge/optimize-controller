@@ -19,13 +19,10 @@ package run
 import (
 	"time"
 
-	"github.com/thestormforge/konjure/pkg/konjure"
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	"github.com/thestormforge/optimize-controller/internal/version"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
-
-const unknownVersion = "unknown"
 
 type versionMsg struct {
 	Build   version.Info
@@ -37,6 +34,8 @@ type versionMsg struct {
 	}
 	Controller version.Info
 }
+
+const unknownVersion = "unknown"
 
 type authorizationMsg int
 
@@ -50,15 +49,9 @@ type stormForgerTestCaseMsg []string
 
 type kubernetesNamespaceMsg []string
 
-type resourceMsg []konjure.Resource
+type initializedMsg float64
 
-type scenarioMsg []redskyappsv1alpha1.Scenario
-
-type parameterMsg []redskyappsv1alpha1.Parameter
-
-type objectiveMsg []redskyappsv1alpha1.Objective
-
-type ingressMsg redskyappsv1alpha1.Ingress
+type applicationMsg redskyappsv1alpha1.Application
 
 type experimentMsg []*yaml.RNode
 
@@ -69,9 +62,22 @@ type refreshStatusMsg time.Time
 type experimentStatusMsg int
 
 const (
-	expPreCreate experimentStatusMsg = 1
-	expConfirmed experimentStatusMsg = 2
-	expCreated   experimentStatusMsg = 3
-	expCompleted experimentStatusMsg = 4
-	expFailed    experimentStatusMsg = 5
+	expConfirmed experimentStatusMsg = 1
+	expCreated   experimentStatusMsg = 2
+	expCompleted experimentStatusMsg = 3
+	expFailed    experimentStatusMsg = 4
 )
+
+// These are some helper functions
+
+func (m versionMsg) isForgeAvailable() bool {
+	return m.Forge != "" && m.Forge != unknownVersion
+}
+
+func (m versionMsg) isKubectlAvailable() bool {
+	return m.Kubectl.ClientVersion.GitVersion != "" && m.Kubectl.ClientVersion.GitVersion != unknownVersion
+}
+
+func (m versionMsg) isControllerUnavailable() bool {
+	return m.Controller.Version == unknownVersion
+}
