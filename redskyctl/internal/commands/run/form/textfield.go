@@ -43,6 +43,7 @@ func NewTextField() TextField {
 			ErrorColor:        "1",
 			ErrorTextColor:    "1",
 		},
+		Validator: &unvalidated{},
 	}
 }
 
@@ -52,8 +53,10 @@ func (m TextField) Update(msg tea.Msg) (TextField, tea.Cmd) {
 		cmds []tea.Cmd
 	)
 
-	m.fieldModel, cmd = m.fieldModel.update(msg, m.Focused())
-	cmds = append(cmds, cmd)
+	if m.Focused() {
+		m.fieldModel, cmd = m.fieldModel.update(msg)
+		cmds = append(cmds, cmd)
+	}
 
 	m.Model, cmd = m.Model.Update(msg)
 	cmds = append(cmds, cmd)
@@ -72,10 +75,6 @@ func (m TextField) View() string {
 }
 
 func (m TextField) Validate() tea.Cmd {
-	return func() tea.Msg {
-		if m.Validator == nil {
-			return ValidationMsg("")
-		}
-		return m.Validator.ValidateTextField(m.Value())
-	}
+	value := m.Value()
+	return func() tea.Msg { return m.Validator.ValidateTextField(value) }
 }

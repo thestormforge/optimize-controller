@@ -24,42 +24,54 @@ import (
 	"github.com/muesli/termenv"
 )
 
+// Field represents an individual form field in a linear sequence of inputs.
+// Initially disabled and hidden, fields should be enabled programmatically
+// (either during initialization or in response to events related to the field);
+// it is not necessary to show fields as they will be shown as the form progresses.
 type Field interface {
-	// Enable/disable: passes focus to next element, not shown, no updates
-
+	// Enable this field. Enabled fields can receive focus for updates and will be included in views.
 	Enable()
+	// Enabled returns true if this field currently enabled.
 	Enabled() bool
+	// Disable this field. Disabled fields will not be focused, will ignore most updates and will be excluded from views.
 	Disable()
 
-	// Focus/blur: gets updates
-
+	// Focus this field so it can process update messages. Only one field per form should ever be focused.
 	Focus()
+	// Focused returns true if this field is processing updates.
 	Focused() bool
+	// Blur removes focus so this field stops processing update messages.
 	Blur()
 
-	// Show/hide: get view
-
+	// Show ensures an enabled field will be visible in a view.
 	Show()
+	// Hidden returns true if this field should not appear in a view.
 	Hidden() bool
+	// Hide ensures that this field will not be visible in a view.
 	Hide()
 
-	// View
-
+	// View renders this field.
 	View() string
 
-	// Validate
-
+	// Validate returns a command to check the current state of the field. The command MUST produce a `ValidationMsg`.
 	Validate() tea.Cmd
 }
 
+// fieldModel tracks common field state.
 type fieldModel struct {
+	// A Go template to render an individual field. Ignored if the field is disabled or hidden.
 	Template string
 
-	Instructions      string
+	// Instructional text to render with focused fields.
+	Instructions string
+	// Alternate color to be used when rendering instructions.
 	InstructionsColor string
 
-	Error          string
-	ErrorColor     string
+	// An error message related to validity of the field.
+	Error string
+	// Alternate color to be used when rendering error messages.
+	ErrorColor string
+	// For fields which display user input, an alternate text color to use for invalid input.
 	ErrorTextColor string
 
 	enabled bool
@@ -90,18 +102,18 @@ func (m *fieldModel) Hide() {
 	m.shown = false
 }
 
-func (m fieldModel) update(msg tea.Msg, focused bool) (fieldModel, tea.Cmd) {
-	if !m.enabled {
+func (m fieldModel) update(msg tea.Msg) (fieldModel, tea.Cmd) {
+	if !m.Enabled() {
 		return m, nil
 	}
 
-	if focused {
-		switch msg := msg.(type) {
-		case ValidationMsg:
-			m.Error = string(msg)
-		case tea.KeyMsg:
-			m.Error = ""
-		}
+	switch msg := msg.(type) {
+	case ValidationMsg:
+		// Capture the error message from validation
+		m.Error = string(msg)
+	case tea.KeyMsg:
+		// Clear the error message on the first key press
+		m.Error = ""
 	}
 
 	return m, nil

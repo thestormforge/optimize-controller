@@ -23,7 +23,9 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/form"
+	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
@@ -32,47 +34,52 @@ import (
 func (o *Options) initializeModel() {
 
 	o.generationModel.StormForgerTestCaseInput = form.NewChoiceField()
-	o.generationModel.StormForgerTestCaseInput.Prompt = "\nPlease select a StormForger test case to optimize for:\n"
+	o.generationModel.StormForgerTestCaseInput.Prompt = promptf("Please select a StormForger test case to optimize for:", long)
 	o.generationModel.StormForgerTestCaseInput.LoadingMessage = " Fetching test cases from StormForger ..."
 	o.generationModel.StormForgerTestCaseInput.Instructions = "\nup/down: select  |  enter: continue"
 
 	o.generationModel.LocustNameInput = form.NewTextField()
-	o.generationModel.LocustNameInput.Prompt = "\nPlease enter a name for your Locust test: "
+	o.generationModel.LocustNameInput.Prompt = promptf("Please enter a name for your Locust test:", short)
 	o.generationModel.LocustNameInput.Enable()
 
 	o.generationModel.LocustfileInput = form.NewTextField()
-	o.generationModel.LocustfileInput.Prompt = "\nEnter the location of the locustfile.py you would like to run: "
+	o.generationModel.LocustfileInput.Prompt = promptf("Enter the location of the locustfile.py you would like to run:", short)
+	o.generationModel.LocustfileInput.Validator = &form.File{Required: "Required", Missing: "File does not exist"}
 	o.generationModel.LocustfileInput.Enable()
 
 	o.generationModel.NamespaceInput = form.NewMultiChoiceField()
-	o.generationModel.NamespaceInput.Prompt = "\nPlease select the Kubernetes namespace where your application is running:\n"
+	o.generationModel.NamespaceInput.Prompt = promptf("Please select the Kubernetes namespace where your application is running:", long)
 	o.generationModel.NamespaceInput.LoadingMessage = " Fetching namespaces from Kubernetes ..."
 	o.generationModel.NamespaceInput.Instructions = "\nup/down: select  |  space: choose  |  enter: continue"
 	o.generationModel.NamespaceInput.Validator = &form.Required{Error: "Required"}
 
 	o.generationModel.LabelSelectorTemplate = func(namespace string) form.TextField {
 		labelSelectorInput := form.NewTextField()
-		labelSelectorInput.Prompt = fmt.Sprintf("\nSpecify the label selector for your application resources in the '%s' namespace:\n", namespace)
+		labelSelectorInput.Prompt = promptf("Specify the label selector for your application resources in the '%s' namespace:", long, namespace)
 		labelSelectorInput.Placeholder = "leave blank to select all resources"
+		labelSelectorInput.Validator = &labelSelectorValidator{InvalidSelector: "Must be a valid label selector"}
 		return labelSelectorInput
 	}
 
 	o.generationModel.IngressURLInput = form.NewTextField()
-	o.generationModel.IngressURLInput.Prompt = "\nEnter the URL of the endpoint to test: "
+	o.generationModel.IngressURLInput.Prompt = promptf("Enter the URL of the endpoint to test:", short)
+	o.generationModel.IngressURLInput.Validator = &form.URL{Required: "Required", InvalidURL: "Must be a valid URL", Absolute: "URL must be absolute"}
 	o.generationModel.IngressURLInput.Enable()
 
 	o.generationModel.ContainerResourcesSelectorInput = form.NewTextField()
-	o.generationModel.ContainerResourcesSelectorInput.Prompt = "\nSpecify the label selector matching resources which should have their memory and CPU optimized:\n"
+	o.generationModel.ContainerResourcesSelectorInput.Prompt = promptf("Specify the label selector matching resources which should have their memory and CPU optimized:", long)
 	o.generationModel.ContainerResourcesSelectorInput.Placeholder = "leave blank to select all resources"
+	o.generationModel.ContainerResourcesSelectorInput.Validator = &labelSelectorValidator{InvalidSelector: "Must be a valid label selector"}
 	o.generationModel.ContainerResourcesSelectorInput.Enable()
 
 	o.generationModel.ReplicasSelectorInput = form.NewTextField()
-	o.generationModel.ReplicasSelectorInput.Prompt = "\nSpecify the label selector matching resources which can be scaled horizontally:\n"
+	o.generationModel.ReplicasSelectorInput.Prompt = promptf("Specify the label selector matching resources which can be scaled horizontally:", long)
 	o.generationModel.ReplicasSelectorInput.Placeholder = "leave blank to select NO resources"
+	o.generationModel.ReplicasSelectorInput.Validator = &labelSelectorValidator{InvalidSelector: "Must be a valid label selector"}
 	o.generationModel.ReplicasSelectorInput.Enable()
 
 	o.generationModel.ObjectiveInput = form.NewMultiChoiceField()
-	o.generationModel.ObjectiveInput.Prompt = "\nPlease select objectives to optimize:\n"
+	o.generationModel.ObjectiveInput.Prompt = promptf("Please select objectives to optimize:", long)
 	o.generationModel.ObjectiveInput.Instructions = "\nup/down: select  |  space: choose  |  enter: continue"
 	o.generationModel.ObjectiveInput.Choices = []string{
 		"cost",
@@ -271,7 +278,40 @@ func (m runModel) View() string {
 	return buf.String()
 }
 
+type promptStyle int
+
+const (
+	// short is single line prompt.
+	short promptStyle = 0
+	// long is a multi-line prompt.
+	long promptStyle = 1
+)
+
+// promptf is used to format an input prompt.
+func promptf(message string, style promptStyle, args ...interface{}) string {
+	switch style {
+	case short:
+		return fmt.Sprintf("\n"+message+" ", args...)
+	case long:
+		return fmt.Sprintf("\n"+message+"\n", args...)
+	default:
+		panic("unknown prompt style")
+	}
+}
+
 // statusf is used for format a single line status message.
 func statusf(icon, message string, args ...interface{}) string {
 	return fmt.Sprintf("%-2s "+message+"\n", append([]interface{}{icon}, args...)...)
+}
+
+// labelSelectorValidator ensures a text field represents a valid Kubernetes label selector.
+type labelSelectorValidator struct {
+	InvalidSelector string
+}
+
+func (v labelSelectorValidator) ValidateTextField(value string) tea.Msg {
+	if _, err := labels.Parse(value); err != nil {
+		return form.ValidationMsg(v.InvalidSelector)
+	}
+	return form.ValidationMsg("")
 }

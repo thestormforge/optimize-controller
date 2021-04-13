@@ -19,92 +19,87 @@ package form
 import (
 	"strings"
 
+	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+// Start initiates the start of a form. Note that there is no implicit scoping
+// of start messages to specific forms, proper routing of the start message is
+// the responsibility of the enclosing model.
 func Start() tea.Msg {
 	return startMsg{}
 }
 
 type startMsg struct{}
 
+// ValidationMsg is used to asynchronously validate form fields. An empty string
+// is used to indicate a valid field while any non-empty strings indicates an
+// error with the current field value. Validation messages are typically rendered
+// in the view of a field and will be cleared on the first key press after the
+// validation occurs.
 type ValidationMsg string
 
+// FinishedMsg indicates that the last field on the form has been submitted.
 type FinishedMsg struct{}
 
+// Fields is a list of fields that make up a form. When constructing a form, be
+// sure to use pointers to the individual field structs at the time of the update.
+// Most Bubble Tea updates operate on values, not references, so this is a little
+// different.
 type Fields []Field
 
-// DOES NOT attempt to deliver the message to the individual fields, independently updates them
-func (f Fields) Update(msg tea.Msg) tea.Cmd {
-	// Watch for an attempt to start the form, we need to show and focus the first enabled field
-	if _, ok := msg.(startMsg); ok {
-		startIndex := -1
-		for i := range f {
-			if !f[i].Enabled() {
-				continue
-			}
-			if f[i].Focused() {
-				startIndex = -1
-				break
-			}
-			if startIndex < 0 {
-				startIndex = i
-			}
-		}
-		if startIndex >= 0 {
-			f[startIndex].Focus()
-		}
-	}
-
-	focused := false
-	for i := range f {
-		if !f[i].Focused() {
-			continue
-		}
-
-		if !f[i].Enabled() || focused {
-			f[i].Blur()
-			continue
-		}
-
-		focused = true
-
-		if f[i].Hidden() {
-			f[i].Show()
-		}
-
-		switch msg := msg.(type) {
-
-		case tea.KeyMsg:
-			switch msg.Type {
-			case tea.KeyEnter:
-				return f[i].Validate()
-			}
-
-		case ValidationMsg:
-			if msg != "" {
-				return nil
-			}
-
-			f[i].Blur()
-
-			for n := i + 1; n < len(f); n++ {
-				if !f[n].Enabled() {
-					continue
-				}
-
-				f[n].Show()
-				f[n].Focus()
-				return nil
-			}
-
-			return func() tea.Msg { return FinishedMsg{} }
-		}
-	}
-
-	return nil
+// Init returns a command to invoke in response to a form started message.
+func (f Fields) Init() tea.Cmd {
+	// In theory we could check to see if these are needed but it's easier to
+	// to fire off the single message and have it ignored.
+	return tea.Batch(textinput.Blink, spinner.Tick)
 }
 
+// Update manages the transition when individual fields are submitted.
+// IMPORTANT: the message cannot be delivered to the individual fields, they must
+// still be updated (presumably after the form itself has had a chance to update).
+func (f Fields) Update(msg tea.Msg) tea.Cmd {
+	focused, next := f.activeFields()
+
+	var cmds []tea.Cmd
+	switch msg := msg.(type) {
+
+	case startMsg:
+		// Focus the next field if nothing is currently focused
+		cmds = append(cmds, f.Init())
+		if focused == nil && next != nil {
+			next.Focus()
+			next.Show()
+		}
+
+	case tea.KeyMsg:
+		// Validate the focused field when the user hits "enter"
+		if msg.Type == tea.KeyEnter && focused != nil {
+			cmds = append(cmds, focused.Validate())
+		}
+
+	case ValidationMsg:
+		// On successful validation, progress to the next field or finish the form
+		if msg == "" {
+			if focused != nil {
+				focused.Blur()
+			}
+
+			if next != nil {
+				next.Focus()
+				next.Show()
+			} else {
+				cmds = append(cmds, func() tea.Msg { return FinishedMsg{} })
+			}
+		}
+
+	}
+
+	return tea.Batch(cmds...)
+}
+
+// View returns the views of all enabled, non-hidden fields (each with a trailing newline).
 func (f Fields) View() string {
 	var view strings.Builder
 	for i := range f {
@@ -116,4 +111,33 @@ func (f Fields) View() string {
 		view.WriteRune('\n')
 	}
 	return view.String()
+}
+
+// activeFields returns the current focused field and the next enabled field. If
+// no field has focus, focused will be nil and next will be the first enabled
+// field (if such a field exists).
+func (f Fields) activeFields() (focused, next Field) {
+	var first Field
+	for i := range f {
+		if !f[i].Enabled() {
+			continue
+		}
+
+		if focused != nil {
+			next = f[i]
+			return
+		}
+
+		if f[i].Focused() {
+			focused = f[i]
+		}
+
+		if first == nil {
+			first = f[i]
+		}
+	}
+	if focused == nil {
+		return nil, first
+	}
+	return
 }

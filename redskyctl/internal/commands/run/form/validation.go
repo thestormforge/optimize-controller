@@ -17,6 +17,8 @@ limitations under the License.
 package form
 
 import (
+	"net/url"
+	"os"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -27,6 +29,12 @@ type validator interface {
 	ChoiceFieldValidator
 	MultiChoiceFieldValidator
 }
+
+type unvalidated struct{}
+
+func (u unvalidated) ValidateTextField(string) tea.Msg          { return ValidationMsg("") }
+func (u unvalidated) ValidateChoiceField(string) tea.Msg        { return ValidationMsg("") }
+func (u unvalidated) ValidateMultiChoiceField([]string) tea.Msg { return ValidationMsg("") }
 
 type Required struct {
 	Error       string
@@ -62,6 +70,59 @@ func (r *Required) ValidateChoiceField(value string) tea.Msg {
 func (r *Required) ValidateMultiChoiceField(values []string) tea.Msg {
 	if len(values) == 0 {
 		return ValidationMsg(r.Error)
+	}
+
+	return ValidationMsg("")
+}
+
+type URL struct {
+	Required   string
+	InvalidURL string
+	Absolute   string
+}
+
+func (v *URL) ValidateTextField(value string) tea.Msg {
+	if v.Required != "" && value == "" {
+		return ValidationMsg(v.Required)
+	}
+	u, err := url.Parse(value)
+	if err != nil {
+		return ValidationMsg(v.InvalidURL)
+	}
+	if v.Absolute != "" && !u.IsAbs() {
+		return ValidationMsg(v.Absolute)
+	}
+	return ValidationMsg("")
+}
+
+type File struct {
+	Required    string
+	Missing     string
+	Directory   string
+	RegularFile string
+}
+
+func (v *File) ValidateTextField(value string) tea.Msg {
+	if v.Required != "" && value == "" {
+		return ValidationMsg(v.Required)
+	}
+
+	info, err := os.Lstat(value)
+	if err != nil {
+		if v.Missing != "" && os.IsNotExist(err) {
+			return ValidationMsg(v.Missing)
+		}
+
+		// TODO How should we handle this?
+		return ValidationMsg(err.Error())
+	}
+
+	if v.Directory != "" && !info.IsDir() {
+		return ValidationMsg(v.Directory)
+	}
+
+	if v.RegularFile != "" && info.IsDir() {
+		return ValidationMsg(v.RegularFile)
 	}
 
 	return ValidationMsg("")

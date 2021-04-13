@@ -99,7 +99,7 @@ func (m initializationModel) Update(msg tea.Msg) (initializationModel, tea.Cmd) 
 		m.KubectlVersion != "" &&
 		m.ControllerVersion != "" &&
 		m.ControllerVersion != unknownVersion &&
-		m.Authorization != azInvalid {
+		(m.Authorization == azValid || m.Authorization == azIgnored) {
 		return m, func() tea.Msg { return initializedMsg(1) }
 	}
 

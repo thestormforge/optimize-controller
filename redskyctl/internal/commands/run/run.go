@@ -19,8 +19,6 @@ package run
 import (
 	"os/exec"
 
-	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
@@ -83,8 +81,6 @@ func (o *Options) Init() tea.Cmd {
 
 	// Run a bunch of commands to get things started
 	return tea.Batch(
-		textinput.Blink,
-		spinner.Tick,
 		o.checkBuildVersion,
 		o.checkKubectlVersion,
 		o.checkForgeVersion,

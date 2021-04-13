@@ -44,6 +44,7 @@ func NewMultiChoiceField() MultiChoiceField {
 			ErrorColor:        "1",
 			ErrorTextColor:    "1",
 		},
+		Validator: &unvalidated{},
 	}
 }
 
@@ -53,8 +54,10 @@ func (m MultiChoiceField) Update(msg tea.Msg) (MultiChoiceField, tea.Cmd) {
 		cmds []tea.Cmd
 	)
 
-	m.fieldModel, cmd = m.fieldModel.update(msg, m.Focused())
-	cmds = append(cmds, cmd)
+	if m.Focused() {
+		m.fieldModel, cmd = m.fieldModel.update(msg)
+		cmds = append(cmds, cmd)
+	}
 
 	m.Model, cmd = m.Model.Update(msg)
 	cmds = append(cmds, cmd)
@@ -73,10 +76,6 @@ func (m MultiChoiceField) View() string {
 }
 
 func (m MultiChoiceField) Validate() tea.Cmd {
-	return func() tea.Msg {
-		if m.Validator == nil {
-			return ValidationMsg("")
-		}
-		return m.Validator.ValidateMultiChoiceField(m.Values())
-	}
+	values := m.Values()
+	return func() tea.Msg { return m.Validator.ValidateMultiChoiceField(values) }
 }
