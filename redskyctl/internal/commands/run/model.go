@@ -196,10 +196,12 @@ func (m generationModel) Update(msg tea.Msg) (generationModel, tea.Cmd) {
 				m.StormForgerTestCaseInput.Disable()
 
 				m.LocustfileInput.Focus()
+				m.LocustfileInput.Show()
 				m.LocustfileInput.Enable()
 				m.IngressURLInput.Enable() // TODO For now this is exclusive to Locust
 			} else if m.LocustfileInput.Enabled() && m.LocustfileInput.Focused() && len(m.StormForgerTestCaseInput.Choices) > 0 {
 				m.StormForgerTestCaseInput.Focus()
+				m.StormForgerTestCaseInput.Show()
 				m.StormForgerTestCaseInput.Enable()
 
 				m.LocustfileInput.Blur()
