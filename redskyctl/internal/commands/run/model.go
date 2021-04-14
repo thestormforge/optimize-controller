@@ -24,6 +24,7 @@ import (
 	"github.com/thestormforge/optimize-controller/internal/scan"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/form"
 	"sigs.k8s.io/kustomize/kyaml/kio"
+	"sigs.k8s.io/kustomize/kyaml/kio/filters"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
@@ -109,7 +110,6 @@ func (m initializationModel) Update(msg tea.Msg) (initializationModel, tea.Cmd) 
 // generationModel is used to configure the experiment generator.
 type generationModel struct {
 	StormForgerTestCaseInput form.ChoiceField
-	LocustNameInput          form.TextField
 	LocustfileInput          form.TextField
 
 	NamespaceInput        form.MultiChoiceField
@@ -128,7 +128,7 @@ type generationModel struct {
 func (m *generationModel) form() form.Fields {
 	var fields form.Fields
 	fields = append(fields, &m.StormForgerTestCaseInput)
-	fields = append(fields, &m.LocustNameInput, &m.LocustfileInput)
+	fields = append(fields, &m.LocustfileInput)
 	fields = append(fields, &m.NamespaceInput)
 	for i := range m.LabelSelectorInputs {
 		fields = append(fields, &m.LabelSelectorInputs[i])
@@ -150,7 +150,6 @@ func (m generationModel) Update(msg tea.Msg) (generationModel, tea.Cmd) {
 	case versionMsg:
 		if msg.isForgeAvailable() {
 			m.StormForgerTestCaseInput.Enable()
-			m.LocustNameInput.Disable()
 			m.LocustfileInput.Disable()
 			m.IngressURLInput.Disable() // TODO For now this is exclusive to Locust
 		}
@@ -163,10 +162,15 @@ func (m generationModel) Update(msg tea.Msg) (generationModel, tea.Cmd) {
 
 	case stormForgerTestCaseMsg:
 		m.StormForgerTestCaseInput.Choices = append(m.StormForgerTestCaseInput.Choices, msg...)
-		m.StormForgerTestCaseInput.Select(0)
+		if len(m.StormForgerTestCaseInput.Choices) > 0 && m.StormForgerTestCaseInput.Value() == "" {
+			m.StormForgerTestCaseInput.Select(0)
+		}
 
 	case kubernetesNamespaceMsg:
 		m.NamespaceInput.Choices = append(m.NamespaceInput.Choices, msg...)
+		if len(m.NamespaceInput.Choices) == 1 && len(m.NamespaceInput.Values()) == 0 {
+			m.NamespaceInput.Select(0) // If there is only one namespace, select it
+		}
 
 	case form.FinishedMsg:
 		return m, m.generateApplication
@@ -184,23 +188,21 @@ func (m generationModel) Update(msg tea.Msg) (generationModel, tea.Cmd) {
 				}
 			}
 
-		case tea.KeyTab:
+		case tea.KeyCtrlCloseBracket:
 			// Allow "tabbing" through the scenario types from the first input
 			// TODO We should probably make a separate message for toggling test case type
 			if m.StormForgerTestCaseInput.Enabled() && m.StormForgerTestCaseInput.Focused() {
 				m.StormForgerTestCaseInput.Blur()
 				m.StormForgerTestCaseInput.Disable()
 
-				m.LocustNameInput.Focus()
-				m.LocustNameInput.Enable()
+				m.LocustfileInput.Focus()
 				m.LocustfileInput.Enable()
 				m.IngressURLInput.Enable() // TODO For now this is exclusive to Locust
-			} else if m.LocustNameInput.Enabled() && m.LocustNameInput.Focused() && len(m.StormForgerTestCaseInput.Choices) > 0 {
+			} else if m.LocustfileInput.Enabled() && m.LocustfileInput.Focused() && len(m.StormForgerTestCaseInput.Choices) > 0 {
 				m.StormForgerTestCaseInput.Focus()
 				m.StormForgerTestCaseInput.Enable()
 
-				m.LocustNameInput.Blur()
-				m.LocustNameInput.Disable()
+				m.LocustfileInput.Blur()
 				m.LocustfileInput.Disable()
 				m.IngressURLInput.Disable() // TODO For now this is exclusive to Locust
 			}
@@ -217,9 +219,6 @@ func (m generationModel) Update(msg tea.Msg) (generationModel, tea.Cmd) {
 	cmds = append(cmds, cmd)
 
 	m.StormForgerTestCaseInput, cmd = m.StormForgerTestCaseInput.Update(msg)
-	cmds = append(cmds, cmd)
-
-	m.LocustNameInput, cmd = m.LocustNameInput.Update(msg)
 	cmds = append(cmds, cmd)
 
 	m.LocustfileInput, cmd = m.LocustfileInput.Update(msg)
@@ -310,6 +309,23 @@ func (m runModel) Update(msg tea.Msg) (runModel, tea.Cmd) {
 		case expFailed:
 			m.failed = true
 			return m, tea.Quit
+		}
+
+	case tea.KeyMsg:
+		switch msg.Type {
+		case tea.KeyCtrlT:
+			if len(m.experiment) > 0 {
+				return m, func() tea.Msg {
+					var buf strings.Builder
+					p := kio.Pipeline{
+						Inputs:  []kio.Reader{m.experiment},
+						Filters: []kio.Filter{filters.FormatFilter{}},
+						Outputs: []kio.Writer{&kio.ByteWriter{Writer: &buf}},
+					}
+					_ = p.Execute()
+					return statusMsg(buf.String())
+				}
+			}
 		}
 
 	}

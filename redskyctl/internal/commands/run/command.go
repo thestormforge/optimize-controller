@@ -137,6 +137,7 @@ func (o *Options) initializeController() tea.Msg {
 		Wait: true,
 	}
 	// TODO How do we safely and asynchronously update the progress?
+	// Maybe something like https://github.com/charmbracelet/bubbletea/blob/master/examples/realtime/main.go
 	o.initializationModel.InitializationPercent = 0.1
 	if err := initOpts.Initialize(ctx); err != nil {
 		return err
@@ -323,7 +324,6 @@ func (m *generationModel) generateApplication() tea.Msg {
 	if m.LocustfileInput.Enabled() {
 		if locustfile := m.LocustfileInput.Value(); locustfile != "" {
 			msg.Scenarios = append(msg.Scenarios, redskyappsv1alpha1.Scenario{
-				Name: m.LocustNameInput.Value(),
 				Locust: &redskyappsv1alpha1.LocustScenario{
 					Locustfile: locustfile,
 				},

@@ -38,12 +38,9 @@ func (o *Options) initializeModel() {
 	o.generationModel.StormForgerTestCaseInput.LoadingMessage = " Fetching test cases from StormForger ..."
 	o.generationModel.StormForgerTestCaseInput.Instructions = "\nup/down: select  |  enter: continue"
 
-	o.generationModel.LocustNameInput = form.NewTextField()
-	o.generationModel.LocustNameInput.Prompt = promptf("Please enter a name for your Locust test:", short)
-	o.generationModel.LocustNameInput.Enable()
-
 	o.generationModel.LocustfileInput = form.NewTextField()
 	o.generationModel.LocustfileInput.Prompt = promptf("Enter the location of the locustfile.py you would like to run:", short)
+	o.generationModel.LocustfileInput.Completions = &form.FileCompletions{Extensions: []string{".py"}}
 	o.generationModel.LocustfileInput.Validator = &form.File{Required: "Required", Missing: "File does not exist"}
 	o.generationModel.LocustfileInput.Enable()
 
@@ -56,7 +53,8 @@ func (o *Options) initializeModel() {
 	o.generationModel.LabelSelectorTemplate = func(namespace string) form.TextField {
 		labelSelectorInput := form.NewTextField()
 		labelSelectorInput.Prompt = promptf("Specify the label selector for your application resources in the '%s' namespace:", long, namespace)
-		labelSelectorInput.Placeholder = "leave blank to select all resources"
+		labelSelectorInput.Placeholder = "All resources"
+		labelSelectorInput.Instructions = "Leave blank to select all resources"
 		labelSelectorInput.Validator = &labelSelectorValidator{InvalidSelector: "Must be a valid label selector"}
 		return labelSelectorInput
 	}
@@ -68,13 +66,15 @@ func (o *Options) initializeModel() {
 
 	o.generationModel.ContainerResourcesSelectorInput = form.NewTextField()
 	o.generationModel.ContainerResourcesSelectorInput.Prompt = promptf("Specify the label selector matching resources which should have their memory and CPU optimized:", long)
-	o.generationModel.ContainerResourcesSelectorInput.Placeholder = "leave blank to select all resources"
+	o.generationModel.ContainerResourcesSelectorInput.Placeholder = "All resources"
+	o.generationModel.ContainerResourcesSelectorInput.Instructions = "Leave blank to select all resources"
 	o.generationModel.ContainerResourcesSelectorInput.Validator = &labelSelectorValidator{InvalidSelector: "Must be a valid label selector"}
 	o.generationModel.ContainerResourcesSelectorInput.Enable()
 
 	o.generationModel.ReplicasSelectorInput = form.NewTextField()
 	o.generationModel.ReplicasSelectorInput.Prompt = promptf("Specify the label selector matching resources which can be scaled horizontally:", long)
-	o.generationModel.ReplicasSelectorInput.Placeholder = "leave blank to select NO resources"
+	o.generationModel.ReplicasSelectorInput.Placeholder = "No resources"
+	o.generationModel.ReplicasSelectorInput.Instructions = "Must be a valid Kubernetes label selector, leave blank to select no resources"
 	o.generationModel.ReplicasSelectorInput.Validator = &labelSelectorValidator{InvalidSelector: "Must be a valid label selector"}
 	o.generationModel.ReplicasSelectorInput.Enable()
 
@@ -99,7 +99,9 @@ func (o *Options) View() string {
 	var lines []string
 
 	// The "runModel" is the last model to produce output, but it gets exclusive use of the screen
-	if runModelView := o.runModel.View(); runModelView == "" {
+	if o.status != "" {
+		lines = append(lines, o.status)
+	} else if runModelView := o.runModel.View(); runModelView == "" {
 		lines = append(lines, o.initializationModel.View())
 		lines = append(lines, o.generationModel.View())
 		lines = append(lines, o.previewModel.View())

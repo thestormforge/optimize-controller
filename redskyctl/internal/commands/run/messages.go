@@ -24,6 +24,8 @@ import (
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
+type statusMsg string
+
 type versionMsg struct {
 	Build   version.Info
 	Forge   string

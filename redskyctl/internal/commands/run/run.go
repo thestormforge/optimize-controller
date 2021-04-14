@@ -19,6 +19,7 @@ package run
 import (
 	"os/exec"
 
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
@@ -38,6 +39,7 @@ type Options struct {
 	Generator experiment.Generator
 	maybeQuit bool
 	lastErr   error
+	status    string
 
 	initializationModel initializationModel
 	generationModel     generationModel
@@ -98,7 +100,11 @@ func (o *Options) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.Type {
 
 		case tea.KeyEsc:
-			o.maybeQuit = true
+			if o.status != "" {
+				o.status = ""
+			} else {
+				o.maybeQuit = true
+			}
 		case tea.KeyCtrlC:
 			return o, tea.Quit
 
@@ -109,9 +115,13 @@ func (o *Options) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return o, tea.Quit
 				case "n", "N":
 					o.maybeQuit = false
+					return o, tea.Batch(textinput.Blink) // Restart the blinking cursor
 				}
 			}
 		}
+
+	case statusMsg:
+		o.status = string(msg)
 
 	case versionMsg:
 		// Run init if the controller version comes back unknown

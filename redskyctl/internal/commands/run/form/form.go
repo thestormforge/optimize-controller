@@ -75,6 +75,8 @@ func (f Fields) Update(msg tea.Msg) tea.Cmd {
 
 	case tea.KeyMsg:
 		// Validate the focused field when the user hits "enter"
+		// NOTE: A field like the textfield can also use `Validate` to effectively
+		// "block" a submission if there are pending actions that require "enter".
 		if msg.Type == tea.KeyEnter && focused != nil {
 			cmds = append(cmds, focused.Validate())
 		}

@@ -28,6 +28,7 @@ type TextFieldValidator interface {
 type TextField struct {
 	textinput.Model
 	fieldModel
+	CompletionModel
 	Validator TextFieldValidator
 }
 
@@ -37,7 +38,9 @@ func NewTextField() TextField {
 	return TextField{
 		Model: textinput.NewModel(),
 		fieldModel: fieldModel{
-			Template: `{{ .Model.View }}{{ if .Error }} {{ colorError .Error }}{{ end }}{{ if .Focused }}
+			Template: `{{ .Model.View }}{{ if .Error }}
+{{ colorError .Error }}{{ else if .Focused }}{{ .CompletionModel.View }}
+{{ end }}{{ if .Focused }}
 {{ colorInstructions .Instructions }}{{ end }}`,
 			InstructionsColor: "241",
 			ErrorColor:        "1",
@@ -54,6 +57,13 @@ func (m TextField) Update(msg tea.Msg) (TextField, tea.Cmd) {
 	)
 
 	if m.Focused() {
+		// CompletionModel.Update is synchronous, the message itself is updated
+		m.CompletionModel, msg = m.CompletionModel.Update(msg, m.Model.Value())
+		if msg, ok := msg.(SuggestionMsg); ok {
+			m.Model.SetValue(string(msg))
+			m.Model.CursorEnd()
+		}
+
 		m.fieldModel, cmd = m.fieldModel.update(msg)
 		cmds = append(cmds, cmd)
 	}
@@ -75,6 +85,11 @@ func (m TextField) View() string {
 }
 
 func (m TextField) Validate() tea.Cmd {
+	// Do not allow the field to be submitted with pending suggestions
+	if len(m.suggestions) > 0 {
+		return nil
+	}
+
 	value := m.Value()
 	return func() tea.Msg { return m.Validator.ValidateTextField(value) }
 }
