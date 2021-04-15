@@ -91,6 +91,7 @@ var _ kio.Writer = &ObjectList{}
 // Write converts the resource nodes into runtime objects.
 func (o *ObjectList) Write(nodes []*yaml.RNode) error {
 	for _, node := range nodes {
+		// Note: we don't use DecodeYAMLtoJSON because we may need the raw JSON below
 		data, err := node.MarshalJSON()
 		if err != nil {
 			return err
@@ -110,6 +111,16 @@ func (o *ObjectList) Write(nodes []*yaml.RNode) error {
 	}
 
 	return nil
+}
+
+// DecodeYAMLToJSON is an alternative to `node.YNode().Decode(v)` that explicit
+// round trips through JSON.
+func DecodeYAMLToJSON(node *yaml.RNode, v interface{}) error {
+	data, err := node.MarshalJSON()
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, v)
 }
 
 // fixConversion recursively clears out bad fields that tend to be problematic with
