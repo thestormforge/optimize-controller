@@ -81,7 +81,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			case "down":
 				m.Highlight(m.highlighted + 1)
 
-			case " ":
+			case "x":
 				m.Toggle(m.highlighted)
 
 			}

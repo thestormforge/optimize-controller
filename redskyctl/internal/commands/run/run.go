@@ -36,6 +36,8 @@ type Options struct {
 	// ExperimentsAPI is used to interact with the Red Sky Experiments API
 	ExperimentsAPI experimentsv1alpha1.API
 
+	Verbose bool
+
 	Generator experiment.Generator
 	maybeQuit bool
 	lastErr   error
@@ -65,6 +67,8 @@ func NewCommand(o *Options) *cobra.Command {
 			).Start()
 		},
 	}
+
+	cmd.Flags().BoolVarP(&o.Verbose, "verbose", "v", o.Verbose, "display verbose prompts")
 
 	return cmd
 }

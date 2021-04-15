@@ -34,25 +34,34 @@ import (
 func (o *Options) initializeModel() {
 
 	o.generationModel.StormForgerTestCaseInput = form.NewChoiceField()
-	o.generationModel.StormForgerTestCaseInput.Prompt = promptf("Please select a StormForger test case to optimize for:", long)
+	o.generationModel.StormForgerTestCaseInput.Prompt = prompt{
+		Text: "Please select a StormForger test case to optimize for:",
+	}.Format(o.Verbose)
 	o.generationModel.StormForgerTestCaseInput.LoadingMessage = " Fetching test cases from StormForger ..."
 	o.generationModel.StormForgerTestCaseInput.Instructions = "\nup/down: select  |  enter: continue"
 
 	o.generationModel.LocustfileInput = form.NewTextField()
-	o.generationModel.LocustfileInput.Prompt = promptf("Enter the location of the locustfile.py you would like to run:", short)
+	o.generationModel.LocustfileInput.Prompt = prompt{
+		Text:            "Enter the location of the locustfile.py you would like to run:",
+		InputOnSameLine: true,
+	}.Format(o.Verbose)
 	o.generationModel.LocustfileInput.Completions = &form.FileCompletions{Extensions: []string{".py"}}
 	o.generationModel.LocustfileInput.Validator = &form.File{Required: "Required", Missing: "File does not exist"}
 	o.generationModel.LocustfileInput.Enable()
 
 	o.generationModel.NamespaceInput = form.NewMultiChoiceField()
-	o.generationModel.NamespaceInput.Prompt = promptf("Please select the Kubernetes namespace where your application is running:", long)
+	o.generationModel.NamespaceInput.Prompt = prompt{
+		Text: "Please select the Kubernetes namespace where your application is running:",
+	}.Format(o.Verbose)
 	o.generationModel.NamespaceInput.LoadingMessage = " Fetching namespaces from Kubernetes ..."
-	o.generationModel.NamespaceInput.Instructions = "\nup/down: select  |  space: choose  |  enter: continue"
+	o.generationModel.NamespaceInput.Instructions = "\nup/down: select  |  x: choose  |  enter: continue"
 	o.generationModel.NamespaceInput.Validator = &form.Required{Error: "Required"}
 
 	o.generationModel.LabelSelectorTemplate = func(namespace string) form.TextField {
 		labelSelectorInput := form.NewTextField()
-		labelSelectorInput.Prompt = promptf("Specify the label selector for your application resources in the '%s' namespace:", long, namespace)
+		labelSelectorInput.Prompt = prompt{
+			Text: "Specify the label selector for your application resources in the '%s' namespace:",
+		}.Format(o.Verbose, namespace)
 		labelSelectorInput.Placeholder = "All resources"
 		labelSelectorInput.Instructions = "Leave blank to select all resources"
 		labelSelectorInput.Validator = &labelSelectorValidator{InvalidSelector: "Must be a valid label selector"}
@@ -60,27 +69,36 @@ func (o *Options) initializeModel() {
 	}
 
 	o.generationModel.IngressURLInput = form.NewTextField()
-	o.generationModel.IngressURLInput.Prompt = promptf("Enter the URL of the endpoint to test:", short)
+	o.generationModel.IngressURLInput.Prompt = prompt{
+		Text:            "Enter the URL of the endpoint to test:",
+		InputOnSameLine: true,
+	}.Format(o.Verbose)
 	o.generationModel.IngressURLInput.Validator = &form.URL{Required: "Required", InvalidURL: "Must be a valid URL", Absolute: "URL must be absolute"}
 	o.generationModel.IngressURLInput.Enable()
 
 	o.generationModel.ContainerResourcesSelectorInput = form.NewTextField()
-	o.generationModel.ContainerResourcesSelectorInput.Prompt = promptf("Specify the label selector matching resources which should have their memory and CPU optimized:", long)
+	o.generationModel.ContainerResourcesSelectorInput.Prompt = prompt{
+		Text: "Specify the label selector matching resources which should have their memory and CPU optimized:",
+	}.Format(o.Verbose)
 	o.generationModel.ContainerResourcesSelectorInput.Placeholder = "All resources"
 	o.generationModel.ContainerResourcesSelectorInput.Instructions = "Leave blank to select all resources"
 	o.generationModel.ContainerResourcesSelectorInput.Validator = &labelSelectorValidator{InvalidSelector: "Must be a valid label selector"}
 	o.generationModel.ContainerResourcesSelectorInput.Enable()
 
 	o.generationModel.ReplicasSelectorInput = form.NewTextField()
-	o.generationModel.ReplicasSelectorInput.Prompt = promptf("Specify the label selector matching resources which can be scaled horizontally:", long)
+	o.generationModel.ReplicasSelectorInput.Prompt = prompt{
+		Text: "Specify the label selector matching resources which can be scaled horizontally:",
+	}.Format(o.Verbose)
 	o.generationModel.ReplicasSelectorInput.Placeholder = "No resources"
 	o.generationModel.ReplicasSelectorInput.Instructions = "Must be a valid Kubernetes label selector, leave blank to select no resources"
 	o.generationModel.ReplicasSelectorInput.Validator = &labelSelectorValidator{InvalidSelector: "Must be a valid label selector"}
 	o.generationModel.ReplicasSelectorInput.Enable()
 
 	o.generationModel.ObjectiveInput = form.NewMultiChoiceField()
-	o.generationModel.ObjectiveInput.Prompt = promptf("Please select objectives to optimize:", long)
-	o.generationModel.ObjectiveInput.Instructions = "\nup/down: select  |  space: choose  |  enter: continue"
+	o.generationModel.ObjectiveInput.Prompt = prompt{
+		Text: "Please select objectives to optimize:",
+	}.Format(o.Verbose)
+	o.generationModel.ObjectiveInput.Instructions = "\nup/down: select  |  x: choose  |  enter: continue"
 	o.generationModel.ObjectiveInput.Choices = []string{
 		"cost",
 		"p50-latency",
@@ -280,25 +298,26 @@ func (m runModel) View() string {
 	return buf.String()
 }
 
-type promptStyle int
+type prompt struct {
+	Text            string
+	Verbose         string
+	InputOnSameLine bool
+}
 
-const (
-	// short is single line prompt.
-	short promptStyle = 0
-	// long is a multi-line prompt.
-	long promptStyle = 1
-)
-
-// promptf is used to format an input prompt.
-func promptf(message string, style promptStyle, args ...interface{}) string {
-	switch style {
-	case short:
-		return fmt.Sprintf("\n"+message+" ", args...)
-	case long:
-		return fmt.Sprintf("\n"+message+"\n", args...)
-	default:
-		panic("unknown prompt style")
+func (p prompt) Format(verbose bool, args ...interface{}) string {
+	var result strings.Builder
+	result.WriteRune('\n')
+	if verbose && p.Verbose != "" {
+		result.WriteString(fmt.Sprintf(p.Verbose, args...))
+	} else {
+		result.WriteString(fmt.Sprintf(p.Text, args...))
 	}
+	if p.InputOnSameLine {
+		result.WriteRune(' ')
+	} else {
+		result.WriteRune('\n')
+	}
+	return result.String()
 }
 
 // statusf is used for format a single line status message.
