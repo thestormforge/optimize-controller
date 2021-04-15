@@ -17,11 +17,11 @@ limitations under the License.
 package generation
 
 import (
-	"encoding/json"
 	"fmt"
 	"math"
 	"regexp"
 
+	"github.com/thestormforge/konjure/pkg/filters"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	"github.com/thestormforge/optimize-controller/internal/scan"
 	corev1 "k8s.io/api/core/v1"
@@ -41,13 +41,45 @@ type ContainerResourcesSelector struct {
 	ContainerName string `json:"containerName,omitempty"`
 	// Names of the resources to select, defaults to ["memory", "cpu"].
 	Resources []corev1.ResourceName `json:"resources,omitempty"`
+
+	// Per-namespace limit ranges for containers as encountered during a scan.
+	containerLimitRange map[string]corev1.LimitRangeItem
 }
 
 var _ scan.Selector = &ContainerResourcesSelector{}
 
+func (s *ContainerResourcesSelector) Select(nodes []*yaml.RNode) ([]*yaml.RNode, error) {
+	var result []*yaml.RNode
+
+	// In addition to the actual nodes, we collect the limit ranges and put them
+	// at the front of the list so we can process them first
+	limitRangeSelector := &filters.ResourceMetaFilter{Version: "v1", Kind: "LimitRange"}
+	limitRangeNodes, err := limitRangeSelector.Filter(nodes)
+	if err != nil {
+		return nil, err
+	}
+	result = append(result, limitRangeNodes...)
+
+	// Select the actual nodes
+	resourceNodes, err := s.GenericSelector.Select(nodes)
+	if err != nil {
+		return nil, err
+	}
+	result = append(result, resourceNodes...)
+
+	return result, nil
+}
+
 // Map inspects the supplied resource for container resources specifications.
 func (s *ContainerResourcesSelector) Map(node *yaml.RNode, meta yaml.ResourceMeta) ([]interface{}, error) {
 	var result []interface{}
+
+	// Capture container limit ranges. Because all the limit range nodes were at
+	// the front of the list returned by Select, we should have a chance to process
+	// all of them before we start getting real nodes.
+	if meta.APIVersion == "v1" && meta.Kind == "LimitRange" {
+		return nil, s.saveContainerLimitRange(meta.Namespace, node)
+	}
 
 	path := splitPath(s.Path) // Path to the containers list
 	err := node.PipeE(
@@ -74,6 +106,7 @@ func (s *ContainerResourcesSelector) Map(node *yaml.RNode, meta yaml.ResourceMet
 						value:     rl.Value.YNode(),
 					},
 					resources: s.Resources,
+					limits:    s.containerLimitRange[meta.Namespace],
 				}
 
 				result = append(result, &p)
@@ -104,11 +137,36 @@ func (s *ContainerResourcesSelector) matchesContainerName(name string) bool {
 	return containerName.MatchString(name)
 }
 
+// saveContainerLimitRange captures the container specific limit range item for
+// the specified namespace so that it can be used for defaults later.
+func (s *ContainerResourcesSelector) saveContainerLimitRange(namespace string, node *yaml.RNode) error {
+	lriNode, err := node.Pipe(yaml.Lookup("spec", "limits", "[type=Container]"))
+	if err != nil {
+		return err
+	}
+	if lriNode == nil {
+		return nil
+	}
+
+	lri := corev1.LimitRangeItem{}
+	if err := scan.DecodeYAMLToJSON(lriNode, &lri); err != nil {
+		return err
+	}
+
+	if s.containerLimitRange == nil {
+		s.containerLimitRange = make(map[string]corev1.LimitRangeItem)
+	}
+	s.containerLimitRange[namespace] = lri
+
+	return nil
+}
+
 // containerResourcesParameter is used to record the position of a container resources specification
 // found by the selector during scanning.
 type containerResourcesParameter struct {
 	pnode
 	resources []corev1.ResourceName
+	limits    corev1.LimitRangeItem
 }
 
 var _ PatchSource = &containerResourcesParameter{}
@@ -133,21 +191,21 @@ func (p *containerResourcesParameter) Patch(name ParameterNamer) (yaml.Filter, e
 // Parameters lists the parameters used by the patch.
 func (p *containerResourcesParameter) Parameters(name ParameterNamer) ([]redskyv1beta1.Parameter, error) {
 	// ResourceList (actually, Quantities) won't unmarshal as YAML so we need to round trip through JSON
-	data, err := yaml.NewRNode(p.value).MarshalJSON()
-	if err != nil {
+	r := corev1.ResourceRequirements{}
+	if err := scan.DecodeYAMLToJSON(yaml.NewRNode(p.value), &r); err != nil {
 		return nil, err
 	}
-	r := struct {
-		Limits   corev1.ResourceList `json:"limits"`
-		Requests corev1.ResourceList `json:"requests"`
-	}{}
-	if err := json.Unmarshal(data, &r); err != nil {
-		return nil, err
+
+	// Build parameters around the requests, taking into consideration the defaults
+	requests := corev1.ResourceList{}
+	p.limits.DefaultRequest.DeepCopyInto(&requests)
+	for rn, q := range r.Requests {
+		requests[rn] = q
 	}
 
 	var result []redskyv1beta1.Parameter
 	for _, rn := range p.getResources() {
-		baseline, min, max := toIntWithRange(r.Requests, rn)
+		baseline, min, max := toIntWithRange(requests, rn)
 		result = append(result, redskyv1beta1.Parameter{
 			Name:     name(p.meta, p.fieldPath, string(rn)),
 			Min:      min,
