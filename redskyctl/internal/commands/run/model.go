@@ -109,12 +109,12 @@ func (m initializationModel) Update(msg tea.Msg) (initializationModel, tea.Cmd) 
 
 // generationModel is used to configure the experiment generator.
 type generationModel struct {
-	StormForgerTestCaseInput form.ChoiceField
-	LocustfileInput          form.TextField
-
 	NamespaceInput        form.MultiChoiceField
 	LabelSelectorInputs   []form.TextField
 	LabelSelectorTemplate func(namespace string) form.TextField
+
+	StormForgerTestCaseInput form.ChoiceField
+	LocustfileInput          form.TextField
 
 	IngressURLInput form.TextField
 
@@ -127,12 +127,12 @@ type generationModel struct {
 // form returns a slice of everything on generationModel that implements `form.Field`.
 func (m *generationModel) form() form.Fields {
 	var fields form.Fields
-	fields = append(fields, &m.StormForgerTestCaseInput)
-	fields = append(fields, &m.LocustfileInput)
 	fields = append(fields, &m.NamespaceInput)
 	for i := range m.LabelSelectorInputs {
 		fields = append(fields, &m.LabelSelectorInputs[i])
 	}
+	fields = append(fields, &m.StormForgerTestCaseInput)
+	fields = append(fields, &m.LocustfileInput)
 	fields = append(fields, &m.IngressURLInput)
 	fields = append(fields, &m.ContainerResourcesSelectorInput, &m.ReplicasSelectorInput)
 	fields = append(fields, &m.ObjectiveInput)
@@ -224,12 +224,6 @@ func (m generationModel) Update(msg tea.Msg) (generationModel, tea.Cmd) {
 	cmd = m.form().Update(msg)
 	cmds = append(cmds, cmd)
 
-	m.StormForgerTestCaseInput, cmd = m.StormForgerTestCaseInput.Update(msg)
-	cmds = append(cmds, cmd)
-
-	m.LocustfileInput, cmd = m.LocustfileInput.Update(msg)
-	cmds = append(cmds, cmd)
-
 	m.NamespaceInput, cmd = m.NamespaceInput.Update(msg)
 	cmds = append(cmds, cmd)
 
@@ -237,6 +231,12 @@ func (m generationModel) Update(msg tea.Msg) (generationModel, tea.Cmd) {
 		m.LabelSelectorInputs[i], cmd = m.LabelSelectorInputs[i].Update(msg)
 		cmds = append(cmds, cmd)
 	}
+
+	m.StormForgerTestCaseInput, cmd = m.StormForgerTestCaseInput.Update(msg)
+	cmds = append(cmds, cmd)
+
+	m.LocustfileInput, cmd = m.LocustfileInput.Update(msg)
+	cmds = append(cmds, cmd)
 
 	m.IngressURLInput, cmd = m.IngressURLInput.Update(msg)
 	cmds = append(cmds, cmd)

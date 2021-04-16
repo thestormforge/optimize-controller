@@ -37,6 +37,27 @@ func (o *Options) initializeModel() {
 		opts = append(opts, out.VerbosePrompts)
 	}
 
+	o.generationModel.NamespaceInput = out.FormField{
+		Prompt:         "Please select the Kubernetes namespace(s) where your application is running:",
+		LoadingMessage: "Fetching namespaces from Kubernetes",
+		Instructions:   []string{"up/down: select", "x: choose", "enter: continue"},
+	}.NewMultiChoiceField(opts...)
+	o.generationModel.NamespaceInput.Validator = &form.Required{
+		Error: "Required",
+	}
+
+	o.generationModel.LabelSelectorTemplate = func(namespace string) form.TextField {
+		labelSelectorInput := out.FormField{
+			Prompt:       fmt.Sprintf("Specify the label selector for your application resources in the '%s' namespace:", namespace),
+			Placeholder:  "All resources",
+			Instructions: []string{"Leave blank to select all resources"},
+		}.NewTextField(opts...)
+		labelSelectorInput.Validator = &labelSelectorValidator{
+			InvalidSelector: "Must be a valid label selector",
+		}
+		return labelSelectorInput
+	}
+
 	o.generationModel.StormForgerTestCaseInput = out.FormField{
 		Prompt:         "Please select a StormForger test case to optimize for:",
 		PromptVerbose:  "This is an example of a more verbose prompt.\nSelect a StormForger test case:",
@@ -55,27 +76,6 @@ func (o *Options) initializeModel() {
 	o.generationModel.LocustfileInput.Validator = &form.File{
 		Required: "Required",
 		Missing:  "File does not exist",
-	}
-
-	o.generationModel.NamespaceInput = out.FormField{
-		Prompt:         "Please select the Kubernetes namespace where your application is running:",
-		LoadingMessage: "Fetching namespaces from Kubernetes",
-		Instructions:   []string{"up/down: select", "x: choose", "enter: continue"},
-	}.NewMultiChoiceField(opts...)
-	o.generationModel.NamespaceInput.Validator = &form.Required{
-		Error: "Required",
-	}
-
-	o.generationModel.LabelSelectorTemplate = func(namespace string) form.TextField {
-		labelSelectorInput := out.FormField{
-			Prompt:       fmt.Sprintf("Specify the label selector for your application resources in the '%s' namespace:", namespace),
-			Placeholder:  "All resources",
-			Instructions: []string{"Leave blank to select all resources"},
-		}.NewTextField(opts...)
-		labelSelectorInput.Validator = &labelSelectorValidator{
-			InvalidSelector: "Must be a valid label selector",
-		}
-		return labelSelectorInput
 	}
 
 	o.generationModel.IngressURLInput = out.FormField{
