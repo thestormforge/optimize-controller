@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -312,7 +313,7 @@ func (rc *readinessChecker) skipCheck(c *redskyv1beta1.ReadinessCheck, now *meta
 // if the target is in fact ready
 func (rc *readinessChecker) check(ctx context.Context, c *redskyv1beta1.ReadinessCheck, ul *unstructured.UnstructuredList, now *metav1.Time) (string, bool, error) {
 	// Evaluate the actual conditions (stop at the first one that isn't "ready")
-	var msg string // TODO Default the message to "target not found" or something to indicate the check isn't ready because there are no objects
+	var msg string
 	var ok bool
 	var err error
 	for i := range ul.Items {
@@ -320,6 +321,25 @@ func (rc *readinessChecker) check(ctx context.Context, c *redskyv1beta1.Readines
 		if !ok || err != nil {
 			break
 		}
+	}
+
+	// If there are no items to check, try to provide a useful message
+	if len(ul.Items) == 0 {
+		var missingTargetMsg strings.Builder
+		missingTargetMsg.WriteString("No matching resources found")
+		missingTargetMsg.WriteString("; apiVersion=")
+		missingTargetMsg.WriteString(c.TargetRef.APIVersion)
+		missingTargetMsg.WriteString("; kind=")
+		missingTargetMsg.WriteString(c.TargetRef.Kind)
+		if c.TargetRef.Name != "" {
+			missingTargetMsg.WriteString("; name=")
+			missingTargetMsg.WriteString(c.TargetRef.Name)
+		}
+		if c.Selector != nil {
+			missingTargetMsg.WriteString("; labels=")
+			missingTargetMsg.WriteString(metav1.FormatLabelSelector(c.Selector))
+		}
+		msg = missingTargetMsg.String()
 	}
 
 	// If a check is missing it's kind, just mark it as completed
