@@ -74,8 +74,9 @@ func (o *Options) initializeModel() {
 		},
 	}.NewTextField(opts...)
 	o.generationModel.LocustfileInput.Validator = &form.File{
-		Required: "Required",
-		Missing:  "File does not exist",
+		Required:    "Required",
+		Missing:     "File does not exist",
+		RegularFile: "Must be a file, not a directory",
 	}
 
 	o.generationModel.IngressURLInput = out.FormField{
