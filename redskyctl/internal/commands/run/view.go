@@ -20,11 +20,11 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
-	"strings"
 	"text/tabwriter"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/form"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/out"
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
@@ -32,116 +32,137 @@ import (
 // initializeModel is invoked before the program is started to ensure things
 // are in a valid state prior to starting.
 func (o *Options) initializeModel() {
+	var opts []out.FieldOption
+	if o.Verbose {
+		opts = append(opts, out.VerbosePrompts)
+	}
 
-	o.generationModel.StormForgerTestCaseInput = form.NewChoiceField()
-	o.generationModel.StormForgerTestCaseInput.Prompt = prompt{
-		Text: "Please select a StormForger test case to optimize for:",
-	}.Format(o.Verbose)
-	o.generationModel.StormForgerTestCaseInput.LoadingMessage = " Fetching test cases from StormForger ..."
-	o.generationModel.StormForgerTestCaseInput.Instructions = "\nup/down: select  |  enter: continue"
+	o.generationModel.StormForgerTestCaseInput = out.FormField{
+		Prompt:         "Please select a StormForger test case to optimize for:",
+		PromptVerbose:  "This is an example of a more verbose prompt.\nSelect a StormForger test case:",
+		LoadingMessage: "Fetching test cases from StormForger",
+		Instructions:   []string{"up/down: select", "enter: continue"},
+	}.NewChoiceField(opts...)
 
-	o.generationModel.LocustfileInput = form.NewTextField()
-	o.generationModel.LocustfileInput.Prompt = prompt{
-		Text:            "Enter the location of the locustfile.py you would like to run:",
+	o.generationModel.LocustfileInput = out.FormField{
+		Prompt:          "Enter the location of the locustfile.py you would like to run:",
 		InputOnSameLine: true,
-	}.Format(o.Verbose)
-	o.generationModel.LocustfileInput.Completions = &form.FileCompletions{Extensions: []string{".py"}}
-	o.generationModel.LocustfileInput.Validator = &form.File{Required: "Required", Missing: "File does not exist"}
-	o.generationModel.LocustfileInput.Enable()
+		Enabled:         true,
+		Completions: &form.FileCompletions{
+			Extensions: []string{".py"},
+		},
+	}.NewTextField(opts...)
+	o.generationModel.LocustfileInput.Validator = &form.File{
+		Required: "Required",
+		Missing:  "File does not exist",
+	}
 
-	o.generationModel.NamespaceInput = form.NewMultiChoiceField()
-	o.generationModel.NamespaceInput.Prompt = prompt{
-		Text: "Please select the Kubernetes namespace where your application is running:",
-	}.Format(o.Verbose)
-	o.generationModel.NamespaceInput.LoadingMessage = " Fetching namespaces from Kubernetes ..."
-	o.generationModel.NamespaceInput.Instructions = "\nup/down: select  |  x: choose  |  enter: continue"
-	o.generationModel.NamespaceInput.Validator = &form.Required{Error: "Required"}
+	o.generationModel.NamespaceInput = out.FormField{
+		Prompt:         "Please select the Kubernetes namespace where your application is running:",
+		LoadingMessage: "Fetching namespaces from Kubernetes",
+		Instructions:   []string{"up/down: select", "x: choose", "enter: continue"},
+	}.NewMultiChoiceField(opts...)
+	o.generationModel.NamespaceInput.Validator = &form.Required{
+		Error: "Required",
+	}
 
 	o.generationModel.LabelSelectorTemplate = func(namespace string) form.TextField {
-		labelSelectorInput := form.NewTextField()
-		labelSelectorInput.Prompt = prompt{
-			Text: "Specify the label selector for your application resources in the '%s' namespace:",
-		}.Format(o.Verbose, namespace)
-		labelSelectorInput.Placeholder = "All resources"
-		labelSelectorInput.Instructions = "Leave blank to select all resources"
-		labelSelectorInput.Validator = &labelSelectorValidator{InvalidSelector: "Must be a valid label selector"}
+		labelSelectorInput := out.FormField{
+			Prompt:       fmt.Sprintf("Specify the label selector for your application resources in the '%s' namespace:", namespace),
+			Placeholder:  "All resources",
+			Instructions: []string{"Leave blank to select all resources"},
+		}.NewTextField(opts...)
+		labelSelectorInput.Validator = &labelSelectorValidator{
+			InvalidSelector: "Must be a valid label selector",
+		}
 		return labelSelectorInput
 	}
 
-	o.generationModel.IngressURLInput = form.NewTextField()
-	o.generationModel.IngressURLInput.Prompt = prompt{
-		Text:            "Enter the URL of the endpoint to test:",
+	o.generationModel.IngressURLInput = out.FormField{
+		Prompt:          "Enter the URL of the endpoint to test:",
 		InputOnSameLine: true,
-	}.Format(o.Verbose)
-	o.generationModel.IngressURLInput.Validator = &form.URL{Required: "Required", InvalidURL: "Must be a valid URL", Absolute: "URL must be absolute"}
-	o.generationModel.IngressURLInput.Enable()
-
-	o.generationModel.ContainerResourcesSelectorInput = form.NewTextField()
-	o.generationModel.ContainerResourcesSelectorInput.Prompt = prompt{
-		Text: "Specify the label selector matching resources which should have their memory and CPU optimized:",
-	}.Format(o.Verbose)
-	o.generationModel.ContainerResourcesSelectorInput.Placeholder = "All resources"
-	o.generationModel.ContainerResourcesSelectorInput.Instructions = "Leave blank to select all resources"
-	o.generationModel.ContainerResourcesSelectorInput.Validator = &labelSelectorValidator{InvalidSelector: "Must be a valid label selector"}
-	o.generationModel.ContainerResourcesSelectorInput.Enable()
-
-	o.generationModel.ReplicasSelectorInput = form.NewTextField()
-	o.generationModel.ReplicasSelectorInput.Prompt = prompt{
-		Text: "Specify the label selector matching resources which can be scaled horizontally:",
-	}.Format(o.Verbose)
-	o.generationModel.ReplicasSelectorInput.Placeholder = "No resources"
-	o.generationModel.ReplicasSelectorInput.Instructions = "Must be a valid Kubernetes label selector, leave blank to select no resources"
-	o.generationModel.ReplicasSelectorInput.Validator = &labelSelectorValidator{InvalidSelector: "Must be a valid label selector"}
-	o.generationModel.ReplicasSelectorInput.Enable()
-
-	o.generationModel.ObjectiveInput = form.NewMultiChoiceField()
-	o.generationModel.ObjectiveInput.Prompt = prompt{
-		Text: "Please select objectives to optimize:",
-	}.Format(o.Verbose)
-	o.generationModel.ObjectiveInput.Instructions = "\nup/down: select  |  x: choose  |  enter: continue"
-	o.generationModel.ObjectiveInput.Choices = []string{
-		"cost",
-		"p50-latency",
-		"p95-latency",
-		"p99-latency",
+		Enabled:         true,
+	}.NewTextField(opts...)
+	o.generationModel.IngressURLInput.Validator = &form.URL{
+		Required:   "Required",
+		InvalidURL: "Must be a valid URL",
+		Absolute:   "URL must be absolute",
 	}
+
+	o.generationModel.ContainerResourcesSelectorInput = out.FormField{
+		Prompt:       "Specify the label selector matching resources which should have their memory and CPU optimized:",
+		Placeholder:  "All resources",
+		Instructions: []string{"Leave blank to select all resources"},
+		Enabled:      true,
+	}.NewTextField(opts...)
+	o.generationModel.ContainerResourcesSelectorInput.Validator = &labelSelectorValidator{
+		InvalidSelector: "Must be a valid label selector",
+	}
+
+	o.generationModel.ReplicasSelectorInput = out.FormField{
+		Prompt:       "Specify the label selector matching resources which can be scaled horizontally:",
+		Placeholder:  "No resources",
+		Instructions: []string{"Must be a valid Kubernetes label selector, leave blank to select no resources"},
+		Enabled:      true,
+	}.NewTextField(opts...)
+	o.generationModel.ReplicasSelectorInput.Validator = &labelSelectorValidator{
+		InvalidSelector: "Must be a valid label selector",
+	}
+
+	o.generationModel.ObjectiveInput = out.FormField{
+		Prompt:       "Please select objectives to optimize:",
+		Instructions: []string{"up/down: select", "x: choose", "enter: continue"},
+		Enabled:      true,
+		Choices: []string{
+			"cost",
+			"p50-latency",
+			"p95-latency",
+			"p99-latency",
+		},
+	}.NewMultiChoiceField(opts...)
 	o.generationModel.ObjectiveInput.Select(0)
 	o.generationModel.ObjectiveInput.Select(2)
-	o.generationModel.ObjectiveInput.Enable()
 
 }
 
 // View returns a full rendering of the current state. This method is called
 // from the event loop and must not block, it must return as fast as possible.
 func (o *Options) View() string {
-	var lines []string
+	var view out.View
+	switch {
+	case o.status != "":
+		// Special case for debugging
+		_, _ = view.Write([]byte(o.status))
 
-	// The "runModel" is the last model to produce output, but it gets exclusive use of the screen
-	if o.status != "" {
-		lines = append(lines, o.status)
-	} else if runModelView := o.runModel.View(); runModelView == "" {
-		lines = append(lines, o.initializationModel.View())
-		lines = append(lines, o.generationModel.View())
-		lines = append(lines, o.previewModel.View())
-	} else {
-		lines = append(lines, runModelView)
+	case o.runModel.trials != nil:
+		// Once the run model has trials, it gets exclusive use of the screen
+		view.Model(o.runModel)
+
+	default:
+		// Otherwise combine the output of all the children models
+		view.Model(o.initializationModel)
+		view.Model(o.generationModel)
+		view.Model(o.previewModel)
 	}
 
 	if o.maybeQuit {
-		lines = append(lines, "\n", statusf("😢", "Are you sure you want to quit? [Y/n]: "))
+		view.Newline()
+		view.Step(out.Sad, "Are you sure you want to quit? [Y/n]: ")
 	}
 
 	if o.lastErr != nil {
-		lines = append(lines, "\n", statusf("❌", " Error: %s", o.lastErr.Error()))
+		view.Newline()
+		view.Step(out.Failure, "Error: %s", o.lastErr)
 
 		// This information is usually too useful to not show
 		eerr := &exec.ExitError{}
 		if errors.As(o.lastErr, &eerr) {
-			lines = append(lines, "\n", string(eerr.Stderr))
+			view.Newline()
+			_, _ = view.Write(eerr.Stderr)
 		}
 	}
 
-	return strings.Join(lines, "")
+	return view.String()
 }
 
 // View returns the rendering of the welcome model. To ensure consistent output,
@@ -150,52 +171,53 @@ func (o *Options) View() string {
 // kubectl version, we still always render kubectl first, stopping the progression
 // if it isn't available yet).
 func (m initializationModel) View() string {
-	var lines []string
+	var view out.View
 
 	if m.BuildVersion != "" {
-		lines = append(lines, statusf("😄", "%s %s", m.CommandName, m.BuildVersion))
+		view.Step(out.Happy, "%s %s", m.CommandName, m.BuildVersion)
 	} else {
-		return strings.Join(lines, "")
+		return view.String()
 	}
 
 	if m.KubectlVersion != "" {
 		if m.KubectlVersion != unknownVersion {
-			lines = append(lines, statusf(" ", " ▪ kubectl %s", m.KubectlVersion))
+			view.Step(out.Version, "kubectl %s", m.KubectlVersion)
 		}
 	} else {
-		return strings.Join(lines, "")
+		return view.String()
 	}
 
 	if m.ForgeVersion != "" {
 		if m.ForgeVersion != unknownVersion {
-			lines = append(lines, statusf(" ", " ▪ forge %s", m.ForgeVersion))
+			view.Step(out.Version, "forge %s", m.ForgeVersion)
 		}
 	} else {
-		return strings.Join(lines, "")
+		return view.String()
 	}
 
 	switch m.Authorization {
 	case azValid:
-		lines = append(lines, statusf("🗝", "Authorization found"))
+		view.Step(out.Authorized, "Authorization found")
 	case azIgnored:
-		lines = append(lines, statusf("🤷", "Continuing without authorization"))
+		view.Step(out.Unauthorized, "Continuing without authorization")
 	case azInvalid:
-		lines = append(lines, "\n", "You are not logged in, are you sure you want to continue? [Y/n]: ")
+		view.Newline()
+		view.Step(out.YesNo, "You are not logged in, are you sure you want to continue? [Y/n]: ")
 	default:
-		return strings.Join(lines, "")
+		return view.String()
 	}
 
 	if m.InitializationPercent > 0 && m.InitializationPercent < 1 {
-		lines = append(lines, statusf("💾", "Initializing ..."))
-		lines = append(lines, statusf("", " ▪ Using image %s", m.ControllerImage))
+		view.Step(out.Initializing, "Initializing ...")
+		view.Step(out.Version, "Using image %s", m.ControllerImage)
 		// TODO Progress bar based on the initialization percentage
 	}
 
 	if m.ControllerVersion != "" && m.ControllerVersion != "unknown" {
-		lines = append(lines, statusf("👍", "Running controller %s", m.ControllerVersion))
+		view.Step(out.Running, "Running controller %s", m.ControllerVersion)
 	}
 
-	return strings.Join(lines, "")
+	return view.String()
 }
 
 // View returns the rendering of the generation model.
@@ -205,56 +227,59 @@ func (m generationModel) View() string {
 
 // View returns the rendering of the preview model.
 func (m previewModel) View() string {
+	var view out.View
 	if m.experiment == nil {
-		return ""
+		return view.String()
 	}
 
-	var lines []string
+	view.Newline()
+	view.Step(out.Ready, "Your experiment is ready to run!")
 
-	lines = append(lines, "", statusf("🎉", "Your experiment is ready to run!"))
-	lines = append(lines, fmt.Sprintf("Name: %s", m.experiment.Name))
-
-	lines = append(lines, fmt.Sprintf("Parameters:"))
+	view.Newline()
+	view.Step(out.Preview, "Name: %s", m.experiment.Name)
+	view.Step(out.Preview, "Parameters:")
 	for i := range m.experiment.Spec.Parameters {
 		p := &m.experiment.Spec.Parameters[i]
-		lines = append(lines, fmt.Sprintf("  %s (from %d to %d)", p.Name, p.Min, p.Max))
+		view.Step(out.Preview, "  %s (from %d to %d)", p.Name, p.Min, p.Max)
 	}
-
-	lines = append(lines, fmt.Sprintf("Metrics:"))
+	view.Step(out.Preview, "Metrics:")
 	for i := range m.experiment.Spec.Metrics {
 		m := &m.experiment.Spec.Metrics[i]
 		if m.Optimize == nil || *m.Optimize {
-			lines = append(lines, fmt.Sprintf("  %s", m.Name))
+			view.Step(out.Preview, "  %s", m.Name)
 		}
 	}
 
-	lines = append(lines, "")
-
+	view.Newline()
 	if m.confirmed {
-		lines = append(lines, statusf("🚢", "Starting experiment ..."))
+		view.Step(out.Starting, "Starting experiment ...")
 	} else {
-		lines = append(lines, "Ready to run? [Y/n]: ")
+		view.Step(out.YesNo, "Ready to run? [Y/n]: ")
 	}
 
-	return strings.Join(lines, "\n")
+	return view.String()
 }
 
 // View returns the rendering of the run model.
 func (m runModel) View() string {
+	var view out.View
 	if m.trials == nil {
-		return ""
+		return view.String()
 	}
 
 	if m.completed {
-		return statusf("🍾", "Your experiment is complete!")
+		view.Step(out.Completed, "Your experiment is complete!")
+		return view.String()
 	} else if m.failed {
-		return statusf("😫", "Your experiment failed.")
+		view.Step(out.ReallySad, "Your experiment failed.")
+		return view.String()
 	} else if m.trialFailureCount > 10 {
-		return statusf("😬", "This isn't going so well. Maybe try cleaning up the namespace and running again?")
+		view.Step(out.NotGood, "This isn't going so well. Maybe try cleaning up the namespace and running again?")
+		return view.String()
 	}
 
-	var buf strings.Builder
-	_, _ = fmt.Fprintln(&buf, statusf("👓", "Your experiment is running, hit ctrl-c to stop watching"))
+	view.Step(out.Watching, "Your experiment is running, hit ctrl-c to stop watching")
+	view.Newline()
 
 	type column struct {
 		name string
@@ -267,7 +292,7 @@ func (m runModel) View() string {
 		{name: "VALUES", path: []string{"status", "values"}},
 	}
 
-	w := tabwriter.NewWriter(&buf, 0, 0, 3, ' ', 0)
+	w := tabwriter.NewWriter(&view, 0, 0, 3, ' ', 0)
 	printCol := func(v string, c int) {
 		_, _ = w.Write([]byte(v))
 		if c < len(columns)-1 {
@@ -295,34 +320,7 @@ func (m runModel) View() string {
 		return err.Error() // TODO ???
 	}
 
-	return buf.String()
-}
-
-type prompt struct {
-	Text            string
-	Verbose         string
-	InputOnSameLine bool
-}
-
-func (p prompt) Format(verbose bool, args ...interface{}) string {
-	var result strings.Builder
-	result.WriteRune('\n')
-	if verbose && p.Verbose != "" {
-		result.WriteString(fmt.Sprintf(p.Verbose, args...))
-	} else {
-		result.WriteString(fmt.Sprintf(p.Text, args...))
-	}
-	if p.InputOnSameLine {
-		result.WriteRune(' ')
-	} else {
-		result.WriteRune('\n')
-	}
-	return result.String()
-}
-
-// statusf is used for format a single line status message.
-func statusf(icon, message string, args ...interface{}) string {
-	return fmt.Sprintf("%-2s "+message+"\n", append([]interface{}{icon}, args...)...)
+	return view.String()
 }
 
 // labelSelectorValidator ensures a text field represents a valid Kubernetes label selector.
@@ -332,7 +330,11 @@ type labelSelectorValidator struct {
 
 func (v labelSelectorValidator) ValidateTextField(value string) tea.Msg {
 	if _, err := labels.Parse(value); err != nil {
-		return form.ValidationMsg(v.InvalidSelector)
+		msg := v.InvalidSelector
+		if msg == "" {
+			msg = err.Error()
+		}
+		return form.ValidationMsg(msg)
 	}
 	return form.ValidationMsg("")
 }
