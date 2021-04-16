@@ -55,7 +55,7 @@ var statusConfig = map[Style]statusOptions{
 	ReallySad:    {Prefix: "😫  "},
 	NotGood:      {Prefix: "😬  "},
 	Version:      {Prefix: "    ▪ "},
-	Authorized:   {Prefix: "🗝   "}, // TODO Why is key narrow?
+	Authorized:   {Prefix: "🔑  "},
 	Unauthorized: {Prefix: "🤷  "},
 	Initializing: {Prefix: "💾  "},
 	Ready:        {Prefix: "🎉  "},
