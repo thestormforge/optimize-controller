@@ -140,6 +140,7 @@ func (m *generationModel) form() form.Fields {
 }
 
 func (m generationModel) Update(msg tea.Msg) (generationModel, tea.Cmd) {
+	var cmds []tea.Cmd
 	switch msg := msg.(type) {
 
 	case initializedMsg:
@@ -149,9 +150,7 @@ func (m generationModel) Update(msg tea.Msg) (generationModel, tea.Cmd) {
 
 	case versionMsg:
 		if msg.isForgeAvailable() {
-			m.StormForgerTestCaseInput.Enable()
-			m.LocustfileInput.Disable()
-			m.IngressURLInput.Disable() // TODO For now this is exclusive to Locust
+			cmds = append(cmds, func() tea.Msg { return stormForgerScenario })
 		}
 		if msg.isKubectlAvailable() {
 			m.NamespaceInput.Enable()
@@ -172,6 +171,25 @@ func (m generationModel) Update(msg tea.Msg) (generationModel, tea.Cmd) {
 			m.NamespaceInput.Select(0) // If there is only one namespace, select it
 		}
 
+	case scenarioTypeMsg:
+		switch msg {
+		case stormForgerScenario:
+			m.StormForgerTestCaseInput.Focus()
+			m.StormForgerTestCaseInput.Enable()
+
+			m.LocustfileInput.Blur()
+			m.LocustfileInput.Disable()
+			m.IngressURLInput.Disable() // TODO For now this is exclusive to Locust
+
+		case locustScenario:
+			m.LocustfileInput.Focus()
+			m.LocustfileInput.Enable()
+			m.IngressURLInput.Enable() // TODO For now this is exclusive to Locust
+
+			m.StormForgerTestCaseInput.Blur()
+			m.StormForgerTestCaseInput.Disable()
+		}
+
 	case form.FinishedMsg:
 		return m, m.generateApplication
 
@@ -190,32 +208,18 @@ func (m generationModel) Update(msg tea.Msg) (generationModel, tea.Cmd) {
 
 		case tea.KeyCtrlCloseBracket:
 			// Allow "tabbing" through the scenario types from the first input
-			// TODO We should probably make a separate message for toggling test case type
-			if m.StormForgerTestCaseInput.Enabled() && m.StormForgerTestCaseInput.Focused() {
-				m.StormForgerTestCaseInput.Blur()
-				m.StormForgerTestCaseInput.Disable()
-
-				m.LocustfileInput.Focus()
+			if m.StormForgerTestCaseInput.Focused() {
 				m.LocustfileInput.Show()
-				m.LocustfileInput.Enable()
-				m.IngressURLInput.Enable() // TODO For now this is exclusive to Locust
+				cmds = append(cmds, func() tea.Msg { return locustScenario })
 			} else if m.LocustfileInput.Enabled() && m.LocustfileInput.Focused() && len(m.StormForgerTestCaseInput.Choices) > 0 {
-				m.StormForgerTestCaseInput.Focus()
 				m.StormForgerTestCaseInput.Show()
-				m.StormForgerTestCaseInput.Enable()
-
-				m.LocustfileInput.Blur()
-				m.LocustfileInput.Disable()
-				m.IngressURLInput.Disable() // TODO For now this is exclusive to Locust
+				cmds = append(cmds, func() tea.Msg { return stormForgerScenario })
 			}
 		}
 
 	}
 
-	var (
-		cmd  tea.Cmd
-		cmds []tea.Cmd
-	)
+	var cmd tea.Cmd
 
 	cmd = m.form().Update(msg)
 	cmds = append(cmds, cmd)

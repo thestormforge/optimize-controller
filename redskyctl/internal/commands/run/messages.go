@@ -53,6 +53,13 @@ type kubernetesNamespaceMsg []string
 
 type initializedMsg float64
 
+type scenarioTypeMsg string
+
+const (
+	stormForgerScenario scenarioTypeMsg = "stormForge"
+	locustScenario      scenarioTypeMsg = "locust"
+)
+
 type applicationMsg redskyappsv1alpha1.Application
 
 type experimentMsg []*yaml.RNode

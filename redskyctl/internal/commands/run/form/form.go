@@ -71,6 +71,8 @@ func (f Fields) Update(msg tea.Msg) tea.Cmd {
 		if focused == nil && next != nil {
 			next.Focus()
 			next.Show()
+		} else if focused != nil && focused.Hidden() {
+			focused.Show()
 		}
 
 	case tea.KeyMsg:
