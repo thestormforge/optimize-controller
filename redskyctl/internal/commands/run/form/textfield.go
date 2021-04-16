@@ -39,8 +39,7 @@ func NewTextField() TextField {
 		Model: textinput.NewModel(),
 		fieldModel: fieldModel{
 			Template: `{{ .Model.View }}{{ if .Error }}
-{{ colorError .Error }}{{ else if .Focused }}{{ .CompletionModel.View }}
-{{ end }}{{ if .Focused }}
+{{ colorError .Error }}{{ else if .Focused }}{{ .CompletionModel.View }}{{ end }}{{ if .Focused }}
 {{ colorInstructions .Instructions }}{{ end }}`,
 			InstructionsColor: "241",
 			ErrorColor:        "1",
