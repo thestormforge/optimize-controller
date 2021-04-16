@@ -76,11 +76,22 @@ func (f Fields) Update(msg tea.Msg) tea.Cmd {
 		}
 
 	case tea.KeyMsg:
-		// Validate the focused field when the user hits "enter"
-		// NOTE: A field like the textfield can also use `Validate` to effectively
-		// "block" a submission if there are pending actions that require "enter".
-		if msg.Type == tea.KeyEnter && focused != nil {
-			cmds = append(cmds, focused.Validate())
+		if focused != nil {
+			switch msg.Type {
+			case tea.KeyEnter:
+				// Validate the focused field when the user hits "enter"
+				// NOTE: A field like the textfield can also use `Validate` to effectively
+				// "block" a submission if there are pending actions that require "enter".
+				cmds = append(cmds, focused.Validate())
+
+			case tea.KeyPgUp:
+				// Allow going backwards through the form
+				if prev := f.previousField(focused); prev != nil {
+					prev.Focus()
+					focused.Blur()
+					focused.Hide()
+				}
+			}
 		}
 
 	case ValidationMsg:
@@ -142,6 +153,19 @@ func (f Fields) activeFields() (focused, next Field) {
 	}
 	if focused == nil {
 		return nil, first
+	}
+	return
+}
+
+// previousField returns the enabled, shown field preceding the specified field.
+func (f Fields) previousField(field Field) (prev Field) {
+	for i := range f {
+		if f[i] == field {
+			return
+		}
+		if f[i].Enabled() && !f[i].Hidden() {
+			prev = f[i]
+		}
 	}
 	return
 }

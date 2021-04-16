@@ -199,11 +199,22 @@ func (m generationModel) Update(msg tea.Msg) (generationModel, tea.Cmd) {
 			// If we just completed namespace selection, create the per-namespace label selector inputs
 			if m.NamespaceInput.Focused() {
 				namespaces := m.NamespaceInput.Values()
-				m.LabelSelectorInputs = make([]form.TextField, len(namespaces))
+				labelSelectorInputs := make([]form.TextField, len(namespaces))
 				for i, namespace := range namespaces {
-					m.LabelSelectorInputs[i] = m.LabelSelectorTemplate(namespace)
-					m.LabelSelectorInputs[i].Enable()
+					labelSelectorInputs[i] = m.LabelSelectorTemplate(namespace)
+					labelSelectorInputs[i].Enable()
 				}
+
+				// Preserve the values if someone went backwards in the form
+				if len(m.LabelSelectorInputs) == len(labelSelectorInputs) {
+					for i := range labelSelectorInputs {
+						if m.LabelSelectorInputs[i].Prompt == labelSelectorInputs[i].Prompt {
+							labelSelectorInputs[i].SetValue(m.LabelSelectorInputs[i].Value())
+							labelSelectorInputs[i].CursorEnd()
+						}
+					}
+				}
+				m.LabelSelectorInputs = labelSelectorInputs
 			}
 
 		case tea.KeyCtrlCloseBracket:
