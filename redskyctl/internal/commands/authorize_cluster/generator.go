@@ -152,8 +152,8 @@ func (o *GeneratorOptions) generate(ctx context.Context) error {
 	}
 
 	// Overwrite the client credentials in the secret
-	mergeString(secret.Data, "REDSKY_AUTHORIZATION_CLIENT_ID", info.ClientID)
-	mergeString(secret.Data, "REDSKY_AUTHORIZATION_CLIENT_SECRET", info.ClientSecret)
+	mergeString(secret.Data, "STORMFORGE_AUTHORIZATION_CLIENT_ID", info.ClientID)
+	mergeString(secret.Data, "STORMFORGE_AUTHORIZATION_CLIENT_SECRET", info.ClientSecret)
 
 	return o.Printer.PrintObj(secret, o.Out)
 }
@@ -236,9 +236,9 @@ func localClientInformation(ctrl *config.Controller) *registration.ClientInforma
 	}
 	for _, v := range ctrl.Env {
 		switch v.Name {
-		case "REDSKY_AUTHORIZATION_CLIENT_ID":
+		case "STORMFORGE_AUTHORIZATION_CLIENT_ID":
 			resp.ClientID = v.Value
-		case "REDSKY_AUTHORIZATION_CLIENT_SECRET":
+		case "STORMFORGE_AUTHORIZATION_CLIENT_SECRET":
 			resp.ClientSecret = v.Value
 		}
 	}
@@ -259,10 +259,10 @@ func printHelmValues(obj interface{}, w io.Writer) error {
 	vals := map[string]interface{}{
 		"remoteServer": map[string]interface{}{
 			"enabled":      true,
-			"identifier":   string(secret.Data["REDSKY_SERVER_IDENTIFIER"]),
-			"issuer":       string(secret.Data["REDSKY_SERVER_ISSUER"]),
-			"clientID":     string(secret.Data["REDSKY_AUTHORIZATION_CLIENT_ID"]),
-			"clientSecret": string(secret.Data["REDSKY_AUTHORIZATION_CLIENT_SECRET"]),
+			"identifier":   string(secret.Data["STORMFORGE_SERVER_IDENTIFIER"]),
+			"issuer":       string(secret.Data["STORMFORGE_SERVER_ISSUER"]),
+			"clientID":     string(secret.Data["STORMFORGE_AUTHORIZATION_CLIENT_ID"]),
+			"clientSecret": string(secret.Data["STORMFORGE_AUTHORIZATION_CLIENT_SECRET"]),
 		},
 	}
 
