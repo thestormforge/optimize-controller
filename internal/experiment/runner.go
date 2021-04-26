@@ -26,7 +26,6 @@ import (
 
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
-	"github.com/thestormforge/optimize-controller/internal/application"
 	"github.com/thestormforge/optimize-controller/internal/scan"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/kustomize/kyaml/kio"
@@ -69,36 +68,23 @@ func (r *Runner) Run(ctx context.Context) {
 				continue
 			}
 
+			filterOpts := scan.FilterOptions{
+				KubectlExecutor: inClusterKubectl,
+			}
+
 			g := &Generator{
-				Application: *app,
+				Application:   *app,
+				FilterOptions: filterOpts,
 			}
 			g.SetDefaultSelectors()
-			_, userConfirmed := app.Annotations[redskyappsv1alpha1.AnnotationUserConfirmed]
 
-			var outputsBuf bytes.Buffer
+			// _, userConfirmed := app.Annotations[redskyappsv1alpha1.AnnotationUserConfirmed]
 
-			pipeline, err := g.Pipeline()
-			if err != nil {
-				r.errCh <- errors.New("failed to generate experiment")
-				continue
-			}
-
-			pipeline.Outputs = append(pipeline.Outputs, kio.ByteWriter{Writer: &outputsBuf})
-
-			filter := scan.NewKonjureFilter(application.WorkingDirectory(&g.Application), g.DefaultReader)
-			if r.kubectlExecFn != nil {
-				filter.KubectlExecutor = r.kubectlExecFn
-			}
-
-			pipeline.Filters = append([]kio.Filter{filter}, pipeline.Filters...)
-			pipeline.Filters = append(pipeline.Filters, manageReplicas(userConfirmed))
-
-			if err := pipeline.Execute(); err != nil {
+			var output bytes.Buffer
+			if err := g.Execute(kio.ByteWriter{Writer: &output}); err != nil {
 				r.errCh <- err
 				continue
 			}
-
-			outputBytes := outputsBuf.Bytes()
 
 			// TODO
 			// During the 'preview' phase, we should probably only create the experiment ( no rbac,
@@ -106,7 +92,7 @@ func (r *Runner) Run(ctx context.Context) {
 			// Once we're confirmed, we should do the rest
 			// if userConfirmed {
 			exp := &redskyv1beta1.Experiment{}
-			if err := yaml.Unmarshal(outputBytes, exp); err != nil {
+			if err := yaml.Unmarshal(output.Bytes(), exp); err != nil {
 				// api.UpdateStatus("failed")
 				r.errCh <- err
 				continue
@@ -196,3 +182,5 @@ func manageReplicas(ok bool) kio.FilterFunc {
 		return output, nil
 	}
 }
+
+func inClusterKubectl(_ *exec.Cmd) ([]byte, error) { return []byte{}, nil }
