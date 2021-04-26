@@ -54,7 +54,7 @@ var (
 // default (and minimum allowed) rate is 1 trial per second.
 func trialCreationRateLimit(log logr.Logger) rate.Limit {
 	// NOTE: If we are changing this to a lot of different values, it should be moved to the configuration
-	trialCreationInterval, ok := os.LookupEnv("REDSKY_TRIAL_CREATION_INTERVAL")
+	trialCreationInterval, ok := os.LookupEnv("STORMFORGE_TRIAL_CREATION_INTERVAL")
 	if !ok {
 		return rate.Every(time.Second)
 	}
