@@ -323,7 +323,8 @@ func (rc *readinessChecker) check(ctx context.Context, c *redskyv1beta1.Readines
 		}
 	}
 
-	// If a check is missing it's kind, just mark it as completed
+	// If a check is missing it's kind, just mark it as completed (e.g. if this
+	// is just a "sleep" based on the initial delay)
 	if c.TargetRef.Kind == "" {
 		ok = true
 	}
