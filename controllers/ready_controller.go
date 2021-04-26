@@ -323,6 +323,18 @@ func (rc *readinessChecker) check(ctx context.Context, c *redskyv1beta1.Readines
 		}
 	}
 
+	// If a check is missing it's kind, just mark it as completed
+	if c.TargetRef.Kind == "" {
+		ok = true
+	}
+
+	// Check is done, it is either ok or had a hard failure
+	if ok || err != nil {
+		c.AttemptsRemaining = 0
+		c.LastCheckTime = nil
+		return "", ok, err
+	}
+
 	// If there are no items to check, try to provide a useful message
 	if len(ul.Items) == 0 {
 		var missingTargetMsg strings.Builder
@@ -340,18 +352,6 @@ func (rc *readinessChecker) check(ctx context.Context, c *redskyv1beta1.Readines
 			missingTargetMsg.WriteString(metav1.FormatLabelSelector(c.Selector))
 		}
 		msg = missingTargetMsg.String()
-	}
-
-	// If a check is missing it's kind, just mark it as completed
-	if c.TargetRef.Kind == "" {
-		ok = true
-	}
-
-	// Check is done, it is either ok or had a hard failure
-	if ok || err != nil {
-		c.AttemptsRemaining = 0
-		c.LastCheckTime = nil
-		return "", ok, err
 	}
 
 	// Check if we exceeded the failure threshold
