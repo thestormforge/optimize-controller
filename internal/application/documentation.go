@@ -57,6 +57,12 @@ Objectives correspond to metrics observed over the course of a trial,
 for example: "p95-latency".
 Reference: https://docs.stormforge.io/reference/application/v1alpha1/#objective
 `,
+
+		"ingress": `
+Ingress defines the destination of the load test. This is typically a public
+facing URL for your application.
+Reference: https://docs.stormforge.io/reference/application/v1alpha1/#ingress
+`,
 	}
 
 	footComments = map[string]string{
@@ -101,6 +107,8 @@ Reference: https://docs.stormforge.io/reference/application/v1alpha1/#objective
     max: 1000 # Specifies a metric constraint that you do not want your results to go above. This example ensures only results with p95 latency below 1000ms are returned.
   - latency: p99
     optimize: false # Reports on the metric while not explicitly optimizing for them`,
+
+		"ingress": "url: https://localhost # Specifies the entrypoint for your application.",
 	}
 )
 
@@ -152,7 +160,8 @@ func (f *DocumentationFilter) annotateApplication(app *yaml.RNode) error {
 		"parameters": "resources",
 		"scenarios":  "parameters",
 		"objectives": "scenarios",
-		"":           "objectives",
+		"ingress":    "objectives",
+		"":           "ingress",
 	}
 
 	// Each key and value are elements in the content list, iterate over even indices
