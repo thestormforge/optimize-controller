@@ -58,6 +58,12 @@ for example: "p95-latency".
 Reference: https://docs.stormforge.io/reference/application/v1alpha1/#objective
 `,
 
+		"stormForger": `
+StormForger contains additional configuration information to set up StormForge
+performance tests. This is only needed when using StormForger scenarios.
+Reference: https://docs.stormforge.io/reference/application/v1alpha1/#stormforger
+`,
+
 		"ingress": `
 Ingress defines the destination of the load test. This is typically a public
 facing URL for your application.
@@ -109,6 +115,14 @@ Reference: https://docs.stormforge.io/reference/application/v1alpha1/#ingress
     optimize: false # Reports on the metric while not explicitly optimizing for them`,
 
 		"ingress": "url: https://localhost # Specifies the entrypoint for your application.",
+
+		"stormForger": `org: myorg # The StormForger organization to use for performance testing
+  accessToken:
+    file: mytoken.jwt # Read in the StormForger jwt from a file
+    literal: mysupersecretgeneratedjwt # The raw StormForger JWT. Be mindful of the security implications of including the JWT here.
+    secretKeyRef: # Specify a reference to an in cluster secret and key
+      name: stormforger-service-accounts
+      key: myorg`,
 	}
 )
 
@@ -156,12 +170,13 @@ func (f *DocumentationFilter) annotateApplication(app *yaml.RNode) error {
 	// This is used to ensure even empty (and otherwise omitted) fields can be
 	// included for documentation purposes.
 	required := map[string]string{
-		"resources":  "",
-		"parameters": "resources",
-		"scenarios":  "parameters",
-		"objectives": "scenarios",
-		"ingress":    "objectives",
-		"":           "ingress",
+		"resources":   "",
+		"parameters":  "resources",
+		"scenarios":   "parameters",
+		"objectives":  "scenarios",
+		"stormForger": "objectives",
+		"ingress":     "stormForger",
+		"":            "ingress",
 	}
 
 	// Each key and value are elements in the content list, iterate over even indices
