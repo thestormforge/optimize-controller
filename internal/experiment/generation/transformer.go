@@ -146,7 +146,7 @@ func (t *Transformer) Transform(nodes []*yaml.RNode, selected []interface{}) ([]
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, appResources...)
+		result = append(appResources, result...)
 	}
 
 	return result, nil
