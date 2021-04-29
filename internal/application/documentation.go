@@ -76,11 +76,8 @@ Reference: https://docs.stormforge.io/reference/application/v1alpha1/#ingress
 		"resources": `Only one of the below is necessary
 - github.com/thestormforge/examples/postgres/application # URL example
 - kubernetes: # In cluster resource example
-    # You can use 'namespaces:' to list specific namespaces
-    namespaceSelector: stormforge.io/app=postgres-example
-    # If you omit 'types:' it defaults to deployments and stateful sets
-    types:
-    - deployments
+    namespaces:
+    - default
     # The default selector of "" matches everything
     selector: component=postgres
 - helm: # Helm example
@@ -103,9 +100,9 @@ Reference: https://docs.stormforge.io/reference/application/v1alpha1/#ingress
 		"objectives": `- goals:
   # StormForger Metrics: https://github.com/thestormforge/optimize-trials/tree/main/stormforger
   # Locust Metrics: https://github.com/thestormforge/optimize-trials/tree/main/locust
-  - name: cost-gcp # Also "cost", "cost-aws"
+  - name: cost
     requests:
-      selector: component=postgres #Specifies where to collect metrics from
+      selector: component=postgres # Specifies where to collect metrics from
       weights:
         memory: 4 # Enables customization of cost weights.
   - name: p95
