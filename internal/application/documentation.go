@@ -81,10 +81,10 @@ Reference: https://docs.stormforge.io/reference/application/v1alpha1/#objective
 - replicas:
     selector: component=postgres # Filters to only discover replicas for the specified labels`,
 
-		"scenarios": `- name: cyberMonday # StormForge Performance Test example
+		"scenarios": `- name: cybermonday # StormForge Performance Test example
   stormforger:
     testCaseFile: foobar.js # You can alternatively specify just the test case name if you provide the access token
-- name: just-another-tuesday # Locust example 
+- name: just-another-tuesday # Locust example
   locust:
     locustfile: foobar.py # Can be local or a URL`,
 
@@ -95,10 +95,10 @@ Reference: https://docs.stormforge.io/reference/application/v1alpha1/#objective
     requests:
       selector: component=postgres #Specifies where to collect metrics from
       weights:
-        memory: 4 # Enables customization of cost weights. 
-  - name: p95 
+        memory: 4 # Enables customization of cost weights.
+  - name: p95
     latency: p95
-    max: 10000 # Specifies a metric constraint that you do not want your results to go above. This example ensures only results with p95 latency below 1000ms are returned.
+    max: 1000 # Specifies a metric constraint that you do not want your results to go above. This example ensures only results with p95 latency below 1000ms are returned.
   - latency: p99
     optimize: false # Reports on the metric while not explicitly optimizing for them`,
 	}
