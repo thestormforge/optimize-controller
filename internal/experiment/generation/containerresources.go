@@ -223,16 +223,16 @@ func (p *containerResourcesParameter) getResources() []corev1.ResourceName {
 		return p.resources
 	}
 
-	return []corev1.ResourceName{corev1.ResourceMemory, corev1.ResourceCPU}
+	return []corev1.ResourceName{corev1.ResourceCPU, corev1.ResourceMemory}
 }
 
 // toPatchPattern returns the fmt pattern for a patch of the specified resource name.
 func toPatchPattern(name corev1.ResourceName) string {
 	switch name {
-	case corev1.ResourceMemory:
-		return "{{ .Values.%s }}M"
 	case corev1.ResourceCPU:
 		return "{{ .Values.%s }}m"
+	case corev1.ResourceMemory:
+		return "{{ .Values.%s }}M"
 	default:
 		return ""
 	}
@@ -246,6 +246,14 @@ func toIntWithRange(resources corev1.ResourceList, name corev1.ResourceName) (va
 	}
 
 	switch name {
+	case corev1.ResourceCPU:
+		min, max = 100, 4000
+		if value != nil {
+			*value = intstr.FromInt(int(q.ScaledValue(resource.Milli)))
+			min = int32(math.Floor(float64(value.IntVal)/20)) * 10
+			setMax(&max, value.IntVal, int32(math.Ceil(float64(value.IntVal)/10))*20)
+		}
+
 	case corev1.ResourceMemory:
 		min, max = 128, 4096
 		if value != nil {
@@ -254,13 +262,6 @@ func toIntWithRange(resources corev1.ResourceList, name corev1.ResourceName) (va
 			setMax(&max, value.IntVal, int32(math.Pow(2, math.Ceil(math.Log2(float64(value.IntVal*2))))))
 		}
 
-	case corev1.ResourceCPU:
-		min, max = 100, 4000
-		if value != nil {
-			*value = intstr.FromInt(int(q.ScaledValue(resource.Milli)))
-			min = int32(math.Floor(float64(value.IntVal)/20)) * 10
-			setMax(&max, value.IntVal, int32(math.Ceil(float64(value.IntVal)/10))*20)
-		}
 	}
 
 	return value, min, max
