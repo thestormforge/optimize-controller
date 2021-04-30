@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -42,7 +41,7 @@ func Completion(ctx context.Context, api experimentsv1alpha1.API, args []string,
 		return s, cobra.ShellCompDirectiveNoFileComp
 	}
 
-	// Assume we can parse now
+	// Assume we can names parse now
 	argsToParse := make([]string, len(args), len(args)+1)
 	copy(argsToParse, args)
 	if toComplete != "" {
@@ -53,38 +52,37 @@ func Completion(ctx context.Context, api experimentsv1alpha1.API, args []string,
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
-	// Use the API to get the names
-	n := names[len(names)-1]
-	switch n.Type {
+	// Use the API to get the suggestions based on the type of the last entry
+	switch names[len(names)-1].Type {
 	case typeExperiment:
-		return experimentNames(ctx, api, n.Name)
+		return experimentNames(ctx, api, names)
 	case typeTrial:
-		return trialNames(ctx, api, n.Name, n.Number)
+		return trialNames(ctx, api, names)
 	}
 
 	return nil, cobra.ShellCompDirectiveNoFileComp
 }
 
-func experimentNames(ctx context.Context, api experimentsv1alpha1.API, prefix string) ([]string, cobra.ShellCompDirective) {
-	l, err := api.GetAllExperiments(ctx, nil)
-	if err != nil {
-		return nil, cobra.ShellCompDirectiveNoFileComp
-	}
-
-	names := make([]string, 0, len(l.Experiments))
+func experimentNames(ctx context.Context, api experimentsv1alpha1.API, ns names) (completions []string, directive cobra.ShellCompDirective) {
+	directive = cobra.ShellCompDirectiveNoFileComp
 	addPage := func(list *experimentsv1alpha1.ExperimentList) {
-		for i := range l.Experiments {
-			n := l.Experiments[i].Name()
-			if strings.HasPrefix(n, prefix) {
-				names = append(names, n)
+		for i := range list.Experiments {
+			n := list.Experiments[i].Name()
+			if ns.suggest(n) {
+				completions = append(completions, n)
 			}
 		}
 	}
 
+	// Get the first page of experiments
+	l, err := api.GetAllExperiments(ctx, nil)
+	if err != nil {
+		return
+	}
 	addPage(&l)
+	next := l.Next
 
 	// Get the rest of the experiments
-	next := l.Next
 	for next != "" {
 		n, err := api.GetAllExperimentsByPage(ctx, next)
 		if err != nil {
@@ -94,54 +92,68 @@ func experimentNames(ctx context.Context, api experimentsv1alpha1.API, prefix st
 		next = n.Next
 	}
 
-	return names, cobra.ShellCompDirectiveNoFileComp
+	return
 }
 
-func trialNames(ctx context.Context, api experimentsv1alpha1.API, prefix string, prefixNumber int64) ([]string, cobra.ShellCompDirective) {
-	names, err := trialNamesForExperiment(ctx, api, prefix, prefixNumber)
+func trialNames(ctx context.Context, api experimentsv1alpha1.API, ns names) ([]string, cobra.ShellCompDirective) {
+	name := ns[len(ns)-1].experimentName()
+	trials, err := getAllTrials(ctx, api, name)
 
+	// When the experiment name is invalid, assume we need to suggest experiments names with trailing "/"
 	var eerr *experimentsv1alpha1.Error
 	if errors.As(err, &eerr) && eerr.Type == experimentsv1alpha1.ErrExperimentNotFound {
-		names, _ = experimentNames(ctx, api, prefix)
-		for i := range names {
-			names[i] = names[i] + "/"
+		completions, directive := experimentNames(ctx, api, ns)
+		for i := range completions {
+			completions[i] = completions[i] + "/"
 		}
-		return names, cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
+		return completions, directive | cobra.ShellCompDirectiveNoSpace
 	}
 
-	return names, cobra.ShellCompDirectiveNoFileComp
+	completions := make([]string, 0, len(trials.Trials))
+	for i := range trials.Trials {
+		n := fmt.Sprintf("%s/%d", name.Name(), trials.Trials[i].Number)
+		if ns.suggest(n) {
+			completions = append(completions, n)
+		}
+	}
+	return completions, cobra.ShellCompDirectiveNoFileComp
 }
 
-func trialNamesForExperiment(ctx context.Context, api experimentsv1alpha1.API, prefix string, prefixNumber int64) ([]string, error) {
-	// This is not implicit
-	if prefix == "" {
+type names []name
+
+func (ns names) suggest(name string) bool {
+	for i := range ns {
+		if i == len(ns)-1 {
+			return strings.HasPrefix(name, ns[i].String())
+		} else if name == ns[i].String() {
+			return false
+		}
+	}
+
+	return false
+}
+
+func getAllTrials(ctx context.Context, api experimentsv1alpha1.API, name experimentsv1alpha1.ExperimentName) (*experimentsv1alpha1.TrialList, error) {
+	// Check for an empty name as this does not happen automatically
+	if name.Name() == "" {
 		return nil, &experimentsv1alpha1.Error{Type: experimentsv1alpha1.ErrExperimentNotFound}
 	}
 
-	exp, err := api.GetExperimentByName(ctx, experimentsv1alpha1.NewExperimentName(prefix))
+	// Return if we can't get the experiment or if it does not have a trial list
+	exp, err := api.GetExperimentByName(ctx, name)
 	if err != nil || exp.TrialsURL == "" {
 		return nil, err
 	}
 
-	l, err := api.GetAllTrials(ctx, exp.TrialsURL, nil)
+	// Get all the trials and sort them by number
+	result, err := api.GetAllTrials(ctx, exp.TrialsURL, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	sort.Slice(l.Trials, func(i, j int) bool { return l.Trials[i].Number < l.Trials[j].Number })
+	sort.Slice(result.Trials, func(i, j int) bool {
+		return result.Trials[i].Number < result.Trials[j].Number
+	})
 
-	// Match trials by the formatted name
-	trialPrefix := prefix + "/"
-	if prefixNumber >= 0 {
-		trialPrefix += strconv.FormatInt(prefixNumber, 10)
-	}
-
-	names := make([]string, 0, len(l.Trials))
-	for i := range l.Trials {
-		n := fmt.Sprintf("%s/%d", prefix, l.Trials[i].Number)
-		if strings.HasPrefix(n, trialPrefix) {
-			names = append(names, n)
-		}
-	}
-	return names, nil
+	return &result, nil
 }

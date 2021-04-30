@@ -117,6 +117,14 @@ func (n *name) trialNumber() int64 {
 	return n.Number
 }
 
+// String returns the joined name and number.
+func (n *name) String() string {
+	if n.Name == "" || n.Type == typeExperiment || n.Number < 0 {
+		return n.Name
+	}
+	return fmt.Sprintf("%s/%d", n.Name, n.Number)
+}
+
 // parseNames parses a list of arguments into structured names
 func parseNames(args []string) ([]name, error) {
 	names := make([]name, 0, len(args))
