@@ -90,6 +90,10 @@ func (m *fieldModel) Disable() {
 	m.enabled = false
 }
 
+func (m *fieldModel) SetEnabled(enabled bool) {
+	m.enabled = enabled
+}
+
 func (m fieldModel) Hidden() bool {
 	return !m.shown
 }

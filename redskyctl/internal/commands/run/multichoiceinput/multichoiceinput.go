@@ -121,6 +121,12 @@ func (m *Model) Unselect(i int) {
 	m.SetValue(strings.Join(m.Values(), ", "))
 }
 
+func (m *Model) SelectOnly() {
+	if len(m.Choices) == 1 {
+		m.Select(0)
+	}
+}
+
 func (m *Model) Toggle(i int) {
 	if m.IsSelected(i) {
 		m.Unselect(i)

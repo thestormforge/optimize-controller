@@ -113,6 +113,12 @@ func (m *Model) Select(i int) {
 	m.Model.CursorEnd()
 }
 
+func (m *Model) SelectOnly() {
+	if len(m.Choices) == 1 {
+		m.Select(0)
+	}
+}
+
 func (m Model) View() string {
 	var lines []string
 
