@@ -44,8 +44,8 @@ func (o *Options) initializeModel() {
 	}
 
 	o.generatorModel.ScenarioType = out.FormField{
-		Prompt:       "What type of load test would you like to use",
-		Instructions: []string{"up/down: select", "x: choose", "enter: continue"},
+		Prompt:       "Where do you want to get your load test from?",
+		Instructions: []string{"up/down: select", "enter: continue"},
 		Choices: []string{
 			ScenarioTypeStormForger,
 			ScenarioTypeLocust,
@@ -53,29 +53,8 @@ func (o *Options) initializeModel() {
 	}.NewChoiceField(opts...)
 	o.generatorModel.ScenarioType.Select(0)
 
-	o.generatorModel.NamespaceInput = out.FormField{
-		Prompt:         "Please select the Kubernetes namespace(s) where your application is running:",
-		LoadingMessage: "Fetching namespaces from Kubernetes",
-		Instructions:   []string{"up/down: select", "x: choose", "enter: continue"},
-	}.NewMultiChoiceField(opts...)
-	o.generatorModel.NamespaceInput.Validator = &form.Required{
-		Error: "Required",
-	}
-
-	o.generatorModel.LabelSelectorTemplate = func(namespace string) form.TextField {
-		labelSelectorInput := out.FormField{
-			Prompt:       fmt.Sprintf("Specify the label selector for your application resources in the '%s' namespace:", namespace),
-			Placeholder:  "All resources",
-			Instructions: []string{"Leave blank to select all resources"},
-		}.NewTextField(opts...)
-		labelSelectorInput.Validator = &labelSelectorValidator{
-			InvalidSelector: "Must be a valid label selector",
-		}
-		return labelSelectorInput
-	}
-
 	o.generatorModel.StormForgerTestCaseInput = out.FormField{
-		Prompt:         "Please select a StormForger test case to optimize for:",
+		Prompt:         "Please select a load test to optimize:",
 		LoadingMessage: "Fetching test cases from StormForger",
 		Instructions:   []string{"up/down: select", "enter: continue"},
 	}.NewChoiceField(opts...)
@@ -86,8 +65,10 @@ https://docs.stormforger.com/guides/getting-started/`,
 	}.NewExitField(opts...)
 
 	o.generatorModel.LocustfileInput = out.FormField{
-		Prompt:          "Enter the location of the locustfile.py you would like to run:",
+		Prompt:          "Please input a path to your Locust load test to optimize:",
+		Placeholder:     "( e.g. ~/my-project/tests/locustfile.py )",
 		InputOnSameLine: true,
+		Instructions:    []string{"enter: continue"},
 		Completions: &form.FileCompletions{
 			Extensions: []string{".py"},
 		},
@@ -98,8 +79,30 @@ https://docs.stormforger.com/guides/getting-started/`,
 		RegularFile: "Must be a file, not a directory",
 	}
 
+	o.generatorModel.NamespaceInput = out.FormField{
+		Prompt:         "Please select the namespace(s) where your application is running:",
+		LoadingMessage: "Fetching namespaces from Kubernetes",
+		Instructions:   []string{"up/down: select", "x: choose", "enter: continue"},
+	}.NewMultiChoiceField(opts...)
+	o.generatorModel.NamespaceInput.Validator = &form.Required{
+		Error: "Required",
+	}
+
+	o.generatorModel.LabelSelectorTemplate = func(namespace string) form.TextField {
+		labelSelectorInput := out.FormField{
+			Prompt:       fmt.Sprintf("Specify labels for '%s' namespace:", namespace),
+			Placeholder:  "( e.g. environment=dev, tier=frontend )",
+			Instructions: []string{"Leave blank to select all resources", "enter: continue"},
+		}.NewTextField(opts...)
+		labelSelectorInput.Validator = &labelSelectorValidator{
+			InvalidSelector: "Must be a valid label selector",
+		}
+		return labelSelectorInput
+	}
+
 	o.generatorModel.IngressURLInput = out.FormField{
 		Prompt:          "Enter the URL of the endpoint to test:",
+		Placeholder:     "( e.g. http://my-app.svc.cluster.local )",
 		InputOnSameLine: true,
 	}.NewTextField(opts...)
 	o.generatorModel.IngressURLInput.Validator = &form.URL{
@@ -109,18 +112,18 @@ https://docs.stormforger.com/guides/getting-started/`,
 	}
 
 	o.generatorModel.ContainerResourcesSelectorInput = out.FormField{
-		Prompt:       "Specify the label selector matching resources which should have their memory and CPU optimized:",
-		Placeholder:  "All resources",
-		Instructions: []string{"Leave blank to select all resources"},
+		Prompt:       "Specify labels to control discovery of memory and CPU parameters:",
+		Placeholder:  "( e.g. component=api )",
+		Instructions: []string{"Leave blank to select all resources", "enter: continue"},
 	}.NewTextField(opts...)
 	o.generatorModel.ContainerResourcesSelectorInput.Validator = &labelSelectorValidator{
 		InvalidSelector: "Must be a valid label selector",
 	}
 
 	o.generatorModel.ReplicasSelectorInput = out.FormField{
-		Prompt:       "Specify the label selector matching resources which can be scaled horizontally:",
-		Placeholder:  "No resources",
-		Instructions: []string{"Must be a valid Kubernetes label selector, leave blank to select no resources"},
+		Prompt:       "Specify labels to control discovery of replica parameters:",
+		Placeholder:  "( e.g. component=api )",
+		Instructions: []string{"Leave blank to select no resources", "enter: continue"},
 	}.NewTextField(opts...)
 	o.generatorModel.ReplicasSelectorInput.Validator = &labelSelectorValidator{
 		InvalidSelector: "Must be a valid label selector",
@@ -274,7 +277,12 @@ func (o *Options) updateGeneratorForm() {
 
 // View returns the rendering of the generator model.
 func (m generatorModel) View() string {
-	return m.form().View()
+	var view out.View
+
+	view.Step(out.Preview, "Welcome to StormForge!")
+	view.Model(m.form())
+
+	return view.String()
 }
 
 // View returns the rendering of the preview model.
