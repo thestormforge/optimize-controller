@@ -23,27 +23,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	konjurev1beta2 "github.com/thestormforge/konjure/pkg/api/core/v1beta2"
-	"github.com/thestormforge/konjure/pkg/konjure"
-	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
-	"github.com/thestormforge/optimize-controller/internal/version"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/check"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/initialize"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/internal"
 	versioncmd "github.com/thestormforge/optimize-controller/redskyctl/internal/commands/version"
 	"github.com/thestormforge/optimize-go/pkg/config"
 	corev1 "k8s.io/api/core/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/kustomize/kyaml/kio"
-	"sigs.k8s.io/kustomize/kyaml/kio/kioutil"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
@@ -52,66 +46,81 @@ import (
 // the functionality so it can run asynchronously to main event loop (thus
 // keeping the TUI responsive).
 
-func (o *Options) checkBuildVersion() tea.Msg {
-	return versionMsg{Build: *version.GetInfo()}
-}
-
+// checkKubectlVersion returns a message containing the kubectl version.
 func (o *Options) checkKubectlVersion() tea.Msg {
 	ctx := context.TODO()
-	msg := versionMsg{}
-	msg.Kubectl.ClientVersion.GitVersion = unknownVersion
 
 	cmd, err := o.Config.Kubectl(ctx, "version", "--client", "--output", "json")
 	if err != nil {
 		return err
 	}
+
 	data, err := cmd.Output()
 	if err != nil {
-		return err
+		return internal.KubectlVersionMsg("")
 	}
-	if err := json.Unmarshal(data, &msg.Kubectl); err != nil {
+
+	v := struct {
+		ClientVersion struct {
+			GitVersion string `json:"gitVersion"`
+		} `json:"clientVersion"`
+	}{}
+	if err := json.Unmarshal(data, &v); err != nil {
 		return err
 	}
 
-	return msg
+	return internal.KubectlVersionMsg(v.ClientVersion.GitVersion)
 }
 
+// checkForgeVersion returns a message containing the forge version.
 func (o *Options) checkForgeVersion() tea.Msg {
 	ctx := context.TODO()
-	msg := versionMsg{}
-	msg.Forge = unknownVersion
 
 	cmd := exec.CommandContext(ctx, "forge", "version")
+
 	data, err := cmd.Output()
 	if err != nil {
-		return msg // Ignore the error, leave version "unknown"
+		return internal.ForgeVersionMsg("")
 	}
-	msg.Forge = strings.TrimSpace(string(data))
 
-	return msg
+	return internal.ForgeVersionMsg(strings.TrimSpace(string(data)))
 }
 
+// checkControllerVersion returns a message containing the controller version.
 func (o *Options) checkControllerVersion() tea.Msg {
 	ctx := context.TODO()
-	msg := versionMsg{}
-	msg.Controller.Version = unknownVersion
 
-	if v, err := (&versioncmd.Options{Config: o.Config}).ControllerVersion(ctx); err == nil {
-		msg.Controller = *v
+	v, err := (&versioncmd.Options{Config: o.Config}).ControllerVersion(ctx)
+	if err != nil {
+		return internal.OptimizeControllerVersionMsg("")
 	}
 
-	return msg
+	return internal.OptimizeControllerVersionMsg(v.Version)
 }
 
-func (o *Options) checkAuthorization() tea.Msg {
+// checkOptimizeAuthorization returns a message containing the authorization
+// status of the Optimize feature.
+func (o *Options) checkOptimizeAuthorization() tea.Msg {
 	ctx := context.TODO()
-	msg := azValid
 
 	if _, err := o.ExperimentsAPI.Options(ctx); err != nil {
-		msg = azInvalid
+		return internal.OptimizeAuthorizationMsg(internal.AuthorizationInvalid)
 	}
 
-	return msg
+	return internal.OptimizeAuthorizationMsg(internal.AuthorizationValid)
+}
+
+// checkPerformanceTestAuthorization returns a message containing the authorization
+// status of the Performance Test feature.
+func (o *Options) checkPerformanceTestAuthorization() tea.Msg {
+	ctx := context.TODO()
+
+	ping, err := forge(ctx, "ping")
+	if err != nil || ping.Response == nil || ping.Response.Status != "ok" {
+		return internal.PerformanceTestAuthorizationMsg(internal.AuthorizationInvalid)
+	}
+
+	return internal.PerformanceTestAuthorizationMsg(internal.AuthorizationValid)
 }
 
 func (o *Options) initializeController() tea.Msg {
@@ -130,15 +139,12 @@ func (o *Options) initializeController() tea.Msg {
 	initOpts := &initialize.Options{
 		GeneratorOptions: initialize.GeneratorOptions{
 			Config:               o.Config,
-			IOStreams:            discard, // TODO The writer should bump the progress
+			IOStreams:            discard,
 			IncludeBootstrapRole: true,
 			Image:                o.initializationModel.ControllerImage,
 		},
 		Wait: true,
 	}
-	// TODO How do we safely and asynchronously update the progress?
-	// Maybe something like https://github.com/charmbracelet/bubbletea/blob/master/examples/realtime/main.go
-	o.initializationModel.InitializationPercent = 0.1
 	if err := initOpts.Initialize(ctx); err != nil {
 		return err
 	}
@@ -153,7 +159,7 @@ func (o *Options) initializeController() tea.Msg {
 
 func (o *Options) listKubernetesNamespaces() tea.Msg {
 	ctx := context.TODO()
-	msg := kubernetesNamespaceMsg{}
+	msg := internal.KubernetesNamespacesMsg{}
 
 	cmd, err := o.Config.Kubectl(ctx, "get", "namespaces", "--output", "name")
 	if err != nil {
@@ -175,11 +181,11 @@ func (o *Options) listKubernetesNamespaces() tea.Msg {
 
 func (o *Options) listStormForgerTestCaseNames() tea.Msg {
 	ctx := context.TODO()
-	msg := stormForgerTestCaseMsg{}
+	msg := internal.StormForgerTestCasesMsg{}
 
 	orgs, err := forge(ctx, "organization", "list")
 	if err != nil {
-		return err
+		return nil
 	}
 
 	for i := range orgs.Data {
@@ -198,14 +204,12 @@ func (o *Options) listStormForgerTestCaseNames() tea.Msg {
 }
 
 func (o *Options) generateExperiment() tea.Msg {
-	msg := experimentMsg{}
+	msg := internal.ExperimentMsg{}
 
+	o.Generator.Application.Default()
 	o.Generator.SetDefaultSelectors()
 
-	if err := o.Generator.Execute(kio.WriterFunc(func(nodes []*yaml.RNode) error {
-		msg = nodes
-		return nil
-	})); err != nil {
+	if err := o.Generator.Execute(&msg); err != nil {
 		return err
 	}
 
@@ -230,16 +234,16 @@ func (o *Options) createExperiment() tea.Msg {
 		return fmt.Errorf("could not create experiment, %w", err)
 	}
 
-	return expCreated
+	return internal.ExperimentCreatedMsg{}
 }
 
-func (o *Options) refreshExperimentStatus() tea.Msg {
+func (o *Options) refreshTrials() tea.Msg {
 	ctx := context.TODO()
 
 	// TODO Where do we get the namespace/selector from?
-	namespace := o.previewModel.experiment.Namespace
-	name := o.previewModel.experiment.Name
-	labelSelector := meta.FormatLabelSelector(o.previewModel.experiment.TrialSelector())
+	namespace := o.previewModel.Experiment.Namespace
+	name := o.previewModel.Experiment.Name
+	labelSelector := meta.FormatLabelSelector(o.previewModel.Experiment.TrialSelector())
 
 	getExperiment, err := o.Config.Kubectl(ctx,
 		"get", "experiment",
@@ -257,9 +261,9 @@ func (o *Options) refreshExperimentStatus() tea.Msg {
 	for _, node := range expNodes {
 		switch {
 		case conditionStatus(node, redskyv1beta1.ExperimentComplete) == corev1.ConditionTrue:
-			return expCompleted
+			return internal.ExperimentFinishedMsg{}
 		case conditionStatus(node, redskyv1beta1.ExperimentFailed) == corev1.ConditionTrue:
-			return expFailed
+			return internal.ExperimentFinishedMsg{Failed: true}
 		}
 	}
 
@@ -276,100 +280,13 @@ func (o *Options) refreshExperimentStatus() tea.Msg {
 	if err != nil {
 		return fmt.Errorf("could not get trials for status, %w", err)
 	}
-	return trialsMsg(trialNodes)
+	return internal.TrialsMsg(trialNodes)
 }
 
-func (o *Options) refreshTick() tea.Cmd {
+func (o *Options) refreshTrialsTick() tea.Cmd {
 	return tea.Tick(2*time.Second, func(t time.Time) tea.Msg {
-		return refreshStatusMsg(t)
+		return internal.TrialsRefreshMsg(t)
 	})
-}
-
-func (m *generationModel) generateApplication() tea.Msg {
-	msg := applicationMsg{}
-
-	if wd, err := os.Getwd(); err == nil {
-		path := filepath.Join(wd, "app.yaml")
-		meta.SetMetaDataAnnotation(&msg.ObjectMeta, kioutil.PathAnnotation, path)
-	}
-
-	if m.NamespaceInput.Enabled() {
-
-		// TODO DEMO ONLY HACK
-		if namespaces := m.NamespaceInput.Values(); len(namespaces) == 1 {
-			msg.Name = namespaces[0]
-			msg.Namespace = namespaces[0]
-		}
-
-		for i, ns := range m.NamespaceInput.Values() {
-			msg.Resources = append(msg.Resources, konjure.Resource{
-				Kubernetes: &konjurev1beta2.Kubernetes{
-					Namespaces: []string{ns},
-					Selector:   m.LabelSelectorInputs[i].Value(),
-				},
-			})
-		}
-	}
-
-	if m.StormForgerTestCaseInput.Enabled() {
-		if testCase := m.StormForgerTestCaseInput.Value(); testCase != "" {
-			msg.Scenarios = append(msg.Scenarios, redskyappsv1alpha1.Scenario{
-				StormForger: &redskyappsv1alpha1.StormForgerScenario{
-					TestCase: testCase,
-				},
-			})
-		}
-	}
-
-	if m.LocustfileInput.Enabled() {
-		if locustfile := m.LocustfileInput.Value(); locustfile != "" {
-			msg.Scenarios = append(msg.Scenarios, redskyappsv1alpha1.Scenario{
-				Locust: &redskyappsv1alpha1.LocustScenario{
-					Locustfile: locustfile,
-				},
-			})
-		}
-	}
-
-	if m.IngressURLInput.Enabled() {
-		if u := m.IngressURLInput.Value(); u != "" {
-			msg.Ingress = &redskyappsv1alpha1.Ingress{
-				URL: u,
-			}
-		}
-	}
-
-	if m.ContainerResourcesSelectorInput.Enabled() {
-		if sel := m.ContainerResourcesSelectorInput.Value(); sel != "" {
-			msg.Parameters = append(msg.Parameters, redskyappsv1alpha1.Parameter{
-				ContainerResources: &redskyappsv1alpha1.ContainerResources{
-					Selector: sel,
-				},
-			})
-		}
-	}
-
-	if m.ReplicasSelectorInput.Enabled() {
-		if sel := m.ReplicasSelectorInput.Value(); sel != "" {
-			msg.Parameters = append(msg.Parameters, redskyappsv1alpha1.Parameter{
-				Replicas: &redskyappsv1alpha1.Replicas{
-					Selector: sel,
-				},
-			})
-		}
-	}
-
-	if m.ObjectiveInput.Enabled() {
-		msg.Objectives = append(msg.Objectives, redskyappsv1alpha1.Objective{})
-		for _, goal := range m.ObjectiveInput.Values() {
-			msg.Objectives[0].Goals = append(msg.Objectives[0].Goals, redskyappsv1alpha1.Goal{Name: goal})
-		}
-	}
-
-	// Apply all the default values of the application
-	(*redskyappsv1alpha1.Application)(&msg).Default()
-
-	return msg
 }
 
 // =============================================================================
@@ -414,12 +331,16 @@ func forge(ctx context.Context, args ...string) (*forgePayload, error) {
 
 // forgePayload represents envelope for forge responses.
 type forgePayload struct {
-	Data []forgeData `json:"data"`
+	Data     []forgeData    `json:"data"`
+	Response *forgeResponse `json:"response"`
 }
 type forgeData struct {
 	ID         string          `json:"id"`
 	Type       string          `json:"type"`
 	Attributes forgeAttributes `json:"attributes"`
+}
+type forgeResponse struct {
+	Status string `json:"status"`
 }
 type forgeAttributes struct {
 	Name string `json:"name"`

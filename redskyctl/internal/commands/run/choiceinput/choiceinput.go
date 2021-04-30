@@ -63,7 +63,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	)
 
 	// Only update the text input if there are choices present
-	if _, isKey := msg.(tea.KeyMsg); len(m.Choices) > 0 || !isKey {
+	if _, isKey := msg.(tea.KeyMsg); (m.Editable && len(m.Choices) > 0) || !isKey {
 		m.Model, cmd = m.Model.Update(msg)
 		cmds = append(cmds, cmd)
 	}

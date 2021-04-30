@@ -24,9 +24,15 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/form"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/internal"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/out"
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
+)
+
+const (
+	ScenarioTypeStormForger = "StormForge"
+	ScenarioTypeLocust      = "Locust"
 )
 
 // initializeModel is invoked before the program is started to ensure things
@@ -37,16 +43,26 @@ func (o *Options) initializeModel() {
 		opts = append(opts, out.VerbosePrompts)
 	}
 
-	o.generationModel.NamespaceInput = out.FormField{
+	o.generatorModel.ScenarioType = out.FormField{
+		Prompt:       "What type of load test would you like to use",
+		Instructions: []string{"up/down: select", "x: choose", "enter: continue"},
+		Choices: []string{
+			ScenarioTypeStormForger,
+			ScenarioTypeLocust,
+		},
+	}.NewChoiceField(opts...)
+	o.generatorModel.ScenarioType.Select(0)
+
+	o.generatorModel.NamespaceInput = out.FormField{
 		Prompt:         "Please select the Kubernetes namespace(s) where your application is running:",
 		LoadingMessage: "Fetching namespaces from Kubernetes",
 		Instructions:   []string{"up/down: select", "x: choose", "enter: continue"},
 	}.NewMultiChoiceField(opts...)
-	o.generationModel.NamespaceInput.Validator = &form.Required{
+	o.generatorModel.NamespaceInput.Validator = &form.Required{
 		Error: "Required",
 	}
 
-	o.generationModel.LabelSelectorTemplate = func(namespace string) form.TextField {
+	o.generatorModel.LabelSelectorTemplate = func(namespace string) form.TextField {
 		labelSelectorInput := out.FormField{
 			Prompt:       fmt.Sprintf("Specify the label selector for your application resources in the '%s' namespace:", namespace),
 			Placeholder:  "All resources",
@@ -58,62 +74,61 @@ func (o *Options) initializeModel() {
 		return labelSelectorInput
 	}
 
-	o.generationModel.StormForgerTestCaseInput = out.FormField{
+	o.generatorModel.StormForgerTestCaseInput = out.FormField{
 		Prompt:         "Please select a StormForger test case to optimize for:",
-		PromptVerbose:  "This is an example of a more verbose prompt.\nSelect a StormForger test case:",
 		LoadingMessage: "Fetching test cases from StormForger",
 		Instructions:   []string{"up/down: select", "enter: continue"},
 	}.NewChoiceField(opts...)
 
-	o.generationModel.LocustfileInput = out.FormField{
+	o.generatorModel.StormForgerGettingStarted = out.FormField{
+		Prompt: `Check this out to see how you can get set up with a StormForge load test:
+https://docs.stormforger.com/guides/getting-started/`,
+	}.NewExitField(opts...)
+
+	o.generatorModel.LocustfileInput = out.FormField{
 		Prompt:          "Enter the location of the locustfile.py you would like to run:",
 		InputOnSameLine: true,
-		Enabled:         true,
 		Completions: &form.FileCompletions{
 			Extensions: []string{".py"},
 		},
 	}.NewTextField(opts...)
-	o.generationModel.LocustfileInput.Validator = &form.File{
+	o.generatorModel.LocustfileInput.Validator = &form.File{
 		Required:    "Required",
 		Missing:     "File does not exist",
 		RegularFile: "Must be a file, not a directory",
 	}
 
-	o.generationModel.IngressURLInput = out.FormField{
+	o.generatorModel.IngressURLInput = out.FormField{
 		Prompt:          "Enter the URL of the endpoint to test:",
 		InputOnSameLine: true,
-		Enabled:         true,
 	}.NewTextField(opts...)
-	o.generationModel.IngressURLInput.Validator = &form.URL{
+	o.generatorModel.IngressURLInput.Validator = &form.URL{
 		Required:   "Required",
 		InvalidURL: "Must be a valid URL",
 		Absolute:   "URL must be absolute",
 	}
 
-	o.generationModel.ContainerResourcesSelectorInput = out.FormField{
+	o.generatorModel.ContainerResourcesSelectorInput = out.FormField{
 		Prompt:       "Specify the label selector matching resources which should have their memory and CPU optimized:",
 		Placeholder:  "All resources",
 		Instructions: []string{"Leave blank to select all resources"},
-		Enabled:      true,
 	}.NewTextField(opts...)
-	o.generationModel.ContainerResourcesSelectorInput.Validator = &labelSelectorValidator{
+	o.generatorModel.ContainerResourcesSelectorInput.Validator = &labelSelectorValidator{
 		InvalidSelector: "Must be a valid label selector",
 	}
 
-	o.generationModel.ReplicasSelectorInput = out.FormField{
+	o.generatorModel.ReplicasSelectorInput = out.FormField{
 		Prompt:       "Specify the label selector matching resources which can be scaled horizontally:",
 		Placeholder:  "No resources",
 		Instructions: []string{"Must be a valid Kubernetes label selector, leave blank to select no resources"},
-		Enabled:      true,
 	}.NewTextField(opts...)
-	o.generationModel.ReplicasSelectorInput.Validator = &labelSelectorValidator{
+	o.generatorModel.ReplicasSelectorInput.Validator = &labelSelectorValidator{
 		InvalidSelector: "Must be a valid label selector",
 	}
 
-	o.generationModel.ObjectiveInput = out.FormField{
+	o.generatorModel.ObjectiveInput = out.FormField{
 		Prompt:       "Please select objectives to optimize:",
 		Instructions: []string{"up/down: select", "x: choose", "enter: continue"},
-		Enabled:      true,
 		Choices: []string{
 			"cost",
 			"p50-latency",
@@ -121,8 +136,8 @@ func (o *Options) initializeModel() {
 			"p99-latency",
 		},
 	}.NewMultiChoiceField(opts...)
-	o.generationModel.ObjectiveInput.Select(0)
-	o.generationModel.ObjectiveInput.Select(2)
+	o.generatorModel.ObjectiveInput.Select(0)
+	o.generatorModel.ObjectiveInput.Select(2)
 
 }
 
@@ -131,9 +146,6 @@ func (o *Options) initializeModel() {
 func (o *Options) View() string {
 	var view out.View
 	switch {
-	case o.status != "":
-		// Special case for debugging
-		_, _ = view.Write([]byte(o.status))
 
 	case o.runModel.trials != nil:
 		// Once the run model has trials, it gets exclusive use of the screen
@@ -142,7 +154,7 @@ func (o *Options) View() string {
 	default:
 		// Otherwise combine the output of all the children models
 		view.Model(o.initializationModel)
-		view.Model(o.generationModel)
+		view.Model(o.generatorModel)
 		view.Model(o.previewModel)
 	}
 
@@ -174,62 +186,101 @@ func (o *Options) View() string {
 func (m initializationModel) View() string {
 	var view out.View
 
-	if m.BuildVersion != "" {
-		view.Step(out.Happy, "%s %s", m.CommandName, m.BuildVersion)
-	} else {
+	view.Step(out.Happy, "%s %s", m.CommandName, m.BuildVersion)
+
+	if m.KubectlVersion == nil {
 		return view.String()
 	}
 
-	if m.KubectlVersion != "" {
-		if m.KubectlVersion != unknownVersion {
-			view.Step(out.Version, "kubectl %s", m.KubectlVersion)
-		}
-	} else {
+	if m.KubectlVersion.Available() {
+		view.Step(out.Version, "kubectl %s", m.KubectlVersion)
+	}
+
+	if m.ForgeVersion == nil {
 		return view.String()
 	}
 
-	if m.ForgeVersion != "" {
-		if m.ForgeVersion != unknownVersion {
-			view.Step(out.Version, "forge %s", m.ForgeVersion)
-		}
-	} else {
-		return view.String()
+	if m.ForgeVersion.Available() {
+		view.Step(out.Version, "forge %s", m.ForgeVersion)
 	}
 
-	switch m.Authorization {
-	case azValid:
-		view.Step(out.Authorized, "Authorization found")
-	case azIgnored:
-		view.Step(out.Unauthorized, "Continuing without authorization")
-	case azInvalid:
+	switch m.OptimizeAuthorization {
+	case internal.AuthorizationValid:
+		view.Step(out.Authorized, "StormForge Optimize authorization found")
+	case internal.AuthorizationInvalidIgnored:
+		view.Step(out.Unauthorized, "Continuing without StormForge Optimize authorization")
+	case internal.AuthorizationInvalid:
 		view.Newline()
 		view.Step(out.YesNo, "You are not logged in, are you sure you want to continue? [Y/n]: ")
+		return view.String()
 	default:
 		return view.String()
 	}
 
-	if m.InitializationPercent > 0 && m.InitializationPercent < 1 {
-		view.Step(out.Initializing, "Initializing ...")
-		view.Step(out.Version, "Using image %s", m.ControllerImage)
-		// TODO Progress bar based on the initialization percentage
+	switch m.PerformanceTestAuthorization {
+	case internal.AuthorizationValid:
+		// Do nothing
+	case internal.AuthorizationInvalidIgnored:
+		view.Step(out.Unauthorized, "StormForge Performance Test authorization not found")
+	case internal.AuthorizationUnknown:
+		return view.String()
 	}
 
-	if m.ControllerVersion != "" && m.ControllerVersion != "unknown" {
+	if m.InitializeCluster {
+		view.Step(out.Initializing, "Initializing ...")
+		view.Step(out.Version, "Using image %s", m.ControllerImage)
+	}
+
+	if m.ControllerVersion.Available() {
 		view.Step(out.Running, "Running controller %s", m.ControllerVersion)
 	}
 
 	return view.String()
 }
 
-// View returns the rendering of the generation model.
-func (m generationModel) View() string {
+func (o *Options) updateGeneratorForm() {
+	if !o.initializationModel.Done() {
+		return
+	}
+
+	if len(o.Generator.Application.Scenarios) == 0 {
+		o.generatorModel.ScenarioType.Enable()
+		useStormForger := o.generatorModel.ScenarioType.Value() == ScenarioTypeStormForger
+		useLocust := o.generatorModel.ScenarioType.Value() == ScenarioTypeLocust
+
+		forgeAvailable := o.initializationModel.ForgeVersion.Available() &&
+			o.initializationModel.PerformanceTestAuthorization == internal.AuthorizationValid
+		o.generatorModel.StormForgerTestCaseInput.SetEnabled(useStormForger && forgeAvailable)
+		o.generatorModel.StormForgerGettingStarted.SetEnabled(useStormForger && !forgeAvailable)
+
+		o.generatorModel.LocustfileInput.SetEnabled(useLocust)
+		o.generatorModel.IngressURLInput.SetEnabled(useLocust)
+	}
+
+	if len(o.Generator.Application.Resources) == 0 {
+		kubectlAvailable := o.initializationModel.KubectlVersion.Available()
+		o.generatorModel.NamespaceInput.SetEnabled(kubectlAvailable)
+	}
+
+	if len(o.Generator.Application.Parameters) == 0 {
+		o.generatorModel.ContainerResourcesSelectorInput.Enable()
+		o.generatorModel.ReplicasSelectorInput.Enable()
+	}
+
+	if len(o.Generator.Application.Objectives) == 0 {
+		o.generatorModel.ObjectiveInput.Enable()
+	}
+}
+
+// View returns the rendering of the generator model.
+func (m generatorModel) View() string {
 	return m.form().View()
 }
 
 // View returns the rendering of the preview model.
 func (m previewModel) View() string {
 	var view out.View
-	if m.experiment == nil {
+	if m.Experiment == nil {
 		return view.String()
 	}
 
@@ -237,26 +288,27 @@ func (m previewModel) View() string {
 	view.Step(out.Ready, "Your experiment is ready to run!")
 
 	view.Newline()
-	view.Step(out.Preview, "Name: %s", m.experiment.Name)
+	view.Step(out.Preview, "Name: %s", m.Experiment.Name)
 	view.Step(out.Preview, "Parameters:")
-	for i := range m.experiment.Spec.Parameters {
-		p := &m.experiment.Spec.Parameters[i]
+	for i := range m.Experiment.Spec.Parameters {
+		p := &m.Experiment.Spec.Parameters[i]
 		view.Step(out.Preview, "  %s (from %d to %d)", p.Name, p.Min, p.Max)
 	}
 	view.Step(out.Preview, "Metrics:")
-	for i := range m.experiment.Spec.Metrics {
-		m := &m.experiment.Spec.Metrics[i]
+	for i := range m.Experiment.Spec.Metrics {
+		m := &m.Experiment.Spec.Metrics[i]
 		if m.Optimize == nil || *m.Optimize {
 			view.Step(out.Preview, "  %s", m.Name)
 		}
 	}
-
 	view.Newline()
-	if m.confirmed {
-		view.Step(out.Starting, "Starting experiment ...")
-	} else {
+
+	if !m.Confirmed {
 		view.Step(out.YesNo, "Ready to run? [Y/n]: ")
+		return view.String()
 	}
+
+	view.Step(out.Starting, "Starting experiment ...")
 
 	return view.String()
 }
