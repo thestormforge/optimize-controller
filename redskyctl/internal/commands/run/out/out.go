@@ -174,6 +174,17 @@ func (f FormField) NewMultiChoiceField(opts ...FieldOption) form.MultiChoiceFiel
 	return field
 }
 
+// NewExitField creates a field that trigger an exit as soon as it is focused.
+func (f FormField) NewExitField(opts ...FieldOption) form.ExitField {
+	for _, opt := range opts {
+		opt(&f)
+	}
+
+	field := form.NewExitField()
+	field.Message = f.prompt()
+	return field
+}
+
 func (f *FormField) prompt() string {
 	var result strings.Builder
 	result.WriteRune('\n')
