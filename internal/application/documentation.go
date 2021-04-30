@@ -57,6 +57,18 @@ Objectives correspond to metrics observed over the course of a trial,
 for example: "p95-latency".
 Reference: https://docs.stormforge.io/reference/application/v1alpha1/#objective
 `,
+
+		"stormForger": `
+StormForger contains additional configuration information to set up StormForge
+performance tests. This is only needed when using StormForger scenarios.
+Reference: https://docs.stormforge.io/reference/application/v1alpha1/#stormforger
+`,
+
+		"ingress": `
+Ingress defines the destination of the load test. This is typically a public
+facing URL for your application.
+Reference: https://docs.stormforge.io/reference/application/v1alpha1/#ingress
+`,
 	}
 
 	footComments = map[string]string{
@@ -64,11 +76,8 @@ Reference: https://docs.stormforge.io/reference/application/v1alpha1/#objective
 		"resources": `Only one of the below is necessary
 - github.com/thestormforge/examples/postgres/application # URL example
 - kubernetes: # In cluster resource example
-    # You can use 'namespaces:' to list specific namespaces
-    namespaceSelector: stormforge.io/app=postgres-example
-    # If you omit 'types:' it defaults to deployments and stateful sets
-    types:
-    - deployments
+    namespaces:
+    - default
     # The default selector of "" matches everything
     selector: component=postgres
 - helm: # Helm example
@@ -81,26 +90,36 @@ Reference: https://docs.stormforge.io/reference/application/v1alpha1/#objective
 - replicas:
     selector: component=postgres # Filters to only discover replicas for the specified labels`,
 
-		"scenarios": `- name: cyberMonday # StormForge Performance Test example
+		"ingress": "url: https://localhost # Specifies the entrypoint for your application.",
+
+		"scenarios": `- name: cybermonday # StormForge Performance Test example
   stormforger:
     testCaseFile: foobar.js # You can alternatively specify just the test case name if you provide the access token
-- name: just-another-tuesday # Locust example 
+- name: just-another-tuesday # Locust example
   locust:
     locustfile: foobar.py # Can be local or a URL`,
 
 		"objectives": `- goals:
   # StormForger Metrics: https://github.com/thestormforge/optimize-trials/tree/main/stormforger
   # Locust Metrics: https://github.com/thestormforge/optimize-trials/tree/main/locust
-  - name: cost-gcp # Also "cost", "cost-aws"
+  - name: cost
     requests:
-      selector: component=postgres #Specifies where to collect metrics from
+      selector: component=postgres # Specifies where to collect metrics from
       weights:
-        memory: 4 # Enables customization of cost weights. 
-  - name: p95 
+        memory: 4 # Enables customization of cost weights.
+  - name: p95
     latency: p95
-    max: 10000 # Specifies a metric constraint that you do not want your results to go above. This example ensures only results with p95 latency below 1000ms are returned.
+    max: 1000 # Specifies a metric constraint that you do not want your results to go above. This example ensures only results with p95 latency below 1000ms are returned.
   - latency: p99
     optimize: false # Reports on the metric while not explicitly optimizing for them`,
+
+		"stormForger": `org: myorg # The StormForger organization to use for performance testing
+  accessToken:
+    file: mytoken.jwt # Read in the StormForger jwt from a file
+    literal: mysupersecretjwt # The raw StormForger JWT. Be mindful of the security implications of including the JWT here.
+    secretKeyRef: # Specify a reference to an in cluster secret and key
+      name: stormforger-service-accounts
+      key: myorg`,
 	}
 )
 
@@ -148,11 +167,13 @@ func (f *DocumentationFilter) annotateApplication(app *yaml.RNode) error {
 	// This is used to ensure even empty (and otherwise omitted) fields can be
 	// included for documentation purposes.
 	required := map[string]string{
-		"resources":  "",
-		"parameters": "resources",
-		"scenarios":  "parameters",
-		"objectives": "scenarios",
-		"":           "objectives",
+		"resources":   "",
+		"parameters":  "resources",
+		"ingress":     "parameters",
+		"scenarios":   "ingress",
+		"objectives":  "scenarios",
+		"stormForger": "objectives",
+		"":            "stormForger",
 	}
 
 	// Each key and value are elements in the content list, iterate over even indices
