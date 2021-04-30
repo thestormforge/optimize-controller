@@ -27,9 +27,11 @@ import (
 	redskyv1alpha1 "github.com/thestormforge/optimize-controller/api/v1alpha1"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	"github.com/thestormforge/optimize-controller/internal/controller"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/kustomize/kyaml/kio/kioutil"
 )
 
 // ResourceReader helps properly decode Kubernetes resources on the CLI. It is meant to be a
@@ -97,6 +99,13 @@ func (r *ResourceReader) ReadInto(reader io.ReadCloser, target runtime.Object) e
 	// Fill in the default values for the target
 	target.GetObjectKind().SetGroupVersionKind(gvk)
 	r.Scheme.Default(target)
+
+	// If this was an application, we need to record where we read it from
+	if app, ok := target.(*redskyappsv1alpha1.Application); ok {
+		if err := setApplicationPath(app, reader); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
@@ -175,5 +184,34 @@ func addExperimentListConversions(s *runtime.Scheme) error {
 		return err
 	}
 
+	return nil
+}
+
+// setApplicationPath ensures that the application has a path annotation indicating
+// where we read it from.
+func setApplicationPath(app *redskyappsv1alpha1.Application, reader io.ReadCloser) error {
+	// Allow a named reader to overwrite an existing value
+	path := app.Annotations[kioutil.PathAnnotation]
+	if namedReader, ok := reader.(NamedReaderCloser); ok {
+		if name := namedReader.Name(); name != "" {
+			path = name
+		}
+	}
+
+	// Overwrite some files so the path appears to point to a file in the current working directory instead
+	if path == "" || path == "-" || path == "/dev/stdin" || filepath.Dir(path) == "/dev/fd" {
+		// The filename here could be anything, the important part is the directory so
+		// when you do not supply `-f`, relative paths resolve against the working directory
+		path = "app.yaml"
+	}
+
+	// Ensure the path is absolute, relative to the current working directory
+	var err error
+	path, err = filepath.Abs(path)
+	if err != nil {
+		return err
+	}
+
+	metav1.SetMetaDataAnnotation(&app.ObjectMeta, kioutil.PathAnnotation, path)
 	return nil
 }

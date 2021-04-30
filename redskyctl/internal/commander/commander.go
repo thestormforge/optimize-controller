@@ -57,9 +57,9 @@ type IOStreams struct {
 
 // OpenFile returns a read closer for the specified filename. If the filename is logically
 // empty (i.e. "-"), the input stream is returned.
-func (s *IOStreams) OpenFile(filename string) (io.ReadCloser, error) {
+func (s *IOStreams) OpenFile(filename string) (NamedReaderCloser, error) {
 	if filename == "-" {
-		return ioutil.NopCloser(s.In), nil
+		return &namedReaderCloser{ReadCloser: ioutil.NopCloser(s.In), name: "-"}, nil
 	}
 	return os.Open(filename)
 }
@@ -75,6 +75,18 @@ func (s *IOStreams) YAMLWriter() kio.Writer {
 		},
 	}
 }
+
+type NamedReaderCloser interface {
+	io.ReadCloser
+	Name() string
+}
+
+type namedReaderCloser struct {
+	io.ReadCloser
+	name string
+}
+
+func (r *namedReaderCloser) Name() string { return r.name }
 
 // SetStreams updates the streams using the supplied command
 func SetStreams(streams *IOStreams, cmd *cobra.Command) {
