@@ -118,7 +118,6 @@ type FormField struct {
 	LoadingMessage  string
 	Instructions    []string
 	InputOnSameLine bool
-	Enabled         bool
 	Choices         []string
 	Completions     form.Completions
 
@@ -139,9 +138,6 @@ func (f FormField) NewTextField(opts ...FieldOption) form.TextField {
 	if f.Completions == nil && len(f.Choices) > 0 {
 		f.Completions = form.StaticCompletions(f.Choices)
 	}
-	if f.Enabled {
-		field.Enable()
-	}
 
 	return field
 }
@@ -158,9 +154,6 @@ func (f FormField) NewChoiceField(opts ...FieldOption) form.ChoiceField {
 	field.Instructions = f.instructions()
 	field.LoadingMessage = f.loadingMessage()
 	field.Choices = f.Choices
-	if f.Enabled {
-		field.Enable()
-	}
 
 	return field
 }
@@ -177,9 +170,6 @@ func (f FormField) NewMultiChoiceField(opts ...FieldOption) form.MultiChoiceFiel
 	field.Instructions = f.instructions()
 	field.LoadingMessage = f.loadingMessage()
 	field.Choices = f.Choices
-	if f.Enabled {
-		field.Enable()
-	}
 
 	return field
 }
