@@ -90,6 +90,8 @@ Reference: https://docs.stormforge.io/reference/application/v1alpha1/#ingress
 - replicas:
     selector: component=postgres # Filters to only discover replicas for the specified labels`,
 
+		"ingress": "url: https://localhost # Specifies the entrypoint for your application.",
+
 		"scenarios": `- name: cybermonday # StormForge Performance Test example
   stormforger:
     testCaseFile: foobar.js # You can alternatively specify just the test case name if you provide the access token
@@ -111,12 +113,10 @@ Reference: https://docs.stormforge.io/reference/application/v1alpha1/#ingress
   - latency: p99
     optimize: false # Reports on the metric while not explicitly optimizing for them`,
 
-		"ingress": "url: https://localhost # Specifies the entrypoint for your application.",
-
 		"stormForger": `org: myorg # The StormForger organization to use for performance testing
   accessToken:
     file: mytoken.jwt # Read in the StormForger jwt from a file
-    literal: mysupersecretgeneratedjwt # The raw StormForger JWT. Be mindful of the security implications of including the JWT here.
+    literal: mysupersecretjwt # The raw StormForger JWT. Be mindful of the security implications of including the JWT here.
     secretKeyRef: # Specify a reference to an in cluster secret and key
       name: stormforger-service-accounts
       key: myorg`,
@@ -169,11 +169,11 @@ func (f *DocumentationFilter) annotateApplication(app *yaml.RNode) error {
 	required := map[string]string{
 		"resources":   "",
 		"parameters":  "resources",
-		"scenarios":   "parameters",
+		"ingress":     "parameters",
+		"scenarios":   "ingress",
 		"objectives":  "scenarios",
 		"stormForger": "objectives",
-		"ingress":     "stormForger",
-		"":            "ingress",
+		"":            "stormForger",
 	}
 
 	// Each key and value are elements in the content list, iterate over even indices
