@@ -74,8 +74,16 @@ func (o *ControllerOptions) CheckController(ctx context.Context) error {
 	}, func(err error) bool {
 		// Only retry if we are supposed to be waiting
 		_, ok := err.(*exec.ExitError)
+		if ok && o.Wait {
+			_, _ = fmt.Fprintf(o.Out, "IT'S WAIT TIME")
+		} else {
+			_, _ = fmt.Fprintf(o.Out, "NO NEED TO WAIT FOR %t", err)
+		}
+
 		return ok && o.Wait
 	}, func() error {
+		_, _ = fmt.Fprintf(o.Out, "TRYING TO GET PODS %s.\n", time.Now().Format(time.RFC3339))
+
 		// Get the pod (this is the same query used to fetch the version number)
 		get, err := o.Config.Kubectl(ctx, "--namespace", ns, "get", "pods", "--selector", "control-plane=controller-manager", "--output", "yaml")
 		if err != nil {
@@ -98,6 +106,10 @@ func (o *ControllerOptions) CheckController(ctx context.Context) error {
 		}
 		kubewait.Stdout = ioutil.Discard
 		if err := kubewait.Run(); err != nil {
+			if eerr, ok := err.(*exec.ExitError); ok {
+				return fmt.Errorf("could not wait for controller pods: %w (%s)", err, string(eerr.Stderr))
+			}
+
 			return fmt.Errorf("could not wait for controller pods: %w", err)
 		}
 		_, _ = fmt.Fprintf(o.Out, "Success.\n")
