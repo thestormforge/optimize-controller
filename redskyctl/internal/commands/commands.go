@@ -17,8 +17,10 @@ limitations under the License.
 package commands
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -120,6 +122,12 @@ func mapError(err error) error {
 			return fmt.Errorf("%w, try running 'redskyctl login'", err)
 		}
 		return fmt.Errorf("unauthorized, try running 'redskyctl login'")
+	}
+
+	// It's really annoying to just get an "exit status was one" message.
+	var e *exec.ExitError
+	if errors.As(err, &e) && !e.Success() && len(e.Stderr) > 0 {
+		return fmt.Errorf("%w\n%s", err, string(e.Stderr))
 	}
 
 	return err
