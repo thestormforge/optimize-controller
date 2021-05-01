@@ -28,6 +28,8 @@ import (
 	"github.com/thestormforge/optimize-controller/internal/experiment"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
 	"github.com/thestormforge/optimize-go/pkg/config"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/kustomize/kyaml/kio/kioutil"
 )
 
 type ExperimentOptions struct {
@@ -96,6 +98,11 @@ func (o *ExperimentOptions) generate() error {
 		return err
 	}
 
+	// Make sure we have a path on the application to use as a base for resolving relative file paths
+	if err := o.setPath(); err != nil {
+		return err
+	}
+
 	// Make sure there is an explicit namespace and name
 	if o.Generator.Application.Namespace == "" {
 		o.Generator.Application.Namespace = o.defaultNamespace()
@@ -122,6 +129,24 @@ func (o *ExperimentOptions) filterResources(app *redskyappsv1alpha1.Application)
 		app.Resources = append(app.Resources, konjure.NewResource(filepath.Dir(o.Filename)))
 	}
 
+	return nil
+}
+
+func (o *ExperimentOptions) setPath() (err error) {
+	path := o.Filename
+	if path == "" || path == "-" || filepath.Dir(path) == "/dev/fd" {
+		// The filename here could be anything, the important part is the directory so
+		// when you do not supply `-f`, relative paths resolve against the working directory
+		path = "app.yaml"
+	}
+
+	// Ensure the path is absolute, relative to the current working directory
+	path, err = filepath.Abs(path)
+	if err != nil {
+		return err
+	}
+
+	metav1.SetMetaDataAnnotation(&o.Generator.Application.ObjectMeta, kioutil.PathAnnotation, path)
 	return nil
 }
 
