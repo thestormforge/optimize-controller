@@ -157,7 +157,7 @@ func (o *Options) View() string {
 	default:
 		// Otherwise combine the output of all the children models
 		view.Model(o.initializationModel)
-		view.Model(o.generatorModel)
+		view.Model(o.generatorModel.form())
 		view.Model(o.previewModel)
 	}
 
@@ -238,6 +238,11 @@ func (m initializationModel) View() string {
 		view.Step(out.Running, "Running controller %s", m.ControllerVersion)
 	}
 
+	if m.Done() {
+		view.Newline()
+		view.Step(out.Preview, "Welcome to StormForge!")
+	}
+
 	return view.String()
 }
 
@@ -275,20 +280,15 @@ func (o *Options) updateGeneratorForm() {
 	}
 }
 
-// View returns the rendering of the generator model.
-func (m generatorModel) View() string {
-	var view out.View
-
-	view.Step(out.Preview, "Welcome to StormForge!")
-	view.Model(m.form())
-
-	return view.String()
-}
-
 // View returns the rendering of the preview model.
 func (m previewModel) View() string {
 	var view out.View
 	if m.Experiment == nil {
+		return view.String()
+	}
+
+	if m.Destination == internal.DestinationScreen {
+		view.Model(m.Preview)
 		return view.String()
 	}
 
@@ -309,14 +309,16 @@ func (m previewModel) View() string {
 			view.Step(out.Preview, "  %s", m.Name)
 		}
 	}
-	view.Newline()
 
-	if !m.Confirmed {
+	view.Newline()
+	switch m.Destination {
+	case internal.DestinationUnknown:
+		view.Step(out.Instructions, "ctrl-t: view experiment YAML")
 		view.Step(out.YesNo, "Ready to run? [Y/n]: ")
 		return view.String()
+	case internal.DestinationCluster:
+		view.Step(out.Starting, "Starting experiment ...")
 	}
-
-	view.Step(out.Starting, "Starting experiment ...")
 
 	return view.String()
 }

@@ -175,8 +175,14 @@ func (o *Options) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, o.generateExperiment)
 
 	case internal.ExperimentConfirmedMsg:
-		// The user confirmed they are ready to run the experiment
-		cmds = append(cmds, o.createExperiment)
+		switch msg.Destination {
+		case internal.DestinationCluster:
+			// The user confirmed they are ready to run the experiment
+			cmds = append(cmds, o.createExperimentInCluster)
+		case internal.DestinationScreen:
+			// The user wants to preview the experiment
+			cmds = append(cmds, o.createExperimentOnScreen)
+		}
 
 	case internal.ExperimentCreatedMsg:
 		// The experiment is in the cluster, start refreshing the trial status

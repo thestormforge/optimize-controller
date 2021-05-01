@@ -19,6 +19,7 @@ package run
 import (
 	"strings"
 
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	"github.com/thestormforge/optimize-controller/internal/scan"
@@ -242,12 +243,19 @@ func (m *generatorModel) updateLabelSelectorInputs() {
 }
 
 type previewModel struct {
-	Experiment *redskyv1beta1.Experiment
-	Confirmed  bool
+	Experiment  *redskyv1beta1.Experiment
+	Destination internal.ExperimentDestination
+	Preview     viewport.Model
 }
 
 func (m previewModel) Update(msg tea.Msg) (previewModel, tea.Cmd) {
 	switch msg := msg.(type) {
+
+	case tea.WindowSizeMsg:
+		// Capture the window size for when we need to preview something
+		m.Preview.Width = msg.Width
+		m.Preview.Height = msg.Height
+
 	case internal.ExperimentMsg:
 		// Extract the experiment definition from the YAML to make it easier to pull values from
 		obj := scan.ObjectList{}
@@ -262,23 +270,38 @@ func (m previewModel) Update(msg tea.Msg) (previewModel, tea.Cmd) {
 		}
 
 	case internal.ExperimentConfirmedMsg:
-		// Update our confirmed state
-		m.Confirmed = true
+		// Update where the user wants the experiment to go
+		m.Destination = msg.Destination
 
 	case tea.KeyMsg:
-		// Prompt the user to see if they want to run the experiment
-		if m.Experiment != nil && !m.Confirmed {
-			switch msg.String() {
-			case "y", "Y", "enter":
-				return m, func() tea.Msg { return internal.ExperimentConfirmedMsg{} }
+		if m.Experiment != nil {
+			switch m.Destination {
+			case internal.DestinationUnknown:
+				// Prompt the user to see if they want to run the experiment
+				switch msg.String() {
+				case "y", "Y", "enter":
+					return m, func() tea.Msg { return internal.ExperimentConfirmedMsg{Destination: internal.DestinationCluster} }
 
-			case "n", "N":
-				return m, tea.Quit
+				case "n", "N":
+					return m, tea.Quit
+
+				case "ctrl+t":
+					return m, func() tea.Msg { return internal.ExperimentConfirmedMsg{Destination: internal.DestinationScreen} }
+				}
+
+			case internal.DestinationScreen:
+				// In the pager
+				switch msg.String() {
+				case "q", "Q":
+					return m, func() tea.Msg { return internal.ExperimentConfirmedMsg{Destination: internal.DestinationUnknown} }
+				}
 			}
 		}
 	}
 
-	return m, nil
+	var cmd tea.Cmd
+	m.Preview, cmd = m.Preview.Update(msg)
+	return m, cmd
 }
 
 type runModel struct {

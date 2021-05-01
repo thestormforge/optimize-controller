@@ -216,7 +216,7 @@ func (o *Options) generateExperiment() tea.Msg {
 	return msg
 }
 
-func (o *Options) createExperiment() tea.Msg {
+func (o *Options) createExperimentInCluster() tea.Msg {
 	ctx := context.TODO()
 
 	data, err := kio.StringAll(o.runModel.experiment)
@@ -235,6 +235,15 @@ func (o *Options) createExperiment() tea.Msg {
 	}
 
 	return internal.ExperimentCreatedMsg{}
+}
+
+func (o *Options) createExperimentOnScreen() tea.Msg {
+	content, err := kio.StringAll(o.runModel.experiment)
+	if err != nil {
+		return err
+	}
+	o.previewModel.Preview.SetContent(content)
+	return nil
 }
 
 func (o *Options) refreshTrials() tea.Msg {

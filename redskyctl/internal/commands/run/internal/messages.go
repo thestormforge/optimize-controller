@@ -67,7 +67,10 @@ func (m *ExperimentMsg) Write(nodes []*yaml.RNode) error {
 
 // ExperimentConfirmedMsg indicates that the user has confirmed they want to
 // run the experiment.
-type ExperimentConfirmedMsg struct{}
+type ExperimentConfirmedMsg struct {
+	Destination ExperimentDestination
+	Path        string
+}
 
 // ExperimentCreatedMsg indicates that the experiment has been successfully
 // applied to the cluster.

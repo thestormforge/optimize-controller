@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/muesli/termenv"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/form"
 )
 
@@ -40,6 +41,7 @@ const (
 	Watching
 	Completed
 	Failure
+	Instructions
 	YesNo
 	Preview
 )
@@ -47,6 +49,7 @@ const (
 type statusOptions struct {
 	Prefix      string
 	OmitNewline bool
+	termenv.Style
 }
 
 var statusConfig = map[Style]statusOptions{
@@ -64,6 +67,7 @@ var statusConfig = map[Style]statusOptions{
 	Watching:     {Prefix: "👓  "},
 	Completed:    {Prefix: "🍾  "},
 	Failure:      {Prefix: "❌  "},
+	Instructions: {Style: termenv.Style{}.Foreground(termenv.ColorProfile().Color("241"))},
 	YesNo:        {OmitNewline: true},
 	Preview:      {},
 }
@@ -80,7 +84,8 @@ func (v *View) Newline() {
 
 // Step adds a stylized line to the view.
 func (v *View) Step(style Style, format string, args ...interface{}) {
-	v.lines = append(v.lines, statusConfig[style].Prefix+fmt.Sprintf(format, args...))
+	s := statusConfig[style]
+	v.lines = append(v.lines, s.Prefix+s.Styled(fmt.Sprintf(format, args...)))
 	if !statusConfig[style].OmitNewline {
 		v.lines = append(v.lines, "\n")
 	}

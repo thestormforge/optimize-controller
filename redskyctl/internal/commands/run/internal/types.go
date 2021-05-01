@@ -18,17 +18,23 @@ package internal
 
 import "fmt"
 
+// Version is a version string for some tool that may be use (e.g. kubectl).
 type Version string
 
+// NewVersion returns a new version instance by formatting the supplied value as a string.
 func NewVersion(v interface{}) *Version {
 	result := Version(fmt.Sprintf("%s", v))
 	return &result
 }
 
+// Available returns true if the version represents something that is ready to be
+// used in some capacity (i.e. has a non-empty value).
 func (v *Version) Available() bool {
 	return v != nil && *v != ""
 }
 
+// String returns the version as a string, an empty string could be either a nil
+// version or a version with an empty string: use `Available()` to check.
 func (v *Version) String() string {
 	if v == nil {
 		return ""
@@ -52,6 +58,21 @@ const (
 	AuthorizationInvalidIgnored
 )
 
+// Allowed returns true if the status is in an "allowed" state (valid or ignored).
 func (s AuthorizationStatus) Allowed() bool {
 	return s == AuthorizationValid || s == AuthorizationInvalidIgnored
 }
+
+// ExperimentDestination represents the places a user may want to send a generated experiment.
+type ExperimentDestination int
+
+const (
+	// DestinationUnknown means the user has not decided where to send the experiment.
+	DestinationUnknown ExperimentDestination = iota
+	// DestinationCluster indicates an experiment should go straight to a cluster.
+	DestinationCluster
+	// DestinationScreen indicates the experiment should be rendered on screen.
+	DestinationScreen
+	// DestinationFile indicates the experiment should be written to disk.
+	DestinationFile
+)
