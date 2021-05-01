@@ -68,7 +68,7 @@ func (o *ControllerOptions) CheckController(ctx context.Context) error {
 
 	// Try to get the pod first; wait will fail if it doesn't exist yet
 	var output []byte
-	err = retry.OnError(wait.Backoff{
+	if err := retry.OnError(wait.Backoff{
 		Steps:    30,
 		Duration: 1 * time.Second,
 	}, func(err error) bool {
@@ -86,7 +86,9 @@ func (o *ControllerOptions) CheckController(ctx context.Context) error {
 			return fmt.Errorf("could not find controller pods: %w", err)
 		}
 		return nil
-	})
+	}); err != nil {
+		return err
+	}
 
 	// Delegate the wait to kubectl
 	if o.Wait {
