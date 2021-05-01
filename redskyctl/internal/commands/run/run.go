@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -231,37 +232,29 @@ func (o *Options) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // ReadApplication uses go-getter from the current directory to fetch an application definition.
 func (o *Options) ReadApplication(args []string) error {
-	c := getter.Client{}
-
 	err := cobra.MaximumNArgs(1)(nil, args)
 	if err != nil {
 		return err
 	}
 
-	c.Pwd, err = os.Getwd()
+	wd, err := os.Getwd()
 	if err != nil {
 		return err
 	}
 
-	if len(args) == 0 {
-		meta.SetMetaDataAnnotation(&o.Generator.Application.ObjectMeta, kioutil.PathAnnotation, filepath.Join(c.Pwd, "app.yaml"))
-		return nil
+	var path string
+	switch len(args) {
+	case 0:
+		path = filepath.Join(wd, "app.yaml")
+	case 1:
+		path, err = readIntoApplication(args[0], wd, &o.Generator.Application)
+		if err != nil {
+			return err
+		}
 	}
 
-	c.Src = args[0]
-	c.Dst = filepath.Join(os.TempDir(), fmt.Sprintf("read-application-%x", md5.Sum([]byte(c.Src))))
-	defer os.Remove(c.Dst)
-
-	if err := c.Get(); err != nil {
-		return fmt.Errorf("unable to read application: %w", err)
-	}
-
-	f, err := os.Open(c.Dst)
-	if err != nil {
-		return err
-	}
-
-	return commander.NewResourceReader().ReadInto(f, &o.Generator.Application)
+	meta.SetMetaDataAnnotation(&o.Generator.Application.ObjectMeta, kioutil.PathAnnotation, path)
+	return nil
 }
 
 // applyGeneratorModel takes all of the what is on the generatorModel and applies
@@ -340,4 +333,36 @@ func (o *Options) applyGeneratorModel() {
 		}
 	}
 
+}
+
+// readIntoApplication reads the supplied source relative to a working directory.
+func readIntoApplication(src, wd string, app *redskyappsv1alpha1.Application) (string, error) {
+	path := filepath.Join(wd, src)
+
+	// Try to use go-getter to support non-file inputs
+	u, err := getter.Detect(src, wd, getter.Detectors)
+	if err == nil && !strings.HasPrefix(u, "file:") {
+		path = filepath.Join(os.TempDir(), fmt.Sprintf("go-getter-application-md5-%x", md5.Sum([]byte(src))))
+		defer func() { _ = os.Remove(path) }()
+
+		c := getter.Client{
+			Src: src,
+			Dst: path,
+			Pwd: wd,
+		}
+		if err := c.Get(); err != nil {
+			return "", fmt.Errorf("unable to read application: %w", err)
+		}
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+
+	if err := commander.NewResourceReader().ReadInto(f, app); err != nil {
+		return "", err
+	}
+
+	return path, nil
 }
