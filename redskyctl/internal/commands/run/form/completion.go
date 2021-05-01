@@ -206,8 +206,8 @@ var _ Completions = &FileCompletions{}
 
 // Suggest returns directory contents matching the base name of the supplied path.
 func (c *FileCompletions) Suggest(path string) []string {
-	dir, file := filepath.Split(path)
-	entries, err := os.ReadDir(filepath.Clean(filepath.Join(c.WorkingDirectory, dir)))
+	readDir, dir, file := c.split(path)
+	entries, err := os.ReadDir(readDir)
 	if err != nil {
 		return nil
 	}
@@ -249,4 +249,20 @@ func (c *FileCompletions) hasExtension(ext string) bool {
 		}
 	}
 	return len(c.Extensions) == 0
+}
+
+func (c *FileCompletions) split(path string) (readDir, dir, file string) {
+	switch {
+	case path == "~":
+		readDir, _ = os.UserHomeDir()
+		dir, file = path, ""
+	case strings.HasPrefix(filepath.ToSlash(path), "~/"):
+		home, _ := os.UserHomeDir()
+		dir, file = filepath.Split(path)
+		readDir = filepath.Clean(filepath.Join(home, dir[2:]))
+	default:
+		dir, file = filepath.Split(path)
+		readDir = filepath.Clean(filepath.Join(c.WorkingDirectory, dir))
+	}
+	return
 }
