@@ -20,11 +20,15 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"os/exec"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
 	"github.com/thestormforge/optimize-go/pkg/config"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/yaml"
 )
 
@@ -62,28 +66,40 @@ func (o *ControllerOptions) CheckController(ctx context.Context) error {
 		return err
 	}
 
-	// Delegate the wait to kubectl
-	if o.Wait {
-		wait, err := o.Config.Kubectl(ctx, "--namespace", ns, "wait", "pods", "--selector", "control-plane=controller-manager", "--for", "condition=Ready=True")
+	// Try to get the pod first; wait will fail if it doesn't exist yet
+	var output []byte
+	err = retry.OnError(wait.Backoff{
+		Steps:    30,
+		Duration: 1 * time.Second,
+	}, func(err error) bool {
+		// Only retry if we are supposed to be waiting
+		_, ok := err.(*exec.ExitError)
+		return ok && o.Wait
+	}, func() error {
+		// Get the pod (this is the same query used to fetch the version number)
+		get, err := o.Config.Kubectl(ctx, "--namespace", ns, "get", "pods", "--selector", "control-plane=controller-manager", "--output", "yaml")
 		if err != nil {
 			return err
 		}
-		wait.Stdout = ioutil.Discard
-		if err := wait.Run(); err != nil {
+		output, err = get.Output()
+		if err != nil {
+			return fmt.Errorf("could not find controller pods: %w", err)
+		}
+		return nil
+	})
+
+	// Delegate the wait to kubectl
+	if o.Wait {
+		kubewait, err := o.Config.Kubectl(ctx, "--namespace", ns, "wait", "pods", "--selector", "control-plane=controller-manager", "--for", "condition=Ready=True")
+		if err != nil {
 			return err
+		}
+		kubewait.Stdout = ioutil.Discard
+		if err := kubewait.Run(); err != nil {
+			return fmt.Errorf("could not wait for controller pods: %w", err)
 		}
 		_, _ = fmt.Fprintf(o.Out, "Success.\n")
 		return nil
-	}
-
-	// Get the pod (this is the same query used to fetch the version number)
-	get, err := o.Config.Kubectl(ctx, "--namespace", ns, "get", "pods", "--selector", "control-plane=controller-manager", "--output", "yaml")
-	if err != nil {
-		return err
-	}
-	output, err := get.Output()
-	if err != nil {
-		return err
 	}
 
 	// For this check we are just going to assume it is safe to deserialize into a v1 PodList

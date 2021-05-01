@@ -150,6 +150,7 @@ func (o *Options) initializeController() tea.Msg {
 	}
 
 	// Now that we are installed, wait for it to become ready again
+	checkOpts.Wait = true
 	if err := checkOpts.CheckController(ctx); err != nil {
 		return err
 	}
