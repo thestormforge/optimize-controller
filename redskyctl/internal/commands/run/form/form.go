@@ -91,6 +91,19 @@ func (f Fields) Update(msg tea.Msg) tea.Cmd {
 					focused.Blur()
 					focused.Hide()
 				}
+
+			case tea.KeyHome:
+				// Allow going all the way back to the start
+				var foundHome bool
+				for i := range f {
+					if !foundHome && f[i].Enabled() {
+						f[i].Focus()
+						foundHome = true
+					} else {
+						f[i].Blur()
+						f[i].Hide()
+					}
+				}
 			}
 		}
 

@@ -35,6 +35,21 @@ const (
 	ScenarioTypeLocust      = "Locust"
 )
 
+var pagerKeyBindings = []out.KeyBinding{
+	{
+		Key:  tea.Key{Type: tea.KeyCtrlX},
+		Desc: "Quit",
+	},
+	{
+		Key:  tea.Key{Type: tea.KeySpace},
+		Desc: "Next page",
+	},
+	{
+		Key:  tea.Key{Type: tea.KeyRunes, Runes: []rune{'b'}},
+		Desc: "Previous page",
+	},
+}
+
 // initializeModel is invoked before the program is started to ensure things
 // are in a valid state prior to starting.
 func (o *Options) initializeModel() {
@@ -45,7 +60,7 @@ func (o *Options) initializeModel() {
 
 	o.generatorModel.ScenarioType = out.FormField{
 		Prompt:       "Where do you want to get your load test from?",
-		Instructions: []string{"up/down: select", "enter: continue"},
+		Instructions: []string{"up/down: select", "pgup: back", "enter: continue"},
 		Choices: []string{
 			ScenarioTypeStormForger,
 			ScenarioTypeLocust,
@@ -56,7 +71,7 @@ func (o *Options) initializeModel() {
 	o.generatorModel.StormForgerTestCaseInput = out.FormField{
 		Prompt:         "Please select a load test to optimize:",
 		LoadingMessage: "Fetching test cases from StormForger",
-		Instructions:   []string{"up/down: select", "enter: continue"},
+		Instructions:   []string{"up/down: select", "pgup: back", "enter: continue"},
 	}.NewChoiceField(opts...)
 
 	o.generatorModel.StormForgerGettingStarted = out.FormField{
@@ -68,7 +83,7 @@ https://docs.stormforger.com/guides/getting-started/`,
 		Prompt:          "Please input a path to your Locust load test to optimize:",
 		Placeholder:     "( e.g. ~/my-project/tests/locustfile.py )",
 		InputOnSameLine: true,
-		Instructions:    []string{"enter: continue"},
+		Instructions:    []string{"pgup: back", "enter: continue"},
 		Completions: &form.FileCompletions{
 			Extensions: []string{".py"},
 		},
@@ -82,7 +97,7 @@ https://docs.stormforger.com/guides/getting-started/`,
 	o.generatorModel.NamespaceInput = out.FormField{
 		Prompt:         "Please select the namespace(s) where your application is running:",
 		LoadingMessage: "Fetching namespaces from Kubernetes",
-		Instructions:   []string{"up/down: select", "x: choose", "enter: continue"},
+		Instructions:   []string{"up/down: select", "x: choose", "pgup: back", "enter: continue"},
 	}.NewMultiChoiceField(opts...)
 	o.generatorModel.NamespaceInput.Validator = &form.Required{
 		Error: "Required",
@@ -92,7 +107,7 @@ https://docs.stormforger.com/guides/getting-started/`,
 		labelSelectorInput := out.FormField{
 			Prompt:       fmt.Sprintf("Specify labels for '%s' namespace:", namespace),
 			Placeholder:  "( e.g. environment=dev, tier=frontend )",
-			Instructions: []string{"Leave blank to select all resources", "enter: continue"},
+			Instructions: []string{"Leave blank to select all resources", "pgup: back", "enter: continue"},
 		}.NewTextField(opts...)
 		labelSelectorInput.Validator = &labelSelectorValidator{
 			InvalidSelector: "Must be a valid label selector",
@@ -103,7 +118,7 @@ https://docs.stormforger.com/guides/getting-started/`,
 	o.generatorModel.IngressURLInput = out.FormField{
 		Prompt:          "Enter the URL of the endpoint to test:",
 		Placeholder:     "( e.g. http://my-app.svc.cluster.local )",
-		Instructions:    []string{"enter: continue"},
+		Instructions:    []string{"pgup: back", "enter: continue"},
 		InputOnSameLine: true,
 	}.NewTextField(opts...)
 	o.generatorModel.IngressURLInput.Validator = &form.URL{
@@ -115,7 +130,7 @@ https://docs.stormforger.com/guides/getting-started/`,
 	o.generatorModel.ContainerResourcesSelectorInput = out.FormField{
 		Prompt:       "Specify labels to control discovery of memory and CPU parameters:",
 		Placeholder:  "( e.g. component=api )",
-		Instructions: []string{"Leave blank to select all resources", "enter: continue"},
+		Instructions: []string{"Leave blank to select all resources", "pgup: back", "enter: continue"},
 	}.NewTextField(opts...)
 	o.generatorModel.ContainerResourcesSelectorInput.Validator = &labelSelectorValidator{
 		InvalidSelector: "Must be a valid label selector",
@@ -124,7 +139,7 @@ https://docs.stormforger.com/guides/getting-started/`,
 	o.generatorModel.ReplicasSelectorInput = out.FormField{
 		Prompt:       "Specify labels to control discovery of replica parameters:",
 		Placeholder:  "( e.g. component=api )",
-		Instructions: []string{"Leave blank to select no resources", "enter: continue"},
+		Instructions: []string{"Leave blank to select no resources", "pgup: back", "enter: continue"},
 	}.NewTextField(opts...)
 	o.generatorModel.ReplicasSelectorInput.Validator = &labelSelectorValidator{
 		InvalidSelector: "Must be a valid label selector",
@@ -132,7 +147,7 @@ https://docs.stormforger.com/guides/getting-started/`,
 
 	o.generatorModel.ObjectiveInput = out.FormField{
 		Prompt:       "Please select objectives to optimize:",
-		Instructions: []string{"up/down: select", "x: choose", "enter: continue"},
+		Instructions: []string{"up/down: select", "x: choose", "pgup: back", "enter: continue"},
 		Choices: []string{
 			"cost",
 			"p50-latency",
@@ -290,22 +305,7 @@ func (m previewModel) View() string {
 
 	if m.Destination == internal.DestinationScreen {
 		view.Model(m.Preview)
-		view.Newline()
-		view.Newline()
-		_, _ = view.Write([]byte(out.RenderKeyBindings([]out.KeyBinding{
-			{
-				Key:  tea.Key{Type: tea.KeyCtrlX},
-				Desc: "Quit",
-			},
-			{
-				Key:  tea.Key{Type: tea.KeySpace},
-				Desc: "Next page",
-			},
-			{
-				Key:  tea.Key{Type: tea.KeyRunes, Runes: []rune{'b'}},
-				Desc: "Previous page",
-			},
-		}, m.Preview.Width)))
+		_, _ = view.Write([]byte(out.RenderKeyBindings(pagerKeyBindings, m.Preview.Width)))
 		return view.String()
 	}
 

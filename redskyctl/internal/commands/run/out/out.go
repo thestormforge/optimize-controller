@@ -244,5 +244,5 @@ func RenderKeyBindings(keys []KeyBinding, width int) string {
 		bindings = append(bindings, binding)
 	}
 
-	return strings.Join(bindings, " ")
+	return "\n\n" + strings.Join(bindings, " ")
 }

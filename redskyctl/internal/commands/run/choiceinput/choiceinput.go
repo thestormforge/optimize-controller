@@ -148,7 +148,7 @@ func viewChoice(value string, selected, highlighted, focused bool) string {
 	var checkboxStyle, choiceStyle termenv.Style
 	checked := " "
 
-	if selected && !focused {
+	if selected {
 		checked = "x"
 	}
 	if highlighted && focused {
