@@ -235,12 +235,19 @@ type KeyBinding struct {
 func RenderKeyBindings(keys []KeyBinding, width int) string {
 	keyStyle := instructionsStyle.Reverse()
 	descStyle := instructionsStyle
+
+	// Enforce a minimum width
+	if width < 80 {
+		width = 80
+	}
 	cellWidth := (width / len(keys)) - 1
 
 	var bindings []string
 	for _, k := range keys {
 		binding := fmt.Sprintf("%s: %s", keyStyle.Styled(k.Key.String()), descStyle.Styled(k.Desc))
-		binding = binding + strings.Repeat(" ", cellWidth-len(binding))
+		if padding := cellWidth - len(binding); padding > 0 {
+			binding = binding + strings.Repeat(" ", padding)
+		}
 		bindings = append(bindings, binding)
 	}
 

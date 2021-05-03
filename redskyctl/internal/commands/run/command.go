@@ -123,6 +123,9 @@ func (o *Options) checkPerformanceTestAuthorization() tea.Msg {
 	return internal.PerformanceTestAuthorizationMsg(internal.AuthorizationValid)
 }
 
+// initializeController checks to see if the controller is already installed before
+// performing an initialization and readiness check. The result is either an error
+// or the installed version of the controller.
 func (o *Options) initializeController() tea.Msg {
 	ctx := context.TODO()
 
@@ -158,6 +161,7 @@ func (o *Options) initializeController() tea.Msg {
 	return o.checkControllerVersion()
 }
 
+// listKubernetesNamespaces returns a list of the namespaces in the Kubernetes cluster.
 func (o *Options) listKubernetesNamespaces() tea.Msg {
 	ctx := context.TODO()
 	msg := internal.KubernetesNamespacesMsg{}
@@ -180,6 +184,7 @@ func (o *Options) listKubernetesNamespaces() tea.Msg {
 	return msg
 }
 
+// listStormForgerTestCaseNames returns a list of organization qualified test cases.
 func (o *Options) listStormForgerTestCaseNames() tea.Msg {
 	ctx := context.TODO()
 	msg := internal.StormForgerTestCasesMsg{}
@@ -204,6 +209,8 @@ func (o *Options) listStormForgerTestCaseNames() tea.Msg {
 	return msg
 }
 
+// generateExperiment executes the experiment generator, returning the raw YAML
+// (as KYAML RNodes).
 func (o *Options) generateExperiment() tea.Msg {
 	msg := internal.ExperimentMsg{}
 
@@ -217,6 +224,7 @@ func (o *Options) generateExperiment() tea.Msg {
 	return msg
 }
 
+// createExperimentInCluster creates the raw experiment manifests in the cluster.
 func (o *Options) createExperimentInCluster() tea.Msg {
 	ctx := context.TODO()
 
@@ -238,15 +246,7 @@ func (o *Options) createExperimentInCluster() tea.Msg {
 	return internal.ExperimentCreatedMsg{}
 }
 
-func (o *Options) createExperimentOnScreen() tea.Msg {
-	content, err := kio.StringAll(o.runModel.experiment)
-	if err != nil {
-		return err
-	}
-	o.previewModel.Preview.SetContent(content)
-	return nil
-}
-
+// refreshTrials fetches the trial list for the experiment as raw YAML.
 func (o *Options) refreshTrials() tea.Msg {
 	ctx := context.TODO()
 
@@ -293,6 +293,8 @@ func (o *Options) refreshTrials() tea.Msg {
 	return internal.TrialsMsg(trialNodes)
 }
 
+// refreshTrialsTick is used to initiate the a refresh of the trial list after
+// a fixed (2 second) delay.
 func (o *Options) refreshTrialsTick() tea.Cmd {
 	return tea.Tick(2*time.Second, func(t time.Time) tea.Msg {
 		return internal.TrialsRefreshMsg(t)

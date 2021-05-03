@@ -269,6 +269,13 @@ func (m previewModel) Update(msg tea.Msg) (previewModel, tea.Cmd) {
 			}
 		}
 
+		// Store the raw YAML in preview pager
+		content, err := kio.StringAll(msg)
+		if err != nil {
+			return m, internal.Error(err)
+		}
+		m.Preview.SetContent(content)
+
 	case internal.ExperimentConfirmedMsg:
 		// Update where the user wants the experiment to go
 		m.Destination = msg.Destination
