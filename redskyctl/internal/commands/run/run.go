@@ -259,7 +259,7 @@ func (o *Options) ReadApplication(args []string) error {
 func (o *Options) applyGeneratorModel() {
 	if o.generatorModel.NamespaceInput.Enabled() {
 
-		// TODO DEMO ONLY HACK
+		// TODO We need a better way to set the name/namespace of the application
 		if namespaces := o.generatorModel.NamespaceInput.Values(); len(namespaces) == 1 {
 			o.Generator.Application.Name = namespaces[0]
 			o.Generator.Application.Namespace = namespaces[0]

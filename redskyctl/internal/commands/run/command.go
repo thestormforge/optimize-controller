@@ -250,7 +250,9 @@ func (o *Options) createExperimentInCluster() tea.Msg {
 func (o *Options) refreshTrials() tea.Msg {
 	ctx := context.TODO()
 
-	// TODO Where do we get the namespace/selector from?
+	// TODO This should be refactored to only use state from the runModel
+	// We are using the previewModel for functionality specific to the runModel,
+	// this should be changed so the namespace, name, and selector are on the runModel
 	namespace := o.previewModel.Experiment.Namespace
 	name := o.previewModel.Experiment.Name
 	labelSelector := meta.FormatLabelSelector(o.previewModel.Experiment.TrialSelector())

@@ -81,7 +81,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			case "down":
 				m.Highlight(m.highlighted + 1)
 
-			case "x":
+			case "x", " ":
+				// TODO How do we handle this when we are editable?
 				m.Toggle(m.highlighted)
 
 			}

@@ -19,6 +19,7 @@ package out
 import (
 	"fmt"
 	"strings"
+	"text/tabwriter"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/muesli/termenv"
@@ -236,20 +237,12 @@ func RenderKeyBindings(keys []KeyBinding, width int) string {
 	keyStyle := instructionsStyle.Reverse()
 	descStyle := instructionsStyle
 
-	// Enforce a minimum width
-	if width < 80 {
-		width = 80
-	}
-	cellWidth := (width / len(keys)) - 1
-
-	var bindings []string
+	var buf strings.Builder
+	buf.WriteString("\n\n")
+	tw := tabwriter.NewWriter(&buf, width/len(keys), 1, 1, ' ', 0)
 	for _, k := range keys {
-		binding := fmt.Sprintf("%s: %s", keyStyle.Styled(k.Key.String()), descStyle.Styled(k.Desc))
-		if padding := cellWidth - len(binding); padding > 0 {
-			binding = binding + strings.Repeat(" ", padding)
-		}
-		bindings = append(bindings, binding)
+		_, _ = fmt.Fprintf(tw, "%s: %s\t", keyStyle.Styled(k.Key.String()), descStyle.Styled(k.Desc))
 	}
-
-	return "\n\n" + strings.Join(bindings, " ")
+	_ = tw.Flush()
+	return buf.String()
 }
