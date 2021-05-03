@@ -289,6 +289,22 @@ func (m previewModel) View() string {
 
 	if m.Destination == internal.DestinationScreen {
 		view.Model(m.Preview)
+		view.Newline()
+		view.Newline()
+		_, _ = view.Write([]byte(out.RenderKeyBindings([]out.KeyBinding{
+			{
+				Key:  tea.Key{Type: tea.KeyCtrlX},
+				Desc: "Quit",
+			},
+			{
+				Key:  tea.Key{Type: tea.KeySpace},
+				Desc: "Next page",
+			},
+			{
+				Key:  tea.Key{Type: tea.KeyRunes, Runes: []rune{'b'}},
+				Desc: "Previous page",
+			},
+		}, m.Preview.Width)))
 		return view.String()
 	}
 

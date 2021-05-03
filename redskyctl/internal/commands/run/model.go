@@ -254,7 +254,7 @@ func (m previewModel) Update(msg tea.Msg) (previewModel, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		// Capture the window size for when we need to preview something
 		m.Preview.Width = msg.Width
-		m.Preview.Height = msg.Height
+		m.Preview.Height = msg.Height - 2 // Adjust for the instructions
 
 	case internal.ExperimentMsg:
 		// Extract the experiment definition from the YAML to make it easier to pull values from
@@ -292,7 +292,7 @@ func (m previewModel) Update(msg tea.Msg) (previewModel, tea.Cmd) {
 			case internal.DestinationScreen:
 				// In the pager
 				switch msg.String() {
-				case "q", "Q":
+				case "q", "Q", "ctrl+x":
 					return m, func() tea.Msg { return internal.ExperimentConfirmedMsg{Destination: internal.DestinationUnknown} }
 				}
 			}

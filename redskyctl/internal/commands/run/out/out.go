@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"strings"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/muesli/termenv"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/form"
 )
@@ -46,6 +47,8 @@ const (
 	Preview
 )
 
+var instructionsStyle = termenv.Style{}.Foreground(termenv.ColorProfile().Color("241"))
+
 type statusOptions struct {
 	Prefix      string
 	OmitNewline bool
@@ -67,7 +70,7 @@ var statusConfig = map[Style]statusOptions{
 	Watching:     {Prefix: "👓  "},
 	Completed:    {Prefix: "🍾  "},
 	Failure:      {Prefix: "❌  "},
-	Instructions: {Style: termenv.Style{}.Foreground(termenv.ColorProfile().Color("241"))},
+	Instructions: {Style: instructionsStyle},
 	YesNo:        {OmitNewline: true},
 	Preview:      {},
 }
@@ -218,4 +221,28 @@ func (f *FormField) loadingMessage() string {
 		return ""
 	}
 	return " " + f.LoadingMessage + " ..."
+}
+
+// KeyBinding represents a description of what a key should do.
+type KeyBinding struct {
+	// The key bound to the action.
+	Key tea.Key
+	// The description of the action.
+	Desc string
+}
+
+// RenderKeyBindings generates an instruction line for the supplied key bindings.
+func RenderKeyBindings(keys []KeyBinding, width int) string {
+	keyStyle := instructionsStyle.Reverse()
+	descStyle := instructionsStyle
+	cellWidth := (width / len(keys)) - 1
+
+	var bindings []string
+	for _, k := range keys {
+		binding := fmt.Sprintf("%s: %s", keyStyle.Styled(k.Key.String()), descStyle.Styled(k.Desc))
+		binding = binding + strings.Repeat(" ", cellWidth-len(binding))
+		bindings = append(bindings, binding)
+	}
+
+	return strings.Join(bindings, " ")
 }
