@@ -20,11 +20,14 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
 	"github.com/thestormforge/optimize-go/pkg/config"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/yaml"
 )
 
@@ -47,7 +50,7 @@ func NewControllerCommand(o *ControllerOptions) *cobra.Command {
 		Long:  "Check the Red Sky controller",
 
 		PreRun: commander.StreamsPreRun(&o.IOStreams),
-		RunE:   commander.WithContextE(o.checkController),
+		RunE:   commander.WithContextE(o.CheckController),
 	}
 
 	cmd.Flags().BoolVar(&o.Wait, "wait", o.Wait, "wait for the controller to be ready before returning")
@@ -55,54 +58,61 @@ func NewControllerCommand(o *ControllerOptions) *cobra.Command {
 	return cmd
 }
 
-func (o *ControllerOptions) checkController(ctx context.Context) error {
+func (o *ControllerOptions) CheckController(ctx context.Context) error {
 	// Get the namespace
 	ns, err := o.Config.SystemNamespace()
 	if err != nil {
 		return err
 	}
 
-	// Delegate the wait to kubectl
-	if o.Wait {
-		wait, err := o.Config.Kubectl(ctx, "--namespace", ns, "wait", "pods", "--selector", "control-plane=controller-manager", "--for", "condition=Ready=True")
+	// Try to get the pod first; wait will fail if it doesn't exist yet
+	list := &corev1.PodList{}
+	if err := retry.OnError(wait.Backoff{
+		Steps:    30,
+		Duration: 1 * time.Second,
+	}, func(err error) bool {
+		// Only retry if we are supposed to be waiting
+		return o.Wait
+	}, func() error {
+		// Get the pod (this is the same query used to fetch the version number)
+		get, err := o.Config.Kubectl(ctx, "--namespace", ns, "get", "pods", "--selector", "control-plane=controller-manager", "--ignore-not-found", "--output", "yaml")
 		if err != nil {
 			return err
 		}
-		wait.Stdout = ioutil.Discard
-		if err := wait.Run(); err != nil {
+		output, err := get.Output()
+		if err != nil {
+			return fmt.Errorf("could not find controller pods: %w", err)
+		}
+		if err := yaml.Unmarshal(output, list); err != nil {
 			return err
+		}
+		if len(list.Items) == 0 {
+			return fmt.Errorf("unable to find controller in namespace '%s'", ns)
+		}
+		if len(list.Items) > 1 {
+			return fmt.Errorf("found multiple controllers in namespace '%s'", ns)
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	// Delegate the wait to kubectl
+	if o.Wait {
+		kubewait, err := o.Config.Kubectl(ctx, "--namespace", ns, "wait", "pods", "--selector", "control-plane=controller-manager", "--for", "condition=Ready=True")
+		if err != nil {
+			return err
+		}
+		kubewait.Stdout = ioutil.Discard
+		if err := kubewait.Run(); err != nil {
+			return fmt.Errorf("could not wait for controller pods: %w", err)
 		}
 		_, _ = fmt.Fprintf(o.Out, "Success.\n")
 		return nil
 	}
 
-	// Get the pod (this is the same query used to fetch the version number)
-	get, err := o.Config.Kubectl(ctx, "--namespace", ns, "get", "pods", "--selector", "control-plane=controller-manager", "--output", "yaml")
-	if err != nil {
-		return err
-	}
-	output, err := get.Output()
-	if err != nil {
-		return err
-	}
-
-	// For this check we are just going to assume it is safe to deserialize into a v1 PodList
-	list := &corev1.PodList{}
-	if err := yaml.Unmarshal(output, list); err != nil {
-		return err
-	}
-
-	// We are expecting a single item list
-	if len(list.Items) == 0 {
-		return fmt.Errorf("unable to find controller in namespace '%s'", ns)
-	}
-	if len(list.Items) > 1 {
-		return fmt.Errorf("found multiple controllers in namespace '%s'", ns)
-	}
-	pod := &list.Items[0]
-
 	// Check to see if the pod is ready
-	for _, c := range pod.Status.Conditions {
+	for _, c := range list.Items[0].Status.Conditions {
 		if c.Type == corev1.PodReady && c.Status != corev1.ConditionTrue {
 			return fmt.Errorf("controller is not ready")
 		}

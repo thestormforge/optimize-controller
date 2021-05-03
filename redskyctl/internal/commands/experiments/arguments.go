@@ -41,7 +41,7 @@ func Completion(ctx context.Context, api experimentsv1alpha1.API, args []string,
 		return s, cobra.ShellCompDirectiveNoFileComp
 	}
 
-	// Assume we can names parse now
+	// Assume we can parse names now
 	argsToParse := make([]string, len(args), len(args)+1)
 	copy(argsToParse, args)
 	if toComplete != "" {

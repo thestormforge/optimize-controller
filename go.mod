@@ -7,12 +7,15 @@ require (
 	github.com/Masterminds/semver v1.4.2 // indirect
 	github.com/Masterminds/sprig v2.20.0+incompatible
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
+	github.com/charmbracelet/bubbles v0.7.6
+	github.com/charmbracelet/bubbletea v0.13.1
 	github.com/go-logr/logr v0.1.0
 	github.com/go-logr/zapr v0.1.1
 	github.com/huandu/xstrings v1.2.0 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/lestrrat-go/jwx v1.0.6
 	github.com/mdp/qrterminal/v3 v3.0.0
+	github.com/muesli/termenv v0.7.4
 	github.com/pelletier/go-toml v1.2.0
 	github.com/pkg/browser v0.0.0-20180916011732-0a3d74bf9ce4
 	github.com/prometheus/client_golang v1.0.0

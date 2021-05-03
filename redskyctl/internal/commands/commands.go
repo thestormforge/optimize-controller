@@ -17,8 +17,10 @@ limitations under the License.
 package commands
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -41,6 +43,7 @@ import (
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/reset"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/results"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/revoke"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/version"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"github.com/thestormforge/optimize-go/pkg/config"
@@ -69,6 +72,7 @@ func NewRedskyctlCommand() *cobra.Command {
 	rootCmd.AddCommand(authorize_cluster.NewCommand(&authorize_cluster.Options{GeneratorOptions: authorize_cluster.GeneratorOptions{Config: cfg}}))
 	rootCmd.AddCommand(generate.NewCommand(&generate.Options{Config: cfg}))
 	rootCmd.AddCommand(export.NewCommand(&export.Options{Config: cfg}))
+	rootCmd.AddCommand(run.NewCommand(&run.Options{Config: cfg}))
 
 	// Remote Server Commands
 	rootCmd.AddCommand(experiments.NewDeleteCommand(&experiments.DeleteOptions{Options: experiments.Options{Config: cfg}}))
@@ -118,6 +122,12 @@ func mapError(err error) error {
 			return fmt.Errorf("%w, try running 'redskyctl login'", err)
 		}
 		return fmt.Errorf("unauthorized, try running 'redskyctl login'")
+	}
+
+	// It's really annoying to just get an "exit status was one" message.
+	var e *exec.ExitError
+	if errors.As(err, &e) && !e.Success() && len(e.Stderr) > 0 {
+		return fmt.Errorf("%w\n%s", err, string(e.Stderr))
 	}
 
 	return err
