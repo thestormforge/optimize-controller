@@ -66,7 +66,7 @@ func (o *ControllerOptions) CheckController(ctx context.Context) error {
 	}
 
 	// Try to get the pod first; wait will fail if it doesn't exist yet
-	var output []byte
+	list := &corev1.PodList{}
 	if err := retry.OnError(wait.Backoff{
 		Steps:    30,
 		Duration: 1 * time.Second,
@@ -75,13 +75,22 @@ func (o *ControllerOptions) CheckController(ctx context.Context) error {
 		return o.Wait
 	}, func() error {
 		// Get the pod (this is the same query used to fetch the version number)
-		get, err := o.Config.Kubectl(ctx, "--namespace", ns, "get", "pods", "--selector", "control-plane=controller-manager", "--output", "yaml")
+		get, err := o.Config.Kubectl(ctx, "--namespace", ns, "get", "pods", "--selector", "control-plane=controller-manager", "--ignore-not-found", "--output", "yaml")
 		if err != nil {
 			return err
 		}
-		output, err = get.Output()
+		output, err := get.Output()
 		if err != nil {
 			return fmt.Errorf("could not find controller pods: %w", err)
+		}
+		if err := yaml.Unmarshal(output, list); err != nil {
+			return err
+		}
+		if len(list.Items) == 0 {
+			return fmt.Errorf("unable to find controller in namespace '%s'", ns)
+		}
+		if len(list.Items) > 1 {
+			return fmt.Errorf("found multiple controllers in namespace '%s'", ns)
 		}
 		return nil
 	}); err != nil {
@@ -102,23 +111,8 @@ func (o *ControllerOptions) CheckController(ctx context.Context) error {
 		return nil
 	}
 
-	// For this check we are just going to assume it is safe to deserialize into a v1 PodList
-	list := &corev1.PodList{}
-	if err := yaml.Unmarshal(output, list); err != nil {
-		return err
-	}
-
-	// We are expecting a single item list
-	if len(list.Items) == 0 {
-		return fmt.Errorf("unable to find controller in namespace '%s'", ns)
-	}
-	if len(list.Items) > 1 {
-		return fmt.Errorf("found multiple controllers in namespace '%s'", ns)
-	}
-	pod := &list.Items[0]
-
 	// Check to see if the pod is ready
-	for _, c := range pod.Status.Conditions {
+	for _, c := range list.Items[0].Status.Conditions {
 		if c.Type == corev1.PodReady && c.Status != corev1.ConditionTrue {
 			return fmt.Errorf("controller is not ready")
 		}
