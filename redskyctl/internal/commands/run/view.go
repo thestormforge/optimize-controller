@@ -103,6 +103,7 @@ https://docs.stormforger.com/guides/getting-started/`,
 	o.generatorModel.IngressURLInput = out.FormField{
 		Prompt:          "Enter the URL of the endpoint to test:",
 		Placeholder:     "( e.g. http://my-app.svc.cluster.local )",
+		Instructions:    []string{"enter: continue"},
 		InputOnSameLine: true,
 	}.NewTextField(opts...)
 	o.generatorModel.IngressURLInput.Validator = &form.URL{
