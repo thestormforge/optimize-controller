@@ -215,7 +215,6 @@ func (o *Options) generateExperiment() tea.Msg {
 	msg := internal.ExperimentMsg{}
 
 	o.Generator.Application.Default()
-	o.Generator.SetDefaultSelectors()
 
 	if err := o.Generator.Execute(&msg); err != nil {
 		return err

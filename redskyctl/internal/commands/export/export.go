@@ -367,7 +367,6 @@ func (o *Options) generateExperiment(trial *trialDetails) error {
 		FilterOptions:  opts,
 	}
 
-	gen.SetDefaultSelectors()
 	if gen.Scenario == "" && gen.Objective == "" {
 		gen.Scenario, gen.Objective = apppkg.GuessScenarioAndObjective(&gen.Application, gen.ExperimentName)
 	}

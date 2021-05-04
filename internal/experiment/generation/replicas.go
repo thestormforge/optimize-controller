@@ -34,6 +34,16 @@ type ReplicaSelector struct {
 
 var _ scan.Selector = &ReplicaSelector{}
 
+func (s *ReplicaSelector) Default() {
+	if s.Kind == "" {
+		s.Group = "apps|extensions"
+		s.Kind = "Deployment|StatefulSet"
+	}
+	if s.Path == "" {
+		s.Path = "/spec/replicas"
+	}
+}
+
 func (s *ReplicaSelector) Map(node *yaml.RNode, meta yaml.ResourceMeta) ([]interface{}, error) {
 	var result []interface{}
 

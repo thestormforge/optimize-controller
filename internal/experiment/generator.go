@@ -38,64 +38,10 @@ type Generator struct {
 	Scenario string
 	// The name of the objective to generate an experiment for. Required if there are more then one set of objectives.
 	Objective string
-	// ContainerResourcesSelectors are the selectors for determining what application resources to scan for resources lists.
-	ContainerResourcesSelectors []generation.ContainerResourcesSelector
-	// ReplicaSelectors are the selectors for determining what application resources to scan for desired replica counts.
-	ReplicaSelectors []generation.ReplicaSelector
 	// IncludeApplicationResources is a flag indicating that the application resources should be included in the output.
 	IncludeApplicationResources bool
 	// Configure the filter options.
 	scan.FilterOptions
-}
-
-// SetDefaultSelectors adds the default selectors to the generator, this requires that the application
-// already be configured on the generator.
-func (g *Generator) SetDefaultSelectors() {
-	// NOTE: This method is completely arbitrary based on what we think the desired output might be.
-	// This bridges the gap between the powerful selection logic that is implemented vs the simple
-	// selection configuration that is actually exposed on the Application.
-
-	// Add replica selectors
-	for i := range g.Application.Parameters {
-		switch {
-
-		case g.Application.Parameters[i].ContainerResources != nil:
-			g.ContainerResourcesSelectors = append(g.ContainerResourcesSelectors, generation.ContainerResourcesSelector{
-				GenericSelector: scan.GenericSelector{
-					Group:         "apps|extensions",
-					Kind:          "Deployment|StatefulSet",
-					LabelSelector: g.Application.Parameters[i].ContainerResources.Selector,
-				},
-				Path:               "/spec/template/spec/containers",
-				CreateIfNotPresent: true,
-				Resources:          g.Application.Parameters[i].ContainerResources.Resources,
-			})
-
-		case g.Application.Parameters[i].Replicas != nil:
-			g.ReplicaSelectors = append(g.ReplicaSelectors, generation.ReplicaSelector{
-				GenericSelector: scan.GenericSelector{
-					Group:         "apps|extensions",
-					Kind:          "Deployment|StatefulSet",
-					LabelSelector: g.Application.Parameters[i].Replicas.Selector,
-				},
-				Path:               "/spec/replicas",
-				CreateIfNotPresent: true,
-			})
-		}
-
-	}
-
-	// Do not allow container resource selectors to be empty
-	if len(g.ContainerResourcesSelectors) == 0 {
-		g.ContainerResourcesSelectors = append(g.ContainerResourcesSelectors, generation.ContainerResourcesSelector{
-			GenericSelector: scan.GenericSelector{
-				Group: "apps|extensions",
-				Kind:  "Deployment|StatefulSet",
-			},
-			Path:               "/spec/template/spec/containers",
-			CreateIfNotPresent: true,
-		})
-	}
 }
 
 // Execute the experiment generation pipeline, sending the results to the supplied writer.
@@ -170,19 +116,40 @@ func (g *Generator) Execute(output kio.Writer) error {
 func (g *Generator) selectors() []scan.Selector {
 	var result []scan.Selector
 
-	// Replica selectors look for horizontally scalable resources
-	for i := range g.ReplicaSelectors {
-		result = append(result, &g.ReplicaSelectors[i])
+	for i := range g.Application.Parameters {
+		switch {
+
+		case g.Application.Parameters[i].ContainerResources != nil:
+			result = append(result, &generation.ContainerResourcesSelector{
+				GenericSelector: scan.GenericSelector{
+					LabelSelector: g.Application.Parameters[i].ContainerResources.Selector,
+				},
+				Resources:          g.Application.Parameters[i].ContainerResources.Resources,
+				CreateIfNotPresent: true,
+			})
+
+		case g.Application.Parameters[i].Replicas != nil:
+			result = append(result, &generation.ReplicaSelector{
+				GenericSelector: scan.GenericSelector{
+					LabelSelector: g.Application.Parameters[i].Replicas.Selector,
+				},
+				CreateIfNotPresent: true,
+			})
+		}
+
 	}
 
-	// Container resource selectors look for resource requests/limits
-	for i := range g.ContainerResourcesSelectors {
-		result = append(result, &g.ContainerResourcesSelectors[i])
+	// Make sure we have at least one selector that will produce parameters
+	if len(result) == 0 {
+		result = append(result, &generation.ContainerResourcesSelector{CreateIfNotPresent: true})
 	}
 
-	// TODO EnvVarSelector
-	// TODO IngressSelector
-	// TODO ConfigMapSelector?
+	// Apply defaults to any selector that supports it
+	for i := range result {
+		if def, ok := result[i].(interface{ Default() }); ok {
+			def.Default()
+		}
+	}
 
 	return result
 }

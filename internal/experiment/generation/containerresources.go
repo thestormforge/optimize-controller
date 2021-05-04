@@ -33,20 +33,31 @@ import (
 // ContainerResourcesSelector scans for container resources specifications (requests/limits).
 type ContainerResourcesSelector struct {
 	scan.GenericSelector
-	// Path to the list of containers.
-	Path string `json:"path,omitempty"`
-	// Create container resource specifications even if the original object does not contain them.
-	CreateIfNotPresent bool `json:"create,omitempty"`
 	// Regular expression matching the container name.
 	ContainerName string `json:"containerName,omitempty"`
+	// Path to the list of containers.
+	Path string `json:"path,omitempty"`
 	// Names of the resources to select, defaults to ["memory", "cpu"].
 	Resources []corev1.ResourceName `json:"resources,omitempty"`
-
+	// Create container resource specifications even if the original object does not contain them.
+	CreateIfNotPresent bool `json:"create,omitempty"`
 	// Per-namespace limit ranges for containers as encountered during a scan.
-	containerLimitRange map[string]corev1.LimitRangeItem
+	ContainerLimitRange map[string]corev1.LimitRangeItem
 }
 
 var _ scan.Selector = &ContainerResourcesSelector{}
+
+func (s *ContainerResourcesSelector) Default() {
+	if s.Kind == "" {
+		s.Group = "apps|extensions"
+		s.Kind = "Deployment|StatefulSet"
+		s.Path = "/spec/template/spec/containers"
+	}
+
+	if len(s.Resources) == 0 {
+		s.Resources = []corev1.ResourceName{corev1.ResourceCPU, corev1.ResourceMemory}
+	}
+}
 
 func (s *ContainerResourcesSelector) Select(nodes []*yaml.RNode) ([]*yaml.RNode, error) {
 	var result []*yaml.RNode
@@ -106,7 +117,7 @@ func (s *ContainerResourcesSelector) Map(node *yaml.RNode, meta yaml.ResourceMet
 						value:     rl.Value.YNode(),
 					},
 					resources: s.Resources,
-					limits:    s.containerLimitRange[meta.Namespace],
+					limits:    s.ContainerLimitRange[meta.Namespace],
 				}
 
 				result = append(result, &p)
@@ -153,10 +164,10 @@ func (s *ContainerResourcesSelector) saveContainerLimitRange(namespace string, n
 		return err
 	}
 
-	if s.containerLimitRange == nil {
-		s.containerLimitRange = make(map[string]corev1.LimitRangeItem)
+	if s.ContainerLimitRange == nil {
+		s.ContainerLimitRange = make(map[string]corev1.LimitRangeItem)
 	}
-	s.containerLimitRange[namespace] = lri
+	s.ContainerLimitRange[namespace] = lri
 
 	return nil
 }
@@ -176,7 +187,7 @@ var _ ParameterSource = &containerResourcesParameter{}
 // container resources specification.
 func (p *containerResourcesParameter) Patch(name ParameterNamer) (yaml.Filter, error) {
 	patches := make(map[string]string)
-	for _, rn := range p.getResources() {
+	for _, rn := range p.resources {
 		format := toPatchPattern(rn)
 		patches[string(rn)] = fmt.Sprintf(format, name(p.meta, p.fieldPath, string(rn)))
 	}
@@ -204,7 +215,7 @@ func (p *containerResourcesParameter) Parameters(name ParameterNamer) ([]redskyv
 	}
 
 	var result []redskyv1beta1.Parameter
-	for _, rn := range p.getResources() {
+	for _, rn := range p.resources {
 		baseline, min, max := toIntWithRange(requests, rn)
 		result = append(result, redskyv1beta1.Parameter{
 			Name:     name(p.meta, p.fieldPath, string(rn)),
@@ -215,15 +226,6 @@ func (p *containerResourcesParameter) Parameters(name ParameterNamer) ([]redskyv
 	}
 
 	return result, nil
-}
-
-// getResources returns the names of the resources to optimize on.
-func (p *containerResourcesParameter) getResources() []corev1.ResourceName {
-	if len(p.resources) > 0 {
-		return p.resources
-	}
-
-	return []corev1.ResourceName{corev1.ResourceCPU, corev1.ResourceMemory}
 }
 
 // toPatchPattern returns the fmt pattern for a patch of the specified resource name.

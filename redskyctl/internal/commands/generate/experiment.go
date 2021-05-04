@@ -111,9 +111,6 @@ func (o *ExperimentOptions) generate() error {
 		o.Generator.Application.Name = o.defaultName()
 	}
 
-	// Configure how we filter the application resources when looking for requests/limits
-	o.Generator.SetDefaultSelectors()
-
 	// Generate the experiment
 	return o.Generator.Execute(o.YAMLWriter())
 }
