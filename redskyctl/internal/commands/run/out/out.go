@@ -198,7 +198,7 @@ func (f FormField) NewMultiChoiceField(opts ...FieldOption) form.MultiChoiceFiel
 	return field
 }
 
-// NewExitField creates a field that trigger an exit as soon as it is focused.
+// NewExitField creates a field that triggers an exit as soon as it is focused.
 func (f FormField) NewExitField(opts ...FieldOption) form.ExitField {
 	for _, opt := range opts {
 		opt(&f)

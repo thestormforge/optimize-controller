@@ -269,7 +269,7 @@ func (m previewModel) Update(msg tea.Msg) (previewModel, tea.Cmd) {
 			}
 		}
 
-		// Store the raw YAML in preview pager
+		// Store the raw YAML in the preview pager
 		content, err := kio.StringAll(msg)
 		if err != nil {
 			return m, internal.Error(err)
