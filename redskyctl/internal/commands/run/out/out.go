@@ -119,13 +119,28 @@ var VerbosePrompts FieldOption = func(field *FormField) {
 	field.verbose = true
 }
 
+// GlobalInstructions appends the supplied instructions to every field.
+func GlobalInstructions(ins ...interface{}) FieldOption {
+	return func(field *FormField) {
+		field.Instructions = append(field.Instructions, ins...)
+	}
+}
+
+// KeyBinding represents a description of what a key should do.
+type KeyBinding struct {
+	// The key bound to the action.
+	Key tea.Key
+	// The description of the action.
+	Desc string
+}
+
 // FormField is used to create new form fields with more consistency.
 type FormField struct {
 	Prompt          string
 	PromptVerbose   string
 	Placeholder     string
 	LoadingMessage  string
-	Instructions    []string
+	Instructions    []interface{}
 	InputOnSameLine bool
 	Choices         []string
 	Completions     form.Completions
@@ -214,7 +229,16 @@ func (f *FormField) instructions() string {
 	if len(f.Instructions) == 0 {
 		return ""
 	}
-	return "\n" + strings.Join(f.Instructions, "  |  ")
+	var text []string
+	for _, ins := range f.Instructions {
+		switch ins := ins.(type) {
+		case string:
+			text = append(text, ins)
+		case KeyBinding:
+			text = append(text, fmt.Sprintf("%s: %s", ins.Key, ins.Desc))
+		}
+	}
+	return "\n" + strings.Join(text, "  |  ")
 }
 
 func (f *FormField) loadingMessage() string {
@@ -222,14 +246,6 @@ func (f *FormField) loadingMessage() string {
 		return ""
 	}
 	return " " + f.LoadingMessage + " ..."
-}
-
-// KeyBinding represents a description of what a key should do.
-type KeyBinding struct {
-	// The key bound to the action.
-	Key tea.Key
-	// The description of the action.
-	Desc string
 }
 
 // RenderKeyBindings generates an instruction line for the supplied key bindings.
