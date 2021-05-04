@@ -129,7 +129,7 @@ func (t *Transformer) Transform(nodes []*yaml.RNode, selected []interface{}) ([]
 	}
 
 	// Perform some simple validation
-	if err := t.checkExperiment(&exp); err != nil {
+	if err := t.checkExperiment(&exp, nodes); err != nil {
 		return nil, err
 	}
 
@@ -186,10 +186,18 @@ func (t *Transformer) renderPatches(patches map[corev1.ObjectReference][]yaml.Fi
 	return nil
 }
 
-func (t *Transformer) checkExperiment(exp *redskyv1beta1.Experiment) error {
+func (t *Transformer) checkExperiment(exp *redskyv1beta1.Experiment, nodes []*yaml.RNode) error {
 	// If there are no parameters or metrics, the experiment isn't valid
 	if len(exp.Spec.Parameters) == 0 {
-		return fmt.Errorf("invalid experiment, no parameters found")
+		// Only report this error if we were going to fail anyway
+		if len(nodes) == 0 {
+			return fmt.Errorf("the application did not match any resources")
+		}
+
+		// If we didn't have any parameters, it was probably because we didn't
+		// have any of the right kind of resource to scan (it could have been
+		// bad selectors or objects just don't exist).
+		return fmt.Errorf("invalid experiment, no parameters found while scanning %d resources", len(nodes))
 	}
 	if len(exp.Spec.Metrics) == 0 {
 		return fmt.Errorf("invalid experiment, no metrics found")
