@@ -30,12 +30,12 @@ func TestRunner(t *testing.T) {
 		{
 			desc: "no parameters",
 			app:  invalidExperimentNoParams,
-			err:  errors.New("invalid experiment, no parameters found"),
+			err:  errors.New("failed to generate experiment: invalid experiment, no parameters found"),
 		},
 		{
 			desc: "no objectives",
 			app:  invalidExperimentNoObjectives,
-			err:  errors.New("invalid experiment, no metrics found"),
+			err:  errors.New("failed to generate experiment: invalid experiment, no metrics found"),
 		},
 		{
 			desc:    "success",
@@ -80,6 +80,14 @@ func TestRunner(t *testing.T) {
 					exp := &redskyv1beta1.Experiment{}
 					err := client.Get(ctx, types.NamespacedName{Namespace: "default", Name: tc.expName}, exp)
 					assert.NoError(t, err)
+
+					// TODO
+					// Need to figure out the right approach here
+					// it's valid to have spec.replicas == 1 or spec.replicas == nil
+					// how do we make our generation pipeline work for this
+					assert.NotNil(t, exp)
+					assert.NotNil(t, exp.Spec)
+					assert.NotNil(t, exp.Spec.Replicas)
 
 					if _, ok := tc.app.Annotations[redskyappsv1alpha1.AnnotationUserConfirmed]; ok {
 						assert.Equal(t, int32(1), *exp.Spec.Replicas)
@@ -153,8 +161,8 @@ var invalidExperimentNoObjectives = &redskyappsv1alpha1.Application{
 	Resources: konjure.Resources{
 		{
 			Kubernetes: &konjurev1beta2.Kubernetes{
-				Namespaces:    []string{"default"},
-				LabelSelector: "app=nginx",
+				Namespaces: []string{"default"},
+				Selector:   "app=nginx",
 			},
 		},
 	},
@@ -168,8 +176,8 @@ var success = &redskyappsv1alpha1.Application{
 	Resources: konjure.Resources{
 		{
 			Kubernetes: &konjurev1beta2.Kubernetes{
-				Namespaces:    []string{"default"},
-				LabelSelector: "app=nginx",
+				Namespaces: []string{"default"},
+				Selector:   "app=nginx",
 			},
 		},
 	},
@@ -211,8 +219,8 @@ var confirmed = &redskyappsv1alpha1.Application{
 	Resources: konjure.Resources{
 		{
 			Kubernetes: &konjurev1beta2.Kubernetes{
-				Namespaces:    []string{"default"},
-				LabelSelector: "app=nginx",
+				Namespaces: []string{"default"},
+				Selector:   "app=nginx",
 			},
 		},
 	},

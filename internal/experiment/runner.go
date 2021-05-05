@@ -20,16 +20,17 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"log"
+	"fmt"
 	"os/exec"
-	"strconv"
 
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	"github.com/thestormforge/optimize-controller/internal/scan"
+	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/kustomize/kyaml/kio"
-	kyaml "sigs.k8s.io/kustomize/kyaml/yaml"
 	"sigs.k8s.io/yaml"
 )
 
@@ -44,9 +45,10 @@ func New(kclient client.Client, appCh chan *redskyappsv1alpha1.Application) (*Ru
 	errCh := make(chan error)
 
 	return &Runner{
-		client: kclient,
-		appCh:  appCh,
-		errCh:  errCh,
+		client:        kclient,
+		appCh:         appCh,
+		errCh:         errCh,
+		kubectlExecFn: inClusterKubectl,
 	}, errCh
 }
 
@@ -62,14 +64,19 @@ func (r *Runner) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case app := <-r.appCh:
-			if app.Namespace == "" || app.Name == "" {
+			if app.Namespace == "" {
 				// api.UpdateStatus("failed")
-				r.errCh <- errors.New("bad app.yaml")
+				r.errCh <- errors.New("invalid app.yaml, missing namespace")
+				continue
+			}
+			if app.Name == "" {
+				// api.UpdateStatus("failed")
+				r.errCh <- errors.New("invalid app.yaml, missing name")
 				continue
 			}
 
 			filterOpts := scan.FilterOptions{
-				KubectlExecutor: inClusterKubectl,
+				KubectlExecutor: r.kubectlExecFn,
 			}
 
 			g := &Generator{
@@ -78,13 +85,13 @@ func (r *Runner) Run(ctx context.Context) {
 			}
 			g.SetDefaultSelectors()
 
-			// _, userConfirmed := app.Annotations[redskyappsv1alpha1.AnnotationUserConfirmed]
-
 			var output bytes.Buffer
 			if err := g.Execute(kio.ByteWriter{Writer: &output}); err != nil {
-				r.errCh <- err
+				r.errCh <- fmt.Errorf("%s: %w", "failed to generate experiment", err)
 				continue
 			}
+
+			generatedApplicationBytes := output.Bytes()
 
 			// TODO
 			// During the 'preview' phase, we should probably only create the experiment ( no rbac,
@@ -92,22 +99,94 @@ func (r *Runner) Run(ctx context.Context) {
 			// Once we're confirmed, we should do the rest
 			// if userConfirmed {
 			exp := &redskyv1beta1.Experiment{}
-			if err := yaml.Unmarshal(output.Bytes(), exp); err != nil {
+			if err := yaml.Unmarshal(generatedApplicationBytes, exp); err != nil {
 				// api.UpdateStatus("failed")
-				r.errCh <- err
+				r.errCh <- fmt.Errorf("%s: %w", "invalid experiment generated", err)
 				continue
+			}
+
+			var replicas int32
+			replicas = 0
+			if _, userConfirmed := app.Annotations[redskyappsv1alpha1.AnnotationUserConfirmed]; userConfirmed {
+				replicas = 1
+			}
+			exp.Spec.Replicas = &replicas
+
+			existingExperiment := &redskyv1beta1.Experiment{}
+			switch r.client.Get(ctx, types.NamespacedName{Name: exp.Name, Namespace: exp.Namespace}, existingExperiment) {
+			case nil:
+				// Create additional RBAC ( primarily for setup task )
+				serviceAccount := &corev1.ServiceAccount{}
+				if err := yaml.Unmarshal(generatedApplicationBytes, serviceAccount); err != nil {
+					r.errCh <- fmt.Errorf("%s: %w", "invalid service account", err)
+					continue
+				}
+				if serviceAccount != nil {
+					if err := r.client.Create(ctx, serviceAccount); err != nil {
+						r.errCh <- fmt.Errorf("%s: %w", "failed to create service account", err)
+						continue
+					}
+				}
+
+				clusterRole := &rbacv1.ClusterRole{}
+				if err := yaml.Unmarshal(generatedApplicationBytes, clusterRole); err != nil {
+					r.errCh <- fmt.Errorf("%s: %w", "invalid cluster role", err)
+					continue
+				}
+				if clusterRole != nil {
+					if err := r.client.Create(ctx, clusterRole); err != nil {
+						r.errCh <- fmt.Errorf("%s: %w", "failed to create service account", err)
+						continue
+					}
+				}
+
+				clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
+				if err := yaml.Unmarshal(generatedApplicationBytes, clusterRoleBinding); err != nil {
+					r.errCh <- fmt.Errorf("%s: %w", "invalid cluster role binding", err)
+					continue
+				}
+				if clusterRoleBinding != nil {
+					if err := r.client.Create(ctx, clusterRoleBinding); err != nil {
+						r.errCh <- fmt.Errorf("%s: %w", "failed to create cluster role binding", err)
+						continue
+					}
+				}
+
+				// Create configmap for load test
+				configMap := &corev1.ConfigMap{}
+				if err := yaml.Unmarshal(generatedApplicationBytes, configMap); err != nil {
+					r.errCh <- fmt.Errorf("%s: %w", "invalid config map", err)
+					continue
+				}
+				if configMap != nil {
+					if err := r.client.Create(ctx, configMap); err != nil {
+						r.errCh <- fmt.Errorf("%s: %w", "failed to create config map", err)
+						continue
+					}
+				}
+
+				// Update the experiment ( primarily to set replicas from 0 -> 1 )
+				if err := r.client.Update(ctx, exp); err != nil {
+					// api.UpdateStatus("failed")
+					r.errCh <- fmt.Errorf("%s: %w", "unable to start experiment", err)
+					continue
+				}
+
+			default:
+				if err := r.client.Create(ctx, exp); err != nil {
+					// api.UpdateStatus("failed")
+					r.errCh <- fmt.Errorf("%s: %w", "unable to create experiment in cluster", err)
+					continue
+				}
 			}
 
 			// TODO
 			// How should we handle the rejection of an application ( user wanted to make
 			// changes, so we need to delete the old experiment )
+			// Experiment already exists, so let's patch replicas only
 
-			if err := r.client.Create(ctx, exp); err != nil {
-				// api.UpdateStatus("failed")
-				log.Println("bad experiment", err)
-				r.errCh <- err
-				continue
-			}
+			//}
+
 			// } else {
 			// can/should we use unstructured.Unstructured ?
 			// or corev1.list
@@ -145,6 +224,7 @@ func (r *Runner) Run(ctx context.Context) {
 }
 
 // filter returns a filter function to exctract a specified `kind` from the input.
+/*
 func manageReplicas(ok bool) kio.FilterFunc {
 	return func(input []*kyaml.RNode) ([]*kyaml.RNode, error) {
 		var output kio.ResourceNodeSlice
@@ -171,16 +251,15 @@ func manageReplicas(ok bool) kio.FilterFunc {
 			// values := kyaml.NewMapRNode(&map[string]string{"replicas": strconv.Itoa(numReplicas)})
 			// kyaml.SetField("spec", values)
 
-			/*
-				if _, err = input[i].Pipe(kyaml.LookupCreate(input[i], "spec", "replicas", strconv.Itoa(numReplicas))); err != nil {
-					return nil, err
-				}
-			*/
+			//if _, err = input[i].Pipe(kyaml.LookupCreate(input[i], "spec", "replicas", strconv.Itoa(numReplicas))); err != nil {
+			//		return nil, err
+			//}
 
 			output = append(output, input[i])
 		}
 		return output, nil
 	}
 }
+*/
 
 func inClusterKubectl(_ *exec.Cmd) ([]byte, error) { return []byte{}, nil }
