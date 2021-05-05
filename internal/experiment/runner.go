@@ -83,7 +83,6 @@ func (r *Runner) Run(ctx context.Context) {
 				Application:   *app,
 				FilterOptions: filterOpts,
 			}
-			g.SetDefaultSelectors()
 
 			var output bytes.Buffer
 			if err := g.Execute(kio.ByteWriter{Writer: &output}); err != nil {
