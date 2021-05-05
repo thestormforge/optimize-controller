@@ -110,16 +110,22 @@ func (f Fields) Update(msg tea.Msg) tea.Cmd {
 	case ValidationMsg:
 		// On successful validation, progress to the next field or finish the form
 		if msg == "" {
-			if focused != nil {
-				focused.Blur()
-			}
-
 			if next != nil {
+				if focused != nil {
+					focused.Blur()
+				}
 				next.Focus()
 				next.Show()
 			} else {
 				cmds = append(cmds, func() tea.Msg { return FinishedMsg{} })
 			}
+		}
+
+	case FinishedMsg:
+		// Once we are finished, blur the final field: waiting to do the blur
+		// allows others to identify which form produced the finished message
+		if focused != nil {
+			focused.Blur()
 		}
 
 	}
@@ -139,6 +145,16 @@ func (f Fields) View() string {
 		view.WriteRune('\n')
 	}
 	return view.String()
+}
+
+// Focused returns true if at least one field in the form has focus.
+func (f Fields) Focused() bool {
+	for i := range f {
+		if f[i].Focused() {
+			return true
+		}
+	}
+	return false
 }
 
 // activeFields returns the current focused field and the next enabled field. If
