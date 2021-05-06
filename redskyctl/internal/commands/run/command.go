@@ -214,6 +214,7 @@ func (o *Options) listStormForgerTestCaseNames() tea.Msg {
 func (o *Options) generateExperiment() tea.Msg {
 	msg := internal.ExperimentMsg{}
 
+	o.generatorModel.applyToApp(&o.Generator.Application)
 	o.Generator.Application.Default()
 
 	if err := o.Generator.Execute(&msg); err != nil {
