@@ -377,8 +377,10 @@ func (m previewModel) View() string {
 	view.Newline()
 	view.Model(m.Destination)
 	view.Model(m.Filename)
+	view.Newline()
 	view.Model(m.Preview)
 	if m.Create {
+		view.Newline()
 		view.Step(out.Starting, "Starting experiment ...")
 	}
 

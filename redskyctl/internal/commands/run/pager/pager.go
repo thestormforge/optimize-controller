@@ -83,7 +83,7 @@ func (m Model) View() string {
 	if !m.Focused() {
 		return ""
 	}
-	return "\n" + m.Model.View() + m.instructions
+	return m.Model.View() + m.instructions
 }
 
 func (m *Model) Focus() {
