@@ -27,6 +27,7 @@ import (
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/form"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/internal"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/out"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/pager"
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
@@ -34,22 +35,12 @@ import (
 const (
 	ScenarioTypeStormForger = "StormForge"
 	ScenarioTypeLocust      = "Locust"
-)
 
-var pagerKeyBindings = []out.KeyBinding{
-	{
-		Key:  tea.Key{Type: tea.KeyCtrlX},
-		Desc: "Quit",
-	},
-	{
-		Key:  tea.Key{Type: tea.KeySpace},
-		Desc: "Next page",
-	},
-	{
-		Key:  tea.Key{Type: tea.KeyRunes, Runes: []rune{'b'}},
-		Desc: "Previous page",
-	},
-}
+	DestinationCreate  = "Run the experiment"
+	DestinationFile    = "Save the experiment to disk"
+	DestinationPreview = "Inspect the experiment"
+	// TODO DestinationDelete = "Clean up a previous run"?
+)
 
 // initializeModel is invoked before the program is started to ensure things
 // are in a valid state prior to starting.
@@ -78,7 +69,7 @@ func (o *Options) initializeModel() {
 			ScenarioTypeStormForger,
 			ScenarioTypeLocust,
 		},
-	}.NewChoiceField(opts...)
+	}.NewChoiceField(opts...) // TODO This includes the "back" instruction even though it's not possible
 	o.generatorModel.ScenarioType.Select(0)
 
 	o.generatorModel.StormForgerTestCaseInput = out.FormField{
@@ -182,6 +173,42 @@ https://docs.stormforger.com/guides/getting-started/`,
 	}.NewMultiChoiceField(opts...)
 	o.generatorModel.ObjectiveInput.Select(0)
 	o.generatorModel.ObjectiveInput.Select(2)
+
+	o.previewModel.Destination = out.FormField{
+		Prompt: "What would you like to do?",
+		Choices: []string{
+			DestinationCreate,
+			DestinationPreview,
+			DestinationFile,
+		},
+	}.NewChoiceField(opts...) // TODO This includes the "back" instruction even though it's not possible
+	o.previewModel.Destination.Select(0)
+
+	o.previewModel.Filename = out.FormField{
+		Prompt:          "\nEnter the path where you would like to save your experiment:",
+		Placeholder:     "( e.g. ~/my-project/experiment.yaml )",
+		InputOnSameLine: true,
+		Completions:     &form.FileCompletions{},
+	}.NewTextField(opts...)
+	o.previewModel.Filename.Validator = &form.File{
+		Required: "Required",
+	}
+
+	o.previewModel.Preview = pager.NewModel()
+	o.previewModel.Preview.Instructions = out.PagerInstructions([]out.KeyBinding{
+		{
+			Key:  tea.Key{Type: tea.KeyCtrlX},
+			Desc: "Quit",
+		},
+		{
+			Key:  tea.Key{Type: tea.KeySpace},
+			Desc: "Next page",
+		},
+		{
+			Key:  tea.Key{Type: tea.KeyRunes, Runes: []rune{'b'}},
+			Desc: "Previous page",
+		},
+	})
 
 }
 
@@ -328,12 +355,6 @@ func (m previewModel) View() string {
 		return view.String()
 	}
 
-	if m.Destination == internal.DestinationScreen {
-		view.Model(m.Preview)
-		_, _ = view.Write([]byte(out.RenderKeyBindings(pagerKeyBindings, m.Preview.Width)))
-		return view.String()
-	}
-
 	view.Newline()
 	view.Step(out.Ready, "Your experiment is ready to run!")
 
@@ -354,12 +375,10 @@ func (m previewModel) View() string {
 	}
 
 	view.Newline()
-	switch m.Destination {
-	case internal.DestinationUnknown:
-		view.Step(out.Instructions, "ctrl-t: view experiment YAML")
-		view.Step(out.YesNo, "Ready to run? [Y/n]: ")
-		return view.String()
-	case internal.DestinationCluster:
+	view.Model(m.Destination)
+	view.Model(m.Filename)
+	view.Model(m.Preview)
+	if m.Create {
 		view.Step(out.Starting, "Starting experiment ...")
 	}
 

@@ -171,20 +171,26 @@ func (o *Options) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case form.FinishedMsg:
-		// We hit the end of the generator form, apply the changes and trigger generation
-		o.applyGeneratorModel()
-		cmds = append(cmds, o.generateExperiment)
+		if o.generatorModel.form().Focused() {
+			// We hit the end of the generator form, trigger generation
+			cmds = append(cmds, o.generateExperiment)
+		}
 
-	case internal.ExperimentConfirmedMsg:
-		switch msg.Destination {
-		case internal.DestinationCluster:
-			// The user confirmed they are ready to run the experiment
+	case internal.ExperimentReadyMsg:
+		switch {
+		case msg.Cluster:
+			// User wants the experiment run in the cluster
 			cmds = append(cmds, o.createExperimentInCluster)
+		case msg.File:
+			// User wants the experiment written to disk
+			cmds = append(cmds, o.createExperimentInFile)
 		}
 
 	case internal.ExperimentCreatedMsg:
-		// The experiment is in the cluster, start refreshing the trial status
-		cmds = append(cmds, o.refreshTrialsTick())
+		if msg.Filename == "" {
+			// The experiment is in the cluster, start refreshing the trial status
+			cmds = append(cmds, o.refreshTrialsTick())
+		}
 
 	case internal.TrialsMsg:
 		// If we got a status refresh, initiate another

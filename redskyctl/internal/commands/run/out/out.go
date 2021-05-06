@@ -248,17 +248,19 @@ func (f *FormField) loadingMessage() string {
 	return " " + f.LoadingMessage + " ..."
 }
 
-// RenderKeyBindings generates an instruction line for the supplied key bindings.
-func RenderKeyBindings(keys []KeyBinding, width int) string {
-	keyStyle := instructionsStyle.Reverse()
-	descStyle := instructionsStyle
+// PagerInstructions returns a nano-style instructions bar for the pager.
+func PagerInstructions(keys []KeyBinding) func(width int) string {
+	return func(width int) string {
+		keyStyle := instructionsStyle.Reverse()
+		descStyle := instructionsStyle
 
-	var buf strings.Builder
-	buf.WriteString("\n\n")
-	tw := tabwriter.NewWriter(&buf, width/len(keys), 1, 1, ' ', 0)
-	for _, k := range keys {
-		_, _ = fmt.Fprintf(tw, "%s: %s\t", keyStyle.Styled(k.Key.String()), descStyle.Styled(k.Desc))
+		var buf strings.Builder
+		buf.WriteString("\n\n")
+		tw := tabwriter.NewWriter(&buf, width/len(keys), 1, 1, ' ', 0)
+		for _, k := range keys {
+			_, _ = fmt.Fprintf(tw, "%s: %s\t", keyStyle.Styled(k.Key.String()), descStyle.Styled(k.Desc))
+		}
+		_ = tw.Flush()
+		return buf.String()
 	}
-	_ = tw.Flush()
-	return buf.String()
 }

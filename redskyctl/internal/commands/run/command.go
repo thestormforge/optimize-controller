@@ -23,11 +23,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/muesli/termenv"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/check"
@@ -244,6 +246,25 @@ func (o *Options) createExperimentInCluster() tea.Msg {
 	}
 
 	return internal.ExperimentCreatedMsg{}
+}
+
+// createExperimentInFile writes the raw experiment to disk.
+func (o *Options) createExperimentInFile() tea.Msg {
+	f, err := os.Create(o.previewModel.Filename.Value())
+	if err != nil {
+		return err
+	}
+
+	w := &kio.ByteWriter{Writer: f}
+	if err := w.Write(o.runModel.experiment); err != nil {
+		return err
+	}
+
+	// Lame hack to give user a warm fuzzy
+	o.previewModel.Filename.SetValue(f.Name() + "\n\n" + termenv.String("Saved!").Bold().String())
+	time.Sleep(2 * time.Second)
+
+	return internal.ExperimentCreatedMsg{Filename: f.Name()}
 }
 
 // refreshTrials fetches the trial list for the experiment as raw YAML.

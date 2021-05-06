@@ -19,12 +19,12 @@ package run
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	"github.com/thestormforge/optimize-controller/internal/scan"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/form"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/internal"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/pager"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
@@ -244,17 +244,27 @@ func (m *generatorModel) updateLabelSelectorInputs() {
 
 type previewModel struct {
 	Experiment  *redskyv1beta1.Experiment
-	Destination internal.ExperimentDestination
-	Preview     viewport.Model
+	Destination form.ChoiceField
+	Create      bool
+	Filename    form.TextField
+	Preview     pager.Model
+}
+
+func (m *previewModel) focused() bool {
+	return m.Destination.Focused() || m.Create || m.Filename.Focused() || m.Preview.Focused()
+}
+
+func (m *previewModel) resetDestination() {
+	m.Destination.Select(0)
+	m.Filename.SetValue("")
+	m.Filename.Hide()
+	m.Filename.Blur()
+	m.Preview.GotoTop()
 }
 
 func (m previewModel) Update(msg tea.Msg) (previewModel, tea.Cmd) {
+	var cmds []tea.Cmd
 	switch msg := msg.(type) {
-
-	case tea.WindowSizeMsg:
-		// Capture the window size for when we need to preview something
-		m.Preview.Width = msg.Width
-		m.Preview.Height = msg.Height - 2 // Adjust for the instructions
 
 	case internal.ExperimentMsg:
 		// Extract the experiment definition from the YAML to make it easier to pull values from
@@ -262,7 +272,6 @@ func (m previewModel) Update(msg tea.Msg) (previewModel, tea.Cmd) {
 		if err := obj.Write(msg); err != nil {
 			return m, internal.Error(err)
 		}
-
 		for i := range obj.Items {
 			if exp, ok := obj.Items[i].Object.(*redskyv1beta1.Experiment); ok {
 				m.Experiment = exp
@@ -276,39 +285,64 @@ func (m previewModel) Update(msg tea.Msg) (previewModel, tea.Cmd) {
 		}
 		m.Preview.SetContent(content)
 
-	case internal.ExperimentConfirmedMsg:
-		// Update where the user wants the experiment to go
-		m.Destination = msg.Destination
-
 	case tea.KeyMsg:
-		if m.Experiment != nil {
-			switch m.Destination {
-			case internal.DestinationUnknown:
-				// Prompt the user to see if they want to run the experiment
-				switch msg.String() {
-				case "y", "Y", "enter":
-					return m, func() tea.Msg { return internal.ExperimentConfirmedMsg{Destination: internal.DestinationCluster} }
-
-				case "n", "N":
-					return m, tea.Quit
-
-				case "ctrl+t":
-					return m, func() tea.Msg { return internal.ExperimentConfirmedMsg{Destination: internal.DestinationScreen} }
+		if msg.Type == tea.KeyEnter {
+			switch {
+			case m.Destination.Focused():
+				m.Destination.Blur()
+				switch m.Destination.Value() {
+				case DestinationCreate:
+					m.Create = true
+					cmds = append(cmds, func() tea.Msg { return internal.ExperimentReadyMsg{Cluster: true} })
+				case DestinationFile:
+					m.Filename.Show()
+					m.Filename.Focus()
+				case DestinationPreview:
+					m.Preview.Focus()
 				}
 
-			case internal.DestinationScreen:
-				// In the pager
-				switch msg.String() {
-				case "q", "Q", "ctrl+x":
-					return m, func() tea.Msg { return internal.ExperimentConfirmedMsg{Destination: internal.DestinationUnknown} }
-				}
+			case m.Filename.Focused():
+				cmds = append(cmds, m.Filename.Validate())
 			}
 		}
+
+	case form.ValidationMsg:
+		if m.Filename.Focused() && msg == "" {
+			cmds = append(cmds, func() tea.Msg { return internal.ExperimentReadyMsg{File: true} })
+		}
+
+	case pager.ExitMsg:
+		if m.Preview.Focused() {
+			m.resetDestination()
+		}
+
+	case internal.ExperimentCreatedMsg:
+		if msg.Filename != "" {
+			m.resetDestination()
+		}
+
+	}
+
+	m.Destination.SetEnabled(m.Experiment != nil)
+	m.Destination.SetHidden(m.Experiment == nil)
+	m.Filename.SetEnabled(m.Destination.Value() == DestinationFile)
+
+	if !m.focused() && m.Destination.Enabled() {
+		m.Destination.Focus()
 	}
 
 	var cmd tea.Cmd
+
+	m.Destination, cmd = m.Destination.Update(msg)
+	cmds = append(cmds, cmd)
+
+	m.Filename, cmd = m.Filename.Update(msg)
+	cmds = append(cmds, cmd)
+
 	m.Preview, cmd = m.Preview.Update(msg)
-	return m, cmd
+	cmds = append(cmds, cmd)
+
+	return m, tea.Batch(cmds...)
 }
 
 type runModel struct {

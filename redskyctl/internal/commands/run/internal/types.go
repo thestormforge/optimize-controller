@@ -62,17 +62,3 @@ const (
 func (s AuthorizationStatus) Allowed() bool {
 	return s == AuthorizationValid || s == AuthorizationInvalidIgnored
 }
-
-// ExperimentDestination represents the places a user may want to send a generated experiment.
-type ExperimentDestination int
-
-const (
-	// DestinationUnknown means the user has not decided where to send the experiment.
-	DestinationUnknown ExperimentDestination = iota
-	// DestinationCluster indicates an experiment should go straight to a cluster.
-	DestinationCluster
-	// DestinationScreen indicates the experiment should be rendered on screen.
-	DestinationScreen
-	// DestinationFile indicates the experiment should be written to disk.
-	DestinationFile
-)
