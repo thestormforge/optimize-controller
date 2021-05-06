@@ -129,6 +129,7 @@ https://docs.stormforger.com/guides/getting-started/`,
 		Prompt:          "Enter the URL of the endpoint to test:",
 		Placeholder:     "( e.g. http://my-app.svc.cluster.local )",
 		InputOnSameLine: true,
+		Completions:     form.StaticCompletions{"http://", "https://"},
 	}.NewTextField(opts...)
 	o.generatorModel.IngressURLInput.Validator = &form.URL{
 		Required:   "Required",
