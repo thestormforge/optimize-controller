@@ -197,9 +197,12 @@ func (s StaticCompletions) View(suggestion string) string {
 }
 
 type FileCompletions struct {
+	// Working directory for relative completions.
 	WorkingDirectory string
-	AllowHidden      bool
-	Extensions       []string
+	// Flag indicating "." files can be shown.
+	AllowHidden bool
+	// Required extensions, empty means directories only, `[]string{"*"}` is all files.
+	Extensions []string
 }
 
 var _ Completions = &FileCompletions{}
@@ -242,13 +245,18 @@ func (c *FileCompletions) View(suggestion string) string {
 	return filepath.Base(suggestion)
 }
 
+// ToggleHidden flips the allow hidden state.
+func (c *FileCompletions) ToggleHidden() {
+	c.AllowHidden = !c.AllowHidden
+}
+
 func (c *FileCompletions) hasExtension(ext string) bool {
 	for _, e := range c.Extensions {
-		if e == ext {
+		if e == "*" || e == ext {
 			return true
 		}
 	}
-	return len(c.Extensions) == 0
+	return false
 }
 
 func (c *FileCompletions) split(path string) (readDir, dir, file string) {

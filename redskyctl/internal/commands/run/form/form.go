@@ -109,11 +109,9 @@ func (f Fields) Update(msg tea.Msg) tea.Cmd {
 
 	case ValidationMsg:
 		// On successful validation, progress to the next field or finish the form
-		if msg == "" {
+		if focused != nil && msg == "" {
 			if next != nil {
-				if focused != nil {
-					focused.Blur()
-				}
+				focused.Blur()
 				next.Focus()
 				next.Show()
 			} else {
