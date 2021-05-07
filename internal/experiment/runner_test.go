@@ -12,6 +12,8 @@ import (
 	"github.com/thestormforge/konjure/pkg/konjure"
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -55,6 +57,8 @@ func TestRunner(t *testing.T) {
 			scheme := runtime.NewScheme()
 			redskyv1beta1.AddToScheme(scheme)
 			redskyappsv1alpha1.AddToScheme(scheme)
+			corev1.AddToScheme(scheme)
+			rbacv1.AddToScheme(scheme)
 
 			client := fake.NewFakeClientWithScheme(scheme, &redskyv1beta1.Experiment{}, &redskyappsv1alpha1.Application{})
 
@@ -81,21 +85,31 @@ func TestRunner(t *testing.T) {
 					err := client.Get(ctx, types.NamespacedName{Namespace: "default", Name: tc.expName}, exp)
 					assert.NoError(t, err)
 
-					// TODO
-					// Need to figure out the right approach here
-					// it's valid to have spec.replicas == 1 or spec.replicas == nil
-					// how do we make our generation pipeline work for this
-					assert.NotNil(t, exp)
-					assert.NotNil(t, exp.Spec)
+					// Since we explicitly set replicas, this should never be nil
 					assert.NotNil(t, exp.Spec.Replicas)
 
-					if _, ok := tc.app.Annotations[redskyappsv1alpha1.AnnotationUserConfirmed]; ok {
-						assert.Equal(t, int32(1), *exp.Spec.Replicas)
-					} else {
+					if _, ok := tc.app.Annotations[redskyappsv1alpha1.AnnotationUserConfirmed]; !ok {
 						assert.Equal(t, int32(0), *exp.Spec.Replicas)
+						return
 					}
 
-					// fmt.Println(exp)
+					assert.Equal(t, int32(1), *exp.Spec.Replicas)
+
+					serviceAccount := &corev1.ServiceAccount{}
+					err = client.Get(ctx, types.NamespacedName{Namespace: "default", Name: tc.expName}, serviceAccount)
+					assert.NoError(t, err)
+					assert.NotNil(t, serviceAccount)
+
+					clusterRole := &rbacv1.ClusterRole{}
+					err = client.Get(ctx, types.NamespacedName{Namespace: "default", Name: tc.expName}, clusterRole)
+					assert.NoError(t, err)
+					assert.NotNil(t, clusterRole)
+
+					clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
+					err = client.Get(ctx, types.NamespacedName{Namespace: "default", Name: tc.expName}, clusterRoleBinding)
+					assert.NoError(t, err)
+					assert.NotNil(t, clusterRoleBinding)
+
 					return
 				case err := <-errCh:
 					if tc.err != nil {

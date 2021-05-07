@@ -92,11 +92,6 @@ func (r *Runner) Run(ctx context.Context) {
 
 			generatedApplicationBytes := output.Bytes()
 
-			// TODO
-			// During the 'preview' phase, we should probably only create the experiment ( no rbac,
-			// configmap, secret, etc )
-			// Once we're confirmed, we should do the rest
-			// if userConfirmed {
 			exp := &redskyv1beta1.Experiment{}
 			if err := yaml.Unmarshal(generatedApplicationBytes, exp); err != nil {
 				// api.UpdateStatus("failed")
@@ -104,6 +99,8 @@ func (r *Runner) Run(ctx context.Context) {
 				continue
 			}
 
+			// TODO this will get replaced with a api call to get the number of replicas
+			// this will denote that we are OK to run the experiment
 			var replicas int32
 			replicas = 0
 			if _, userConfirmed := app.Annotations[redskyappsv1alpha1.AnnotationUserConfirmed]; userConfirmed {
@@ -111,9 +108,10 @@ func (r *Runner) Run(ctx context.Context) {
 			}
 			exp.Spec.Replicas = &replicas
 
-			existingExperiment := &redskyv1beta1.Experiment{}
-			switch r.client.Get(ctx, types.NamespacedName{Name: exp.Name, Namespace: exp.Namespace}, existingExperiment) {
-			case nil:
+			// TODO get experiment URL from annotation on application
+			// and set it in the experiment annotations
+
+			if exp.Spec.Replicas != nil && *exp.Spec.Replicas > 0 {
 				// Create additional RBAC ( primarily for setup task )
 				serviceAccount := &corev1.ServiceAccount{}
 				if err := yaml.Unmarshal(generatedApplicationBytes, serviceAccount); err != nil {
@@ -163,102 +161,27 @@ func (r *Runner) Run(ctx context.Context) {
 						continue
 					}
 				}
+			}
 
+			existingExperiment := &redskyv1beta1.Experiment{}
+			if err := r.client.Get(ctx, types.NamespacedName{Name: exp.Name, Namespace: exp.Namespace}, existingExperiment); err != nil {
+				if err := r.client.Create(ctx, exp); err != nil {
+					// api.UpdateStatus("failed")
+					r.errCh <- fmt.Errorf("%s: %w", "unable to create experiment in cluster", err)
+					continue
+				}
+			} else {
 				// Update the experiment ( primarily to set replicas from 0 -> 1 )
 				if err := r.client.Update(ctx, exp); err != nil {
 					// api.UpdateStatus("failed")
 					r.errCh <- fmt.Errorf("%s: %w", "unable to start experiment", err)
 					continue
 				}
-
-			default:
-				if err := r.client.Create(ctx, exp); err != nil {
-					// api.UpdateStatus("failed")
-					r.errCh <- fmt.Errorf("%s: %w", "unable to create experiment in cluster", err)
-					continue
-				}
 			}
 
-			// TODO
-			// How should we handle the rejection of an application ( user wanted to make
-			// changes, so we need to delete the old experiment )
-			// Experiment already exists, so let's patch replicas only
-
-			//}
-
-			// } else {
-			// can/should we use unstructured.Unstructured ?
-			// or corev1.list
-			// or should we iterate through each type and use the appropriate client
-			/*
-				js, err := yaml.YAMLToJSON(outputBytes)
-				if err != nil {
-					log.Println("failed to convert yaml to json")
-					r.errCh <- err
-				}
-
-				ul := &unstructured.UnstructuredList{}
-				if err := ul.UnmarshalJSON(js); err != nil {
-					log.Println("cant unmarshal", err)
-					r.errCh <- err
-					continue
-				}
-				ul.SetGroupVersionKind(schema.FromAPIVersionAndKind("v1", "List"))
-
-				fmt.Println(ul)
-
-				if err := r.client.Create(ctx, ul); err != nil {
-					log.Println("failed to create ul", err)
-					r.errCh <- err
-					continue
-				}
-			*/
-
-			// }
-
-			// log.Println("success")
 			return
 		}
 	}
 }
-
-// filter returns a filter function to exctract a specified `kind` from the input.
-/*
-func manageReplicas(ok bool) kio.FilterFunc {
-	return func(input []*kyaml.RNode) ([]*kyaml.RNode, error) {
-		var output kio.ResourceNodeSlice
-		for i := range input {
-			m, err := input[i].GetMeta()
-			if err != nil {
-				return nil, err
-			}
-
-			if m.Kind != "Experiment" {
-				continue
-			}
-
-			numReplicas := 0
-			if ok {
-				numReplicas = 1
-			}
-
-			input[i].Pipe(
-				kyaml.LookupCreate(kyaml.ScalarNode, "spec"),
-				kyaml.SetField("replicas", kyaml.NewScalarRNode(strconv.Itoa(numReplicas))),
-			)
-			// kyaml.LookupCreate
-			// values := kyaml.NewMapRNode(&map[string]string{"replicas": strconv.Itoa(numReplicas)})
-			// kyaml.SetField("spec", values)
-
-			//if _, err = input[i].Pipe(kyaml.LookupCreate(input[i], "spec", "replicas", strconv.Itoa(numReplicas))); err != nil {
-			//		return nil, err
-			//}
-
-			output = append(output, input[i])
-		}
-		return output, nil
-	}
-}
-*/
 
 func inClusterKubectl(_ *exec.Cmd) ([]byte, error) { return []byte{}, nil }
