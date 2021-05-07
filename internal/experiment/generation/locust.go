@@ -21,7 +21,7 @@ import (
 
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
-	"github.com/thestormforge/optimize-controller/internal/scan"
+	"github.com/thestormforge/optimize-controller/internal/sfio"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
@@ -85,7 +85,7 @@ func (s *LocustSource) Update(exp *redskyv1beta1.Experiment) error {
 }
 
 func (s *LocustSource) Read() ([]*yaml.RNode, error) {
-	result := scan.ObjectSlice{}
+	result := sfio.ObjectSlice{}
 
 	if s.Scenario.Locust.Locustfile != "" {
 		data, err := loadApplicationData(s.Application, s.Scenario.Locust.Locustfile)

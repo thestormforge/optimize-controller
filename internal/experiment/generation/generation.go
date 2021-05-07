@@ -22,8 +22,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"reflect"
-	"strings"
 
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
@@ -32,31 +30,7 @@ import (
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/kustomize/api/types"
-	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
-
-func init() {
-	// Hack the sort order used by the format filter to make experiments sort more naturally
-	addFieldOrder := func(obj interface{}, order int) {
-		t := reflect.Indirect(reflect.ValueOf(obj)).Type()
-		for i := 0; i < t.NumField(); i++ {
-			if tag := strings.Split(t.Field(i).Tag.Get("json"), ",")[0]; tag != "" {
-				if _, ok := yaml.FieldOrder[tag]; !ok {
-					yaml.FieldOrder[tag] = order
-				}
-				order++
-			}
-		}
-	}
-
-	addFieldOrder(&redskyv1beta1.ExperimentSpec{}, 200)
-	addFieldOrder(&redskyv1beta1.Parameter{}, 300)
-	addFieldOrder(&redskyv1beta1.PatchTemplate{}, 400)
-	addFieldOrder(&redskyv1beta1.Metric{}, 500)
-
-	// TODO We should probably move this code to a more generic YAML package
-	addFieldOrder(&redskyappsv1alpha1.Application{}, 600)
-}
 
 // newGoalMetric creates a new metric for the supplied goal with most fields pre-filled.
 func newGoalMetric(obj *redskyappsv1alpha1.Goal, query string) redskyv1beta1.Metric {

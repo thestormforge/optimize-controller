@@ -24,6 +24,7 @@ import (
 
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	"github.com/thestormforge/optimize-controller/internal/scan"
+	"github.com/thestormforge/optimize-controller/internal/sfio"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/kio/filters"
@@ -134,7 +135,7 @@ func (t *Transformer) Transform(nodes []*yaml.RNode, selected []interface{}) ([]
 	}
 
 	// Serialize the experiment as a YAML node
-	if expNode, err := (scan.ObjectSlice{&exp}).Read(); err != nil {
+	if expNode, err := (sfio.ObjectSlice{&exp}).Read(); err != nil {
 		return nil, err
 	} else {
 		result = append(expNode, result...) // Put the experiment at the front
