@@ -44,11 +44,16 @@ type Runner struct {
 func New(kclient client.Client, appCh chan *redskyappsv1alpha1.Application) (*Runner, chan error) {
 	errCh := make(chan error)
 
+	// Should we handle errors here
+	// as in something like
+	// go func() for err := <- errCh { api.UpdateStatus("failed", err)  }
+
 	return &Runner{
-		client:        kclient,
-		appCh:         appCh,
-		errCh:         errCh,
-		kubectlExecFn: inClusterKubectl,
+		client: kclient,
+		appCh:  appCh,
+		errCh:  errCh,
+		// Dont think I need this anymore with the `scan.MiniKubectl`
+		//kubectlExecFn: inClusterKubectl,
 	}, errCh
 }
 
@@ -75,13 +80,14 @@ func (r *Runner) Run(ctx context.Context) {
 				continue
 			}
 
-			filterOpts := scan.FilterOptions{
-				KubectlExecutor: r.kubectlExecFn,
+			g := &Generator{
+				Application: *app,
 			}
 
-			g := &Generator{
-				Application:   *app,
-				FilterOptions: filterOpts,
+			// Exposed for testing so we can pass through
+			// fake kubectl output
+			if r.kubectlExecFn != nil {
+				g.FilterOptions = scan.FilterOptions{KubectlExecutor: r.kubectlExecFn}
 			}
 
 			var output bytes.Buffer
@@ -113,75 +119,101 @@ func (r *Runner) Run(ctx context.Context) {
 
 			if exp.Spec.Replicas != nil && *exp.Spec.Replicas > 0 {
 				// Create additional RBAC ( primarily for setup task )
-				serviceAccount := &corev1.ServiceAccount{}
-				if err := yaml.Unmarshal(generatedApplicationBytes, serviceAccount); err != nil {
-					r.errCh <- fmt.Errorf("%s: %w", "invalid service account", err)
-					continue
-				}
-				if serviceAccount != nil {
-					if err := r.client.Create(ctx, serviceAccount); err != nil {
-						r.errCh <- fmt.Errorf("%s: %w", "failed to create service account", err)
-						continue
-					}
-				}
+				r.createServiceAccount(ctx, generatedApplicationBytes)
 
-				clusterRole := &rbacv1.ClusterRole{}
-				if err := yaml.Unmarshal(generatedApplicationBytes, clusterRole); err != nil {
-					r.errCh <- fmt.Errorf("%s: %w", "invalid cluster role", err)
-					continue
-				}
-				if clusterRole != nil {
-					if err := r.client.Create(ctx, clusterRole); err != nil {
-						r.errCh <- fmt.Errorf("%s: %w", "failed to create service account", err)
-						continue
-					}
-				}
+				r.createClusterRole(ctx, generatedApplicationBytes)
 
-				clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
-				if err := yaml.Unmarshal(generatedApplicationBytes, clusterRoleBinding); err != nil {
-					r.errCh <- fmt.Errorf("%s: %w", "invalid cluster role binding", err)
-					continue
-				}
-				if clusterRoleBinding != nil {
-					if err := r.client.Create(ctx, clusterRoleBinding); err != nil {
-						r.errCh <- fmt.Errorf("%s: %w", "failed to create cluster role binding", err)
-						continue
-					}
-				}
+				r.createClusterRoleBinding(ctx, generatedApplicationBytes)
 
 				// Create configmap for load test
-				configMap := &corev1.ConfigMap{}
-				if err := yaml.Unmarshal(generatedApplicationBytes, configMap); err != nil {
-					r.errCh <- fmt.Errorf("%s: %w", "invalid config map", err)
-					continue
-				}
-				if configMap != nil {
-					if err := r.client.Create(ctx, configMap); err != nil {
-						r.errCh <- fmt.Errorf("%s: %w", "failed to create config map", err)
-						continue
-					}
-				}
+				r.createConfigMap(ctx, generatedApplicationBytes)
+
+				// TODO do we need to handle secrets here as well ( ex, SF JWT )
 			}
 
-			existingExperiment := &redskyv1beta1.Experiment{}
-			if err := r.client.Get(ctx, types.NamespacedName{Name: exp.Name, Namespace: exp.Namespace}, existingExperiment); err != nil {
-				if err := r.client.Create(ctx, exp); err != nil {
-					// api.UpdateStatus("failed")
-					r.errCh <- fmt.Errorf("%s: %w", "unable to create experiment in cluster", err)
-					continue
-				}
-			} else {
-				// Update the experiment ( primarily to set replicas from 0 -> 1 )
-				if err := r.client.Update(ctx, exp); err != nil {
-					// api.UpdateStatus("failed")
-					r.errCh <- fmt.Errorf("%s: %w", "unable to start experiment", err)
-					continue
-				}
-			}
-
-			return
+			r.createExperiment(ctx, exp)
 		}
 	}
 }
 
-func inClusterKubectl(_ *exec.Cmd) ([]byte, error) { return []byte{}, nil }
+func (r *Runner) createServiceAccount(ctx context.Context, data []byte) {
+	serviceAccount := &corev1.ServiceAccount{}
+	if err := yaml.Unmarshal(data, serviceAccount); err != nil {
+		r.errCh <- fmt.Errorf("%s: %w", "invalid service account", err)
+		return
+	}
+
+	// Only create the service account if it does not exist
+	existingServiceAccount := &corev1.ServiceAccount{}
+	if err := r.client.Get(ctx, types.NamespacedName{Name: serviceAccount.Name, Namespace: serviceAccount.Namespace}, existingServiceAccount); err != nil {
+		if err := r.client.Create(ctx, serviceAccount); err != nil {
+			r.errCh <- fmt.Errorf("%s: %w", "failed to create service account", err)
+		}
+	}
+}
+
+func (r *Runner) createClusterRole(ctx context.Context, data []byte) {
+	clusterRole := &rbacv1.ClusterRole{}
+	if err := yaml.Unmarshal(data, clusterRole); err != nil {
+		r.errCh <- fmt.Errorf("%s: %w", "invalid cluster role", err)
+		return
+	}
+
+	// Only create the service account if it does not exist
+	existingClusterRole := &rbacv1.ClusterRole{}
+	if err := r.client.Get(ctx, types.NamespacedName{Name: clusterRole.Name, Namespace: clusterRole.Namespace}, existingClusterRole); err != nil {
+		if err := r.client.Create(ctx, clusterRole); err != nil {
+			r.errCh <- fmt.Errorf("%s: %w", "failed to create clusterRole", err)
+		}
+	}
+}
+
+func (r *Runner) createClusterRoleBinding(ctx context.Context, data []byte) {
+	clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
+	if err := yaml.Unmarshal(data, clusterRoleBinding); err != nil {
+		r.errCh <- fmt.Errorf("%s: %w", "invalid cluster role binding", err)
+		return
+	}
+
+	existingClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
+	if err := r.client.Get(ctx, types.NamespacedName{Name: clusterRoleBinding.Name, Namespace: clusterRoleBinding.Namespace}, existingClusterRoleBinding); err != nil {
+		if err := r.client.Create(ctx, clusterRoleBinding); err != nil {
+			r.errCh <- fmt.Errorf("%s: %w", "failed to create cluster role binding", err)
+		}
+	}
+}
+
+func (r *Runner) createConfigMap(ctx context.Context, data []byte) {
+	configMap := &corev1.ConfigMap{}
+	if err := yaml.Unmarshal(data, configMap); err != nil {
+		r.errCh <- fmt.Errorf("%s: %w", "invalid config map", err)
+		return
+	}
+
+	existingConfigMap := &corev1.ConfigMap{}
+	if err := r.client.Get(ctx, types.NamespacedName{Name: configMap.Name, Namespace: configMap.Namespace}, existingConfigMap); err != nil {
+		if err := r.client.Create(ctx, configMap); err != nil {
+			r.errCh <- fmt.Errorf("%s: %w", "failed to create config map", err)
+		}
+	} else {
+		if err := r.client.Update(ctx, configMap); err != nil {
+			r.errCh <- fmt.Errorf("%s: %w", "failed to update config map", err)
+		}
+	}
+}
+
+func (r *Runner) createExperiment(ctx context.Context, exp *redskyv1beta1.Experiment) {
+	existingExperiment := &redskyv1beta1.Experiment{}
+	if err := r.client.Get(ctx, types.NamespacedName{Name: exp.Name, Namespace: exp.Namespace}, existingExperiment); err != nil {
+		if err := r.client.Create(ctx, exp); err != nil {
+			// api.UpdateStatus("failed")
+			r.errCh <- fmt.Errorf("%s: %w", "unable to create experiment in cluster", err)
+		}
+	} else {
+		// Update the experiment ( primarily to set replicas from 0 -> 1 )
+		if err := r.client.Update(ctx, exp); err != nil {
+			// api.UpdateStatus("failed")
+			r.errCh <- fmt.Errorf("%s: %w", "unable to start experiment", err)
+		}
+	}
+}

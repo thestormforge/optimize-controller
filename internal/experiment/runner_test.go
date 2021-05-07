@@ -6,15 +6,18 @@ import (
 	"fmt"
 	"os/exec"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	konjurev1beta2 "github.com/thestormforge/konjure/pkg/api/core/v1beta2"
 	"github.com/thestormforge/konjure/pkg/konjure"
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -23,6 +26,7 @@ import (
 )
 
 func TestRunner(t *testing.T) {
+
 	testCases := []struct {
 		desc    string
 		app     *redskyappsv1alpha1.Application
@@ -51,36 +55,72 @@ func TestRunner(t *testing.T) {
 		},
 	}
 
+	scheme := runtime.NewScheme()
+	redskyv1beta1.AddToScheme(scheme)
+	redskyappsv1alpha1.AddToScheme(scheme)
+	corev1.AddToScheme(scheme)
+	rbacv1.AddToScheme(scheme)
+	appsv1.AddToScheme(scheme)
+
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("%q", tc.desc), func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
 
-			scheme := runtime.NewScheme()
-			redskyv1beta1.AddToScheme(scheme)
-			redskyappsv1alpha1.AddToScheme(scheme)
-			corev1.AddToScheme(scheme)
-			rbacv1.AddToScheme(scheme)
-
-			client := fake.NewFakeClientWithScheme(scheme, &redskyv1beta1.Experiment{}, &redskyappsv1alpha1.Application{})
+			client := fake.NewFakeClientWithScheme(scheme)
+			/*
+				err := client.Create(ctx, nginxDeployment())
+				assert.NoError(t, err)
+			*/
 
 			appCh := make(chan *redskyappsv1alpha1.Application)
 			runner, errCh := New(client, appCh)
 			runner.kubectlExecFn = fakeKubectlExec
 
-			ctx, cancel := context.WithCancel(context.Background())
+			expCh := make(chan struct{})
 
-			go func() { appCh <- tc.app }()
+			// Start up the runner
+			go func() { runner.Run(ctx) }()
+
+			// Makeshift watcher; trigger experiment verification tests
+			// when we see the experiment through our fake client
 			go func() {
-				runner.Run(ctx)
-				cancel()
+				exp := &redskyv1beta1.Experiment{}
+				for {
+					select {
+					case <-time.Tick(100 * time.Millisecond):
+						if err := client.Get(ctx, types.NamespacedName{Namespace: "default", Name: tc.expName}, exp); err == nil {
+							expCh <- struct{}{}
+							return
+						}
+					case <-ctx.Done():
+						return
+					}
+				}
+			}()
+
+			// Trigger runner
+			go func() {
+				var updatedApp *redskyappsv1alpha1.Application
+				if tc.err == nil {
+					// Create a copy of the app
+					updatedApp = &redskyappsv1alpha1.Application{}
+					tc.app.DeepCopyInto(updatedApp)
+				}
+
+				appCh <- tc.app
+
+				// Trigger an update of the existing experiment
+				if updatedApp != nil {
+					appCh <- updatedApp
+				}
 			}()
 
 			for {
 				select {
 				case <-ctx.Done():
-					if tc.err != nil {
-						return
-					}
+					return
 
+				case <-expCh:
 					exp := &redskyv1beta1.Experiment{}
 					err := client.Get(ctx, types.NamespacedName{Namespace: "default", Name: tc.expName}, exp)
 					assert.NoError(t, err)
@@ -110,8 +150,10 @@ func TestRunner(t *testing.T) {
 					assert.NoError(t, err)
 					assert.NotNil(t, clusterRoleBinding)
 
-					return
+					cancel()
+
 				case err := <-errCh:
+					// Handle expected errors
 					if tc.err != nil {
 						assert.Error(t, err)
 						assert.Equal(t, tc.err.Error(), err.Error())
@@ -120,6 +162,7 @@ func TestRunner(t *testing.T) {
 						continue
 					}
 
+					// Handle unexpected errors
 					assert.NoError(t, err)
 					cancel()
 				}
