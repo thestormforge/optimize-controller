@@ -145,6 +145,16 @@ func (f Fields) View() string {
 	return view.String()
 }
 
+// Enabled returns true if at least one field in the form is enabled.
+func (f Fields) Enabled() bool {
+	for i := range f {
+		if f[i].Enabled() {
+			return true
+		}
+	}
+	return false
+}
+
 // Focused returns true if at least one field in the form has focus.
 func (f Fields) Focused() bool {
 	for i := range f {

@@ -170,6 +170,14 @@ func (o *Options) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, o.listStormForgerTestCaseNames)
 		}
 
+	case internal.InitializationFinished:
+		// If the generation form is enabled, start it, otherwise skip ahead
+		if o.generatorModel.form().Enabled() {
+			cmds = append(cmds, form.Start)
+		} else {
+			cmds = append(cmds, o.generateExperiment)
+		}
+
 	case form.FinishedMsg:
 		if o.generatorModel.form().Focused() {
 			// We hit the end of the generator form, trigger generation

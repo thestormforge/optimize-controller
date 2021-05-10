@@ -113,9 +113,10 @@ func (m initializationModel) Update(msg tea.Msg) (initializationModel, tea.Cmd) 
 
 	}
 
-	// If this update changed the "done" status, start the form input
+	// If this update changed the "done" status, create a message so we can perform
+	// one time actions in response to the transition
 	if !done && m.Done() {
-		cmds = append(cmds, form.Start)
+		cmds = append(cmds, func() tea.Msg { return internal.InitializationFinished{} })
 	}
 
 	return m, tea.Batch(cmds...)

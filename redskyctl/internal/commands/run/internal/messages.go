@@ -27,6 +27,9 @@ import (
 // update implementations that may need to check errors.
 func Error(err error) tea.Cmd { return func() tea.Msg { return err } }
 
+// InitializationFinished indicates that all initialization tasks have completed.
+type InitializationFinished struct{}
+
 // KubectlVersionMsg carries the version of the kubectl executable. If the
 // executable is not on the path, the message will be an empty string.
 type KubectlVersionMsg string
@@ -65,6 +68,8 @@ func (m *ExperimentMsg) Write(nodes []*yaml.RNode) error {
 	return nil
 }
 
+// ExperimentReadyMsg is used to indicate that the experiment is ready and user
+// would like it sent to a specific destination.
 type ExperimentReadyMsg struct {
 	Cluster bool
 	File    bool
