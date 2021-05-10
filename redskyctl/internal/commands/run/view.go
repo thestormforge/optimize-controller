@@ -339,7 +339,7 @@ func (o *Options) updateGeneratorForm() {
 		o.generatorModel.NamespaceInput.SetEnabled(kubectlAvailable)
 	}
 
-	if len(o.Generator.Application.Parameters) == 0 {
+	if o.Generator.Application.Parameters == nil { // Parameters can be defaulted so allow an empty list
 		o.generatorModel.ContainerResourcesSelectorInput.Enable()
 		o.generatorModel.ReplicasSelectorInput.Enable()
 	}
