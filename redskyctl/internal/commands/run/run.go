@@ -317,13 +317,15 @@ func (m generatorModel) applyToApp(app *redskyappsv1alpha1.Application) {
 	}
 
 	if m.ContainerResourcesSelectorInput.Enabled() {
-		if sel := m.ContainerResourcesSelectorInput.Value(); sel != "" {
-			app.Parameters = append(app.Parameters, redskyappsv1alpha1.Parameter{
-				ContainerResources: &redskyappsv1alpha1.ContainerResources{
-					Selector: sel,
-				},
-			})
-		}
+		// NOTE: We do not check for an empty value here to match the expectation
+		// that empty matches everything (even if other parameters have been specified).
+		// We CANNOT rely on the default behavior of the generator for this, since
+		// the presence of any parameter bypasses the default inclusion of container resources.
+		app.Parameters = append(app.Parameters, redskyappsv1alpha1.Parameter{
+			ContainerResources: &redskyappsv1alpha1.ContainerResources{
+				Selector: m.ContainerResourcesSelectorInput.Value(),
+			},
+		})
 	}
 
 	if m.ReplicasSelectorInput.Enabled() {
