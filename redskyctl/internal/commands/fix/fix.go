@@ -17,16 +17,22 @@ limitations under the License.
 package fix
 
 import (
+	"os"
+	"path/filepath"
+
 	"github.com/spf13/cobra"
 	"github.com/thestormforge/optimize-controller/internal/sfio"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/kio/filters"
+	"sigs.k8s.io/kustomize/kyaml/kio/kioutil"
+	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
 type Options struct {
 	commander.IOStreams
 	Filenames []string
+	InPlace   bool
 }
 
 func NewCommand(o *Options) *cobra.Command {
@@ -39,6 +45,7 @@ func NewCommand(o *Options) *cobra.Command {
 	}
 
 	cmd.Flags().StringArrayVarP(&o.Filenames, "filename", "f", nil, "manifest `file` to fix")
+	cmd.Flags().BoolVarP(&o.InPlace, "in-place", "i", false, "overwrite input files WITHOUT BACKUPS")
 
 	_ = cmd.MarkFlagFilename("filename", "yml", "yaml")
 	_ = cmd.MarkFlagRequired("filename")
@@ -50,14 +57,64 @@ func (o *Options) Fix() error {
 	p := kio.Pipeline{
 		Filters: []kio.Filter{
 			kio.FilterAll(&sfio.ExperimentMigrationFilter{}),
+			// TODO LabelMigrationFilter for things like `redskyops.dev/application: votingapp` on non-CRD resources (and CRD resources!)
 			filters.FormatFilter{},
 		},
-		Outputs: []kio.Writer{o.YAMLWriter()},
 	}
 
 	for _, filename := range o.Filenames {
 		p.Inputs = append(p.Inputs, o.YAMLReader(filename))
 	}
 
+	if o.InPlace {
+		p.Outputs = append(p.Outputs, kio.WriterFunc(o.writeBackToPathAnnotation))
+	} else {
+		p.Outputs = append(p.Outputs, o.YAMLWriter())
+	}
+
 	return p.Execute()
+}
+
+func (o *Options) writeBackToPathAnnotation(nodes []*yaml.RNode) error {
+	// Note: we cannot use the kio.LocalPackageWriter because it assumes a common base directory
+
+	if err := kioutil.DefaultPathAndIndexAnnotation("", nodes); err != nil {
+		return err
+	}
+
+	pathIndex := make(map[string][]*yaml.RNode, len(nodes))
+	for _, n := range nodes {
+		if path, err := n.Pipe(yaml.GetAnnotation(kioutil.PathAnnotation)); err == nil {
+			pathIndex[path.YNode().Value] = append(pathIndex[path.YNode().Value], n)
+		}
+	}
+	for k := range pathIndex {
+		_ = kioutil.SortNodes(pathIndex[k])
+	}
+
+	for k, v := range pathIndex {
+		if err := o.writeToPath(k, v); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (o *Options) writeToPath(path string, nodes []*yaml.RNode) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		return err
+	}
+
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	w := kio.ByteWriter{
+		Writer:           f,
+		ClearAnnotations: []string{kioutil.PathAnnotation},
+	}
+	return w.Write(nodes)
 }
