@@ -34,6 +34,7 @@ import (
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/docs"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/experiments"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/export"
+	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/fix"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/generate"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/grant_permissions"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/initialize"
@@ -71,6 +72,7 @@ func NewRedskyctlCommand() *cobra.Command {
 	rootCmd.AddCommand(grant_permissions.NewCommand(&grant_permissions.Options{GeneratorOptions: grant_permissions.GeneratorOptions{Config: cfg}}))
 	rootCmd.AddCommand(authorize_cluster.NewCommand(&authorize_cluster.Options{GeneratorOptions: authorize_cluster.GeneratorOptions{Config: cfg}}))
 	rootCmd.AddCommand(generate.NewCommand(&generate.Options{Config: cfg}))
+	rootCmd.AddCommand(fix.NewCommand(&fix.Options{}))
 	rootCmd.AddCommand(export.NewCommand(&export.Options{Config: cfg}))
 	rootCmd.AddCommand(run.NewCommand(&run.Options{Config: cfg}))
 
