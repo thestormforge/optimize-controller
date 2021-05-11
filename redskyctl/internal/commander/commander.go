@@ -23,6 +23,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/spf13/cobra"
 	redskyv1alpha1 "github.com/thestormforge/optimize-controller/api/v1alpha1"
@@ -62,6 +63,51 @@ func (s *IOStreams) OpenFile(filename string) (io.ReadCloser, error) {
 		return ioutil.NopCloser(s.In), nil
 	}
 	return os.Open(filename)
+}
+
+// YAMLReader returns a resource node reader for the named file.
+func (s *IOStreams) YAMLReader(filename string) kio.Reader {
+	if filename == "-" {
+		path := "/dev/stdin"
+		if namedReader, ok := s.In.(interface{ Name() string }); ok {
+			path = namedReader.Name()
+		}
+		return &kio.ByteReader{
+			Reader:         s.In,
+			SetAnnotations: map[string]string{kioutil.PathAnnotation: path},
+		}
+	}
+
+	return &kio.ByteReader{
+		Reader:         &fileReader{Filename: filename},
+		SetAnnotations: map[string]string{kioutil.PathAnnotation: filename},
+	}
+}
+
+// fileReader is a reader the lazily opens a file for reading and automatically
+// closes it when it hits EOF.
+type fileReader struct {
+	sync.Once
+	io.ReadCloser
+	Filename string
+}
+
+func (r *fileReader) Read(p []byte) (n int, err error) {
+	r.Once.Do(func() {
+		r.ReadCloser, err = os.Open(r.Filename)
+	})
+	if err != nil {
+		return
+	}
+
+	n, err = r.ReadCloser.Read(p)
+	if err != io.EOF {
+		return
+	}
+	if closeErr := r.ReadCloser.Close(); closeErr != nil {
+		err = closeErr
+	}
+	return
 }
 
 // YAMLWriter returns a resource node writer for the current output stream. The writer
