@@ -22,6 +22,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -67,21 +68,24 @@ func (s *IOStreams) OpenFile(filename string) (io.ReadCloser, error) {
 
 // YAMLReader returns a resource node reader for the named file.
 func (s *IOStreams) YAMLReader(filename string) kio.Reader {
+	r := &kio.ByteReader{
+		Reader: &fileReader{Filename: filename},
+		SetAnnotations: map[string]string{
+			kioutil.PathAnnotation: filename,
+		},
+	}
+
+	// Handle the process relative "default" stream
 	if filename == "-" {
-		path := "/dev/stdin"
-		if namedReader, ok := s.In.(interface{ Name() string }); ok {
-			path = namedReader.Name()
-		}
-		return &kio.ByteReader{
-			Reader:         s.In,
-			SetAnnotations: map[string]string{kioutil.PathAnnotation: path},
+		r.Reader = s.In
+
+		delete(r.SetAnnotations, kioutil.PathAnnotation)
+		if path, err := filepath.Abs("stdin"); err == nil {
+			r.SetAnnotations[kioutil.PathAnnotation] = path
 		}
 	}
 
-	return &kio.ByteReader{
-		Reader:         &fileReader{Filename: filename},
-		SetAnnotations: map[string]string{kioutil.PathAnnotation: filename},
-	}
+	return r
 }
 
 // fileReader is a reader the lazily opens a file for reading and automatically
