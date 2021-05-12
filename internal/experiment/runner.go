@@ -52,8 +52,6 @@ func New(kclient client.Client, appCh chan *redskyappsv1alpha1.Application) (*Ru
 		client: kclient,
 		appCh:  appCh,
 		errCh:  errCh,
-		// Dont think I need this anymore with the `scan.MiniKubectl`
-		//kubectlExecFn: inClusterKubectl,
 	}, errCh
 }
 
