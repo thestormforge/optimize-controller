@@ -23,6 +23,7 @@ import (
 	"github.com/thestormforge/konjure/pkg/konjure"
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	"github.com/thestormforge/optimize-controller/internal/scan"
+	"github.com/thestormforge/optimize-controller/internal/sfio"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/kustomize/kyaml/kio"
@@ -97,7 +98,7 @@ func (g *Generator) Map(node *yaml.RNode, meta yaml.ResourceMeta) ([]interface{}
 
 // Transform converts the scan information into an application definition.
 func (g *Generator) Transform(_ []*yaml.RNode, selected []interface{}) ([]*yaml.RNode, error) {
-	result := scan.ObjectSlice{}
+	result := sfio.ObjectSlice{}
 
 	app := &redskyappsv1alpha1.Application{}
 	for _, sel := range selected {

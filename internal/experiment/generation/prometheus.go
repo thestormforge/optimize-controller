@@ -19,7 +19,7 @@ package generation
 import (
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
-	"github.com/thestormforge/optimize-controller/internal/scan"
+	"github.com/thestormforge/optimize-controller/internal/sfio"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,7 +52,7 @@ type BuiltInPrometheus struct {
 	ServiceAccountName     string
 	ClusterRoleBindingName string
 
-	scan.ObjectSlice
+	sfio.ObjectSlice
 }
 
 var _ ExperimentSource = &BuiltInPrometheus{} // Service Account name and Setup Task

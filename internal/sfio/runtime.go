@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package scan
+package sfio
 
 import (
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"

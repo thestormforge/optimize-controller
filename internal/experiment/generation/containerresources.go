@@ -24,6 +24,7 @@ import (
 	"github.com/thestormforge/konjure/pkg/filters"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	"github.com/thestormforge/optimize-controller/internal/scan"
+	"github.com/thestormforge/optimize-controller/internal/sfio"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -160,7 +161,7 @@ func (s *ContainerResourcesSelector) saveContainerLimitRange(namespace string, n
 	}
 
 	lri := corev1.LimitRangeItem{}
-	if err := scan.DecodeYAMLToJSON(lriNode, &lri); err != nil {
+	if err := sfio.DecodeYAMLToJSON(lriNode, &lri); err != nil {
 		return err
 	}
 
@@ -203,7 +204,7 @@ func (p *containerResourcesParameter) Patch(name ParameterNamer) (yaml.Filter, e
 func (p *containerResourcesParameter) Parameters(name ParameterNamer) ([]redskyv1beta1.Parameter, error) {
 	// ResourceList (actually, Quantities) won't unmarshal as YAML so we need to round trip through JSON
 	r := corev1.ResourceRequirements{}
-	if err := scan.DecodeYAMLToJSON(yaml.NewRNode(p.value), &r); err != nil {
+	if err := sfio.DecodeYAMLToJSON(yaml.NewRNode(p.value), &r); err != nil {
 		return nil, err
 	}
 

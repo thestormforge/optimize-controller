@@ -34,6 +34,7 @@ import (
 	"github.com/thestormforge/optimize-controller/internal/patch"
 	"github.com/thestormforge/optimize-controller/internal/scan"
 	"github.com/thestormforge/optimize-controller/internal/server"
+	"github.com/thestormforge/optimize-controller/internal/sfio"
 	"github.com/thestormforge/optimize-controller/internal/template"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/kustomize"
@@ -371,7 +372,7 @@ func (o *Options) generateExperiment(trial *trialDetails) error {
 		gen.Scenario, gen.Objective = apppkg.GuessScenarioAndObjective(&gen.Application, gen.ExperimentName)
 	}
 
-	if err := gen.Execute((*scan.ObjectList)(list)); err != nil {
+	if err := gen.Execute((*sfio.ObjectList)(list)); err != nil {
 		return err
 	}
 

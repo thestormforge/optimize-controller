@@ -25,7 +25,7 @@ import (
 	"github.com/pelletier/go-toml"
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
-	"github.com/thestormforge/optimize-controller/internal/scan"
+	"github.com/thestormforge/optimize-controller/internal/sfio"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
@@ -125,7 +125,7 @@ func (s *StormForgerSource) Update(exp *redskyv1beta1.Experiment) error {
 }
 
 func (s *StormForgerSource) Read() ([]*yaml.RNode, error) {
-	result := scan.ObjectSlice{}
+	result := sfio.ObjectSlice{}
 
 	org, tc := s.stormForgerTestCase()
 

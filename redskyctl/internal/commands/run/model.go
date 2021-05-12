@@ -22,7 +22,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
-	"github.com/thestormforge/optimize-controller/internal/scan"
+	"github.com/thestormforge/optimize-controller/internal/sfio"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/form"
 	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/internal"
 	"sigs.k8s.io/kustomize/kyaml/kio"
@@ -258,7 +258,7 @@ func (m previewModel) Update(msg tea.Msg) (previewModel, tea.Cmd) {
 
 	case internal.ExperimentMsg:
 		// Extract the experiment definition from the YAML to make it easier to pull values from
-		obj := scan.ObjectList{}
+		obj := sfio.ObjectList{}
 		if err := obj.Write(msg); err != nil {
 			return m, internal.Error(err)
 		}
