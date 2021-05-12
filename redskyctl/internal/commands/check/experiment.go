@@ -218,8 +218,13 @@ func (l *linter) Visit(ctx context.Context, obj interface{}) experiment.Visitor 
 			if o.TargetRef.Kind == "" {
 				// TODO Is kind required? Can you just have the namespace and the rest of the ref in the patch?
 				lint.V(vError).Info("Patch target kind is required")
-			} else if !isCoreKind(o.TargetRef.Kind) && o.TargetRef.APIVersion == "" {
-				lint.V(vError).Info("Patch target apiVersion is required")
+			} else if !isCoreKind(o.TargetRef.Kind) {
+				if o.TargetRef.APIVersion == "" {
+					lint.V(vError).Info("Patch target apiVersion is required")
+				}
+				if o.Type == redskyv1beta1.PatchStrategic || o.Type == "" {
+					lint.V(vWarn).Info("Strategic merge patch may not work with custom resources")
+				}
 			}
 		}
 
