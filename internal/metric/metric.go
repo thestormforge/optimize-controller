@@ -47,6 +47,8 @@ func CaptureMetric(ctx context.Context, log logr.Logger, trial *redskyv1beta1.Tr
 		return captureDatadogMetric(metric, trial.Status.StartTime.Time, trial.Status.CompletionTime.Time)
 	case redskyv1beta1.MetricJSONPath:
 		return captureJSONPathMetric(metric)
+	case redskyv1beta1.MetricNewRelic:
+		return captureNewRelicMetric(metric, trial.Status.StartTime.Time, trial.Status.CompletionTime.Time)
 	default:
 		return 0, 0, fmt.Errorf("unknown metric type: %s", metric.Type)
 	}
