@@ -119,13 +119,28 @@ var VerbosePrompts FieldOption = func(field *FormField) {
 	field.verbose = true
 }
 
+// GlobalInstructions appends the supplied instructions to every field.
+func GlobalInstructions(ins ...interface{}) FieldOption {
+	return func(field *FormField) {
+		field.Instructions = append(field.Instructions, ins...)
+	}
+}
+
+// KeyBinding represents a description of what a key should do.
+type KeyBinding struct {
+	// The key bound to the action.
+	Key tea.Key
+	// The description of the action.
+	Desc string
+}
+
 // FormField is used to create new form fields with more consistency.
 type FormField struct {
 	Prompt          string
 	PromptVerbose   string
 	Placeholder     string
 	LoadingMessage  string
-	Instructions    []string
+	Instructions    []interface{}
 	InputOnSameLine bool
 	Choices         []string
 	Completions     form.Completions
@@ -183,7 +198,7 @@ func (f FormField) NewMultiChoiceField(opts ...FieldOption) form.MultiChoiceFiel
 	return field
 }
 
-// NewExitField creates a field that trigger an exit as soon as it is focused.
+// NewExitField creates a field that triggers an exit as soon as it is focused.
 func (f FormField) NewExitField(opts ...FieldOption) form.ExitField {
 	for _, opt := range opts {
 		opt(&f)
@@ -214,7 +229,16 @@ func (f *FormField) instructions() string {
 	if len(f.Instructions) == 0 {
 		return ""
 	}
-	return "\n" + strings.Join(f.Instructions, "  |  ")
+	var text []string
+	for _, ins := range f.Instructions {
+		switch ins := ins.(type) {
+		case string:
+			text = append(text, ins)
+		case KeyBinding:
+			text = append(text, fmt.Sprintf("%s: %s", ins.Key, ins.Desc))
+		}
+	}
+	return "\n" + strings.Join(text, "  |  ")
 }
 
 func (f *FormField) loadingMessage() string {
@@ -224,25 +248,19 @@ func (f *FormField) loadingMessage() string {
 	return " " + f.LoadingMessage + " ..."
 }
 
-// KeyBinding represents a description of what a key should do.
-type KeyBinding struct {
-	// The key bound to the action.
-	Key tea.Key
-	// The description of the action.
-	Desc string
-}
+// PagerInstructions returns a nano-style instructions bar for the pager.
+func PagerInstructions(keys []KeyBinding) func(width int) string {
+	return func(width int) string {
+		keyStyle := instructionsStyle.Reverse()
+		descStyle := instructionsStyle
 
-// RenderKeyBindings generates an instruction line for the supplied key bindings.
-func RenderKeyBindings(keys []KeyBinding, width int) string {
-	keyStyle := instructionsStyle.Reverse()
-	descStyle := instructionsStyle
-
-	var buf strings.Builder
-	buf.WriteString("\n\n")
-	tw := tabwriter.NewWriter(&buf, width/len(keys), 1, 1, ' ', 0)
-	for _, k := range keys {
-		_, _ = fmt.Fprintf(tw, "%s: %s\t", keyStyle.Styled(k.Key.String()), descStyle.Styled(k.Desc))
+		var buf strings.Builder
+		buf.WriteString("\n\n")
+		tw := tabwriter.NewWriter(&buf, width/len(keys), 1, 1, ' ', 0)
+		for _, k := range keys {
+			_, _ = fmt.Fprintf(tw, "%s: %s\t", keyStyle.Styled(k.Key.String()), descStyle.Styled(k.Desc))
+		}
+		_ = tw.Flush()
+		return buf.String()
 	}
-	_ = tw.Flush()
-	return buf.String()
 }

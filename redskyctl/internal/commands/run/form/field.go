@@ -106,6 +106,10 @@ func (m *fieldModel) Hide() {
 	m.shown = false
 }
 
+func (m *fieldModel) SetHidden(hidden bool) {
+	m.shown = !hidden
+}
+
 func (m fieldModel) update(msg tea.Msg) (fieldModel, tea.Cmd) {
 	if !m.Enabled() {
 		return m, nil

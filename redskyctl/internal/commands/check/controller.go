@@ -59,14 +59,15 @@ func NewControllerCommand(o *ControllerOptions) *cobra.Command {
 }
 
 func (o *ControllerOptions) CheckController(ctx context.Context) error {
-	// Get the namespace
+	// Get the namespace and selector
+	selector := "control-plane=controller-manager"
 	ns, err := o.Config.SystemNamespace()
 	if err != nil {
 		return err
 	}
 
 	// Try to get the pod first; wait will fail if it doesn't exist yet
-	list := &corev1.PodList{}
+	var pod *corev1.Pod
 	if err := retry.OnError(wait.Backoff{
 		Steps:    30,
 		Duration: 1 * time.Second,
@@ -75,7 +76,7 @@ func (o *ControllerOptions) CheckController(ctx context.Context) error {
 		return o.Wait
 	}, func() error {
 		// Get the pod (this is the same query used to fetch the version number)
-		get, err := o.Config.Kubectl(ctx, "--namespace", ns, "get", "pods", "--selector", "control-plane=controller-manager", "--ignore-not-found", "--output", "yaml")
+		get, err := o.Config.Kubectl(ctx, "--namespace", ns, "get", "pods", "--selector", selector, "--ignore-not-found", "--output", "yaml")
 		if err != nil {
 			return err
 		}
@@ -83,6 +84,8 @@ func (o *ControllerOptions) CheckController(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("could not find controller pods: %w", err)
 		}
+
+		list := &corev1.PodList{}
 		if err := yaml.Unmarshal(output, list); err != nil {
 			return err
 		}
@@ -92,30 +95,42 @@ func (o *ControllerOptions) CheckController(ctx context.Context) error {
 		if len(list.Items) > 1 {
 			return fmt.Errorf("found multiple controllers in namespace '%s'", ns)
 		}
+
+		pod = &list.Items[0]
 		return nil
 	}); err != nil {
 		return err
 	}
 
-	// Delegate the wait to kubectl
-	if o.Wait {
-		kubewait, err := o.Config.Kubectl(ctx, "--namespace", ns, "wait", "pods", "--selector", "control-plane=controller-manager", "--for", "condition=Ready=True")
-		if err != nil {
-			return err
+	// If the pod is ready, we are done
+	for _, c := range pod.Status.Conditions {
+		if c.Type == corev1.PodReady && c.Status == corev1.ConditionTrue {
+			_, _ = fmt.Fprintf(o.Out, "Success.\n")
+			return nil
 		}
-		kubewait.Stdout = ioutil.Discard
-		if err := kubewait.Run(); err != nil {
-			return fmt.Errorf("could not wait for controller pods: %w", err)
-		}
-		_, _ = fmt.Fprintf(o.Out, "Success.\n")
-		return nil
 	}
 
-	// Check to see if the pod is ready
-	for _, c := range list.Items[0].Status.Conditions {
-		if c.Type == corev1.PodReady && c.Status != corev1.ConditionTrue {
-			return fmt.Errorf("controller is not ready")
+	// Check to see if this if there is an issue with pulling the image
+	for _, c := range pod.Status.ContainerStatuses {
+		if c.State.Waiting != nil && c.State.Waiting.Reason == "ErrImageNeverPull" {
+			return fmt.Errorf("controller is not ready, %s", c.State.Waiting.Message)
 		}
+	}
+
+	// If we aren't waiting, just fail immediately
+	if !o.Wait {
+		return fmt.Errorf("controller is not ready")
+	}
+
+	// Delegate the wait to kubectl
+	kubewait, err := o.Config.Kubectl(ctx, "--namespace", ns, "wait", "pods", "--selector", selector, "--for", "condition=Ready=True")
+	if err != nil {
+		return err
+	}
+
+	kubewait.Stdout = ioutil.Discard
+	if err := kubewait.Run(); err != nil {
+		return fmt.Errorf("could not wait for controller pods: %w", err)
 	}
 
 	_, _ = fmt.Fprintf(o.Out, "Success.\n")

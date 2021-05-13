@@ -51,14 +51,18 @@ func (s *ReplicaSelector) Map(node *yaml.RNode, meta yaml.ResourceMeta) ([]inter
 	err := node.PipeE(
 		&yaml.PathGetter{Path: path, Create: yaml.ScalarNode},
 		yaml.FilterFunc(func(node *yaml.RNode) (*yaml.RNode, error) {
-			if node.YNode().Value == "" && !s.CreateIfNotPresent {
-				return node, nil
+			value := node.YNode()
+			if value.Value == "" {
+				if !s.CreateIfNotPresent {
+					return node, nil
+				}
+				value = &yaml.Node{Kind: yaml.ScalarNode, Value: "1"}
 			}
 
 			result = append(result, &replicaParameter{pnode: pnode{
 				meta:      meta,
 				fieldPath: node.FieldPath(),
-				value:     node.YNode(),
+				value:     value,
 			}})
 
 			return node, nil

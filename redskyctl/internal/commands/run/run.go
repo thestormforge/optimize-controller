@@ -170,21 +170,35 @@ func (o *Options) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, o.listStormForgerTestCaseNames)
 		}
 
-	case form.FinishedMsg:
-		// We hit the end of the generator form, apply the changes and trigger generation
-		o.applyGeneratorModel()
-		cmds = append(cmds, o.generateExperiment)
+	case internal.InitializationFinished:
+		// If the generation form is enabled, start it, otherwise skip ahead
+		if o.generatorModel.form().Enabled() {
+			cmds = append(cmds, form.Start)
+		} else {
+			cmds = append(cmds, o.generateExperiment)
+		}
 
-	case internal.ExperimentConfirmedMsg:
-		switch msg.Destination {
-		case internal.DestinationCluster:
-			// The user confirmed they are ready to run the experiment
+	case form.FinishedMsg:
+		if o.generatorModel.form().Focused() {
+			// We hit the end of the generator form, trigger generation
+			cmds = append(cmds, o.generateExperiment)
+		}
+
+	case internal.ExperimentReadyMsg:
+		switch {
+		case msg.Cluster:
+			// User wants the experiment run in the cluster
 			cmds = append(cmds, o.createExperimentInCluster)
+		case msg.File:
+			// User wants the experiment written to disk
+			cmds = append(cmds, o.createExperimentInFile)
 		}
 
 	case internal.ExperimentCreatedMsg:
-		// The experiment is in the cluster, start refreshing the trial status
-		cmds = append(cmds, o.refreshTrialsTick())
+		if msg.Filename == "" {
+			// The experiment is in the cluster, start refreshing the trial status
+			cmds = append(cmds, o.refreshTrialsTick())
+		}
 
 	case internal.TrialsMsg:
 		// If we got a status refresh, initiate another
@@ -254,30 +268,29 @@ func (o *Options) ReadApplication(args []string) error {
 	return nil
 }
 
-// applyGeneratorModel takes all of the what is on the generatorModel and applies
-// it to the application in the experiment generator.
-func (o *Options) applyGeneratorModel() {
-	if o.generatorModel.NamespaceInput.Enabled() {
+// applyToApp takes all of the what is on the model and applies it to an application.
+func (m generatorModel) applyToApp(app *redskyappsv1alpha1.Application) {
+	if m.NamespaceInput.Enabled() {
 
 		// TODO We need a better way to set the name/namespace of the application
-		if namespaces := o.generatorModel.NamespaceInput.Values(); len(namespaces) == 1 {
-			o.Generator.Application.Name = namespaces[0]
-			o.Generator.Application.Namespace = namespaces[0]
+		if namespaces := m.NamespaceInput.Values(); len(namespaces) == 1 {
+			app.Name = namespaces[0]
+			app.Namespace = namespaces[0]
 		}
 
-		for i, ns := range o.generatorModel.NamespaceInput.Values() {
-			o.Generator.Application.Resources = append(o.Generator.Application.Resources, konjure.Resource{
+		for i, ns := range m.NamespaceInput.Values() {
+			app.Resources = append(app.Resources, konjure.Resource{
 				Kubernetes: &konjurev1beta2.Kubernetes{
 					Namespaces: []string{ns},
-					Selector:   o.generatorModel.LabelSelectorInputs[i].Value(),
+					Selector:   m.LabelSelectorInputs[i].Value(),
 				},
 			})
 		}
 	}
 
-	if o.generatorModel.StormForgerTestCaseInput.Enabled() {
-		if testCase := o.generatorModel.StormForgerTestCaseInput.Value(); testCase != "" {
-			o.Generator.Application.Scenarios = append(o.Generator.Application.Scenarios, redskyappsv1alpha1.Scenario{
+	if m.StormForgerTestCaseInput.Enabled() {
+		if testCase := m.StormForgerTestCaseInput.Value(); testCase != "" {
+			app.Scenarios = append(app.Scenarios, redskyappsv1alpha1.Scenario{
 				StormForger: &redskyappsv1alpha1.StormForgerScenario{
 					TestCase: testCase,
 				},
@@ -285,9 +298,9 @@ func (o *Options) applyGeneratorModel() {
 		}
 	}
 
-	if o.generatorModel.LocustfileInput.Enabled() {
-		if locustfile := o.generatorModel.LocustfileInput.Value(); locustfile != "" {
-			o.Generator.Application.Scenarios = append(o.Generator.Application.Scenarios, redskyappsv1alpha1.Scenario{
+	if m.LocustfileInput.Enabled() {
+		if locustfile := m.LocustfileInput.Value(); locustfile != "" {
+			app.Scenarios = append(app.Scenarios, redskyappsv1alpha1.Scenario{
 				Locust: &redskyappsv1alpha1.LocustScenario{
 					Locustfile: locustfile,
 				},
@@ -295,27 +308,29 @@ func (o *Options) applyGeneratorModel() {
 		}
 	}
 
-	if o.generatorModel.IngressURLInput.Enabled() {
-		if u := o.generatorModel.IngressURLInput.Value(); u != "" {
-			o.Generator.Application.Ingress = &redskyappsv1alpha1.Ingress{
+	if m.IngressURLInput.Enabled() {
+		if u := m.IngressURLInput.Value(); u != "" {
+			app.Ingress = &redskyappsv1alpha1.Ingress{
 				URL: u,
 			}
 		}
 	}
 
-	if o.generatorModel.ContainerResourcesSelectorInput.Enabled() {
-		if sel := o.generatorModel.ContainerResourcesSelectorInput.Value(); sel != "" {
-			o.Generator.Application.Parameters = append(o.Generator.Application.Parameters, redskyappsv1alpha1.Parameter{
-				ContainerResources: &redskyappsv1alpha1.ContainerResources{
-					Selector: sel,
-				},
-			})
-		}
+	if m.ContainerResourcesSelectorInput.Enabled() {
+		// NOTE: We do not check for an empty value here to match the expectation
+		// that empty matches everything (even if other parameters have been specified).
+		// We CANNOT rely on the default behavior of the generator for this, since
+		// the presence of any parameter bypasses the default inclusion of container resources.
+		app.Parameters = append(app.Parameters, redskyappsv1alpha1.Parameter{
+			ContainerResources: &redskyappsv1alpha1.ContainerResources{
+				Selector: m.ContainerResourcesSelectorInput.Value(),
+			},
+		})
 	}
 
-	if o.generatorModel.ReplicasSelectorInput.Enabled() {
-		if sel := o.generatorModel.ReplicasSelectorInput.Value(); sel != "" {
-			o.Generator.Application.Parameters = append(o.Generator.Application.Parameters, redskyappsv1alpha1.Parameter{
+	if m.ReplicasSelectorInput.Enabled() {
+		if sel := m.ReplicasSelectorInput.Value(); sel != "" {
+			app.Parameters = append(app.Parameters, redskyappsv1alpha1.Parameter{
 				Replicas: &redskyappsv1alpha1.Replicas{
 					Selector: sel,
 				},
@@ -323,10 +338,10 @@ func (o *Options) applyGeneratorModel() {
 		}
 	}
 
-	if o.generatorModel.ObjectiveInput.Enabled() {
-		o.Generator.Application.Objectives = append(o.Generator.Application.Objectives, redskyappsv1alpha1.Objective{})
-		for _, goal := range o.generatorModel.ObjectiveInput.Values() {
-			o.Generator.Application.Objectives[0].Goals = append(o.Generator.Application.Objectives[0].Goals, redskyappsv1alpha1.Goal{Name: goal})
+	if m.ObjectiveInput.Enabled() {
+		app.Objectives = append(app.Objectives, redskyappsv1alpha1.Objective{})
+		for _, goal := range m.ObjectiveInput.Values() {
+			app.Objectives[0].Goals = append(app.Objectives[0].Goals, redskyappsv1alpha1.Goal{Name: goal})
 		}
 	}
 

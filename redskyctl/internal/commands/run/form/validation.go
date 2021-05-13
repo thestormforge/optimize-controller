@@ -103,18 +103,17 @@ type File struct {
 }
 
 func (v *File) ValidateTextField(value string) tea.Msg {
-	if v.Required != "" && value == "" {
+	if value == "" {
 		return ValidationMsg(v.Required)
 	}
 
 	info, err := os.Lstat(value)
 	if err != nil {
-		if v.Missing != "" && os.IsNotExist(err) {
+		if os.IsNotExist(err) {
 			return ValidationMsg(v.Missing)
 		}
-
 		// TODO How should we handle this?
-		return ValidationMsg(err.Error())
+		return ValidationMsg(strings.TrimPrefix(err.Error(), "lstat "+value+": "))
 	}
 
 	if v.Directory != "" && !info.IsDir() {
