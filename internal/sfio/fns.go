@@ -34,7 +34,17 @@ func (f FieldRenamer) Filter(rn *yaml.RNode) (*yaml.RNode, error) {
 		return nil, err
 	}
 
-	// TODO This doesn't account for when the "To" field already exists...
+	from, _ := yaml.Get(f.From).Filter(rn)
+	if from == nil {
+		return nil, nil
+	}
+
+	to, _ := yaml.Get(f.To).Filter(rn)
+	if to != nil {
+		to.YNode().Content = append(to.YNode().Content, from.YNode().Content...)
+		_, _ = yaml.Clear(f.From).Filter(rn)
+		return to, nil
+	}
 
 	for i := 0; i < len(rn.Content()); i = yaml.IncrementFieldIndex(i) {
 		if rn.Content()[i].Value == f.From {

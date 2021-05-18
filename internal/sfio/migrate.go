@@ -137,10 +137,8 @@ func (f *ExperimentMigrationFilter) migrateMetricsV1alpha1(node *yaml.RNode) (*y
 
 			// Change type "pods" to "" and add "target: { kind: PodList }"
 			yaml.Tee(
-				Has(
-					yaml.MatchField("type", "pods"),
-					yaml.Set(yaml.NewStringRNode("")),
-				),
+				Has(yaml.MatchField("type", "pods")),
+				yaml.Tee(yaml.Clear("type")),
 				yaml.SetField("target", yaml.NewMapRNode(&map[string]string{
 					"kind": "PodList",
 				})),
