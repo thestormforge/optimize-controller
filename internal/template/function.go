@@ -75,7 +75,9 @@ func percent(value int32, percent int32) string {
 // resourceRequests uses a map of resource types to weights to calculate a weighted sum of the resource requests
 func resourceRequests(podList runtime.Object, weights string) (float64, error) {
 	var pods *corev1.PodList
-	if p, ok := podList.(*corev1.PodList); ok {
+	if podList == nil {
+		return 0.0, fmt.Errorf("missing pod list, the metric type may be incorrect")
+	} else if p, ok := podList.(*corev1.PodList); ok {
 		pods = p
 	} else {
 		pods = &corev1.PodList{}
