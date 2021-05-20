@@ -26,9 +26,21 @@ import (
 	"time"
 
 	"github.com/newrelic/newrelic-client-go/newrelic"
-	"github.com/newrelic/newrelic-client-go/pkg/nerdgraph"
+	"github.com/newrelic/newrelic-client-go/pkg/nrdb"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 )
+
+const query = `
+	query($accountId: Int!, $nrqlQuery: Nrql!) {
+		actor {
+			account(id: $accountId) {
+				nrql(query: $nrqlQuery, timeout: 5) {
+					results
+					totalResult
+				}
+			}
+		}
+	}`
 
 func captureNewRelicMetric(m *redskyv1beta1.Metric, startTime, completionTime time.Time) (float64, float64, error) {
 	apiKey := os.Getenv("NEW_RELIC_API_KEY")
@@ -51,58 +63,54 @@ func captureNewRelicMetric(m *redskyv1beta1.Metric, startTime, completionTime ti
 		return 0, 0, err
 	}
 
-	query := `
-	query($accountId: Int!, $nrqlQuery: Nrql!) {
-		actor {
-			account(id: $accountId) {
-				nrql(query: $nrqlQuery, timeout: 5) {
-					totalResult
-				}
-			}
-		}
-	}`
-
+	nrql := fmt.Sprintf("%s SINCE %d UNTIL %d", m.Query, startTime.UTC().Unix(), completionTime.UTC().Unix())
 	variables := map[string]interface{}{
 		"accountId": accountID,
 
 		// Add query timestamp bounds
 		// Seems like there is a requirement for timestamp being in UTC --
 		// https://docs.newrelic.com/docs/query-your-data/nrql-new-relic-query-language/get-started/nrql-syntax-clauses-functions/#sel-since
-		"nrqlQuery": fmt.Sprintf("%s SINCE %d UNTIL %d", m.Query, startTime.UTC().Unix(), completionTime.UTC().Unix()),
+		"nrqlQuery": nrql,
 	}
 
-	fmt.Println(variables)
-
-	resp, err := client.NerdGraph.Query(query, variables)
-	if err != nil {
+	resp := gqlNrglQueryResponse{}
+	if err := client.NerdGraph.QueryWithResponse(query, variables, &resp); err != nil {
 		return 0, 0, err
 	}
 
-	queryResp := resp.(nerdgraph.QueryResponse)
-	actor := queryResp.Actor.(map[string]interface{})
-	account := actor["account"].(map[string]interface{})
-	nrql := account["nrql"].(map[string]interface{})
-	results := nrql["totalResult"].(map[string]interface{})
-
-	if len(results) != 1 {
+	switch len(resp.Actor.Account.NRQL.Results) {
+	case 0:
+		// TODO: see if we can inject a delay/retry here
+		// We cant use CaptureError as is today because it causes retry counter to not decrement
+		// return 0, 0, &CaptureError{Message: "metric data not available", Query: nrql, RetryAfter: 30 * time.Second}
+		return 0, 0, fmt.Errorf("query returned no results: %s", nrql)
+	case 1:
+		// Successful case
+	default:
 		// Maybe note about using RAW instead of TIMESERIES (?)
-		return 0, 0, fmt.Errorf("expected one series")
+		return 0, 0, fmt.Errorf("expected one result")
 	}
-
-	// TODO
-	// How do we ensure they have data from our scrape interval ( akin to prometheus )
 
 	// This feels janky, but not sure how they do a transformation of the query into the
 	// key returned in the results
 	// Ex, SELECT sum(`k8s.container.memoryRequestedBytes`) returns
 	// "sum.k8s.container.memoryRequestedBytes": 143957950464
-
 	var result float64
-	for _, v := range results {
+	for _, v := range resp.Actor.Account.NRQL.Results[0] {
 		result = v.(float64)
 	}
 
 	return result, math.NaN(), nil
+}
+
+// Using the pattern provided by NewRelic instead of dealing with map[string]interface casts
+// ref: https://github.com/newrelic/newrelic-client-go/blob/2932f5d6275d9017fd1ce5764d2de258575dd187/pkg/nrdb/nrdb_query.go#L50
+type gqlNrglQueryResponse struct {
+	Actor struct {
+		Account struct {
+			NRQL nrdb.NRDBResultContainer
+		}
+	}
 }
 
 // For reference, using https://api.newrelic.com/graphiql
@@ -112,6 +120,7 @@ func captureNewRelicMetric(m *redskyv1beta1.Metric, startTime, completionTime ti
   actor {
     account(id: xxx) {
       nrql(query: "SELECT sum(`k8s.container.memoryRequestedBytes`) FROM Metric FACET `k8s.containerName` WHERE `k8s.containerName` = 'postgres' SINCE 10 MINUTES AGO RAW", timeout: 5) {
+			  results
         totalResult
       }
     }
@@ -128,9 +137,13 @@ func captureNewRelicMetric(m *redskyv1beta1.Metric, startTime, completionTime ti
       "account": {
         "nrql": {
           "nrql": "SELECT sum(`k8s.container.memoryRequestedBytes`) FROM Metric FACET `k8s.containerName` WHERE `k8s.containerName` = 'postgres' SINCE 10 MINUTES AGO RAW",
-          "otherResult": {
-            "sum.k8s.container.memoryRequestedBytes": 0
-          },
+          "results": [
+            {
+              "facet": "postgres",
+              "k8s.containerName": "postgres",
+              "sum.k8s.container.memoryRequestedBytes": 143957950464
+            }
+          ],
           "totalResult": {
             "sum.k8s.container.memoryRequestedBytes": 143957950464
           }
