@@ -20,15 +20,22 @@ import (
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
+// RenameField returns a filter that renames a field, merging the content if the
+// "to" field already exists.
 func RenameField(from, to string) FieldRenamer {
 	return FieldRenamer{From: from, To: to}
 }
 
+// FieldRenamer is a filter for renaming fields.
 type FieldRenamer struct {
+	// The field to rename.
 	From string
-	To   string
+	// The target field name.
+	To string
 }
 
+// Filter returns the node representing the (possibly merged) value of the
+// renamed node or nil if the "from" field was not present.
 func (f FieldRenamer) Filter(rn *yaml.RNode) (*yaml.RNode, error) {
 	if err := yaml.ErrorIfInvalid(rn, yaml.MappingNode); err != nil {
 		return nil, err
@@ -56,6 +63,8 @@ func (f FieldRenamer) Filter(rn *yaml.RNode) (*yaml.RNode, error) {
 	return nil, nil
 }
 
+// ClearFieldComment returns a filter which will clear matching line comments
+// from a named field.
 func ClearFieldComment(name string, comments ...string) CommentClearer {
 	cc := CommentClearer{Name: name}
 	if len(comments) > 0 {
@@ -70,11 +79,15 @@ func ClearFieldComment(name string, comments ...string) CommentClearer {
 	return cc
 }
 
+// CommentClearer is filter for clearing specific comments.
 type CommentClearer struct {
+	// The name of the field to remove comments from.
 	Name string
+	// The collection of exact matching comments to clear.
 	yaml.Comments
 }
 
+// Filter returns the supplied node with the appropriate field comments removed.
 func (f CommentClearer) Filter(rn *yaml.RNode) (*yaml.RNode, error) {
 	if err := yaml.ErrorIfInvalid(rn, yaml.MappingNode); err != nil {
 		return nil, err
@@ -104,10 +117,16 @@ func Has(filters ...yaml.Filter) HasFilter {
 	return HasFilter{Filters: filters}
 }
 
+// HasFilter is an alternative to a "tee" filter in that it applies a list of
+// filters. However, unlike "tee" filter, if the result of the filters is nil,
+// the final result is also nil. This allows for constructing filter pipelines
+// that with simplified conditional logic.
 type HasFilter struct {
 	Filters []yaml.Filter
 }
 
+// Filter returns the supplied node or nil if the the result of applying the
+// configured filters is nil.
 func (f HasFilter) Filter(rn *yaml.RNode) (*yaml.RNode, error) {
 	n, err := rn.Pipe(f.Filters...)
 	if err != nil {
