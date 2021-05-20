@@ -17,6 +17,8 @@ limitations under the License.
 package sfio
 
 import (
+	"fmt"
+
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
@@ -126,4 +128,51 @@ func (f HasFilter) Filter(rn *yaml.RNode) (*yaml.RNode, error) {
 		return nil, nil
 	}
 	return rn, nil
+}
+
+// TeeMatched acts as a "tee" filter for nodes matched by the supplied path matcher:
+// each matched node is processed by the supplied filters and the result of the
+// entire operation is the initial node (or an error).
+func TeeMatched(pathMatcher yaml.PathMatcher, filters ...yaml.Filter) TeeMatchedFilter {
+	return TeeMatchedFilter{
+		PathMatcher: pathMatcher,
+		Filters:     filters,
+	}
+}
+
+// TeeMatchedFilter is a filter that applies a set of filters to the nodes
+// matched by a path matcher.
+type TeeMatchedFilter struct {
+	PathMatcher yaml.PathMatcher
+	Filters     []yaml.Filter
+}
+
+// Filter always returns the supplied node, however all matching nodes will have
+// been processed by the configured filters.
+func (f TeeMatchedFilter) Filter(rn *yaml.RNode) (*yaml.RNode, error) {
+	matches, err := f.PathMatcher.Filter(rn)
+	if err != nil {
+		return nil, err
+	}
+	if err := matches.VisitElements(f.visitMatched); err != nil {
+		return nil, err
+	}
+	return rn, nil
+}
+
+// visitMatched is used internally to preserve the field path and apply the
+// configured filters.
+func (f TeeMatchedFilter) visitMatched(node *yaml.RNode) error {
+	matches := f.PathMatcher.Matches[node.YNode()]
+	matchIndex := 0
+	for _, p := range f.PathMatcher.Path {
+		if yaml.IsListIndex(p) && matchIndex < len(matches) {
+			name, _, _ := yaml.SplitIndexNameValue(p)
+			p = fmt.Sprintf("[%s=%s]", name, matches[matchIndex])
+			matchIndex++
+		}
+		node.AppendToFieldPath(p)
+	}
+
+	return node.PipeE(f.Filters...)
 }
