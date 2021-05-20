@@ -65,18 +65,8 @@ func (f FieldRenamer) Filter(rn *yaml.RNode) (*yaml.RNode, error) {
 
 // ClearFieldComment returns a filter which will clear matching line comments
 // from a named field.
-func ClearFieldComment(name string, comments ...string) CommentClearer {
-	cc := CommentClearer{Name: name}
-	if len(comments) > 0 {
-		cc.Comments.LineComment = comments[0]
-	}
-	if len(comments) > 1 {
-		cc.Comments.HeadComment = comments[1]
-	}
-	if len(comments) > 2 {
-		cc.Comments.FootComment = comments[2]
-	}
-	return cc
+func ClearFieldComment(name string, lineComment string) CommentClearer {
+	return CommentClearer{Name: name, Comments: yaml.Comments{LineComment: lineComment}}
 }
 
 // CommentClearer is filter for clearing specific comments.
