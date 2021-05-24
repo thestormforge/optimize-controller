@@ -42,30 +42,30 @@ func AsScaledInt(q resource.Quantity, scale resource.Scale) int32 {
 	return int32(v)
 }
 
-type suffixList []string
-
-func (l suffixList) lookup(scale resource.Scale) string {
-	i := int(scale)/3 + 3
-	if int(scale)%3 != 0 || i < 0 || i >= len(l) {
-		return ""
-	}
-	return l[i]
-}
-
 var (
-	binarySuffix  = suffixList{"", "", "", "", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei"}
-	decimalSuffix = suffixList{"n", "u", "m", "", "k", "M", "G", "T", "P", "E"}
+	binarySuffix  = []string{"", "", "", "", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei"}
+	decimalSuffix = []string{"n", "u", "m", "", "k", "M", "G", "T", "P", "E"}
 )
 
 // QuantitySuffix returns the suffix for a quantity or an empty string if it is
 // known. Note that although scale is just an int, you should only use the
 // predefined constants (or variables populated from them) when calling.
 func QuantitySuffix(scale resource.Scale, format resource.Format) string {
+	index := func(suffixes []string, scale resource.Scale) string {
+		// Adjust the Scale (Nano=-9 ... Exa=18) to match the index in the suffix arrays
+		i := int(scale-resource.Nano) / 3
+		// Suffixes only exist if the scale is divisible by 3 (i.e. powers of 1000)
+		if int(scale)%3 != 0 || i < 0 || i >= len(suffixes) {
+			return ""
+		}
+		return suffixes[i]
+	}
+
 	switch format {
 	case resource.BinarySI:
-		return binarySuffix.lookup(scale)
+		return index(binarySuffix, scale)
 	case resource.DecimalSI:
-		return decimalSuffix.lookup(scale)
+		return index(decimalSuffix, scale)
 	default:
 		return ""
 	}
