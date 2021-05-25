@@ -156,6 +156,8 @@ func (o *Options) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// If forge is available, check the authorization
 		if internal.NewVersion(msg).Available() {
 			cmds = append(cmds, o.checkPerformanceTestAuthorization)
+		} else {
+			cmds = append(cmds, func() tea.Msg { return internal.PerformanceTestAuthorizationMsg(internal.AuthorizationInvalid) })
 		}
 
 	case internal.OptimizeControllerVersionMsg:
