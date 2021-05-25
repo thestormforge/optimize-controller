@@ -51,7 +51,7 @@ func (s *ContainerResourcesSelector) Default() {
 	if s.Kind == "" {
 		s.Group = "apps|extensions"
 		s.Kind = "Deployment|StatefulSet"
-		s.Path = "/spec/template/spec/containers/[name={{ .ContainerName }}]/resources"
+		s.Path = "/spec/template/spec/containers/[name={ .ContainerName }]/resources"
 	}
 
 	if len(s.Resources) == 0 {
