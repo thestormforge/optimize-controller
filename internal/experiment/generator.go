@@ -105,7 +105,7 @@ func (g *Generator) Execute(output kio.Writer) error {
 			kio.FilterAll(yaml.Clear("status")),
 		},
 		Outputs: []kio.Writer{
-			// Validate the resulting resources before sending them to the supplier writer
+			// Validate the resulting resources before sending them to the supplied writer
 			kio.WriterFunc(g.validate),
 			output,
 		},

@@ -17,133 +17,210 @@ limitations under the License.
 package generation
 
 import (
-	"fmt"
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/json"
+	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
-func TestToIntWithRange(t *testing.T) {
+func TestContainerResourcesParameter(t *testing.T) {
 	cases := []struct {
-		name     corev1.ResourceName
-		input    string
-		baseline int32
-		min      int32
-		max      int32
+		desc string
+		containerResourcesParameter
+		expectedParameters []redskyv1beta1.Parameter
+		expectedPatch      string
 	}{
 		{
-			name:     corev1.ResourceCPU,
-			input:    "0.1",
-			baseline: 100,
-			min:      50,
-			max:      200,
+			desc: "binary memory",
+
+			containerResourcesParameter: containerResourcesParameter{
+				pnode: pnode{
+					fieldPath: []string{"spec", "resources"},
+					value: encodeResourceRequirements(corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceMemory: resource.MustParse("2Gi"),
+						},
+					}),
+				},
+				resources: []corev1.ResourceName{corev1.ResourceMemory},
+			},
+
+			expectedParameters: []redskyv1beta1.Parameter{
+				{
+					Name:     "memory",
+					Baseline: newInt(2048),
+					Min:      1024,
+					Max:      4096,
+				},
+			},
+			expectedPatch: unindent(`
+              spec:
+                resources:
+                  limits:
+                    memory: "{{ .Values.memory }}Mi"
+                  requests:
+                    memory: "{{ .Values.memory }}Mi"`),
 		},
+
 		{
-			name:     corev1.ResourceCPU,
-			input:    "250m",
-			baseline: 250,
-			min:      120,
-			max:      500,
+			desc: "decimal memory",
+
+			containerResourcesParameter: containerResourcesParameter{
+				pnode: pnode{
+					fieldPath: []string{"spec", "resources"},
+					value: encodeResourceRequirements(corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceMemory: resource.MustParse("2G"),
+						},
+					}),
+				},
+				resources: []corev1.ResourceName{corev1.ResourceMemory},
+			},
+
+			expectedParameters: []redskyv1beta1.Parameter{
+				{
+					Name:     "memory",
+					Baseline: newInt(2000),
+					Min:      1000,
+					Max:      4000,
+				},
+			},
+			expectedPatch: unindent(`
+              spec:
+                resources:
+                  limits:
+                    memory: "{{ .Values.memory }}M"
+                  requests:
+                    memory: "{{ .Values.memory }}M"`),
 		},
+
 		{
-			name:     corev1.ResourceCPU,
-			input:    "2505m",
-			baseline: 2505,
-			min:      1250,
-			max:      4000,
+			desc: "cpu",
+
+			containerResourcesParameter: containerResourcesParameter{
+				pnode: pnode{
+					fieldPath: []string{"spec", "resources"},
+					value: encodeResourceRequirements(corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU: resource.MustParse("2.0"),
+						},
+					}),
+				},
+				resources: []corev1.ResourceName{corev1.ResourceCPU},
+			},
+
+			expectedParameters: []redskyv1beta1.Parameter{
+				{
+					Name:     "cpu",
+					Baseline: newInt(2000),
+					Min:      1000,
+					Max:      4000,
+				},
+			},
+			expectedPatch: unindent(`
+              spec:
+                resources:
+                  limits:
+                    cpu: "{{ .Values.cpu }}m"
+                  requests:
+                    cpu: "{{ .Values.cpu }}m"`),
 		},
+
 		{
-			name:     corev1.ResourceCPU,
-			input:    "500m",
-			baseline: 500,
-			min:      250,
-			max:      1000,
-		},
-		{
-			name:     corev1.ResourceMemory,
-			input:    "64Mi",
-			baseline: 68,
-			min:      32,
-			max:      256,
-		},
-		{
-			name:     corev1.ResourceMemory,
-			input:    "128Mi",
-			baseline: 135,
-			min:      64,
-			max:      512,
-		},
-		{
-			name:     corev1.ResourceMemory,
-			input:    "64M",
-			baseline: 64,
-			min:      32,
-			max:      128,
-		},
-		{
-			name:     corev1.ResourceMemory,
-			input:    "128M",
-			baseline: 128,
-			min:      64,
-			max:      256,
-		},
-		{
-			name:     corev1.ResourceCPU,
-			input:    "4.0",
-			baseline: 4000,
-			min:      2000,
-			max:      4000,
-		},
-		{
-			name:     corev1.ResourceMemory,
-			input:    "4000Mi",
-			baseline: 4195,
-			min:      2048,
-			max:      4195,
-		},
-		{
-			name:     corev1.ResourceMemory,
-			input:    "4000M",
-			baseline: 4000,
-			min:      1024,
-			max:      4096,
-		},
-		{
-			name:     corev1.ResourceMemory,
-			input:    "4Gi",
-			baseline: 4295,
-			min:      2048,
-			max:      4295,
-		},
-		{
-			name:     corev1.ResourceMemory,
-			input:    "4G",
-			baseline: 4000,
-			min:      1024,
-			max:      4096,
+			desc: "tiny memory",
+
+			containerResourcesParameter: containerResourcesParameter{
+				pnode: pnode{
+					fieldPath: []string{"spec", "resources"},
+					value: encodeResourceRequirements(corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceMemory: resource.MustParse("256Ki"),
+						},
+					}),
+				},
+				resources: []corev1.ResourceName{corev1.ResourceMemory},
+			},
+
+			expectedParameters: []redskyv1beta1.Parameter{
+				{
+					Name:     "memory",
+					Baseline: newInt(256),
+					Min:      128,
+					Max:      512,
+				},
+			},
+			expectedPatch: unindent(`
+              spec:
+                resources:
+                  limits:
+                    memory: "{{ .Values.memory }}Ki"
+                  requests:
+                    memory: "{{ .Values.memory }}Ki"`),
 		},
 	}
 	for _, c := range cases {
-		t.Run(string(c.name)+c.input, func(t *testing.T) {
-			resources := map[corev1.ResourceName]resource.Quantity{c.name: resource.MustParse(c.input)}
-			baseline, min, max := toIntWithRange(resources, c.name)
-			assert.Equal(t, c.baseline, baseline.IntVal, "baseline")
-			assert.Equal(t, c.min, min, "minimum")
-			assert.Equal(t, c.max, max, "maximum")
+		t.Run(c.desc, func(t *testing.T) {
+			t.Run("parameters", func(t *testing.T) {
+				parameters, err := c.containerResourcesParameter.Parameters(ignoreMetaForName)
+				if assert.NoError(t, err) {
+					assert.Equal(t, c.expectedParameters, parameters)
+				}
+			})
 
-			// Check the value against what we are going to render into the template
-			switch c.name {
-			case corev1.ResourceMemory:
-				inputValue := resource.MustParse(c.input)
-				templateValue := resource.MustParse(fmt.Sprintf("%dM", baseline.IntVal))
-				assert.Equal(t, inputValue.ScaledValue(resource.Mega), templateValue.ScaledValue(resource.Mega))
-			case corev1.ResourceCPU:
-				inputValue := resource.MustParse(c.input)
-				templateValue := resource.MustParse(fmt.Sprintf("%dm", baseline.IntVal))
-				assert.Equal(t, inputValue.ScaledValue(resource.Milli), templateValue.ScaledValue(resource.Milli))
-			}
+			t.Run("patch", func(t *testing.T) {
+				filter, err := c.containerResourcesParameter.Patch(ignoreMetaForName)
+				if assert.NoError(t, err) {
+					patch, err := yaml.NewMapRNode(nil).Pipe(filter)
+					if assert.NoError(t, err) {
+						actual, err := yaml.String(patch.YNode())
+						require.NoError(t, err)
+						assert.YAMLEq(t, c.expectedPatch, actual)
+					}
+				}
+			})
 		})
 	}
+}
+
+// encodeResourceRequirements is a helper to generate the YAML content necessary
+// for the pnode value of the containerResourcesParameter.
+func encodeResourceRequirements(rr corev1.ResourceRequirements) *yaml.Node {
+	data, err := json.Marshal(rr)
+	if err != nil {
+		panic(err)
+	}
+	return yaml.MustParse(string(data)).YNode()
+}
+
+// newInt returns a pointer to a new IntOrString from the supplied int.
+func newInt(val int) *intstr.IntOrString {
+	result := intstr.FromInt(val)
+	return &result
+}
+
+// ignoreMetaForName just returns the name, ignoring all other metadata.
+func ignoreMetaForName(_ yaml.ResourceMeta, _ []string, name string) string { return name }
+
+// unindent removes a fixed indentation width from each line of a string.
+func unindent(s string) string {
+	p := 0
+	var result []string
+	for _, line := range strings.Split(s, "\n") {
+		if p == 0 {
+			p = len(regexp.MustCompile(`^(\s+)`).FindString(line))
+		}
+		if len(line) > p {
+			line = line[p:]
+		}
+		result = append(result, line)
+	}
+	return strings.Join(result, "\n")
 }

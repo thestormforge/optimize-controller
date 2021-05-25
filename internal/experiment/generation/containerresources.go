@@ -18,8 +18,6 @@ package generation
 
 import (
 	"fmt"
-	"math"
-	"regexp"
 
 	"github.com/thestormforge/konjure/pkg/filters"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
@@ -36,23 +34,24 @@ type ContainerResourcesSelector struct {
 	scan.GenericSelector
 	// Regular expression matching the container name.
 	ContainerName string `json:"containerName,omitempty"`
-	// Path to the list of containers.
+	// Path to the resource requirements.
 	Path string `json:"path,omitempty"`
-	// Names of the resources to select, defaults to ["memory", "cpu"].
+	// Names of the resources to select, defaults to ["cpu", "memory"].
 	Resources []corev1.ResourceName `json:"resources,omitempty"`
-	// Create container resource specifications even if the original object does not contain them.
+	// Create container resource requirements even if the original object does not contain them.
 	CreateIfNotPresent bool `json:"create,omitempty"`
-	// Per-namespace limit ranges for containers as encountered during a scan.
-	ContainerLimitRange map[string]corev1.LimitRangeItem
+	// Per-namespace limit ranges for containers.
+	ContainerLimitRange map[string]corev1.LimitRangeItem `json:"containerLimitRange,omitempty"`
 }
 
 var _ scan.Selector = &ContainerResourcesSelector{}
 
+// Default applies default values to the selector.
 func (s *ContainerResourcesSelector) Default() {
 	if s.Kind == "" {
 		s.Group = "apps|extensions"
 		s.Kind = "Deployment|StatefulSet"
-		s.Path = "/spec/template/spec/containers"
+		s.Path = "/spec/template/spec/containers/[name={{ .ContainerName }}]/resources"
 	}
 
 	if len(s.Resources) == 0 {
@@ -60,6 +59,8 @@ func (s *ContainerResourcesSelector) Default() {
 	}
 }
 
+// Select matches all of the generically match nodes plus any `LimitRange` resources
+// that we can use to collect default values from.
 func (s *ContainerResourcesSelector) Select(nodes []*yaml.RNode) ([]*yaml.RNode, error) {
 	var result []*yaml.RNode
 
@@ -93,60 +94,42 @@ func (s *ContainerResourcesSelector) Map(node *yaml.RNode, meta yaml.ResourceMet
 		return nil, s.saveContainerLimitRange(meta.Namespace, node)
 	}
 
-	path := splitPath(s.Path) // Path to the containers list
-	err := node.PipeE(
-		yaml.Lookup(path...),
-		yaml.FilterFunc(func(node *yaml.RNode) (*yaml.RNode, error) {
-			return nil, node.VisitElements(func(node *yaml.RNode) error {
-				rl := node.Field("resources")
-				if rl == nil {
-					if !s.CreateIfNotPresent {
-						return nil
-					}
-					rl = &yaml.MapNode{Value: yaml.NewMapRNode(nil)}
-				}
-
-				name := node.Field("name").Value.YNode().Value
-				if !s.matchesContainerName(name) {
-					return nil
-				}
-
-				p := containerResourcesParameter{
-					pnode: pnode{
-						meta:      meta,
-						fieldPath: append(path, "[name="+name+"]", "resources"),
-						value:     rl.Value.YNode(),
-					},
-					resources: s.Resources,
-					limits:    s.ContainerLimitRange[meta.Namespace],
-				}
-
-				result = append(result, &p)
-				return nil
-			})
-		}))
-
+	// Evaluate and validate the path
+	path, err := sfio.FieldPath(s.Path, map[string]string{"ContainerName": s.ContainerName})
 	if err != nil {
 		return nil, err
 	}
-
-	return result, nil
-}
-
-// matchesContainerName checks to see if the specified container name is matched.
-func (s *ContainerResourcesSelector) matchesContainerName(name string) bool {
-	if s.ContainerName == "" {
-		// Treat empty like ".*"
-		return true
+	if len(path) < 2 {
+		return nil, fmt.Errorf("path %q is invalid, must contain at least two elements", s.Path)
+	}
+	lastPath := len(path) - 1
+	if yaml.IsListIndex(path[lastPath]) {
+		return nil, fmt.Errorf("path %q is invalid, a sequence of resources is not supported", s.Path)
 	}
 
-	containerName, err := regexp.Compile("^(?:" + s.ContainerName + ")$")
-	if err != nil {
-		// Invalid regexp may still be an exact match on the actual name
-		return s.ContainerName == name
+	// Create the matchers (we use two matchers so we can support "create if not present" on the "resources" field)
+	containerMatcher := yaml.PathMatcher{Path: path[:lastPath]}
+	resourcesMatcher := yaml.FieldMatcher{Name: path[lastPath]}
+	if s.CreateIfNotPresent {
+		resourcesMatcher.Create = yaml.NewMapRNode(nil)
 	}
 
-	return containerName.MatchString(name)
+	return result, node.PipeE(sfio.TeeMatched(
+		containerMatcher,
+		sfio.PreserveFieldMatcherPath(resourcesMatcher),
+		yaml.FilterFunc(func(node *yaml.RNode) (*yaml.RNode, error) {
+			result = append(result, &containerResourcesParameter{
+				pnode: pnode{
+					meta:      meta,
+					fieldPath: node.FieldPath(),
+					value:     node.YNode(),
+				},
+				resources:  s.Resources,
+				limitRange: s.ContainerLimitRange[meta.Namespace],
+			})
+			return node, nil
+		}),
+	))
 }
 
 // saveContainerLimitRange captures the container specific limit range item for
@@ -160,13 +143,13 @@ func (s *ContainerResourcesSelector) saveContainerLimitRange(namespace string, n
 		return nil
 	}
 
-	lri := corev1.LimitRangeItem{}
-	if err := sfio.DecodeYAMLToJSON(lriNode, &lri); err != nil {
-		return err
-	}
-
 	if s.ContainerLimitRange == nil {
 		s.ContainerLimitRange = make(map[string]corev1.LimitRangeItem)
+	}
+
+	lri := s.ContainerLimitRange[namespace]
+	if err := sfio.DecodeYAMLToJSON(lriNode, &lri); err != nil {
+		return err
 	}
 	s.ContainerLimitRange[namespace] = lri
 
@@ -177,8 +160,8 @@ func (s *ContainerResourcesSelector) saveContainerLimitRange(namespace string, n
 // found by the selector during scanning.
 type containerResourcesParameter struct {
 	pnode
-	resources []corev1.ResourceName
-	limits    corev1.LimitRangeItem
+	resources  []corev1.ResourceName
+	limitRange corev1.LimitRangeItem
 }
 
 var _ PatchSource = &containerResourcesParameter{}
@@ -187,94 +170,184 @@ var _ ParameterSource = &containerResourcesParameter{}
 // Patch produces a YAML filter for updating a strategic merge patch with a parameterized
 // container resources specification.
 func (p *containerResourcesParameter) Patch(name ParameterNamer) (yaml.Filter, error) {
-	patches := make(map[string]string)
-	for _, rn := range p.resources {
-		format := toPatchPattern(rn)
-		patches[string(rn)] = fmt.Sprintf(format, name(p.meta, p.fieldPath, string(rn)))
+	ind, err := p.indexContainerResources()
+	if err != nil {
+		return nil, err
 	}
 
-	return yaml.Tee(
-		&yaml.PathGetter{Path: p.fieldPath, Create: yaml.MappingNode},
-		yaml.Tee(yaml.SetField("limits", yaml.NewMapRNode(&patches))),
-		yaml.Tee(yaml.SetField("requests", yaml.NewMapRNode(&patches))),
-	), nil
+	// We can build directly into the filters used to create the final patch
+	path := yaml.PathGetter{Path: p.fieldPath, Create: yaml.MappingNode}
+	limitsPatch := yaml.FieldSetter{Name: "limits", Value: yaml.NewMapRNode(nil)}
+	requestsPatch := yaml.FieldSetter{Name: "requests", Value: yaml.NewMapRNode(nil)}
+
+	for _, rn := range p.resources {
+		// Create patch filter for each ResourceName (e.g. "cpu: {{ .Values ...")
+		parameterName := name(p.meta, p.fieldPath, string(rn))
+		patch := fmt.Sprintf("{{ .Values.%s }}%s", parameterName, ind[rn].Suffix())
+		patchFilter := yaml.SetField(string(rn), yaml.NewStringRNode(patch))
+
+		// Apply the same patch filter to both limits and requests
+		if err := limitsPatch.Value.PipeE(patchFilter); err != nil {
+			return nil, err
+		}
+		if err := requestsPatch.Value.PipeE(patchFilter); err != nil {
+			return nil, err
+		}
+	}
+
+	// Combine the filters using Tee so resulting filter won't change the traversal depth
+	return yaml.Tee(path, yaml.Tee(limitsPatch), yaml.Tee(requestsPatch)), nil
 }
 
 // Parameters lists the parameters used by the patch.
 func (p *containerResourcesParameter) Parameters(name ParameterNamer) ([]redskyv1beta1.Parameter, error) {
-	// ResourceList (actually, Quantities) won't unmarshal as YAML so we need to round trip through JSON
-	r := corev1.ResourceRequirements{}
-	if err := sfio.DecodeYAMLToJSON(yaml.NewRNode(p.value), &r); err != nil {
+	ind, err := p.indexContainerResources()
+	if err != nil {
 		return nil, err
-	}
-
-	// Build parameters around the requests, taking into consideration the defaults
-	requests := corev1.ResourceList{}
-	p.limits.DefaultRequest.DeepCopyInto(&requests)
-	for rn, q := range r.Requests {
-		requests[rn] = q
 	}
 
 	var result []redskyv1beta1.Parameter
 	for _, rn := range p.resources {
-		baseline, min, max := toIntWithRange(requests, rn)
 		result = append(result, redskyv1beta1.Parameter{
 			Name:     name(p.meta, p.fieldPath, string(rn)),
-			Min:      min,
-			Max:      max,
-			Baseline: baseline,
+			Max:      ind[rn].Max(),
+			Min:      ind[rn].Min(),
+			Baseline: ind[rn].Baseline(),
 		})
 	}
 
 	return result, nil
 }
 
-// toPatchPattern returns the fmt pattern for a patch of the specified resource name.
-func toPatchPattern(name corev1.ResourceName) string {
-	switch name {
-	case corev1.ResourceCPU:
-		return "{{ .Values.%s }}m"
-	case corev1.ResourceMemory:
-		return "{{ .Values.%s }}M"
-	default:
-		return ""
+// indexContainerResources collects the container resources for this parameter.
+func (p *containerResourcesParameter) indexContainerResources() (map[corev1.ResourceName]containerResources, error) {
+	// Decode the resource requirements we found during the scan
+	scannedValue := corev1.ResourceRequirements{}
+	if err := sfio.DecodeYAMLToJSON(yaml.NewRNode(p.value), &scannedValue); err != nil {
+		return nil, err
+	}
+
+	// For each configured resource, capture the baseline and range
+	result := make(map[corev1.ResourceName]containerResources, len(p.resources))
+	for _, rn := range p.resources {
+		result[rn] = containerResources{
+			max:          lookupQuantity(rn, p.limitRange.Max, defaultLimitRange.Max),
+			min:          lookupQuantity(rn, p.limitRange.Min, defaultLimitRange.Min),
+			baseline:     lookupQuantity(rn, scannedValue.Requests, p.limitRange.DefaultRequest, defaultLimitRange.DefaultRequest),
+			defaultScale: defaultScale[rn],
+		}
+	}
+
+	return result, nil
+}
+
+// lookupQuantity returns a quantity from the first resource list that has it.
+func lookupQuantity(rn corev1.ResourceName, rl ...corev1.ResourceList) resource.Quantity {
+	for i := range rl {
+		if q, ok := rl[i][rn]; ok {
+			return q
+		}
+	}
+	return *resource.NewQuantity(0, resource.DecimalExponent)
+}
+
+var (
+	// defaultLimitRange acts as a backstop for finding per-resource values.
+	defaultLimitRange = corev1.LimitRangeItem{
+		Type: "Container",
+		Max: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("4000m"),
+			corev1.ResourceMemory: resource.MustParse("4096Mi"),
+		},
+		Min: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("100m"),
+			corev1.ResourceMemory: resource.MustParse("128Mi"),
+		},
+		DefaultRequest: corev1.ResourceList{
+			// Even though the values are all 0, we need to capture the format
+			corev1.ResourceCPU:              *resource.NewQuantity(0, resource.DecimalSI),
+			corev1.ResourceEphemeralStorage: *resource.NewQuantity(0, resource.DecimalSI),
+			corev1.ResourceMemory:           *resource.NewQuantity(0, resource.BinarySI),
+			corev1.ResourceStorage:          *resource.NewQuantity(0, resource.DecimalSI),
+		},
+	}
+
+	// defaultScale determines the default scale on which we optimize. For example,
+	// instead of optimizing "2Gi" of memory as "2-4", we optimize it as "2048-4096Mi"; or
+	// instead of optimizing "1.0" milli-CPUs as "0-2", we optimize it as "500-2000".
+	defaultScale = map[corev1.ResourceName]resource.Scale{
+		corev1.ResourceCPU:              resource.Milli, // m
+		corev1.ResourceEphemeralStorage: resource.Mega,  // M
+		corev1.ResourceMemory:           resource.Mega,  // Mi
+		corev1.ResourceStorage:          resource.Mega,  // M
+	}
+)
+
+// containerResources contains the quantity range for a resource.
+type containerResources struct {
+	max          resource.Quantity
+	min          resource.Quantity
+	baseline     resource.Quantity
+	defaultScale resource.Scale
+}
+
+// Max returns the configured maximum, or twice the baseline (provided it is smaller then the max).
+func (cr containerResources) Max() int32 {
+	max := cr.max
+	max.Format = cr.baseline.Format
+
+	if !cr.baseline.IsZero() {
+		if max.Value() == 0 || cr.baseline.Value()*2 < max.Value() {
+			max.Set(cr.baseline.Value() * 2)
+		}
+	}
+
+	return AsScaledInt(max, cr.scale())
+}
+
+// Min returns the the configured minimum or half the baseline.
+func (cr containerResources) Min() int32 {
+	min := cr.min
+	min.Format = cr.baseline.Format
+
+	if !cr.baseline.IsZero() {
+		min.Set(cr.baseline.Value() / 2)
+	}
+
+	return AsScaledInt(min, cr.scale())
+}
+
+// Baseline returns the non-zero baseline value or nil for a zero value.
+func (cr containerResources) Baseline() *intstr.IntOrString {
+	if cr.baseline.IsZero() {
+		return nil
+	}
+
+	return &intstr.IntOrString{
+		Type:   intstr.Int,
+		IntVal: AsScaledInt(cr.baseline, cr.scale()),
 	}
 }
 
-// toIntWithRange returns the quantity as an int value with a default range.
-func toIntWithRange(resources corev1.ResourceList, name corev1.ResourceName) (value *intstr.IntOrString, min int32, max int32) {
-	q, ok := resources[name]
-	if ok {
-		value = new(intstr.IntOrString)
-	}
-
-	switch name {
-	case corev1.ResourceCPU:
-		min, max = 100, 4000
-		if value != nil {
-			*value = intstr.FromInt(int(q.ScaledValue(resource.Milli)))
-			min = int32(math.Floor(float64(value.IntVal)/20)) * 10
-			setMax(&max, value.IntVal, int32(math.Ceil(float64(value.IntVal)/10))*20)
-		}
-
-	case corev1.ResourceMemory:
-		min, max = 128, 4096
-		if value != nil {
-			*value = intstr.FromInt(int(q.ScaledValue(resource.Mega)))
-			min = int32(math.Pow(2, math.Floor(math.Log2(float64(value.IntVal/2)))))
-			setMax(&max, value.IntVal, int32(math.Pow(2, math.Ceil(math.Log2(float64(value.IntVal*2))))))
-		}
-
-	}
-
-	return value, min, max
+// Suffix returns the appropriate suffix based on the scale and format. For example,
+// a mega-binary is "Mi" and giga-decimal is "G".
+func (cr containerResources) Suffix() string {
+	return QuantitySuffix(cr.scale(), cr.baseline.Format)
 }
 
-// setMax ensures the computed upper bound is capped by the larger of the baseline value or the default maximum.
-func setMax(m *int32, v, b int32) {
-	if v > *m {
-		*m = v
-	} else if b < *m {
-		*m = b
+// scale is used to determine what scale all the values should be recorded using.
+// This is important because we do not want to have mismatched scales (e.g. a min
+// of 1000 and a baseline of 2).
+func (cr containerResources) scale() resource.Scale {
+	if cr.baseline.IsZero() {
+		return cr.defaultScale
 	}
+
+	// Just try to find the first scale that doesn't round to 0
+	for scale := cr.defaultScale; scale >= resource.Nano; scale -= 3 {
+		if AsScaledInt(cr.baseline, scale) > 0 {
+			return scale
+		}
+	}
+	return cr.defaultScale
 }
