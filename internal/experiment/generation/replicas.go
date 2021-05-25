@@ -19,6 +19,7 @@ package generation
 import (
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
 	"github.com/thestormforge/optimize-controller/internal/scan"
+	"github.com/thestormforge/optimize-controller/internal/sfio"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
@@ -47,8 +48,12 @@ func (s *ReplicaSelector) Default() {
 func (s *ReplicaSelector) Map(node *yaml.RNode, meta yaml.ResourceMeta) ([]interface{}, error) {
 	var result []interface{}
 
-	path := splitPath(s.Path)
-	err := node.PipeE(
+	path, err := sfio.FieldPath(s.Path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, node.PipeE(
 		&yaml.PathGetter{Path: path, Create: yaml.ScalarNode},
 		yaml.FilterFunc(func(node *yaml.RNode) (*yaml.RNode, error) {
 			value := node.YNode()
@@ -67,12 +72,6 @@ func (s *ReplicaSelector) Map(node *yaml.RNode, meta yaml.ResourceMeta) ([]inter
 
 			return node, nil
 		}))
-
-	if err != nil {
-		return nil, err
-	}
-
-	return result, nil
 }
 
 type replicaParameter struct {

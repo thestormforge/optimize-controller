@@ -29,7 +29,6 @@ import (
 	"github.com/yujunz/go-getter"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/kustomize/api/types"
 )
 
 // newGoalMetric creates a new metric for the supplied goal with most fields pre-filled.
@@ -52,12 +51,6 @@ func ensureTrialJobPod(exp *redskyv1beta1.Experiment) *corev1.PodTemplateSpec {
 		exp.Spec.TrialTemplate.Spec.JobTemplate = &batchv1beta1.JobTemplateSpec{}
 	}
 	return &exp.Spec.TrialTemplate.Spec.JobTemplate.Spec.Template
-}
-
-// splitPath splits a string based path, honoring backslash escaped slashes.
-func splitPath(p string) []string {
-	// TODO This is using the Kustomize API, refactor it out
-	return (&types.FieldSpec{Path: p}).PathSlice()
 }
 
 // trialJobImage returns the image name for a type of job.
