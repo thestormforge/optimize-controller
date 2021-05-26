@@ -41,6 +41,11 @@ type ResourceTarget struct {
 	*metav1.LabelSelector `json:",inline"`
 }
 
+// SetGroupVersionKind overwrites the GVK for the target reference.
+func (r *ResourceTarget) SetGroupVersionKind(gvk schema.GroupVersionKind) {
+	r.APIVersion, r.Kind = gvk.ToAPIVersionAndKind()
+}
+
 // GroupVersionKind returns the GVK for the target reference.
 func (r *ResourceTarget) GroupVersionKind() schema.GroupVersionKind {
 	// NOTE: schema.FromAPIVersionAndKind is discouraged and neglects the default "v1" case
