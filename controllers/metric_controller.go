@@ -24,6 +24,7 @@ import (
 	"strconv"
 
 	"github.com/go-logr/logr"
+	batchv1 "k8s.io/api/batch/v1"
 
 	redskyv1alpha1 "github.com/thestormforge/optimize-controller/api/v1alpha1"
 	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
@@ -251,8 +252,14 @@ func (r *MetricReconciler) target(ctx context.Context, t *redskyv1beta1.Trial, m
 		return nil, nil
 	}
 
-	// Get the target reference, default to the trial itself if there is no reference
-	if m.Target == nil || m.Target.Kind == "" {
+	// No target, just return the trial
+	if m.Target == nil {
+		return t, nil
+	}
+
+	// If this is a request for the trial itself, then don't bother using the API
+	if m.Target.GroupVersionKind() == t.GroupVersionKind() &&
+		m.Target.Name == t.Name && m.Target.Namespace == t.Namespace {
 		return t, nil
 	}
 
@@ -288,9 +295,28 @@ func (r *MetricReconciler) applyMetricDefaults(ctx context.Context, t *redskyv1b
 		m.URL = fmt.Sprintf("http://redsky-%[1]s-prometheus.%[1]s:9090/", t.Namespace)
 	}
 
-	// Default to the trial namespace
-	if m.Target != nil && m.Target.Namespace == "" {
-		m.Target.Namespace = t.Namespace
+	if m.Target != nil {
+		// If there is no kind on the target, assume they want the trial
+		if m.Target.Kind == "" {
+			m.Target.SetGroupVersionKind(t.GroupVersionKind())
+			m.Target.Name, m.Target.Namespace = t.Name, t.Namespace
+		}
+
+		// If this is a reference to the trial job, make sure all the fields are filled out
+		ref := &corev1.ObjectReference{Name: m.Target.Name, Namespace: m.Target.Namespace}
+		ref.SetGroupVersionKind(m.Target.GroupVersionKind())
+		if trial.IsTrialJobReference(t, ref) {
+			m.Target.SetGroupVersionKind(batchv1.SchemeGroupVersion.WithKind("Job"))
+			m.Target.Name, m.Target.Namespace = t.Name, t.Namespace
+			if t.Spec.JobTemplate != nil && t.Spec.JobTemplate.Name != "" {
+				m.Target.Name = t.Spec.JobTemplate.Name
+			}
+		}
+
+		// Default to the trial namespace
+		if m.Target.Namespace == "" {
+			m.Target.Namespace = t.Namespace
+		}
 	}
 
 	// This is strictly for converted v1alpha1 experiments; we should remove it eventually
