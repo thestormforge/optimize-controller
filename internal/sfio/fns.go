@@ -164,12 +164,12 @@ func (f TeeMatchedFilter) Filter(rn *yaml.RNode) (*yaml.RNode, error) {
 // configured filters.
 func (f TeeMatchedFilter) visitMatched(node *yaml.RNode) error {
 	matches := f.PathMatcher.Matches[node.YNode()]
-	matchIndex := 0
+	matchIndex := len(matches)
 	for _, p := range f.PathMatcher.Path {
-		if yaml.IsListIndex(p) && matchIndex < len(matches) {
+		if yaml.IsListIndex(p) && matchIndex >= 0 {
+			matchIndex--
 			name, _, _ := yaml.SplitIndexNameValue(p)
 			p = fmt.Sprintf("[%s=%s]", name, matches[matchIndex])
-			matchIndex++
 		}
 		node.AppendToFieldPath(p)
 	}
