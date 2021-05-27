@@ -59,6 +59,8 @@ type Parameter struct {
 	ContainerResources *ContainerResources `json:"containerResources,omitempty"`
 	// Information related to the discovery of replica parameters.
 	Replicas *Replicas `json:"replicas,omitempty"`
+	// Information related to the discovery of environment variables.
+	EnvironmentVariable *EnvironmentVariable `json:"environmentVariable,omitempty"`
 }
 
 // ContainerResources specifies which resources in the application should have their container
@@ -74,6 +76,20 @@ type ContainerResources struct {
 type Replicas struct {
 	// Label selector of Kubernetes objects to consider when generating replica patches.
 	Selector string `json:"selector,omitempty"`
+}
+
+// EnvironmentVariable specifies which environment variables in the application should have their value optimized.
+type EnvironmentVariable struct {
+	// Label selector of Kubernetes objects to consider when looking for environment variables.
+	Selector string `json:"selector,omitempty"`
+	// The name of the environment variable to optimize.
+	Name string `json:"name,omitempty"`
+	// The prefix of the value to use when setting the environment variable.
+	Prefix string `json:"prefix,omitempty"`
+	// The suffix of the value to use when setting the environment variable.
+	Suffix string `json:"suffix,omitempty"`
+	// The discrete values of the environment variable.
+	Values []string `json:"values,omitempty"`
 }
 
 // Ingress describes the point of ingress to the application.

@@ -135,6 +135,17 @@ func (g *Generator) selectors() []scan.Selector {
 				},
 				CreateIfNotPresent: true,
 			})
+
+		case g.Application.Parameters[i].EnvironmentVariable != nil:
+			result = append(result, &generation.EnvironmentVariablesSelector{
+				GenericSelector: scan.GenericSelector{
+					LabelSelector: g.Application.Parameters[i].EnvironmentVariable.Selector,
+				},
+				VariableName: g.Application.Parameters[i].EnvironmentVariable.Name,
+				ValuePrefix:  g.Application.Parameters[i].EnvironmentVariable.Prefix,
+				ValueSuffix:  g.Application.Parameters[i].EnvironmentVariable.Suffix,
+				Values:       g.Application.Parameters[i].EnvironmentVariable.Values,
+			})
 		}
 
 	}
