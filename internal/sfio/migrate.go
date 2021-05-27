@@ -167,7 +167,7 @@ type metric struct {
 	Type     string                `yaml:"type"`
 	Scheme   string                `yaml:"scheme"`
 	Selector *metav1.LabelSelector `yaml:"selector"`
-	Port     intstr.IntOrString    `yaml:"port"`
+	Port     IntOrString           `yaml:"port"`
 	Path     string                `yaml:"path"`
 }
 
@@ -207,4 +207,16 @@ func (m *metric) setURLField(name string) yaml.Filter {
 	}
 
 	return yaml.SetField(name, yaml.NewStringRNode(u.String()))
+}
+
+type IntOrString struct {
+	intstr.IntOrString
+}
+
+func (is *IntOrString) UnmarshalYAML(value *yaml.Node) error {
+	if value.Tag == yaml.NodeTagInt {
+		is.Type = intstr.Int
+		return value.Decode(&is.IntVal)
+	}
+	return value.Decode(&is.StrVal)
 }
