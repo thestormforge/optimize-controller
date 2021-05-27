@@ -262,21 +262,36 @@ func parameterNamer(selected []interface{}) ParameterNamer {
 
 	return func(meta yaml.ResourceMeta, path []string, name string) string {
 		var parts []string
+
 		if needsKind {
-			parts = append(parts, strings.ToLower(meta.Kind))
+			parts = append(parts, meta.Kind)
 		}
+
 		if needsName {
-			parts = append(parts, strings.Split(meta.Name, "-")...)
+			parts = append(parts, meta.Name)
 		}
+
 		if needsPath[meta.Kind][meta.Name] > 1 {
 			for _, p := range path {
 				if yaml.IsListIndex(p) {
 					if _, value, _ := yaml.SplitIndexNameValue(p); value != "" {
-						parts = append(parts, strings.Split(value, "-")...)
+						parts = append(parts, value)
 					}
 				}
 			}
 		}
-		return strings.Join(append(parts, name), "_")
+
+		if name != "" {
+			parts = append(parts, name)
+		}
+
+		// Explainer: Parameter names are used in Go Templates which are executed
+		// against Go structs, if the template parser encounters a token that is
+		// not a valid Go field name, parsing fails (e.g. "bad character U+002D '-'").
+
+		parameterName := strings.Join(parts, "_")
+		parameterName = strings.ReplaceAll(parameterName, "-", "_")
+		parameterName = strings.ToLower(parameterName)
+		return parameterName
 	}
 }
