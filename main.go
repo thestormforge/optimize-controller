@@ -28,6 +28,7 @@ import (
 	"github.com/thestormforge/optimize-controller/internal/controller"
 	"github.com/thestormforge/optimize-controller/internal/version"
 	"github.com/thestormforge/optimize-go/pkg/config"
+	zap2 "go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -61,6 +62,10 @@ func main() {
 
 	ctrl.SetLogger(zap.New(func(o *zap.Options) {
 		o.Development = false
+
+		// Disable stacktraces in most instances
+		stl := zap2.NewAtomicLevelAt(zap2.FatalLevel)
+		o.StacktraceLevel = &stl
 	}))
 
 	v := version.GetInfo()
