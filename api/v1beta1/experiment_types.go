@@ -135,6 +135,8 @@ const (
 	MetricDatadog MetricType = "datadog"
 	// MetricJSONPath metrics fetch a JSON resource from the matched service. Queries are JSON path expression evaluated against the resource.
 	MetricJSONPath MetricType = "jsonpath"
+	// MetricNewRelic metrics issue queries to the New Relic service. Requires API and application key configuration.
+	MetricNewRelic MetricType = "newrelic"
 )
 
 // Metric represents an observable outcome from a trial run

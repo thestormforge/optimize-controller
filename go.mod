@@ -12,17 +12,17 @@ require (
 	github.com/go-logr/logr v0.1.0
 	github.com/go-logr/zapr v0.1.1
 	github.com/huandu/xstrings v1.2.0 // indirect
-	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/lestrrat-go/jwx v1.0.6
 	github.com/mdp/qrterminal/v3 v3.0.0
 	github.com/muesli/termenv v0.7.4
+	github.com/newrelic/newrelic-client-go v0.58.5
 	github.com/pelletier/go-toml v1.2.0
 	github.com/pkg/browser v0.0.0-20180916011732-0a3d74bf9ce4
 	github.com/prometheus/client_golang v1.0.0
 	github.com/prometheus/common v0.4.1
 	github.com/spf13/cobra v1.1.1
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.7.0
 	github.com/thestormforge/konjure v0.3.0
 	github.com/thestormforge/optimize-go v0.0.8
 	github.com/yujunz/go-getter v1.5.1-lite.0.20201201013212-6d9c071adddf
