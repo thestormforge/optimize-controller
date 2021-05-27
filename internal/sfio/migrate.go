@@ -153,6 +153,11 @@ func (f *ExperimentMigrationFilter) migrateMetricsV1alpha1(node *yaml.RNode) (*y
 			yaml.Tee(
 				RenameField("selector", "target"),
 			),
+
+			// Remove fields that no longer exist
+			yaml.Tee(yaml.Clear("path")),
+			yaml.Tee(yaml.Clear("port")),
+			yaml.Tee(yaml.Clear("scheme")),
 		)
 		if err != nil {
 			return nil, err
