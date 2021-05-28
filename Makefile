@@ -20,12 +20,12 @@ BUILD_METADATA ?=
 GIT_COMMIT ?= $(shell git rev-parse HEAD)
 
 # Define linker flags
-LDFLAGS += -X github.com/thestormforge/optimize-controller/internal/version.Version=${VERSION}
-LDFLAGS += -X github.com/thestormforge/optimize-controller/internal/version.BuildMetadata=${BUILD_METADATA}
-LDFLAGS += -X github.com/thestormforge/optimize-controller/internal/version.GitCommit=${GIT_COMMIT}
-LDFLAGS += -X github.com/thestormforge/optimize-controller/internal/setup.Image=${SETUPTOOLS_IMG}
-LDFLAGS += -X github.com/thestormforge/optimize-controller/internal/setup.ImagePullPolicy=${PULL_POLICY}
-LDFLAGS += -X github.com/thestormforge/optimize-controller/redskyctl/internal/kustomize.BuildImage=${IMG}
+LDFLAGS += -X github.com/thestormforge/optimize-controller/v2/internal/version.Version=${VERSION}
+LDFLAGS += -X github.com/thestormforge/optimize-controller/v2/internal/version.BuildMetadata=${BUILD_METADATA}
+LDFLAGS += -X github.com/thestormforge/optimize-controller/v2/internal/version.GitCommit=${GIT_COMMIT}
+LDFLAGS += -X github.com/thestormforge/optimize-controller/v2/internal/setup.Image=${SETUPTOOLS_IMG}
+LDFLAGS += -X github.com/thestormforge/optimize-controller/v2/internal/setup.ImagePullPolicy=${PULL_POLICY}
+LDFLAGS += -X github.com/thestormforge/optimize-controller/v2/redskyctl/internal/kustomize.BuildImage=${IMG}
 
 all: manager tool
 

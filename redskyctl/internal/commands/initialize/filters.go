@@ -17,7 +17,7 @@ limitations under the License.
 package initialize
 
 import (
-	"github.com/thestormforge/optimize-controller/internal/version"
+	"github.com/thestormforge/optimize-controller/v2/internal/version"
 	"sigs.k8s.io/kustomize/api/filters/labels"
 	"sigs.k8s.io/kustomize/api/resid"
 	"sigs.k8s.io/kustomize/api/types"

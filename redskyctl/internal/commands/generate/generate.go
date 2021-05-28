@@ -18,9 +18,9 @@ package generate
 
 import (
 	"github.com/spf13/cobra"
-	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/authorize_cluster"
-	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/grant_permissions"
-	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/initialize"
+	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commands/authorize_cluster"
+	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commands/grant_permissions"
+	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commands/initialize"
 	"github.com/thestormforge/optimize-go/pkg/config"
 )
 

@@ -1,4 +1,4 @@
-module github.com/thestormforge/optimize-controller
+module github.com/thestormforge/optimize-controller/v2
 
 go 1.16
 

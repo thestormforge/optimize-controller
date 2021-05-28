@@ -20,7 +20,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
+	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commander"
 	"github.com/thestormforge/optimize-go/pkg/config"
 )
 

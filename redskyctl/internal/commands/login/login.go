@@ -31,7 +31,7 @@ import (
 	"github.com/mdp/qrterminal/v3"
 	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
-	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
+	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commander"
 	"github.com/thestormforge/optimize-go/pkg/config"
 	"github.com/thestormforge/optimize-go/pkg/oauth2/authorizationcode"
 	"golang.org/x/oauth2"
