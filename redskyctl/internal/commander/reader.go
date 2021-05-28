@@ -23,9 +23,9 @@ import (
 	"os"
 	"path/filepath"
 
-	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
-	redskyv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/v1alpha1"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
+	optimizev1alpha1 "github.com/thestormforge/optimize-controller/v2/api/v1alpha1"
+	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
 	"github.com/thestormforge/optimize-controller/v2/internal/controller"
 	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -47,9 +47,9 @@ func NewResourceReader() *ResourceReader {
 	}
 
 	// Always add our types
-	_ = redskyv1beta1.AddToScheme(rr.Scheme)
-	_ = redskyv1alpha1.AddToScheme(rr.Scheme)
-	_ = redskyappsv1alpha1.AddToScheme(rr.Scheme)
+	_ = optimizev1beta1.AddToScheme(rr.Scheme)
+	_ = optimizev1alpha1.AddToScheme(rr.Scheme)
+	_ = optimizeappsv1alpha1.AddToScheme(rr.Scheme)
 
 	// Allow single experiments to target an experiment list
 	_ = addExperimentListConversions(rr.Scheme)
@@ -159,17 +159,17 @@ func (onlyVersion) KindForGroupVersionKinds(kinds []schema.GroupVersionKind) (sc
 // when a command can handle a list but the user only supplies a single experiment.
 func addExperimentListConversions(s *runtime.Scheme) error {
 	// Convert from a single experiment to a list of experiments
-	if err := s.AddConversionFunc((*redskyv1beta1.Experiment)(nil), (*redskyv1beta1.ExperimentList)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		b.(*redskyv1beta1.ExperimentList).Items = []redskyv1beta1.Experiment{*a.(*redskyv1beta1.Experiment)}
+	if err := s.AddConversionFunc((*optimizev1beta1.Experiment)(nil), (*optimizev1beta1.ExperimentList)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		b.(*optimizev1beta1.ExperimentList).Items = []optimizev1beta1.Experiment{*a.(*optimizev1beta1.Experiment)}
 		return nil
 	}); err != nil {
 		return err
 	}
 
 	// Convert from a single v1alpha1 experiment to a list of experiments
-	if err := s.AddConversionFunc((*redskyv1alpha1.Experiment)(nil), (*redskyv1beta1.ExperimentList)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		l := b.(*redskyv1beta1.ExperimentList)
-		l.Items = make([]redskyv1beta1.Experiment, 1)
+	if err := s.AddConversionFunc((*optimizev1alpha1.Experiment)(nil), (*optimizev1beta1.ExperimentList)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		l := b.(*optimizev1beta1.ExperimentList)
+		l.Items = make([]optimizev1beta1.Experiment, 1)
 		return scope.Convert(a, &l.Items[0], scope.Flags())
 	}); err != nil {
 		return err

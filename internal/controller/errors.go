@@ -17,7 +17,7 @@ limitations under the License.
 package controller
 
 import (
-	redskyapi "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
+	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 )
 
@@ -26,8 +26,8 @@ func IgnoreNotFound(err error) error {
 	if apierrs.IsNotFound(err) {
 		return nil
 	}
-	if rserr, ok := err.(*redskyapi.Error); ok {
-		if rserr.Type == redskyapi.ErrExperimentNotFound || rserr.Type == redskyapi.ErrTrialNotFound {
+	if rserr, ok := err.(*experimentsv1alpha1.Error); ok {
+		if rserr.Type == experimentsv1alpha1.ErrExperimentNotFound || rserr.Type == experimentsv1alpha1.ErrTrialNotFound {
 			return nil
 		}
 	}
@@ -47,8 +47,8 @@ func IgnoreReportError(err error) error {
 	if IgnoreNotFound(err) == nil {
 		return nil
 	}
-	if rserr, ok := err.(*redskyapi.Error); ok {
-		if rserr.Type == redskyapi.ErrTrialAlreadyReported {
+	if rserr, ok := err.(*experimentsv1alpha1.Error); ok {
+		if rserr.Type == experimentsv1alpha1.ErrTrialAlreadyReported {
 			return nil
 		}
 	}

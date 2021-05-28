@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 )
 
@@ -40,49 +40,49 @@ func Walk(ctx context.Context, v Visitor, obj interface{}) {
 
 	switch o := obj.(type) {
 
-	case *redskyv1beta1.Experiment:
+	case *optimizev1beta1.Experiment:
 		Walk(withPath(ctx, "spec"), v, &o.Spec)
 
-	case *redskyv1beta1.ExperimentSpec:
+	case *optimizev1beta1.ExperimentSpec:
 		Walk(withPath(ctx, "optimization"), v, o.Optimization)
 		Walk(withPath(ctx, "parameters"), v, o.Parameters)
 		Walk(withPath(ctx, "metrics"), v, o.Metrics)
 		Walk(withPath(ctx, "patches"), v, o.Patches)
 		Walk(withPath(ctx, "trialTemplate"), v, &o.TrialTemplate)
 
-	case []redskyv1beta1.Optimization:
+	case []optimizev1beta1.Optimization:
 		for i := range o {
 			Walk(withPath(ctx, map[string]string{"name": o[i].Name}), v, &o[i])
 		}
 
-	case *redskyv1beta1.Optimization:
+	case *optimizev1beta1.Optimization:
 		// Do nothing
 
-	case []redskyv1beta1.Parameter:
+	case []optimizev1beta1.Parameter:
 		for i := range o {
 			Walk(withPath(ctx, map[string]string{"name": o[i].Name}), v, &o[i])
 		}
 
-	case *redskyv1beta1.Parameter:
+	case *optimizev1beta1.Parameter:
 		// Do nothing
 
-	case []redskyv1beta1.Metric:
+	case []optimizev1beta1.Metric:
 		for i := range o {
 			Walk(withPath(ctx, map[string]string{"name": o[i].Name}), v, &o[i])
 		}
 
-	case *redskyv1beta1.Metric:
+	case *optimizev1beta1.Metric:
 		// Do nothing
 
-	case []redskyv1beta1.PatchTemplate:
+	case []optimizev1beta1.PatchTemplate:
 		for i := range o {
 			Walk(withPath(ctx, i), v, &o[i])
 		}
 
-	case *redskyv1beta1.PatchTemplate:
+	case *optimizev1beta1.PatchTemplate:
 		// Do nothing
 
-	case *redskyv1beta1.TrialTemplateSpec:
+	case *optimizev1beta1.TrialTemplateSpec:
 		if o.Spec.JobTemplate != nil {
 			Walk(withPath(withPath(ctx, "spec"), "jobTemplate"), v, o.Spec.JobTemplate)
 		}

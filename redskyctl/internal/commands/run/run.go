@@ -29,7 +29,7 @@ import (
 	"github.com/spf13/cobra"
 	konjurev1beta2 "github.com/thestormforge/konjure/pkg/api/core/v1beta2"
 	"github.com/thestormforge/konjure/pkg/konjure"
-	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
+	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
 	"github.com/thestormforge/optimize-controller/v2/internal/experiment"
 	"github.com/thestormforge/optimize-controller/v2/internal/version"
 	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commander"
@@ -271,7 +271,7 @@ func (o *Options) ReadApplication(args []string) error {
 }
 
 // applyToApp takes all of the what is on the model and applies it to an application.
-func (m generatorModel) applyToApp(app *redskyappsv1alpha1.Application) {
+func (m generatorModel) applyToApp(app *optimizeappsv1alpha1.Application) {
 	if m.NamespaceInput.Enabled() {
 
 		// TODO We need a better way to set the name/namespace of the application
@@ -292,8 +292,8 @@ func (m generatorModel) applyToApp(app *redskyappsv1alpha1.Application) {
 
 	if m.StormForgerTestCaseInput.Enabled() {
 		if testCase := m.StormForgerTestCaseInput.Value(); testCase != "" {
-			app.Scenarios = append(app.Scenarios, redskyappsv1alpha1.Scenario{
-				StormForger: &redskyappsv1alpha1.StormForgerScenario{
+			app.Scenarios = append(app.Scenarios, optimizeappsv1alpha1.Scenario{
+				StormForger: &optimizeappsv1alpha1.StormForgerScenario{
 					TestCase: testCase,
 				},
 			})
@@ -302,8 +302,8 @@ func (m generatorModel) applyToApp(app *redskyappsv1alpha1.Application) {
 
 	if m.LocustfileInput.Enabled() {
 		if locustfile := m.LocustfileInput.Value(); locustfile != "" {
-			app.Scenarios = append(app.Scenarios, redskyappsv1alpha1.Scenario{
-				Locust: &redskyappsv1alpha1.LocustScenario{
+			app.Scenarios = append(app.Scenarios, optimizeappsv1alpha1.Scenario{
+				Locust: &optimizeappsv1alpha1.LocustScenario{
 					Locustfile: locustfile,
 				},
 			})
@@ -312,7 +312,7 @@ func (m generatorModel) applyToApp(app *redskyappsv1alpha1.Application) {
 
 	if m.IngressURLInput.Enabled() {
 		if u := m.IngressURLInput.Value(); u != "" {
-			app.Ingress = &redskyappsv1alpha1.Ingress{
+			app.Ingress = &optimizeappsv1alpha1.Ingress{
 				URL: u,
 			}
 		}
@@ -323,8 +323,8 @@ func (m generatorModel) applyToApp(app *redskyappsv1alpha1.Application) {
 		// that empty matches everything (even if other parameters have been specified).
 		// We CANNOT rely on the default behavior of the generator for this, since
 		// the presence of any parameter bypasses the default inclusion of container resources.
-		app.Parameters = append(app.Parameters, redskyappsv1alpha1.Parameter{
-			ContainerResources: &redskyappsv1alpha1.ContainerResources{
+		app.Parameters = append(app.Parameters, optimizeappsv1alpha1.Parameter{
+			ContainerResources: &optimizeappsv1alpha1.ContainerResources{
 				Selector: m.ContainerResourcesSelectorInput.Value(),
 			},
 		})
@@ -332,8 +332,8 @@ func (m generatorModel) applyToApp(app *redskyappsv1alpha1.Application) {
 
 	if m.ReplicasSelectorInput.Enabled() {
 		if sel := m.ReplicasSelectorInput.Value(); sel != "" {
-			app.Parameters = append(app.Parameters, redskyappsv1alpha1.Parameter{
-				Replicas: &redskyappsv1alpha1.Replicas{
+			app.Parameters = append(app.Parameters, optimizeappsv1alpha1.Parameter{
+				Replicas: &optimizeappsv1alpha1.Replicas{
 					Selector: sel,
 				},
 			})
@@ -341,16 +341,16 @@ func (m generatorModel) applyToApp(app *redskyappsv1alpha1.Application) {
 	}
 
 	if m.ObjectiveInput.Enabled() {
-		app.Objectives = append(app.Objectives, redskyappsv1alpha1.Objective{})
+		app.Objectives = append(app.Objectives, optimizeappsv1alpha1.Objective{})
 		for _, goal := range m.ObjectiveInput.Values() {
-			app.Objectives[0].Goals = append(app.Objectives[0].Goals, redskyappsv1alpha1.Goal{Name: goal})
+			app.Objectives[0].Goals = append(app.Objectives[0].Goals, optimizeappsv1alpha1.Goal{Name: goal})
 		}
 	}
 
 }
 
 // readIntoApplication reads the supplied source relative to a working directory.
-func readIntoApplication(src, wd string, app *redskyappsv1alpha1.Application) (string, error) {
+func readIntoApplication(src, wd string, app *optimizeappsv1alpha1.Application) (string, error) {
 	path := filepath.Join(wd, src)
 
 	// Try to use go-getter to support non-file inputs

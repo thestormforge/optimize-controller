@@ -23,7 +23,7 @@ import (
 	"text/tabwriter"
 
 	tea "github.com/charmbracelet/bubbletea"
-	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
+	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
 	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commands/run/form"
 	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commands/run/internal"
 	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commands/run/out"
@@ -360,7 +360,7 @@ func (m previewModel) View() string {
 	view.Step(out.Ready, "Your experiment is ready to run!")
 
 	view.Newline()
-	view.Step(out.Preview, "Application Name: %s", m.Experiment.Labels[redskyappsv1alpha1.LabelApplication])
+	view.Step(out.Preview, "Application Name: %s", m.Experiment.Labels[optimizeappsv1alpha1.LabelApplication])
 	view.Step(out.Preview, "Experiment Name: %s", m.Experiment.Name)
 	view.Step(out.Preview, "Parameters:")
 	for i := range m.Experiment.Spec.Parameters {
