@@ -260,7 +260,7 @@ func (r *ServerReconciler) createExperiment(ctx context.Context, log logr.Logger
 
 	// Create the experiment remotely
 	// TODO This should check for an existing URL annotation before using the name (needs a new version of optimize-go)
-	ee, err := r.ExperimentsAPI.CreateExperiment(ctx, n, *e)
+	ee, err := r.ExperimentsAPI.CreateExperimentByName(ctx, n, *e)
 	if err != nil {
 		if server.FailExperiment(exp, "ServerCreateFailed", err) {
 			err := r.Update(ctx, exp)
