@@ -19,14 +19,14 @@ package export_test
 import (
 	"context"
 
-	experimentsapi "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
+	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1/numstr"
 )
 
-var wannabeTrial = experimentsapi.TrialItem{
+var wannabeTrial = experimentsv1alpha1.TrialItem{
 	// This is our target trial
-	TrialAssignments: experimentsapi.TrialAssignments{
-		Assignments: []experimentsapi.Assignment{
+	TrialAssignments: experimentsv1alpha1.TrialAssignments{
+		Assignments: []experimentsv1alpha1.Assignment{
 			{
 				ParameterName: "cpu",
 				Value:         numstr.FromInt64(100),
@@ -38,27 +38,27 @@ var wannabeTrial = experimentsapi.TrialItem{
 		},
 	},
 	Number: 1234,
-	Status: experimentsapi.TrialCompleted,
+	Status: experimentsv1alpha1.TrialCompleted,
 }
 
 // Implement the api interface
 type fakeRedSkyServer struct{}
 
-func (f *fakeRedSkyServer) Options(ctx context.Context) (experimentsapi.ServerMeta, error) {
-	return experimentsapi.ServerMeta{}, nil
+func (f *fakeRedSkyServer) Options(ctx context.Context) (experimentsv1alpha1.ServerMeta, error) {
+	return experimentsv1alpha1.ServerMeta{}, nil
 }
 
-func (f *fakeRedSkyServer) GetAllExperiments(ctx context.Context, query *experimentsapi.ExperimentListQuery) (experimentsapi.ExperimentList, error) {
-	return experimentsapi.ExperimentList{}, nil
+func (f *fakeRedSkyServer) GetAllExperiments(ctx context.Context, query *experimentsv1alpha1.ExperimentListQuery) (experimentsv1alpha1.ExperimentList, error) {
+	return experimentsv1alpha1.ExperimentList{}, nil
 }
 
-func (f *fakeRedSkyServer) GetAllExperimentsByPage(ctx context.Context, notsure string) (experimentsapi.ExperimentList, error) {
-	return experimentsapi.ExperimentList{}, nil
+func (f *fakeRedSkyServer) GetAllExperimentsByPage(ctx context.Context, notsure string) (experimentsv1alpha1.ExperimentList, error) {
+	return experimentsv1alpha1.ExperimentList{}, nil
 }
 
-func (f *fakeRedSkyServer) GetExperimentByName(ctx context.Context, name experimentsapi.ExperimentName) (experimentsapi.Experiment, error) {
-	exp := experimentsapi.Experiment{
-		ExperimentMeta: experimentsapi.ExperimentMeta{
+func (f *fakeRedSkyServer) GetExperimentByName(ctx context.Context, name experimentsv1alpha1.ExperimentName) (experimentsv1alpha1.Experiment, error) {
+	exp := experimentsv1alpha1.Experiment{
+		ExperimentMeta: experimentsv1alpha1.ExperimentMeta{
 			TrialsURL: "http://sometrial",
 		},
 		DisplayName: "postgres-example",
@@ -67,7 +67,7 @@ func (f *fakeRedSkyServer) GetExperimentByName(ctx context.Context, name experim
 			"application": "sampleApplication",
 			"scenario":    "how-do-you-make-a-tissue-dance",
 		},
-		Metrics: []experimentsapi.Metric{
+		Metrics: []experimentsv1alpha1.Metric{
 			{
 				Name:     "cost",
 				Minimize: true,
@@ -78,20 +78,20 @@ func (f *fakeRedSkyServer) GetExperimentByName(ctx context.Context, name experim
 			},
 		},
 		Observations: 320,
-		Optimization: []experimentsapi.Optimization{},
-		Parameters: []experimentsapi.Parameter{
+		Optimization: []experimentsv1alpha1.Optimization{},
+		Parameters: []experimentsv1alpha1.Parameter{
 			{
 				Name: "cpu",
-				Type: experimentsapi.ParameterTypeInteger,
-				Bounds: &experimentsapi.Bounds{
+				Type: experimentsv1alpha1.ParameterTypeInteger,
+				Bounds: &experimentsv1alpha1.Bounds{
 					Max: "4000",
 					Min: "100",
 				},
 			},
 			{
 				Name: "memory",
-				Type: experimentsapi.ParameterTypeInteger,
-				Bounds: &experimentsapi.Bounds{
+				Type: experimentsv1alpha1.ParameterTypeInteger,
+				Bounds: &experimentsv1alpha1.Bounds{
 					Max: "4000",
 					Min: "500",
 				},
@@ -102,32 +102,32 @@ func (f *fakeRedSkyServer) GetExperimentByName(ctx context.Context, name experim
 	return exp, nil
 }
 
-func (f *fakeRedSkyServer) GetExperiment(ctx context.Context, name string) (experimentsapi.Experiment, error) {
-	return experimentsapi.Experiment{}, nil
+func (f *fakeRedSkyServer) GetExperiment(ctx context.Context, name string) (experimentsv1alpha1.Experiment, error) {
+	return experimentsv1alpha1.Experiment{}, nil
 }
 
-func (f *fakeRedSkyServer) CreateExperimentByName(ctx context.Context, name experimentsapi.ExperimentName, experiment experimentsapi.Experiment) (experimentsapi.Experiment, error) {
-	return experimentsapi.Experiment{}, nil
+func (f *fakeRedSkyServer) CreateExperimentByName(ctx context.Context, name experimentsv1alpha1.ExperimentName, experiment experimentsv1alpha1.Experiment) (experimentsv1alpha1.Experiment, error) {
+	return experimentsv1alpha1.Experiment{}, nil
 }
 
-func (f *fakeRedSkyServer) CreateExperiment(ctx context.Context, s string, experiment experimentsapi.Experiment) (experimentsapi.Experiment, error) {
-	return experimentsapi.Experiment{}, nil
+func (f *fakeRedSkyServer) CreateExperiment(ctx context.Context, s string, experiment experimentsv1alpha1.Experiment) (experimentsv1alpha1.Experiment, error) {
+	return experimentsv1alpha1.Experiment{}, nil
 }
 
 func (f *fakeRedSkyServer) DeleteExperiment(ctx context.Context, name string) error {
 	return nil
 }
 
-func (f *fakeRedSkyServer) GetAllTrials(ctx context.Context, name string, query *experimentsapi.TrialListQuery) (experimentsapi.TrialList, error) {
+func (f *fakeRedSkyServer) GetAllTrials(ctx context.Context, name string, query *experimentsv1alpha1.TrialListQuery) (experimentsv1alpha1.TrialList, error) {
 	// TODO implement some query filter magic if we really want to.
 	// Otherwise, we should clean this up to mimic just the necessary output
-	tl := experimentsapi.TrialList{
-		Trials: []experimentsapi.TrialItem{
+	tl := experimentsv1alpha1.TrialList{
+		Trials: []experimentsv1alpha1.TrialItem{
 			wannabeTrial,
 			// This one should not be used because number doesnt match up
 			{
-				TrialAssignments: experimentsapi.TrialAssignments{
-					Assignments: []experimentsapi.Assignment{
+				TrialAssignments: experimentsv1alpha1.TrialAssignments{
+					Assignments: []experimentsv1alpha1.Assignment{
 						{
 							ParameterName: "cpu",
 							Value:         numstr.FromInt64(999),
@@ -139,12 +139,12 @@ func (f *fakeRedSkyServer) GetAllTrials(ctx context.Context, name string, query 
 					},
 				},
 				Number: 319,
-				Status: experimentsapi.TrialCompleted,
+				Status: experimentsv1alpha1.TrialCompleted,
 			},
 			// This one should not be used because status is not completed
 			{
-				TrialAssignments: experimentsapi.TrialAssignments{
-					Assignments: []experimentsapi.Assignment{
+				TrialAssignments: experimentsv1alpha1.TrialAssignments{
+					Assignments: []experimentsv1alpha1.Assignment{
 						{
 							ParameterName: "cpu",
 							Value:         numstr.FromInt64(999),
@@ -156,22 +156,22 @@ func (f *fakeRedSkyServer) GetAllTrials(ctx context.Context, name string, query 
 					},
 				},
 				Number: 320,
-				Status: experimentsapi.TrialFailed,
+				Status: experimentsv1alpha1.TrialFailed,
 			},
 		},
 	}
 	return tl, nil
 }
 
-func (f *fakeRedSkyServer) CreateTrial(ctx context.Context, name string, assignments experimentsapi.TrialAssignments) (experimentsapi.TrialAssignments, error) {
-	return experimentsapi.TrialAssignments{}, nil
+func (f *fakeRedSkyServer) CreateTrial(ctx context.Context, name string, assignments experimentsv1alpha1.TrialAssignments) (experimentsv1alpha1.TrialAssignments, error) {
+	return experimentsv1alpha1.TrialAssignments{}, nil
 }
 
-func (f *fakeRedSkyServer) NextTrial(ctx context.Context, name string) (experimentsapi.TrialAssignments, error) {
-	return experimentsapi.TrialAssignments{}, nil
+func (f *fakeRedSkyServer) NextTrial(ctx context.Context, name string) (experimentsv1alpha1.TrialAssignments, error) {
+	return experimentsv1alpha1.TrialAssignments{}, nil
 }
 
-func (f *fakeRedSkyServer) ReportTrial(ctx context.Context, name string, values experimentsapi.TrialValues) error {
+func (f *fakeRedSkyServer) ReportTrial(ctx context.Context, name string, values experimentsv1alpha1.TrialValues) error {
 	return nil
 }
 
@@ -179,10 +179,10 @@ func (f *fakeRedSkyServer) AbandonRunningTrial(ctx context.Context, name string)
 	return nil
 }
 
-func (f *fakeRedSkyServer) LabelExperiment(ctx context.Context, name string, labels experimentsapi.ExperimentLabels) error {
+func (f *fakeRedSkyServer) LabelExperiment(ctx context.Context, name string, labels experimentsv1alpha1.ExperimentLabels) error {
 	return nil
 }
 
-func (f *fakeRedSkyServer) LabelTrial(ctx context.Context, name string, labels experimentsapi.TrialLabels) error {
+func (f *fakeRedSkyServer) LabelTrial(ctx context.Context, name string, labels experimentsv1alpha1.TrialLabels) error {
 	return nil
 }

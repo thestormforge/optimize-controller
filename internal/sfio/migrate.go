@@ -21,8 +21,8 @@ import (
 	"strings"
 
 	"github.com/thestormforge/konjure/pkg/filters"
-	redskyv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/v1alpha1"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizev1alpha1 "github.com/thestormforge/optimize-controller/v2/api/v1alpha1"
+	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
@@ -37,8 +37,8 @@ func (f *ExperimentMigrationFilter) Filter(node *yaml.RNode) (*yaml.RNode, error
 	return node.Pipe(
 		yaml.Tee(
 			filters.FilterOne(&filters.ResourceMetaFilter{
-				Group:   redskyv1alpha1.GroupVersion.Group,
-				Version: redskyv1alpha1.GroupVersion.Version,
+				Group:   optimizev1alpha1.GroupVersion.Group,
+				Version: optimizev1alpha1.GroupVersion.Version,
 				Kind:    "Experiment",
 			}),
 			yaml.FilterFunc(f.MigrateExperimentV1alpha1),
@@ -46,8 +46,8 @@ func (f *ExperimentMigrationFilter) Filter(node *yaml.RNode) (*yaml.RNode, error
 
 		yaml.Tee(
 			filters.FilterOne(&filters.ResourceMetaFilter{
-				Group:   redskyv1beta1.GroupVersion.Group,
-				Version: redskyv1beta1.GroupVersion.Version,
+				Group:   optimizev1beta1.GroupVersion.Group,
+				Version: optimizev1beta1.GroupVersion.Version,
 				Kind:    "Experiment",
 			}),
 			yaml.FilterFunc(f.MigrateExperimentV1beta1),
@@ -88,7 +88,7 @@ func (f *ExperimentMigrationFilter) MigrateExperimentV1alpha1(node *yaml.RNode) 
 
 		// Finally, set the apiVersion
 		yaml.Tee(
-			yaml.SetField("apiVersion", yaml.NewStringRNode(redskyv1beta1.GroupVersion.String())),
+			yaml.SetField("apiVersion", yaml.NewStringRNode(optimizev1beta1.GroupVersion.String())),
 		),
 	)
 }
@@ -132,7 +132,7 @@ func (f *ExperimentMigrationFilter) migrateMetricsV1alpha1(node *yaml.RNode) (*y
 			// Change metric type "local" to "kubernetes"
 			yaml.Tee(
 				yaml.MatchField("type", "local"),
-				yaml.Set(yaml.NewStringRNode(string(redskyv1beta1.MetricKubernetes))),
+				yaml.Set(yaml.NewStringRNode(string(optimizev1beta1.MetricKubernetes))),
 			),
 
 			// Change type "pods" to "" and add "target: { kind: PodList }"
@@ -194,7 +194,7 @@ func (m *metric) setURLField(name string) yaml.Filter {
 
 	u := url.URL{
 		Scheme: m.Scheme,
-		Host:   redskyv1alpha1.LegacyHostnamePlaceholder,
+		Host:   optimizev1alpha1.LegacyHostnamePlaceholder,
 		Path:   m.Path,
 	}
 

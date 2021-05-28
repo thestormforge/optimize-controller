@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	redsky "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
 	"github.com/thestormforge/optimize-controller/v2/internal/setup"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -32,7 +32,7 @@ func TestGetTrialConditionType(t *testing.T) {
 		desc          string
 		job           *batchv1.Job
 		expectedError bool
-		conditionType redsky.TrialConditionType
+		conditionType optimizev1beta1.TrialConditionType
 	}{
 		{
 			desc: "no mode",
@@ -71,7 +71,7 @@ func TestGetTrialConditionType(t *testing.T) {
 					},
 				},
 			},
-			conditionType: redsky.TrialSetupCreated,
+			conditionType: optimizev1beta1.TrialSetupCreated,
 			expectedError: false,
 		},
 		{
@@ -94,7 +94,7 @@ func TestGetTrialConditionType(t *testing.T) {
 					},
 				},
 			},
-			conditionType: redsky.TrialSetupDeleted,
+			conditionType: optimizev1beta1.TrialSetupDeleted,
 			expectedError: false,
 		},
 	}

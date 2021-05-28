@@ -23,15 +23,15 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/thestormforge/konjure/pkg/konjure"
-	app "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
-	redsky "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
+	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"
 )
 
-func createTempExperimentFile(t *testing.T) (*redsky.Experiment, []byte, *os.File) {
+func createTempExperimentFile(t *testing.T) (*optimizev1beta1.Experiment, []byte, *os.File) {
 	samplePatch := `spec:
    template:
      spec:
@@ -46,23 +46,23 @@ func createTempExperimentFile(t *testing.T) (*redsky.Experiment, []byte, *os.Fil
                memory: "{{ .Values.memory }}Mi"`
 
 	tm := &metav1.TypeMeta{}
-	tm.SetGroupVersionKind(redsky.GroupVersion.WithKind("Experiment"))
-	sampleExperiment := &redsky.Experiment{
+	tm.SetGroupVersionKind(optimizev1beta1.GroupVersion.WithKind("Experiment"))
+	sampleExperiment := &optimizev1beta1.Experiment{
 		TypeMeta: *tm,
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "sampleExperiment",
 			Namespace: "default",
 		},
-		Spec: redsky.ExperimentSpec{
-			Parameters: []redsky.Parameter{
+		Spec: optimizev1beta1.ExperimentSpec{
+			Parameters: []optimizev1beta1.Parameter{
 				{
 					Name: "myparam",
 					Min:  100,
 					Max:  1000,
 				},
 			},
-			Metrics: []redsky.Metric{},
-			Patches: []redsky.PatchTemplate{
+			Metrics: []optimizev1beta1.Metric{},
+			Patches: []optimizev1beta1.PatchTemplate{
 				{
 					TargetRef: &corev1.ObjectReference{
 						Kind:       "Deployment",
@@ -72,9 +72,9 @@ func createTempExperimentFile(t *testing.T) (*redsky.Experiment, []byte, *os.Fil
 					Patch: samplePatch,
 				},
 			},
-			TrialTemplate: redsky.TrialTemplateSpec{},
+			TrialTemplate: optimizev1beta1.TrialTemplateSpec{},
 		},
-		Status: redsky.ExperimentStatus{},
+		Status: optimizev1beta1.ExperimentStatus{},
 	}
 
 	tmpfile, err := ioutil.TempFile("", "experiment-*.yaml")
@@ -99,44 +99,44 @@ func createTempManifests(t *testing.T) *os.File {
 	return tmpfile
 }
 
-func createTempApplication(t *testing.T, filename string) (*app.Application, []byte, *os.File) {
+func createTempApplication(t *testing.T, filename string) (*optimizeappsv1alpha1.Application, []byte, *os.File) {
 	tm := &metav1.TypeMeta{}
-	tm.SetGroupVersionKind(app.GroupVersion.WithKind("Application"))
-	sampleApplication := &app.Application{
+	tm.SetGroupVersionKind(optimizeappsv1alpha1.GroupVersion.WithKind("Application"))
+	sampleApplication := &optimizeappsv1alpha1.Application{
 		TypeMeta: *tm,
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "sampleApplication",
 			Namespace: "default",
 		},
 		Resources: konjure.Resources{konjure.NewResource(filename)},
-		Parameters: []app.Parameter{
+		Parameters: []optimizeappsv1alpha1.Parameter{
 			{
-				ContainerResources: &app.ContainerResources{
+				ContainerResources: &optimizeappsv1alpha1.ContainerResources{
 					Selector: "component=postgres",
 				},
 			},
 		},
-		Scenarios: []app.Scenario{
+		Scenarios: []optimizeappsv1alpha1.Scenario{
 			{
 				Name: "how-do-you-make-a-tissue-dance",
-				StormForger: &app.StormForgerScenario{
+				StormForger: &optimizeappsv1alpha1.StormForgerScenario{
 					TestCase: "tissue-box",
 				},
 			},
 			{
 				Name: "put-a-little-boogie-in-it",
-				StormForger: &app.StormForgerScenario{
+				StormForger: &optimizeappsv1alpha1.StormForgerScenario{
 					TestCase: "boogie",
 				},
 			},
 		},
-		Objectives: []app.Objective{
+		Objectives: []optimizeappsv1alpha1.Objective{
 			{
-				Goals: []app.Goal{
+				Goals: []optimizeappsv1alpha1.Goal{
 					{
 						Name: "cost",
 						Max:  resource.NewQuantity(100, resource.DecimalExponent),
-						Requests: &app.RequestsGoal{
+						Requests: &optimizeappsv1alpha1.RequestsGoal{
 							Selector: "everybody=yes",
 							Weights: corev1.ResourceList{
 								corev1.ResourceCPU:    resource.MustParse("100m"),
@@ -150,14 +150,14 @@ func createTempApplication(t *testing.T, filename string) (*app.Application, []b
 			// {
 			// 	Name: "latency",
 			// 	Max:  resource.NewQuantity(50, resource.DecimalExponent),
-			// 	Latency: &app.LatencyObjective{
-			// 		LatencyType: app.LatencyPercentile99,
+			// 	Latency: &optimizeappsv1alpha1.LatencyObjective{
+			// 		LatencyType: optimizeappsv1alpha1.LatencyPercentile99,
 			// 	},
 			// },
 		},
-		StormForger: &app.StormForger{
+		StormForger: &optimizeappsv1alpha1.StormForger{
 			Organization: "gotta",
-			AccessToken: &app.StormForgerAccessToken{
+			AccessToken: &optimizeappsv1alpha1.StormForgerAccessToken{
 				Literal: "get down!",
 			},
 		},

@@ -22,7 +22,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	redskyapi "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
+	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -145,8 +145,8 @@ func TestRequeueIfUnavailable(t *testing.T) {
 		},
 		{
 			desc: "trial unavailable",
-			err: &redskyapi.Error{
-				Type:       redskyapi.ErrTrialUnavailable,
+			err: &experimentsv1alpha1.Error{
+				Type:       experimentsv1alpha1.ErrTrialUnavailable,
 				RetryAfter: 111,
 			},
 			result: &ctrl.Result{
