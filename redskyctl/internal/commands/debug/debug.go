@@ -23,7 +23,7 @@ import (
 
 // Options includes the configuration for the subcommands.
 type Options struct {
-	// Config is the Red Sky Configuration
+	// Config is the Optimize Configuration
 	Config *config.RedSkyConfig
 }
 

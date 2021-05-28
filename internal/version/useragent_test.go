@@ -34,7 +34,7 @@ func TestUserAgent(t *testing.T) {
 			desc:     "default",
 			product:  "",
 			comment:  "",
-			expected: "RedSky/0.0.0-source",
+			expected: "Optimize/0.0.0-source",
 		},
 		{
 			desc:    "version",
@@ -43,7 +43,7 @@ func TestUserAgent(t *testing.T) {
 			versionInfo: &Info{
 				Version: "v1.2.3",
 			},
-			expected: "RedSky/1.2.3",
+			expected: "Optimize/1.2.3",
 		},
 		{
 			desc:     "product",

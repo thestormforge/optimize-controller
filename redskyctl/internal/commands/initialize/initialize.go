@@ -37,7 +37,7 @@ func NewCommand(o *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Install to a cluster",
-		Long:  "Install Red Sky Ops to a cluster",
+		Long:  "Install StormForge Optimize to a cluster",
 
 		PreRun: commander.StreamsPreRun(&o.IOStreams),
 		RunE:   commander.WithContextE(o.Initialize),

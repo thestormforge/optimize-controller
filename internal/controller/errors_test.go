@@ -47,14 +47,14 @@ func TestIgnoreNotFound(t *testing.T) {
 			expectedErr: nil,
 		},
 		{
-			desc: "redskyapi error experiment not found",
+			desc: "api error experiment not found",
 			in: &redskyapi.Error{
 				Type: redskyapi.ErrExperimentNotFound,
 			},
 			expectedErr: nil,
 		},
 		{
-			desc: "redskyapi error trial not found",
+			desc: "api error trial not found",
 			in: &redskyapi.Error{
 				Type: redskyapi.ErrTrialNotFound,
 			},

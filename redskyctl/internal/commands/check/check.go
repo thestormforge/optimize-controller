@@ -23,7 +23,7 @@ import (
 
 // Options includes the configuration for the subcommands
 type Options struct {
-	// Config is the Red Sky Configuration
+	// Config is the Optimize Configuration
 	Config *config.RedSkyConfig
 }
 
@@ -32,7 +32,7 @@ func NewCommand(o *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "check",
 		Short: "Run a consistency check",
-		Long:  "Run a consistency check on Red Sky Ops components",
+		Long:  "Run a consistency check on StormForge Optimize components",
 	}
 
 	cmd.AddCommand(NewConfigCommand(&ConfigOptions{Config: o.Config}))

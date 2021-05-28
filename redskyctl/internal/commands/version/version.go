@@ -32,7 +32,7 @@ import (
 	"github.com/thestormforge/optimize-go/pkg/config"
 )
 
-// TODO Add support for getting Red Sky server version
+// TODO Add support for getting Experiment API server version
 // TODO Add "--client" and "--server" and "--manager" for only printing some versions
 // TODO Add a "--notes" option to print the release notes?
 // TODO Add an "--output" to control format (json, yaml)
@@ -46,9 +46,9 @@ const defaultTemplate = `{{range $key, $value := . }}{{$key}} version: {{$value}
 
 // Options is the configuration for reporting version information
 type Options struct {
-	// Config is the Red Sky Configuration
+	// Config is the Optimize Configuration
 	Config *config.RedSkyConfig
-	// ExperimentsAPI is used to interact with the Red Sky Experiments API
+	// ExperimentsAPI is used to interact with the Optimize Experiments API
 	ExperimentsAPI experimentsv1alpha1.API
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
@@ -68,7 +68,7 @@ func NewCommand(o *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "version",
 		Short: "Print the version information",
-		Long:  "Print the version information for Red Sky Ops components",
+		Long:  "Print the version information for StormForge Optimize components",
 
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if o.Product == "" {

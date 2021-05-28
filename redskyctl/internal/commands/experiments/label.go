@@ -38,8 +38,8 @@ type LabelOptions struct {
 func NewLabelCommand(o *LabelOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "label (TYPE NAME | TYPE/NAME ...) KEY_1=VAL_1 ... KEY_N=VAL_N",
-		Short: "Label a Red Sky resource",
-		Long:  "Label Red Sky resources on the remote server",
+		Short: "Label an Optimize resource",
+		Long:  "Label StormForge Optimize resources on the remote server",
 
 		ValidArgsFunction: o.validArgs,
 
