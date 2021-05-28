@@ -22,8 +22,8 @@ import (
 	"github.com/spf13/cobra"
 	konjurev1beta2 "github.com/thestormforge/konjure/pkg/api/core/v1beta2"
 	"github.com/thestormforge/konjure/pkg/konjure"
-	"github.com/thestormforge/optimize-controller/internal/application"
-	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
+	"github.com/thestormforge/optimize-controller/v2/internal/application"
+	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commander"
 	"github.com/thestormforge/optimize-go/pkg/config"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 )

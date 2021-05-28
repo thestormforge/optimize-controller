@@ -18,7 +18,7 @@ package form
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/multichoiceinput"
+	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commands/run/multichoiceinput"
 )
 
 type MultiChoiceFieldValidator interface {

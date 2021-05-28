@@ -17,7 +17,7 @@ limitations under the License.
 package experiment
 
 import (
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	redskyv1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

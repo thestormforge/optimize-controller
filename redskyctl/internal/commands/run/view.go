@@ -23,11 +23,11 @@ import (
 	"text/tabwriter"
 
 	tea "github.com/charmbracelet/bubbletea"
-	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
-	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/form"
-	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/internal"
-	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/out"
-	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/pager"
+	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
+	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commands/run/form"
+	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commands/run/internal"
+	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commands/run/out"
+	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commands/run/pager"
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )

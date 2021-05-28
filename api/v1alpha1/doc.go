@@ -14,5 +14,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// +k8s:conversion-gen=github.com/thestormforge/optimize-controller/api/v1beta1
+// +k8s:conversion-gen=github.com/thestormforge/optimize-controller/v2/api/v1beta1
 package v1alpha1

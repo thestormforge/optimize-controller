@@ -17,8 +17,8 @@ limitations under the License.
 package generation
 
 import (
-	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
-	"github.com/thestormforge/optimize-controller/internal/scan"
+	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
+	"github.com/thestormforge/optimize-controller/v2/internal/scan"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 

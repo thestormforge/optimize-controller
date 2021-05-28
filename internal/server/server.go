@@ -24,9 +24,9 @@ import (
 	"strconv"
 	"strings"
 
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
-	"github.com/thestormforge/optimize-controller/internal/experiment"
-	"github.com/thestormforge/optimize-controller/internal/trial"
+	redskyv1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	"github.com/thestormforge/optimize-controller/v2/internal/experiment"
+	"github.com/thestormforge/optimize-controller/v2/internal/trial"
 	redskyapi "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1/numstr"
 	corev1 "k8s.io/api/core/v1"

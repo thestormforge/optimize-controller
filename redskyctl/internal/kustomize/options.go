@@ -26,7 +26,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/thestormforge/optimize-controller/config"
+	"github.com/thestormforge/optimize-controller/v2/config"
 	"sigs.k8s.io/kustomize/api/filesys"
 	"sigs.k8s.io/kustomize/api/krusty"
 	"sigs.k8s.io/kustomize/api/types"

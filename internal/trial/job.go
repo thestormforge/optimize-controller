@@ -21,9 +21,9 @@ import (
 	"fmt"
 	"time"
 
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
-	"github.com/thestormforge/optimize-controller/internal/meta"
-	"github.com/thestormforge/optimize-controller/internal/setup"
+	redskyv1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	"github.com/thestormforge/optimize-controller/v2/internal/meta"
+	"github.com/thestormforge/optimize-controller/v2/internal/setup"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

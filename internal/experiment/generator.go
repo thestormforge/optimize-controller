@@ -19,10 +19,10 @@ package experiment
 import (
 	"fmt"
 
-	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
-	"github.com/thestormforge/optimize-controller/internal/application"
-	"github.com/thestormforge/optimize-controller/internal/experiment/generation"
-	"github.com/thestormforge/optimize-controller/internal/scan"
+	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
+	"github.com/thestormforge/optimize-controller/v2/internal/application"
+	"github.com/thestormforge/optimize-controller/v2/internal/experiment/generation"
+	"github.com/thestormforge/optimize-controller/v2/internal/scan"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/kio/filters"
 	"sigs.k8s.io/kustomize/kyaml/yaml"

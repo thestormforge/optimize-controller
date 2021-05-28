@@ -27,8 +27,8 @@ import (
 	"sync"
 
 	"github.com/spf13/cobra"
-	redskyv1alpha1 "github.com/thestormforge/optimize-controller/api/v1alpha1"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	redskyv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/v1alpha1"
+	redskyv1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
 	"github.com/thestormforge/optimize-go/pkg/api"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	internalconfig "github.com/thestormforge/optimize-go/pkg/config"

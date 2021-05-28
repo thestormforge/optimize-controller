@@ -21,8 +21,8 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/thestormforge/optimize-controller/internal/controller"
-	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
+	"github.com/thestormforge/optimize-controller/v2/internal/controller"
+	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commander"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 )
 

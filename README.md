@@ -24,7 +24,7 @@ kubectl scale deployment redsky-controller-manager -n redsky-system --replicas 0
 make run
 ```
 
-You can also debug using existing images (e.g. the latest CI builds): configure your debugger to pass the following arguments to the Go tools: `-ldflags "-X github.com/thestormforge/optimize-controller/internal/setup.Image=ghcr.io/thestormforge/setuptools:edge -X github.com/thestormforge/optimize-controller/internal/setup.ImagePullPolicy=Always"`.
+You can also debug using existing images (e.g. the latest CI builds): configure your debugger to pass the following arguments to the Go tools: `-ldflags "-X github.com/thestormforge/optimize-controller/v2/internal/setup.Image=ghcr.io/thestormforge/setuptools:edge -X github.com/thestormforge/optimize-controller/v2/internal/setup.ImagePullPolicy=Always"`.
 
 Alternatively, if you would like create an image and run it in minikube, build the Docker images directly to the minikube host:
 
