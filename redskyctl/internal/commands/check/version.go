@@ -90,7 +90,7 @@ func (o *VersionOptions) checkVersion(ctx context.Context) error {
 }
 
 func getJSON(ctx context.Context, url string, obj interface{}) error {
-	client := &http.Client{Transport: version.UserAgent("RedSkyOps", "", nil)}
+	client := &http.Client{Transport: version.UserAgent("StormForgeOptimize", "", nil)}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return err

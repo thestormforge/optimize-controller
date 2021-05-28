@@ -195,7 +195,7 @@ fieldSpecs:
 	}
 }
 
-// WithAPI configures the controller to use the RedSky API.
+// WithAPI configures the controller to use the Optimize API.
 // If true, the controller deployment is patched to pull environment variables from the secret.
 func WithAPI(o bool) Option {
 	return func(k *Kustomize) error {

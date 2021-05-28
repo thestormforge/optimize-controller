@@ -69,7 +69,7 @@ func main() {
 	}))
 
 	v := version.GetInfo()
-	setupLog.Info("Red Sky Ops Controller", "version", v.String(), "gitCommit", v.GitCommit)
+	setupLog.Info("StormForge Optimize Controller", "version", v.String(), "gitCommit", v.GitCommit)
 
 	mgr, err := ctrl.NewManager(controller.WithConversion(ctrl.GetConfigOrDie(), scheme), ctrl.Options{
 		Scheme:             scheme,

@@ -25,7 +25,7 @@ import (
 	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commander"
 )
 
-// TODO Add support for fetching Red Sky OpenAPI specification
+// TODO Add support for fetching StormForge Optimize API OpenAPI specification
 
 // Options is the configuration for generating documentation
 type Options struct {
@@ -42,7 +42,7 @@ func NewCommand(o *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "docs",
 		Short:  "Generate documentation",
-		Long:   "Generate documentation for Red Sky Ops",
+		Long:   "Generate documentation for StormForge Optimize",
 		Hidden: true,
 
 		RunE: func(cmd *cobra.Command, _ []string) error { return o.docs(cmd) },
@@ -75,7 +75,7 @@ func (o *Options) docs(cmd *cobra.Command) error {
 		}
 
 	case "man":
-		if err := doc.GenManTree(cmd.Root(), &doc.GenManHeader{Title: "RED SKY", Section: "1"}, o.Directory); err != nil {
+		if err := doc.GenManTree(cmd.Root(), &doc.GenManHeader{Title: "STORMFORGE OPTIMIZE", Section: "1"}, o.Directory); err != nil {
 			return err
 		}
 
