@@ -27,8 +27,8 @@ import (
 	"os/exec"
 
 	"github.com/spf13/cobra"
-	"github.com/thestormforge/optimize-controller/internal/version"
-	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands"
+	"github.com/thestormforge/optimize-controller/v2/internal/version"
+	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commands"
 	"golang.org/x/oauth2"
 )
 

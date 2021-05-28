@@ -25,9 +25,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
-	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/generate"
-	"github.com/thestormforge/optimize-controller/redskyctl/internal/kustomize"
+	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commander"
+	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commands/generate"
+	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/kustomize"
 	"github.com/thestormforge/optimize-go/pkg/config"
 )
 

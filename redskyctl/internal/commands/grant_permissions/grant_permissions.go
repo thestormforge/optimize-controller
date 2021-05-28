@@ -21,7 +21,7 @@ import (
 	"io"
 
 	"github.com/spf13/cobra"
-	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
+	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commander"
 )
 
 // Options are the configuration options for granting controller permissions

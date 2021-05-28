@@ -21,8 +21,8 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
-	"github.com/thestormforge/optimize-controller/internal/sfio"
-	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
+	"github.com/thestormforge/optimize-controller/v2/internal/sfio"
+	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commander"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/kio/filters"
 	"sigs.k8s.io/kustomize/kyaml/kio/kioutil"

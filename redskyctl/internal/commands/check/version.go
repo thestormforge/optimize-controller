@@ -25,8 +25,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/thestormforge/optimize-controller/internal/version"
-	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
+	"github.com/thestormforge/optimize-controller/v2/internal/version"
+	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commander"
 )
 
 // TODO Should we have the option to initiate the download?

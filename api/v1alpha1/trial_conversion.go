@@ -17,7 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/thestormforge/optimize-controller/api/v1beta1"
+	"github.com/thestormforge/optimize-controller/v2/api/v1beta1"
 	"k8s.io/apimachinery/pkg/conversion"
 	conv "sigs.k8s.io/controller-runtime/pkg/conversion"
 )

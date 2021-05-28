@@ -21,8 +21,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	redsky "github.com/thestormforge/optimize-controller/api/v1beta1"
-	"github.com/thestormforge/optimize-controller/internal/setup"
+	redsky "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	"github.com/thestormforge/optimize-controller/v2/internal/setup"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

@@ -19,8 +19,8 @@ package experiment
 import (
 	"context"
 
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
-	"github.com/thestormforge/optimize-controller/internal/trial"
+	redskyv1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	"github.com/thestormforge/optimize-controller/v2/internal/trial"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"

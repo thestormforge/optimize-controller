@@ -20,11 +20,11 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
-	"github.com/thestormforge/optimize-controller/internal/sfio"
-	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/form"
-	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/internal"
-	"github.com/thestormforge/optimize-controller/redskyctl/internal/commands/run/pager"
+	redskyv1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	"github.com/thestormforge/optimize-controller/v2/internal/sfio"
+	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commands/run/form"
+	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commands/run/internal"
+	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commands/run/pager"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )

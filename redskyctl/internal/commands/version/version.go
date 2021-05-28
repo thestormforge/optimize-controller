@@ -24,10 +24,10 @@ import (
 	"text/template"
 
 	"github.com/spf13/cobra"
-	"github.com/thestormforge/optimize-controller/internal/setup"
-	"github.com/thestormforge/optimize-controller/internal/version"
-	"github.com/thestormforge/optimize-controller/redskyctl/internal/commander"
-	"github.com/thestormforge/optimize-controller/redskyctl/internal/kustomize"
+	"github.com/thestormforge/optimize-controller/v2/internal/setup"
+	"github.com/thestormforge/optimize-controller/v2/internal/version"
+	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commander"
+	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/kustomize"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"github.com/thestormforge/optimize-go/pkg/config"
 )

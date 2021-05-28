@@ -23,8 +23,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/thestormforge/konjure/pkg/konjure"
-	app "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
-	redsky "github.com/thestormforge/optimize-controller/api/v1beta1"
+	app "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
+	redsky "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
