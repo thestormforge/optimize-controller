@@ -44,9 +44,9 @@ import (
 )
 
 type Options struct {
-	// Config is the Red Sky Configuration.
+	// Config is the Optimize Configuration.
 	Config *config.RedSkyConfig
-	// ExperimentsAPI is used to interact with the Red Sky Experiments API.
+	// ExperimentsAPI is used to interact with the Optimize Experiments API.
 	ExperimentsAPI experimentsv1alpha1.API
 
 	// Flag indicating we should print verbose prompts.

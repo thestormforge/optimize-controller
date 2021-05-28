@@ -34,7 +34,7 @@ func NewCommand(o *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "grant-permissions",
 		Short: "Grant permissions",
-		Long:  "Grant the Red Sky Controller permissions",
+		Long:  "Grant the StormForge Optimize Controller permissions",
 
 		PreRun: commander.StreamsPreRun(&o.IOStreams),
 		RunE:   commander.WithContextE(o.grantPermissions),

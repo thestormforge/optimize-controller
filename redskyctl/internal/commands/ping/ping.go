@@ -33,19 +33,19 @@ import (
 )
 
 type Options struct {
-	// Config is the Red Sky Configuration
+	// Config is the Optimize Configuration
 	Config *config.RedSkyConfig
-	// ExperimentsAPI is used to interact with the Red Sky Experiments API
+	// ExperimentsAPI is used to interact with the Optimize Experiments API
 	ExperimentsAPI experimentsv1alpha1.API
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
 }
 
-// NewPingCommand creates a new command for pinging the Red Sky API
+// NewPingCommand creates a new command for pinging the Optimize API
 func NewCommand(o *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "ping",
-		Short: "Ping the Red Sky API",
+		Short: "Ping the StormForge Optimize API",
 
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			commander.SetStreams(&o.IOStreams, cmd)

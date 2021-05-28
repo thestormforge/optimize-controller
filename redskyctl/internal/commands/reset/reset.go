@@ -28,7 +28,7 @@ import (
 
 // Options is the configuration for suggesting assignments
 type Options struct {
-	// Config is the Red Sky Configuration used to generate the controller manifests for reset
+	// Config is the Optimize Configuration used to generate the controller manifests for reset
 	Config *config.RedSkyConfig
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
@@ -38,7 +38,7 @@ func NewCommand(o *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "reset",
 		Short: "Uninstall from a cluster",
-		Long:  "Uninstall Red Sky Ops from a cluster",
+		Long:  "Uninstall StormForge Optimize from a cluster",
 
 		PreRun: commander.StreamsPreRun(&o.IOStreams),
 		RunE:   commander.WithContextE(o.reset),

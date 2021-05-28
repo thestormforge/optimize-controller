@@ -26,7 +26,7 @@ import (
 
 // Options includes the configuration for the subcommands
 type Options struct {
-	// Config is the Red Sky Configuration
+	// Config is the Optimize Configuration
 	Config *config.RedSkyConfig
 }
 
@@ -35,8 +35,8 @@ func NewCommand(o *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "generate",
 		Aliases: []string{"gen"},
-		Short:   "Generate Red Sky Ops objects",
-		Long:    "Generate Red Sky Ops object manifests",
+		Short:   "Generate Optimize resources",
+		Long:    "Generate StormForge Optimize resource manifests",
 	}
 
 	cmd.AddCommand(initialize.NewGeneratorCommand(&initialize.GeneratorOptions{Config: o.Config}))

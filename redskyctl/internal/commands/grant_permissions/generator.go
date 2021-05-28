@@ -32,7 +32,7 @@ import (
 
 // GeneratorOptions are the configuration options for generating the controller role definitions
 type GeneratorOptions struct {
-	// Config is the Red Sky Configuration used to generate the authorization secret
+	// Config is the Optimize Configuration used to generate the authorization secret
 	Config *config.RedSkyConfig
 	// Printer is the resource printer used to render generated objects
 	Printer commander.ResourcePrinter
@@ -53,8 +53,8 @@ type GeneratorOptions struct {
 func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "controller-rbac",
-		Short: "Generate Red Sky Ops permissions",
-		Long:  "Generate RBAC for Red Sky Ops",
+		Short: "Generate Optimize permissions",
+		Long:  "Generate RBAC for StormForge Optimize",
 
 		Annotations: map[string]string{
 			commander.PrinterAllowedFormats: "json,yaml",

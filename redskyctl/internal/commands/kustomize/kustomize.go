@@ -25,7 +25,7 @@ func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "kustomize",
 		Short: "Kustomize integrations",
-		Long:  "Kustomize integrations for Red Sky Ops",
+		Long:  "Kustomize integrations for StormForge Optimize",
 	}
 
 	cmd.AddCommand(NewConfigCommand(&ConfigOptions{}))

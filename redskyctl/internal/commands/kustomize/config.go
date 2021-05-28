@@ -42,7 +42,7 @@ func NewConfigCommand(o *ConfigOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config",
 		Short: "Configure Kustomize transformers",
-		Long:  "Configure Kustomize transformers for Red Sky types",
+		Long:  "Configure Kustomize transformers for StormForge Optimize types",
 
 		PreRun: commander.StreamsPreRun(&o.IOStreams),
 		RunE:   commander.WithoutArgsE(o.config),

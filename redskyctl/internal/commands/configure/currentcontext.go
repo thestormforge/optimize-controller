@@ -26,7 +26,7 @@ import (
 
 // CurrentContextOptions are the options for viewing the current context
 type CurrentContextOptions struct {
-	// Config is the Red Sky Configuration to view
+	// Config is the Optimize Configuration to view
 	Config *config.RedSkyConfig
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams

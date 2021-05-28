@@ -35,7 +35,7 @@ import (
 
 // GeneratorOptions are the configuration options for generating the controller installation
 type GeneratorOptions struct {
-	// Config is the Red Sky Configuration used to generate the controller installation
+	// Config is the Optimize Configuration used to generate the controller installation
 	Config *config.RedSkyConfig
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
@@ -57,8 +57,8 @@ type GeneratorOptions struct {
 func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "install",
-		Short: "Generate Red Sky Ops manifests",
-		Long:  "Generate installation manifests for Red Sky Ops",
+		Short: "Generate Optimize manifests",
+		Long:  "Generate installation manifests for StormForge Optimize",
 
 		Annotations: map[string]string{
 			commander.PrinterAllowedFormats: "json,yaml",

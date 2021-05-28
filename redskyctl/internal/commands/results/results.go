@@ -29,7 +29,7 @@ import (
 
 // Options is the configuration for displaying the results UI
 type Options struct {
-	// Config is the Red Sky Configuration to get redirect URLs from
+	// Config is the Optimize Configuration to get redirect URLs from
 	Config *config.RedSkyConfig
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams

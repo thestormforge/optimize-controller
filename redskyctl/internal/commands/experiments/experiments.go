@@ -56,13 +56,13 @@ func normalizeType(t string) (normalType resourceType, pluralType string, err er
 	return "", "", fmt.Errorf("unknown resource type \"%s\"", t)
 }
 
-// Options are the common options for interacting with the Red Sky Experiments API
+// Options are the common options for interacting with the Optimize Experiments API
 type Options struct {
-	// Config is the Red Sky Control Configuration
+	// Config is the Optimize Configuration
 	Config *config.RedSkyConfig
-	// ExperimentsAPI is used to interact with the Red Sky Experiments API
+	// ExperimentsAPI is used to interact with the Optimize Experiments API
 	ExperimentsAPI experimentsv1alpha1.API
-	// Printer is the resource printer used to render objects from the Red Sky Experiments API
+	// Printer is the resource printer used to render objects from the Optimize Experiments API
 	Printer commander.ResourcePrinter
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
@@ -235,7 +235,7 @@ func (v *verbPrinter) PrintObj(obj interface{}, w io.Writer) error {
 	return nil
 }
 
-// experimentsMeta is the metadata extraction necessary for printing Red Sky Experiments API objects
+// experimentsMeta is the metadata extraction necessary for printing Optimize Experiments API objects
 type experimentsMeta struct{}
 
 // ExtractList returns the items from an API list object

@@ -41,8 +41,8 @@ type GetOptions struct {
 func NewGetCommand(o *GetOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get (TYPE NAME | TYPE/NAME ...)",
-		Short: "Display a Red Sky resource",
-		Long:  "Get Red Sky resources from the remote server",
+		Short: "Display an Optimize resource",
+		Long:  "Get StormForge Optimize resources from the remote server",
 
 		ValidArgsFunction: o.validArgs,
 

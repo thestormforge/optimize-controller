@@ -62,7 +62,7 @@ If you are having problems scanning, use your browser to visit: %s
 
 // Options is the configuration for creating new authorization entries in a configuration
 type Options struct {
-	// Config is the Red Sky Configuration to modify
+	// Config is the Optimize Configuration to modify
 	Config *config.RedSkyConfig
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
@@ -89,7 +89,7 @@ func NewCommand(o *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "login",
 		Short: "Authenticate",
-		Long:  "Log into your Red Sky Account.",
+		Long:  "Log into your StormForge Account.",
 
 		PersistentPreRunE: commander.WithoutArgsE(o.LoadConfig),
 		PreRun:            commander.StreamsPreRun(&o.IOStreams),
@@ -100,7 +100,7 @@ func NewCommand(o *Options) *cobra.Command {
 	_ = cmd.Flags().MarkDeprecated("name", "use --context instead")
 
 	cmd.Flags().StringVar(&o.Environment, "env", "", "override the execution environment")
-	cmd.Flags().StringVar(&o.Server, "server", "", "override the Red Sky API server identifier")
+	cmd.Flags().StringVar(&o.Server, "server", "", "override the StormForge Optimize API server identifier")
 	cmd.Flags().StringVar(&o.Issuer, "issuer", "", "override the authorization server identifier")
 	cmd.Flags().BoolVar(&o.DisplayURL, "url", false, "display the URL instead of opening a browser")
 	cmd.Flags().BoolVar(&o.DisplayQR, "qr", false, "display a QR code instead of opening a browser")
@@ -136,7 +136,7 @@ func (o *Options) complete() error {
 		} else if u.Scheme != "https" && u.Scheme != "http" {
 			return fmt.Errorf("server must be an 'https' URL")
 		} else if u.Path != "/v1/" {
-			_, _ = fmt.Fprintf(o.ErrOut, "Warning: Server URL does not have a path of '/v1/', Red Sky API endpoints may not resolve correctly")
+			_, _ = fmt.Fprintf(o.ErrOut, "Warning: Server URL does not have a path of '/v1/', StormForge API endpoints may not resolve correctly")
 		}
 	}
 

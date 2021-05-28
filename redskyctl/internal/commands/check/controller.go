@@ -31,9 +31,9 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-// ControllerOptions are the options for checking a Red Sky controller
+// ControllerOptions are the options for checking an Optimize controller
 type ControllerOptions struct {
-	// Config is the Red Sky Configuration for connecting to the cluster
+	// Config is the Optimize Configuration for connecting to the cluster
 	Config *config.RedSkyConfig
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
@@ -42,12 +42,12 @@ type ControllerOptions struct {
 	Wait bool
 }
 
-// NewControllerCommand creates a new command for checking a Red Sky controller
+// NewControllerCommand creates a new command for checking an Optimize controller
 func NewControllerCommand(o *ControllerOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "controller",
 		Short: "Check the controller",
-		Long:  "Check the Red Sky controller",
+		Long:  "Check the Optimize controller",
 
 		PreRun: commander.StreamsPreRun(&o.IOStreams),
 		RunE:   commander.WithContextE(o.CheckController),

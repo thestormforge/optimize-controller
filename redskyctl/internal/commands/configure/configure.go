@@ -23,7 +23,7 @@ import (
 
 // Options includes the configuration for the subcommands
 type Options struct {
-	// Config is the Red Sky Configuration
+	// Config is the Optimize Configuration
 	Config *config.RedSkyConfig
 }
 
@@ -32,7 +32,7 @@ func NewCommand(o *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config",
 		Short: "Work with the configuration file",
-		Long:  "Modify or view the Red Sky Configuration file",
+		Long:  "Modify or view the StormForge Optimize Configuration file",
 	}
 
 	cmd.AddCommand(NewCurrentContextCommand(&CurrentContextOptions{Config: o.Config}))
