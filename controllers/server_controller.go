@@ -54,7 +54,7 @@ var (
 // default (and minimum allowed) rate is 1 trial per second.
 func trialCreationRateLimit(log logr.Logger) rate.Limit {
 	// NOTE: If we are changing this to a lot of different values, it should be moved to the configuration
-	trialCreationInterval, ok := os.LookupEnv("REDSKY_TRIAL_CREATION_INTERVAL")
+	trialCreationInterval, ok := os.LookupEnv("STORMFORGE_TRIAL_CREATION_INTERVAL")
 	if !ok {
 		return rate.Every(time.Second)
 	}
@@ -260,7 +260,7 @@ func (r *ServerReconciler) createExperiment(ctx context.Context, log logr.Logger
 
 	// Create the experiment remotely
 	// TODO This should check for an existing URL annotation before using the name (needs a new version of optimize-go)
-	ee, err := r.ExperimentsAPI.CreateExperiment(ctx, n, *e)
+	ee, err := r.ExperimentsAPI.CreateExperimentByName(ctx, n, *e)
 	if err != nil {
 		if server.FailExperiment(exp, "ServerCreateFailed", err) {
 			err := r.Update(ctx, exp)

@@ -106,7 +106,11 @@ func (f *fakeRedSkyServer) GetExperiment(ctx context.Context, name string) (expe
 	return experimentsapi.Experiment{}, nil
 }
 
-func (f *fakeRedSkyServer) CreateExperiment(ctx context.Context, name experimentsapi.ExperimentName, exp experimentsapi.Experiment) (experimentsapi.Experiment, error) {
+func (f *fakeRedSkyServer) CreateExperimentByName(ctx context.Context, name experimentsapi.ExperimentName, experiment experimentsapi.Experiment) (experimentsapi.Experiment, error) {
+	return experimentsapi.Experiment{}, nil
+}
+
+func (f *fakeRedSkyServer) CreateExperiment(ctx context.Context, s string, experiment experimentsapi.Experiment) (experimentsapi.Experiment, error) {
 	return experimentsapi.Experiment{}, nil
 }
 
