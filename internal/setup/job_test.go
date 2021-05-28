@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	redsky "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
 	"github.com/thestormforge/optimize-controller/v2/internal/setup"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -29,31 +29,31 @@ import (
 func TestNewJob(t *testing.T) {
 	testCases := []struct {
 		desc    string
-		trial   *redsky.Trial
+		trial   *optimizev1beta1.Trial
 		args    []string
 		command []string
 	}{
 		{
 			desc: "default",
-			trial: &redsky.Trial{
+			trial: &optimizev1beta1.Trial{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test",
 					Namespace: "default",
 				},
-				Spec: redsky.TrialSpec{
-					SetupTasks: []redsky.SetupTask{},
+				Spec: optimizev1beta1.TrialSpec{
+					SetupTasks: []optimizev1beta1.SetupTask{},
 				},
 			},
 		},
 		{
 			desc: "default with args",
-			trial: &redsky.Trial{
+			trial: &optimizev1beta1.Trial{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test",
 					Namespace: "default",
 				},
-				Spec: redsky.TrialSpec{
-					SetupTasks: []redsky.SetupTask{
+				Spec: optimizev1beta1.TrialSpec{
+					SetupTasks: []optimizev1beta1.SetupTask{
 						{
 							Args: []string{"fun", "setup"},
 						},
@@ -63,13 +63,13 @@ func TestNewJob(t *testing.T) {
 		},
 		{
 			desc: "default with command and image",
-			trial: &redsky.Trial{
+			trial: &optimizev1beta1.Trial{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test",
 					Namespace: "default",
 				},
-				Spec: redsky.TrialSpec{
-					SetupTasks: []redsky.SetupTask{
+				Spec: optimizev1beta1.TrialSpec{
+					SetupTasks: []optimizev1beta1.SetupTask{
 						{
 							Image:   "whyis6afraidof7:because789",
 							Command: []string{"fun", "setup"},

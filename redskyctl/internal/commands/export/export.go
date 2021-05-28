@@ -27,9 +27,9 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/thestormforge/konjure/pkg/filters"
-	app "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
-	redsky "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
-	apppkg "github.com/thestormforge/optimize-controller/v2/internal/application"
+	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
+	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	"github.com/thestormforge/optimize-controller/v2/internal/application"
 	"github.com/thestormforge/optimize-controller/v2/internal/experiment"
 	"github.com/thestormforge/optimize-controller/v2/internal/patch"
 	"github.com/thestormforge/optimize-controller/v2/internal/scan"
@@ -38,7 +38,7 @@ import (
 	"github.com/thestormforge/optimize-controller/v2/internal/template"
 	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commander"
 	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/kustomize"
-	experimentsapi "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
+	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"github.com/thestormforge/optimize-go/pkg/config"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -55,7 +55,7 @@ type Options struct {
 	// Config is the Optimize Configuration used to generate the controller installation
 	Config *config.RedSkyConfig
 	// ExperimentsAPI is used to interact with the Optimize Experiments API
-	ExperimentsAPI experimentsapi.API
+	ExperimentsAPI experimentsv1alpha1.API
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
 
@@ -67,14 +67,14 @@ type Options struct {
 	// This is used for testing
 	Fs          filesys.FileSystem
 	inputData   []byte
-	experiment  *redsky.Experiment
-	application *app.Application
+	experiment  *optimizev1beta1.Experiment
+	application *optimizeappsv1alpha1.Application
 	resources   map[string]struct{}
 }
 
 // trialDetails contains information about a trial collected from the Experiments API.
 type trialDetails struct {
-	Assignments *experimentsapi.TrialAssignments
+	Assignments *experimentsv1alpha1.TrialAssignments
 	Experiment  string
 	Application string
 	Scenario    string
@@ -187,7 +187,7 @@ func (o *Options) extractApplication(trial *trialDetails) error {
 	// Render Experiment
 	appInput := kio.Pipeline{
 		Inputs:  []kio.Reader{&kio.ByteReader{Reader: bytes.NewReader(o.inputData)}},
-		Filters: []kio.Filter{&filters.ResourceMetaFilter{Group: app.GroupVersion.Group, Kind: "Application", Name: trial.Application}},
+		Filters: []kio.Filter{&filters.ResourceMetaFilter{Group: optimizeappsv1alpha1.GroupVersion.Group, Kind: "Application", Name: trial.Application}},
 		Outputs: []kio.Writer{kio.ByteWriter{Writer: &appBuf}},
 	}
 	if err := appInput.Execute(); err != nil {
@@ -199,7 +199,7 @@ func (o *Options) extractApplication(trial *trialDetails) error {
 		return nil
 	}
 
-	o.application = &app.Application{}
+	o.application = &optimizeappsv1alpha1.Application{}
 
 	return commander.NewResourceReader().ReadInto(ioutil.NopCloser(&appBuf), o.application)
 }
@@ -210,7 +210,7 @@ func (o *Options) extractExperiment(trial *trialDetails) error {
 	// Render Experiment
 	experimentInput := kio.Pipeline{
 		Inputs:  []kio.Reader{&kio.ByteReader{Reader: bytes.NewReader(o.inputData)}},
-		Filters: []kio.Filter{&filters.ResourceMetaFilter{Group: redsky.GroupVersion.Group, Kind: "Experiment", Name: trial.Experiment}},
+		Filters: []kio.Filter{&filters.ResourceMetaFilter{Group: optimizev1beta1.GroupVersion.Group, Kind: "Experiment", Name: trial.Experiment}},
 		Outputs: []kio.Writer{kio.ByteWriter{Writer: &experimentBuf}},
 	}
 	if err := experimentInput.Execute(); err != nil {
@@ -222,7 +222,7 @@ func (o *Options) extractExperiment(trial *trialDetails) error {
 		return nil
 	}
 
-	o.experiment = &redsky.Experiment{}
+	o.experiment = &optimizev1beta1.Experiment{}
 
 	return commander.NewResourceReader().ReadInto(ioutil.NopCloser(&experimentBuf), o.experiment)
 }
@@ -303,7 +303,7 @@ func (o *Options) runner(ctx context.Context) error {
 		return fmt.Errorf("unable to find an experiment %q", trialDetails.Experiment)
 	}
 
-	trial := &redsky.Trial{}
+	trial := &optimizev1beta1.Trial{}
 	experiment.PopulateTrialFromTemplate(o.experiment, trial)
 	server.ToClusterTrial(trial, trialDetails.Assignments)
 
@@ -369,7 +369,7 @@ func (o *Options) generateExperiment(trial *trialDetails) error {
 	}
 
 	if gen.Scenario == "" && gen.Objective == "" {
-		gen.Scenario, gen.Objective = apppkg.GuessScenarioAndObjective(&gen.Application, gen.ExperimentName)
+		gen.Scenario, gen.Objective = application.GuessScenarioAndObjective(&gen.Application, gen.ExperimentName)
 	}
 
 	if err := gen.Execute((*sfio.ObjectList)(list)); err != nil {
@@ -393,8 +393,8 @@ func (o *Options) generateExperiment(trial *trialDetails) error {
 
 		o.resources[assetName] = struct{}{}
 
-		if te, ok := list.Items[idx].Object.(*redsky.Experiment); ok {
-			o.experiment = &redsky.Experiment{}
+		if te, ok := list.Items[idx].Object.(*optimizev1beta1.Experiment); ok {
+			o.experiment = &optimizev1beta1.Experiment{}
 			te.DeepCopyInto(o.experiment)
 		}
 	}
@@ -403,7 +403,7 @@ func (o *Options) generateExperiment(trial *trialDetails) error {
 	var buf bytes.Buffer
 	err := kio.Pipeline{
 		Inputs:  []kio.Reader{o.application.Resources},
-		Filters: []kio.Filter{opts.NewFilter(apppkg.WorkingDirectory(o.application))},
+		Filters: []kio.Filter{opts.NewFilter(application.WorkingDirectory(o.application))},
 		Outputs: []kio.Writer{&kio.ByteWriter{
 			Writer: &buf,
 		}},
@@ -430,7 +430,7 @@ func (o *Options) getTrialDetails(ctx context.Context) (*trialDetails, error) {
 		return nil, fmt.Errorf("unable to connect to api server")
 	}
 
-	experimentName, trialNumber := experimentsapi.SplitTrialName(o.trialName)
+	experimentName, trialNumber := experimentsv1alpha1.SplitTrialName(o.trialName)
 	if trialNumber < 0 {
 		return nil, fmt.Errorf("invalid trial name %q", o.trialName)
 	}
@@ -451,8 +451,8 @@ func (o *Options) getTrialDetails(ctx context.Context) (*trialDetails, error) {
 		Objective:   exp.Labels["objective"],
 	}
 
-	query := &experimentsapi.TrialListQuery{
-		Status: []experimentsapi.TrialStatus{experimentsapi.TrialCompleted},
+	query := &experimentsv1alpha1.TrialListQuery{
+		Status: []experimentsv1alpha1.TrialStatus{experimentsv1alpha1.TrialCompleted},
 	}
 	trialList, err := o.ExperimentsAPI.GetAllTrials(ctx, exp.TrialsURL, query)
 	if err != nil {
@@ -473,7 +473,7 @@ func (o *Options) getTrialDetails(ctx context.Context) (*trialDetails, error) {
 }
 
 // createKustomizePatches translates a patchTemplate into a kustomize (json) patch
-func createKustomizePatches(patchSpec []redsky.PatchTemplate, trial *redsky.Trial) ([]types.Patch, error) {
+func createKustomizePatches(patchSpec []optimizev1beta1.PatchTemplate, trial *optimizev1beta1.Trial) ([]types.Patch, error) {
 	te := template.New()
 	patches := make([]types.Patch, len(patchSpec))
 
@@ -485,7 +485,7 @@ func createKustomizePatches(patchSpec []redsky.PatchTemplate, trial *redsky.Tria
 
 		switch expPatch.Type {
 		// If json patch, we can consume the patch as is
-		case redsky.PatchJSON:
+		case optimizev1beta1.PatchJSON:
 		// Otherwise we need to inject the type meta into the patch data
 		// because it says so
 		// https://github.com/kubernetes-sigs/kustomize/blob/master/examples/inlinePatch.md

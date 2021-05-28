@@ -21,7 +21,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
+	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
@@ -142,7 +142,7 @@ func (f *DocumentationFilter) Filter(nodes []*yaml.RNode) ([]*yaml.RNode, error)
 			continue
 		}
 
-		if meta.Kind != "Application" || meta.APIVersion != redskyappsv1alpha1.GroupVersion.String() {
+		if meta.Kind != "Application" || meta.APIVersion != optimizeappsv1alpha1.GroupVersion.String() {
 			continue
 		}
 
