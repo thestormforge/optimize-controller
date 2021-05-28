@@ -52,9 +52,9 @@ import (
 
 // Options are the configuration options for creating a patched experiment
 type Options struct {
-	// Config is the Red Sky Configuration used to generate the controller installation
+	// Config is the Optimize Configuration used to generate the controller installation
 	Config *config.RedSkyConfig
-	// ExperimentsAPI is used to interact with the Red Sky Experiments API
+	// ExperimentsAPI is used to interact with the Optimize Experiments API
 	ExperimentsAPI experimentsapi.API
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams

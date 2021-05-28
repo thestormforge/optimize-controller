@@ -39,7 +39,7 @@ func NewCommand(o *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "authorize-cluster",
 		Short: "Authorize a cluster",
-		Long:  "Authorize Red Sky Ops in a cluster",
+		Long:  "Authorize StormForge Optimize in a cluster",
 
 		PreRun: commander.StreamsPreRun(&o.IOStreams),
 		RunE:   commander.WithContextE(o.authorizeCluster),
@@ -106,7 +106,7 @@ func (o *Options) generateSecret(out io.Writer, secretName, secretHash *string) 
 	return nil
 }
 
-// patchDeployment patches the Red Sky Controller deployment to reflect the state of the secret; any changes to the
+// patchDeployment patches the Optimize Controller deployment to reflect the state of the secret; any changes to the
 // will cause the controller to be re-deployed.
 func (o *Options) patchDeployment(ctx context.Context, secretName, secretHash string) error {
 	ctrl, err := config.CurrentController(o.Config.Reader())

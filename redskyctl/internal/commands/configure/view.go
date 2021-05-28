@@ -36,7 +36,7 @@ import (
 
 // ViewOptions are the options for viewing a configuration file
 type ViewOptions struct {
-	// Config is the Red Sky Configuration to view
+	// Config is the Optimize Configuration to view
 	Config *config.RedSkyConfig
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
@@ -54,7 +54,7 @@ func NewViewCommand(o *ViewOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "view",
 		Short: "View the configuration file",
-		Long:  "View the Red Sky Ops configuration file",
+		Long:  "View the StormForge Optimize configuration file",
 
 		PreRun: commander.StreamsPreRun(&o.IOStreams),
 		RunE:   commander.WithoutArgsE(o.view),

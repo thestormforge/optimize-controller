@@ -26,7 +26,7 @@ import (
 
 // SetOptions are the options for setting a configuration property to a new value
 type SetOptions struct {
-	// Config is the Red Sky Configuration to view
+	// Config is the Optimize Configuration to view
 	Config *config.RedSkyConfig
 
 	// Key is the name of the property being set
@@ -40,7 +40,7 @@ func NewSetCommand(o *SetOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "set NAME [VALUE]",
 		Short: "Modify the configuration file",
-		Long:  "Modify the Red Sky Configuration file",
+		Long:  "Modify the Optimize Configuration file",
 		Args:  cobra.RangeArgs(1, 2),
 
 		PreRun: func(cmd *cobra.Command, args []string) {

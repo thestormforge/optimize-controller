@@ -32,7 +32,7 @@ import (
 
 // Options is the configuration for removing authorization entries in a configuration
 type Options struct {
-	// Config is the Red Sky Configuration to modify
+	// Config is the Optimize Configuration to modify
 	Config *config.RedSkyConfig
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
@@ -43,7 +43,7 @@ func NewCommand(o *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "revoke",
 		Short:   "Revoke an authorization",
-		Long:    "Log out of your Red Sky Account.",
+		Long:    "Log out of your StormForge Account.",
 		Aliases: []string{"logout"},
 
 		PreRun: commander.StreamsPreRun(&o.IOStreams),

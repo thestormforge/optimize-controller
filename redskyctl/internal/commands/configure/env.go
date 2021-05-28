@@ -29,7 +29,7 @@ import (
 
 // EnvOptions are the options for viewing a configuration as environment variables
 type EnvOptions struct {
-	// Config is the Red Sky Configuration to view
+	// Config is the Optimize Configuration to view
 	Config *config.RedSkyConfig
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
@@ -43,7 +43,7 @@ func NewEnvCommand(o *EnvOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "env",
 		Short: "Generate environment variables from configuration",
-		Long:  "View the Red Sky Configuration file as environment variables",
+		Long:  "View the Optimize Configuration file as environment variables",
 
 		PreRun: commander.StreamsPreRun(&o.IOStreams),
 		RunE:   commander.WithoutArgsE(o.env),

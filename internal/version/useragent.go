@@ -32,7 +32,7 @@ func UserAgent(product, comment string, transport http.RoundTripper) http.RoundT
 
 // Transport sets the `User-Agent` header
 type Transport struct {
-	// UserAgent string to use, defaults to "RedSky/{version}" if unset
+	// UserAgent string to use, defaults to "Optimize/{version}" if unset
 	UserAgent string
 	// Base transport to use, uses the system default if nil
 	Base http.RoundTripper
@@ -49,7 +49,7 @@ func (t *Transport) userAgent() string {
 		return t.UserAgent
 	}
 	// TODO We probably don't want to be doing this every time...
-	return userAgentString("RedSky", "")
+	return userAgentString("Optimize", "")
 }
 
 func (t *Transport) base() http.RoundTripper {

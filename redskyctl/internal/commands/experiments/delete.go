@@ -38,8 +38,8 @@ type DeleteOptions struct {
 func NewDeleteCommand(o *DeleteOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete (TYPE NAME | TYPE/NAME ...)",
-		Short: "Delete a Red Sky resource",
-		Long:  "Delete Red Sky resources from the remote server",
+		Short: "Delete an Optimize resource",
+		Long:  "Delete StormForge Optimize resources from the remote server",
 
 		ValidArgsFunction: o.validArgs,
 

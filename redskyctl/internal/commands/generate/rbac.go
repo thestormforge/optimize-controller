@@ -42,7 +42,7 @@ import (
 // TODO Instead of it's own generator, have this be an option on the experiment generator
 
 type RBACOptions struct {
-	// Config is the Red Sky Configuration used to generate the role binding
+	// Config is the Optimize Configuration used to generate the role binding
 	Config *config.RedSkyConfig
 	// Printer is the resource printer used to render generated objects
 	Printer commander.ResourcePrinter

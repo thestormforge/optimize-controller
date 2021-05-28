@@ -33,7 +33,7 @@ import (
 )
 
 type ExperimentOptions struct {
-	// Config is the Red Sky Configuration used to generate the experiment
+	// Config is the Optimize Configuration used to generate the experiment
 	Config *config.RedSkyConfig
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams

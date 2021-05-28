@@ -28,11 +28,11 @@ import (
 	"github.com/thestormforge/optimize-go/pkg/config"
 )
 
-// ConfigOptions are the options for checking a Red Sky Configuration
+// ConfigOptions are the options for checking an Optimize Configuration
 type ConfigOptions struct {
-	// Config is the Red Sky Configuration to check
+	// Config is the Optimize Configuration to check
 	Config *config.RedSkyConfig
-	// ExperimentsAPI is used to interact with the Red Sky Experiments API
+	// ExperimentsAPI is used to interact with the Optimize Experiments API
 	ExperimentsAPI experimentsv1alpha1.API
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
@@ -40,12 +40,12 @@ type ConfigOptions struct {
 	// TODO Verbose? Skip server check?
 }
 
-// NewConfigCommand creates a new command for checking the Red Sky Configuration
+// NewConfigCommand creates a new command for checking the Optimize Configuration
 func NewConfigCommand(o *ConfigOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config",
 		Short: "Check the configuration",
-		Long:  "Check the Red Sky Configuration",
+		Long:  "Check the StormForge Optimize Configuration",
 
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			// TODO We should have an option to overwrite the configuration using stdin (e.g. to test connections using the controller config)
