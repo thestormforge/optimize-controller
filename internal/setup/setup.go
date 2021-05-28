@@ -33,9 +33,9 @@ const (
 	ModeDelete = "delete"
 
 	// Initializer is used to paused the trial initialization for setup tasks
-	Initializer = "setupInitializer.redskyops.dev"
+	Initializer = "setupInitializer.stormforge.io"
 	// Finalizer is used to prevent the trial deletion for setup tasks
-	Finalizer = "setupFinalizer.redskyops.dev"
+	Finalizer = "setupFinalizer.stormforge.io"
 )
 
 // UpdateStatus returns true if there are setup tasks

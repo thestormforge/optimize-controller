@@ -20,13 +20,13 @@ package v1alpha1
 
 const (
 	// LabelApplication is the name of the application associated with an object.
-	LabelApplication = "redskyops.dev/application"
+	LabelApplication = "stormforge.io/application"
 
 	// LabelScenario is the application scenario associated with an object.
-	LabelScenario = "redskyops.dev/scenario"
+	LabelScenario = "stormforge.io/scenario"
 
 	// LabelObjective is the application objective associated with an object.
-	LabelObjective = "redskyops.dev/objective"
+	LabelObjective = "stormforge.io/objective"
 
 	// AnnotationLastScanned is the timestamp of the last application scan.
 	AnnotationLastScanned = "apps.stormforge.io/last-scanned"
