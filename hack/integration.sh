@@ -46,7 +46,7 @@ generateAndWait() {
   waitTime=300s
   echo "Wait for trial to complete (${waitTime} timeout)"
   kubectl wait trial \
-    -l redskyops.dev/application=ci \
+    -l stormforge.io/application=ci \
     --for condition=redskyops.dev/trial-complete \
     --timeout ${waitTime}
 
@@ -56,7 +56,7 @@ generateAndWait() {
     --for=delete \
     --timeout ${waitTime}
   kubectl wait job \
-    -l redskyops.dev/trial-role=trialSetup \
+    -l stormforge.io/trial-role=trialSetup \
     --for condition=complete \
     --timeout ${waitTime}
 

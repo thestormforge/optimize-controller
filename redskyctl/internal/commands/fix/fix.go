@@ -57,7 +57,7 @@ func (o *Options) Fix() error {
 	p := kio.Pipeline{
 		Filters: []kio.Filter{
 			kio.FilterAll(&sfio.ExperimentMigrationFilter{}),
-			// TODO LabelMigrationFilter for things like `redskyops.dev/application: votingapp` on non-CRD resources (and CRD resources!)
+			kio.FilterAll(&sfio.MetadataMigrationFilter{}),
 			filters.FormatFilter{},
 		},
 	}

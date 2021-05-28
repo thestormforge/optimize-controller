@@ -28,7 +28,36 @@ import (
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
-// ExperimentMigrationFilter is a KYAML filter for perform experiment migration.
+// MetadataMigrationFilter is a KYAML filter for performing label/annotation migration.
+type MetadataMigrationFilter struct {
+}
+
+// Filter replaces legacy prefixes found on labels and annotations.
+func (f *MetadataMigrationFilter) Filter(node *yaml.RNode) (*yaml.RNode, error) {
+	// NOTE: We are not migrating state that used at runtime, e.g. finalizers or the special "initializers" annotation.
+
+	return node.Pipe(
+		yaml.Tee(yaml.Lookup(yaml.MetadataField, yaml.LabelsField), yaml.FilterFunc(f.renamePrefix)),
+		yaml.Tee(yaml.Lookup(yaml.MetadataField, yaml.AnnotationsField), yaml.FilterFunc(f.renamePrefix)),
+	)
+}
+
+func (f *MetadataMigrationFilter) renamePrefix(rn *yaml.RNode) (*yaml.RNode, error) {
+	if err := yaml.ErrorIfInvalid(rn, yaml.MappingNode); err != nil {
+		return nil, err
+	}
+
+	node := rn.YNode()
+	for i := 0; i < len(node.Content); i = yaml.IncrementFieldIndex(i) {
+		if strings.HasPrefix(node.Content[i].Value, "redskyops.dev/") {
+			node.Content[i].Value = "stormforge.io/" + strings.TrimPrefix(node.Content[i].Value, "redskyops.dev/")
+		}
+	}
+
+	return nil, nil
+}
+
+// ExperimentMigrationFilter is a KYAML filter for performing experiment migration.
 type ExperimentMigrationFilter struct {
 }
 
@@ -57,7 +86,14 @@ func (f *ExperimentMigrationFilter) Filter(node *yaml.RNode) (*yaml.RNode, error
 
 // MigrateExperimentV1beta1 converts a resource node from a v1beta1 Experiment to the latest format.
 func (f *ExperimentMigrationFilter) MigrateExperimentV1beta1(node *yaml.RNode) (*yaml.RNode, error) {
-	return node.Pipe()
+	return node.Pipe(
+		// Fix all the nested labels and annotations on the experiment
+		yaml.Tee(
+			yaml.Lookup("spec", "trialTemplate"), &MetadataMigrationFilter{},
+			yaml.Lookup("spec", "jobTemplate"), &MetadataMigrationFilter{},
+			yaml.Lookup("spec", "template"), &MetadataMigrationFilter{},
+		),
+	)
 }
 
 // MigrateExperimentV1alpha1 converts a resource node from a v1alpha1 Experiment to a v1beta1 Experiment.
