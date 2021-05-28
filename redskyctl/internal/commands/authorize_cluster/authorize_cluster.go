@@ -144,7 +144,7 @@ spec:
   template:
     metadata:
       annotations:
-        "redskyops.dev/secretHash": "{{ .SecretHash }}"
+        "stormforge.io/secretHash": "{{ .SecretHash }}"
     spec:
       containers:
       - name: manager

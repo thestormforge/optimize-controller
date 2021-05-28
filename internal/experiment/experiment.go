@@ -26,7 +26,7 @@ import (
 
 const (
 	// HasTrialFinalizer is a finalizer that indicates an experiment has at least one trial
-	HasTrialFinalizer = "hasTrialFinalizer.redskyops.dev"
+	HasTrialFinalizer = "hasTrialFinalizer.stormforge.io"
 )
 
 // TODO Make the constant names better reflect the code, not the text

@@ -67,4 +67,4 @@ jobs:
         if: ${{ failure() }}
         run: |
           kubectl get trial,experiment,svc,pod -o wide
-          kubectl get pods -o wide -l redskyops.dev/experiment=postgres-example
+          kubectl get pods -o wide -l stormforge.io/experiment=postgres-example

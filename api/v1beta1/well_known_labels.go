@@ -20,16 +20,16 @@ package v1beta1
 
 const (
 	// AnnotationExperimentURL is the URL of the experiment on the remote server
-	AnnotationExperimentURL = "redskyops.dev/experiment-url"
+	AnnotationExperimentURL = "stormforge.io/experiment-url"
 	// AnnotationNextTrialURL is the URL used to obtain the next trial suggestion
-	AnnotationNextTrialURL = "redskyops.dev/next-trial-url"
+	AnnotationNextTrialURL = "stormforge.io/next-trial-url"
 	// AnnotationReportTrialURL is the URL used to report trial observations
-	AnnotationReportTrialURL = "redskyops.dev/report-trial-url"
+	AnnotationReportTrialURL = "stormforge.io/report-trial-url"
 	// AnnotationServerSync controls additional behavior around synchronizing the experiment remotely
-	AnnotationServerSync = "redskyops.dev/server-sync"
+	AnnotationServerSync = "stormforge.io/server-sync"
 
 	// LabelExperiment is the name of the experiment associated with an object
-	LabelExperiment = "redskyops.dev/experiment"
+	LabelExperiment = "stormforge.io/experiment"
 )
 
 // Trial labels and annotations
@@ -37,10 +37,10 @@ const (
 const (
 	// AnnotationInitializer is a comma-delimited list of initializing processes. Similar to a "finalizer", the trial
 	// will not start executing until the initializer is empty.
-	AnnotationInitializer = "redskyops.dev/initializer"
+	AnnotationInitializer = "stormforge.io/initializer"
 
 	// LabelTrial contains the name of the trial associated with an object
-	LabelTrial = "redskyops.dev/trial"
+	LabelTrial = "stormforge.io/trial"
 	// LabelTrialRole contains the role in trial execution
-	LabelTrialRole = "redskyops.dev/trial-role"
+	LabelTrialRole = "stormforge.io/trial-role"
 )
