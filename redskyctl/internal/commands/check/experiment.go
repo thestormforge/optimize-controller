@@ -26,8 +26,8 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
 	"github.com/spf13/cobra"
-	redskyv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/v1alpha1"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizev1alpha1 "github.com/thestormforge/optimize-controller/v2/api/v1alpha1"
+	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
 	"github.com/thestormforge/optimize-controller/v2/internal/experiment"
 	"github.com/thestormforge/optimize-controller/v2/internal/template"
 	"github.com/thestormforge/optimize-controller/v2/internal/validation"
@@ -82,7 +82,7 @@ func (o *ExperimentOptions) checkExperiment(ctx context.Context) error {
 	}
 
 	// Unmarshal the experiment
-	exp := &redskyv1beta1.Experiment{}
+	exp := &optimizev1beta1.Experiment{}
 	rr := commander.NewResourceReader()
 	if err := rr.ReadInto(r, exp); err != nil {
 		return err
@@ -139,7 +139,7 @@ func (l *linter) Visit(ctx context.Context, obj interface{}) experiment.Visitor 
 
 	switch o := obj.(type) {
 
-	case *redskyv1beta1.Optimization:
+	case *optimizev1beta1.Optimization:
 		switch o.Name {
 		case "experimentBudget":
 			if eb, err := strconv.Atoi(o.Value); err != nil {
@@ -149,19 +149,19 @@ func (l *linter) Visit(ctx context.Context, obj interface{}) experiment.Visitor 
 			}
 		}
 
-	case []redskyv1beta1.Parameter:
+	case []optimizev1beta1.Parameter:
 		if l := len(o); l == 0 {
 			lint.V(vError).Info("Parameters are required")
 		} else if b := countBaselines(o); b > 0 && b != l {
 			lint.V(vError).Info("Baseline must be specified on all parameters")
 		}
 
-	case []redskyv1beta1.Metric:
+	case []optimizev1beta1.Metric:
 		if len(o) == 0 {
 			lint.V(vError).Info("Metrics are required")
 		}
 
-	case *redskyv1beta1.Parameter:
+	case *optimizev1beta1.Parameter:
 		if len(o.Values) > 0 && (o.Min != 0 || o.Max != 0) {
 			// NOTE: This won't hit on v1alpha1 converted experiments because min/max get reset
 			lint.V(vWarn).Info("Parameter has both a numeric and string range defined")
@@ -171,13 +171,13 @@ func (l *linter) Visit(ctx context.Context, obj interface{}) experiment.Visitor 
 			checkBaseline(lint, o)
 		}
 
-	case *redskyv1beta1.Metric:
+	case *optimizev1beta1.Metric:
 		switch o.Type {
 		case
-			redskyv1beta1.MetricKubernetes,
-			redskyv1beta1.MetricPrometheus,
-			redskyv1beta1.MetricJSONPath,
-			redskyv1beta1.MetricDatadog,
+			optimizev1beta1.MetricKubernetes,
+			optimizev1beta1.MetricPrometheus,
+			optimizev1beta1.MetricJSONPath,
+			optimizev1beta1.MetricDatadog,
 			"": // Type is valid
 		default:
 			lint.V(vError).Info("Metric type is invalid", "type", o.Type)
@@ -192,11 +192,11 @@ func (l *linter) Visit(ctx context.Context, obj interface{}) experiment.Visitor 
 			}
 
 			switch o.Type {
-			case redskyv1beta1.MetricJSONPath:
+			case optimizev1beta1.MetricJSONPath:
 				if !strings.Contains(q, "{") {
 					lint.V(vWarn).Info("JSON Path query should contain an {} expression", "query", o.Query)
 				}
-			case redskyv1beta1.MetricPrometheus:
+			case optimizev1beta1.MetricPrometheus:
 				if !strings.Contains(q, "scalar") {
 					lint.V(vWarn).Info("Prometheus query may require explicit scalar conversion", "query", o.Query)
 				}
@@ -209,11 +209,11 @@ func (l *linter) Visit(ctx context.Context, obj interface{}) experiment.Visitor 
 
 		if u, err := url.Parse(o.URL); err != nil {
 			lint.V(vError).Info("Metric has invalid URL")
-		} else if u.Hostname() == redskyv1alpha1.LegacyHostnamePlaceholder {
+		} else if u.Hostname() == optimizev1alpha1.LegacyHostnamePlaceholder {
 			lint.V(vWarn).Info("Metric requires manual conversion to latest version for URL")
 		}
 
-	case *redskyv1beta1.PatchTemplate:
+	case *optimizev1beta1.PatchTemplate:
 		if o.TargetRef != nil {
 			if o.TargetRef.Kind == "" {
 				// TODO Is kind required? Can you just have the namespace and the rest of the ref in the patch?
@@ -222,13 +222,13 @@ func (l *linter) Visit(ctx context.Context, obj interface{}) experiment.Visitor 
 				if o.TargetRef.APIVersion == "" {
 					lint.V(vError).Info("Patch target apiVersion is required")
 				}
-				if o.Type == redskyv1beta1.PatchStrategic || o.Type == "" {
+				if o.Type == optimizev1beta1.PatchStrategic || o.Type == "" {
 					lint.V(vWarn).Info("Strategic merge patch may not work with custom resources")
 				}
 			}
 		}
 
-		if _, err := template.New().RenderPatch(o, &redskyv1beta1.Trial{}); err != nil {
+		if _, err := template.New().RenderPatch(o, &optimizev1beta1.Trial{}); err != nil {
 			lint.Error(err, "Patch is not valid")
 		}
 
@@ -243,7 +243,7 @@ func (l *linter) Visit(ctx context.Context, obj interface{}) experiment.Visitor 
 	return l
 }
 
-func countBaselines(params []redskyv1beta1.Parameter) int {
+func countBaselines(params []optimizev1beta1.Parameter) int {
 	var b int
 	for i := range params {
 		if params[i].Baseline != nil {
@@ -253,7 +253,7 @@ func countBaselines(params []redskyv1beta1.Parameter) int {
 	return b
 }
 
-func checkBaseline(lint logr.Logger, p *redskyv1beta1.Parameter) {
+func checkBaseline(lint logr.Logger, p *optimizev1beta1.Parameter) {
 	switch p.Baseline.Type {
 	case intstr.String:
 		if p.Min != 0 || p.Max != 0 {
@@ -284,12 +284,12 @@ func isCoreKind(kind string) bool {
 	return false
 }
 
-func metricQueryDryRun(m *redskyv1beta1.Metric) (string, string, error) {
+func metricQueryDryRun(m *optimizev1beta1.Metric) (string, string, error) {
 	// Try to dummy out the target object to avoid failures
 	target := &unstructured.Unstructured{}
 	if m.Target != nil {
 		target.SetGroupVersionKind(m.Target.GroupVersionKind())
 	}
 
-	return template.New().RenderMetricQueries(m, &redskyv1beta1.Trial{}, target)
+	return template.New().RenderMetricQueries(m, &optimizev1beta1.Trial{}, target)
 }

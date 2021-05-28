@@ -20,7 +20,7 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
 	"github.com/thestormforge/optimize-controller/v2/internal/sfio"
 	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commands/run/form"
 	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commands/run/internal"
@@ -244,7 +244,7 @@ func (m *generatorModel) updateLabelSelectorInputs() {
 }
 
 type previewModel struct {
-	Experiment  *redskyv1beta1.Experiment
+	Experiment  *optimizev1beta1.Experiment
 	Destination form.ChoiceField
 	Create      bool
 	Filename    form.TextField
@@ -274,7 +274,7 @@ func (m previewModel) Update(msg tea.Msg) (previewModel, tea.Cmd) {
 			return m, internal.Error(err)
 		}
 		for i := range obj.Items {
-			if exp, ok := obj.Items[i].Object.(*redskyv1beta1.Experiment); ok {
+			if exp, ok := obj.Items[i].Object.(*optimizev1beta1.Experiment); ok {
 				m.Experiment = exp
 			}
 		}

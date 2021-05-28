@@ -30,7 +30,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/muesli/termenv"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
 	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commander"
 	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commands/check"
 	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commands/initialize"
@@ -293,9 +293,9 @@ func (o *Options) refreshTrials() tea.Msg {
 	}
 	for _, node := range expNodes {
 		switch {
-		case conditionStatus(node, redskyv1beta1.ExperimentComplete) == corev1.ConditionTrue:
+		case conditionStatus(node, optimizev1beta1.ExperimentComplete) == corev1.ConditionTrue:
 			return internal.ExperimentFinishedMsg{}
-		case conditionStatus(node, redskyv1beta1.ExperimentFailed) == corev1.ConditionTrue:
+		case conditionStatus(node, optimizev1beta1.ExperimentFailed) == corev1.ConditionTrue:
 			return internal.ExperimentFinishedMsg{Failed: true}
 		}
 	}
@@ -393,7 +393,7 @@ func (r *execReader) Read() ([]*yaml.RNode, error) {
 }
 
 // conditionStatus looks for experiment conditions given a YAML representation of the experiment.
-func conditionStatus(n *yaml.RNode, t redskyv1beta1.ExperimentConditionType) corev1.ConditionStatus {
+func conditionStatus(n *yaml.RNode, t optimizev1beta1.ExperimentConditionType) corev1.ConditionStatus {
 	v, err := n.Pipe(yaml.Lookup("status", "conditions", fmt.Sprintf("[type=%s]", t), "status"))
 	if err == nil && v != nil {
 		return corev1.ConditionStatus(v.YNode().Value)

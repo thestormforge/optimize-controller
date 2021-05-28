@@ -24,7 +24,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/thestormforge/konjure/pkg/konjure"
-	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
+	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
 	"github.com/thestormforge/optimize-controller/v2/internal/experiment"
 	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commander"
 	"github.com/thestormforge/optimize-go/pkg/config"
@@ -115,7 +115,7 @@ func (o *ExperimentOptions) generate() error {
 	return o.Generator.Execute(o.YAMLWriter())
 }
 
-func (o *ExperimentOptions) filterResources(app *redskyappsv1alpha1.Application) error {
+func (o *ExperimentOptions) filterResources(app *optimizeappsv1alpha1.Application) error {
 	// Add additional resources (this allows addition manifests to be added when invoking the CLI)
 	if len(o.Resources) > 0 {
 		app.Resources = append(app.Resources, konjure.NewResource(o.Resources...))

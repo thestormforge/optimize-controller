@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -31,14 +31,14 @@ func TestConvert_v1alpha1_Metric_To_v1beta1_Metric(t *testing.T) {
 
 	cases := []struct {
 		v1alpha1Metric Metric
-		v1beta1Metric  redskyv1beta1.Metric
+		v1beta1Metric  optimizev1beta1.Metric
 	}{
 		{
 			v1alpha1Metric: Metric{
 				Name:  "constant",
 				Query: "1.1",
 			},
-			v1beta1Metric: redskyv1beta1.Metric{
+			v1beta1Metric: optimizev1beta1.Metric{
 				Name:  "constant",
 				Query: "1.1",
 			},
@@ -56,12 +56,12 @@ func TestConvert_v1alpha1_Metric_To_v1beta1_Metric(t *testing.T) {
 				},
 			},
 			// If you start with v1alpha1, we preserve the selector and use "redskyops.dev" as a placeholder
-			v1beta1Metric: redskyv1beta1.Metric{
+			v1beta1Metric: optimizev1beta1.Metric{
 				Name:  "throughput",
-				Type:  redskyv1beta1.MetricJSONPath,
+				Type:  optimizev1beta1.MetricJSONPath,
 				Query: `{.total}`,
 				URL:   "http://redskyops.dev:5000/metrics",
-				Target: &redskyv1beta1.ResourceTarget{
+				Target: &optimizev1beta1.ResourceTarget{
 					LabelSelector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{"component": "result-exporter"},
 					},
@@ -80,11 +80,11 @@ func TestConvert_v1alpha1_Metric_To_v1beta1_Metric(t *testing.T) {
 				},
 			},
 			// In v1beta1 you need to change the type to "kubernetes" (default type) and add a pod list target reference
-			v1beta1Metric: redskyv1beta1.Metric{
+			v1beta1Metric: optimizev1beta1.Metric{
 				Name:     "cost",
 				Minimize: true,
 				Query:    `{{resourceRequests .Pods "cpu=0.022,memory=0.000000000003"}}`,
-				Target: &redskyv1beta1.ResourceTarget{
+				Target: &optimizev1beta1.ResourceTarget{
 					Kind: "PodList",
 					LabelSelector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{"app": "voting-app"},
@@ -107,12 +107,12 @@ func TestConvert_v1alpha1_Metric_To_v1beta1_Metric(t *testing.T) {
 			// This takes a v1alpha1 metric for the built-in Prometheus and preserves default behaviors
 			// NOTE: Since no URL is generated, it will be defaulted later
 			// NOTE: Having a port number of 9090 is required to get the conversion to round trip correctly
-			v1beta1Metric: redskyv1beta1.Metric{
+			v1beta1Metric: optimizev1beta1.Metric{
 				Name:     "cost",
 				Minimize: true,
-				Type:     redskyv1beta1.MetricPrometheus,
+				Type:     optimizev1beta1.MetricPrometheus,
 				Query:    `({{ cpuRequests . "app=postgres" }} * 17) + ({{ memoryRequests . "app=postgres" | GB }} * 3)`,
-				Target: &redskyv1beta1.ResourceTarget{
+				Target: &optimizev1beta1.ResourceTarget{
 					LabelSelector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{"app": "prometheus"},
 					},
@@ -123,7 +123,7 @@ func TestConvert_v1alpha1_Metric_To_v1beta1_Metric(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.v1alpha1Metric.Name+"_v1alpha1_to_v1beta1", func(t *testing.T) {
 			in := c.v1alpha1Metric
-			actual := redskyv1beta1.Metric{}
+			actual := optimizev1beta1.Metric{}
 			if err := Convert_v1alpha1_Metric_To_v1beta1_Metric(&in, &actual, nil); assert.NoError(t, err) {
 				assert.Equal(t, c.v1beta1Metric, actual)
 			}
@@ -146,14 +146,14 @@ func TestConvert_v1alpha1_Metric_To_v1beta1_Metric(t *testing.T) {
 
 func TestConvert_v1beta1_Metric_To_v1alpha1_Metric(t *testing.T) {
 	cases := []struct {
-		v1beta1Metric  redskyv1beta1.Metric
+		v1beta1Metric  optimizev1beta1.Metric
 		v1alpha1Metric Metric
 	}{
 		{
-			v1beta1Metric: redskyv1beta1.Metric{
+			v1beta1Metric: optimizev1beta1.Metric{
 				Name:     "cpu_requests",
 				Minimize: true,
-				Type:     redskyv1beta1.MetricPrometheus,
+				Type:     optimizev1beta1.MetricPrometheus,
 				Query:    "{{ cpuRequests . \"app=postgres\" }}",
 				URL:      "http://my-prometheus.monitoring:9999",
 			},
