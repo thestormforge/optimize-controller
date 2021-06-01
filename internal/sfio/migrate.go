@@ -36,25 +36,19 @@ type MetadataMigrationFilter struct {
 func (f *MetadataMigrationFilter) Filter(node *yaml.RNode) (*yaml.RNode, error) {
 	// NOTE: We are not migrating state that used at runtime, e.g. finalizers or the special "initializers" annotation.
 
+	replaceFieldPrefix := yaml.FilterFunc(func(rn *yaml.RNode) (*yaml.RNode, error) {
+		return nil, rn.VisitFields(func(node *yaml.MapNode) error {
+			return node.Key.PipeE(
+				&PrefixClearer{Value: "redskyops.dev/"},
+				&yaml.PrefixSetter{Value: "stormforge.io/"},
+			)
+		})
+	})
+
 	return node.Pipe(
-		yaml.Tee(yaml.Lookup(yaml.MetadataField, yaml.LabelsField), yaml.FilterFunc(f.renamePrefix)),
-		yaml.Tee(yaml.Lookup(yaml.MetadataField, yaml.AnnotationsField), yaml.FilterFunc(f.renamePrefix)),
+		yaml.Tee(yaml.Lookup(yaml.MetadataField, yaml.LabelsField), replaceFieldPrefix),
+		yaml.Tee(yaml.Lookup(yaml.MetadataField, yaml.AnnotationsField), replaceFieldPrefix),
 	)
-}
-
-func (f *MetadataMigrationFilter) renamePrefix(rn *yaml.RNode) (*yaml.RNode, error) {
-	if err := yaml.ErrorIfInvalid(rn, yaml.MappingNode); err != nil {
-		return nil, err
-	}
-
-	node := rn.YNode()
-	for i := 0; i < len(node.Content); i = yaml.IncrementFieldIndex(i) {
-		if strings.HasPrefix(node.Content[i].Value, "redskyops.dev/") {
-			node.Content[i].Value = "stormforge.io/" + strings.TrimPrefix(node.Content[i].Value, "redskyops.dev/")
-		}
-	}
-
-	return nil, nil
 }
 
 // ExperimentMigrationFilter is a KYAML filter for performing experiment migration.
@@ -92,6 +86,18 @@ func (f *ExperimentMigrationFilter) MigrateExperimentV1beta1(node *yaml.RNode) (
 			yaml.Lookup("spec", "trialTemplate"), &MetadataMigrationFilter{},
 			yaml.Lookup("spec", "jobTemplate"), &MetadataMigrationFilter{},
 			yaml.Lookup("spec", "template"), &MetadataMigrationFilter{},
+		),
+
+		// Replace the prefix on any readiness gates
+		TeeMatched(
+			yaml.PathMatcher{Path: []string{"spec", "patches", "[patch=]", "readinessGates", "[conditionType=redskyops\\.dev/.*]", "conditionType"}},
+			&PrefixClearer{Value: "redskyops.dev/"},
+			&yaml.PrefixSetter{Value: "stormforge.io/"},
+		),
+		TeeMatched(
+			yaml.PathMatcher{Path: []string{"spec", "trialTemplate", "spec", "readinessGates", "[kind=]", "conditionTypes", "[=redskyops\\.dev/.*]"}},
+			&PrefixClearer{Value: "redskyops.dev/"},
+			&yaml.PrefixSetter{Value: "stormforge.io/"},
 		),
 	)
 }
