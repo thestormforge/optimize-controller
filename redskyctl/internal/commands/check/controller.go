@@ -34,7 +34,7 @@ import (
 // ControllerOptions are the options for checking an Optimize controller
 type ControllerOptions struct {
 	// Config is the Optimize Configuration for connecting to the cluster
-	Config *config.RedSkyConfig
+	Config *config.OptimizeConfig
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
 

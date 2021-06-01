@@ -82,7 +82,7 @@ func TestPatchExperiment(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("%q", tc.desc), func(t *testing.T) {
-			cfg := &config.RedSkyConfig{}
+			cfg := &config.OptimizeConfig{}
 
 			opts := &export.Options{Config: cfg}
 			opts.ExperimentsAPI = &fakeExperimentsAPI{}
@@ -152,7 +152,7 @@ func TestPatchApplication(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("%q", tc.desc), func(t *testing.T) {
-			cfg := &config.RedSkyConfig{}
+			cfg := &config.OptimizeConfig{}
 
 			fs := filesys.MakeFsInMemory()
 			err := fs.WriteFile(filepath.Base(manifestFile.Name()), pgDeployment)

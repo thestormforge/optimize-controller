@@ -152,7 +152,7 @@ func TestGenerate(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("%q", tc.desc), func(t *testing.T) {
 			// Create a global configuration
-			cfg := &config.RedSkyConfig{}
+			cfg := &config.OptimizeConfig{}
 			cmd := generate.NewCommand(&generate.Options{Config: cfg})
 			commander.ConfigGlobals(cfg, cmd)
 

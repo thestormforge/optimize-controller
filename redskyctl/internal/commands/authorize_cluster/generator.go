@@ -44,7 +44,7 @@ import (
 // GeneratorOptions are the configuration options for generating the cluster authorization secret
 type GeneratorOptions struct {
 	// Config is the Optimize Configuration used to generate the authorization secret
-	Config *config.RedSkyConfig
+	Config *config.OptimizeConfig
 	// Printer is the resource printer used to render generated objects
 	Printer commander.ResourcePrinter
 	// IOStreams are used to access the standard process streams

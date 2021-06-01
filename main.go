@@ -154,7 +154,7 @@ func handleDebugArgs() {
 			}
 		} else if os.Args[1] == "config" {
 			// TODO Host live values from the in-memory configuration at `.../debug/config` instead of this
-			cfg := &config.RedSkyConfig{}
+			cfg := &config.OptimizeConfig{}
 			if err := cfg.Load(); err != nil {
 				os.Exit(1)
 			}

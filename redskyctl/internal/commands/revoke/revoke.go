@@ -33,7 +33,7 @@ import (
 // Options is the configuration for removing authorization entries in a configuration
 type Options struct {
 	// Config is the Optimize Configuration to modify
-	Config *config.RedSkyConfig
+	Config *config.OptimizeConfig
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
 }

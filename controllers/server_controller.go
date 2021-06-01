@@ -162,7 +162,7 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		ctx := context.Background()
 
 		// Load the configuration
-		cfg := &config.RedSkyConfig{}
+		cfg := &config.OptimizeConfig{}
 		if err := cfg.Load(); err != nil {
 			return err
 		}

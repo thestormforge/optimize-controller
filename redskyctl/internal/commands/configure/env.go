@@ -30,7 +30,7 @@ import (
 // EnvOptions are the options for viewing a configuration as environment variables
 type EnvOptions struct {
 	// Config is the Optimize Configuration to view
-	Config *config.RedSkyConfig
+	Config *config.OptimizeConfig
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
 
