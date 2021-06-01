@@ -47,7 +47,7 @@ generateAndWait() {
   echo "Wait for trial to complete (${waitTime} timeout)"
   kubectl wait trial \
     -l stormforge.io/application=ci \
-    --for condition=redskyops.dev/trial-complete \
+    --for condition=stormforge.io/trial-complete \
     --timeout ${waitTime}
 
   echo "Wait for trial deletion tasks to finish running"
