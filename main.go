@@ -22,10 +22,8 @@ import (
 	"fmt"
 	"os"
 
-	optimizev1alpha1 "github.com/thestormforge/optimize-controller/v2/api/v1alpha1"
 	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
 	"github.com/thestormforge/optimize-controller/v2/controllers"
-	"github.com/thestormforge/optimize-controller/v2/internal/controller"
 	"github.com/thestormforge/optimize-controller/v2/internal/version"
 	"github.com/thestormforge/optimize-go/pkg/config"
 	zap2 "go.uber.org/zap"
@@ -44,7 +42,6 @@ var (
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
-	_ = optimizev1alpha1.AddToScheme(scheme)
 	_ = optimizev1beta1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
@@ -71,7 +68,7 @@ func main() {
 	v := version.GetInfo()
 	setupLog.Info("StormForge Optimize Controller", "version", v.String(), "gitCommit", v.GitCommit)
 
-	mgr, err := ctrl.NewManager(controller.WithConversion(ctrl.GetConfigOrDie(), scheme), ctrl.Options{
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             scheme,
 		MetricsBindAddress: metricsAddr,
 		LeaderElection:     enableLeaderElection,

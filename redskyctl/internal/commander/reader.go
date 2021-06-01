@@ -24,12 +24,11 @@ import (
 	"path/filepath"
 
 	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
-	optimizev1alpha1 "github.com/thestormforge/optimize-controller/v2/api/v1alpha1"
 	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
-	"github.com/thestormforge/optimize-controller/v2/internal/controller"
 	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
 )
 
 // ResourceReader helps properly decode Kubernetes resources on the CLI. It is meant to be a
@@ -48,7 +47,6 @@ func NewResourceReader() *ResourceReader {
 
 	// Always add our types
 	_ = optimizev1beta1.AddToScheme(rr.Scheme)
-	_ = optimizev1alpha1.AddToScheme(rr.Scheme)
 	_ = optimizeappsv1alpha1.AddToScheme(rr.Scheme)
 
 	// Allow single experiments to target an experiment list
@@ -117,8 +115,7 @@ func (r *ResourceReader) objectKind(obj runtime.Object) (schema.GroupVersionKind
 }
 
 func (r *ResourceReader) decoder(mediaType string) (runtime.Decoder, error) {
-	// Create the conversion serializer with our negotiation logic in it
-	cs := controller.NewConversionSerializer(r.Scheme)
+	cs := serializer.NewCodecFactory(r.Scheme).WithoutConversion()
 	info, ok := runtime.SerializerInfoForMediaType(cs.SupportedMediaTypes(), mediaType)
 	if !ok {
 		return nil, fmt.Errorf("could not find serializer for %s", mediaType)
@@ -162,15 +159,6 @@ func addExperimentListConversions(s *runtime.Scheme) error {
 	if err := s.AddConversionFunc((*optimizev1beta1.Experiment)(nil), (*optimizev1beta1.ExperimentList)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		b.(*optimizev1beta1.ExperimentList).Items = []optimizev1beta1.Experiment{*a.(*optimizev1beta1.Experiment)}
 		return nil
-	}); err != nil {
-		return err
-	}
-
-	// Convert from a single v1alpha1 experiment to a list of experiments
-	if err := s.AddConversionFunc((*optimizev1alpha1.Experiment)(nil), (*optimizev1beta1.ExperimentList)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		l := b.(*optimizev1beta1.ExperimentList)
-		l.Items = make([]optimizev1beta1.Experiment, 1)
-		return scope.Convert(a, &l.Items[0], scope.Flags())
 	}); err != nil {
 		return err
 	}

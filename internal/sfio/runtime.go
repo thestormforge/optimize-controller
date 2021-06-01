@@ -18,7 +18,6 @@ package sfio
 
 import (
 	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
-	optimizev1alpha1 "github.com/thestormforge/optimize-controller/v2/api/v1alpha1"
 	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -43,7 +42,6 @@ var Scheme = runtime.NewScheme()
 
 func init() {
 	_ = clientgoscheme.AddToScheme(Scheme)
-	_ = optimizev1alpha1.AddToScheme(Scheme)
 	_ = optimizev1beta1.AddToScheme(Scheme)
 	_ = optimizeappsv1alpha1.AddToScheme(Scheme)
 }
