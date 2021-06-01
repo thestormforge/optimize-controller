@@ -150,7 +150,7 @@ type ReadinessCheck struct {
 	// in particular "list" permissions are required
 	Selector *metav1.LabelSelector `json:"selector,omitempty"`
 	// ConditionTypes are the status conditions that must be "True"; in addition to conditions that appear in the
-	// status of the target object, additional special conditions starting with "redskyops.dev/" can be tested
+	// status of the target object, additional special conditions starting with "stormforge.io/" can be tested
 	ConditionTypes []string `json:"conditionTypes,omitempty"`
 	// InitialDelaySeconds is the approximate number of seconds after all of the patches have been applied to start
 	// evaluating this check
@@ -183,24 +183,24 @@ type TrialConditionType string
 
 const (
 	// TrialComplete is a condition that indicates a successful trial run
-	TrialComplete TrialConditionType = "redskyops.dev/trial-complete"
+	TrialComplete TrialConditionType = "stormforge.io/trial-complete"
 	// TrialFailed is a condition that indicates a failed trial run
-	TrialFailed TrialConditionType = "redskyops.dev/trial-failed"
+	TrialFailed TrialConditionType = "stormforge.io/trial-failed"
 	// TrialSetupCreated is a condition that indicates all "create" setup tasks have finished
-	TrialSetupCreated TrialConditionType = "redskyops.dev/trial-setup-created"
+	TrialSetupCreated TrialConditionType = "stormforge.io/trial-setup-created"
 	// TrialSetupDeleted is a condition that indicates all "delete" setup tasks have finished
-	TrialSetupDeleted TrialConditionType = "redskyops.dev/trial-setup-deleted"
+	TrialSetupDeleted TrialConditionType = "stormforge.io/trial-setup-deleted"
 	// TrialPatched is a condition that indicates patches have been applied for a trial
-	TrialPatched TrialConditionType = "redskyops.dev/trial-patched"
+	TrialPatched TrialConditionType = "stormforge.io/trial-patched"
 	// TrialReady is a condition that indicates the application is ready after patches were applied
-	TrialReady TrialConditionType = "redskyops.dev/trial-ready"
+	TrialReady TrialConditionType = "stormforge.io/trial-ready"
 	// TrialObserved is a condition that indicates a trial has had metrics collected
-	TrialObserved TrialConditionType = "redskyops.dev/trial-observed"
+	TrialObserved TrialConditionType = "stormforge.io/trial-observed"
 )
 
 // TrialCondition represents an observed condition of a trial
 type TrialCondition struct {
-	// The condition type, e.g. "redskyops.dev/trial-complete"
+	// The condition type, e.g. "stormforge.io/trial-complete"
 	Type TrialConditionType `json:"type"`
 	// The status of the condition, one of "True", "False", or "Unknown
 	Status corev1.ConditionStatus `json:"status"`
