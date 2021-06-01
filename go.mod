@@ -44,3 +44,6 @@ require (
 )
 
 replace k8s.io/klog => github.com/istio/klog v0.0.0-20190424230111-fb7481ea8bcf
+
+// Do not advance yaml.v3 past KYAML, otherwise our formatting will be off
+replace gopkg.in/yaml.v3 => gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
