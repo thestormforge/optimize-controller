@@ -26,7 +26,6 @@ import (
 	"github.com/go-logr/logr"
 	batchv1 "k8s.io/api/batch/v1"
 
-	optimizev1alpha1 "github.com/thestormforge/optimize-controller/v2/api/v1alpha1"
 	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
 	"github.com/thestormforge/optimize-controller/v2/internal/controller"
 	"github.com/thestormforge/optimize-controller/v2/internal/meta"
@@ -337,7 +336,7 @@ func (r *MetricReconciler) resolveLegacyURL(ctx context.Context, t *optimizev1be
 	}
 
 	// Look for the special placeholder hostname that indicates we should look up a service
-	if u.Hostname() != optimizev1alpha1.LegacyHostnamePlaceholder {
+	if u.Hostname() != "redskyops.dev" {
 		return nil
 	}
 

@@ -21,7 +21,6 @@ import (
 	"strings"
 
 	"github.com/thestormforge/konjure/pkg/filters"
-	optimizev1alpha1 "github.com/thestormforge/optimize-controller/v2/api/v1alpha1"
 	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -60,8 +59,8 @@ func (f *ExperimentMigrationFilter) Filter(node *yaml.RNode) (*yaml.RNode, error
 	return node.Pipe(
 		yaml.Tee(
 			filters.FilterOne(&filters.ResourceMetaFilter{
-				Group:   optimizev1alpha1.GroupVersion.Group,
-				Version: optimizev1alpha1.GroupVersion.Version,
+				Group:   "redskyops.dev",
+				Version: "v1alpha1",
 				Kind:    "Experiment",
 			}),
 			yaml.FilterFunc(f.MigrateExperimentV1alpha1),
@@ -236,7 +235,7 @@ func (m *metric) setURLField(name string) yaml.Filter {
 
 	u := url.URL{
 		Scheme: m.Scheme,
-		Host:   optimizev1alpha1.LegacyHostnamePlaceholder,
+		Host:   "redskyops.dev",
 		Path:   m.Path,
 	}
 
