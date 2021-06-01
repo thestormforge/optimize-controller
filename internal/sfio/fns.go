@@ -18,7 +18,6 @@ package sfio
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 
 	"sigs.k8s.io/kustomize/kyaml/yaml"
@@ -185,7 +184,7 @@ func (f TeeMatchedFilter) visitMatched(node *yaml.RNode) error {
 		if yaml.IsListIndex(p) && matchIndex > 0 {
 			matchIndex--
 			name, _, _ := yaml.SplitIndexNameValue(p)
-			p = fmt.Sprintf("[%s=%s]", name, regexp.QuoteMeta(matches[matchIndex]))
+			p = fmt.Sprintf("[%s=%s]", name, matches[matchIndex])
 		}
 		node.AppendToFieldPath(p)
 	}
