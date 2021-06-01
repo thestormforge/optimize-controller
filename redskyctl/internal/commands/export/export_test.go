@@ -85,7 +85,7 @@ func TestPatchExperiment(t *testing.T) {
 			cfg := &config.RedSkyConfig{}
 
 			opts := &export.Options{Config: cfg}
-			opts.ExperimentsAPI = &fakeRedSkyServer{}
+			opts.ExperimentsAPI = &fakeExperimentsAPI{}
 			cmd := export.NewCommand(opts)
 			commander.ConfigGlobals(cfg, cmd)
 
@@ -159,7 +159,7 @@ func TestPatchApplication(t *testing.T) {
 			require.NoError(t, err)
 
 			opts := &export.Options{Config: cfg, Fs: fs}
-			opts.ExperimentsAPI = &fakeRedSkyServer{}
+			opts.ExperimentsAPI = &fakeExperimentsAPI{}
 			cmd := export.NewCommand(opts)
 			commander.ConfigGlobals(cfg, cmd)
 
