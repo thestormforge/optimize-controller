@@ -48,7 +48,7 @@ func defaultOptions() *Kustomize {
 	return &Kustomize{
 		Base:       "/",
 		fs:         fs,
-		Kustomizer: krusty.MakeKustomizer(fs, krusty.MakeDefaultOptions()),
+		Kustomizer: krusty.MakeKustomizer(krusty.MakeDefaultOptions()),
 		kustomize:  &types.Kustomization{},
 	}
 }
@@ -258,7 +258,7 @@ spec:
 func WithFS(fs filesys.FileSystem) Option {
 	return func(k *Kustomize) (err error) {
 		k.fs = fs
-		k.Kustomizer = krusty.MakeKustomizer(fs, krusty.MakeDefaultOptions())
+		k.Kustomizer = krusty.MakeKustomizer(krusty.MakeDefaultOptions())
 
 		return nil
 	}

@@ -23,7 +23,6 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/thestormforge/konjure/pkg/konjure"
 	"sigs.k8s.io/kustomize/api/filesys"
-	"sigs.k8s.io/kustomize/api/konfig"
 	"sigs.k8s.io/kustomize/api/krusty"
 	"sigs.k8s.io/kustomize/api/types"
 )
@@ -100,16 +99,14 @@ func kustomize(cmd *exec.Cmd) ([]byte, error) {
 	// Restrict to disk access to be consistent with the flow when we fork
 	fs := filesys.MakeFsOnDisk()
 
-	// Create Krusty options: be sure to disable KYAML as we don't want to accidentally
-	// invoke code paths in which we have created problems due to dependencies
+	// Create Krusty options
 	opts := &krusty.Options{
-		UseKyaml:         false,
 		LoadRestrictions: types.LoadRestrictionsNone,
-		PluginConfig:     konfig.DisabledPluginConfig(),
+		PluginConfig:     types.DisabledPluginConfig(),
 	}
 
 	// Run the Kustomization in process
-	rm, err := krusty.MakeKustomizer(fs, opts).Run(cmd.Args[1])
+	rm, err := krusty.MakeKustomizer(opts).Run(fs, cmd.Args[1])
 	if err != nil {
 		return nil, err
 	}
