@@ -37,7 +37,7 @@ import (
 // ViewOptions are the options for viewing a configuration file
 type ViewOptions struct {
 	// Config is the Optimize Configuration to view
-	Config *config.RedSkyConfig
+	Config *config.OptimizeConfig
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
 

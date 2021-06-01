@@ -59,7 +59,7 @@ func normalizeType(t string) (normalType resourceType, pluralType string, err er
 // Options are the common options for interacting with the Optimize Experiments API
 type Options struct {
 	// Config is the Optimize Configuration
-	Config *config.RedSkyConfig
+	Config *config.OptimizeConfig
 	// ExperimentsAPI is used to interact with the Optimize Experiments API
 	ExperimentsAPI experimentsv1alpha1.API
 	// Printer is the resource printer used to render objects from the Optimize Experiments API

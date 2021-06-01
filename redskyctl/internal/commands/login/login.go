@@ -63,7 +63,7 @@ If you are having problems scanning, use your browser to visit: %s
 // Options is the configuration for creating new authorization entries in a configuration
 type Options struct {
 	// Config is the Optimize Configuration to modify
-	Config *config.RedSkyConfig
+	Config *config.OptimizeConfig
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
 
@@ -159,7 +159,7 @@ func (o *Options) LoadConfig() error {
 		return err
 	}
 
-	return o.Config.Load(func(cfg *config.RedSkyConfig) error {
+	return o.Config.Load(func(cfg *config.OptimizeConfig) error {
 		// Abuse "Update" to validate the configuration does not already have an authorization
 		if err := cfg.Update(o.requireForceIfNameExists); err != nil {
 			return err

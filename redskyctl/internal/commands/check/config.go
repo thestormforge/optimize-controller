@@ -31,7 +31,7 @@ import (
 // ConfigOptions are the options for checking an Optimize Configuration
 type ConfigOptions struct {
 	// Config is the Optimize Configuration to check
-	Config *config.RedSkyConfig
+	Config *config.OptimizeConfig
 	// ExperimentsAPI is used to interact with the Optimize Experiments API
 	ExperimentsAPI experimentsv1alpha1.API
 	// IOStreams are used to access the standard process streams

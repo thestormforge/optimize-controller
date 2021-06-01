@@ -45,7 +45,7 @@ import (
 
 type Options struct {
 	// Config is the Optimize Configuration.
-	Config *config.RedSkyConfig
+	Config *config.OptimizeConfig
 	// ExperimentsAPI is used to interact with the Optimize Experiments API.
 	ExperimentsAPI experimentsv1alpha1.API
 

@@ -36,7 +36,7 @@ import (
 // GeneratorOptions are the configuration options for generating the controller installation
 type GeneratorOptions struct {
 	// Config is the Optimize Configuration used to generate the controller installation
-	Config *config.RedSkyConfig
+	Config *config.OptimizeConfig
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
 

@@ -37,7 +37,7 @@ import (
 
 // MetricQueryOptions configure a metric query debugging session.
 type MetricQueryOptions struct {
-	Config *config.RedSkyConfig
+	Config *config.OptimizeConfig
 	commander.IOStreams
 
 	Filename       string
