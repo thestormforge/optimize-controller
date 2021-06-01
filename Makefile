@@ -65,8 +65,8 @@ deploy: manifests
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./api/v1alpha1;./api/v1beta1;./controllers/..." output:crd:artifacts:config=config/crd/bases
-	$(CONTROLLER_GEN) schemapatch:manifests=config/crd/bases,maxDescLen=0  paths="./api/v1alpha1;./api/v1beta1" output:dir=./config/crd/bases
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./api/v1beta1;./controllers/..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) schemapatch:manifests=config/crd/bases,maxDescLen=0  paths="./api/v1beta1" output:dir=./config/crd/bases
 	go generate ./redskyctl/internal/kustomize
 
 # Run go fmt against code
@@ -78,10 +78,8 @@ vet:
 	go vet ./...
 
 # Generate code
-generate: controller-gen conversion-gen
+generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
-	$(CONVERSION_GEN) --go-header-file "./hack/boilerplate.go.txt" --input-dirs "./api/v1alpha1" \
-		--output-base "." --output-file-base="zz_generated.conversion" --skip-unsafe=true
 
 build: manifests
 	# Build on host so we can make use of the cache
@@ -122,21 +120,4 @@ ifeq (, $(shell which controller-gen))
 CONTROLLER_GEN=$(GOBIN)/controller-gen
 else
 CONTROLLER_GEN=$(shell which controller-gen)
-endif
-
-# find or download conversion-gen
-# download conversion-gen if necessary
-conversion-gen:
-ifeq (, $(shell which conversion-gen))
-	@{ \
-	set -e ;\
-	CONVERSION_GEN_TMP_DIR=$$(mktemp -d) ;\
-	cd $$CONVERSION_GEN_TMP_DIR ;\
-	go mod init tmp ;\
-	go get k8s.io/code-generator/cmd/conversion-gen@v0.18.3 ;\
-	rm -rf $$CONVERSION_GEN_TMP_DIR ;\
-	}
-CONVERSION_GEN=$(GOBIN)/conversion-gen
-else
-CONVERSION_GEN=$(shell which conversion-gen)
 endif

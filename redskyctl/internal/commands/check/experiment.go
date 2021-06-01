@@ -26,7 +26,6 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
 	"github.com/spf13/cobra"
-	optimizev1alpha1 "github.com/thestormforge/optimize-controller/v2/api/v1alpha1"
 	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
 	"github.com/thestormforge/optimize-controller/v2/internal/experiment"
 	"github.com/thestormforge/optimize-controller/v2/internal/template"
@@ -208,7 +207,7 @@ func (l *linter) Visit(ctx context.Context, obj interface{}) experiment.Visitor 
 
 		if u, err := url.Parse(o.URL); err != nil {
 			lint.V(vError).Info("Metric has invalid URL")
-		} else if u.Hostname() == optimizev1alpha1.LegacyHostnamePlaceholder {
+		} else if u.Hostname() == "redskyops.dev" {
 			lint.V(vWarn).Info("Metric requires manual conversion to latest version for URL")
 		}
 

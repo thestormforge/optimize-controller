@@ -27,7 +27,6 @@ import (
 	"sync"
 
 	"github.com/spf13/cobra"
-	optimizev1alpha1 "github.com/thestormforge/optimize-controller/v2/api/v1alpha1"
 	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
 	"github.com/thestormforge/optimize-go/pkg/api"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
@@ -180,7 +179,6 @@ func SetPrinter(meta TableMeta, printer *ResourcePrinter, cmd *cobra.Command, ad
 func SetKubePrinter(printer *ResourcePrinter, cmd *cobra.Command, additionalFormats map[string]AdditionalFormat) {
 	kp := &kubePrinter{scheme: runtime.NewScheme()}
 	_ = clientgoscheme.AddToScheme(kp.scheme)
-	_ = optimizev1alpha1.AddToScheme(kp.scheme)
 	_ = optimizev1beta1.AddToScheme(kp.scheme)
 	pf := newPrintFlags(kp, cmd.Annotations, additionalFormats)
 	pf.addFlags(cmd)

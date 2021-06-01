@@ -2,12 +2,6 @@ domain: optimize.stormforge.io
 repo: github.com/thestormforge/optimize-controller
 resources:
 - group: redskyops.dev
-  version: v1alpha1
-  kind: Experiment
-- group: redskyops.dev
-  version: v1alpha1
-  kind: Trial
-- group: redskyops.dev
   version: v1beta1
   kind: Experiment
 - group: redskyops.dev
