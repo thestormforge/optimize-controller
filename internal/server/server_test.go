@@ -433,9 +433,9 @@ func TestToClusterTrial(t *testing.T) {
 			trialOut: &optimizev1beta1.Trial{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						"redskyops.dev/report-trial-url": "",
+						"stormforge.io/report-trial-url": "",
 					},
-					Finalizers: []string{"serverFinalizer.redskyops.dev"},
+					Finalizers: []string{"serverFinalizer.stormforge.io"},
 				},
 				Spec: optimizev1beta1.TrialSpec{
 					Assignments: []optimizev1beta1.Assignment{

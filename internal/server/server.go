@@ -36,7 +36,7 @@ import (
 
 const (
 	// Finalizer is used to ensure synchronization with the server
-	Finalizer = "serverFinalizer.redskyops.dev"
+	Finalizer = "serverFinalizer.stormforge.io"
 )
 
 // TODO Split this into trial.go and experiment.go ?
@@ -53,7 +53,7 @@ func FromCluster(in *optimizev1beta1.Experiment) (experimentsv1alpha1.Experiment
 	if l := len(in.ObjectMeta.Labels); l > 0 {
 		out.Labels = make(map[string]string, l)
 		for k, v := range in.ObjectMeta.Labels {
-			k = strings.TrimPrefix(k, "redskyops.dev/")
+			k = strings.TrimPrefix(k, "stormforge.io/")
 			out.Labels[k] = v
 		}
 	}
