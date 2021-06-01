@@ -134,7 +134,7 @@ type PatchTemplate struct {
 	// ReadinessGates will be evaluated for patch target readiness. A patch target is ready if all conditions specified
 	// in the readiness gates have a status equal to "True". If no readiness gates are specified, some target types may
 	// have default gates assigned to them. Some condition checks may result in errors, e.g. a condition type of "Ready"
-	// is not allowed for a ConfigMap. Condition types starting with "redskyops.dev/" may not appear in the patched
+	// is not allowed for a ConfigMap. Condition types starting with "stormforge.io/" may not appear in the patched
 	// target's condition list, but are still evaluated against the resource's state.
 	ReadinessGates []PatchReadinessGate `json:"readinessGates,omitempty"`
 }

@@ -150,7 +150,7 @@ type ReadinessCheck struct {
 	// in particular "list" permissions are required
 	Selector *metav1.LabelSelector `json:"selector,omitempty"`
 	// ConditionTypes are the status conditions that must be "True"; in addition to conditions that appear in the
-	// status of the target object, additional special conditions starting with "redskyops.dev/" can be tested
+	// status of the target object, additional special conditions starting with "stormforge.io/" can be tested
 	ConditionTypes []string `json:"conditionTypes,omitempty"`
 	// InitialDelaySeconds is the approximate number of seconds after all of the patches have been applied to start
 	// evaluating this check
@@ -183,7 +183,7 @@ type TrialConditionType string
 
 // TrialCondition represents an observed condition of a trial
 type TrialCondition struct {
-	// The condition type, e.g. "redskyops.dev/trial-complete"
+	// The condition type, e.g. "stormforge.io/trial-complete"
 	Type TrialConditionType `json:"type"`
 	// The status of the condition, one of "True", "False", or "Unknown
 	Status corev1.ConditionStatus `json:"status"`
