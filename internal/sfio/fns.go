@@ -166,7 +166,7 @@ func (f TeeMatchedFilter) visitMatched(node *yaml.RNode) error {
 	matches := f.PathMatcher.Matches[node.YNode()]
 	matchIndex := len(matches)
 	for _, p := range f.PathMatcher.Path {
-		if yaml.IsListIndex(p) && matchIndex >= 0 {
+		if yaml.IsListIndex(p) && matchIndex > 0 {
 			matchIndex--
 			name, _, _ := yaml.SplitIndexNameValue(p)
 			p = fmt.Sprintf("[%s=%s]", name, matches[matchIndex])
