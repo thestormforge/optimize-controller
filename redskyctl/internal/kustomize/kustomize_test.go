@@ -94,11 +94,11 @@ func Test(t *testing.T) {
 			k, err := NewKustomization(tc.options...)
 			assert.NoError(t, err)
 
-			res, err := k.Run(k.Base)
+			res, err := k.Run(k.fs, k.Base)
 			assert.NoError(t, err)
 			assert.Equal(t, res.Size(), 6)
 
-			r, err := res.Select(types.Selector{Name: "redsky-controller-manager"})
+			r, err := res.Select(types.Selector{KrmId: types.KrmId{Name: "redsky-controller-manager"}})
 			assert.NoError(t, err)
 			assert.Len(t, r, 1)
 			assert.Equal(t, r[0].GetNamespace(), tc.expected.Namespace)

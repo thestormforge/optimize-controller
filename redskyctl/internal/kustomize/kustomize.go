@@ -70,7 +70,7 @@ func Yamls(setters ...Option) ([]byte, error) {
 		return nil, err
 	}
 
-	resources, err := kustom.Run(kustom.Base)
+	resources, err := kustom.Run(kustom.fs, kustom.Base)
 	if err != nil {
 		return nil, err
 	}
