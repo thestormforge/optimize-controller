@@ -19,6 +19,7 @@ package sfio
 import (
 	"fmt"
 	"regexp"
+	"strings"
 
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
@@ -63,6 +64,20 @@ func (f FieldRenamer) Filter(rn *yaml.RNode) (*yaml.RNode, error) {
 		}
 	}
 
+	return nil, nil
+}
+
+// PrefixClearer removes a prefix from a node value.
+type PrefixClearer struct {
+	Value string
+}
+
+// Filter removes the prefix from the node value or returns a nil node.
+func (f *PrefixClearer) Filter(rn *yaml.RNode) (*yaml.RNode, error) {
+	if strings.HasPrefix(rn.YNode().Value, f.Value) {
+		rn.YNode().Value = strings.TrimPrefix(rn.YNode().Value, f.Value)
+		return rn, nil
+	}
 	return nil, nil
 }
 
