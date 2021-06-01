@@ -87,6 +87,18 @@ func (f *ExperimentMigrationFilter) MigrateExperimentV1beta1(node *yaml.RNode) (
 			yaml.Lookup("spec", "jobTemplate"), &MetadataMigrationFilter{},
 			yaml.Lookup("spec", "template"), &MetadataMigrationFilter{},
 		),
+
+		// Replace the prefix on any readiness gates
+		TeeMatched(
+			yaml.PathMatcher{Path: []string{"spec", "patches", "[patch=]", "readinessGates", "[conditionType=redskyops\\.dev/.*]", "conditionType"}},
+			&PrefixClearer{Value: "redskyops.dev/"},
+			&yaml.PrefixSetter{Value: "stormforge.io/"},
+		),
+		TeeMatched(
+			yaml.PathMatcher{Path: []string{"spec", "trialTemplate", "spec", "readinessGates", "[kind=]", "conditionTypes", "[=redskyops\\.dev/.*]"}},
+			&PrefixClearer{Value: "redskyops.dev/"},
+			&yaml.PrefixSetter{Value: "stormforge.io/"},
+		),
 	)
 }
 
