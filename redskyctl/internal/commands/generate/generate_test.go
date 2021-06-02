@@ -83,7 +83,7 @@ func TestGenerate(t *testing.T) {
 				"namespace: testns",
 			},
 			unexpectedPatterns: []string{
-				"namespace: redsky-system",
+				"namespace: stormforge-system",
 			},
 		},
 		{

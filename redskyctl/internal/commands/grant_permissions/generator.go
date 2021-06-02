@@ -128,7 +128,7 @@ func (o *GeneratorOptions) bindingTargets() (*rbacv1.RoleRef, *rbacv1.Subject, e
 	return &rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "ClusterRole",
-			Name:     "redsky-patching-role",
+			Name:     "optimize-patching-role",
 		},
 		&rbacv1.Subject{
 			Kind:      "ServiceAccount",
@@ -224,14 +224,14 @@ func (o *GeneratorOptions) generateRoleBindings(ctx context.Context, roleRef *rb
 		if o.IncludeManagerRole {
 			roleBindings = append(roleBindings, &rbacv1.RoleBinding{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "redsky-manager-rolebinding",
+					Name:      "optimize-manager-rolebinding",
 					Namespace: scanner.Text(),
 				},
 				Subjects: []rbacv1.Subject{*subject},
 				RoleRef: rbacv1.RoleRef{
 					APIGroup: "rbac.authorization.k8s.io",
 					Kind:     "ClusterRole",
-					Name:     "redsky-manager-role",
+					Name:     "optimize-manager-role",
 				},
 			})
 		}

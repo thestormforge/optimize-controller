@@ -6,9 +6,9 @@ case "$1" in
     # Generate prometheus manifests
     shift && cd /workspace/prometheus
 
-    namePrefix="redsky-"
+    namePrefix="optimize-"
     if [ -n "$NAMESPACE" ]; then
-      namePrefix="redsky-$NAMESPACE-"
+      namePrefix="optimize-$NAMESPACE-"
     fi
 
     kustomize edit set nameprefix "$namePrefix"

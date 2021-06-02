@@ -337,12 +337,12 @@ func (o *RBACOptions) newPolicyRule(ref *corev1.ObjectReference, verbs ...string
 func roleName(filename string, experimentList *optimizev1beta1.ExperimentList) string {
 	// If there is a single experiment, incorporate it's name into the role name
 	if len(experimentList.Items) == 1 && experimentList.Items[0].Name != "" {
-		return fmt.Sprintf("redsky-patching-%s-role", experimentList.Items[0].Name)
+		return fmt.Sprintf("optimize-patching-%s-role", experimentList.Items[0].Name)
 	}
 
 	// If there are no inputs do not do anything special
 	if len(experimentList.Items) == 0 || filename == "" {
-		return "redsky-patching-role"
+		return "optimize-patching-role"
 	}
 
 	// Multiple experiments, tie the role name to the input file
@@ -350,16 +350,16 @@ func roleName(filename string, experimentList *optimizev1beta1.ExperimentList) s
 	unique = strings.ToLower(strings.TrimSuffix(unique, filepath.Ext(unique)))
 	if unique == "-" {
 		// The experiments were read from stdin
-		return fmt.Sprintf("redsky-patching-stdin-role-%s", rand.String(5))
+		return fmt.Sprintf("optimize-patching-stdin-role-%s", rand.String(5))
 	} else if dir == "/dev/fd/" {
 		// The experiments were probably read via process substitution
-		return fmt.Sprintf("redsky-patching-fd-role-%s", rand.String(5))
+		return fmt.Sprintf("optimize-patching-fd-role-%s", rand.String(5))
 	}
 
 	// Attempt to clean up the filename into something usable
 	re := regexp.MustCompile("[^a-z0-9]+")
 	unique = re.ReplaceAllString(unique, "-")
-	return fmt.Sprintf("redsky-patching-%s-role", unique)
+	return fmt.Sprintf("optimize-patching-%s-role", unique)
 }
 
 // mergeRule attempts to combine the supplied rule with an existing compatible rule, failing that the rules are return with a new rule appended

@@ -109,7 +109,7 @@ func (o *GeneratorOptions) addFlags(cmd *cobra.Command) {
 // complete fills in the default values for the generator configuration
 func (o *GeneratorOptions) complete() error {
 	if o.Name == "" {
-		o.Name = "redsky-manager"
+		o.Name = "optimize-manager"
 	}
 
 	if o.ClientName == "" {

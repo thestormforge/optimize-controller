@@ -205,7 +205,7 @@ func (o *GeneratorOptions) generatePlaceholderSecret() io.Reader {
 		tmpl := template.Must(template.New("secret").Parse(`apiVersion: v1
 kind: Secret
 metadata:
-  name: redsky-manager
+  name: optimize-manager
   namespace: {{ .Namespace }}
 type: Opaque
 data: {}

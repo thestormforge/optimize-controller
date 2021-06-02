@@ -57,7 +57,7 @@ func (o *Options) Initialize(ctx context.Context) error {
 	}
 
 	// Run `kubectl apply` to install the product
-	// TODO Handle upgrades with "--prune", "--selector", "app.kubernetes.io/name=redskyops,app.kubernetes.io/managed-by=%s"
+	// TODO Handle upgrades with "--prune", "--selector", "app.kubernetes.io/name=optimize,app.kubernetes.io/managed-by=%s"
 	kubectlApply, err := o.Config.Kubectl(ctx, "apply", "-f", "-")
 	if err != nil {
 		return err

@@ -20,7 +20,7 @@ To run locally: first run `make install` to add the necessary Custom Resource De
 If you would like to start a local process (inheriting Kubeconfig and StormForge configuration from your current environment), first ensure that any manager in the cluster is disabled:
 
 ```sh
-kubectl scale deployment redsky-controller-manager -n redsky-system --replicas 0
+kubectl scale deployment optimize-controller-manager -n stormforge-system --replicas 0
 make run
 ```
 
