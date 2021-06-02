@@ -43,7 +43,7 @@ func Test(t *testing.T) {
 				Image     string
 				Secret    bool
 			}{
-				Namespace: "redsky-system",
+				Namespace: "stormforge-system",
 				Image:     BuildImage,
 			},
 		},
@@ -67,7 +67,7 @@ func Test(t *testing.T) {
 				Image     string
 				Secret    bool
 			}{
-				Namespace: "redsky-system",
+				Namespace: "stormforge-system",
 				Image:     "mycoolregistry.com/image:tag",
 			},
 		},
@@ -79,7 +79,7 @@ func Test(t *testing.T) {
 				Image     string
 				Secret    bool
 			}{
-				Namespace: "redsky-system",
+				Namespace: "stormforge-system",
 				Image:     BuildImage,
 				Secret:    true,
 			},
@@ -98,7 +98,7 @@ func Test(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, res.Size(), 6)
 
-			r, err := res.Select(types.Selector{KrmId: types.KrmId{Name: "redsky-controller-manager"}})
+			r, err := res.Select(types.Selector{KrmId: types.KrmId{Name: "optimize-controller-manager"}})
 			assert.NoError(t, err)
 			assert.Len(t, r, 1)
 			assert.Equal(t, r[0].GetNamespace(), tc.expected.Namespace)

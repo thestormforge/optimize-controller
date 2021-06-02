@@ -233,7 +233,7 @@ func (p *promTest) addHeadComment(pattern string, args ...interface{}) {
 }
 
 func (p *promTest) addTest(t *optimizev1beta1.Trial) error {
-	seriesName := fmt.Sprintf(`up{job="prometheus-pushgateway", instance="redsky-%s-prometheus:9090"}`, t.Namespace)
+	seriesName := fmt.Sprintf(`up{job="prometheus-pushgateway", instance="optimize-%s-prometheus:9090"}`, t.Namespace)
 	seriesValues := fmt.Sprintf(`0+0x%d`, (t.Status.CompletionTime.Sub(t.Status.StartTime.Time)/(5*time.Second))+2)
 	return p.document.PipeE(
 		yaml.Lookup("tests"),

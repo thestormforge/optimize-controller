@@ -22,10 +22,10 @@ stats() {
   ${REDSKYCTL_BIN} generate experiment -f hack/app.yaml
   echo "::endgroup::"
   echo "::group::Describe Application Resources"
-  kubectl describe trials,jobs,pods -l redskyops.dev/application=ci
+  kubectl describe trials,jobs,pods -l stormforge.io/application=ci
   echo "::endgroup::"
   echo "::group::Controller logs"
-  kubectl logs -n redsky-system -l control-plane=controller-manager --tail=-1
+  kubectl logs -n stormforge-system -l control-plane=controller-manager --tail=-1
   echo "::endgroup::"
 }
 
@@ -52,7 +52,7 @@ generateAndWait() {
 
   echo "Wait for trial deletion tasks to finish running"
   kubectl wait deployment \
-    redsky-default-prometheus-server \
+    optimize-default-prometheus-server \
     --for=delete \
     --timeout ${waitTime}
   kubectl wait job \

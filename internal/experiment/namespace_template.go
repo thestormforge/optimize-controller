@@ -166,7 +166,7 @@ func createTrialNamespace(exp *optimizev1beta1.Experiment, namespace string) *tr
 	if len(exp.Spec.TrialTemplate.Spec.SetupDefaultRules) > 0 {
 		ts.Role = &rbacv1.Role{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "redsky-setup-role",
+				Name:      "optimize-setup-role",
 				Namespace: namespace,
 			},
 			Rules: exp.Spec.TrialTemplate.Spec.SetupDefaultRules,
@@ -174,7 +174,7 @@ func createTrialNamespace(exp *optimizev1beta1.Experiment, namespace string) *tr
 
 		ts.RoleBindings = append(ts.RoleBindings, rbacv1.RoleBinding{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "redsky-setup-rolebinding",
+				Name:      "optimize-setup-rolebinding",
 				Namespace: namespace,
 			},
 			Subjects: []rbacv1.Subject{{
@@ -194,7 +194,7 @@ func createTrialNamespace(exp *optimizev1beta1.Experiment, namespace string) *tr
 	if exp.Spec.TrialTemplate.Spec.SetupDefaultClusterRole != "" {
 		ts.RoleBindings = append(ts.RoleBindings, rbacv1.RoleBinding{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "redsky-setup-cluster-rolebinding",
+				Name:      "optimize-setup-cluster-rolebinding",
 				Namespace: namespace,
 			},
 			Subjects: []rbacv1.Subject{{
