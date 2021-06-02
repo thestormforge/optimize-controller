@@ -19,8 +19,7 @@ kubectl apply -f hack/nginx.yaml
 
 stats() {
   ${REDSKYCTL_BIN} generate experiment -f hack/app.yaml
-  kubectl get pods -o wide
-  kubectl get trial -o wide
+  kubectl describe trials,jobs,pods
   kubectl logs -n redsky-system -l control-plane=controller-manager --tail=-1
 }
 
