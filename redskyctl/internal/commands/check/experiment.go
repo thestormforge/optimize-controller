@@ -36,7 +36,6 @@ import (
 	"go.uber.org/zap/zapcore"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/scheme"
 )
@@ -218,7 +217,7 @@ func (l *linter) Visit(ctx context.Context, obj interface{}) experiment.Visitor 
 			if o.TargetRef.Kind == "" {
 				// TODO Is kind required? Can you just have the namespace and the rest of the ref in the patch?
 				lint.V(vError).Info("Patch target kind is required")
-			} else if !isCoreKind(o.TargetRef.Kind) {
+			} else if _, ok := scheme.Scheme.AllKnownTypes()[o.TargetRef.GroupVersionKind()]; !ok {
 				if o.TargetRef.APIVersion == "" {
 					lint.V(vError).Info("Patch target apiVersion is required")
 				}
@@ -273,15 +272,6 @@ func checkBaseline(lint logr.Logger, p *redskyv1beta1.Parameter) {
 			lint.V(vError).Info("Parameter baseline is not in range", "min", p.Min, "max", p.Max, "baseline", p.Baseline.IntVal)
 		}
 	}
-}
-
-func isCoreKind(kind string) bool {
-	for coreKind := range scheme.Scheme.KnownTypes(schema.GroupVersion{Version: "v1"}) {
-		if coreKind == kind {
-			return true
-		}
-	}
-	return false
 }
 
 func metricQueryDryRun(m *redskyv1beta1.Metric) (string, string, error) {
