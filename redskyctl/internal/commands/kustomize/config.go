@@ -69,7 +69,7 @@ func (o *ConfigOptions) config() error {
 		// Adjust the filename to point to where our configuration should go
 		root := filepath.Dir(o.Kustomize)
 		if o.Filename == "" {
-			o.Filename = filepath.Join(root, "kustomizeconfig", "redskyops.yaml")
+			o.Filename = filepath.Join(root, "kustomizeconfig", "stormforge-optimize.yaml")
 		} else if filepath.IsAbs(o.Filename) {
 			if rel, err := filepath.Rel(root, o.Filename); err != nil || rel == o.Filename {
 				return fmt.Errorf("filename must relative or inside the Kustomization root")
@@ -86,12 +86,12 @@ func (o *ConfigOptions) config() error {
 
 	// If there is no file name, just dump to the output stream
 	if o.Filename == "" {
-		_, err := o.Out.Write(consts.GetRedSkyFieldSpecs())
+		_, err := o.Out.Write(consts.GetOptimizeFieldSpecs())
 		return err
 	}
 
 	// Write the file
-	if err := ioutil.WriteFile(o.Filename, consts.GetRedSkyFieldSpecs(), 0644); err != nil {
+	if err := ioutil.WriteFile(o.Filename, consts.GetOptimizeFieldSpecs(), 0644); err != nil {
 		return err
 	}
 

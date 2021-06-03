@@ -18,7 +18,7 @@ package consts
 
 import "bytes"
 
-func GetRedSkyFieldSpecs() []byte {
+func GetOptimizeFieldSpecs() []byte {
 	configData := [][]byte{
 		[]byte(commonAnnotationFieldSpecs),
 		[]byte(commonLabelFieldSpecs),
