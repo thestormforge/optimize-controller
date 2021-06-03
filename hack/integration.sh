@@ -18,10 +18,15 @@ echo "Create nginx deployment"
 kubectl apply -f hack/nginx.yaml
 
 stats() {
+  echo "::group::Generated Experiment"
   ${REDSKYCTL_BIN} generate experiment -f hack/app.yaml
-  kubectl get pods -o wide
-  kubectl get trial -o wide
+  echo "::endgroup::"
+  echo "::group::Describe Application Resources"
+  kubectl describe trials,jobs,pods -l redskyops.dev/application=ci
+  echo "::endgroup::"
+  echo "::group::Controller logs"
   kubectl logs -n redsky-system -l control-plane=controller-manager --tail=-1
+  echo "::endgroup::"
 }
 
 generateAndWait() {
