@@ -34,14 +34,14 @@ var (
 	// ExperimentTrials is a Prometheus gauge metric which holds the total number
 	// of trials for an experiment (trial counts can go down when they are cleaned up)
 	ExperimentTrials = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "redsky_experiment_trials_total",
+		Name: "optimize_experiment_trials_total",
 		Help: "Total number of trials present for an experiment",
 	}, []string{"experiment"})
 
 	// ExperimentActiveTrials is a Prometheus gauge metric which holds the total number
 	// of active trials for an experiment
 	ExperimentActiveTrials = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "redsky_experiment_active_trials_total",
+		Name: "optimize_experiment_active_trials_total",
 		Help: "Total number of active trials present for an experiment",
 	}, []string{"experiment"})
 )

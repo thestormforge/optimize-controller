@@ -8,7 +8,7 @@ echo "Upload image to KinD"
 [[ -n "${IMG}" ]] && kind load docker-image "${IMG}" --name chart-testing
 [[ -n "${SETUPTOOLS_IMG}" ]] && kind load docker-image "${SETUPTOOLS_IMG}" --name chart-testing
 
-echo "Init redskyops"
+echo "Initialize Controller"
 ${REDSKYCTL_BIN} init
 
 echo "Wait for controller"
