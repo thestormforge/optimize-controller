@@ -26,6 +26,7 @@ jobs:
         run: |
           curl -LO https://storage.googleapis.com/minikube/releases/v1.19.0/minikube-darwin-amd64
           sudo install minikube-darwin-amd64 /usr/local/bin/minikube
+          rm minikube-darwin-amd64
           brew install hyperkit docker
           echo "::set-output name=cache-key::$(minikube version | md5)"
       - name: Cache minikube
