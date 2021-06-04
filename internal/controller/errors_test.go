@@ -129,7 +129,7 @@ func TestIgnoreReportError(t *testing.T) {
 			expectedErr: nil,
 		},
 		{
-			desc: "redskyapi error trial already reported",
+			desc: "trial already reported",
 			in: &experimentsv1alpha1.Error{
 				Type: experimentsv1alpha1.ErrTrialAlreadyReported,
 			},
