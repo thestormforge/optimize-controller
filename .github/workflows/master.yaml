@@ -24,6 +24,7 @@ jobs:
       - name: Install minikube
         id: install-minikube
         run: |
+          brew search minikube
           brew install minikube@1.19.0 hyperkit docker
           echo "cache-key=$(minikube version | md5)" >> $GITHUB_ENV
       - name: Cache minikube
