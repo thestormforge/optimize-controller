@@ -27,7 +27,7 @@ import (
 // SetOptions are the options for setting a configuration property to a new value
 type SetOptions struct {
 	// Config is the Optimize Configuration to view
-	Config *config.RedSkyConfig
+	Config *config.OptimizeConfig
 
 	// Key is the name of the property being set
 	Key string

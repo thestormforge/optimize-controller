@@ -30,7 +30,7 @@ import (
 	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
 	"github.com/thestormforge/optimize-go/pkg/api"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
-	internalconfig "github.com/thestormforge/optimize-go/pkg/config"
+	"github.com/thestormforge/optimize-go/pkg/config"
 	"golang.org/x/oauth2"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -140,9 +140,9 @@ func StreamsPreRun(streams *IOStreams) func(cmd *cobra.Command, args []string) {
 }
 
 // SetExperimentsAPI creates a new experiments API interface from the supplied configuration
-func SetExperimentsAPI(expAPI *experimentsv1alpha1.API, cfg *internalconfig.RedSkyConfig, cmd *cobra.Command) error {
+func SetExperimentsAPI(expAPI *experimentsv1alpha1.API, cfg *config.OptimizeConfig, cmd *cobra.Command) error {
 	ctx := cmd.Context()
-	srv, err := internalconfig.CurrentServer(cfg.Reader())
+	srv, err := config.CurrentServer(cfg.Reader())
 	if err != nil {
 		return err
 	}
@@ -192,7 +192,7 @@ func SetKubePrinter(printer *ResourcePrinter, cmd *cobra.Command, additionalForm
 }
 
 // ConfigGlobals sets up persistent globals for the supplied configuration
-func ConfigGlobals(cfg *internalconfig.RedSkyConfig, cmd *cobra.Command) {
+func ConfigGlobals(cfg *config.OptimizeConfig, cmd *cobra.Command) {
 	// Make sure we get the root to make these globals
 	root := cmd.Root()
 

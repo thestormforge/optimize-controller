@@ -158,7 +158,7 @@ func AppendAssignmentEnv(t *optimizev1beta1.Trial, env []corev1.EnvVar) []corev1
 func AppendPrometheusEnv(t *optimizev1beta1.Trial, env []corev1.EnvVar) []corev1.EnvVar {
 	for i := range t.Spec.SetupTasks {
 		if IsPrometheusSetupTask(&t.Spec.SetupTasks[i]) {
-			url := fmt.Sprintf("http://redsky-%s-prometheus:9091/metrics/job/%s/instance/%s", t.Namespace, "trialRun", t.Name)
+			url := fmt.Sprintf("http://optimize-%s-prometheus:9091/metrics/job/%s/instance/%s", t.Namespace, "trialRun", t.Name)
 			return append(env, corev1.EnvVar{Name: "PUSHGATEWAY_URL", Value: url})
 		}
 	}

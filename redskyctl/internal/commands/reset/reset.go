@@ -29,7 +29,7 @@ import (
 // Options is the configuration for suggesting assignments
 type Options struct {
 	// Config is the Optimize Configuration used to generate the controller manifests for reset
-	Config *config.RedSkyConfig
+	Config *config.OptimizeConfig
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
 }

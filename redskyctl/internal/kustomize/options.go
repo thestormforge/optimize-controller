@@ -35,7 +35,7 @@ import (
 type Option func(*Kustomize) error
 
 const (
-	defaultNamespace = "redsky-system"
+	defaultNamespace = "stormforge-system"
 	defaultImage     = "controller:latest"
 )
 
@@ -203,14 +203,14 @@ func WithAPI(o bool) Option {
 			return nil
 		}
 
-		// Since we've already generated the base assets with the `redsky` prefix
+		// Since we've already generated the base assets with the `optimize` prefix
 		// all of these resources need to reference that
 		controllerEnvPatch := []byte(`
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: redsky-controller-manager
-  namespace: redsky-system
+  name: optimize-controller-manager
+  namespace: stormforge-system
 spec:
   template:
     spec:
@@ -218,7 +218,7 @@ spec:
       - name: manager
         envFrom:
         - secretRef:
-            name: redsky-manager`)
+            name: optimize-manager`)
 
 		if err := k.fs.WriteFile(filepath.Join(k.Base, "manager_patch.yaml"), controllerEnvPatch); err != nil {
 			return err
@@ -236,8 +236,8 @@ func WithImagePullPolicy(pullPolicy string) Option {
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: redsky-controller-manager
-  namespace: redsky-system
+  name: optimize-controller-manager
+  namespace: stormforge-system
 spec:
   template:
     spec:

@@ -291,7 +291,7 @@ func (r *MetricReconciler) target(ctx context.Context, t *optimizev1beta1.Trial,
 func (r *MetricReconciler) applyMetricDefaults(ctx context.Context, t *optimizev1beta1.Trial, m *optimizev1beta1.Metric) error {
 	// Give Prometheus metrics a default URL
 	if m.Type == optimizev1beta1.MetricPrometheus && m.URL == "" {
-		m.URL = fmt.Sprintf("http://redsky-%[1]s-prometheus.%[1]s:9090/", t.Namespace)
+		m.URL = fmt.Sprintf("http://optimize-%[1]s-prometheus.%[1]s:9090/", t.Namespace)
 	}
 
 	if m.Target != nil {

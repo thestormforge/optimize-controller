@@ -60,7 +60,7 @@ func NewRedskyctlCommand() *cobra.Command {
 	}
 
 	// Create a global configuration
-	cfg := &config.RedSkyConfig{}
+	cfg := &config.OptimizeConfig{}
 	commander.ConfigGlobals(cfg, rootCmd)
 
 	// Establish OAuth client identity

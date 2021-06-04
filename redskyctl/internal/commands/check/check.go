@@ -24,7 +24,7 @@ import (
 // Options includes the configuration for the subcommands
 type Options struct {
 	// Config is the Optimize Configuration
-	Config *config.RedSkyConfig
+	Config *config.OptimizeConfig
 }
 
 // NewCommand creates a new command for checking components

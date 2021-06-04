@@ -24,7 +24,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
 	github.com/thestormforge/konjure v0.3.0
-	github.com/thestormforge/optimize-go v0.0.9
+	github.com/thestormforge/optimize-go v0.0.10
 	github.com/yujunz/go-getter v1.5.1-lite.0.20201201013212-6d9c071adddf
 	github.com/zorkian/go-datadog-api v2.24.0+incompatible
 	go.uber.org/zap v1.10.0

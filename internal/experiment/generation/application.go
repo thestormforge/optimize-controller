@@ -73,9 +73,9 @@ func (s *ApplicationSelector) Map(*yaml.RNode, yaml.ResourceMeta) ([]interface{}
 
 	result = append(result, &BuiltInPrometheus{
 		SetupTaskName:          "monitoring",
-		ClusterRoleName:        "redsky-prometheus",
-		ServiceAccountName:     "redsky-setup",
-		ClusterRoleBindingName: "redsky-setup-prometheus",
+		ClusterRoleName:        "optimize-prometheus",
+		ServiceAccountName:     "optimize-setup",
+		ClusterRoleBindingName: "optimize-setup-prometheus",
 	})
 
 	return result, nil

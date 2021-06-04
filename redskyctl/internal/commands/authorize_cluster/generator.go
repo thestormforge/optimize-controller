@@ -44,7 +44,7 @@ import (
 // GeneratorOptions are the configuration options for generating the cluster authorization secret
 type GeneratorOptions struct {
 	// Config is the Optimize Configuration used to generate the authorization secret
-	Config *config.RedSkyConfig
+	Config *config.OptimizeConfig
 	// Printer is the resource printer used to render generated objects
 	Printer commander.ResourcePrinter
 	// IOStreams are used to access the standard process streams
@@ -109,7 +109,7 @@ func (o *GeneratorOptions) addFlags(cmd *cobra.Command) {
 // complete fills in the default values for the generator configuration
 func (o *GeneratorOptions) complete() error {
 	if o.Name == "" {
-		o.Name = "redsky-manager"
+		o.Name = "optimize-manager"
 	}
 
 	if o.ClientName == "" {
