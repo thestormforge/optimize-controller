@@ -24,8 +24,10 @@ jobs:
       - name: Install minikube
         id: install-minikube
         run: |
-          brew install minikube hyperkit docker
-          echo "cache-key=$(minikube version | md5)" >> $GITHUB_ENV
+          curl -LO https://storage.googleapis.com/minikube/releases/v1.19.0/minikube-darwin-amd64
+          sudo install minikube-darwin-amd64 /usr/local/bin/minikube
+          brew install hyperkit docker
+          echo "::set-output name=cache-key::$(minikube version | md5)"
       - name: Cache minikube
         uses: actions/cache@v2
         with:
@@ -37,7 +39,8 @@ jobs:
             ${{ runner.os }}-minikube-
       - name: Start minikube
         run: |
-          minikube start --wait all
+          minikube delete
+          minikube start --vm-driver hyperkit --wait all
           minikube docker-env | sed '/^#/d;s/="\(.*\)"/=\1/g;s/export //g' >> $GITHUB_ENV
       - name: Cache Go Modules
         uses: actions/cache@v1
@@ -89,7 +92,7 @@ jobs:
           AC_IDENTITY_P12: ${{ secrets.AC_IDENTITY_P12 }}
       - name: Push Docker images
         run: |
-          echo "${{ secrets.BMASTERS_TOKEN }}" | docker login "ghcr.io" -u "${{ secrets.BMASTERS_ACTOR }}" --password-stdin
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login "ghcr.io" -u "${{ github.actor }}" --password-stdin
           make docker-push
           docker-push() {
             docker tag "$1" "$2"

@@ -47,7 +47,7 @@ jobs:
       - name: KinD (Kubernetes in Docker) Initialization
         uses: helm/kind-action@v1.1.0
         with:
-          version: v0.10.0
+          version: v0.11.1
           wait: 0s
       - name: Set up Go
         uses: actions/setup-go@v2
@@ -87,7 +87,7 @@ jobs:
       - name: Push Docker images
         if: github.event.pull_request.head.repo.fork == false
         run: |
-          echo "${{ secrets.BMASTERS_TOKEN }}" | docker login "ghcr.io" -u "${{ secrets.BMASTERS_ACTOR }}" --password-stdin
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login "ghcr.io" -u "${{ github.actor }}" --password-stdin
           make docker-push
           docker-push() {
             docker tag "$1" "$2"
