@@ -89,7 +89,7 @@ jobs:
           AC_IDENTITY_P12: ${{ secrets.AC_IDENTITY_P12 }}
       - name: Push Docker images
         run: |
-          echo "${{ secrets.BMASTERS_TOKEN }}" | docker login "ghcr.io" -u "${{ secrets.BMASTERS_ACTOR }}" --password-stdin
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login "ghcr.io" -u "${{ github.actor }}" --password-stdin
           make docker-push
           docker-push() {
             docker tag "$1" "$2"
