@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"net/url"
 	"strconv"
 
 	"github.com/go-logr/logr"
@@ -316,65 +315,6 @@ func (r *MetricReconciler) applyMetricDefaults(ctx context.Context, t *optimizev
 		if m.Target.Namespace == "" {
 			m.Target.Namespace = t.Namespace
 		}
-	}
-
-	// This is strictly for converted v1alpha1 experiments; we should remove it eventually
-	return r.resolveLegacyURL(ctx, t, m)
-}
-
-// resolveLegacyURL checks for the legacy hostname placeholder and replaces it with a hostname determined by
-// looking up a Kubernetes Service object. This roughly corresponds to the original behavior of the controller
-// where URL based metrics were defined using Service selectors instead of actual URLs.
-func (r *MetricReconciler) resolveLegacyURL(ctx context.Context, t *optimizev1beta1.Trial, m *optimizev1beta1.Metric) error {
-	if m.Type != optimizev1beta1.MetricPrometheus && m.Type != optimizev1beta1.MetricJSONPath {
-		return nil
-	}
-
-	u, err := url.Parse(m.URL)
-	if err != nil {
-		return err
-	}
-
-	// Look for the special placeholder hostname that indicates we should look up a service
-	if u.Hostname() != "redskyops.dev" {
-		return nil
-	}
-
-	// Default the target
-	if m.Target == nil {
-		m.Target = &optimizev1beta1.ResourceTarget{}
-	}
-
-	// Default the label selector for Prometheus
-	if m.Target.LabelSelector == nil && m.Type == optimizev1beta1.MetricPrometheus {
-		m.Target.LabelSelector = &metav1.LabelSelector{MatchLabels: map[string]string{"app": "prometheus"}}
-	}
-
-	// Convert the selector
-	sel, err := meta.MatchingSelector(m.Target.LabelSelector)
-	if err != nil {
-		return err
-	}
-
-	// Fetch the service
-	list := &corev1.ServiceList{}
-	if err := r.List(ctx, list, client.InNamespace(m.Target.Namespace), sel); err != nil {
-		return err
-	}
-
-	// Mimic legacy behavior to reconstruct host names
-	// NOTE: We are not doing port name resolution or matching multiple sockets: if you
-	// were relying on that behavior, you must migrate to a newer schema with explicit URLs.
-	if len(list.Items) > 0 {
-		host := list.Items[0].Spec.ClusterIP
-		if host == "None" {
-			host = fmt.Sprintf("%s.%s", list.Items[0].Name, list.Items[0].Namespace)
-		}
-		if port := u.Port(); port != "" {
-			host += ":" + port
-		}
-		u.Host = host
-		m.URL = u.String()
 	}
 
 	return nil

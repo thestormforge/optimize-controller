@@ -17,13 +17,12 @@ limitations under the License.
 package sfio
 
 import (
+	"fmt"
 	"net/url"
-	"strings"
 
 	"github.com/thestormforge/konjure/pkg/filters"
 	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
@@ -210,59 +209,60 @@ func (f *ExperimentMigrationFilter) migrateMetricsV1alpha1(node *yaml.RNode) (*y
 
 // metric represents the parts of a v1alpha1 metric required for producing a v1beta1 metric URL.
 type metric struct {
+	Name     string                `yaml:"name"`
 	Type     string                `yaml:"type"`
 	Scheme   string                `yaml:"scheme"`
 	Selector *metav1.LabelSelector `yaml:"selector"`
-	Port     IntOrString           `yaml:"port"`
-	Path     string                `yaml:"path"`
 }
 
 // setURLField returns a filter that will set the named field with the metric URL.
 func (m *metric) setURLField(name string) yaml.Filter {
 	switch m.Type {
-	case "prometheus":
-		if m.Selector == nil || (len(m.Selector.MatchLabels) == 1 && m.Selector.MatchLabels["app"] == "prometheus") {
-			return yaml.Clear(name)
-		}
 	case "datadog":
+		// Migrate the Datadog URL. The "scheme" field was overloaded in v1alpha1 to
+		// be the "aggregator" (e.g. min,max,avg); starting in v1beta1 we put that
+		// information in the "aggregator" query parameter of the URL (the URL is
+		// is otherwise unused for Datadog since the API library makes the determination
+		// of which endpoint to talk to).
 		u := url.URL{RawQuery: url.Values{"aggregator": []string{m.Scheme}}.Encode()}
 		return yaml.SetField(name, yaml.NewStringRNode(u.String()))
+
+	case "prometheus":
+		// In v1alpha1 the Prometheus server was determined by matching a Service
+		// using the metrics selector.
+		if m.Selector == nil {
+			// There is no selector meaning the intent was to get the default
+			// behavior, to achieve that we need to clear the URL field.
+			return yaml.Clear(name)
+		}
+
+		if len(m.Selector.MatchLabels) == 1 && m.Selector.MatchLabels["app"] == "prometheus" {
+			// There is an explicit selector, however the intent is still to get
+			// the default behavior. Now we need to clear both the selector and
+			// the URL to get the desired behavior.
+			return yaml.Tee(yaml.Clear("selector"), yaml.Clear(name))
+		}
+
+		// We cannot reliably migrate the Prometheus metric because we cannot
+		// produce a valid URL, we don't know the name of the service that matches
+		// the label selector. Force a failure.
+		return yaml.FilterFunc(func(*yaml.RNode) (*yaml.RNode, error) {
+			return nil, fmt.Errorf("the Prometheus metric %q cannot be migrated, "+
+				"you must manually set the `url` field to the address of the Prometheus server", m.Name)
+		})
+
 	case "jsonpath":
-		// Don't return empty
+		// We cannot reliably migrate JSON Path metric because we cannot produce
+		// a valid URL: in v1alpha1, the host name was not available until runtime.
+		// We need to fail and have the user manually intervene.
+		return yaml.FilterFunc(func(*yaml.RNode) (*yaml.RNode, error) {
+			return nil, fmt.Errorf("the JSON Path metric %q cannot be migrated, "+
+				"you must manually set the `url` field to JSON endpoint", m.Name)
+		})
+
 	default:
+
+		// The URL field should not be used in this case, make sure it is cleared if set.
 		return yaml.Clear(name)
 	}
-
-	u := url.URL{
-		Scheme: m.Scheme,
-		Host:   "redskyops.dev",
-		Path:   m.Path,
-	}
-
-	if u.Scheme == "" {
-		u.Scheme = "http"
-	}
-
-	if m.Port.IntValue() > 0 {
-		u.Host += ":" + m.Port.String()
-	}
-
-	if p := strings.SplitN(m.Path, "?", 2); len(p) > 1 {
-		u.Path = p[0]
-		u.RawQuery = p[1]
-	}
-
-	return yaml.SetField(name, yaml.NewStringRNode(u.String()))
-}
-
-type IntOrString struct {
-	intstr.IntOrString
-}
-
-func (is *IntOrString) UnmarshalYAML(value *yaml.Node) error {
-	if value.Tag == yaml.NodeTagInt {
-		is.Type = intstr.Int
-		return value.Decode(&is.IntVal)
-	}
-	return value.Decode(&is.StrVal)
 }
