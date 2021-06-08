@@ -23,7 +23,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -35,7 +35,7 @@ func TestContainerResourcesParameter(t *testing.T) {
 	cases := []struct {
 		desc string
 		containerResourcesParameter
-		expectedParameters []optimizev1beta1.Parameter
+		expectedParameters []optimizev1beta2.Parameter
 		expectedPatch      string
 	}{
 		{
@@ -53,7 +53,7 @@ func TestContainerResourcesParameter(t *testing.T) {
 				resources: []corev1.ResourceName{corev1.ResourceMemory},
 			},
 
-			expectedParameters: []optimizev1beta1.Parameter{
+			expectedParameters: []optimizev1beta2.Parameter{
 				{
 					Name:     "memory",
 					Baseline: newInt(2048),
@@ -85,7 +85,7 @@ func TestContainerResourcesParameter(t *testing.T) {
 				resources: []corev1.ResourceName{corev1.ResourceMemory},
 			},
 
-			expectedParameters: []optimizev1beta1.Parameter{
+			expectedParameters: []optimizev1beta2.Parameter{
 				{
 					Name:     "memory",
 					Baseline: newInt(2000),
@@ -117,7 +117,7 @@ func TestContainerResourcesParameter(t *testing.T) {
 				resources: []corev1.ResourceName{corev1.ResourceCPU},
 			},
 
-			expectedParameters: []optimizev1beta1.Parameter{
+			expectedParameters: []optimizev1beta2.Parameter{
 				{
 					Name:     "cpu",
 					Baseline: newInt(2000),
@@ -149,7 +149,7 @@ func TestContainerResourcesParameter(t *testing.T) {
 				resources: []corev1.ResourceName{corev1.ResourceMemory},
 			},
 
-			expectedParameters: []optimizev1beta1.Parameter{
+			expectedParameters: []optimizev1beta2.Parameter{
 				{
 					Name:     "memory",
 					Baseline: newInt(256),

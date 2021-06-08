@@ -20,7 +20,7 @@ import (
 	"fmt"
 
 	"github.com/thestormforge/konjure/pkg/filters"
-	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-controller/v2/internal/scan"
 	"github.com/thestormforge/optimize-controller/v2/internal/sfio"
 	corev1 "k8s.io/api/core/v1"
@@ -200,15 +200,15 @@ func (p *containerResourcesParameter) Patch(name ParameterNamer) (yaml.Filter, e
 }
 
 // Parameters lists the parameters used by the patch.
-func (p *containerResourcesParameter) Parameters(name ParameterNamer) ([]optimizev1beta1.Parameter, error) {
+func (p *containerResourcesParameter) Parameters(name ParameterNamer) ([]optimizev1beta2.Parameter, error) {
 	ind, err := p.indexContainerResources()
 	if err != nil {
 		return nil, err
 	}
 
-	var result []optimizev1beta1.Parameter
+	var result []optimizev1beta2.Parameter
 	for _, rn := range p.resources {
-		result = append(result, optimizev1beta1.Parameter{
+		result = append(result, optimizev1beta2.Parameter{
 			Name:     name(p.meta, p.fieldPath, string(rn)),
 			Max:      ind[rn].Max(),
 			Min:      ind[rn].Min(),

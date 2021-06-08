@@ -17,7 +17,7 @@ limitations under the License.
 package experiment
 
 import (
-	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-controller/v2/internal/controller"
 	"github.com/thestormforge/optimize-controller/v2/internal/trial"
 	corev1 "k8s.io/api/core/v1"
@@ -51,7 +51,7 @@ const (
 
 // UpdateStatus will ensure the experiment's status matches what is in the supplied trial list; returns true only if
 // changes were necessary
-func UpdateStatus(exp *optimizev1beta1.Experiment, trialList *optimizev1beta1.TrialList) bool {
+func UpdateStatus(exp *optimizev1beta2.Experiment, trialList *optimizev1beta2.TrialList) bool {
 	// Count the active trials
 	activeTrials := int32(0)
 	for i := range trialList.Items {
@@ -84,18 +84,18 @@ func UpdateStatus(exp *optimizev1beta1.Experiment, trialList *optimizev1beta1.Tr
 	return false
 }
 
-func summarize(exp *optimizev1beta1.Experiment, activeTrials int32, totalTrials int) string {
+func summarize(exp *optimizev1beta2.Experiment, activeTrials int32, totalTrials int) string {
 	if !exp.GetDeletionTimestamp().IsZero() {
 		return PhaseDeleted
 	}
 
 	for _, c := range exp.Status.Conditions {
 		switch c.Type {
-		case optimizev1beta1.ExperimentComplete:
+		case optimizev1beta2.ExperimentComplete:
 			if c.Status == corev1.ConditionTrue {
 				return PhaseCompleted
 			}
-		case optimizev1beta1.ExperimentFailed:
+		case optimizev1beta2.ExperimentFailed:
 			if c.Status == corev1.ConditionTrue {
 				return PhaseFailed
 			}
@@ -111,7 +111,7 @@ func summarize(exp *optimizev1beta1.Experiment, activeTrials int32, totalTrials 
 	}
 
 	if totalTrials == 0 {
-		if exp.Annotations[optimizev1beta1.AnnotationExperimentURL] != "" {
+		if exp.Annotations[optimizev1beta2.AnnotationExperimentURL] != "" {
 			return PhaseCreated
 		}
 		return PhaseEmpty
@@ -120,10 +120,10 @@ func summarize(exp *optimizev1beta1.Experiment, activeTrials int32, totalTrials 
 	return PhaseIdle
 }
 
-func IsFinished(exp *optimizev1beta1.Experiment) bool {
+func IsFinished(exp *optimizev1beta2.Experiment) bool {
 	for _, c := range exp.Status.Conditions {
 		if c.Status == corev1.ConditionTrue {
-			if c.Type == optimizev1beta1.ExperimentComplete || c.Type == optimizev1beta1.ExperimentFailed {
+			if c.Type == optimizev1beta2.ExperimentComplete || c.Type == optimizev1beta2.ExperimentFailed {
 				return true
 			}
 		}
@@ -131,13 +131,13 @@ func IsFinished(exp *optimizev1beta1.Experiment) bool {
 	return false
 }
 
-func ApplyCondition(status *optimizev1beta1.ExperimentStatus, conditionType optimizev1beta1.ExperimentConditionType, conditionStatus corev1.ConditionStatus, reason, message string, time *metav1.Time) {
+func ApplyCondition(status *optimizev1beta2.ExperimentStatus, conditionType optimizev1beta2.ExperimentConditionType, conditionStatus corev1.ConditionStatus, reason, message string, time *metav1.Time) {
 	if time == nil {
 		now := metav1.Now()
 		time = &now
 	}
 
-	newCondition := optimizev1beta1.ExperimentCondition{
+	newCondition := optimizev1beta2.ExperimentCondition{
 		Type:               conditionType,
 		Status:             conditionStatus,
 		Reason:             reason,

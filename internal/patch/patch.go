@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-controller/v2/internal/template"
 	"github.com/thestormforge/optimize-controller/v2/internal/trial"
 	batchv1 "k8s.io/api/batch/v1"
@@ -32,7 +32,7 @@ import (
 const defaultAttemptsRemaining = 3
 
 // RenderTemplate determines the patch target and renders the patch template
-func RenderTemplate(te *template.Engine, t *optimizev1beta1.Trial, p *optimizev1beta1.PatchTemplate) (*corev1.ObjectReference, []byte, error) {
+func RenderTemplate(te *template.Engine, t *optimizev1beta2.Trial, p *optimizev1beta2.PatchTemplate) (*corev1.ObjectReference, []byte, error) {
 	// Render the actual patch data
 	data, err := te.RenderPatch(p, t)
 	if err != nil {
@@ -43,7 +43,7 @@ func RenderTemplate(te *template.Engine, t *optimizev1beta1.Trial, p *optimizev1
 	ref := &corev1.ObjectReference{}
 	if p.TargetRef != nil {
 		p.TargetRef.DeepCopyInto(ref)
-	} else if p.Type == optimizev1beta1.PatchStrategic || p.Type == "" {
+	} else if p.Type == optimizev1beta2.PatchStrategic || p.Type == "" {
 		m := &metav1.PartialObjectMetadata{}
 		if err := json.Unmarshal(data, m); err != nil {
 			return nil, nil, err
@@ -73,13 +73,13 @@ func RenderTemplate(te *template.Engine, t *optimizev1beta1.Trial, p *optimizev1
 }
 
 // createPatchOperation creates a new patch operation from a patch template and it's (fully rendered) patch data
-func CreatePatchOperation(t *optimizev1beta1.Trial, p *optimizev1beta1.PatchTemplate, ref *corev1.ObjectReference, data []byte) (*optimizev1beta1.PatchOperation, error) {
+func CreatePatchOperation(t *optimizev1beta2.Trial, p *optimizev1beta2.PatchTemplate, ref *corev1.ObjectReference, data []byte) (*optimizev1beta2.PatchOperation, error) {
 	// If the patch is effectively null, we do not need to evaluate it
 	if len(data) == 0 || string(data) == "null" {
 		return nil, nil
 	}
 
-	po := &optimizev1beta1.PatchOperation{
+	po := &optimizev1beta2.PatchOperation{
 		TargetRef:         *ref,
 		Data:              data,
 		AttemptsRemaining: defaultAttemptsRemaining,
@@ -87,11 +87,11 @@ func CreatePatchOperation(t *optimizev1beta1.Trial, p *optimizev1beta1.PatchTemp
 
 	// Determine the patch type
 	switch p.Type {
-	case optimizev1beta1.PatchStrategic, "":
+	case optimizev1beta2.PatchStrategic, "":
 		po.PatchType = types.StrategicMergePatchType
-	case optimizev1beta1.PatchMerge:
+	case optimizev1beta2.PatchMerge:
 		po.PatchType = types.MergePatchType
-	case optimizev1beta1.PatchJSON:
+	case optimizev1beta2.PatchJSON:
 		po.PatchType = types.JSONPatchType
 	default:
 		return nil, fmt.Errorf("unknown patch type: %s", p.Type)

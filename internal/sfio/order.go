@@ -21,15 +21,15 @@ import (
 	"strings"
 
 	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
-	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
 func init() {
-	addFieldOrder(&optimizev1beta1.ExperimentSpec{}, 200)
-	addFieldOrder(&optimizev1beta1.Parameter{}, 300)
-	addFieldOrder(&optimizev1beta1.PatchTemplate{}, 400)
-	addFieldOrder(&optimizev1beta1.Metric{}, 500)
+	addFieldOrder(&optimizev1beta2.ExperimentSpec{}, 200)
+	addFieldOrder(&optimizev1beta2.Parameter{}, 300)
+	addFieldOrder(&optimizev1beta2.PatchTemplate{}, 400)
+	addFieldOrder(&optimizev1beta2.Metric{}, 500)
 	addFieldOrder(&optimizeappsv1alpha1.Application{}, 600)
 }
 

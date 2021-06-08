@@ -71,7 +71,7 @@ func (o *Options) Initialize(ctx context.Context) error {
 
 	// Run `kubectl wait` to ensure the CRD is installed
 	if o.Wait {
-		kubectlWait, err := o.Config.Kubectl(ctx, "wait", "crd/experiments.redskyops.dev", "crd/trials.redskyops.dev", "--for", "condition=Established")
+		kubectlWait, err := o.Config.Kubectl(ctx, "wait", "crd/experiments.optimize.stormforge.io", "crd/trials.optimize.stormforge.io", "--for", "condition=Established")
 		if err != nil {
 			return err
 		}

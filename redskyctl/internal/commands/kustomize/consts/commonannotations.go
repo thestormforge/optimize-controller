@@ -20,17 +20,17 @@ const commonAnnotationFieldSpecs = `
 commonAnnotations:
 - path: spec/template/metadata/annotations
   create: true
-  group: redskyops.dev
+  group: optimize.stormforge.io
   kind: Experiment
 
 - path: spec/template/spec/template/metadata/annotations
   create: true
-  group: redskyops.dev
+  group: optimize.stormforge.io
   kind: Experiment
 
 - path: spec/template/spec/template/spec/template/metadata/annotations
   create: true
-  group: redskyops.dev
+  group: optimize.stormforge.io
   kind: Experiment
 
 `

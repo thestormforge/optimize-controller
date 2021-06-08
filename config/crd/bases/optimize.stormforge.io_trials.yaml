@@ -4,7 +4,7 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.2.2
   creationTimestamp: null
-  name: trials.redskyops.dev
+  name: trials.optimize.stormforge.io
 spec:
   additionalPrinterColumns:
   - JSONPath: .status.phase
@@ -19,7 +19,7 @@ spec:
     description: Current values
     name: Values
     type: string
-  group: redskyops.dev
+  group: optimize.stormforge.io
   names:
     kind: Trial
     listKind: TrialList
@@ -3644,9 +3644,9 @@ spec:
               format: date-time
             values:
               type: string
-  version: v1beta1
+  version: v1beta2
   versions:
-  - name: v1beta1
+  - name: v1beta2
     served: true
     storage: true
 status:

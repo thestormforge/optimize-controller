@@ -182,7 +182,7 @@ func TestGenerate(t *testing.T) {
 	}
 }
 
-var experiment = []byte(`apiVersion: redskyops.dev/v1beta1
+var experiment = []byte(`apiVersion: optimize.stormforge.io/v1beta2
 kind: Experiment
 metadata:
   name: postgres-example

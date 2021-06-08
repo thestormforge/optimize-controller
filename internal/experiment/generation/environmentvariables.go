@@ -22,7 +22,7 @@ import (
 	"strconv"
 	"strings"
 
-	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-controller/v2/internal/scan"
 	"github.com/thestormforge/optimize-controller/v2/internal/sfio"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -109,8 +109,8 @@ func (p *environmentVariablesParameter) Patch(name ParameterNamer) (yaml.Filter,
 	), nil
 }
 
-func (p *environmentVariablesParameter) Parameters(name ParameterNamer) ([]optimizev1beta1.Parameter, error) {
-	param := optimizev1beta1.Parameter{
+func (p *environmentVariablesParameter) Parameters(name ParameterNamer) ([]optimizev1beta2.Parameter, error) {
+	param := optimizev1beta2.Parameter{
 		Name:     name(p.meta, p.fieldPath, ""),
 		Baseline: new(intstr.IntOrString),
 	}
@@ -132,7 +132,7 @@ func (p *environmentVariablesParameter) Parameters(name ParameterNamer) ([]optim
 		param.Max = 4000
 	}
 
-	return []optimizev1beta1.Parameter{param}, nil
+	return []optimizev1beta2.Parameter{param}, nil
 }
 
 func appendMissing(slice []string, elem string) []string {

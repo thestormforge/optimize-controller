@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -39,22 +39,22 @@ func TestSummarize(t *testing.T) {
 
 	testCases := []struct {
 		desc          string
-		experiment    *optimizev1beta1.Experiment
+		experiment    *optimizev1beta2.Experiment
 		expectedPhase string
 		activeTrials  int32
 		totalTrials   int
 	}{
 		{
 			desc:          "empty",
-			experiment:    &optimizev1beta1.Experiment{},
+			experiment:    &optimizev1beta2.Experiment{},
 			expectedPhase: PhaseEmpty,
 		},
 		{
 			desc: "created",
-			experiment: &optimizev1beta1.Experiment{
+			experiment: &optimizev1beta2.Experiment{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						optimizev1beta1.AnnotationExperimentURL: experimentURL,
+						optimizev1beta2.AnnotationExperimentURL: experimentURL,
 					},
 				},
 			},
@@ -62,7 +62,7 @@ func TestSummarize(t *testing.T) {
 		},
 		{
 			desc: "deleted",
-			experiment: &optimizev1beta1.Experiment{
+			experiment: &optimizev1beta2.Experiment{
 				ObjectMeta: metav1.ObjectMeta{
 					DeletionTimestamp: &now,
 				},
@@ -71,7 +71,7 @@ func TestSummarize(t *testing.T) {
 		},
 		{
 			desc: "deleted ignore active trials",
-			experiment: &optimizev1beta1.Experiment{
+			experiment: &optimizev1beta2.Experiment{
 				ObjectMeta: metav1.ObjectMeta{
 					DeletionTimestamp: &now,
 				},
@@ -81,11 +81,11 @@ func TestSummarize(t *testing.T) {
 		},
 		{
 			desc: "deleted ignore replicas",
-			experiment: &optimizev1beta1.Experiment{
+			experiment: &optimizev1beta2.Experiment{
 				ObjectMeta: metav1.ObjectMeta{
 					DeletionTimestamp: &now,
 				},
-				Spec: optimizev1beta1.ExperimentSpec{
+				Spec: optimizev1beta2.ExperimentSpec{
 					Replicas: &oneReplica,
 				},
 			},
@@ -93,8 +93,8 @@ func TestSummarize(t *testing.T) {
 		},
 		{
 			desc: "paused no active trials",
-			experiment: &optimizev1beta1.Experiment{
-				Spec: optimizev1beta1.ExperimentSpec{
+			experiment: &optimizev1beta2.Experiment{
+				Spec: optimizev1beta2.ExperimentSpec{
 					Replicas: &zeroReplicas,
 				},
 			},
@@ -102,8 +102,8 @@ func TestSummarize(t *testing.T) {
 		},
 		{
 			desc: "paused active trials",
-			experiment: &optimizev1beta1.Experiment{
-				Spec: optimizev1beta1.ExperimentSpec{
+			experiment: &optimizev1beta2.Experiment{
+				Spec: optimizev1beta2.ExperimentSpec{
 					Replicas: &oneReplica,
 				},
 			},
@@ -112,19 +112,19 @@ func TestSummarize(t *testing.T) {
 		},
 		{
 			desc: "paused budget done",
-			experiment: &optimizev1beta1.Experiment{
+			experiment: &optimizev1beta2.Experiment{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						optimizev1beta1.AnnotationExperimentURL: experimentURL,
+						optimizev1beta2.AnnotationExperimentURL: experimentURL,
 					},
 				},
-				Spec: optimizev1beta1.ExperimentSpec{
+				Spec: optimizev1beta2.ExperimentSpec{
 					Replicas: &zeroReplicas,
 				},
-				Status: optimizev1beta1.ExperimentStatus{
-					Conditions: []optimizev1beta1.ExperimentCondition{
+				Status: optimizev1beta2.ExperimentStatus{
+					Conditions: []optimizev1beta2.ExperimentCondition{
 						{
-							Type:   optimizev1beta1.ExperimentComplete,
+							Type:   optimizev1beta2.ExperimentComplete,
 							Status: corev1.ConditionTrue,
 						},
 					},
@@ -134,14 +134,14 @@ func TestSummarize(t *testing.T) {
 		},
 		{
 			desc: "paused budget",
-			experiment: &optimizev1beta1.Experiment{
+			experiment: &optimizev1beta2.Experiment{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						optimizev1beta1.AnnotationExperimentURL: experimentURL,
-						optimizev1beta1.AnnotationNextTrialURL:  nextExperimentURL,
+						optimizev1beta2.AnnotationExperimentURL: experimentURL,
+						optimizev1beta2.AnnotationNextTrialURL:  nextExperimentURL,
 					},
 				},
-				Spec: optimizev1beta1.ExperimentSpec{
+				Spec: optimizev1beta2.ExperimentSpec{
 					Replicas: &zeroReplicas,
 				},
 			},
@@ -149,16 +149,16 @@ func TestSummarize(t *testing.T) {
 		},
 		{
 			desc:          "idle not synced",
-			experiment:    &optimizev1beta1.Experiment{},
+			experiment:    &optimizev1beta2.Experiment{},
 			expectedPhase: PhaseIdle,
 			totalTrials:   1,
 		},
 		{
 			desc: "idle synced",
-			experiment: &optimizev1beta1.Experiment{
+			experiment: &optimizev1beta2.Experiment{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						optimizev1beta1.AnnotationExperimentURL: experimentURL,
+						optimizev1beta2.AnnotationExperimentURL: experimentURL,
 					},
 				},
 			},
@@ -167,11 +167,11 @@ func TestSummarize(t *testing.T) {
 		},
 		{
 			desc: "failed",
-			experiment: &optimizev1beta1.Experiment{
-				Status: optimizev1beta1.ExperimentStatus{
-					Conditions: []optimizev1beta1.ExperimentCondition{
+			experiment: &optimizev1beta2.Experiment{
+				Status: optimizev1beta2.ExperimentStatus{
+					Conditions: []optimizev1beta2.ExperimentCondition{
 						{
-							Type:   optimizev1beta1.ExperimentFailed,
+							Type:   optimizev1beta2.ExperimentFailed,
 							Status: corev1.ConditionTrue,
 						},
 					},
@@ -195,24 +195,24 @@ func TestApplyCondition(t *testing.T) {
 
 	cases := []struct {
 		desc               string
-		conditionType      optimizev1beta1.ExperimentConditionType
+		conditionType      optimizev1beta2.ExperimentConditionType
 		conditionStatus    corev1.ConditionStatus
 		reason             string
 		message            string
 		time               *metav1.Time
-		initialConditions  []optimizev1beta1.ExperimentCondition
-		expectedConditions []optimizev1beta1.ExperimentCondition
+		initialConditions  []optimizev1beta2.ExperimentCondition
+		expectedConditions []optimizev1beta2.ExperimentCondition
 	}{
 		{
 			desc:            "add to empty",
-			conditionType:   optimizev1beta1.ExperimentFailed,
+			conditionType:   optimizev1beta2.ExperimentFailed,
 			conditionStatus: corev1.ConditionTrue,
 			reason:          "Testing",
 			message:         "Test Test",
 			time:            &now,
-			expectedConditions: []optimizev1beta1.ExperimentCondition{
+			expectedConditions: []optimizev1beta2.ExperimentCondition{
 				{
-					Type:               optimizev1beta1.ExperimentFailed,
+					Type:               optimizev1beta2.ExperimentFailed,
 					Status:             corev1.ConditionTrue,
 					LastProbeTime:      now,
 					LastTransitionTime: now,
@@ -223,14 +223,14 @@ func TestApplyCondition(t *testing.T) {
 		},
 		{
 			desc:            "update status",
-			conditionType:   optimizev1beta1.ExperimentFailed,
+			conditionType:   optimizev1beta2.ExperimentFailed,
 			conditionStatus: corev1.ConditionTrue,
 			reason:          "Testing",
 			message:         "Test Test",
 			time:            &now,
-			initialConditions: []optimizev1beta1.ExperimentCondition{
+			initialConditions: []optimizev1beta2.ExperimentCondition{
 				{
-					Type:               optimizev1beta1.ExperimentFailed,
+					Type:               optimizev1beta2.ExperimentFailed,
 					Status:             corev1.ConditionFalse,
 					LastProbeTime:      then,
 					LastTransitionTime: then,
@@ -238,9 +238,9 @@ func TestApplyCondition(t *testing.T) {
 					Message:            "Bar",
 				},
 			},
-			expectedConditions: []optimizev1beta1.ExperimentCondition{
+			expectedConditions: []optimizev1beta2.ExperimentCondition{
 				{
-					Type:               optimizev1beta1.ExperimentFailed,
+					Type:               optimizev1beta2.ExperimentFailed,
 					Status:             corev1.ConditionTrue,
 					LastProbeTime:      now,
 					LastTransitionTime: now,
@@ -251,14 +251,14 @@ func TestApplyCondition(t *testing.T) {
 		},
 		{
 			desc:            "update no change",
-			conditionType:   optimizev1beta1.ExperimentFailed,
+			conditionType:   optimizev1beta2.ExperimentFailed,
 			conditionStatus: corev1.ConditionTrue,
 			reason:          "Testing",
 			message:         "Test Test",
 			time:            &now,
-			initialConditions: []optimizev1beta1.ExperimentCondition{
+			initialConditions: []optimizev1beta2.ExperimentCondition{
 				{
-					Type:               optimizev1beta1.ExperimentFailed,
+					Type:               optimizev1beta2.ExperimentFailed,
 					Status:             corev1.ConditionTrue,
 					LastProbeTime:      then,
 					LastTransitionTime: then,
@@ -266,9 +266,9 @@ func TestApplyCondition(t *testing.T) {
 					Message:            "Bar",
 				},
 			},
-			expectedConditions: []optimizev1beta1.ExperimentCondition{
+			expectedConditions: []optimizev1beta2.ExperimentCondition{
 				{
-					Type:               optimizev1beta1.ExperimentFailed,
+					Type:               optimizev1beta2.ExperimentFailed,
 					Status:             corev1.ConditionTrue,
 					LastProbeTime:      now,
 					LastTransitionTime: then,
@@ -281,7 +281,7 @@ func TestApplyCondition(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			actual := optimizev1beta1.ExperimentStatus{Conditions: c.initialConditions}
+			actual := optimizev1beta2.ExperimentStatus{Conditions: c.initialConditions}
 			ApplyCondition(&actual, c.conditionType, c.conditionStatus, c.reason, c.message, c.time)
 			assert.Equal(t, c.expectedConditions, actual.Conditions)
 		})
