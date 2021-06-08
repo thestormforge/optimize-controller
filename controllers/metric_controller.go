@@ -26,7 +26,7 @@ import (
 	"github.com/go-logr/logr"
 	batchv1 "k8s.io/api/batch/v1"
 
-	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-controller/v2/internal/controller"
 	"github.com/thestormforge/optimize-controller/v2/internal/meta"
 	"github.com/thestormforge/optimize-controller/v2/internal/metric"
@@ -47,8 +47,8 @@ type MetricReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=redskyops.dev,resources=experiments,verbs=get;list;watch
-// +kubebuilder:rbac:groups=redskyops.dev,resources=trials,verbs=get;list;watch;update
+// +kubebuilder:rbac:groups=optimize.stormforge.io,resources=experiments,verbs=get;list;watch
+// +kubebuilder:rbac:groups=optimize.stormforge.io,resources=trials,verbs=get;list;watch;update
 // +kubebuilder:rbac:groups="",resources=pods,verbs=list
 // +kubebuilder:rbac:groups="",resources=services,verbs=list
 
@@ -56,7 +56,7 @@ func (r *MetricReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	now := metav1.Now()
 
-	t := &optimizev1beta1.Trial{}
+	t := &optimizev1beta2.Trial{}
 	if err := r.Get(ctx, req.NamespacedName, t); err != nil || r.ignoreTrial(t) {
 		return ctrl.Result{}, controller.IgnoreNotFound(err)
 	}
@@ -75,18 +75,18 @@ func (r *MetricReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 func (r *MetricReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named("metric").
-		For(&optimizev1beta1.Trial{}).
+		For(&optimizev1beta2.Trial{}).
 		Complete(r)
 }
 
-func (r *MetricReconciler) ignoreTrial(t *optimizev1beta1.Trial) bool {
+func (r *MetricReconciler) ignoreTrial(t *optimizev1beta2.Trial) bool {
 	// Ignore deleted trials
 	if !t.DeletionTimestamp.IsZero() {
 		return true
 	}
 
 	// Ignore failed trials
-	if trial.CheckCondition(&t.Status, optimizev1beta1.TrialFailed, corev1.ConditionTrue) {
+	if trial.CheckCondition(&t.Status, optimizev1beta2.TrialFailed, corev1.ConditionTrue) {
 		return true
 	}
 
@@ -104,7 +104,7 @@ func (r *MetricReconciler) ignoreTrial(t *optimizev1beta1.Trial) bool {
 	}
 
 	// Do not ignore trials if we haven't finished processing them
-	if !(trial.CheckCondition(&t.Status, optimizev1beta1.TrialObserved, corev1.ConditionTrue)) {
+	if !(trial.CheckCondition(&t.Status, optimizev1beta2.TrialObserved, corev1.ConditionTrue)) {
 		return false
 	}
 
@@ -112,21 +112,21 @@ func (r *MetricReconciler) ignoreTrial(t *optimizev1beta1.Trial) bool {
 	return true
 }
 
-func (r *MetricReconciler) evaluateMetrics(ctx context.Context, t *optimizev1beta1.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
+func (r *MetricReconciler) evaluateMetrics(ctx context.Context, t *optimizev1beta2.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
 	// TODO This check precludes manual additions of Values
 	if len(t.Spec.Values) > 0 {
 		return nil, nil
 	}
 
 	// Get the experiment
-	exp := &optimizev1beta1.Experiment{}
+	exp := &optimizev1beta2.Experiment{}
 	if err := r.Get(ctx, t.ExperimentNamespacedName(), exp); err != nil {
 		return &ctrl.Result{}, err
 	}
 
 	// Evaluate the metrics
 	for _, m := range exp.Spec.Metrics {
-		t.Spec.Values = append(t.Spec.Values, optimizev1beta1.Value{
+		t.Spec.Values = append(t.Spec.Values, optimizev1beta2.Value{
 			Name:              m.Name,
 			AttemptsRemaining: 3,
 		})
@@ -134,7 +134,7 @@ func (r *MetricReconciler) evaluateMetrics(ctx context.Context, t *optimizev1bet
 
 	// Update the status to indicate that we will be collecting metrics
 	if len(t.Spec.Values) > 0 {
-		trial.ApplyCondition(&t.Status, optimizev1beta1.TrialObserved, corev1.ConditionUnknown, "", "", probeTime)
+		trial.ApplyCondition(&t.Status, optimizev1beta2.TrialObserved, corev1.ConditionUnknown, "", "", probeTime)
 		err := r.Update(ctx, t)
 		return controller.RequeueConflict(err)
 	}
@@ -142,15 +142,15 @@ func (r *MetricReconciler) evaluateMetrics(ctx context.Context, t *optimizev1bet
 	return nil, nil
 }
 
-func (r *MetricReconciler) collectMetrics(ctx context.Context, t *optimizev1beta1.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
+func (r *MetricReconciler) collectMetrics(ctx context.Context, t *optimizev1beta2.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
 	// Fetch the experiment
-	exp := &optimizev1beta1.Experiment{}
+	exp := &optimizev1beta2.Experiment{}
 	if err := r.Get(ctx, t.ExperimentNamespacedName(), exp); err != nil {
 		return &ctrl.Result{}, err
 	}
 
 	// Index a DEEP COPY of the metric definitions so we can safely make changes
-	metrics := make(map[string]*optimizev1beta1.Metric, len(exp.Spec.Metrics))
+	metrics := make(map[string]*optimizev1beta2.Metric, len(exp.Spec.Metrics))
 	for i := range exp.Spec.Metrics {
 		metrics[exp.Spec.Metrics[i].Name] = exp.Spec.Metrics[i].DeepCopy()
 	}
@@ -202,7 +202,7 @@ func (r *MetricReconciler) collectMetrics(ctx context.Context, t *optimizev1beta
 		for i := range t.Spec.Values {
 			v := &t.Spec.Values[i]
 			if err := validation.CheckMetricBounds(metrics[v.Name], v); err != nil {
-				trial.ApplyCondition(&t.Status, optimizev1beta1.TrialFailed, corev1.ConditionTrue, "MetricBound", err.Error(), probeTime)
+				trial.ApplyCondition(&t.Status, optimizev1beta2.TrialFailed, corev1.ConditionTrue, "MetricBound", err.Error(), probeTime)
 				err := r.Update(ctx, t)
 				return controller.RequeueConflict(err)
 			}
@@ -210,13 +210,13 @@ func (r *MetricReconciler) collectMetrics(ctx context.Context, t *optimizev1beta
 	}
 
 	// We made it through all of the metrics without needing additional changes
-	trial.ApplyCondition(&t.Status, optimizev1beta1.TrialObserved, corev1.ConditionTrue, "", "", probeTime)
+	trial.ApplyCondition(&t.Status, optimizev1beta2.TrialObserved, corev1.ConditionTrue, "", "", probeTime)
 	err := r.Update(ctx, t)
 	return controller.RequeueConflict(err)
 }
 
 // collectionAttempt updates the status of the trial based on the outcome of an attempt to collect metric values.
-func (r *MetricReconciler) collectionAttempt(ctx context.Context, log logr.Logger, t *optimizev1beta1.Trial, v *optimizev1beta1.Value, probeTime *metav1.Time, err error) (*ctrl.Result, error) {
+func (r *MetricReconciler) collectionAttempt(ctx context.Context, log logr.Logger, t *optimizev1beta2.Trial, v *optimizev1beta2.Value, probeTime *metav1.Time, err error) (*ctrl.Result, error) {
 	// Do not count retries against the remaining attempts
 	if merr, ok := err.(*metric.CaptureError); ok && merr.RetryAfter > 0 {
 		return &ctrl.Result{RequeueAfter: merr.RetryAfter}, nil
@@ -229,11 +229,11 @@ func (r *MetricReconciler) collectionAttempt(ctx context.Context, log logr.Logge
 	}
 
 	// Update the probe time and ensure that trial observed is still explicitly false (i.e. we have started observation but it is not complete)
-	trial.ApplyCondition(&t.Status, optimizev1beta1.TrialObserved, corev1.ConditionFalse, "", "", probeTime)
+	trial.ApplyCondition(&t.Status, optimizev1beta2.TrialObserved, corev1.ConditionFalse, "", "", probeTime)
 
 	// Fail the trial if there is an error and no attempts are left
 	if err != nil && v.AttemptsRemaining == 0 {
-		trial.ApplyCondition(&t.Status, optimizev1beta1.TrialFailed, corev1.ConditionTrue, "MetricFailed", err.Error(), probeTime)
+		trial.ApplyCondition(&t.Status, optimizev1beta2.TrialFailed, corev1.ConditionTrue, "MetricFailed", err.Error(), probeTime)
 
 		// Metric errors contain additional information which should be logged for debugging
 		if merr, ok := err.(*metric.CaptureError); ok {
@@ -246,8 +246,8 @@ func (r *MetricReconciler) collectionAttempt(ctx context.Context, log logr.Logge
 }
 
 // target looks up the Kubernetes object (if any) associated with a metric.
-func (r *MetricReconciler) target(ctx context.Context, t *optimizev1beta1.Trial, m *optimizev1beta1.Metric) (runtime.Object, error) {
-	if m.Type != optimizev1beta1.MetricKubernetes && m.Type != "" {
+func (r *MetricReconciler) target(ctx context.Context, t *optimizev1beta2.Trial, m *optimizev1beta2.Metric) (runtime.Object, error) {
+	if m.Type != optimizev1beta2.MetricKubernetes && m.Type != "" {
 		return nil, nil
 	}
 
@@ -288,9 +288,9 @@ func (r *MetricReconciler) target(ctx context.Context, t *optimizev1beta1.Trial,
 }
 
 // applyMetricDefaults fills in default values for the supplied metric.
-func (r *MetricReconciler) applyMetricDefaults(ctx context.Context, t *optimizev1beta1.Trial, m *optimizev1beta1.Metric) error {
+func (r *MetricReconciler) applyMetricDefaults(ctx context.Context, t *optimizev1beta2.Trial, m *optimizev1beta2.Metric) error {
 	// Give Prometheus metrics a default URL
-	if m.Type == optimizev1beta1.MetricPrometheus && m.URL == "" {
+	if m.Type == optimizev1beta2.MetricPrometheus && m.URL == "" {
 		m.URL = fmt.Sprintf("http://optimize-%[1]s-prometheus.%[1]s:9090/", t.Namespace)
 	}
 
@@ -325,8 +325,8 @@ func (r *MetricReconciler) applyMetricDefaults(ctx context.Context, t *optimizev
 // resolveLegacyURL checks for the legacy hostname placeholder and replaces it with a hostname determined by
 // looking up a Kubernetes Service object. This roughly corresponds to the original behavior of the controller
 // where URL based metrics were defined using Service selectors instead of actual URLs.
-func (r *MetricReconciler) resolveLegacyURL(ctx context.Context, t *optimizev1beta1.Trial, m *optimizev1beta1.Metric) error {
-	if m.Type != optimizev1beta1.MetricPrometheus && m.Type != optimizev1beta1.MetricJSONPath {
+func (r *MetricReconciler) resolveLegacyURL(ctx context.Context, t *optimizev1beta2.Trial, m *optimizev1beta2.Metric) error {
+	if m.Type != optimizev1beta2.MetricPrometheus && m.Type != optimizev1beta2.MetricJSONPath {
 		return nil
 	}
 
@@ -342,11 +342,11 @@ func (r *MetricReconciler) resolveLegacyURL(ctx context.Context, t *optimizev1be
 
 	// Default the target
 	if m.Target == nil {
-		m.Target = &optimizev1beta1.ResourceTarget{}
+		m.Target = &optimizev1beta2.ResourceTarget{}
 	}
 
 	// Default the label selector for Prometheus
-	if m.Target.LabelSelector == nil && m.Type == optimizev1beta1.MetricPrometheus {
+	if m.Target.LabelSelector == nil && m.Type == optimizev1beta2.MetricPrometheus {
 		m.Target.LabelSelector = &metav1.LabelSelector{MatchLabels: map[string]string{"app": "prometheus"}}
 	}
 

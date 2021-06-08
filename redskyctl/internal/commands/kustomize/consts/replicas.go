@@ -20,7 +20,7 @@ const replicasFieldSpecs = `
 replicas:
 - path: spec/replicas
   create: true
-  group: redskyops.dev
+  group: optimize.stormforge.io
   kind: Experiment
 
 `

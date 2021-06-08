@@ -21,7 +21,7 @@ import (
 	"strings"
 
 	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
-	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
@@ -35,8 +35,8 @@ type RequestsMetricsSource struct {
 
 var _ MetricSource = &RequestsMetricsSource{}
 
-func (s *RequestsMetricsSource) Metrics() ([]optimizev1beta1.Metric, error) {
-	var result []optimizev1beta1.Metric
+func (s *RequestsMetricsSource) Metrics() ([]optimizev1beta2.Metric, error) {
+	var result []optimizev1beta2.Metric
 	if s.Goal == nil || s.Goal.Implemented {
 		return result, nil
 	}

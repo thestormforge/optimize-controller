@@ -26,7 +26,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commander"
 	"github.com/thestormforge/optimize-go/pkg/config"
 	corev1 "k8s.io/api/core/v1"
@@ -132,7 +132,7 @@ func (o *RBACOptions) generate() error {
 	}
 
 	// Read the experiments
-	experimentList := &optimizev1beta1.ExperimentList{}
+	experimentList := &optimizev1beta2.ExperimentList{}
 	rr := commander.NewResourceReader()
 	if err := rr.ReadInto(r, experimentList); err != nil {
 		return err
@@ -162,7 +162,7 @@ func (o *RBACOptions) generate() error {
 	return o.Printer.PrintObj(rbac, o.Out)
 }
 
-func (o *RBACOptions) bindingTargets(experimentList *optimizev1beta1.ExperimentList) (*rbacv1.RoleRef, *rbacv1.Subject, []string, error) {
+func (o *RBACOptions) bindingTargets(experimentList *optimizev1beta2.ExperimentList) (*rbacv1.RoleRef, *rbacv1.Subject, []string, error) {
 	// Read the configuration objects we need
 	r := o.Config.Reader()
 	ctrl, err := config.CurrentController(r)
@@ -272,7 +272,7 @@ func buildRBAC(roleRef *rbacv1.RoleRef, subject *rbacv1.Subject, rules []rbacv1.
 }
 
 // appendRules finds the patch and readiness targets from an experiment
-func (o *RBACOptions) appendRules(rules []*rbacv1.PolicyRule, exp *optimizev1beta1.Experiment) []*rbacv1.PolicyRule {
+func (o *RBACOptions) appendRules(rules []*rbacv1.PolicyRule, exp *optimizev1beta2.Experiment) []*rbacv1.PolicyRule {
 	// Patches require "get" and "patch" permissions
 	for i := range exp.Spec.Patches {
 		// TODO This needs to use patch_controller.go `renderTemplate` to get the correct reference (e.g. SMP may have the ref in the payload)
@@ -334,7 +334,7 @@ func (o *RBACOptions) newPolicyRule(ref *corev1.ObjectReference, verbs ...string
 }
 
 // roleName attempts to generate a semi-unique role name
-func roleName(filename string, experimentList *optimizev1beta1.ExperimentList) string {
+func roleName(filename string, experimentList *optimizev1beta2.ExperimentList) string {
 	// If there is a single experiment, incorporate it's name into the role name
 	if len(experimentList.Items) == 1 && experimentList.Items[0].Name != "" {
 		return fmt.Sprintf("optimize-patching-%s-role", experimentList.Items[0].Name)

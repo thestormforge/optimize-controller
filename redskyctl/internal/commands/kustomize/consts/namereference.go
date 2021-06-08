@@ -19,80 +19,80 @@ package consts
 const nameReferenceFieldSpecs = `
 nameReference:
 - kind: Experiment
-  group: redskyops.dev
+  group: optimize.stormforge.io
   fieldSpecs:
   - path: spec/template/spec/experimentRef/name
-    group: redskyops.dev
+    group: optimize.stormforge.io
     kind: Experiment
 
 - kind: ConfigMap
   version: v1
   fieldSpecs:
   - path: spec/template/spec/setupVolumes/configMap/name
-    group: redskyops.dev
+    group: optimize.stormforge.io
     kind: Experiment
   - path: spec/template/spec/setupTasks/helmValuesFrom/configMap/name
-    group: redskyops.dev
+    group: optimize.stormforge.io
     kind: Experiment
   - path: spec/template/spec/template/spec/template/spec/volumes/configMap/name
-    group: redskyops.dev
+    group: optimize.stormforge.io
     kind: Experiment
   - path: spec/template/spec/template/spec/template/spec/containers/env/valueFrom/configMapKeyRef/name
-    group: redskyops.dev
+    group: optimize.stormforge.io
     kind: Experiment
   - path: spec/template/spec/template/spec/template/spec/initContainers/env/valueFrom/configMapKeyRef/name
-    group: redskyops.dev
+    group: optimize.stormforge.io
     kind: Experiment
   - path: spec/template/spec/template/spec/template/spec/containers/envFrom/configMapRef/name
-    group: redskyops.dev
+    group: optimize.stormforge.io
     kind: Experiment
   - path: spec/template/spec/template/spec/template/spec/initContainers/envFrom/configMapRef/name
-    group: redskyops.dev
+    group: optimize.stormforge.io
     kind: Experiment
   - path: spec/template/spec/template/spec/template/spec/volumes/projected/sources/configMap/name
-    group: redskyops.dev
+    group: optimize.stormforge.io
     kind: Experiment
 
 - kind: Secret
   version: v1
   fieldSpecs:
   - path: spec/template/spec/template/spec/template/spec/volumes/secret/secretName
-    group: redskyops.dev
+    group: optimize.stormforge.io
     kind: Experiment
   - path: spec/template/spec/template/spec/template/spec/containers/env/valueFrom/secretKeyRef/name
-    group: redskyops.dev
+    group: optimize.stormforge.io
     kind: Experiment
   - path: spec/template/spec/template/spec/template/spec/initContainers/env/valueFrom/secretKeyRef/name
-    group: redskyops.dev
+    group: optimize.stormforge.io
     kind: Experiment
   - path: spec/template/spec/template/spec/template/spec/containers/envFrom/secretRef/name
-    group: redskyops.dev
+    group: optimize.stormforge.io
     kind: Experiment
   - path: spec/template/spec/template/spec/template/spec/initContainers/envFrom/secretRef/name
-    group: redskyops.dev
+    group: optimize.stormforge.io
     kind: Experiment
   - path: spec/template/spec/template/spec/template/spec/imagePullSecrets/name
-    group: redskyops.dev
+    group: optimize.stormforge.io
     kind: Experiment
   - path: spec/template/spec/template/spec/template/spec/volumes/projected/sources/secret/name
-    group: redskyops.dev
+    group: optimize.stormforge.io
     kind: Experiment
 
 - kind: ServiceAccount
   version: v1
   fieldSpecs:
   - path: spec/template/spec/setupServiceAccountName
-    group: redskyops.dev
+    group: optimize.stormforge.io
     kind: Experiment
   - path: spec/template/spec/template/spec/template/spec/serviceAccountName
-    group: redskyops.dev
+    group: optimize.stormforge.io
     kind: Experiment
 
 - kind: PersistentVolumeClaim
   version: v1
   fieldSpecs:
   - path: spec/template/spec/template/spec/template/spec/volumes/persistentVolumeClaim/claimName
-    group: redskyops.dev
+    group: optimize.stormforge.io
     kind: Experiment
 
 `

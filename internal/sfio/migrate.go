@@ -21,7 +21,7 @@ import (
 	"strings"
 
 	"github.com/thestormforge/konjure/pkg/filters"
-	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
@@ -68,13 +68,27 @@ func (f *ExperimentMigrationFilter) Filter(node *yaml.RNode) (*yaml.RNode, error
 
 		yaml.Tee(
 			filters.FilterOne(&filters.ResourceMetaFilter{
-				Group:   optimizev1beta1.GroupVersion.Group,
-				Version: optimizev1beta1.GroupVersion.Version,
+				Group:   "redskyops.dev",
+				Version: "v1beta1",
 				Kind:    "Experiment",
 			}),
 			yaml.FilterFunc(f.MigrateExperimentV1beta1),
 		),
+
+		yaml.Tee(
+			filters.FilterOne(&filters.ResourceMetaFilter{
+				Group:   optimizev1beta2.GroupVersion.Group,
+				Version: optimizev1beta2.GroupVersion.Version,
+				Kind:    "Experiment",
+			}),
+			yaml.FilterFunc(f.MigrateExperimentV1beta2),
+		),
 	)
+}
+
+// MigrateExperimentV1beta1 converts a resource node from a v1beta1 Experiment to the latest format.
+func (f *ExperimentMigrationFilter) MigrateExperimentV1beta2(node *yaml.RNode) (*yaml.RNode, error) {
+	return node.Pipe()
 }
 
 // MigrateExperimentV1beta1 converts a resource node from a v1beta1 Experiment to the latest format.
@@ -97,6 +111,11 @@ func (f *ExperimentMigrationFilter) MigrateExperimentV1beta1(node *yaml.RNode) (
 			yaml.PathMatcher{Path: []string{"spec", "trialTemplate", "spec", "readinessGates", "[kind=]", "conditionTypes", "[=redskyops\\.dev/.*]"}},
 			&PrefixClearer{Value: "redskyops.dev/"},
 			&yaml.PrefixSetter{Value: "stormforge.io/"},
+		),
+
+		// Finally, set the apiVersion
+		yaml.Tee(
+			yaml.SetField("apiVersion", yaml.NewStringRNode(optimizev1beta2.GroupVersion.String())),
 		),
 	)
 }
@@ -129,7 +148,7 @@ func (f *ExperimentMigrationFilter) MigrateExperimentV1alpha1(node *yaml.RNode) 
 
 		// Finally, set the apiVersion
 		yaml.Tee(
-			yaml.SetField("apiVersion", yaml.NewStringRNode(optimizev1beta1.GroupVersion.String())),
+			yaml.SetField("apiVersion", yaml.NewStringRNode("redskyops.dev/v1beta1")),
 		),
 	)
 }
@@ -173,7 +192,7 @@ func (f *ExperimentMigrationFilter) migrateMetricsV1alpha1(node *yaml.RNode) (*y
 			// Change metric type "local" to "kubernetes"
 			yaml.Tee(
 				yaml.MatchField("type", "local"),
-				yaml.Set(yaml.NewStringRNode(string(optimizev1beta1.MetricKubernetes))),
+				yaml.Set(yaml.NewStringRNode(string(optimizev1beta2.MetricKubernetes))),
 			),
 
 			// Change type "pods" to "" and add "target: { kind: PodList }"

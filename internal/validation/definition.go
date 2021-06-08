@@ -19,12 +19,12 @@ package validation
 import (
 	"fmt"
 
-	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 )
 
 // CheckDefinition will make sure the cluster and API experiment definitions are compatible
-func CheckDefinition(exp *optimizev1beta1.Experiment, ee *experimentsv1alpha1.Experiment) error {
+func CheckDefinition(exp *optimizev1beta2.Experiment, ee *experimentsv1alpha1.Experiment) error {
 	if len(exp.Spec.Parameters) == len(ee.Parameters) {
 		parameters := make(map[string]bool, len(exp.Spec.Parameters))
 		for i := range exp.Spec.Parameters {

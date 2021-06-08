@@ -24,7 +24,7 @@ import (
 	"path/filepath"
 
 	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
-	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-controller/v2/internal/application"
 	"github.com/yujunz/go-getter"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
@@ -32,10 +32,10 @@ import (
 )
 
 // newGoalMetric creates a new metric for the supplied goal with most fields pre-filled.
-func newGoalMetric(obj *optimizeappsv1alpha1.Goal, query string) optimizev1beta1.Metric {
+func newGoalMetric(obj *optimizeappsv1alpha1.Goal, query string) optimizev1beta2.Metric {
 	defer func() { obj.Implemented = true }()
-	return optimizev1beta1.Metric{
-		Type:     optimizev1beta1.MetricPrometheus,
+	return optimizev1beta2.Metric{
+		Type:     optimizev1beta2.MetricPrometheus,
 		Query:    query,
 		Minimize: true,
 		Name:     obj.Name,
@@ -46,7 +46,7 @@ func newGoalMetric(obj *optimizeappsv1alpha1.Goal, query string) optimizev1beta1
 }
 
 // ensureTrialJobPod returns the pod template for the trial job, creating the job template if necessary.
-func ensureTrialJobPod(exp *optimizev1beta1.Experiment) *corev1.PodTemplateSpec {
+func ensureTrialJobPod(exp *optimizev1beta2.Experiment) *corev1.PodTemplateSpec {
 	if exp.Spec.TrialTemplate.Spec.JobTemplate == nil {
 		exp.Spec.TrialTemplate.Spec.JobTemplate = &batchv1beta1.JobTemplateSpec{}
 	}

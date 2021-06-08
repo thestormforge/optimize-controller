@@ -17,7 +17,7 @@ limitations under the License.
 package validation
 
 import (
-	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -40,7 +40,7 @@ func (e *AssignmentError) Error() string {
 }
 
 // CheckAssignments ensures the trial assignments match the definitions on the experiment
-func CheckAssignments(t *optimizev1beta1.Trial, exp *optimizev1beta1.Experiment) error {
+func CheckAssignments(t *optimizev1beta2.Trial, exp *optimizev1beta2.Experiment) error {
 	err := &AssignmentError{}
 
 	// Index the assignments, checking for duplicates
@@ -76,7 +76,7 @@ func CheckAssignments(t *optimizev1beta1.Trial, exp *optimizev1beta1.Experiment)
 }
 
 // CheckParameterValue ensures the supplied value in range for the parameter.
-func CheckParameterValue(p *optimizev1beta1.Parameter, v intstr.IntOrString) bool {
+func CheckParameterValue(p *optimizev1beta2.Parameter, v intstr.IntOrString) bool {
 	if v.Type == intstr.String {
 		return contains(p.Values, v.StrVal)
 	}
