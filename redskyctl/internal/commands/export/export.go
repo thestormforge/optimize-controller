@@ -28,7 +28,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/thestormforge/konjure/pkg/filters"
 	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
-	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-controller/v2/internal/application"
 	"github.com/thestormforge/optimize-controller/v2/internal/experiment"
 	"github.com/thestormforge/optimize-controller/v2/internal/patch"
@@ -67,7 +67,7 @@ type Options struct {
 	// This is used for testing
 	Fs          filesys.FileSystem
 	inputData   []byte
-	experiment  *optimizev1beta1.Experiment
+	experiment  *optimizev1beta2.Experiment
 	application *optimizeappsv1alpha1.Application
 	resources   map[string]struct{}
 }
@@ -210,7 +210,7 @@ func (o *Options) extractExperiment(trial *trialDetails) error {
 	// Render Experiment
 	experimentInput := kio.Pipeline{
 		Inputs:  []kio.Reader{&kio.ByteReader{Reader: bytes.NewReader(o.inputData)}},
-		Filters: []kio.Filter{&filters.ResourceMetaFilter{Group: optimizev1beta1.GroupVersion.Group, Kind: "Experiment", Name: trial.Experiment}},
+		Filters: []kio.Filter{&filters.ResourceMetaFilter{Group: optimizev1beta2.GroupVersion.Group, Kind: "Experiment", Name: trial.Experiment}},
 		Outputs: []kio.Writer{kio.ByteWriter{Writer: &experimentBuf}},
 	}
 	if err := experimentInput.Execute(); err != nil {
@@ -222,7 +222,7 @@ func (o *Options) extractExperiment(trial *trialDetails) error {
 		return nil
 	}
 
-	o.experiment = &optimizev1beta1.Experiment{}
+	o.experiment = &optimizev1beta2.Experiment{}
 
 	return commander.NewResourceReader().ReadInto(ioutil.NopCloser(&experimentBuf), o.experiment)
 }
@@ -303,7 +303,7 @@ func (o *Options) runner(ctx context.Context) error {
 		return fmt.Errorf("unable to find an experiment %q", trialDetails.Experiment)
 	}
 
-	trial := &optimizev1beta1.Trial{}
+	trial := &optimizev1beta2.Trial{}
 	experiment.PopulateTrialFromTemplate(o.experiment, trial)
 	server.ToClusterTrial(trial, trialDetails.Assignments)
 
@@ -393,8 +393,8 @@ func (o *Options) generateExperiment(trial *trialDetails) error {
 
 		o.resources[assetName] = struct{}{}
 
-		if te, ok := list.Items[idx].Object.(*optimizev1beta1.Experiment); ok {
-			o.experiment = &optimizev1beta1.Experiment{}
+		if te, ok := list.Items[idx].Object.(*optimizev1beta2.Experiment); ok {
+			o.experiment = &optimizev1beta2.Experiment{}
 			te.DeepCopyInto(o.experiment)
 		}
 	}
@@ -473,7 +473,7 @@ func (o *Options) getTrialDetails(ctx context.Context) (*trialDetails, error) {
 }
 
 // createKustomizePatches translates a patchTemplate into a kustomize (json) patch
-func createKustomizePatches(patchSpec []optimizev1beta1.PatchTemplate, trial *optimizev1beta1.Trial) ([]types.Patch, error) {
+func createKustomizePatches(patchSpec []optimizev1beta2.PatchTemplate, trial *optimizev1beta2.Trial) ([]types.Patch, error) {
 	te := template.New()
 	patches := make([]types.Patch, len(patchSpec))
 
@@ -485,7 +485,7 @@ func createKustomizePatches(patchSpec []optimizev1beta1.PatchTemplate, trial *op
 
 		switch expPatch.Type {
 		// If json patch, we can consume the patch as is
-		case optimizev1beta1.PatchJSON:
+		case optimizev1beta2.PatchJSON:
 		// Otherwise we need to inject the type meta into the patch data
 		// because it says so
 		// https://github.com/kubernetes-sigs/kustomize/blob/master/examples/inlinePatch.md

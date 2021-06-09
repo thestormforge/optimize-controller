@@ -21,7 +21,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-controller/v2/internal/experiment"
 	"github.com/thestormforge/optimize-controller/v2/internal/server"
 	"github.com/thestormforge/optimize-controller/v2/internal/setup"
@@ -89,7 +89,7 @@ func (o *TrialOptions) generate() error {
 	}
 
 	// Read the experiment
-	exp := &optimizev1beta1.Experiment{}
+	exp := &optimizev1beta2.Experiment{}
 	rr := commander.NewResourceReader()
 	if err := rr.ReadInto(r, exp); err != nil {
 		return err
@@ -119,7 +119,7 @@ func (o *TrialOptions) generate() error {
 	}
 
 	// Build the trial
-	t := &optimizev1beta1.Trial{}
+	t := &optimizev1beta2.Trial{}
 	experiment.PopulateTrialFromTemplate(exp, t)
 	server.ToClusterTrial(t, &ta)
 
@@ -143,7 +143,7 @@ func (o *TrialOptions) generate() error {
 	return o.Printer.PrintObj(job, o.Out)
 }
 
-func newJob(t *optimizev1beta1.Trial, mode string, trialNumber int) (*batchv1.Job, error) {
+func newJob(t *optimizev1beta2.Trial, mode string, trialNumber int) (*batchv1.Job, error) {
 	// Make sure the trial has a name when generating the jobs or we produce invalid output
 	if t.Name == "" {
 		t.Name = fmt.Sprintf("%s%d", t.GenerateName, trialNumber)

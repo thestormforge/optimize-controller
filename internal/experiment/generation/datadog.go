@@ -20,7 +20,7 @@ import (
 	"net/url"
 
 	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
-	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 )
 
 type DatadogMetricsSource struct {
@@ -29,14 +29,14 @@ type DatadogMetricsSource struct {
 
 var _ MetricSource = &DatadogMetricsSource{}
 
-func (s *DatadogMetricsSource) Metrics() ([]optimizev1beta1.Metric, error) {
-	var result []optimizev1beta1.Metric
+func (s *DatadogMetricsSource) Metrics() ([]optimizev1beta2.Metric, error) {
+	var result []optimizev1beta2.Metric
 	if s.Goal == nil || s.Goal.Implemented {
 		return result, nil
 	}
 
 	m := newGoalMetric(s.Goal, s.Goal.Datadog.Query)
-	m.Type = optimizev1beta1.MetricDatadog
+	m.Type = optimizev1beta2.MetricDatadog
 	m.Minimize = !s.Goal.Datadog.Maximize
 	if s.Goal.Datadog.Aggregator != "" {
 		m.URL = "?" + url.Values{"aggregator": []string{s.Goal.Datadog.Aggregator}}.Encode()

@@ -20,7 +20,7 @@ import (
 	"fmt"
 
 	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
-	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-controller/v2/internal/sfio"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/kustomize/kyaml/kio"
@@ -37,7 +37,7 @@ var _ ExperimentSource = &LocustSource{} // Update trial job
 var _ MetricSource = &LocustSource{}     // Locust specific metrics
 var _ kio.Reader = &LocustSource{}       // ConfigMap for the locustfile.py
 
-func (s *LocustSource) Update(exp *optimizev1beta1.Experiment) error {
+func (s *LocustSource) Update(exp *optimizev1beta2.Experiment) error {
 	if s.Scenario == nil || s.Application == nil {
 		return nil
 	}
@@ -104,8 +104,8 @@ func (s *LocustSource) Read() ([]*yaml.RNode, error) {
 	return result.Read()
 }
 
-func (s *LocustSource) Metrics() ([]optimizev1beta1.Metric, error) {
-	var result []optimizev1beta1.Metric
+func (s *LocustSource) Metrics() ([]optimizev1beta2.Metric, error) {
+	var result []optimizev1beta2.Metric
 	if s.Objective == nil {
 		return result, nil
 	}

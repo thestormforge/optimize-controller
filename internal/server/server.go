@@ -24,7 +24,7 @@ import (
 	"strconv"
 	"strings"
 
-	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-controller/v2/internal/experiment"
 	"github.com/thestormforge/optimize-controller/v2/internal/trial"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
@@ -42,11 +42,11 @@ const (
 // TODO Split this into trial.go and experiment.go ?
 
 // FromCluster converts cluster state to API state
-func FromCluster(in *optimizev1beta1.Experiment) (experimentsv1alpha1.ExperimentName, *experimentsv1alpha1.Experiment, *experimentsv1alpha1.TrialAssignments, error) {
+func FromCluster(in *optimizev1beta2.Experiment) (experimentsv1alpha1.ExperimentName, *experimentsv1alpha1.Experiment, *experimentsv1alpha1.TrialAssignments, error) {
 	out := &experimentsv1alpha1.Experiment{}
 	out.ExperimentMeta.LastModified = in.CreationTimestamp.Time
-	out.ExperimentMeta.SelfURL = in.Annotations[optimizev1beta1.AnnotationExperimentURL]
-	out.ExperimentMeta.NextTrialURL = in.Annotations[optimizev1beta1.AnnotationNextTrialURL]
+	out.ExperimentMeta.SelfURL = in.Annotations[optimizev1beta2.AnnotationExperimentURL]
+	out.ExperimentMeta.NextTrialURL = in.Annotations[optimizev1beta2.AnnotationNextTrialURL]
 
 	baseline := &experimentsv1alpha1.TrialAssignments{Labels: map[string]string{"baseline": "true"}}
 
@@ -170,17 +170,17 @@ func FromCluster(in *optimizev1beta1.Experiment) (experimentsv1alpha1.Experiment
 }
 
 // ToCluster converts API state to cluster state
-func ToCluster(exp *optimizev1beta1.Experiment, ee *experimentsv1alpha1.Experiment) {
+func ToCluster(exp *optimizev1beta2.Experiment, ee *experimentsv1alpha1.Experiment) {
 	if exp.GetAnnotations() == nil {
 		exp.SetAnnotations(make(map[string]string))
 	}
 
-	exp.GetAnnotations()[optimizev1beta1.AnnotationExperimentURL] = ee.SelfURL
-	exp.GetAnnotations()[optimizev1beta1.AnnotationNextTrialURL] = ee.NextTrialURL
+	exp.GetAnnotations()[optimizev1beta2.AnnotationExperimentURL] = ee.SelfURL
+	exp.GetAnnotations()[optimizev1beta2.AnnotationNextTrialURL] = ee.NextTrialURL
 
 	exp.Spec.Optimization = nil
 	for i := range ee.Optimization {
-		exp.Spec.Optimization = append(exp.Spec.Optimization, optimizev1beta1.Optimization{
+		exp.Spec.Optimization = append(exp.Spec.Optimization, optimizev1beta2.Optimization{
 			Name:  ee.Optimization[i].Name,
 			Value: ee.Optimization[i].Value,
 		})
@@ -190,8 +190,8 @@ func ToCluster(exp *optimizev1beta1.Experiment, ee *experimentsv1alpha1.Experime
 }
 
 // ToClusterTrial converts API state to cluster state
-func ToClusterTrial(t *optimizev1beta1.Trial, suggestion *experimentsv1alpha1.TrialAssignments) {
-	t.GetAnnotations()[optimizev1beta1.AnnotationReportTrialURL] = suggestion.SelfURL
+func ToClusterTrial(t *optimizev1beta2.Trial, suggestion *experimentsv1alpha1.TrialAssignments) {
+	t.GetAnnotations()[optimizev1beta2.AnnotationReportTrialURL] = suggestion.SelfURL
 
 	// Try to make the cluster trial names match what is on the server
 	if t.Name == "" && t.GenerateName != "" && suggestion.SelfURL != "" {
@@ -221,7 +221,7 @@ func ToClusterTrial(t *optimizev1beta1.Trial, suggestion *experimentsv1alpha1.Tr
 			}
 		}
 
-		t.Spec.Assignments = append(t.Spec.Assignments, optimizev1beta1.Assignment{
+		t.Spec.Assignments = append(t.Spec.Assignments, optimizev1beta2.Assignment{
 			Name:  a.ParameterName,
 			Value: v,
 		})
@@ -246,7 +246,7 @@ func ToClusterTrial(t *optimizev1beta1.Trial, suggestion *experimentsv1alpha1.Tr
 }
 
 // FromClusterTrial converts cluster state to API state
-func FromClusterTrial(t *optimizev1beta1.Trial) *experimentsv1alpha1.TrialValues {
+func FromClusterTrial(t *optimizev1beta2.Trial) *experimentsv1alpha1.TrialValues {
 	out := &experimentsv1alpha1.TrialValues{}
 
 	// Set the trial timestamps
@@ -259,7 +259,7 @@ func FromClusterTrial(t *optimizev1beta1.Trial) *experimentsv1alpha1.TrialValues
 
 	// Check to see if the trial failed
 	for _, c := range t.Status.Conditions {
-		if c.Type == optimizev1beta1.TrialFailed && c.Status == corev1.ConditionTrue {
+		if c.Type == optimizev1beta2.TrialFailed && c.Status == corev1.ConditionTrue {
 			out.Failed = true
 			out.FailureReason = c.Reason
 			out.FailureMessage = c.Message
@@ -287,26 +287,26 @@ func FromClusterTrial(t *optimizev1beta1.Trial) *experimentsv1alpha1.TrialValues
 }
 
 // StopExperiment updates the experiment in the event that it should be paused or halted.
-func StopExperiment(exp *optimizev1beta1.Experiment, err error) bool {
+func StopExperiment(exp *optimizev1beta2.Experiment, err error) bool {
 	if rse, ok := err.(*experimentsv1alpha1.Error); ok && rse.Type == experimentsv1alpha1.ErrExperimentStopped {
 		exp.SetReplicas(0)
-		delete(exp.GetAnnotations(), optimizev1beta1.AnnotationNextTrialURL)
-		experiment.ApplyCondition(&exp.Status, optimizev1beta1.ExperimentComplete, corev1.ConditionTrue, "Stopped", err.Error(), nil)
+		delete(exp.GetAnnotations(), optimizev1beta2.AnnotationNextTrialURL)
+		experiment.ApplyCondition(&exp.Status, optimizev1beta2.ExperimentComplete, corev1.ConditionTrue, "Stopped", err.Error(), nil)
 		return true
 	}
 	return false
 }
 
 // FailExperiment records a recognized error as an experiment failure.
-func FailExperiment(exp *optimizev1beta1.Experiment, reason string, err error) bool {
+func FailExperiment(exp *optimizev1beta2.Experiment, reason string, err error) bool {
 	exp.SetReplicas(0)
-	experiment.ApplyCondition(&exp.Status, optimizev1beta1.ExperimentFailed, corev1.ConditionTrue, reason, err.Error(), nil)
+	experiment.ApplyCondition(&exp.Status, optimizev1beta2.ExperimentFailed, corev1.ConditionTrue, reason, err.Error(), nil)
 	return true
 }
 
 // IsServerSyncEnabled checks to see if server synchronization is enabled.
-func IsServerSyncEnabled(exp *optimizev1beta1.Experiment) bool {
-	switch strings.ToLower(exp.GetAnnotations()[optimizev1beta1.AnnotationServerSync]) {
+func IsServerSyncEnabled(exp *optimizev1beta2.Experiment) bool {
+	switch strings.ToLower(exp.GetAnnotations()[optimizev1beta2.AnnotationServerSync]) {
 	case "disabled", "false":
 		return false
 	default:
@@ -323,7 +323,7 @@ func IsServerSyncEnabled(exp *optimizev1beta1.Experiment) bool {
 // server experiments means it won't be available to the UI anymore. We also
 // would not want a `reset` (which deletes the CRD) to wipe out all the data on
 // the server.
-func DeleteServerExperiment(exp *optimizev1beta1.Experiment) bool {
+func DeleteServerExperiment(exp *optimizev1beta2.Experiment) bool {
 	// As a special case, check to see if synchronization is disabled. This would
 	// be the case if someone tried disabling server synchronization mid-run,
 	// presumably with the intent of not having the server experiment at the end.
@@ -331,7 +331,7 @@ func DeleteServerExperiment(exp *optimizev1beta1.Experiment) bool {
 		return true
 	}
 
-	switch strings.ToLower(exp.GetAnnotations()[optimizev1beta1.AnnotationServerSync]) {
+	switch strings.ToLower(exp.GetAnnotations()[optimizev1beta2.AnnotationServerSync]) {
 	case "delete-completed", "delete":
 		// Allow the server representation of the experiment to be deleted, for
 		// example to facilitate debugging or with initial experiment setup.

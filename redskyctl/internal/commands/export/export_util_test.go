@@ -24,14 +24,14 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thestormforge/konjure/pkg/konjure"
 	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
-	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"
 )
 
-func createTempExperimentFile(t *testing.T) (*optimizev1beta1.Experiment, []byte, *os.File) {
+func createTempExperimentFile(t *testing.T) (*optimizev1beta2.Experiment, []byte, *os.File) {
 	samplePatch := `spec:
    template:
      spec:
@@ -46,23 +46,23 @@ func createTempExperimentFile(t *testing.T) (*optimizev1beta1.Experiment, []byte
                memory: "{{ .Values.memory }}Mi"`
 
 	tm := &metav1.TypeMeta{}
-	tm.SetGroupVersionKind(optimizev1beta1.GroupVersion.WithKind("Experiment"))
-	sampleExperiment := &optimizev1beta1.Experiment{
+	tm.SetGroupVersionKind(optimizev1beta2.GroupVersion.WithKind("Experiment"))
+	sampleExperiment := &optimizev1beta2.Experiment{
 		TypeMeta: *tm,
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "sampleExperiment",
 			Namespace: "default",
 		},
-		Spec: optimizev1beta1.ExperimentSpec{
-			Parameters: []optimizev1beta1.Parameter{
+		Spec: optimizev1beta2.ExperimentSpec{
+			Parameters: []optimizev1beta2.Parameter{
 				{
 					Name: "myparam",
 					Min:  100,
 					Max:  1000,
 				},
 			},
-			Metrics: []optimizev1beta1.Metric{},
-			Patches: []optimizev1beta1.PatchTemplate{
+			Metrics: []optimizev1beta2.Metric{},
+			Patches: []optimizev1beta2.PatchTemplate{
 				{
 					TargetRef: &corev1.ObjectReference{
 						Kind:       "Deployment",
@@ -72,9 +72,9 @@ func createTempExperimentFile(t *testing.T) (*optimizev1beta1.Experiment, []byte
 					Patch: samplePatch,
 				},
 			},
-			TrialTemplate: optimizev1beta1.TrialTemplateSpec{},
+			TrialTemplate: optimizev1beta2.TrialTemplateSpec{},
 		},
-		Status: optimizev1beta1.ExperimentStatus{},
+		Status: optimizev1beta2.ExperimentStatus{},
 	}
 
 	tmpfile, err := ioutil.TempFile("", "experiment-*.yaml")

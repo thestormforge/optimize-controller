@@ -49,7 +49,7 @@ func NewCommand(o *Options) *cobra.Command {
 
 func (o *Options) reset(ctx context.Context) error {
 	// Delete the CRDs first to avoid issues with the controller being deleted before it can remove the finalizers
-	deleteCRD, err := o.Config.Kubectl(ctx, "delete", "--ignore-not-found", "crd", "trials.redskyops.dev", "experiments.redskyops.dev")
+	deleteCRD, err := o.Config.Kubectl(ctx, "delete", "--ignore-not-found", "crd", "trials.optimize.stormforge.io", "experiments.optimize.stormforge.io")
 	if err != nil {
 		return err
 	}

@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-controller/v2/internal/experiment"
 	"github.com/thestormforge/optimize-controller/v2/internal/template"
 	"github.com/thestormforge/optimize-controller/v2/redskyctl/internal/commander"
@@ -78,14 +78,14 @@ func (o *MetricQueryOptions) Debug() error {
 		return err
 	}
 
-	exp := &optimizev1beta1.Experiment{}
+	exp := &optimizev1beta2.Experiment{}
 	rr := commander.NewResourceReader()
 	if err := rr.ReadInto(r, exp); err != nil {
 		return err
 	}
 
 	// Create a new trial object
-	t := &optimizev1beta1.Trial{}
+	t := &optimizev1beta2.Trial{}
 	t.Name = o.TrialName
 
 	// Fill out information from the experiment
@@ -127,7 +127,7 @@ func (o *MetricQueryOptions) Debug() error {
 		}
 
 		// Not Prometheus, just add a comment to the header
-		if m.Type != optimizev1beta1.MetricPrometheus {
+		if m.Type != optimizev1beta2.MetricPrometheus {
 			pt.addQueryComment(m, q)
 			continue
 		}
@@ -142,7 +142,7 @@ func (o *MetricQueryOptions) Debug() error {
 	return pt.writeTo(o.YAMLWriter())
 }
 
-func (o *MetricQueryOptions) populateTrialTime(exp *optimizev1beta1.Experiment, t *optimizev1beta1.Trial) error {
+func (o *MetricQueryOptions) populateTrialTime(exp *optimizev1beta2.Experiment, t *optimizev1beta2.Trial) error {
 	startTime, err := parseTime(o.StartTime, time.Now())
 	if err != nil {
 		return err
@@ -232,7 +232,7 @@ func (p *promTest) addHeadComment(pattern string, args ...interface{}) {
 	p.document.YNode().HeadComment = prefix + fmt.Sprintf(pattern, args...) + "\n"
 }
 
-func (p *promTest) addTest(t *optimizev1beta1.Trial) error {
+func (p *promTest) addTest(t *optimizev1beta2.Trial) error {
 	seriesName := fmt.Sprintf(`up{job="prometheus-pushgateway", instance="optimize-%s-prometheus:9090"}`, t.Namespace)
 	seriesValues := fmt.Sprintf(`0+0x%d`, (t.Status.CompletionTime.Sub(t.Status.StartTime.Time)/(5*time.Second))+2)
 	return p.document.PipeE(
@@ -270,7 +270,7 @@ func (p *promTest) addTest(t *optimizev1beta1.Trial) error {
 	)
 }
 
-func (p *promTest) addPromqlExprTest(t *optimizev1beta1.Trial, m *optimizev1beta1.Metric, q string) error {
+func (p *promTest) addPromqlExprTest(t *optimizev1beta2.Trial, m *optimizev1beta2.Metric, q string) error {
 	return p.document.PipeE(
 		yaml.Lookup("tests", "[name="+t.Name+"]", "promql_expr_test"),
 		yaml.Append(&yaml.Node{
@@ -303,15 +303,15 @@ func (p *promTest) addPromqlExprTest(t *optimizev1beta1.Trial, m *optimizev1beta
 	)
 }
 
-func (p *promTest) addQueryComment(m *optimizev1beta1.Metric, q string) {
+func (p *promTest) addQueryComment(m *optimizev1beta2.Metric, q string) {
 	switch m.Type {
-	case optimizev1beta1.MetricJSONPath:
+	case optimizev1beta2.MetricJSONPath:
 		p.addHeadComment("%s: url=%s jsonpath=%s", m.Name, m.URL, q)
 	default:
 		p.addHeadComment("%s: %s", m.Name, q)
 	}
 }
 
-func (p *promTest) addErrorComment(m *optimizev1beta1.Metric, err error) {
+func (p *promTest) addErrorComment(m *optimizev1beta2.Metric, err error) {
 	p.addHeadComment("%s: Error: %s", m.Name, err.Error())
 }

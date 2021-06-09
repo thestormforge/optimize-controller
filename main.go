@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"os"
 
-	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-controller/v2/controllers"
 	"github.com/thestormforge/optimize-controller/v2/internal/version"
 	"github.com/thestormforge/optimize-go/pkg/config"
@@ -42,7 +42,7 @@ var (
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
-	_ = optimizev1beta1.AddToScheme(scheme)
+	_ = optimizev1beta2.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 

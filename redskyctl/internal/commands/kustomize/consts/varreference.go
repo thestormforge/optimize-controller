@@ -19,35 +19,35 @@ package consts
 const varReferenceFieldSpecs = `
 varReference:
 - path: spec/template/spec/template/spec/template/spec/containers/args
-  group: redskyops.dev
+  group: optimize.stormforge.io
   kind: Experiment
 
 - path: spec/template/spec/template/spec/template/spec/containers/command
-  group: redskyops.dev
+  group: optimize.stormforge.io
   kind: Experiment
 
 - path: spec/template/spec/template/spec/template/spec/containers/env/value
-  group: redskyops.dev
+  group: optimize.stormforge.io
   kind: Experiment
 
 - path: spec/template/spec/template/spec/template/spec/containers/volumeMounts/mountPath
-  group: redskyops.dev
+  group: optimize.stormforge.io
   kind: Experiment
 
 - path: spec/template/spec/template/spec/template/spec/initContainers/args
-  group: redskyops.dev
+  group: optimize.stormforge.io
   kind: Experiment
 
 - path: spec/template/spec/template/spec/template/spec/initContainers/command
-  group: redskyops.dev
+  group: optimize.stormforge.io
   kind: Experiment
 
 - path: spec/template/spec/template/spec/template/spec/initContainers/env/value
-  group: redskyops.dev
+  group: optimize.stormforge.io
   kind: Experiment
 
 - path: spec/template/spec/template/spec/template/spec/initContainers/volumeMounts/mountPath
-  group: redskyops.dev
+  group: optimize.stormforge.io
   kind: Experiment
 
 `

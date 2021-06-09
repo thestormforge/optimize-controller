@@ -20,32 +20,32 @@ const commonLabelFieldSpecs = `
 commonLabels:
 - path: spec/template/metadata/labels
   create: true
-  group: redskyops.dev
+  group: optimize.stormforge.io
   kind: Experiment
 
 - path: spec/selector/matchLabels
   create: false
-  group: redskyops.dev
+  group: optimize.stormforge.io
   kind: Experiment
 
 - path: spec/template/spec/template/metadata/labels
   create: true
-  group: redskyops.dev
+  group: optimize.stormforge.io
   kind: Experiment
 
 - path: spec/template/spec/template/selector/matchLabels
   create: false
-  group: redskyops.dev
+  group: optimize.stormforge.io
   kind: Experiment
 
 - path: spec/template/spec/template/spec/template/metadata/labels
   create: true
-  group: redskyops.dev
+  group: optimize.stormforge.io
   kind: Experiment
 
 - path: spec/template/spec/template/spec/template/selector/matchLabels
   create: false
-  group: redskyops.dev
+  group: optimize.stormforge.io
   kind: Experiment
 
 `

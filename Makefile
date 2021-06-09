@@ -65,8 +65,8 @@ deploy: manifests
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./api/v1beta1;./controllers/..." output:crd:artifacts:config=config/crd/bases
-	$(CONTROLLER_GEN) schemapatch:manifests=config/crd/bases,maxDescLen=0  paths="./api/v1beta1" output:dir=./config/crd/bases
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./api/v1beta2;./controllers/..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) schemapatch:manifests=config/crd/bases,maxDescLen=0  paths="./api/v1beta2" output:dir=./config/crd/bases
 	go generate ./redskyctl/internal/kustomize
 
 # Run go fmt against code

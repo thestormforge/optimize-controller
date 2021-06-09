@@ -24,7 +24,7 @@ import (
 	"path/filepath"
 
 	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
-	optimizev1beta1 "github.com/thestormforge/optimize-controller/v2/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -46,7 +46,7 @@ func NewResourceReader() *ResourceReader {
 	}
 
 	// Always add our types
-	_ = optimizev1beta1.AddToScheme(rr.Scheme)
+	_ = optimizev1beta2.AddToScheme(rr.Scheme)
 	_ = optimizeappsv1alpha1.AddToScheme(rr.Scheme)
 
 	// Allow single experiments to target an experiment list
@@ -156,8 +156,8 @@ func (onlyVersion) KindForGroupVersionKinds(kinds []schema.GroupVersionKind) (sc
 // when a command can handle a list but the user only supplies a single experiment.
 func addExperimentListConversions(s *runtime.Scheme) error {
 	// Convert from a single experiment to a list of experiments
-	if err := s.AddConversionFunc((*optimizev1beta1.Experiment)(nil), (*optimizev1beta1.ExperimentList)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		b.(*optimizev1beta1.ExperimentList).Items = []optimizev1beta1.Experiment{*a.(*optimizev1beta1.Experiment)}
+	if err := s.AddConversionFunc((*optimizev1beta2.Experiment)(nil), (*optimizev1beta2.ExperimentList)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		b.(*optimizev1beta2.ExperimentList).Items = []optimizev1beta2.Experiment{*a.(*optimizev1beta2.Experiment)}
 		return nil
 	}); err != nil {
 		return err
