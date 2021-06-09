@@ -1,7 +1,7 @@
 
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
-REDSKYCTL_IMG ?= redskyctl:latest
+CLI_IMG ?= cli:latest
 SETUPTOOLS_IMG ?= setuptools:latest
 PULL_POLICY ?= Never
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
@@ -25,7 +25,7 @@ LDFLAGS += -X github.com/thestormforge/optimize-controller/v2/internal/version.B
 LDFLAGS += -X github.com/thestormforge/optimize-controller/v2/internal/version.GitCommit=${GIT_COMMIT}
 LDFLAGS += -X github.com/thestormforge/optimize-controller/v2/internal/setup.Image=${SETUPTOOLS_IMG}
 LDFLAGS += -X github.com/thestormforge/optimize-controller/v2/internal/setup.ImagePullPolicy=${PULL_POLICY}
-LDFLAGS += -X github.com/thestormforge/optimize-controller/v2/redskyctl/internal/kustomize.BuildImage=${IMG}
+LDFLAGS += -X github.com/thestormforge/optimize-controller/v2/cli/internal/kustomize.BuildImage=${IMG}
 
 all: manager tool
 
@@ -42,7 +42,7 @@ tool: manifests
 	BUILD_METADATA=${BUILD_METADATA} \
 	SETUPTOOLS_IMG=${SETUPTOOLS_IMG} \
 	PULL_POLICY=${PULL_POLICY} \
-	REDSKYCTL_IMG=${REDSKYCTL_IMG} \
+	CLI_IMG=${CLI_IMG} \
 	IMG=${IMG} \
 	goreleaser release --snapshot --skip-sign --rm-dist
 
@@ -67,7 +67,7 @@ deploy: manifests
 manifests: controller-gen
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./api/v1beta2;./controllers/..." output:crd:artifacts:config=config/crd/bases
 	$(CONTROLLER_GEN) schemapatch:manifests=config/crd/bases,maxDescLen=0  paths="./api/v1beta2" output:dir=./config/crd/bases
-	go generate ./redskyctl/internal/kustomize
+	go generate ./cli/internal/kustomize
 
 # Run go fmt against code
 fmt:
@@ -103,7 +103,7 @@ docker-build-setuptools:
 docker-push:
 	docker push ${IMG}
 	docker push ${SETUPTOOLS_IMG}
-	docker push ${REDSKYCTL_IMG}
+	docker push ${CLI_IMG}
 
 # find or download controller-gen
 # download controller-gen if necessary
