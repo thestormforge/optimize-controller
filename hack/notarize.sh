@@ -10,7 +10,7 @@ OUTPUT="${2:?missing output argument}"
 
 # This script MUST produce an output file or fail.
 case "$(basename "$FILE")" in
-  "redskyctl-darwin-amd64.tar.gz")
+  "stormforge-darwin-amd64.tar.gz")
     # If there are no credentials, just produce an empty file (otherwise fall through)
     if [ -z "${AC_USERNAME:-}" ] || [ -z "${AC_PASSWORD:-}" ] ; then
       echo "Not empty" > "${OUTPUT}"

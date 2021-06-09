@@ -77,7 +77,7 @@ jobs:
             echo "IMAGE_TAG=edge" >> $GITHUB_ENV
           fi
           echo "IMG=${DOCKER_REGISTRY}/optimize-controller:${DOCKER_TAG}" >> $GITHUB_ENV
-          echo "REDSKYCTL_IMG=${DOCKER_REGISTRY}/redskyctl:${DOCKER_TAG}" >> $GITHUB_ENV
+          echo "CLI_IMG=${DOCKER_REGISTRY}/optimize-cli:${DOCKER_TAG}" >> $GITHUB_ENV
           echo "SETUPTOOLS_IMG=${DOCKER_REGISTRY}/setuptools:${DOCKER_TAG}" >> $GITHUB_ENV
           echo "PULL_POLICY=" >> $GITHUB_ENV
       - name: Build controller
@@ -100,20 +100,20 @@ jobs:
             docker push "$2"
           }
           docker-push "${IMG}" "${IMG%%:*}:${IMAGE_TAG}"
-          docker-push "${REDSKYCTL_IMG}" "${REDSKYCTL_IMG%%:*}:${IMAGE_TAG}"
+          docker-push "${CLI_IMG}" "${CLI_IMG%%:*}:${IMAGE_TAG}"
           docker-push "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:${IMAGE_TAG}"
           if [ "${IMG#ghcr.io/}" = "${IMG}" ]; then
             docker-push "${IMG}" "ghcr.io/${IMG}"
-            docker-push "${REDSKYCTL_IMG}" "ghcr.io/${REDSKYCTL_IMG}"
+            docker-push "${CLI_IMG}" "ghcr.io/${CLI_IMG}"
             docker-push "${SETUPTOOLS_IMG}" "ghcr.io/${SETUPTOOLS_IMG}"
           fi
       - name: Upload macOS binary
         uses: actions/upload-artifact@v1
         with:
-          name: redskyctl_darwin_amd64
-          path: dist/redskyctl-darwin-amd64.tar.gz
+          name: stormforge_darwin_amd64
+          path: dist/stormforge-darwin-amd64.tar.gz
       - name: Upload Linux binary
         uses: actions/upload-artifact@v1
         with:
-          name: redskyctl_linux_amd64
-          path: dist/redskyctl-linux-amd64.tar.gz
+          name: stormforge_linux_amd64
+          path: dist/stormforge-linux-amd64.tar.gz

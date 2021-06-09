@@ -41,10 +41,10 @@ export PROJECT_ID=<GCP project ID where your cluster is running>
 export TAG=<something unique>
 export IMG=us.gcr.io/$PROJECT_ID/optimize-controller:$TAG
 export SETUPTOOLS_IMG=us.gcr.io/$PROJECT_ID/setuptools:$TAG
-export REDSKYCTL_IMG=us.gcr.io/$PROJECT_ID/redskyctl:$TAG
+export CLI_IMG=us.gcr.io/$PROJECT_ID/optimize-cli:$TAG
 make docker-build
 make docker-push
 make deploy
 ```
 
-You can also use `make tool` and `bin/redskyctl-$GOOS-$GOARCH init` in place of `make deploy` to use the actual versioned manifests used by the product.
+You can also use `make tool` and `bin/stormforge-$GOOS-$GOARCH init` in place of `make deploy` to use the actual versioned manifests used by the product.

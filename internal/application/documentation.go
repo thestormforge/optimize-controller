@@ -159,7 +159,7 @@ func (f *DocumentationFilter) annotateApplication(app *yaml.RNode) error {
 	n := app.YNode()
 
 	// Reminder about how the file was generated
-	if len(os.Args) >= 3 && filepath.Base(os.Args[0]) == "redskyctl" {
+	if len(os.Args) >= 3 && filepath.Base(os.Args[0]) == "stormforge" {
 		n.HeadComment = strings.Join(os.Args, " ")
 	}
 

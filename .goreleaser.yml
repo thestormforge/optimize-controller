@@ -1,9 +1,9 @@
-project_name: redskyctl
+project_name: stormforge
 before:
   hooks:
     - go mod tidy
 builds:
-  - dir: redskyctl
+  - dir: cli
     env:
       - CGO_ENABLED=0
     goarch:
@@ -15,7 +15,7 @@ builds:
       - '-X github.com/thestormforge/optimize-controller/v2/internal/version.BuildMetadata={{ .Env.BUILD_METADATA }}'
       - '-X github.com/thestormforge/optimize-controller/v2/internal/setup.Image={{ .Env.SETUPTOOLS_IMG }}'
       - '-X github.com/thestormforge/optimize-controller/v2/internal/setup.ImagePullPolicy={{ .Env.PULL_POLICY }}'
-      - '-X github.com/thestormforge/optimize-controller/v2/redskyctl/internal/kustomize.BuildImage={{ .Env.IMG }}'
+      - '-X github.com/thestormforge/optimize-controller/v2/cli/internal/kustomize.BuildImage={{ .Env.IMG }}'
     hooks:
       post:
         - hack/codesign.sh "{{ .Path }}"
@@ -31,10 +31,10 @@ archives:
       - none*
 dockers:
   - image_templates:
-      - '{{ .Env.REDSKYCTL_IMG }}'
+      - '{{ .Env.CLI_IMG }}'
     build_flag_templates:
       - "--label=org.opencontainers.image.source={{.GitURL}}"
-    dockerfile: redskyctl/Dockerfile
+    dockerfile: cli/Dockerfile
 brews:
   - tap:
       owner: thestormforge
