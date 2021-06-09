@@ -208,7 +208,7 @@ func (l *linter) Visit(ctx context.Context, obj interface{}) experiment.Visitor 
 		if u, err := url.Parse(o.URL); err != nil {
 			lint.V(vError).Info("Metric has invalid URL")
 		} else if u.Hostname() == "redskyops.dev" {
-			lint.V(vWarn).Info("Metric requires manual conversion to latest version for URL")
+			lint.V(vError).Info("Metric requires manual conversion to latest version for URL")
 		}
 
 	case *optimizev1beta2.PatchTemplate:
