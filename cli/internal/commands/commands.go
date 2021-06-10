@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -38,7 +37,6 @@ import (
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/generate"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/grant_permissions"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/initialize"
-	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/kustomize"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/login"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/ping"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/reset"
@@ -88,7 +86,6 @@ func NewRootCommand() *cobra.Command {
 	rootCmd.AddCommand(configure.NewCommand(&configure.Options{Config: cfg}))
 	rootCmd.AddCommand(check.NewCommand(&check.Options{Config: cfg}))
 	rootCmd.AddCommand(completion.NewCommand(&completion.Options{}))
-	rootCmd.AddCommand(kustomize.NewCommand())
 	rootCmd.AddCommand(version.NewCommand(&version.Options{Config: cfg}))
 	rootCmd.AddCommand(docs.NewCommand(&docs.Options{}))
 	rootCmd.AddCommand(debug.NewCommand(&debug.Options{Config: cfg}))
@@ -98,17 +95,6 @@ func NewRootCommand() *cobra.Command {
 	// TODO Add a "trial cleanup" command to run setup tasks (perhaps remove labels from standard setupJob)
 	// TODO Some kind of debug tool to evaluate metric queries
 	// TODO The "get" functionality needs to support templating so you can extract assignments for downstream use
-
-	// This allows `stormforge generate` to be run via a symlink from the Kustomize plugin directory
-	if len(os.Args) == 2 {
-		if c, _, err := rootCmd.Find([]string{"generate", filepath.Base(os.Args[0])}); err == nil {
-			if use := c.Annotations["KustomizePluginKind"]; use != "" {
-				c.Parent().RemoveCommand(c)
-				c.Use = use
-				return c
-			}
-		}
-	}
 
 	commander.MapErrors(rootCmd, mapError)
 	return rootCmd
