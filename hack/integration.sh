@@ -25,11 +25,11 @@ stats() {
 
 generateAndWait() {
   echo "Create ci experiment"
-  ${CLI_BIN} generate experiment -f ${1} | \
+  ${CLI_BIN} generate experiment -f "${1}" | \
     kubectl apply -f -
 
   echo "Create new trial"
-  ${CLI_BIN} generate experiment -f ${1} | \
+  ${CLI_BIN} generate experiment -f "${1}" | \
   ${CLI_BIN} generate trial \
     --default base \
     -f - | \
@@ -55,7 +55,7 @@ generateAndWait() {
     --timeout ${waitTime}
 
   echo "Remove default experiment"
-  ${CLI_BIN} generate experiment -f ${1} | \
+  ${CLI_BIN} generate experiment -f "${1}" | \
     kubectl delete -f -
 }
 

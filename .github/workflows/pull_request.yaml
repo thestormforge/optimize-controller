@@ -30,7 +30,6 @@ jobs:
             ${{ runner.os }}-gotestcache-
       - name: Run tests
         run: |
-          hack/install_kustomize.sh
           make test
   build:
     name: Build and Deploy
@@ -78,7 +77,6 @@ jobs:
           echo "PULL_POLICY=" >> $GITHUB_ENV
       - name: Build controller
         run: |
-          hack/install_kustomize.sh
           make docker-build-ci
       - name: Build tool
         uses: goreleaser/goreleaser-action@v2
