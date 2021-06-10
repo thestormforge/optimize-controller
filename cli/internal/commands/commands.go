@@ -93,7 +93,6 @@ func NewRootCommand() *cobra.Command {
 	// TODO Add 'backup' and 'restore' maintenance commands ('maint' subcommands?)
 	// TODO We need helpers for doing a "dry run" on patches to make configuration easier
 	// TODO Add a "trial cleanup" command to run setup tasks (perhaps remove labels from standard setupJob)
-	// TODO Some kind of debug tool to evaluate metric queries
 	// TODO The "get" functionality needs to support templating so you can extract assignments for downstream use
 
 	commander.MapErrors(rootCmd, mapError)
