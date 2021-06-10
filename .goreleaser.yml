@@ -33,6 +33,10 @@ dockers:
   - image_templates:
       - '{{ .Env.CLI_IMG }}'
     build_flag_templates:
+      - "--label=org.opencontainers.image.authors=techsuport@stormforge.io"
+      - "--label=org.opencontainers.image.vendor=StormForge"
+      - "--label=org.opencontainers.image.version=v{{.Version}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.source={{.GitURL}}"
     dockerfile: cli/Dockerfile
 brews:

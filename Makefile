@@ -1,4 +1,11 @@
 
+# Project metadata
+TITLE := Optimize Controller
+VENDOR := StormForge
+EMAIL := techsuport@stormforge.io
+DESCRIPTION := Kubernetes Performance Testing and resource optimization for \
+               flawless app performance and cloud efficiency without manual tuning.
+
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
 CLI_IMG ?= cli:latest
@@ -18,6 +25,7 @@ endif
 VERSION ?= $(shell git ls-remote --tags --refs origin 'v*' | awk -F/ '{ print $$3 }' | sort -V | tail -1)-next
 BUILD_METADATA ?=
 GIT_COMMIT ?= $(shell git rev-parse HEAD)
+GIT_URL ?= $(shell git remote get-url origin)
 
 # Define linker flags
 LDFLAGS += -X github.com/thestormforge/optimize-controller/v2/internal/version.Version=${VERSION}
@@ -89,11 +97,21 @@ docker-build: test build docker-build-controller docker-build-setuptools
 
 docker-build-controller:
 	docker build . -t ${IMG} \
-		--label "org.opencontainers.image.source=$(shell git remote get-url origin)"
+		--label "org.opencontainers.image.title=${TITLE}" \
+		--label "org.opencontainers.image.description=${DESCRIPTION}" \
+		--label "org.opencontainers.image.authors=${EMAIL}" \
+		--label "org.opencontainers.image.vendor=${VENDOR}" \
+		--label "org.opencontainers.image.version=${VERSION}" \
+		--label "org.opencontainers.image.revision=${GIT_COMMIT}" \
+		--label "org.opencontainers.image.source=${GIT_URL}"
 
 docker-build-setuptools:
 	docker build config -t ${SETUPTOOLS_IMG} \
-		--label "org.opencontainers.image.source=$(shell git remote get-url origin)"
+		--label "org.opencontainers.image.authors=${EMAIL}" \
+		--label "org.opencontainers.image.vendor=${VENDOR}" \
+		--label "org.opencontainers.image.version=${VERSION}" \
+		--label "org.opencontainers.image.revision=${GIT_COMMIT}" \
+		--label "org.opencontainers.image.source=${GIT_URL}"
 
 # Push the docker images
 docker-push:
