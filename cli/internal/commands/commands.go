@@ -42,7 +42,6 @@ import (
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/login"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/ping"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/reset"
-	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/results"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/revoke"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/run"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/version"
@@ -81,7 +80,6 @@ func NewRootCommand() *cobra.Command {
 	rootCmd.AddCommand(experiments.NewGetCommand(&experiments.GetOptions{Options: experiments.Options{Config: cfg}, ChunkSize: 500}))
 	rootCmd.AddCommand(experiments.NewLabelCommand(&experiments.LabelOptions{Options: experiments.Options{Config: cfg}}))
 	rootCmd.AddCommand(experiments.NewSuggestCommand(&experiments.SuggestOptions{Options: experiments.Options{Config: cfg}}))
-	rootCmd.AddCommand(results.NewCommand(&results.Options{Config: cfg}))
 
 	// Administrative Commands
 	rootCmd.AddCommand(login.NewCommand(&login.Options{Config: cfg}))
