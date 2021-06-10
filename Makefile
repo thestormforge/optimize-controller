@@ -14,10 +14,17 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
-# Collect version information
+# Collect metadata
+VENDOR ?= StormForge
+TITLE ?= Optimize Controller
+EMAIL ?= techsuport@stormforge.io
 VERSION ?= $(shell git ls-remote --tags --refs origin 'v*' | awk -F/ '{ print $$3 }' | sort -V | tail -1)-next
+REDHAT_CONNECT_RELEASE ?= 1
 BUILD_METADATA ?=
 GIT_COMMIT ?= $(shell git rev-parse HEAD)
+SOURCE_URL ?= $(shell git remote get-url origin)
+SUMMARY := StormForge Optimize Controller
+DESCRIPTION := Kubernetes Performance Testing and resource optimization for flawless app performance and cloud efficiency without manual tuning.
 
 # Define linker flags
 LDFLAGS += -X github.com/thestormforge/optimize-controller/internal/version.Version=${VERSION}
@@ -83,23 +90,38 @@ generate: controller-gen conversion-gen
 	$(CONVERSION_GEN) --go-header-file "./hack/boilerplate.go.txt" --input-dirs "./api/v1alpha1" \
 		--output-base "." --output-file-base="zz_generated.conversion" --skip-unsafe=true
 
+# Build on host so we can make use of the cache
 build: manifests
-	# Build on host so we can make use of the cache
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -ldflags "${LDFLAGS}" -a -o manager main.go
 
 # Build the docker images
-docker-build: test docker-build-ci
-
-# Build the docker images
-docker-build-ci: build docker-build-controller docker-build-setuptools
+docker-build: test build docker-build-controller docker-build-controller-redhat docker-build-setuptools
 
 docker-build-controller:
 	docker build . -t ${IMG} \
-		--label "org.opencontainers.image.source=$(shell git remote get-url origin)"
+		--label "org.opencontainers.image.source=${SOURCE_URL}" \
+		--label "org.opencontainers.image.title=${TITLE}" \
+		--label "org.opencontainers.image.authors=${EMAIL}" \
+		--label "org.opencontainers.image.vendor=${VENDOR}" \
+		--label "org.opencontainers.image.version=${VERSION}" \
+		--label "org.opencontainers.image.revision=${GIT_COMMIT}" \
+		--label "org.opencontainers.image.description=${DESCRIPTION}" \
+
+docker-build-controller-redhat:
+	docker build . -t ${IMG}-ubi8 \
+		--build-arg BASE_IMAGE=registry.access.redhat.com/ubi8-minimal \
+		--label "org.opencontainers.image.source=${SOURCE_URL}" \
+		--label "name=${TITLE}" \
+		--label "maintainer=${EMAIL}" \
+		--label "vendor=${VENDOR}" \
+		--label "version=${VERSION}" \
+		--label "release=${REDHAT_CONNECT_RELEASE}" \
+		--label "summary=${SUMMARY}" \
+		--label "description=${DESCRIPTION}"
 
 docker-build-setuptools:
 	docker build config -t ${SETUPTOOLS_IMG} \
-		--label "org.opencontainers.image.source=$(shell git remote get-url origin)"
+		--label "org.opencontainers.image.source=${SOURCE_URL}"
 
 # Push the docker images
 docker-push:

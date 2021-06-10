@@ -1,8 +1,10 @@
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
-FROM gcr.io/distroless/static:nonroot
+ARG BASE_IMAGE=gcr.io/distroless/static:nonroot
+FROM ${BASE_IMAGE} AS base
 WORKDIR /
-COPY ./manager .
-USER nonroot:nonroot
+COPY ./manager /usr/local/bin/
+COPY ./LICENSE /licenses/
+USER nobody:nobody
 
-ENTRYPOINT ["/manager"]
+ENTRYPOINT ["manager"]

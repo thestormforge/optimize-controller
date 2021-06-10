@@ -71,18 +71,20 @@ jobs:
             echo "VERSION=v${DOCKER_TAG}" >> $GITHUB_ENV
             echo "AC_USERNAME=${{ secrets.AC_USERNAME }}" >> $GITHUB_ENV
             echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+            echo "${{ secrets.REDHATCONNECT_KEY }}" | docker login "scan.connect.redhat.com" -u "unused" --password-stdin
           else
             DOCKER_REGISTRY="ghcr.io/thestormforge"
             DOCKER_TAG="sha-$(git rev-parse --short HEAD)"
             echo "IMAGE_TAG=edge" >> $GITHUB_ENV
           fi
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login "ghcr.io" -u "${{ github.actor }}" --password-stdin
           echo "IMG=${DOCKER_REGISTRY}/optimize-controller:${DOCKER_TAG}" >> $GITHUB_ENV
           echo "REDSKYCTL_IMG=${DOCKER_REGISTRY}/redskyctl:${DOCKER_TAG}" >> $GITHUB_ENV
           echo "SETUPTOOLS_IMG=${DOCKER_REGISTRY}/setuptools:${DOCKER_TAG}" >> $GITHUB_ENV
           echo "PULL_POLICY=" >> $GITHUB_ENV
       - name: Build controller
         run: |
-          make docker-build-ci
+          make -o test docker-build
       - name: Build tool
         uses: goreleaser/goreleaser-action@v2
         with:
@@ -93,7 +95,6 @@ jobs:
           AC_IDENTITY_P12: ${{ secrets.AC_IDENTITY_P12 }}
       - name: Push Docker images
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login "ghcr.io" -u "${{ github.actor }}" --password-stdin
           make docker-push
           docker-push() {
             docker tag "$1" "$2"
@@ -106,6 +107,7 @@ jobs:
             docker-push "${IMG}" "ghcr.io/${IMG}"
             docker-push "${REDSKYCTL_IMG}" "ghcr.io/${REDSKYCTL_IMG}"
             docker-push "${SETUPTOOLS_IMG}" "ghcr.io/${SETUPTOOLS_IMG}"
+            docker-push "${IMG}-ubi8" "scan.connect.redhat.com/${IMG%%:*}-ubi8:${IMG##*:}-1"
           fi
       - name: Upload macOS binary
         uses: actions/upload-artifact@v1
