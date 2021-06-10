@@ -85,10 +85,7 @@ build: manifests
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -ldflags "${LDFLAGS}" -a -o manager main.go
 
 # Build the docker images
-docker-build: test docker-build-ci
-
-# Build the docker images
-docker-build-ci: build docker-build-controller docker-build-setuptools
+docker-build: test build docker-build-controller docker-build-setuptools
 
 docker-build-controller:
 	docker build . -t ${IMG} \

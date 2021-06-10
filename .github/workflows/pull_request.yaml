@@ -77,7 +77,7 @@ jobs:
           echo "PULL_POLICY=" >> $GITHUB_ENV
       - name: Build controller
         run: |
-          make docker-build-ci
+          make -o test docker-build
       - name: Build tool
         uses: goreleaser/goreleaser-action@v2
         with:
