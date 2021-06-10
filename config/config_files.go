@@ -21,6 +21,5 @@ import "embed"
 //go:embed crd
 //go:embed default
 //go:embed manager
-//go:embed prometheus
 //go:embed rbac
 var Content embed.FS
