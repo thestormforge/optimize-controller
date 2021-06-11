@@ -101,6 +101,11 @@ jobs:
         with:
           name: stormforge_darwin_amd64
           path: dist/stormforge-darwin-amd64.tar.gz
+      - name: Upload macOS ARM binary
+        uses: actions/upload-artifact@v2
+        with:
+          name: stormforge_darwin_arm64
+          path: dist/stormforge-darwin-arm64.tar.gz
       - name: Upload Linux binary
         uses: actions/upload-artifact@v2
         with:

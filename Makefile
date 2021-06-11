@@ -27,7 +27,7 @@ LDFLAGS += -X github.com/thestormforge/optimize-controller/v2/internal/setup.Ima
 LDFLAGS += -X github.com/thestormforge/optimize-controller/v2/internal/setup.ImagePullPolicy=${PULL_POLICY}
 LDFLAGS += -X github.com/thestormforge/optimize-controller/v2/cli/internal/kustomize.BuildImage=${IMG}
 
-all: manager tool
+all: manager cli
 
 # Run tests
 test: generate manifests fmt vet
@@ -37,14 +37,14 @@ test: generate manifests fmt vet
 manager: generate fmt vet
 	go build -ldflags '$(LDFLAGS)' -o bin/manager main.go
 
-# Build tool binary using GoReleaser in a local dev environment (in CI we just invoke GoReleaser directly)
-tool: manifests
+# Build the CLI binary using GoReleaser in a local dev environment (in CI we just invoke GoReleaser directly)
+cli: manifests
 	BUILD_METADATA=${BUILD_METADATA} \
 	SETUPTOOLS_IMG=${SETUPTOOLS_IMG} \
 	PULL_POLICY=${PULL_POLICY} \
 	CLI_IMG=${CLI_IMG} \
 	IMG=${IMG} \
-	goreleaser release --snapshot --skip-sign --rm-dist
+	goreleaser build --snapshot --rm-dist
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate manifests fmt vet

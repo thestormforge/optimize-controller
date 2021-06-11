@@ -108,12 +108,17 @@ jobs:
             docker-push "${SETUPTOOLS_IMG}" "ghcr.io/${SETUPTOOLS_IMG}"
           fi
       - name: Upload macOS binary
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v2
         with:
           name: stormforge_darwin_amd64
           path: dist/stormforge-darwin-amd64.tar.gz
+      - name: Upload macOS ARM binary
+        uses: actions/upload-artifact@v2
+        with:
+          name: stormforge_darwin_arm64
+          path: dist/stormforge-darwin-arm64.tar.gz
       - name: Upload Linux binary
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v2
         with:
           name: stormforge_linux_amd64
           path: dist/stormforge-linux-amd64.tar.gz
