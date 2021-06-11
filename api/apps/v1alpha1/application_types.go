@@ -265,7 +265,7 @@ type PrometheusGoal struct {
 	// The PromQL query to execute; the result of this query MUST be a scalar value.
 	Query string `json:"query"`
 	// The URL of the Prometheus deployment, leave blank to leverage a Prometheus instance
-	// whose lifecycle it tied to the trial.
+	// whose lifecycle is tied to the trial.
 	URL string `json:"url,omitempty"`
 	// Flag indicating the goal of optimization should be to maximize a metric.
 	Maximize bool `json:"maximize,omitempty"`
