@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -38,11 +37,9 @@ import (
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/generate"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/grant_permissions"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/initialize"
-	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/kustomize"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/login"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/ping"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/reset"
-	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/results"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/revoke"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/run"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/version"
@@ -81,7 +78,6 @@ func NewRootCommand() *cobra.Command {
 	rootCmd.AddCommand(experiments.NewGetCommand(&experiments.GetOptions{Options: experiments.Options{Config: cfg}, ChunkSize: 500}))
 	rootCmd.AddCommand(experiments.NewLabelCommand(&experiments.LabelOptions{Options: experiments.Options{Config: cfg}}))
 	rootCmd.AddCommand(experiments.NewSuggestCommand(&experiments.SuggestOptions{Options: experiments.Options{Config: cfg}}))
-	rootCmd.AddCommand(results.NewCommand(&results.Options{Config: cfg}))
 
 	// Administrative Commands
 	rootCmd.AddCommand(login.NewCommand(&login.Options{Config: cfg}))
@@ -90,7 +86,6 @@ func NewRootCommand() *cobra.Command {
 	rootCmd.AddCommand(configure.NewCommand(&configure.Options{Config: cfg}))
 	rootCmd.AddCommand(check.NewCommand(&check.Options{Config: cfg}))
 	rootCmd.AddCommand(completion.NewCommand(&completion.Options{}))
-	rootCmd.AddCommand(kustomize.NewCommand())
 	rootCmd.AddCommand(version.NewCommand(&version.Options{Config: cfg}))
 	rootCmd.AddCommand(docs.NewCommand(&docs.Options{}))
 	rootCmd.AddCommand(debug.NewCommand(&debug.Options{Config: cfg}))
@@ -98,19 +93,7 @@ func NewRootCommand() *cobra.Command {
 	// TODO Add 'backup' and 'restore' maintenance commands ('maint' subcommands?)
 	// TODO We need helpers for doing a "dry run" on patches to make configuration easier
 	// TODO Add a "trial cleanup" command to run setup tasks (perhaps remove labels from standard setupJob)
-	// TODO Some kind of debug tool to evaluate metric queries
 	// TODO The "get" functionality needs to support templating so you can extract assignments for downstream use
-
-	// This allows `stormforge generate` to be run via a symlink from the Kustomize plugin directory
-	if len(os.Args) == 2 {
-		if c, _, err := rootCmd.Find([]string{"generate", filepath.Base(os.Args[0])}); err == nil {
-			if use := c.Annotations["KustomizePluginKind"]; use != "" {
-				c.Parent().RemoveCommand(c)
-				c.Use = use
-				return c
-			}
-		}
-	}
 
 	commander.MapErrors(rootCmd, mapError)
 	return rootCmd

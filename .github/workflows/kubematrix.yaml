@@ -28,9 +28,6 @@ jobs:
         with:
           version: v0.11.1
           node_image: kindest/node:${{ matrix.node }}
-      - name: Install Kustomize
-        run: |
-          hack/install_kustomize.sh
       - name: Wait for build to succeed
         uses: fountainhead/action-wait-for-check@v1.0.0
         id: wait-for-build
@@ -60,7 +57,7 @@ jobs:
         run: |
           tar -zxf dist/stormforge_linux_amd64/stormforge-linux-amd64.tar.gz \
               -C dist/stormforge_linux_amd64
-      - name: Quick Start
+      - name: Run integration tests
         run: |
           hack/integration.sh
       - name: The job has failed

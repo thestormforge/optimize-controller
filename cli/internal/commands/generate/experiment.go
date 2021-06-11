@@ -54,15 +54,7 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 		Short:   "Generate an experiment",
 		Long:    "Generate an experiment from an application descriptor",
 
-		Annotations: map[string]string{
-			"KustomizePluginKind": "Application",
-		},
-
 		PreRun: func(cmd *cobra.Command, args []string) {
-			// Handle the case when we are invoked as a Kustomize exec plugin
-			if cmd.CalledAs() == cmd.Annotations["KustomizePluginKind"] && len(args) == 1 {
-				o.Filename = args[0]
-			}
 			commander.SetStreams(&o.IOStreams, cmd)
 			o.Generator.DefaultReader = cmd.InOrStdin()
 		},
