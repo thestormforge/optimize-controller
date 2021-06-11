@@ -2,7 +2,7 @@
 # Project metadata
 TITLE := Optimize Controller
 VENDOR := StormForge
-EMAIL := techsuport@stormforge.io
+EMAIL := techsupport@stormforge.io
 DESCRIPTION := Kubernetes Performance Testing and resource optimization for \
                flawless app performance and cloud efficiency without manual tuning.
 
