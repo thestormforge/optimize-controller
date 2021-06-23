@@ -61,7 +61,7 @@ func CheckDefinition(exp *optimizev1beta2.Experiment, ee *experimentsv1alpha1.Ex
 
 // CheckConstraints ensures the supplied baseline assignments are valid for a set
 // of constraints.
-func CheckConstraints(constraints []redskyapi.Constraint, baselines []redskyapi.Assignment) error {
+func CheckConstraints(constraints []experimentsv1alpha1.Constraint, baselines []experimentsv1alpha1.Assignment) error {
 	// Nothing to check
 	if len(constraints) == 0 || len(baselines) == 0 {
 		return nil
@@ -91,7 +91,7 @@ func CheckConstraints(constraints []redskyapi.Constraint, baselines []redskyapi.
 	// Make sure all constraints pass
 	for _, c := range constraints {
 		switch c.ConstraintType {
-		case redskyapi.ConstraintOrder:
+		case experimentsv1alpha1.ConstraintOrder:
 			lower, err := getValue(c.Name, c.OrderConstraint.LowerParameter)
 			if err != nil {
 				return err
@@ -106,21 +106,18 @@ func CheckConstraints(constraints []redskyapi.Constraint, baselines []redskyapi.
 				return fmt.Errorf("baseline does not satisfy constraint %q", c.Name)
 			}
 
-		case redskyapi.ConstraintSum:
-			bound := c.SumConstraint.Bound
+		case experimentsv1alpha1.ConstraintSum:
+			var sum float64
 			for _, p := range c.SumConstraint.Parameters {
 				value, err := getValue(c.Name, p.Name)
 				if err != nil {
 					return err
 				}
 
-				bound -= value * p.Weight
-			}
-			if !c.IsUpperBound {
-				bound *= -1
+				sum += value * p.Weight
 			}
 
-			if bound < 0 {
+			if (c.IsUpperBound && sum > c.Bound) || (!c.IsUpperBound && sum < c.Bound) {
 				return fmt.Errorf("baseline does not satisfy constraint %q", c.Name)
 			}
 		}

@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	redskyapi "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
+	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1/numstr"
 )
 
@@ -28,23 +28,23 @@ func TestCheckConstraints(t *testing.T) {
 	cases := []struct {
 		desc        string
 		expectErr   bool
-		constraints []redskyapi.Constraint
-		baselines   []redskyapi.Assignment
+		constraints []experimentsv1alpha1.Constraint
+		baselines   []experimentsv1alpha1.Assignment
 	}{
 		{
 			desc:      "order-a-less-than-b",
 			expectErr: false,
-			constraints: []redskyapi.Constraint{
+			constraints: []experimentsv1alpha1.Constraint{
 				{
 					Name:           "a-less-than-b",
-					ConstraintType: redskyapi.ConstraintOrder,
-					OrderConstraint: redskyapi.OrderConstraint{
+					ConstraintType: experimentsv1alpha1.ConstraintOrder,
+					OrderConstraint: &experimentsv1alpha1.OrderConstraint{
 						LowerParameter: "a",
 						UpperParameter: "b",
 					},
 				},
 			},
-			baselines: []redskyapi.Assignment{
+			baselines: []experimentsv1alpha1.Assignment{
 				{ParameterName: "a", Value: numstr.FromInt64(1)},
 				{ParameterName: "b", Value: numstr.FromInt64(2)},
 			},
@@ -52,17 +52,17 @@ func TestCheckConstraints(t *testing.T) {
 		{
 			desc:      "order-a-equal-b",
 			expectErr: false,
-			constraints: []redskyapi.Constraint{
+			constraints: []experimentsv1alpha1.Constraint{
 				{
 					Name:           "a-less-than-b",
-					ConstraintType: redskyapi.ConstraintOrder,
-					OrderConstraint: redskyapi.OrderConstraint{
+					ConstraintType: experimentsv1alpha1.ConstraintOrder,
+					OrderConstraint: &experimentsv1alpha1.OrderConstraint{
 						LowerParameter: "a",
 						UpperParameter: "b",
 					},
 				},
 			},
-			baselines: []redskyapi.Assignment{
+			baselines: []experimentsv1alpha1.Assignment{
 				{ParameterName: "a", Value: numstr.FromInt64(2)},
 				{ParameterName: "b", Value: numstr.FromInt64(2)},
 			},
@@ -70,17 +70,17 @@ func TestCheckConstraints(t *testing.T) {
 		{
 			desc:      "order-a-greater-than-b",
 			expectErr: true,
-			constraints: []redskyapi.Constraint{
+			constraints: []experimentsv1alpha1.Constraint{
 				{
 					Name:           "a-less-than-b",
-					ConstraintType: redskyapi.ConstraintOrder,
-					OrderConstraint: redskyapi.OrderConstraint{
+					ConstraintType: experimentsv1alpha1.ConstraintOrder,
+					OrderConstraint: &experimentsv1alpha1.OrderConstraint{
 						LowerParameter: "a",
 						UpperParameter: "b",
 					},
 				},
 			},
-			baselines: []redskyapi.Assignment{
+			baselines: []experimentsv1alpha1.Assignment{
 				{ParameterName: "a", Value: numstr.FromInt64(3)},
 				{ParameterName: "b", Value: numstr.FromInt64(2)},
 			},
@@ -89,21 +89,21 @@ func TestCheckConstraints(t *testing.T) {
 		{
 			desc:      "sum-less-than-upper",
 			expectErr: false,
-			constraints: []redskyapi.Constraint{
+			constraints: []experimentsv1alpha1.Constraint{
 				{
 					Name:           "a-plus-b-less-than-5",
-					ConstraintType: redskyapi.ConstraintSum,
-					SumConstraint: redskyapi.SumConstraint{
+					ConstraintType: experimentsv1alpha1.ConstraintSum,
+					SumConstraint: &experimentsv1alpha1.SumConstraint{
 						Bound:        5.0,
 						IsUpperBound: true,
-						Parameters: []redskyapi.SumConstraintParameter{
+						Parameters: []experimentsv1alpha1.SumConstraintParameter{
 							{Name: "a", Weight: 1.0},
 							{Name: "b", Weight: 1.0},
 						},
 					},
 				},
 			},
-			baselines: []redskyapi.Assignment{
+			baselines: []experimentsv1alpha1.Assignment{
 				{ParameterName: "a", Value: numstr.FromInt64(2)},
 				{ParameterName: "b", Value: numstr.FromInt64(2)},
 			},
@@ -111,21 +111,21 @@ func TestCheckConstraints(t *testing.T) {
 		{
 			desc:      "sum-equal-upper",
 			expectErr: false,
-			constraints: []redskyapi.Constraint{
+			constraints: []experimentsv1alpha1.Constraint{
 				{
 					Name:           "a-plus-b-less-than-5",
-					ConstraintType: redskyapi.ConstraintSum,
-					SumConstraint: redskyapi.SumConstraint{
+					ConstraintType: experimentsv1alpha1.ConstraintSum,
+					SumConstraint: &experimentsv1alpha1.SumConstraint{
 						Bound:        5.0,
 						IsUpperBound: true,
-						Parameters: []redskyapi.SumConstraintParameter{
+						Parameters: []experimentsv1alpha1.SumConstraintParameter{
 							{Name: "a", Weight: 1.0},
 							{Name: "b", Weight: 1.0},
 						},
 					},
 				},
 			},
-			baselines: []redskyapi.Assignment{
+			baselines: []experimentsv1alpha1.Assignment{
 				{ParameterName: "a", Value: numstr.FromInt64(2)},
 				{ParameterName: "b", Value: numstr.FromInt64(3)},
 			},
@@ -133,21 +133,21 @@ func TestCheckConstraints(t *testing.T) {
 		{
 			desc:      "sum-greater-than-upper",
 			expectErr: true,
-			constraints: []redskyapi.Constraint{
+			constraints: []experimentsv1alpha1.Constraint{
 				{
 					Name:           "a-plus-b-less-than-5",
-					ConstraintType: redskyapi.ConstraintSum,
-					SumConstraint: redskyapi.SumConstraint{
+					ConstraintType: experimentsv1alpha1.ConstraintSum,
+					SumConstraint: &experimentsv1alpha1.SumConstraint{
 						Bound:        5.0,
 						IsUpperBound: true,
-						Parameters: []redskyapi.SumConstraintParameter{
+						Parameters: []experimentsv1alpha1.SumConstraintParameter{
 							{Name: "a", Weight: 1.0},
 							{Name: "b", Weight: 1.0},
 						},
 					},
 				},
 			},
-			baselines: []redskyapi.Assignment{
+			baselines: []experimentsv1alpha1.Assignment{
 				{ParameterName: "a", Value: numstr.FromInt64(3)},
 				{ParameterName: "b", Value: numstr.FromInt64(3)},
 			},
@@ -156,20 +156,20 @@ func TestCheckConstraints(t *testing.T) {
 		{
 			desc:      "sum-less-than-lower",
 			expectErr: true,
-			constraints: []redskyapi.Constraint{
+			constraints: []experimentsv1alpha1.Constraint{
 				{
 					Name:           "a-plus-b-greater-than-3",
-					ConstraintType: redskyapi.ConstraintSum,
-					SumConstraint: redskyapi.SumConstraint{
+					ConstraintType: experimentsv1alpha1.ConstraintSum,
+					SumConstraint: &experimentsv1alpha1.SumConstraint{
 						Bound: 3.0,
-						Parameters: []redskyapi.SumConstraintParameter{
+						Parameters: []experimentsv1alpha1.SumConstraintParameter{
 							{Name: "a", Weight: 1.0},
 							{Name: "b", Weight: 1.0},
 						},
 					},
 				},
 			},
-			baselines: []redskyapi.Assignment{
+			baselines: []experimentsv1alpha1.Assignment{
 				{ParameterName: "a", Value: numstr.FromInt64(1)},
 				{ParameterName: "b", Value: numstr.FromInt64(1)},
 			},
@@ -177,20 +177,20 @@ func TestCheckConstraints(t *testing.T) {
 		{
 			desc:      "sum-equal-lower",
 			expectErr: false,
-			constraints: []redskyapi.Constraint{
+			constraints: []experimentsv1alpha1.Constraint{
 				{
 					Name:           "a-plus-b-greater-than-3",
-					ConstraintType: redskyapi.ConstraintSum,
-					SumConstraint: redskyapi.SumConstraint{
+					ConstraintType: experimentsv1alpha1.ConstraintSum,
+					SumConstraint: &experimentsv1alpha1.SumConstraint{
 						Bound: 3.0,
-						Parameters: []redskyapi.SumConstraintParameter{
+						Parameters: []experimentsv1alpha1.SumConstraintParameter{
 							{Name: "a", Weight: 1.0},
 							{Name: "b", Weight: 1.0},
 						},
 					},
 				},
 			},
-			baselines: []redskyapi.Assignment{
+			baselines: []experimentsv1alpha1.Assignment{
 				{ParameterName: "a", Value: numstr.FromInt64(1)},
 				{ParameterName: "b", Value: numstr.FromInt64(2)},
 			},
@@ -198,20 +198,20 @@ func TestCheckConstraints(t *testing.T) {
 		{
 			desc:      "sum-greater-than-lower",
 			expectErr: false,
-			constraints: []redskyapi.Constraint{
+			constraints: []experimentsv1alpha1.Constraint{
 				{
 					Name:           "a-plus-b-greater-than-3",
-					ConstraintType: redskyapi.ConstraintSum,
-					SumConstraint: redskyapi.SumConstraint{
+					ConstraintType: experimentsv1alpha1.ConstraintSum,
+					SumConstraint: &experimentsv1alpha1.SumConstraint{
 						Bound: 3.0,
-						Parameters: []redskyapi.SumConstraintParameter{
+						Parameters: []experimentsv1alpha1.SumConstraintParameter{
 							{Name: "a", Weight: 1.0},
 							{Name: "b", Weight: 1.0},
 						},
 					},
 				},
 			},
-			baselines: []redskyapi.Assignment{
+			baselines: []experimentsv1alpha1.Assignment{
 				{ParameterName: "a", Value: numstr.FromInt64(2)},
 				{ParameterName: "b", Value: numstr.FromInt64(2)},
 			},
