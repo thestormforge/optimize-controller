@@ -25,7 +25,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commander"
-	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
+	"github.com/thestormforge/optimize-go/pkg/api"
 	"github.com/thestormforge/optimize-go/pkg/config"
 	"github.com/thestormforge/optimize-go/pkg/oauth2/registration"
 	"golang.org/x/oauth2"
@@ -128,7 +128,7 @@ func (o *GeneratorOptions) generate(ctx context.Context) error {
 
 	// Get the client information (either read or register)
 	info, err := o.clientInfo(ctx, ctrl)
-	if o.AllowUnauthorized && experimentsv1alpha1.IsUnauthorized(err) {
+	if o.AllowUnauthorized && api.IsUnauthorized(err) {
 		// Ignore the error (but do not save the changes)
 		info = &registration.ClientInformationResponse{}
 	} else if err != nil {

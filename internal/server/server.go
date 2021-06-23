@@ -27,6 +27,7 @@ import (
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-controller/v2/internal/experiment"
 	"github.com/thestormforge/optimize-controller/v2/internal/trial"
+	"github.com/thestormforge/optimize-go/pkg/api"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1/numstr"
 	corev1 "k8s.io/api/core/v1"
@@ -44,9 +45,6 @@ const (
 // FromCluster converts cluster state to API state
 func FromCluster(in *optimizev1beta2.Experiment) (experimentsv1alpha1.ExperimentName, *experimentsv1alpha1.Experiment, *experimentsv1alpha1.TrialAssignments, error) {
 	out := &experimentsv1alpha1.Experiment{}
-	out.ExperimentMeta.LastModified = in.CreationTimestamp.Time
-	out.ExperimentMeta.SelfURL = in.Annotations[optimizev1beta2.AnnotationExperimentURL]
-	out.ExperimentMeta.NextTrialURL = in.Annotations[optimizev1beta2.AnnotationNextTrialURL]
 
 	baseline := &experimentsv1alpha1.TrialAssignments{Labels: map[string]string{"baseline": "true"}}
 
@@ -119,13 +117,13 @@ func FromCluster(in *optimizev1beta2.Experiment) (experimentsv1alpha1.Experiment
 			out.Constraints = append(out.Constraints, experimentsv1alpha1.Constraint{
 				Name:           c.Name,
 				ConstraintType: experimentsv1alpha1.ConstraintOrder,
-				OrderConstraint: experimentsv1alpha1.OrderConstraint{
+				OrderConstraint: &experimentsv1alpha1.OrderConstraint{
 					LowerParameter: c.Order.LowerParameter,
 					UpperParameter: c.Order.UpperParameter,
 				},
 			})
 		case c.Sum != nil:
-			sc := experimentsv1alpha1.SumConstraint{
+			sc := &experimentsv1alpha1.SumConstraint{
 				IsUpperBound: c.Sum.IsUpperBound,
 				Bound:        float64(c.Sum.Bound.MilliValue()) / 1000,
 			}
@@ -175,8 +173,8 @@ func ToCluster(exp *optimizev1beta2.Experiment, ee *experimentsv1alpha1.Experime
 		exp.SetAnnotations(make(map[string]string))
 	}
 
-	exp.GetAnnotations()[optimizev1beta2.AnnotationExperimentURL] = ee.SelfURL
-	exp.GetAnnotations()[optimizev1beta2.AnnotationNextTrialURL] = ee.NextTrialURL
+	exp.GetAnnotations()[optimizev1beta2.AnnotationExperimentURL] = ee.Link(api.RelationSelf)
+	exp.GetAnnotations()[optimizev1beta2.AnnotationNextTrialURL] = ee.Link(api.RelationNextTrial)
 
 	exp.Spec.Optimization = nil
 	for i := range ee.Optimization {
@@ -191,11 +189,11 @@ func ToCluster(exp *optimizev1beta2.Experiment, ee *experimentsv1alpha1.Experime
 
 // ToClusterTrial converts API state to cluster state
 func ToClusterTrial(t *optimizev1beta2.Trial, suggestion *experimentsv1alpha1.TrialAssignments) {
-	t.GetAnnotations()[optimizev1beta2.AnnotationReportTrialURL] = suggestion.SelfURL
+	t.GetAnnotations()[optimizev1beta2.AnnotationReportTrialURL] = suggestion.Link(api.RelationSelf)
 
 	// Try to make the cluster trial names match what is on the server
-	if t.Name == "" && t.GenerateName != "" && suggestion.SelfURL != "" {
-		name := path.Base(suggestion.SelfURL)
+	if t.Name == "" && t.GenerateName != "" && suggestion.Link(api.RelationSelf) != "" {
+		name := path.Base(suggestion.Link(api.RelationSelf))
 		if num, err := strconv.ParseInt(name, 10, 64); err == nil {
 			t.Name = fmt.Sprintf("%s%03d", t.GenerateName, num)
 		} else {
@@ -288,7 +286,7 @@ func FromClusterTrial(t *optimizev1beta2.Trial) *experimentsv1alpha1.TrialValues
 
 // StopExperiment updates the experiment in the event that it should be paused or halted.
 func StopExperiment(exp *optimizev1beta2.Experiment, err error) bool {
-	if rse, ok := err.(*experimentsv1alpha1.Error); ok && rse.Type == experimentsv1alpha1.ErrExperimentStopped {
+	if rse, ok := err.(*api.Error); ok && rse.Type == experimentsv1alpha1.ErrExperimentStopped {
 		exp.SetReplicas(0)
 		delete(exp.GetAnnotations(), optimizev1beta2.AnnotationNextTrialURL)
 		experiment.ApplyCondition(&exp.Status, optimizev1beta2.ExperimentComplete, corev1.ConditionTrue, "Stopped", err.Error(), nil)

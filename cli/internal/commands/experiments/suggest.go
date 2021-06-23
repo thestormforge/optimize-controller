@@ -25,6 +25,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commander"
+	"github.com/thestormforge/optimize-go/pkg/api"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1/numstr"
 )
@@ -91,7 +92,7 @@ func (o *SuggestOptions) suggest(ctx context.Context) error {
 		return err
 	}
 
-	_, err = o.ExperimentsAPI.CreateTrial(ctx, exp.TrialsURL, ta)
+	_, err = o.ExperimentsAPI.CreateTrial(ctx, exp.Link(api.RelationTrials), ta)
 	if err != nil {
 		return err
 	}

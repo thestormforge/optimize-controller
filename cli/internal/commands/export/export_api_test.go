@@ -18,7 +18,9 @@ package export_test
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/thestormforge/optimize-go/pkg/api"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1/numstr"
 )
@@ -44,11 +46,13 @@ var wannabeTrial = experimentsv1alpha1.TrialItem{
 // Implement the api interface
 type fakeExperimentsAPI struct{}
 
-func (f *fakeExperimentsAPI) Options(ctx context.Context) (experimentsv1alpha1.ServerMeta, error) {
-	return experimentsv1alpha1.ServerMeta{}, nil
+var _ experimentsv1alpha1.API = &fakeExperimentsAPI{}
+
+func (f *fakeExperimentsAPI) Options(ctx context.Context) (experimentsv1alpha1.Server, error) {
+	return experimentsv1alpha1.Server{}, nil
 }
 
-func (f *fakeExperimentsAPI) GetAllExperiments(ctx context.Context, query *experimentsv1alpha1.ExperimentListQuery) (experimentsv1alpha1.ExperimentList, error) {
+func (f *fakeExperimentsAPI) GetAllExperiments(ctx context.Context, query experimentsv1alpha1.ExperimentListQuery) (experimentsv1alpha1.ExperimentList, error) {
 	return experimentsv1alpha1.ExperimentList{}, nil
 }
 
@@ -58,8 +62,8 @@ func (f *fakeExperimentsAPI) GetAllExperimentsByPage(ctx context.Context, notsur
 
 func (f *fakeExperimentsAPI) GetExperimentByName(ctx context.Context, name experimentsv1alpha1.ExperimentName) (experimentsv1alpha1.Experiment, error) {
 	exp := experimentsv1alpha1.Experiment{
-		ExperimentMeta: experimentsv1alpha1.ExperimentMeta{
-			TrialsURL: "http://sometrial",
+		Metadata: api.Metadata{
+			"Link": {fmt.Sprintf("<http://sometrial>;rel=%s", api.RelationTrials)},
 		},
 		DisplayName: "postgres-example",
 		Labels: map[string]string{
@@ -118,7 +122,7 @@ func (f *fakeExperimentsAPI) DeleteExperiment(ctx context.Context, name string) 
 	return nil
 }
 
-func (f *fakeExperimentsAPI) GetAllTrials(ctx context.Context, name string, query *experimentsv1alpha1.TrialListQuery) (experimentsv1alpha1.TrialList, error) {
+func (f *fakeExperimentsAPI) GetAllTrials(ctx context.Context, name string, query experimentsv1alpha1.TrialListQuery) (experimentsv1alpha1.TrialList, error) {
 	// TODO implement some query filter magic if we really want to.
 	// Otherwise, we should clean this up to mimic just the necessary output
 	tl := experimentsv1alpha1.TrialList{

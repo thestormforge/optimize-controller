@@ -198,7 +198,7 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		expAPI := experimentsv1alpha1.NewAPI(c)
 
 		// An unauthorized error means we will never be able to connect without changing the credentials and restarting
-		if _, err := expAPI.Options(ctx); experimentsv1alpha1.IsUnauthorized(err) {
+		if _, err := expAPI.Options(ctx); api.IsUnauthorized(err) {
 			r.Log.Info("Experiments API is unavailable, skipping setup", "message", err.Error())
 			return nil
 		}
@@ -259,8 +259,12 @@ func (r *ServerReconciler) createExperiment(ctx context.Context, log logr.Logger
 	}
 
 	// Create the experiment remotely
-	// TODO This should check for an existing URL annotation before using the name (needs a new version of optimize-go)
-	ee, err := r.ExperimentsAPI.CreateExperimentByName(ctx, n, *e)
+	var ee experimentsv1alpha1.Experiment
+	if u := exp.GetAnnotations()[optimizev1beta2.AnnotationExperimentURL]; u != "" {
+		ee, err = r.ExperimentsAPI.CreateExperiment(ctx, u, *e)
+	} else {
+		ee, err = r.ExperimentsAPI.CreateExperimentByName(ctx, n, *e)
+	}
 	if err != nil {
 		if server.FailExperiment(exp, "ServerCreateFailed", err) {
 			err := r.Update(ctx, exp)
@@ -276,7 +280,7 @@ func (r *ServerReconciler) createExperiment(ctx context.Context, log logr.Logger
 
 	// Best effort to send a baseline suggestion along with the experiment creation
 	if b != nil {
-		if _, err := r.ExperimentsAPI.CreateTrial(ctx, ee.TrialsURL, *b); err != nil {
+		if _, err := r.ExperimentsAPI.CreateTrial(ctx, ee.Link(api.RelationTrials), *b); err != nil {
 			log.Error(err, "Failed to suggest experiment baseline")
 		}
 	}

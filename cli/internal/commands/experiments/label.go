@@ -23,6 +23,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commander"
+	"github.com/thestormforge/optimize-go/pkg/api"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 )
 
@@ -110,7 +111,7 @@ func (o *LabelOptions) labelExperiments(ctx context.Context, names []experiments
 			return err
 		}
 
-		if err := o.ExperimentsAPI.LabelExperiment(ctx, exp.LabelsURL, experimentsv1alpha1.ExperimentLabels{Labels: o.Labels}); err != nil {
+		if err := o.ExperimentsAPI.LabelExperiment(ctx, exp.Link(api.RelationLabels), experimentsv1alpha1.ExperimentLabels{Labels: o.Labels}); err != nil {
 			return err
 		}
 
@@ -129,8 +130,9 @@ func (o *LabelOptions) labelTrials(ctx context.Context, numbers map[experimentsv
 		}
 
 		// Note that you can only label completed trials
-		q := &experimentsv1alpha1.TrialListQuery{Status: []experimentsv1alpha1.TrialStatus{experimentsv1alpha1.TrialCompleted}}
-		tl, err := o.ExperimentsAPI.GetAllTrials(ctx, exp.TrialsURL, q)
+		q := experimentsv1alpha1.TrialListQuery{IndexQuery: api.IndexQuery{}}
+		q.SetStatus(experimentsv1alpha1.TrialCompleted)
+		tl, err := o.ExperimentsAPI.GetAllTrials(ctx, exp.Link(api.RelationTrials), q)
 		if err != nil {
 			return err
 		}
@@ -140,7 +142,7 @@ func (o *LabelOptions) labelTrials(ctx context.Context, numbers map[experimentsv
 			if hasTrialNumber(&tl.Trials[i], nums) {
 				t := tl.Trials[i]
 				t.Experiment = &exp
-				if err := o.ExperimentsAPI.LabelTrial(ctx, t.LabelsURL, experimentsv1alpha1.TrialLabels{Labels: o.Labels}); err != nil {
+				if err := o.ExperimentsAPI.LabelTrial(ctx, t.Link(api.RelationLabels), experimentsv1alpha1.TrialLabels{Labels: o.Labels}); err != nil {
 					return err
 				}
 				if err := o.Printer.PrintObj(&t, o.Out); err != nil {

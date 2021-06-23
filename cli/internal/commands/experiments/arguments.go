@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/thestormforge/optimize-go/pkg/api"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 )
 
@@ -63,7 +64,7 @@ func Completion(ctx context.Context, api experimentsv1alpha1.API, args []string,
 	return nil, cobra.ShellCompDirectiveNoFileComp
 }
 
-func experimentNames(ctx context.Context, api experimentsv1alpha1.API, ns names) (completions []string, directive cobra.ShellCompDirective) {
+func experimentNames(ctx context.Context, expAPI experimentsv1alpha1.API, ns names) (completions []string, directive cobra.ShellCompDirective) {
 	directive = cobra.ShellCompDirectiveNoFileComp
 	addPage := func(list *experimentsv1alpha1.ExperimentList) {
 		for i := range list.Experiments {
@@ -75,34 +76,34 @@ func experimentNames(ctx context.Context, api experimentsv1alpha1.API, ns names)
 	}
 
 	// Get the first page of experiments
-	l, err := api.GetAllExperiments(ctx, nil)
+	l, err := expAPI.GetAllExperiments(ctx, experimentsv1alpha1.ExperimentListQuery{})
 	if err != nil {
 		return
 	}
 	addPage(&l)
-	next := l.Next
+	next := l.Link(api.RelationNext)
 
 	// Get the rest of the experiments
 	for next != "" {
-		n, err := api.GetAllExperimentsByPage(ctx, next)
+		n, err := expAPI.GetAllExperimentsByPage(ctx, next)
 		if err != nil {
 			break
 		}
 		addPage(&n)
-		next = n.Next
+		next = n.Link(api.RelationNext)
 	}
 
 	return
 }
 
-func trialNames(ctx context.Context, api experimentsv1alpha1.API, ns names) ([]string, cobra.ShellCompDirective) {
+func trialNames(ctx context.Context, expAPI experimentsv1alpha1.API, ns names) ([]string, cobra.ShellCompDirective) {
 	name := ns[len(ns)-1].experimentName()
-	trials, err := getAllTrials(ctx, api, name)
+	trials, err := getAllTrials(ctx, expAPI, name)
 
 	// When the experiment name is invalid, assume we need to suggest experiments names with trailing "/"
-	var eerr *experimentsv1alpha1.Error
+	var eerr *api.Error
 	if errors.As(err, &eerr) && eerr.Type == experimentsv1alpha1.ErrExperimentNotFound {
-		completions, directive := experimentNames(ctx, api, ns)
+		completions, directive := experimentNames(ctx, expAPI, ns)
 		for i := range completions {
 			completions[i] = completions[i] + "/"
 		}
@@ -133,20 +134,24 @@ func (ns names) suggest(name string) bool {
 	return false
 }
 
-func getAllTrials(ctx context.Context, api experimentsv1alpha1.API, name experimentsv1alpha1.ExperimentName) (*experimentsv1alpha1.TrialList, error) {
+func getAllTrials(ctx context.Context, expAPI experimentsv1alpha1.API, name experimentsv1alpha1.ExperimentName) (*experimentsv1alpha1.TrialList, error) {
 	// Check for an empty name as this does not happen automatically
 	if name.Name() == "" {
-		return nil, &experimentsv1alpha1.Error{Type: experimentsv1alpha1.ErrExperimentNotFound}
+		return nil, &api.Error{Type: experimentsv1alpha1.ErrExperimentNotFound}
 	}
 
 	// Return if we can't get the experiment or if it does not have a trial list
-	exp, err := api.GetExperimentByName(ctx, name)
-	if err != nil || exp.TrialsURL == "" {
+	exp, err := expAPI.GetExperimentByName(ctx, name)
+	if err != nil {
 		return nil, err
+	}
+	trialsURL := exp.Link(api.RelationTrials)
+	if trialsURL == "" {
+		return nil, nil
 	}
 
 	// Get all the trials and sort them by number
-	result, err := api.GetAllTrials(ctx, exp.TrialsURL, nil)
+	result, err := expAPI.GetAllTrials(ctx, trialsURL, experimentsv1alpha1.TrialListQuery{})
 	if err != nil {
 		return nil, err
 	}

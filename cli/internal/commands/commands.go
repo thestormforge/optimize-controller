@@ -43,7 +43,7 @@ import (
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/revoke"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/run"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/version"
-	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
+	"github.com/thestormforge/optimize-go/pkg/api"
 	"github.com/thestormforge/optimize-go/pkg/config"
 )
 
@@ -62,6 +62,9 @@ func NewRootCommand() *cobra.Command {
 
 	// Establish OAuth client identity
 	cfg.ClientIdentity = authorizationIdentity
+	cfg.AuthorizationParameters = map[string][]string{
+		"audience": {"https://api.carbonrelay.io/v1/"},
+	}
 
 	// Kubernetes Commands
 	rootCmd.AddCommand(initialize.NewCommand(&initialize.Options{GeneratorOptions: initialize.GeneratorOptions{Config: cfg, IncludeBootstrapRole: true}}))
@@ -101,9 +104,9 @@ func NewRootCommand() *cobra.Command {
 
 // mapError intercepts errors returned by commands before they are reported.
 func mapError(err error) error {
-	if experimentsv1alpha1.IsUnauthorized(err) {
+	if api.IsUnauthorized(err) {
 		// Trust the error message we get from the experiments API
-		if _, ok := err.(*experimentsv1alpha1.Error); ok {
+		if _, ok := err.(*api.Error); ok {
 			return fmt.Errorf("%w, try running 'stormforge login'", err)
 		}
 		return fmt.Errorf("unauthorized, try running 'stormforge login'")

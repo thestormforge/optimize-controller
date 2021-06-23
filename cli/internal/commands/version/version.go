@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 	"text/template"
 
@@ -169,7 +170,7 @@ func (o *Options) apiVersion(ctx context.Context) (*version.Info, error) {
 
 	// Try to parse out the server header
 	var info *version.Info
-	parts := strings.SplitN(sm.Server, " ", 2)
+	parts := strings.SplitN(http.Header(sm.Metadata).Get("Server"), " ", 2)
 	parts = strings.SplitN(parts[0], "/", 2)
 	if len(parts) > 1 { // TODO Also check the product name
 		info = &version.Info{}
