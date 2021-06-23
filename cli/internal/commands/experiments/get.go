@@ -76,7 +76,7 @@ func (o *GetOptions) get(ctx context.Context) error {
 
 		case typeExperiment:
 			if n.Name == "" {
-				q := experimentsv1alpha1.ExperimentListQuery{}
+				q := experimentsv1alpha1.ExperimentListQuery{IndexQuery: api.IndexQuery{}}
 				q.SetLimit(o.ChunkSize)
 				return o.getExperimentList(ctx, q)
 			}
