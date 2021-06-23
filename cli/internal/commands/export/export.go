@@ -38,6 +38,7 @@ import (
 	"github.com/thestormforge/optimize-controller/v2/internal/server"
 	"github.com/thestormforge/optimize-controller/v2/internal/sfio"
 	"github.com/thestormforge/optimize-controller/v2/internal/template"
+	"github.com/thestormforge/optimize-go/pkg/api"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"github.com/thestormforge/optimize-go/pkg/config"
 	corev1 "k8s.io/api/core/v1"
@@ -439,7 +440,7 @@ func (o *Options) getTrialDetails(ctx context.Context) (*trialDetails, error) {
 	if err != nil {
 		return nil, err
 	}
-	if exp.TrialsURL == "" {
+	if exp.Link(api.RelationTrials) == "" {
 		return nil, fmt.Errorf("unable to find trials for experiment")
 	}
 
@@ -451,10 +452,9 @@ func (o *Options) getTrialDetails(ctx context.Context) (*trialDetails, error) {
 		Objective:   exp.Labels["objective"],
 	}
 
-	query := &experimentsv1alpha1.TrialListQuery{
-		Status: []experimentsv1alpha1.TrialStatus{experimentsv1alpha1.TrialCompleted},
-	}
-	trialList, err := o.ExperimentsAPI.GetAllTrials(ctx, exp.TrialsURL, query)
+	query := experimentsv1alpha1.TrialListQuery{IndexQuery: api.IndexQuery{}}
+	query.SetStatus(experimentsv1alpha1.TrialCompleted)
+	trialList, err := o.ExperimentsAPI.GetAllTrials(ctx, exp.Link(api.RelationTrials), query)
 	if err != nil {
 		return nil, err
 	}

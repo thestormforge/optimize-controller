@@ -23,6 +23,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commander"
 	"github.com/thestormforge/optimize-controller/v2/internal/controller"
+	"github.com/thestormforge/optimize-go/pkg/api"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 )
 
@@ -88,11 +89,15 @@ func (o *DeleteOptions) ignoreDeleteError(err error) error {
 //noinspection GoNilness
 func (o *DeleteOptions) deleteExperiment(ctx context.Context, name experimentsv1alpha1.ExperimentName) error {
 	exp, err := o.ExperimentsAPI.GetExperimentByName(ctx, name)
-	if err != nil && exp.SelfURL == "" {
+	if err != nil {
 		return err
 	}
+	selfURL := exp.Link(api.RelationSelf)
+	if selfURL == "" {
+		return nil
+	}
 
-	if err := o.ExperimentsAPI.DeleteExperiment(ctx, exp.SelfURL); err != nil {
+	if err := o.ExperimentsAPI.DeleteExperiment(ctx, selfURL); err != nil {
 		return err
 	}
 

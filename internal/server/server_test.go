@@ -26,6 +26,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	"github.com/thestormforge/optimize-go/pkg/api"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1/numstr"
 	corev1 "k8s.io/api/core/v1"
@@ -54,19 +55,9 @@ func TestFromCluster(t *testing.T) {
 					CreationTimestamp: metav1.Time{
 						Time: now,
 					},
-					Annotations: map[string]string{
-						optimizev1beta2.AnnotationExperimentURL: "self_111",
-						optimizev1beta2.AnnotationNextTrialURL:  "next_trial_111",
-					},
 				},
 			},
-			out: &experimentsv1alpha1.Experiment{
-				ExperimentMeta: experimentsv1alpha1.ExperimentMeta{
-					LastModified: now,
-					SelfURL:      "self_111",
-					NextTrialURL: "next_trial_111",
-				},
-			},
+			out: &experimentsv1alpha1.Experiment{},
 		},
 		{
 			desc: "optimization",
@@ -146,9 +137,12 @@ func TestFromCluster(t *testing.T) {
 			out: &experimentsv1alpha1.Experiment{
 				Constraints: []experimentsv1alpha1.Constraint{
 					{
-						ConstraintType:  experimentsv1alpha1.ConstraintOrder,
-						Name:            "one-two",
-						OrderConstraint: experimentsv1alpha1.OrderConstraint{LowerParameter: "one", UpperParameter: "two"},
+						ConstraintType: experimentsv1alpha1.ConstraintOrder,
+						Name:           "one-two",
+						OrderConstraint: &experimentsv1alpha1.OrderConstraint{
+							LowerParameter: "one",
+							UpperParameter: "two",
+						},
 					},
 				},
 			},
@@ -190,7 +184,7 @@ func TestFromCluster(t *testing.T) {
 					{
 						Name:           "one-two",
 						ConstraintType: experimentsv1alpha1.ConstraintSum,
-						SumConstraint: experimentsv1alpha1.SumConstraint{
+						SumConstraint: &experimentsv1alpha1.SumConstraint{
 							Bound: 1,
 							Parameters: []experimentsv1alpha1.SumConstraintParameter{
 								{Name: "one", Weight: -1.0},
@@ -283,15 +277,13 @@ func TestToCluster(t *testing.T) {
 	}{
 		{
 			desc: "basic",
-			exp: &optimizev1beta2.Experiment{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: nil,
-				},
-			},
+			exp:  &optimizev1beta2.Experiment{},
 			ee: &experimentsv1alpha1.Experiment{
-				ExperimentMeta: experimentsv1alpha1.ExperimentMeta{
-					SelfURL:      "self_111",
-					NextTrialURL: "next_trial_111",
+				Metadata: api.Metadata{
+					"Link": {
+						fmt.Sprintf("<self_111>;rel=%s", api.RelationSelf),
+						fmt.Sprintf("<next_trial_111>;rel=%s", api.RelationNextTrial),
+					},
 				},
 				Optimization: []experimentsv1alpha1.Optimization{
 					{Name: "one", Value: "111"},
@@ -343,8 +335,8 @@ func TestToClusterTrial(t *testing.T) {
 				},
 			},
 			suggestion: &experimentsv1alpha1.TrialAssignments{
-				TrialMeta: experimentsv1alpha1.TrialMeta{
-					SelfURL: "some/path/1",
+				Metadata: api.Metadata{
+					"Link": []string{"<some/path/1>;rel=self"},
 				},
 				Assignments: []experimentsv1alpha1.Assignment{
 					{ParameterName: "one", Value: numstr.FromInt64(111)},
@@ -385,8 +377,8 @@ func TestToClusterTrial(t *testing.T) {
 				},
 			},
 			suggestion: &experimentsv1alpha1.TrialAssignments{
-				TrialMeta: experimentsv1alpha1.TrialMeta{
-					SelfURL: "some/path/one",
+				Metadata: api.Metadata{
+					"Link": []string{"<some/path/one>;rel=self"},
 				},
 				Assignments: []experimentsv1alpha1.Assignment{
 					{ParameterName: "one", Value: numstr.FromInt64(111)},
@@ -561,7 +553,7 @@ func TestStopExperiment(t *testing.T) {
 			exp: &optimizev1beta2.Experiment{
 				ObjectMeta: metav1.ObjectMeta{},
 			},
-			err: &experimentsv1alpha1.Error{
+			err: &api.Error{
 				Type: experimentsv1alpha1.ErrExperimentNameInvalid,
 			},
 			expectedOut: false,
@@ -578,7 +570,7 @@ func TestStopExperiment(t *testing.T) {
 					},
 				},
 			},
-			err: &experimentsv1alpha1.Error{
+			err: &api.Error{
 				Type: experimentsv1alpha1.ErrExperimentStopped,
 			},
 			expectedOut: true,

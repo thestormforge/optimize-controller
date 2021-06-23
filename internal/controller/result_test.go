@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/thestormforge/optimize-go/pkg/api"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -145,7 +146,7 @@ func TestRequeueIfUnavailable(t *testing.T) {
 		},
 		{
 			desc: "trial unavailable",
-			err: &experimentsv1alpha1.Error{
+			err: &api.Error{
 				Type:       experimentsv1alpha1.ErrTrialUnavailable,
 				RetryAfter: 111,
 			},

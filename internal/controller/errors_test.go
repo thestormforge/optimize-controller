@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/thestormforge/optimize-go/pkg/api"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -48,14 +49,14 @@ func TestIgnoreNotFound(t *testing.T) {
 		},
 		{
 			desc: "api error experiment not found",
-			in: &experimentsv1alpha1.Error{
+			in: &api.Error{
 				Type: experimentsv1alpha1.ErrExperimentNotFound,
 			},
 			expectedErr: nil,
 		},
 		{
 			desc: "api error trial not found",
-			in: &experimentsv1alpha1.Error{
+			in: &api.Error{
 				Type: experimentsv1alpha1.ErrTrialNotFound,
 			},
 			expectedErr: nil,
@@ -130,7 +131,7 @@ func TestIgnoreReportError(t *testing.T) {
 		},
 		{
 			desc: "trial already reported",
-			in: &experimentsv1alpha1.Error{
+			in: &api.Error{
 				Type: experimentsv1alpha1.ErrTrialAlreadyReported,
 			},
 			expectedErr: nil,

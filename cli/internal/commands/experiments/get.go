@@ -23,6 +23,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commander"
+	"github.com/thestormforge/optimize-go/pkg/api"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"k8s.io/apimachinery/pkg/labels"
 )
@@ -75,9 +76,8 @@ func (o *GetOptions) get(ctx context.Context) error {
 
 		case typeExperiment:
 			if n.Name == "" {
-				q := &experimentsv1alpha1.ExperimentListQuery{
-					Limit: o.ChunkSize,
-				}
+				q := experimentsv1alpha1.ExperimentListQuery{IndexQuery: api.IndexQuery{}}
+				q.SetLimit(o.ChunkSize)
 				return o.getExperimentList(ctx, q)
 			}
 			e = append(e, n.experimentName())
@@ -105,12 +105,11 @@ func (o *GetOptions) get(ctx context.Context) error {
 	return nil
 }
 
-func (o *GetOptions) trialListQuery() *experimentsv1alpha1.TrialListQuery {
-	q := &experimentsv1alpha1.TrialListQuery{
-		Status: []experimentsv1alpha1.TrialStatus{experimentsv1alpha1.TrialActive, experimentsv1alpha1.TrialCompleted, experimentsv1alpha1.TrialFailed},
-	}
+func (o *GetOptions) trialListQuery() experimentsv1alpha1.TrialListQuery {
+	q := experimentsv1alpha1.TrialListQuery{IndexQuery: api.IndexQuery{}}
+	q.SetStatus(experimentsv1alpha1.TrialActive, experimentsv1alpha1.TrialCompleted, experimentsv1alpha1.TrialFailed)
 	if o.All {
-		q.Status = append(q.Status, experimentsv1alpha1.TrialStaged)
+		q.AddStatus(experimentsv1alpha1.TrialStaged)
 	}
 	return q
 }
@@ -138,19 +137,20 @@ func (o *GetOptions) getExperiments(ctx context.Context, names []experimentsv1al
 	return o.Printer.PrintObj(l, o.Out)
 }
 
-func (o *GetOptions) getExperimentList(ctx context.Context, q *experimentsv1alpha1.ExperimentListQuery) error {
+func (o *GetOptions) getExperimentList(ctx context.Context, q experimentsv1alpha1.ExperimentListQuery) error {
 	// Get all the experiments one page at a time
 	l, err := o.ExperimentsAPI.GetAllExperiments(ctx, q)
 	if err != nil {
 		return err
 	}
 
-	for l.Next != "" {
-		n, err := o.ExperimentsAPI.GetAllExperimentsByPage(ctx, l.Next)
+	next := l.Link(api.RelationNext)
+	for next != "" {
+		n, err := o.ExperimentsAPI.GetAllExperimentsByPage(ctx, next)
 		if err != nil {
 			return err
 		}
-		l.Next = n.Next
+		next = n.Link(api.RelationNext)
 		l.Experiments = append(l.Experiments, n.Experiments...)
 	}
 
@@ -172,7 +172,7 @@ func (o *GetOptions) getTrials(ctx context.Context, numbers map[experimentsv1alp
 		}
 
 		// Get the trials
-		tl, err := o.ExperimentsAPI.GetAllTrials(ctx, exp.TrialsURL, o.trialListQuery())
+		tl, err := o.ExperimentsAPI.GetAllTrials(ctx, exp.Link(api.RelationTrials), o.trialListQuery())
 		if err != nil {
 			return err
 		}
@@ -198,7 +198,7 @@ func (o *GetOptions) getTrials(ctx context.Context, numbers map[experimentsv1alp
 	return o.Printer.PrintObj(l, o.Out)
 }
 
-func (o *GetOptions) getTrialList(ctx context.Context, name experimentsv1alpha1.ExperimentName, q *experimentsv1alpha1.TrialListQuery) error {
+func (o *GetOptions) getTrialList(ctx context.Context, name experimentsv1alpha1.ExperimentName, q experimentsv1alpha1.TrialListQuery) error {
 	// Get the experiment
 	exp, err := o.ExperimentsAPI.GetExperimentByName(ctx, name)
 	if err != nil {
@@ -207,8 +207,8 @@ func (o *GetOptions) getTrialList(ctx context.Context, name experimentsv1alpha1.
 
 	// Fetch the trial data
 	var l experimentsv1alpha1.TrialList
-	if exp.TrialsURL != "" {
-		l, err = o.ExperimentsAPI.GetAllTrials(ctx, exp.TrialsURL, q)
+	if trialsURL := exp.Link(api.RelationTrials); trialsURL != "" {
+		l, err = o.ExperimentsAPI.GetAllTrials(ctx, trialsURL, q)
 		if err != nil {
 			return err
 		}
