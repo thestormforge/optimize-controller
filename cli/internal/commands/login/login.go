@@ -135,8 +135,8 @@ func (o *Options) complete() error {
 			return fmt.Errorf("server must be a valid URL: %v", err)
 		} else if u.Scheme != "https" && u.Scheme != "http" {
 			return fmt.Errorf("server must be an 'https' URL")
-		} else if u.Path != "/v1/" {
-			_, _ = fmt.Fprintf(o.ErrOut, "Warning: Server URL does not have a path of '/v1/', StormForge API endpoints may not resolve correctly")
+		} else if u.Path == "/v1/" {
+			_, _ = fmt.Fprintf(o.ErrOut, "Warning: Server URL has a path of '/v1/', StormForge API endpoints may not resolve correctly")
 		}
 	}
 

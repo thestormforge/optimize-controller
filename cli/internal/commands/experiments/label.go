@@ -130,7 +130,7 @@ func (o *LabelOptions) labelTrials(ctx context.Context, numbers map[experimentsv
 		}
 
 		// Note that you can only label completed trials
-		q := experimentsv1alpha1.TrialListQuery{IndexQuery: api.IndexQuery{}}
+		q := experimentsv1alpha1.TrialListQuery{}
 		q.SetStatus(experimentsv1alpha1.TrialCompleted)
 		tl, err := o.ExperimentsAPI.GetAllTrials(ctx, exp.Link(api.RelationTrials), q)
 		if err != nil {
