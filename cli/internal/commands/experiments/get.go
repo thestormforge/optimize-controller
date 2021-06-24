@@ -76,7 +76,7 @@ func (o *GetOptions) get(ctx context.Context) error {
 
 		case typeExperiment:
 			if n.Name == "" {
-				q := experimentsv1alpha1.ExperimentListQuery{IndexQuery: api.IndexQuery{}}
+				q := experimentsv1alpha1.ExperimentListQuery{}
 				q.SetLimit(o.ChunkSize)
 				return o.getExperimentList(ctx, q)
 			}
@@ -106,7 +106,7 @@ func (o *GetOptions) get(ctx context.Context) error {
 }
 
 func (o *GetOptions) trialListQuery() experimentsv1alpha1.TrialListQuery {
-	q := experimentsv1alpha1.TrialListQuery{IndexQuery: api.IndexQuery{}}
+	q := experimentsv1alpha1.TrialListQuery{}
 	q.SetStatus(experimentsv1alpha1.TrialActive, experimentsv1alpha1.TrialCompleted, experimentsv1alpha1.TrialFailed)
 	if o.All {
 		q.AddStatus(experimentsv1alpha1.TrialStaged)

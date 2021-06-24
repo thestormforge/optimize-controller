@@ -175,7 +175,7 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			return err
 		}
 
-		address := strings.TrimSuffix(srv.API.ExperimentsEndpoint, "/experiments/")
+		address := strings.TrimSuffix(srv.API.ExperimentsEndpoint, "/v1/experiments/")
 
 		// Compute the UA string comment using the Kube API server information
 		var comment string

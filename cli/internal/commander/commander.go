@@ -148,8 +148,8 @@ func SetExperimentsAPI(expAPI *experimentsv1alpha1.API, cfg *config.OptimizeConf
 	}
 
 	// NOTE: We should use `srv.Identifier` but technically this version of the configuration
-	// exposes this double counted "/experiments/" endpoint
-	address := strings.TrimSuffix(srv.API.ExperimentsEndpoint, "/experiments/")
+	// exposes this double counted "/v1/experiments/" endpoint
+	address := strings.TrimSuffix(srv.API.ExperimentsEndpoint, "/v1/experiments/")
 
 	// Reuse the OAuth2 base transport for the API calls
 	t, err := cfg.Authorize(ctx, oauth2.NewClient(ctx, nil).Transport)

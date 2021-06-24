@@ -452,7 +452,7 @@ func (o *Options) getTrialDetails(ctx context.Context) (*trialDetails, error) {
 		Objective:   exp.Labels["objective"],
 	}
 
-	query := experimentsv1alpha1.TrialListQuery{IndexQuery: api.IndexQuery{}}
+	query := experimentsv1alpha1.TrialListQuery{}
 	query.SetStatus(experimentsv1alpha1.TrialCompleted)
 	trialList, err := o.ExperimentsAPI.GetAllTrials(ctx, exp.Link(api.RelationTrials), query)
 	if err != nil {
