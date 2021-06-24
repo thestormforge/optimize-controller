@@ -21,6 +21,7 @@ import (
 	"net/url"
 
 	"github.com/thestormforge/konjure/pkg/filters"
+	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
@@ -56,6 +57,26 @@ type ExperimentMigrationFilter struct {
 // Filter applies migration changes to all recognized experiment nodes in the supplied list.
 func (f *ExperimentMigrationFilter) Filter(node *yaml.RNode) (*yaml.RNode, error) {
 	return node.Pipe(
+		// Application
+		yaml.Tee(
+			filters.FilterOne(&filters.ResourceMetaFilter{
+				Group:   "apps.redskyops.dev",
+				Version: "v1alpha1",
+				Kind:    "Application",
+			}),
+			yaml.FilterFunc(f.MigrateRSOApplicationV1alpha1),
+		),
+
+		yaml.Tee(
+			filters.FilterOne(&filters.ResourceMetaFilter{
+				Group:   optimizeappsv1alpha1.GroupVersion.Group,
+				Version: optimizeappsv1alpha1.GroupVersion.Version,
+				Kind:    "Application",
+			}),
+			yaml.FilterFunc(f.MigrateApplicationV1alpha1),
+		),
+
+		// Experiment
 		yaml.Tee(
 			filters.FilterOne(&filters.ResourceMetaFilter{
 				Group:   "redskyops.dev",
@@ -85,12 +106,27 @@ func (f *ExperimentMigrationFilter) Filter(node *yaml.RNode) (*yaml.RNode, error
 	)
 }
 
-// MigrateExperimentV1beta1 converts a resource node from a v1beta1 Experiment to the latest format.
+// MigrateApplicationV1alpha1 converts a resource node from a v1alpha1 Application to the latest format.
+func (f *ExperimentMigrationFilter) MigrateApplicationV1alpha1(node *yaml.RNode) (*yaml.RNode, error) {
+	return node.Pipe()
+}
+
+// MigrateRSOApplicationV1alpha1 converts a resource node from an apps.redskyops.dev/v1alpha1 Application to a v1alpha1 Application.
+func (f *ExperimentMigrationFilter) MigrateRSOApplicationV1alpha1(node *yaml.RNode) (*yaml.RNode, error) {
+	return node.Pipe(
+		// Update the API version to match the new group
+		yaml.Tee(
+			yaml.SetField("apiVersion", yaml.NewStringRNode(optimizeappsv1alpha1.GroupVersion.String())),
+		),
+	)
+}
+
+// MigrateExperimentV1beta2 converts a resource node from a v1beta1 Experiment to the latest format.
 func (f *ExperimentMigrationFilter) MigrateExperimentV1beta2(node *yaml.RNode) (*yaml.RNode, error) {
 	return node.Pipe()
 }
 
-// MigrateExperimentV1beta1 converts a resource node from a v1beta1 Experiment to the latest format.
+// MigrateExperimentV1beta1 converts a resource node from a v1beta1 Experiment to a v1beta2 Experiment.
 func (f *ExperimentMigrationFilter) MigrateExperimentV1beta1(node *yaml.RNode) (*yaml.RNode, error) {
 	return node.Pipe(
 		// Fix all the nested labels and annotations on the experiment
