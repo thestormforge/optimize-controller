@@ -25,6 +25,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commander"
+	"github.com/thestormforge/optimize-controller/v2/internal/validation"
 	"github.com/thestormforge/optimize-go/pkg/api"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1/numstr"
@@ -113,6 +114,11 @@ func (o *SuggestOptions) SuggestAssignments(exp *experimentsv1alpha1.Experiment,
 			Value:         *v,
 		})
 	}
+
+	if err := validation.CheckConstraints(exp.Constraints, ta.Assignments); err != nil {
+		return err
+	}
+
 	return nil
 }
 
