@@ -27,6 +27,7 @@ import (
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-controller/v2/internal/experiment"
 	"github.com/thestormforge/optimize-controller/v2/internal/trial"
+	"github.com/thestormforge/optimize-controller/v2/internal/validation"
 	"github.com/thestormforge/optimize-go/pkg/api"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1/numstr"
@@ -161,6 +162,8 @@ func FromCluster(in *optimizev1beta2.Experiment) (experimentsv1alpha1.Experiment
 		baseline = nil
 	} else if len(baseline.Assignments) != len(out.Parameters) {
 		return nil, nil, nil, fmt.Errorf("baseline must be specified on all or none of the parameters")
+	} else if err := validation.CheckConstraints(out.Constraints, baseline.Assignments); err != nil {
+		return nil, nil, nil, err
 	}
 
 	n := experimentsv1alpha1.NewExperimentName(in.Name)
