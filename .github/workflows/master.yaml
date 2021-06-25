@@ -99,9 +99,11 @@ jobs:
             docker tag "$1" "$2"
             docker push "$2"
           }
-          docker-push "${IMG}" "${IMG%%:*}:${IMAGE_TAG}"
-          docker-push "${CLI_IMG}" "${CLI_IMG%%:*}:${IMAGE_TAG}"
-          docker-push "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:${IMAGE_TAG}"
+          if [[ "${IMAGE_TAG}" != "latest" || ! "${VERSION}" =~ "-" ]]; then
+            docker-push "${IMG}" "${IMG%%:*}:${IMAGE_TAG}"
+            docker-push "${CLI_IMG}" "${CLI_IMG%%:*}:${IMAGE_TAG}"
+            docker-push "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:${IMAGE_TAG}"
+          fi
           if [ "${IMG#ghcr.io/}" = "${IMG}" ]; then
             docker-push "${IMG}" "ghcr.io/${IMG}"
             docker-push "${CLI_IMG}" "ghcr.io/${CLI_IMG}"
