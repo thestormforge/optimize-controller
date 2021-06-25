@@ -50,7 +50,7 @@ brews:
     folder: Formula
     commit_author:
       name: Butch Masters
-      email: butch@carbonrelay.com
+      email: butch@stormforge.io
     homepage: "https://www.stormforge.io/"
     description: Release with Confidence
 signs:
