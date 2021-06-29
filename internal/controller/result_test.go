@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/thestormforge/optimize-go/pkg/api"
@@ -151,7 +152,7 @@ func TestRequeueIfUnavailable(t *testing.T) {
 				RetryAfter: 111,
 			},
 			result: &ctrl.Result{
-				RequeueAfter: 111,
+				RequeueAfter: 5 * time.Second, // 5 second minimum
 			},
 			expectedErr: nil,
 		},
