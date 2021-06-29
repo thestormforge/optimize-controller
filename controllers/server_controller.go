@@ -163,6 +163,9 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 		// Load the configuration
 		cfg := &config.OptimizeConfig{}
+		cfg.AuthorizationParameters = map[string][]string{
+			"audience": {"https://api.carbonrelay.io/v1/"},
+		}
 		if err := cfg.Load(); err != nil {
 			return err
 		}
