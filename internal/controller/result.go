@@ -20,6 +20,7 @@ import (
 	"path"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/thestormforge/optimize-go/pkg/api"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
@@ -35,8 +36,13 @@ import (
 func RequeueIfUnavailable(err error) (*ctrl.Result, error) {
 	result := &ctrl.Result{}
 	if rse, ok := err.(*api.Error); ok && rse.Type == experimentsv1alpha1.ErrTrialUnavailable {
-		result.RequeueAfter = rse.RetryAfter
 		err = nil
+		result.RequeueAfter = rse.RetryAfter
+		if result.RequeueAfter > 2*time.Minute {
+			result.RequeueAfter = 2 * time.Minute
+		} else if result.RequeueAfter < 5*time.Second {
+			result.RequeueAfter = 5 * time.Second
+		}
 	}
 	return result, err
 }
