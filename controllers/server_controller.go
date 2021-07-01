@@ -375,16 +375,22 @@ func (r *ServerReconciler) nextTrial(ctx context.Context, log logr.Logger, exp *
 		t.Spec.TTLSecondsAfterFailure = &defaultServerTrialTTLSecondsAfterFailure
 	}
 
+	// Log a warning if the reportTrialURL is missing
+	reportTrialURL := t.GetAnnotations()[optimizev1beta2.AnnotationReportTrialURL]
+	if reportTrialURL == "" {
+		log.Info("Trial is missing a reporting URL")
+	}
+
 	// Create the trial
 	if err := r.Create(ctx, t); err != nil {
 		// If creation fails, abandon the suggestion (ignoring those errors)
-		if url := t.GetAnnotations()[optimizev1beta2.AnnotationReportTrialURL]; url != "" {
-			_ = r.ExperimentsAPI.AbandonRunningTrial(ctx, url)
+		if reportTrialURL != "" {
+			_ = r.ExperimentsAPI.AbandonRunningTrial(ctx, reportTrialURL)
 		}
 		return &ctrl.Result{}, err
 	}
 
-	log.Info("Created new trial", "reportTrialURL", t.GetAnnotations()[optimizev1beta2.AnnotationReportTrialURL], "assignments", t.Spec.Assignments)
+	log.Info("Created new trial", "reportTrialURL", reportTrialURL, "assignments", t.Spec.Assignments)
 	return nil, nil
 }
 
@@ -394,21 +400,24 @@ func (r *ServerReconciler) reportTrial(ctx context.Context, log logr.Logger, t *
 		return nil, nil
 	}
 
-	if reportTrialURL := t.GetAnnotations()[optimizev1beta2.AnnotationReportTrialURL]; reportTrialURL != "" {
-		trialValues := server.FromClusterTrial(t)
+	// Update the log with additional context about the trial
+	trialValues := server.FromClusterTrial(t)
+	log = log.WithValues("values", trialValues)
+	for i := range t.Status.Conditions {
+		c := t.Status.Conditions[i]
+		if c.Type == optimizev1beta2.TrialFailed && c.Status == corev1.ConditionTrue {
+			log = log.WithValues("failureReason", c.Reason, "failureMessage", c.Message)
+			break
+		}
+	}
+
+	// If there is a report trial URL, report the values
+	reportTrialURL := t.GetAnnotations()[optimizev1beta2.AnnotationReportTrialURL]
+	log = log.WithValues("reportTrialURL", reportTrialURL)
+	if reportTrialURL != "" {
 		err := r.ExperimentsAPI.ReportTrial(ctx, reportTrialURL, *trialValues)
 		if controller.IgnoreReportError(err) != nil {
 			return &ctrl.Result{}, err
-		}
-
-		// Shadow the logger reference with one that will produce more contextual details
-		log = log.WithValues("reportTrialURL", reportTrialURL, "values", trialValues)
-		for i := range t.Status.Conditions {
-			c := t.Status.Conditions[i]
-			if c.Type == optimizev1beta2.TrialFailed && c.Status == corev1.ConditionTrue {
-				log = log.WithValues("failureReason", c.Reason, "failureMessage", c.Message)
-				break
-			}
 		}
 	}
 
