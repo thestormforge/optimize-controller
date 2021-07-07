@@ -195,8 +195,8 @@ func ToClusterTrial(t *optimizev1beta2.Trial, suggestion *experimentsv1alpha1.Tr
 	t.GetAnnotations()[optimizev1beta2.AnnotationReportTrialURL] = suggestion.Location()
 
 	// Try to make the cluster trial names match what is on the server
-	if t.Name == "" && t.GenerateName != "" && suggestion.Link(api.RelationSelf) != "" {
-		name := path.Base(suggestion.Link(api.RelationSelf))
+	if t.Name == "" && t.GenerateName != "" && suggestion.Location() != "" {
+		name := path.Base(suggestion.Location())
 		if num, err := strconv.ParseInt(name, 10, 64); err == nil {
 			t.Name = fmt.Sprintf("%s%03d", t.GenerateName, num)
 		} else {

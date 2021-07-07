@@ -336,7 +336,7 @@ func TestToClusterTrial(t *testing.T) {
 			},
 			suggestion: &experimentsv1alpha1.TrialAssignments{
 				Metadata: api.Metadata{
-					"Link": []string{"<some/path/1>;rel=self"},
+					"Location": []string{"some/path/1"},
 				},
 				Assignments: []experimentsv1alpha1.Assignment{
 					{ParameterName: "one", Value: numstr.FromInt64(111)},
@@ -378,7 +378,7 @@ func TestToClusterTrial(t *testing.T) {
 			},
 			suggestion: &experimentsv1alpha1.TrialAssignments{
 				Metadata: api.Metadata{
-					"Link": []string{"<some/path/one>;rel=self"},
+					"Location": []string{"some/path/one"},
 				},
 				Assignments: []experimentsv1alpha1.Assignment{
 					{ParameterName: "one", Value: numstr.FromInt64(111)},
