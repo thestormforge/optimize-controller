@@ -192,7 +192,7 @@ func ToCluster(exp *optimizev1beta2.Experiment, ee *experimentsv1alpha1.Experime
 
 // ToClusterTrial converts API state to cluster state
 func ToClusterTrial(t *optimizev1beta2.Trial, suggestion *experimentsv1alpha1.TrialAssignments) {
-	t.GetAnnotations()[optimizev1beta2.AnnotationReportTrialURL] = suggestion.Link(api.RelationSelf)
+	t.GetAnnotations()[optimizev1beta2.AnnotationReportTrialURL] = suggestion.Location()
 
 	// Try to make the cluster trial names match what is on the server
 	if t.Name == "" && t.GenerateName != "" && suggestion.Link(api.RelationSelf) != "" {
