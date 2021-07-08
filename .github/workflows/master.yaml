@@ -76,6 +76,7 @@ jobs:
             DOCKER_TAG="sha-$(git rev-parse --short HEAD)"
             echo "IMAGE_TAG=edge" >> $GITHUB_ENV
           fi
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login "ghcr.io" -u "${{ github.actor }}" --password-stdin
           echo "IMG=${DOCKER_REGISTRY}/optimize-controller:${DOCKER_TAG}" >> $GITHUB_ENV
           echo "CLI_IMG=${DOCKER_REGISTRY}/optimize-cli:${DOCKER_TAG}" >> $GITHUB_ENV
           echo "SETUPTOOLS_IMG=${DOCKER_REGISTRY}/setuptools:${DOCKER_TAG}" >> $GITHUB_ENV
@@ -93,15 +94,16 @@ jobs:
           AC_IDENTITY_P12: ${{ secrets.AC_IDENTITY_P12 }}
       - name: Push Docker images
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login "ghcr.io" -u "${{ github.actor }}" --password-stdin
           make docker-push
           docker-push() {
             docker tag "$1" "$2"
             docker push "$2"
           }
-          docker-push "${IMG}" "${IMG%%:*}:${IMAGE_TAG}"
-          docker-push "${CLI_IMG}" "${CLI_IMG%%:*}:${IMAGE_TAG}"
-          docker-push "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:${IMAGE_TAG}"
+          if [[ "${IMAGE_TAG}" != "latest" || ! "${VERSION}" =~ "-" ]]; then
+            docker-push "${IMG}" "${IMG%%:*}:${IMAGE_TAG}"
+            docker-push "${CLI_IMG}" "${CLI_IMG%%:*}:${IMAGE_TAG}"
+            docker-push "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:${IMAGE_TAG}"
+          fi
           if [ "${IMG#ghcr.io/}" = "${IMG}" ]; then
             docker-push "${IMG}" "ghcr.io/${IMG}"
             docker-push "${CLI_IMG}" "ghcr.io/${CLI_IMG}"
