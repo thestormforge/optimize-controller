@@ -109,7 +109,7 @@ func CheckConstraints(constraints []experimentsv1alpha1.Constraint, baselines []
 		case experimentsv1alpha1.ConstraintSum:
 			var sum float64
 			for _, p := range c.SumConstraint.Parameters {
-				value, err := getValue(c.Name, p.Name)
+				value, err := getValue(c.Name, p.ParameterName)
 				if err != nil {
 					return err
 				}

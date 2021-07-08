@@ -135,8 +135,8 @@ func FromCluster(in *optimizev1beta2.Experiment) (experimentsv1alpha1.Experiment
 				}
 
 				sc.Parameters = append(sc.Parameters, experimentsv1alpha1.SumConstraintParameter{
-					Name:   p.Name,
-					Weight: float64(p.Weight.MilliValue()) / 1000,
+					ParameterName: p.Name,
+					Weight:        float64(p.Weight.MilliValue()) / 1000,
 				})
 			}
 
