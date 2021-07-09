@@ -165,6 +165,38 @@ func TestContainerResourcesParameter(t *testing.T) {
                   requests:
                     memory: "{{ .Values.memory }}Ki"`),
 		},
+
+		{
+			desc: "tiny cpu",
+
+			containerResourcesParameter: containerResourcesParameter{
+				pnode: pnode{
+					fieldPath: []string{"spec", "resources"},
+					value: encodeResourceRequirements(corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU: resource.MustParse("1.0"),
+						},
+					}),
+				},
+				resources: []corev1.ResourceName{corev1.ResourceCPU},
+			},
+
+			expectedParameters: []optimizev1beta2.Parameter{
+				{
+					Name:     "cpu",
+					Baseline: newInt(1000),
+					Min:      500,
+					Max:      2000,
+				},
+			},
+			expectedPatch: unindent(`
+              spec:
+                resources:
+                  limits:
+                    cpu: "{{ .Values.cpu }}m"
+                  requests:
+                    cpu: "{{ .Values.cpu }}m"`),
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
