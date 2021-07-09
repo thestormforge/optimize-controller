@@ -35,28 +35,23 @@ import (
 )
 
 type Runner struct {
-	client        client.Client
-	appCh         chan *redskyappsv1alpha1.Application
-	errCh         chan error
+	client client.Client
+	// apiClient     api.Client
+	log           logr.Logger
 	kubectlExecFn func(cmd *exec.Cmd) ([]byte, error)
 }
 
-func New(kclient client.Client, appCh chan *redskyappsv1alpha1.Application) (*Runner, chan error) {
-	errCh := make(chan error)
-
-	// Should we handle errors here
-	// as in something like
-	// go func() for err := <- errCh { api.UpdateStatus("failed", err)  }
-
+func New(kclient client.Client, logger logr.Logger) *Runner {
 	return &Runner{
 		client: kclient,
-		appCh:  appCh,
-		errCh:  errCh,
-	}, errCh
+		log:    logger,
+	}
 }
 
 // This doesnt necessarily need to live here, but seemed to make sense
 func (r *Runner) Run(ctx context.Context) {
+	go handleErrors(ctx)
+
 	// api applicationsv1alpha1.API
 	// Just a placeholder chan to illustrate what we'll be doing
 	// eventually this will be replaced with something from the api
@@ -69,12 +64,12 @@ func (r *Runner) Run(ctx context.Context) {
 		case app := <-r.appCh:
 			if app.Namespace == "" {
 				// api.UpdateStatus("failed")
-				r.errCh <- errors.New("invalid app.yaml, missing namespace")
+				fmt.Errorf("invalid app.yaml, missing namespace")
 				continue
 			}
 			if app.Name == "" {
 				// api.UpdateStatus("failed")
-				r.errCh <- errors.New("invalid app.yaml, missing name")
+				fmt.Errorf("invalid app.yaml, missing name")
 				continue
 			}
 
@@ -212,6 +207,17 @@ func (r *Runner) createExperiment(ctx context.Context, exp *redskyv1beta1.Experi
 		if err := r.client.Update(ctx, exp); err != nil {
 			// api.UpdateStatus("failed")
 			r.errCh <- fmt.Errorf("%s: %w", "unable to start experiment", err)
+		}
+	}
+}
+
+func (r *Runner) handleErrors(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case err := <-errCh:
+			r.log.Error(err, "failed to generate experiment from application")
 		}
 	}
 }
