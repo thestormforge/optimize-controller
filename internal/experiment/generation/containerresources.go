@@ -307,13 +307,12 @@ func (cr containerResources) Max() int32 {
 
 // Min returns the the configured minimum or half the baseline.
 func (cr containerResources) Min() int32 {
-	min := cr.min
-	min.Format = cr.baseline.Format
-
 	if !cr.baseline.IsZero() {
-		min.Set(cr.baseline.Value() / 2)
+		return AsScaledInt(cr.baseline, cr.scale()) / 2
 	}
 
+	min := cr.min
+	min.Format = cr.baseline.Format
 	return AsScaledInt(min, cr.scale())
 }
 
