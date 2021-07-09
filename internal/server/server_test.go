@@ -187,10 +187,10 @@ func TestFromCluster(t *testing.T) {
 						SumConstraint: &experimentsv1alpha1.SumConstraint{
 							Bound: 1,
 							Parameters: []experimentsv1alpha1.SumConstraintParameter{
-								{Name: "one", Weight: -1.0},
-								{Name: "two", Weight: 1.0},
-								{Name: "three", Weight: 3.5},
-								{Name: "four", Weight: 5.0},
+								{ParameterName: "one", Weight: -1.0},
+								{ParameterName: "two", Weight: 1.0},
+								{ParameterName: "three", Weight: 3.5},
+								{ParameterName: "four", Weight: 5.0},
 							},
 						},
 					},

@@ -97,8 +97,8 @@ func TestCheckConstraints(t *testing.T) {
 						Bound:        5.0,
 						IsUpperBound: true,
 						Parameters: []experimentsv1alpha1.SumConstraintParameter{
-							{Name: "a", Weight: 1.0},
-							{Name: "b", Weight: 1.0},
+							{ParameterName: "a", Weight: 1.0},
+							{ParameterName: "b", Weight: 1.0},
 						},
 					},
 				},
@@ -119,8 +119,8 @@ func TestCheckConstraints(t *testing.T) {
 						Bound:        5.0,
 						IsUpperBound: true,
 						Parameters: []experimentsv1alpha1.SumConstraintParameter{
-							{Name: "a", Weight: 1.0},
-							{Name: "b", Weight: 1.0},
+							{ParameterName: "a", Weight: 1.0},
+							{ParameterName: "b", Weight: 1.0},
 						},
 					},
 				},
@@ -141,8 +141,8 @@ func TestCheckConstraints(t *testing.T) {
 						Bound:        5.0,
 						IsUpperBound: true,
 						Parameters: []experimentsv1alpha1.SumConstraintParameter{
-							{Name: "a", Weight: 1.0},
-							{Name: "b", Weight: 1.0},
+							{ParameterName: "a", Weight: 1.0},
+							{ParameterName: "b", Weight: 1.0},
 						},
 					},
 				},
@@ -163,8 +163,8 @@ func TestCheckConstraints(t *testing.T) {
 					SumConstraint: &experimentsv1alpha1.SumConstraint{
 						Bound: 3.0,
 						Parameters: []experimentsv1alpha1.SumConstraintParameter{
-							{Name: "a", Weight: 1.0},
-							{Name: "b", Weight: 1.0},
+							{ParameterName: "a", Weight: 1.0},
+							{ParameterName: "b", Weight: 1.0},
 						},
 					},
 				},
@@ -184,8 +184,8 @@ func TestCheckConstraints(t *testing.T) {
 					SumConstraint: &experimentsv1alpha1.SumConstraint{
 						Bound: 3.0,
 						Parameters: []experimentsv1alpha1.SumConstraintParameter{
-							{Name: "a", Weight: 1.0},
-							{Name: "b", Weight: 1.0},
+							{ParameterName: "a", Weight: 1.0},
+							{ParameterName: "b", Weight: 1.0},
 						},
 					},
 				},
@@ -205,8 +205,8 @@ func TestCheckConstraints(t *testing.T) {
 					SumConstraint: &experimentsv1alpha1.SumConstraint{
 						Bound: 3.0,
 						Parameters: []experimentsv1alpha1.SumConstraintParameter{
-							{Name: "a", Weight: 1.0},
-							{Name: "b", Weight: 1.0},
+							{ParameterName: "a", Weight: 1.0},
+							{ParameterName: "b", Weight: 1.0},
 						},
 					},
 				},
