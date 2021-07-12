@@ -19,11 +19,11 @@ package server
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"strings"
 
 	"github.com/thestormforge/optimize-controller/v2/internal/version"
 	"github.com/thestormforge/optimize-go/pkg/api"
+	applications "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"github.com/thestormforge/optimize-go/pkg/config"
 )
@@ -31,28 +31,37 @@ import (
 const audience = "https://api.carbonrelay.io/v1/"
 
 func NewExperimentAPI(ctx context.Context, uaComment string) (experimentsv1alpha1.API, error) {
-	address, rt, err := loadConfig(ctx, uaComment)
+	client, err := newClientFromConfig(ctx, uaComment)
 	if err != nil {
 		return nil, err
 	}
 
-	// Create a new Experiment API client
-	c, err := api.NewClient(address, rt)
-	if err != nil {
-		return nil, err
-	}
-
-	expAPI := experimentsv1alpha1.NewAPI(c)
+	expAPI := experimentsv1alpha1.NewAPI(client)
 
 	// An unauthorized error means we will never be able to connect without changing the credentials and restarting
-	if _, err := expAPI.Options(ctx); api.IsUnauthorized(err) {
+	if _, err := expAPI.CheckEndpoint(ctx); api.IsUnauthorized(err) {
 		return nil, fmt.Errorf("experiments API is unavailable, skipping setup: %s", err.Error())
 	}
 
 	return expAPI, nil
 }
 
-func loadConfig(ctx context.Context, uaComment string) (string, http.RoundTripper, error) {
+func NewApplicationAPI(ctx context.Context, uaComment string) (applications.API, error) {
+	client, err := newClientFromConfig(ctx, uaComment)
+	if err != nil {
+		return nil, err
+	}
+
+	appAPI := applications.NewAPI(client)
+
+	if _, err := appAPI.CheckEndpoint(ctx); api.IsUnauthorized(err) {
+		return nil, fmt.Errorf("applications API is unavailable, skipping setup: %s", err.Error())
+	}
+
+	return appAPI, nil
+}
+
+func newClientFromConfig(ctx context.Context, uaComment string) (api.Client, error) {
 	// Load the configuration
 	cfg := &config.OptimizeConfig{}
 	cfg.AuthorizationParameters = map[string][]string{
@@ -60,7 +69,7 @@ func loadConfig(ctx context.Context, uaComment string) (string, http.RoundTrippe
 	}
 
 	if err := cfg.Load(); err != nil {
-		return "", nil, err
+		return nil, err
 	}
 
 	// Get the Experiments API endpoint from the configuration
@@ -68,15 +77,21 @@ func loadConfig(ctx context.Context, uaComment string) (string, http.RoundTrippe
 	// experiments endpoint which would duplicate the "/experiments/" path segment
 	srv, err := config.CurrentServer(cfg.Reader())
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 
 	address := strings.TrimSuffix(srv.API.ExperimentsEndpoint, "/v1/experiments/")
 
 	rt, err := cfg.Authorize(ctx, version.UserAgent("optimize-controller", uaComment, nil))
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 
-	return address, rt, nil
+	// Create a new API client
+	c, err := api.NewClient(address, rt)
+	if err != nil {
+		return nil, err
+	}
+
+	return c, nil
 }
