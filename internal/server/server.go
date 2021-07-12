@@ -28,8 +28,8 @@ import (
 	"github.com/thestormforge/optimize-controller/v2/internal/trial"
 	"github.com/thestormforge/optimize-controller/v2/internal/validation"
 	"github.com/thestormforge/optimize-go/pkg/api"
+	"github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
-	"github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1/numstr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -89,19 +89,19 @@ func FromCluster(in *optimizev1beta2.Experiment) (experimentsv1alpha1.Experiment
 		}
 
 		if p.Baseline != nil {
-			var v numstr.NumberOrString
+			var v api.NumberOrString
 			if p.Baseline.Type == intstr.String {
 				vs := p.Baseline.StrVal
 				if !stringSliceContains(p.Values, vs) {
-					return nil, nil, nil, fmt.Errorf("baseline out of range for parameter '%s'", p.Name)
+					return "", nil, nil, fmt.Errorf("baseline out of range for parameter '%s'", p.Name)
 				}
-				v = numstr.FromString(vs)
+				v = api.FromString(vs)
 			} else {
 				vi := p.Baseline.IntVal
 				if vi < p.Min || vi > p.Max {
-					return nil, nil, nil, fmt.Errorf("baseline out of range for parameter '%s'", p.Name)
+					return "", nil, nil, fmt.Errorf("baseline out of range for parameter '%s'", p.Name)
 				}
-				v = numstr.FromInt64(int64(vi))
+				v = api.FromInt64(int64(vi))
 			}
 			baseline.Assignments = append(baseline.Assignments, experimentsv1alpha1.Assignment{
 				ParameterName: p.Name,
@@ -160,13 +160,12 @@ func FromCluster(in *optimizev1beta2.Experiment) (experimentsv1alpha1.Experiment
 	if len(baseline.Assignments) == 0 {
 		baseline = nil
 	} else if len(baseline.Assignments) != len(out.Parameters) {
-		return nil, nil, nil, fmt.Errorf("baseline must be specified on all or none of the parameters")
+		return "", nil, nil, fmt.Errorf("baseline must be specified on all or none of the parameters")
 	} else if err := validation.CheckConstraints(out.Constraints, baseline.Assignments); err != nil {
-		return nil, nil, nil, err
+		return "", nil, nil, err
 	}
 
-	n := experimentsv1alpha1.NewExperimentName(in.Name)
-	return n, out, baseline, nil
+	return v1alpha1.ExperimentName(in.Name), out, baseline, nil
 }
 
 // ToCluster converts API state to cluster state
