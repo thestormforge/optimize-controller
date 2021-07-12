@@ -49,7 +49,6 @@ type MetricReconciler struct {
 // +kubebuilder:rbac:groups=optimize.stormforge.io,resources=experiments,verbs=get;list;watch
 // +kubebuilder:rbac:groups=optimize.stormforge.io,resources=trials,verbs=get;list;watch;update
 // +kubebuilder:rbac:groups="",resources=pods,verbs=list
-// +kubebuilder:rbac:groups="",resources=services,verbs=list
 
 func (r *MetricReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
