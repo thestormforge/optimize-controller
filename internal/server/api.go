@@ -30,7 +30,7 @@ import (
 
 const audience = "https://api.carbonrelay.io/v1/"
 
-func NewExperimentClient(ctx context.Context, uaComment string) (experimentsv1alpha1.API, error) {
+func NewExperimentAPI(ctx context.Context, uaComment string) (experimentsv1alpha1.API, error) {
 	address, rt, err := loadConfig(ctx, uaComment)
 	if err != nil {
 		return nil, err

@@ -165,12 +165,12 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			}
 		}
 
-		client, err := server.NewExperimentClient(context.Background(), comment)
+		api, err := server.NewExperimentAPI(context.Background(), comment)
 		if err != nil {
 			return err
 		}
 
-		r.ExperimentsAPI = client
+		r.ExperimentsAPI = api
 	}
 
 	// Enforce trial creation rate limit (no burst! that is the whole point)
