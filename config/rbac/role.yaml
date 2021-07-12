@@ -19,12 +19,6 @@ rules:
   verbs:
   - list
 - apiGroups:
-  - ""
-  resources:
-  - services
-  verbs:
-  - list
-- apiGroups:
   - batch
   - extensions
   resources:
