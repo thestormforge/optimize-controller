@@ -25,7 +25,6 @@ import (
 	"strings"
 
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
-	"github.com/thestormforge/optimize-controller/v2/internal/experiment"
 	"github.com/thestormforge/optimize-controller/v2/internal/trial"
 	"github.com/thestormforge/optimize-controller/v2/internal/validation"
 	"github.com/thestormforge/optimize-go/pkg/api"
@@ -285,24 +284,6 @@ func FromClusterTrial(t *optimizev1beta2.Trial) *experimentsv1alpha1.TrialValues
 	}
 
 	return out
-}
-
-// StopExperiment updates the experiment in the event that it should be paused or halted.
-func StopExperiment(exp *optimizev1beta2.Experiment, err error) bool {
-	if rse, ok := err.(*api.Error); ok && rse.Type == experimentsv1alpha1.ErrExperimentStopped {
-		exp.SetReplicas(0)
-		delete(exp.GetAnnotations(), optimizev1beta2.AnnotationNextTrialURL)
-		experiment.ApplyCondition(&exp.Status, optimizev1beta2.ExperimentComplete, corev1.ConditionTrue, "Stopped", err.Error(), nil)
-		return true
-	}
-	return false
-}
-
-// FailExperiment records a recognized error as an experiment failure.
-func FailExperiment(exp *optimizev1beta2.Experiment, reason string, err error) bool {
-	exp.SetReplicas(0)
-	experiment.ApplyCondition(&exp.Status, optimizev1beta2.ExperimentFailed, corev1.ConditionTrue, reason, err.Error(), nil)
-	return true
 }
 
 // IsServerSyncEnabled checks to see if server synchronization is enabled.

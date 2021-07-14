@@ -20,6 +20,8 @@ import (
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-controller/v2/internal/controller"
 	"github.com/thestormforge/optimize-controller/v2/internal/trial"
+	"github.com/thestormforge/optimize-go/pkg/api"
+	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -129,6 +131,24 @@ func IsFinished(exp *optimizev1beta2.Experiment) bool {
 		}
 	}
 	return false
+}
+
+// StopExperiment updates the experiment in the event that it should be paused or halted.
+func StopExperiment(exp *optimizev1beta2.Experiment, err error) bool {
+	if rse, ok := err.(*api.Error); ok && rse.Type == experimentsv1alpha1.ErrExperimentStopped {
+		exp.SetReplicas(0)
+		delete(exp.GetAnnotations(), optimizev1beta2.AnnotationNextTrialURL)
+		ApplyCondition(&exp.Status, optimizev1beta2.ExperimentComplete, corev1.ConditionTrue, "Stopped", err.Error(), nil)
+		return true
+	}
+	return false
+}
+
+// FailExperiment records a recognized error as an experiment failure.
+func FailExperiment(exp *optimizev1beta2.Experiment, reason string, err error) bool {
+	exp.SetReplicas(0)
+	ApplyCondition(&exp.Status, optimizev1beta2.ExperimentFailed, corev1.ConditionTrue, reason, err.Error(), nil)
+	return true
 }
 
 func ApplyCondition(status *optimizev1beta2.ExperimentStatus, conditionType optimizev1beta2.ExperimentConditionType, conditionStatus corev1.ConditionStatus, reason, message string, time *metav1.Time) {
