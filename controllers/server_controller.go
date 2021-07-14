@@ -31,10 +31,8 @@ import (
 	"github.com/thestormforge/optimize-controller/v2/internal/server"
 	"github.com/thestormforge/optimize-controller/v2/internal/trial"
 	"github.com/thestormforge/optimize-controller/v2/internal/validation"
-	"github.com/thestormforge/optimize-controller/v2/internal/version"
 	"github.com/thestormforge/optimize-go/pkg/api"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
-	"github.com/thestormforge/optimize-go/pkg/config"
 	"golang.org/x/time/rate"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -159,27 +157,6 @@ func (r *ServerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if r.ExperimentsAPI == nil {
-		ctx := context.Background()
-
-		// Load the configuration
-		cfg := &config.OptimizeConfig{}
-		cfg.AuthorizationParameters = map[string][]string{
-			"audience": {"https://api.carbonrelay.io/v1/"},
-		}
-		if err := cfg.Load(); err != nil {
-			return err
-		}
-
-		// Get the Experiments API endpoint from the configuration
-		// NOTE: The current version of the configuration has an explicit configuration for the
-		// experiments endpoint which would duplicate the "/experiments/" path segment
-		srv, err := config.CurrentServer(cfg.Reader())
-		if err != nil {
-			return err
-		}
-
-		address := strings.TrimSuffix(srv.API.ExperimentsEndpoint, "/v1/experiments/")
-
 		// Compute the UA string comment using the Kube API server information
 		var comment string
 		if dc, err := discovery.NewDiscoveryClientForConfig(mgr.GetConfig()); err == nil {
@@ -188,24 +165,12 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			}
 		}
 
-		rt, err := cfg.Authorize(ctx, version.UserAgent("optimize-controller", comment, nil))
+		api, err := server.NewExperimentAPI(context.Background(), comment)
 		if err != nil {
 			return err
 		}
 
-		// Create a new Experiment API client
-		c, err := api.NewClient(address, rt)
-		if err != nil {
-			return err
-		}
-		expAPI := experimentsv1alpha1.NewAPI(c)
-
-		// An unauthorized error means we will never be able to connect without changing the credentials and restarting
-		if _, err := expAPI.Options(ctx); api.IsUnauthorized(err) {
-			r.Log.Info("Experiments API is unavailable, skipping setup", "message", err.Error())
-			return nil
-		}
-		r.ExperimentsAPI = expAPI
+		r.ExperimentsAPI = api
 	}
 
 	// Enforce trial creation rate limit (no burst! that is the whole point)
