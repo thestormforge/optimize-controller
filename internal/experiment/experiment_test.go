@@ -24,6 +24,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	"github.com/thestormforge/optimize-go/pkg/api"
+	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -284,6 +286,67 @@ func TestApplyCondition(t *testing.T) {
 			actual := optimizev1beta2.ExperimentStatus{Conditions: c.initialConditions}
 			ApplyCondition(&actual, c.conditionType, c.conditionStatus, c.reason, c.message, c.time)
 			assert.Equal(t, c.expectedConditions, actual.Conditions)
+		})
+	}
+}
+
+func TestStopExperiment(t *testing.T) {
+	cases := []struct {
+		desc        string
+		exp         *optimizev1beta2.Experiment
+		err         error
+		expectedOut bool
+		expectedExp *optimizev1beta2.Experiment
+	}{
+		{
+			desc: "no error",
+			exp: &optimizev1beta2.Experiment{
+				ObjectMeta: metav1.ObjectMeta{},
+			},
+			err:         nil,
+			expectedOut: false,
+			expectedExp: &optimizev1beta2.Experiment{
+				ObjectMeta: metav1.ObjectMeta{},
+			},
+		},
+		{
+			desc: "error wrong type",
+			exp: &optimizev1beta2.Experiment{
+				ObjectMeta: metav1.ObjectMeta{},
+			},
+			err: &api.Error{
+				Type: experimentsv1alpha1.ErrExperimentNameInvalid,
+			},
+			expectedOut: false,
+			expectedExp: &optimizev1beta2.Experiment{
+				ObjectMeta: metav1.ObjectMeta{},
+			},
+		},
+		{
+			desc: "error",
+			exp: &optimizev1beta2.Experiment{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						optimizev1beta2.AnnotationNextTrialURL: "111",
+					},
+				},
+			},
+			err: &api.Error{
+				Type: experimentsv1alpha1.ErrExperimentStopped,
+			},
+			expectedOut: true,
+			expectedExp: &optimizev1beta2.Experiment{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{},
+				},
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			out := StopExperiment(c.exp, c.err)
+			assert.Equal(t, c.expectedOut, out)
+			assert.Equal(t, c.expectedExp.GetAnnotations(), c.exp.GetAnnotations())
 		})
 	}
 }

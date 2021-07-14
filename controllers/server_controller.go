@@ -254,7 +254,7 @@ func (r *ServerReconciler) createExperiment(ctx context.Context, log logr.Logger
 	// Convert the cluster state into a server representation
 	n, e, b, err := server.FromCluster(exp)
 	if err != nil {
-		if server.FailExperiment(exp, "InvalidExperimentDefinition", err) {
+		if experiment.FailExperiment(exp, "InvalidExperimentDefinition", err) {
 			err := r.Update(ctx, exp)
 			return controller.RequeueConflict(err)
 		}
@@ -269,7 +269,7 @@ func (r *ServerReconciler) createExperiment(ctx context.Context, log logr.Logger
 		ee, err = r.ExperimentsAPI.CreateExperimentByName(ctx, n, *e)
 	}
 	if err != nil {
-		if server.FailExperiment(exp, "ServerCreateFailed", err) {
+		if experiment.FailExperiment(exp, "ServerCreateFailed", err) {
 			err := r.Update(ctx, exp)
 			return controller.RequeueConflict(err)
 		}
@@ -356,7 +356,7 @@ func (r *ServerReconciler) nextTrial(ctx context.Context, log logr.Logger, exp *
 	// Obtain a suggestion from the server
 	suggestion, err := r.ExperimentsAPI.NextTrial(ctx, exp.GetAnnotations()[optimizev1beta2.AnnotationNextTrialURL])
 	if err != nil {
-		if server.StopExperiment(exp, err) {
+		if experiment.StopExperiment(exp, err) {
 			err := r.Update(ctx, exp)
 			return controller.RequeueConflict(err)
 		}
