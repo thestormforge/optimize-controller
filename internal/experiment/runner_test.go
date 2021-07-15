@@ -27,8 +27,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	konjurev1beta2 "github.com/thestormforge/konjure/pkg/api/core/v1beta2"
 	"github.com/thestormforge/konjure/pkg/konjure"
-	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
+	redskyv1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -72,7 +72,7 @@ func TestRunner(t *testing.T) {
 	}
 
 	scheme := runtime.NewScheme()
-	redskyv1beta1.AddToScheme(scheme)
+	redskyv1beta2.AddToScheme(scheme)
 	redskyappsv1alpha1.AddToScheme(scheme)
 	corev1.AddToScheme(scheme)
 	rbacv1.AddToScheme(scheme)
@@ -89,7 +89,9 @@ func TestRunner(t *testing.T) {
 			*/
 
 			appCh := make(chan *redskyappsv1alpha1.Application)
-			runner, errCh := New(client, appCh)
+			runner, err := New(client, nil)
+			assert.NoError(t, err)
+
 			runner.kubectlExecFn = fakeKubectlExec
 
 			expCh := make(chan struct{})
@@ -100,7 +102,7 @@ func TestRunner(t *testing.T) {
 			// Makeshift watcher; trigger experiment verification tests
 			// when we see the experiment through our fake client
 			go func() {
-				exp := &redskyv1beta1.Experiment{}
+				exp := &redskyv1beta2.Experiment{}
 				for {
 					select {
 					case <-time.Tick(100 * time.Millisecond):
@@ -137,7 +139,7 @@ func TestRunner(t *testing.T) {
 					return
 
 				case <-expCh:
-					exp := &redskyv1beta1.Experiment{}
+					exp := &redskyv1beta2.Experiment{}
 					err := client.Get(ctx, types.NamespacedName{Namespace: "default", Name: tc.expName}, exp)
 					assert.NoError(t, err)
 
