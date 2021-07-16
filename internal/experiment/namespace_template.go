@@ -19,8 +19,8 @@ package experiment
 import (
 	"context"
 
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
-	"github.com/thestormforge/optimize-controller/internal/trial"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	"github.com/thestormforge/optimize-controller/v2/internal/trial"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
@@ -29,7 +29,7 @@ import (
 )
 
 // NextTrialNamespace searches for or creates a new namespace to run a new trial in, returning an empty string if no such namespace can be found
-func NextTrialNamespace(ctx context.Context, c client.Client, exp *redskyv1beta1.Experiment, trialList *redskyv1beta1.TrialList) (string, error) {
+func NextTrialNamespace(ctx context.Context, c client.Client, exp *optimizev1beta2.Experiment, trialList *optimizev1beta2.TrialList) (string, error) {
 	// Determine which namespaces have an active trial
 	activeNamespaces := make(map[string]bool, len(trialList.Items))
 	activeTrials := int32(0)
@@ -93,7 +93,7 @@ func ignorePermissions(err error) error {
 	return err
 }
 
-func createNamespaceFromTemplate(ctx context.Context, c client.Client, exp *redskyv1beta1.Experiment) (string, error) {
+func createNamespaceFromTemplate(ctx context.Context, c client.Client, exp *optimizev1beta2.Experiment) (string, error) {
 	// Use the template to populate a new namespace
 	n := &corev1.Namespace{}
 	exp.Spec.NamespaceTemplate.ObjectMeta.DeepCopyInto(&n.ObjectMeta)
@@ -104,8 +104,8 @@ func createNamespaceFromTemplate(ctx context.Context, c client.Client, exp *reds
 	if n.Labels == nil {
 		n.Labels = map[string]string{}
 	}
-	n.Labels[redskyv1beta1.LabelExperiment] = exp.Name
-	n.Labels[redskyv1beta1.LabelTrialRole] = "trialSetup"
+	n.Labels[optimizev1beta2.LabelExperiment] = exp.Name
+	n.Labels[optimizev1beta2.LabelTrialRole] = "trialSetup"
 
 	// TODO We should also record the fact that we created the namespace for possible clean up later
 
@@ -148,7 +148,7 @@ type trialNamespace struct {
 	RoleBindings   []rbacv1.RoleBinding
 }
 
-func createTrialNamespace(exp *redskyv1beta1.Experiment, namespace string) *trialNamespace {
+func createTrialNamespace(exp *optimizev1beta2.Experiment, namespace string) *trialNamespace {
 	ts := &trialNamespace{}
 
 	// Fill in the details about the service account
@@ -166,7 +166,7 @@ func createTrialNamespace(exp *redskyv1beta1.Experiment, namespace string) *tria
 	if len(exp.Spec.TrialTemplate.Spec.SetupDefaultRules) > 0 {
 		ts.Role = &rbacv1.Role{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "redsky-setup-role",
+				Name:      "optimize-setup-role",
 				Namespace: namespace,
 			},
 			Rules: exp.Spec.TrialTemplate.Spec.SetupDefaultRules,
@@ -174,7 +174,7 @@ func createTrialNamespace(exp *redskyv1beta1.Experiment, namespace string) *tria
 
 		ts.RoleBindings = append(ts.RoleBindings, rbacv1.RoleBinding{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "redsky-setup-rolebinding",
+				Name:      "optimize-setup-rolebinding",
 				Namespace: namespace,
 			},
 			Subjects: []rbacv1.Subject{{
@@ -194,7 +194,7 @@ func createTrialNamespace(exp *redskyv1beta1.Experiment, namespace string) *tria
 	if exp.Spec.TrialTemplate.Spec.SetupDefaultClusterRole != "" {
 		ts.RoleBindings = append(ts.RoleBindings, rbacv1.RoleBinding{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "redsky-setup-cluster-rolebinding",
+				Name:      "optimize-setup-cluster-rolebinding",
 				Namespace: namespace,
 			},
 			Subjects: []rbacv1.Subject{{

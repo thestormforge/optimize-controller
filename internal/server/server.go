@@ -24,10 +24,11 @@ import (
 	"strconv"
 	"strings"
 
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
-	"github.com/thestormforge/optimize-controller/internal/experiment"
-	"github.com/thestormforge/optimize-controller/internal/trial"
-	redskyapi "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	"github.com/thestormforge/optimize-controller/v2/internal/trial"
+	"github.com/thestormforge/optimize-controller/v2/internal/validation"
+	"github.com/thestormforge/optimize-go/pkg/api"
+	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1/numstr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -36,31 +37,28 @@ import (
 
 const (
 	// Finalizer is used to ensure synchronization with the server
-	Finalizer = "serverFinalizer.redskyops.dev"
+	Finalizer = "serverFinalizer.stormforge.io"
 )
 
 // TODO Split this into trial.go and experiment.go ?
 
 // FromCluster converts cluster state to API state
-func FromCluster(in *redskyv1beta1.Experiment) (redskyapi.ExperimentName, *redskyapi.Experiment, *redskyapi.TrialAssignments, error) {
-	out := &redskyapi.Experiment{}
-	out.ExperimentMeta.LastModified = in.CreationTimestamp.Time
-	out.ExperimentMeta.SelfURL = in.Annotations[redskyv1beta1.AnnotationExperimentURL]
-	out.ExperimentMeta.NextTrialURL = in.Annotations[redskyv1beta1.AnnotationNextTrialURL]
+func FromCluster(in *optimizev1beta2.Experiment) (experimentsv1alpha1.ExperimentName, *experimentsv1alpha1.Experiment, *experimentsv1alpha1.TrialAssignments, error) {
+	out := &experimentsv1alpha1.Experiment{}
 
-	baseline := &redskyapi.TrialAssignments{Labels: map[string]string{"baseline": "true"}}
+	baseline := &experimentsv1alpha1.TrialAssignments{Labels: map[string]string{"baseline": "true"}}
 
 	if l := len(in.ObjectMeta.Labels); l > 0 {
 		out.Labels = make(map[string]string, l)
 		for k, v := range in.ObjectMeta.Labels {
-			k = strings.TrimPrefix(k, "redskyops.dev/")
+			k = strings.TrimPrefix(k, "stormforge.io/")
 			out.Labels[k] = v
 		}
 	}
 
 	out.Optimization = nil
 	for _, o := range in.Spec.Optimization {
-		out.Optimization = append(out.Optimization, redskyapi.Optimization{
+		out.Optimization = append(out.Optimization, experimentsv1alpha1.Optimization{
 			Name:  o.Name,
 			Value: o.Value,
 		})
@@ -74,16 +72,16 @@ func FromCluster(in *redskyv1beta1.Experiment) (redskyapi.ExperimentName, *redsk
 		}
 
 		if len(p.Values) > 0 {
-			out.Parameters = append(out.Parameters, redskyapi.Parameter{
-				Type:   redskyapi.ParameterTypeCategorical,
+			out.Parameters = append(out.Parameters, experimentsv1alpha1.Parameter{
+				Type:   experimentsv1alpha1.ParameterTypeCategorical,
 				Name:   p.Name,
 				Values: p.Values,
 			})
 		} else {
-			out.Parameters = append(out.Parameters, redskyapi.Parameter{
-				Type: redskyapi.ParameterTypeInteger,
+			out.Parameters = append(out.Parameters, experimentsv1alpha1.Parameter{
+				Type: experimentsv1alpha1.ParameterTypeInteger,
 				Name: p.Name,
-				Bounds: &redskyapi.Bounds{
+				Bounds: &experimentsv1alpha1.Bounds{
 					Min: json.Number(strconv.FormatInt(int64(p.Min), 10)),
 					Max: json.Number(strconv.FormatInt(int64(p.Max), 10)),
 				},
@@ -105,7 +103,7 @@ func FromCluster(in *redskyv1beta1.Experiment) (redskyapi.ExperimentName, *redsk
 				}
 				v = numstr.FromInt64(int64(vi))
 			}
-			baseline.Assignments = append(baseline.Assignments, redskyapi.Assignment{
+			baseline.Assignments = append(baseline.Assignments, experimentsv1alpha1.Assignment{
 				ParameterName: p.Name,
 				Value:         v,
 			})
@@ -116,16 +114,16 @@ func FromCluster(in *redskyv1beta1.Experiment) (redskyapi.ExperimentName, *redsk
 	for _, c := range in.Spec.Constraints {
 		switch {
 		case c.Order != nil:
-			out.Constraints = append(out.Constraints, redskyapi.Constraint{
+			out.Constraints = append(out.Constraints, experimentsv1alpha1.Constraint{
 				Name:           c.Name,
-				ConstraintType: redskyapi.ConstraintOrder,
-				OrderConstraint: redskyapi.OrderConstraint{
+				ConstraintType: experimentsv1alpha1.ConstraintOrder,
+				OrderConstraint: &experimentsv1alpha1.OrderConstraint{
 					LowerParameter: c.Order.LowerParameter,
 					UpperParameter: c.Order.UpperParameter,
 				},
 			})
 		case c.Sum != nil:
-			sc := redskyapi.SumConstraint{
+			sc := &experimentsv1alpha1.SumConstraint{
 				IsUpperBound: c.Sum.IsUpperBound,
 				Bound:        float64(c.Sum.Bound.MilliValue()) / 1000,
 			}
@@ -135,15 +133,15 @@ func FromCluster(in *redskyv1beta1.Experiment) (redskyapi.ExperimentName, *redsk
 					continue
 				}
 
-				sc.Parameters = append(sc.Parameters, redskyapi.SumConstraintParameter{
-					Name:   p.Name,
-					Weight: float64(p.Weight.MilliValue()) / 1000,
+				sc.Parameters = append(sc.Parameters, experimentsv1alpha1.SumConstraintParameter{
+					ParameterName: p.Name,
+					Weight:        float64(p.Weight.MilliValue()) / 1000,
 				})
 			}
 
-			out.Constraints = append(out.Constraints, redskyapi.Constraint{
+			out.Constraints = append(out.Constraints, experimentsv1alpha1.Constraint{
 				Name:           c.Name,
-				ConstraintType: redskyapi.ConstraintSum,
+				ConstraintType: experimentsv1alpha1.ConstraintSum,
 				SumConstraint:  sc,
 			})
 		}
@@ -151,7 +149,7 @@ func FromCluster(in *redskyv1beta1.Experiment) (redskyapi.ExperimentName, *redsk
 
 	out.Metrics = nil
 	for _, m := range in.Spec.Metrics {
-		out.Metrics = append(out.Metrics, redskyapi.Metric{
+		out.Metrics = append(out.Metrics, experimentsv1alpha1.Metric{
 			Name:     m.Name,
 			Minimize: m.Minimize,
 			Optimize: m.Optimize,
@@ -163,24 +161,26 @@ func FromCluster(in *redskyv1beta1.Experiment) (redskyapi.ExperimentName, *redsk
 		baseline = nil
 	} else if len(baseline.Assignments) != len(out.Parameters) {
 		return nil, nil, nil, fmt.Errorf("baseline must be specified on all or none of the parameters")
+	} else if err := validation.CheckConstraints(out.Constraints, baseline.Assignments); err != nil {
+		return nil, nil, nil, err
 	}
 
-	n := redskyapi.NewExperimentName(in.Name)
+	n := experimentsv1alpha1.NewExperimentName(in.Name)
 	return n, out, baseline, nil
 }
 
 // ToCluster converts API state to cluster state
-func ToCluster(exp *redskyv1beta1.Experiment, ee *redskyapi.Experiment) {
+func ToCluster(exp *optimizev1beta2.Experiment, ee *experimentsv1alpha1.Experiment) {
 	if exp.GetAnnotations() == nil {
 		exp.SetAnnotations(make(map[string]string))
 	}
 
-	exp.GetAnnotations()[redskyv1beta1.AnnotationExperimentURL] = ee.SelfURL
-	exp.GetAnnotations()[redskyv1beta1.AnnotationNextTrialURL] = ee.NextTrialURL
+	exp.GetAnnotations()[optimizev1beta2.AnnotationExperimentURL] = ee.Link(api.RelationSelf)
+	exp.GetAnnotations()[optimizev1beta2.AnnotationNextTrialURL] = ee.Link(api.RelationNextTrial)
 
 	exp.Spec.Optimization = nil
 	for i := range ee.Optimization {
-		exp.Spec.Optimization = append(exp.Spec.Optimization, redskyv1beta1.Optimization{
+		exp.Spec.Optimization = append(exp.Spec.Optimization, optimizev1beta2.Optimization{
 			Name:  ee.Optimization[i].Name,
 			Value: ee.Optimization[i].Value,
 		})
@@ -190,12 +190,12 @@ func ToCluster(exp *redskyv1beta1.Experiment, ee *redskyapi.Experiment) {
 }
 
 // ToClusterTrial converts API state to cluster state
-func ToClusterTrial(t *redskyv1beta1.Trial, suggestion *redskyapi.TrialAssignments) {
-	t.GetAnnotations()[redskyv1beta1.AnnotationReportTrialURL] = suggestion.SelfURL
+func ToClusterTrial(t *optimizev1beta2.Trial, suggestion *experimentsv1alpha1.TrialAssignments) {
+	t.GetAnnotations()[optimizev1beta2.AnnotationReportTrialURL] = suggestion.Location()
 
 	// Try to make the cluster trial names match what is on the server
-	if t.Name == "" && t.GenerateName != "" && suggestion.SelfURL != "" {
-		name := path.Base(suggestion.SelfURL)
+	if t.Name == "" && t.GenerateName != "" && suggestion.Location() != "" {
+		name := path.Base(suggestion.Location())
 		if num, err := strconv.ParseInt(name, 10, 64); err == nil {
 			t.Name = fmt.Sprintf("%s%03d", t.GenerateName, num)
 		} else {
@@ -221,7 +221,7 @@ func ToClusterTrial(t *redskyv1beta1.Trial, suggestion *redskyapi.TrialAssignmen
 			}
 		}
 
-		t.Spec.Assignments = append(t.Spec.Assignments, redskyv1beta1.Assignment{
+		t.Spec.Assignments = append(t.Spec.Assignments, optimizev1beta2.Assignment{
 			Name:  a.ParameterName,
 			Value: v,
 		})
@@ -246,8 +246,8 @@ func ToClusterTrial(t *redskyv1beta1.Trial, suggestion *redskyapi.TrialAssignmen
 }
 
 // FromClusterTrial converts cluster state to API state
-func FromClusterTrial(t *redskyv1beta1.Trial) *redskyapi.TrialValues {
-	out := &redskyapi.TrialValues{}
+func FromClusterTrial(t *optimizev1beta2.Trial) *experimentsv1alpha1.TrialValues {
+	out := &experimentsv1alpha1.TrialValues{}
 
 	// Set the trial timestamps
 	if t.Status.StartTime != nil {
@@ -259,7 +259,7 @@ func FromClusterTrial(t *redskyv1beta1.Trial) *redskyapi.TrialValues {
 
 	// Check to see if the trial failed
 	for _, c := range t.Status.Conditions {
-		if c.Type == redskyv1beta1.TrialFailed && c.Status == corev1.ConditionTrue {
+		if c.Type == optimizev1beta2.TrialFailed && c.Status == corev1.ConditionTrue {
 			out.Failed = true
 			out.FailureReason = c.Reason
 			out.FailureMessage = c.Message
@@ -271,7 +271,7 @@ func FromClusterTrial(t *redskyv1beta1.Trial) *redskyapi.TrialValues {
 	if !out.Failed {
 		for _, v := range t.Spec.Values {
 			if fv, err := strconv.ParseFloat(v.Value, 64); err == nil {
-				value := redskyapi.Value{
+				value := experimentsv1alpha1.Value{
 					MetricName: v.Name,
 					Value:      fv,
 				}
@@ -286,27 +286,9 @@ func FromClusterTrial(t *redskyv1beta1.Trial) *redskyapi.TrialValues {
 	return out
 }
 
-// StopExperiment updates the experiment in the event that it should be paused or halted.
-func StopExperiment(exp *redskyv1beta1.Experiment, err error) bool {
-	if rse, ok := err.(*redskyapi.Error); ok && rse.Type == redskyapi.ErrExperimentStopped {
-		exp.SetReplicas(0)
-		delete(exp.GetAnnotations(), redskyv1beta1.AnnotationNextTrialURL)
-		experiment.ApplyCondition(&exp.Status, redskyv1beta1.ExperimentComplete, corev1.ConditionTrue, "Stopped", err.Error(), nil)
-		return true
-	}
-	return false
-}
-
-// FailExperiment records a recognized error as an experiment failure.
-func FailExperiment(exp *redskyv1beta1.Experiment, reason string, err error) bool {
-	exp.SetReplicas(0)
-	experiment.ApplyCondition(&exp.Status, redskyv1beta1.ExperimentFailed, corev1.ConditionTrue, reason, err.Error(), nil)
-	return true
-}
-
 // IsServerSyncEnabled checks to see if server synchronization is enabled.
-func IsServerSyncEnabled(exp *redskyv1beta1.Experiment) bool {
-	switch strings.ToLower(exp.GetAnnotations()[redskyv1beta1.AnnotationServerSync]) {
+func IsServerSyncEnabled(exp *optimizev1beta2.Experiment) bool {
+	switch strings.ToLower(exp.GetAnnotations()[optimizev1beta2.AnnotationServerSync]) {
 	case "disabled", "false":
 		return false
 	default:
@@ -323,7 +305,7 @@ func IsServerSyncEnabled(exp *redskyv1beta1.Experiment) bool {
 // server experiments means it won't be available to the UI anymore. We also
 // would not want a `reset` (which deletes the CRD) to wipe out all the data on
 // the server.
-func DeleteServerExperiment(exp *redskyv1beta1.Experiment) bool {
+func DeleteServerExperiment(exp *optimizev1beta2.Experiment) bool {
 	// As a special case, check to see if synchronization is disabled. This would
 	// be the case if someone tried disabling server synchronization mid-run,
 	// presumably with the intent of not having the server experiment at the end.
@@ -331,7 +313,7 @@ func DeleteServerExperiment(exp *redskyv1beta1.Experiment) bool {
 		return true
 	}
 
-	switch strings.ToLower(exp.GetAnnotations()[redskyv1beta1.AnnotationServerSync]) {
+	switch strings.ToLower(exp.GetAnnotations()[optimizev1beta2.AnnotationServerSync]) {
 	case "delete-completed", "delete":
 		// Allow the server representation of the experiment to be deleted, for
 		// example to facilitate debugging or with initial experiment setup.

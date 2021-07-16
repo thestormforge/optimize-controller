@@ -23,7 +23,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	redsky "github.com/thestormforge/optimize-controller/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	"github.com/thestormforge/optimize-go/pkg/api"
+	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -39,22 +41,22 @@ func TestSummarize(t *testing.T) {
 
 	testCases := []struct {
 		desc          string
-		experiment    *redsky.Experiment
+		experiment    *optimizev1beta2.Experiment
 		expectedPhase string
 		activeTrials  int32
 		totalTrials   int
 	}{
 		{
 			desc:          "empty",
-			experiment:    &redsky.Experiment{},
+			experiment:    &optimizev1beta2.Experiment{},
 			expectedPhase: PhaseEmpty,
 		},
 		{
 			desc: "created",
-			experiment: &redsky.Experiment{
+			experiment: &optimizev1beta2.Experiment{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						redsky.AnnotationExperimentURL: experimentURL,
+						optimizev1beta2.AnnotationExperimentURL: experimentURL,
 					},
 				},
 			},
@@ -62,7 +64,7 @@ func TestSummarize(t *testing.T) {
 		},
 		{
 			desc: "deleted",
-			experiment: &redsky.Experiment{
+			experiment: &optimizev1beta2.Experiment{
 				ObjectMeta: metav1.ObjectMeta{
 					DeletionTimestamp: &now,
 				},
@@ -71,7 +73,7 @@ func TestSummarize(t *testing.T) {
 		},
 		{
 			desc: "deleted ignore active trials",
-			experiment: &redsky.Experiment{
+			experiment: &optimizev1beta2.Experiment{
 				ObjectMeta: metav1.ObjectMeta{
 					DeletionTimestamp: &now,
 				},
@@ -81,11 +83,11 @@ func TestSummarize(t *testing.T) {
 		},
 		{
 			desc: "deleted ignore replicas",
-			experiment: &redsky.Experiment{
+			experiment: &optimizev1beta2.Experiment{
 				ObjectMeta: metav1.ObjectMeta{
 					DeletionTimestamp: &now,
 				},
-				Spec: redsky.ExperimentSpec{
+				Spec: optimizev1beta2.ExperimentSpec{
 					Replicas: &oneReplica,
 				},
 			},
@@ -93,8 +95,8 @@ func TestSummarize(t *testing.T) {
 		},
 		{
 			desc: "paused no active trials",
-			experiment: &redsky.Experiment{
-				Spec: redsky.ExperimentSpec{
+			experiment: &optimizev1beta2.Experiment{
+				Spec: optimizev1beta2.ExperimentSpec{
 					Replicas: &zeroReplicas,
 				},
 			},
@@ -102,8 +104,8 @@ func TestSummarize(t *testing.T) {
 		},
 		{
 			desc: "paused active trials",
-			experiment: &redsky.Experiment{
-				Spec: redsky.ExperimentSpec{
+			experiment: &optimizev1beta2.Experiment{
+				Spec: optimizev1beta2.ExperimentSpec{
 					Replicas: &oneReplica,
 				},
 			},
@@ -112,19 +114,19 @@ func TestSummarize(t *testing.T) {
 		},
 		{
 			desc: "paused budget done",
-			experiment: &redsky.Experiment{
+			experiment: &optimizev1beta2.Experiment{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						redsky.AnnotationExperimentURL: experimentURL,
+						optimizev1beta2.AnnotationExperimentURL: experimentURL,
 					},
 				},
-				Spec: redsky.ExperimentSpec{
+				Spec: optimizev1beta2.ExperimentSpec{
 					Replicas: &zeroReplicas,
 				},
-				Status: redsky.ExperimentStatus{
-					Conditions: []redsky.ExperimentCondition{
+				Status: optimizev1beta2.ExperimentStatus{
+					Conditions: []optimizev1beta2.ExperimentCondition{
 						{
-							Type:   redsky.ExperimentComplete,
+							Type:   optimizev1beta2.ExperimentComplete,
 							Status: corev1.ConditionTrue,
 						},
 					},
@@ -134,14 +136,14 @@ func TestSummarize(t *testing.T) {
 		},
 		{
 			desc: "paused budget",
-			experiment: &redsky.Experiment{
+			experiment: &optimizev1beta2.Experiment{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						redsky.AnnotationExperimentURL: experimentURL,
-						redsky.AnnotationNextTrialURL:  nextExperimentURL,
+						optimizev1beta2.AnnotationExperimentURL: experimentURL,
+						optimizev1beta2.AnnotationNextTrialURL:  nextExperimentURL,
 					},
 				},
-				Spec: redsky.ExperimentSpec{
+				Spec: optimizev1beta2.ExperimentSpec{
 					Replicas: &zeroReplicas,
 				},
 			},
@@ -149,16 +151,16 @@ func TestSummarize(t *testing.T) {
 		},
 		{
 			desc:          "idle not synced",
-			experiment:    &redsky.Experiment{},
+			experiment:    &optimizev1beta2.Experiment{},
 			expectedPhase: PhaseIdle,
 			totalTrials:   1,
 		},
 		{
 			desc: "idle synced",
-			experiment: &redsky.Experiment{
+			experiment: &optimizev1beta2.Experiment{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						redsky.AnnotationExperimentURL: experimentURL,
+						optimizev1beta2.AnnotationExperimentURL: experimentURL,
 					},
 				},
 			},
@@ -167,11 +169,11 @@ func TestSummarize(t *testing.T) {
 		},
 		{
 			desc: "failed",
-			experiment: &redsky.Experiment{
-				Status: redsky.ExperimentStatus{
-					Conditions: []redsky.ExperimentCondition{
+			experiment: &optimizev1beta2.Experiment{
+				Status: optimizev1beta2.ExperimentStatus{
+					Conditions: []optimizev1beta2.ExperimentCondition{
 						{
-							Type:   redsky.ExperimentFailed,
+							Type:   optimizev1beta2.ExperimentFailed,
 							Status: corev1.ConditionTrue,
 						},
 					},
@@ -195,24 +197,24 @@ func TestApplyCondition(t *testing.T) {
 
 	cases := []struct {
 		desc               string
-		conditionType      redsky.ExperimentConditionType
+		conditionType      optimizev1beta2.ExperimentConditionType
 		conditionStatus    corev1.ConditionStatus
 		reason             string
 		message            string
 		time               *metav1.Time
-		initialConditions  []redsky.ExperimentCondition
-		expectedConditions []redsky.ExperimentCondition
+		initialConditions  []optimizev1beta2.ExperimentCondition
+		expectedConditions []optimizev1beta2.ExperimentCondition
 	}{
 		{
 			desc:            "add to empty",
-			conditionType:   redsky.ExperimentFailed,
+			conditionType:   optimizev1beta2.ExperimentFailed,
 			conditionStatus: corev1.ConditionTrue,
 			reason:          "Testing",
 			message:         "Test Test",
 			time:            &now,
-			expectedConditions: []redsky.ExperimentCondition{
+			expectedConditions: []optimizev1beta2.ExperimentCondition{
 				{
-					Type:               redsky.ExperimentFailed,
+					Type:               optimizev1beta2.ExperimentFailed,
 					Status:             corev1.ConditionTrue,
 					LastProbeTime:      now,
 					LastTransitionTime: now,
@@ -223,14 +225,14 @@ func TestApplyCondition(t *testing.T) {
 		},
 		{
 			desc:            "update status",
-			conditionType:   redsky.ExperimentFailed,
+			conditionType:   optimizev1beta2.ExperimentFailed,
 			conditionStatus: corev1.ConditionTrue,
 			reason:          "Testing",
 			message:         "Test Test",
 			time:            &now,
-			initialConditions: []redsky.ExperimentCondition{
+			initialConditions: []optimizev1beta2.ExperimentCondition{
 				{
-					Type:               redsky.ExperimentFailed,
+					Type:               optimizev1beta2.ExperimentFailed,
 					Status:             corev1.ConditionFalse,
 					LastProbeTime:      then,
 					LastTransitionTime: then,
@@ -238,9 +240,9 @@ func TestApplyCondition(t *testing.T) {
 					Message:            "Bar",
 				},
 			},
-			expectedConditions: []redsky.ExperimentCondition{
+			expectedConditions: []optimizev1beta2.ExperimentCondition{
 				{
-					Type:               redsky.ExperimentFailed,
+					Type:               optimizev1beta2.ExperimentFailed,
 					Status:             corev1.ConditionTrue,
 					LastProbeTime:      now,
 					LastTransitionTime: now,
@@ -251,14 +253,14 @@ func TestApplyCondition(t *testing.T) {
 		},
 		{
 			desc:            "update no change",
-			conditionType:   redsky.ExperimentFailed,
+			conditionType:   optimizev1beta2.ExperimentFailed,
 			conditionStatus: corev1.ConditionTrue,
 			reason:          "Testing",
 			message:         "Test Test",
 			time:            &now,
-			initialConditions: []redsky.ExperimentCondition{
+			initialConditions: []optimizev1beta2.ExperimentCondition{
 				{
-					Type:               redsky.ExperimentFailed,
+					Type:               optimizev1beta2.ExperimentFailed,
 					Status:             corev1.ConditionTrue,
 					LastProbeTime:      then,
 					LastTransitionTime: then,
@@ -266,9 +268,9 @@ func TestApplyCondition(t *testing.T) {
 					Message:            "Bar",
 				},
 			},
-			expectedConditions: []redsky.ExperimentCondition{
+			expectedConditions: []optimizev1beta2.ExperimentCondition{
 				{
-					Type:               redsky.ExperimentFailed,
+					Type:               optimizev1beta2.ExperimentFailed,
 					Status:             corev1.ConditionTrue,
 					LastProbeTime:      now,
 					LastTransitionTime: then,
@@ -281,9 +283,70 @@ func TestApplyCondition(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			actual := redsky.ExperimentStatus{Conditions: c.initialConditions}
+			actual := optimizev1beta2.ExperimentStatus{Conditions: c.initialConditions}
 			ApplyCondition(&actual, c.conditionType, c.conditionStatus, c.reason, c.message, c.time)
 			assert.Equal(t, c.expectedConditions, actual.Conditions)
+		})
+	}
+}
+
+func TestStopExperiment(t *testing.T) {
+	cases := []struct {
+		desc        string
+		exp         *optimizev1beta2.Experiment
+		err         error
+		expectedOut bool
+		expectedExp *optimizev1beta2.Experiment
+	}{
+		{
+			desc: "no error",
+			exp: &optimizev1beta2.Experiment{
+				ObjectMeta: metav1.ObjectMeta{},
+			},
+			err:         nil,
+			expectedOut: false,
+			expectedExp: &optimizev1beta2.Experiment{
+				ObjectMeta: metav1.ObjectMeta{},
+			},
+		},
+		{
+			desc: "error wrong type",
+			exp: &optimizev1beta2.Experiment{
+				ObjectMeta: metav1.ObjectMeta{},
+			},
+			err: &api.Error{
+				Type: experimentsv1alpha1.ErrExperimentNameInvalid,
+			},
+			expectedOut: false,
+			expectedExp: &optimizev1beta2.Experiment{
+				ObjectMeta: metav1.ObjectMeta{},
+			},
+		},
+		{
+			desc: "error",
+			exp: &optimizev1beta2.Experiment{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						optimizev1beta2.AnnotationNextTrialURL: "111",
+					},
+				},
+			},
+			err: &api.Error{
+				Type: experimentsv1alpha1.ErrExperimentStopped,
+			},
+			expectedOut: true,
+			expectedExp: &optimizev1beta2.Experiment{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{},
+				},
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			out := StopExperiment(c.exp, c.err)
+			assert.Equal(t, c.expectedOut, out)
+			assert.Equal(t, c.expectedExp.GetAnnotations(), c.exp.GetAnnotations())
 		})
 	}
 }

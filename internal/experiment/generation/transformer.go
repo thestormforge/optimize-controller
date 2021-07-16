@@ -22,9 +22,9 @@ import (
 	"regexp"
 	"strings"
 
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
-	"github.com/thestormforge/optimize-controller/internal/scan"
-	"github.com/thestormforge/optimize-controller/internal/sfio"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	"github.com/thestormforge/optimize-controller/v2/internal/scan"
+	"github.com/thestormforge/optimize-controller/v2/internal/sfio"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/kio/filters"
@@ -38,14 +38,14 @@ type ParameterNamer func(meta yaml.ResourceMeta, path []string, name string) str
 // for adding parameters, patches, or metrics, the appropriate source should be
 // used instead.
 type ExperimentSource interface {
-	Update(exp *redskyv1beta1.Experiment) error
+	Update(exp *optimizev1beta2.Experiment) error
 }
 
 // ParameterSource allows selectors to add parameters to an experiment. In
 // general PatchSources should also be ParameterSources to ensure the parameters
 // used in the generated patches are configured on the experiment.
 type ParameterSource interface {
-	Parameters(name ParameterNamer) ([]redskyv1beta1.Parameter, error)
+	Parameters(name ParameterNamer) ([]optimizev1beta2.Parameter, error)
 }
 
 // PatchSource allows selectors to contribute changes to the patch of a
@@ -58,7 +58,7 @@ type PatchSource interface {
 
 // MetricSource allows selectors to contribute metrics to an experiment.
 type MetricSource interface {
-	Metrics() ([]redskyv1beta1.Metric, error)
+	Metrics() ([]optimizev1beta2.Metric, error)
 }
 
 // Transformer is used to convert all of the output from the selectors, only selector output
@@ -78,7 +78,7 @@ func (t *Transformer) Transform(nodes []*yaml.RNode, selected []interface{}) ([]
 	name := parameterNamer(selected)
 
 	// Start with a new experiment and collect the scan results into it
-	exp := redskyv1beta1.Experiment{}
+	exp := optimizev1beta2.Experiment{}
 	patches := make(map[corev1.ObjectReference][]yaml.Filter)
 	for _, sel := range selected {
 		// DO NOT use a type switch, there may be multiple implementations
@@ -155,7 +155,7 @@ func (t *Transformer) Transform(nodes []*yaml.RNode, selected []interface{}) ([]
 
 // renderPatches converts accumulated patch contributes (in the form of yaml.Filter instances) into
 // actual patch templates on an experiment.
-func (t *Transformer) renderPatches(patches map[corev1.ObjectReference][]yaml.Filter, exp *redskyv1beta1.Experiment) error {
+func (t *Transformer) renderPatches(patches map[corev1.ObjectReference][]yaml.Filter, exp *optimizev1beta2.Experiment) error {
 	for ref, fs := range patches {
 		// Start with an empty node
 		patch := yaml.NewRNode(&yaml.Node{
@@ -178,7 +178,7 @@ func (t *Transformer) renderPatches(patches map[corev1.ObjectReference][]yaml.Fi
 		data := regexp.MustCompile(`!!int '(.*)'`).ReplaceAll(buf.Bytes(), []byte("$1"))
 
 		// Add the actual patch to the experiment
-		exp.Spec.Patches = append(exp.Spec.Patches, redskyv1beta1.PatchTemplate{
+		exp.Spec.Patches = append(exp.Spec.Patches, optimizev1beta2.PatchTemplate{
 			Patch:     string(data),
 			TargetRef: ref.DeepCopy(),
 		})
@@ -187,7 +187,7 @@ func (t *Transformer) renderPatches(patches map[corev1.ObjectReference][]yaml.Fi
 	return nil
 }
 
-func (t *Transformer) checkExperiment(exp *redskyv1beta1.Experiment, nodes []*yaml.RNode) error {
+func (t *Transformer) checkExperiment(exp *optimizev1beta2.Experiment, nodes []*yaml.RNode) error {
 	// If there are no parameters or metrics, the experiment isn't valid
 	if len(exp.Spec.Parameters) == 0 {
 		// Only report this error if we were going to fail anyway

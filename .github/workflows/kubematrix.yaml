@@ -28,9 +28,6 @@ jobs:
         with:
           version: v0.11.1
           node_image: kindest/node:${{ matrix.node }}
-      - name: Install Kustomize
-        run: |
-          hack/install_kustomize.sh
       - name: Wait for build to succeed
         uses: fountainhead/action-wait-for-check@v1.0.0
         id: wait-for-build
@@ -52,19 +49,19 @@ jobs:
         with:
           github_token: ${{secrets.GITHUB_TOKEN}}
           workflow: master.yaml
-          name: redskyctl_linux_amd64
-          path: dist/redskyctl_linux_amd64
+          name: stormforge_linux_amd64
+          path: dist/stormforge_linux_amd64
           commit: ${{ github.event.pull_request.head.sha || github.sha }}
           repo: ${{github.repository}}
       - name: Rename binary because dumbness
         run: |
-          tar -zxf dist/redskyctl_linux_amd64/redskyctl-linux-amd64.tar.gz \
-              -C dist/redskyctl_linux_amd64
-      - name: Quick Start
+          tar -zxf dist/stormforge_linux_amd64/stormforge-linux-amd64.tar.gz \
+              -C dist/stormforge_linux_amd64
+      - name: Run integration tests
         run: |
           hack/integration.sh
       - name: The job has failed
         if: ${{ failure() }}
         run: |
           kubectl get trial,experiment,svc,pod -o wide
-          kubectl get pods -o wide -l redskyops.dev/experiment=postgres-example
+          kubectl get pods -o wide -l stormforge.io/experiment=postgres-example

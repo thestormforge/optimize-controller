@@ -19,12 +19,6 @@ rules:
   verbs:
   - list
 - apiGroups:
-  - ""
-  resources:
-  - services
-  verbs:
-  - list
-- apiGroups:
   - batch
   - extensions
   resources:
@@ -36,7 +30,7 @@ rules:
   - patch
   - watch
 - apiGroups:
-  - redskyops.dev
+  - optimize.stormforge.io
   resources:
   - experiments
   verbs:
@@ -45,7 +39,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - redskyops.dev
+  - optimize.stormforge.io
   resources:
   - experiments
   - experiments/finalizers
@@ -55,7 +49,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - redskyops.dev
+  - optimize.stormforge.io
   resources:
   - trials
   verbs:
@@ -66,7 +60,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - redskyops.dev
+  - optimize.stormforge.io
   resources:
   - trials
   - trials/finalizers

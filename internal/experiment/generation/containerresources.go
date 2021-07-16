@@ -20,9 +20,9 @@ import (
 	"fmt"
 
 	"github.com/thestormforge/konjure/pkg/filters"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
-	"github.com/thestormforge/optimize-controller/internal/scan"
-	"github.com/thestormforge/optimize-controller/internal/sfio"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	"github.com/thestormforge/optimize-controller/v2/internal/scan"
+	"github.com/thestormforge/optimize-controller/v2/internal/sfio"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -200,15 +200,15 @@ func (p *containerResourcesParameter) Patch(name ParameterNamer) (yaml.Filter, e
 }
 
 // Parameters lists the parameters used by the patch.
-func (p *containerResourcesParameter) Parameters(name ParameterNamer) ([]redskyv1beta1.Parameter, error) {
+func (p *containerResourcesParameter) Parameters(name ParameterNamer) ([]optimizev1beta2.Parameter, error) {
 	ind, err := p.indexContainerResources()
 	if err != nil {
 		return nil, err
 	}
 
-	var result []redskyv1beta1.Parameter
+	var result []optimizev1beta2.Parameter
 	for _, rn := range p.resources {
-		result = append(result, redskyv1beta1.Parameter{
+		result = append(result, optimizev1beta2.Parameter{
 			Name:     name(p.meta, p.fieldPath, string(rn)),
 			Max:      ind[rn].Max(),
 			Min:      ind[rn].Min(),
@@ -307,13 +307,12 @@ func (cr containerResources) Max() int32 {
 
 // Min returns the the configured minimum or half the baseline.
 func (cr containerResources) Min() int32 {
-	min := cr.min
-	min.Format = cr.baseline.Format
-
 	if !cr.baseline.IsZero() {
-		min.Set(cr.baseline.Value() / 2)
+		return AsScaledInt(cr.baseline, cr.scale()) / 2
 	}
 
+	min := cr.min
+	min.Format = cr.baseline.Format
 	return AsScaledInt(min, cr.scale())
 }
 

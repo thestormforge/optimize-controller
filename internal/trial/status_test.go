@@ -20,14 +20,14 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 )
 
 func TestUpdateStatus_Summarize(t *testing.T) {
 	cases := []struct {
 		desc       string
-		conditions []redskyv1beta1.TrialCondition
+		conditions []optimizev1beta2.TrialCondition
 		phase      string
 	}{
 		{
@@ -36,13 +36,13 @@ func TestUpdateStatus_Summarize(t *testing.T) {
 		},
 		{
 			desc: "HasSetupTasks",
-			conditions: []redskyv1beta1.TrialCondition{
+			conditions: []optimizev1beta2.TrialCondition{
 				{
-					Type:   redskyv1beta1.TrialSetupCreated,
+					Type:   optimizev1beta2.TrialSetupCreated,
 					Status: corev1.ConditionUnknown,
 				},
 				{
-					Type:   redskyv1beta1.TrialSetupDeleted,
+					Type:   optimizev1beta2.TrialSetupDeleted,
 					Status: corev1.ConditionUnknown,
 				},
 			},
@@ -50,13 +50,13 @@ func TestUpdateStatus_Summarize(t *testing.T) {
 		},
 		{
 			desc: "SettingUp",
-			conditions: []redskyv1beta1.TrialCondition{
+			conditions: []optimizev1beta2.TrialCondition{
 				{
-					Type:   redskyv1beta1.TrialSetupCreated,
+					Type:   optimizev1beta2.TrialSetupCreated,
 					Status: corev1.ConditionFalse,
 				},
 				{
-					Type:   redskyv1beta1.TrialSetupDeleted,
+					Type:   optimizev1beta2.TrialSetupDeleted,
 					Status: corev1.ConditionUnknown,
 				},
 			},
@@ -64,13 +64,13 @@ func TestUpdateStatus_Summarize(t *testing.T) {
 		},
 		{
 			desc: "SetupCreated",
-			conditions: []redskyv1beta1.TrialCondition{
+			conditions: []optimizev1beta2.TrialCondition{
 				{
-					Type:   redskyv1beta1.TrialSetupCreated,
+					Type:   optimizev1beta2.TrialSetupCreated,
 					Status: corev1.ConditionTrue,
 				},
 				{
-					Type:   redskyv1beta1.TrialSetupDeleted,
+					Type:   optimizev1beta2.TrialSetupDeleted,
 					Status: corev1.ConditionUnknown,
 				},
 			},
@@ -78,17 +78,17 @@ func TestUpdateStatus_Summarize(t *testing.T) {
 		},
 		{
 			desc: "SetupCreateFailure",
-			conditions: []redskyv1beta1.TrialCondition{
+			conditions: []optimizev1beta2.TrialCondition{
 				{
-					Type:   redskyv1beta1.TrialSetupCreated,
+					Type:   optimizev1beta2.TrialSetupCreated,
 					Status: corev1.ConditionFalse,
 				},
 				{
-					Type:   redskyv1beta1.TrialSetupDeleted,
+					Type:   optimizev1beta2.TrialSetupDeleted,
 					Status: corev1.ConditionUnknown,
 				},
 				{
-					Type:   redskyv1beta1.TrialFailed,
+					Type:   optimizev1beta2.TrialFailed,
 					Status: corev1.ConditionTrue,
 				},
 			},
@@ -96,17 +96,17 @@ func TestUpdateStatus_Summarize(t *testing.T) {
 		},
 		{
 			desc: "SetupCreateUnexpectedFailure",
-			conditions: []redskyv1beta1.TrialCondition{
+			conditions: []optimizev1beta2.TrialCondition{
 				{
-					Type:   redskyv1beta1.TrialSetupCreated,
+					Type:   optimizev1beta2.TrialSetupCreated,
 					Status: corev1.ConditionTrue,
 				},
 				{
-					Type:   redskyv1beta1.TrialSetupDeleted,
+					Type:   optimizev1beta2.TrialSetupDeleted,
 					Status: corev1.ConditionUnknown,
 				},
 				{
-					Type:   redskyv1beta1.TrialFailed,
+					Type:   optimizev1beta2.TrialFailed,
 					Status: corev1.ConditionTrue,
 				},
 			},
@@ -115,7 +115,7 @@ func TestUpdateStatus_Summarize(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			tt := &redskyv1beta1.Trial{Status: redskyv1beta1.TrialStatus{Conditions: c.conditions}}
+			tt := &optimizev1beta2.Trial{Status: optimizev1beta2.TrialStatus{Conditions: c.conditions}}
 			UpdateStatus(tt)
 			assert.Equal(t, c.phase, tt.Status.Phase)
 		})
@@ -125,13 +125,13 @@ func TestUpdateStatus_Summarize(t *testing.T) {
 func TestUpdateStatus_Values(t *testing.T) {
 	cases := []struct {
 		desc       string
-		conditions []redskyv1beta1.TrialCondition
-		values     []redskyv1beta1.Value
+		conditions []optimizev1beta2.TrialCondition
+		values     []optimizev1beta2.Value
 		value      string
 	}{
 		{
 			desc: "OneValue",
-			values: []redskyv1beta1.Value{
+			values: []optimizev1beta2.Value{
 				{
 					Name:  "foo",
 					Value: "1.0",
@@ -141,7 +141,7 @@ func TestUpdateStatus_Values(t *testing.T) {
 		},
 		{
 			desc: "TwoValues",
-			values: []redskyv1beta1.Value{
+			values: []optimizev1beta2.Value{
 				{
 					Name:  "foo",
 					Value: "1.0",
@@ -155,7 +155,7 @@ func TestUpdateStatus_Values(t *testing.T) {
 		},
 		{
 			desc: "NotReady",
-			values: []redskyv1beta1.Value{
+			values: []optimizev1beta2.Value{
 				{
 					Name:              "foo",
 					Value:             "1.0",
@@ -170,7 +170,7 @@ func TestUpdateStatus_Values(t *testing.T) {
 		},
 		{
 			desc: "NoneReady",
-			values: []redskyv1beta1.Value{
+			values: []optimizev1beta2.Value{
 				{
 					Name:              "foo",
 					Value:             "1.0",
@@ -186,9 +186,9 @@ func TestUpdateStatus_Values(t *testing.T) {
 		},
 		{
 			desc: "Failed",
-			conditions: []redskyv1beta1.TrialCondition{
+			conditions: []optimizev1beta2.TrialCondition{
 				{
-					Type:    redskyv1beta1.TrialFailed,
+					Type:    optimizev1beta2.TrialFailed,
 					Status:  corev1.ConditionTrue,
 					Message: "test failure message",
 				},
@@ -198,9 +198,9 @@ func TestUpdateStatus_Values(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			tt := &redskyv1beta1.Trial{
-				Spec:   redskyv1beta1.TrialSpec{Values: c.values},
-				Status: redskyv1beta1.TrialStatus{Conditions: c.conditions},
+			tt := &optimizev1beta2.Trial{
+				Spec:   optimizev1beta2.TrialSpec{Values: c.values},
+				Status: optimizev1beta2.TrialStatus{Conditions: c.conditions},
 			}
 			UpdateStatus(tt)
 			assert.Equal(t, c.value, tt.Status.Values)

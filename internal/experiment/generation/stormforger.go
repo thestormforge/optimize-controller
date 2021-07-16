@@ -23,25 +23,25 @@ import (
 	"strings"
 
 	"github.com/pelletier/go-toml"
-	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
-	"github.com/thestormforge/optimize-controller/internal/sfio"
+	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	"github.com/thestormforge/optimize-controller/v2/internal/sfio"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
 type StormForgerSource struct {
-	Scenario    *redskyappsv1alpha1.Scenario
-	Objective   *redskyappsv1alpha1.Objective
-	Application *redskyappsv1alpha1.Application
+	Scenario    *optimizeappsv1alpha1.Scenario
+	Objective   *optimizeappsv1alpha1.Objective
+	Application *optimizeappsv1alpha1.Application
 }
 
 var _ ExperimentSource = &StormForgerSource{} // Update trial job
 var _ MetricSource = &StormForgerSource{}     // StormForger specific metrics
 var _ kio.Reader = &StormForgerSource{}       // ConfigMap for the test case file
 
-func (s *StormForgerSource) Update(exp *redskyv1beta1.Experiment) error {
+func (s *StormForgerSource) Update(exp *optimizev1beta2.Experiment) error {
 	if s.Scenario == nil || s.Application == nil {
 		return nil
 	}
@@ -164,8 +164,8 @@ func (s *StormForgerSource) Read() ([]*yaml.RNode, error) {
 	return result.Read()
 }
 
-func (s *StormForgerSource) Metrics() ([]redskyv1beta1.Metric, error) {
-	var result []redskyv1beta1.Metric
+func (s *StormForgerSource) Metrics() ([]optimizev1beta2.Metric, error) {
+	var result []optimizev1beta2.Metric
 	if s.Objective == nil {
 		return result, nil
 	}
@@ -184,7 +184,7 @@ func (s *StormForgerSource) Metrics() ([]redskyv1beta1.Metric, error) {
 			}
 
 		case goal.ErrorRate != nil:
-			if goal.ErrorRate.ErrorRateType == redskyappsv1alpha1.ErrorRateRequests {
+			if goal.ErrorRate.ErrorRateType == optimizeappsv1alpha1.ErrorRateRequests {
 				query := `scalar(error_ratio{job="trialRun",instance="{{ .Trial.Name }}"})`
 				result = append(result, newGoalMetric(goal, query))
 			}
@@ -219,15 +219,15 @@ func (s *StormForgerSource) stormForgerConfigMapName() string {
 }
 
 // stormForgerAccessToken returns the effective access token information.
-func (s *StormForgerSource) stormForgerAccessToken(org string) *redskyappsv1alpha1.StormForgerAccessToken {
+func (s *StormForgerSource) stormForgerAccessToken(org string) *optimizeappsv1alpha1.StormForgerAccessToken {
 	// This helper function ensures we return something with a populated secret key ref
-	fixRef := func(accessToken *redskyappsv1alpha1.StormForgerAccessToken) *redskyappsv1alpha1.StormForgerAccessToken {
+	fixRef := func(accessToken *optimizeappsv1alpha1.StormForgerAccessToken) *optimizeappsv1alpha1.StormForgerAccessToken {
 		if accessToken.SecretKeyRef == nil {
 			accessToken.SecretKeyRef = &corev1.SecretKeySelector{}
 		}
 
 		if accessToken.SecretKeyRef.Name == "" {
-			accessToken.SecretKeyRef.Name = redskyappsv1alpha1.StormForgerAccessTokenSecretName
+			accessToken.SecretKeyRef.Name = optimizeappsv1alpha1.StormForgerAccessTokenSecretName
 		}
 
 		if accessToken.SecretKeyRef.Key == "" {
@@ -249,7 +249,7 @@ func (s *StormForgerSource) stormForgerAccessToken(org string) *redskyappsv1alph
 			// organizations since service accounts are associated only with a single organization
 			for _, key := range []string{org + ".jwt", "jwt"} {
 				if v := config.Get(key); v != nil {
-					return fixRef(&redskyappsv1alpha1.StormForgerAccessToken{
+					return fixRef(&optimizeappsv1alpha1.StormForgerAccessToken{
 						Literal: v.(string),
 					})
 				}
@@ -260,19 +260,19 @@ func (s *StormForgerSource) stormForgerAccessToken(org string) *redskyappsv1alph
 	return nil
 }
 
-func (s *StormForgerSource) stormForgerLatency(lt redskyappsv1alpha1.LatencyType) string {
-	switch redskyappsv1alpha1.FixLatency(lt) {
-	case redskyappsv1alpha1.LatencyMinimum:
+func (s *StormForgerSource) stormForgerLatency(lt optimizeappsv1alpha1.LatencyType) string {
+	switch optimizeappsv1alpha1.FixLatency(lt) {
+	case optimizeappsv1alpha1.LatencyMinimum:
 		return "min"
-	case redskyappsv1alpha1.LatencyMaximum:
+	case optimizeappsv1alpha1.LatencyMaximum:
 		return "max"
-	case redskyappsv1alpha1.LatencyMean:
+	case optimizeappsv1alpha1.LatencyMean:
 		return "mean"
-	case redskyappsv1alpha1.LatencyPercentile50:
+	case optimizeappsv1alpha1.LatencyPercentile50:
 		return "median"
-	case redskyappsv1alpha1.LatencyPercentile95:
+	case optimizeappsv1alpha1.LatencyPercentile95:
 		return "percentile_95"
-	case redskyappsv1alpha1.LatencyPercentile99:
+	case optimizeappsv1alpha1.LatencyPercentile99:
 		return "percentile_99"
 	default:
 		return ""

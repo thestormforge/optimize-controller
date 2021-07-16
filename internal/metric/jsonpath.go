@@ -26,14 +26,14 @@ import (
 	"strconv"
 	"time"
 
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"k8s.io/client-go/util/jsonpath"
 )
 
 // TODO We need some type of client util to encapsulate this
 var httpClient = &http.Client{Timeout: 10 * time.Second}
 
-func captureJSONPathMetric(m *redskyv1beta1.Metric) (value float64, valueError float64, err error) {
+func captureJSONPathMetric(m *optimizev1beta2.Metric) (value float64, valueError float64, err error) {
 	// Fetch the URL
 	req, err := http.NewRequest(http.MethodGet, m.URL, nil)
 	if err != nil {

@@ -17,13 +17,13 @@ limitations under the License.
 package experiment
 
 import (
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // PopulateTrialFromTemplate creates a new trial for an experiment
-func PopulateTrialFromTemplate(exp *redskyv1beta1.Experiment, t *redskyv1beta1.Trial) {
+func PopulateTrialFromTemplate(exp *optimizev1beta2.Experiment, t *optimizev1beta2.Trial) {
 	// Start with the trial template
 	exp.Spec.TrialTemplate.ObjectMeta.DeepCopyInto(&t.ObjectMeta)
 	exp.Spec.TrialTemplate.Spec.DeepCopyInto(&t.Spec)
@@ -44,7 +44,7 @@ func PopulateTrialFromTemplate(exp *redskyv1beta1.Experiment, t *redskyv1beta1.T
 	}
 
 	// Record the experiment
-	t.Labels[redskyv1beta1.LabelExperiment] = exp.Name
+	t.Labels[optimizev1beta2.LabelExperiment] = exp.Name
 	t.Spec.ExperimentRef = &corev1.ObjectReference{
 		Name:      exp.Name,
 		Namespace: exp.Namespace,

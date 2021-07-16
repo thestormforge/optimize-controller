@@ -11,7 +11,7 @@ set -eu
 
 # Verify, but exit normally to ensure the conditional nature of the checks
 FILE="${1:?missing file argument}"
-[ "$(basename "$(dirname "$FILE")")" == "redskyctl_darwin_amd64" ] || { echo >&2 "skipping code signing on file '$1'"; exit; }
+[[ "$(basename "$(dirname "$FILE")")" == stormforge_darwin_* ]] || { echo >&2 "skipping code signing on file '$1'"; exit; }
 command -v security >/dev/null 2>&1 || { echo >&2 "skipping code signing, security not present"; exit; }
 command -v codesign >/dev/null 2>&1 || { echo >&2 "skipping code signing, codesign not present"; exit; }
 [ -n "${AC_IDENTITY_P12:-}" ] || { echo >&2 "skipping code signing, no signing identity"; exit; }

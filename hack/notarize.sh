@@ -10,7 +10,7 @@ OUTPUT="${2:?missing output argument}"
 
 # This script MUST produce an output file or fail.
 case "$(basename "$FILE")" in
-  "redskyctl-darwin-amd64.tar.gz")
+  stormforge-darwin-*)
     # If there are no credentials, just produce an empty file (otherwise fall through)
     if [ -z "${AC_USERNAME:-}" ] || [ -z "${AC_PASSWORD:-}" ] ; then
       echo "Not empty" > "${OUTPUT}"
@@ -50,7 +50,7 @@ ditto -c -k "$WORKDIR/$NAME" "$WORKDIR/$NAME.zip"
 
 # Helper functions
 doNotarizeApp() {
-  xcrun altool --notarize-app --file "$1" --primary-bundle-id "dev.redskyops.redskyctl" \
+  xcrun altool --notarize-app --file "$1" --primary-bundle-id "io.stormforge.optimize.cli" \
     -u "$AC_USERNAME" -p "@env:AC_PASSWORD" --output-format json | jq '."notarization-upload"'
 }
 doNotarizeInfo() {

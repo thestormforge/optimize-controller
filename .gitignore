@@ -26,5 +26,3 @@ manager
 
 # Not sure where this comes from, but we can ignore it
 default.profraw
-
-redskyctl/internal/kustomize/zz_generated.output.go

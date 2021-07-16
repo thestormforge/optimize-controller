@@ -21,7 +21,7 @@ import (
 	"fmt"
 
 	"github.com/thestormforge/konjure/pkg/filters"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"sigs.k8s.io/kustomize/kyaml/openapi"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
@@ -88,8 +88,8 @@ func SetExperimentName(name string) yaml.Filter {
 
 func isExperiment() yaml.Filter {
 	return filters.FilterOne(&filters.ResourceMetaFilter{
-		Group:   redskyv1beta1.GroupVersion.Group,
-		Version: redskyv1beta1.GroupVersion.Version,
+		Group:   optimizev1beta2.GroupVersion.Group,
+		Version: optimizev1beta2.GroupVersion.Version,
 		Kind:    "Experiment",
 	})
 }

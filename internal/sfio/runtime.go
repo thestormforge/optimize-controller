@@ -17,9 +17,8 @@ limitations under the License.
 package sfio
 
 import (
-	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
-	redskyv1alpha1 "github.com/thestormforge/optimize-controller/api/v1alpha1"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -43,9 +42,8 @@ var Scheme = runtime.NewScheme()
 
 func init() {
 	_ = clientgoscheme.AddToScheme(Scheme)
-	_ = redskyv1alpha1.AddToScheme(Scheme)
-	_ = redskyv1beta1.AddToScheme(Scheme)
-	_ = redskyappsv1alpha1.AddToScheme(Scheme)
+	_ = optimizev1beta2.AddToScheme(Scheme)
+	_ = optimizeappsv1alpha1.AddToScheme(Scheme)
 }
 
 // ObjectSlices allows a slice of object instances to be read as resource nodes.

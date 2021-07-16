@@ -30,7 +30,6 @@ jobs:
             ${{ runner.os }}-gotestcache-
       - name: Run tests
         run: |
-          hack/install_kustomize.sh
           make test
   build:
     name: Build and Deploy
@@ -71,15 +70,15 @@ jobs:
         run: |
           DOCKER_REGISTRY="ghcr.io/thestormforge"
           DOCKER_TAG="sha-$(git rev-parse --short HEAD)"
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login "ghcr.io" -u "${{ github.actor }}" --password-stdin
           echo "IMAGE_TAG=pr-${{ github.event.number }}" >> $GITHUB_ENV
           echo "IMG=${DOCKER_REGISTRY}/optimize-controller:${DOCKER_TAG}" >> $GITHUB_ENV
-          echo "REDSKYCTL_IMG=${DOCKER_REGISTRY}/redskyctl:${DOCKER_TAG}" >> $GITHUB_ENV
+          echo "CLI_IMG=${DOCKER_REGISTRY}/optimize-cli:${DOCKER_TAG}" >> $GITHUB_ENV
           echo "SETUPTOOLS_IMG=${DOCKER_REGISTRY}/setuptools:${DOCKER_TAG}" >> $GITHUB_ENV
           echo "PULL_POLICY=" >> $GITHUB_ENV
       - name: Build controller
         run: |
-          hack/install_kustomize.sh
-          make docker-build-ci
+          make -o test docker-build
       - name: Build tool
         uses: goreleaser/goreleaser-action@v2
         with:
@@ -87,25 +86,29 @@ jobs:
       - name: Push Docker images
         if: github.event.pull_request.head.repo.fork == false
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login "ghcr.io" -u "${{ github.actor }}" --password-stdin
           make docker-push
           docker-push() {
             docker tag "$1" "$2"
             docker push "$2"
           }
           docker-push "${IMG}" "${IMG%%:*}:${IMAGE_TAG}"
-          docker-push "${REDSKYCTL_IMG}" "${REDSKYCTL_IMG%%:*}:${IMAGE_TAG}"
+          docker-push "${CLI_IMG}" "${CLI_IMG%%:*}:${IMAGE_TAG}"
           docker-push "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:${IMAGE_TAG}"
       - name: Upload macOS binary
         uses: actions/upload-artifact@v2
         with:
-          name: redskyctl_darwin_amd64
-          path: dist/redskyctl-darwin-amd64.tar.gz
+          name: stormforge_darwin_amd64
+          path: dist/stormforge-darwin-amd64.tar.gz
+      - name: Upload macOS ARM binary
+        uses: actions/upload-artifact@v2
+        with:
+          name: stormforge_darwin_arm64
+          path: dist/stormforge-darwin-arm64.tar.gz
       - name: Upload Linux binary
         uses: actions/upload-artifact@v2
         with:
-          name: redskyctl_linux_amd64
-          path: dist/redskyctl-linux-amd64.tar.gz
+          name: stormforge_linux_amd64
+          path: dist/stormforge-linux-amd64.tar.gz
       - name: Run integration tests
         run: |
           hack/integration.sh

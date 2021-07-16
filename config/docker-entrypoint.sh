@@ -6,9 +6,9 @@ case "$1" in
     # Generate prometheus manifests
     shift && cd /workspace/prometheus
 
-    namePrefix="redsky-"
+    namePrefix="optimize-"
     if [ -n "$NAMESPACE" ]; then
-      namePrefix="redsky-$NAMESPACE-"
+      namePrefix="optimize-$NAMESPACE-"
     fi
 
     kustomize edit set nameprefix "$namePrefix"
@@ -53,8 +53,8 @@ if [ -n "$TRIAL" ]; then
 		metadata:
 		  name: trial-labels
 		labels:
-		  "redskyops.dev/trial": $TRIAL
-		  "redskyops.dev/trial-role": trialResource
+		  "stormforge.io/trial": $TRIAL
+		  "stormforge.io/trial-role": trialResource
 		EOF
     konjure kustomize edit add transformer trial_labels.yaml
 fi
@@ -68,7 +68,7 @@ while [ "$#" != "0" ] ; do
             # Note, this *must* be create for `generateName` to work properly
             kubectl create -f -
             #if [ -n "$TRIAL" ] && [ -n "$NAMESPACE" ] ; then
-            #    kubectl get sts,deploy,ds --namespace "$NAMESPACE" --selector "redskyops.dev/trial=$TRIAL,redskyops.dev/trial-role=trialResource" -o name | xargs -n 1 kubectl rollout status --namespace "$NAMESPACE"
+            #    kubectl get sts,deploy,ds --namespace "$NAMESPACE" --selector "stormforge.io/trial=$TRIAL,stormforge.io/trial-role=trialResource" -o name | xargs -n 1 kubectl rollout status --namespace "$NAMESPACE"
             #fi
         }
         shift
@@ -77,7 +77,7 @@ while [ "$#" != "0" ] ; do
         handle () {
             kubectl delete -f -
             if [ -n "$TRIAL" ] && [ -n "$NAMESPACE" ] ; then
-                kubectl wait pods --for=delete --namespace "$NAMESPACE" --selector "redskyops.dev/trial=$TRIAL,redskyops.dev/trial-role=trialResource"
+                kubectl wait pods --for=delete --namespace "$NAMESPACE" --selector "stormforge.io/trial=$TRIAL,stormforge.io/trial-role=trialResource"
             fi
         }
         waitFn () { :; }

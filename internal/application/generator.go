@@ -21,9 +21,9 @@ import (
 	"time"
 
 	"github.com/thestormforge/konjure/pkg/konjure"
-	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
-	"github.com/thestormforge/optimize-controller/internal/scan"
-	"github.com/thestormforge/optimize-controller/internal/sfio"
+	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
+	"github.com/thestormforge/optimize-controller/v2/internal/scan"
+	"github.com/thestormforge/optimize-controller/v2/internal/sfio"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/kustomize/kyaml/kio"
@@ -79,13 +79,13 @@ func (g *Generator) Map(node *yaml.RNode, meta yaml.ResourceMeta) ([]interface{}
 
 	// If the resource stream already contains an application, we will use that
 	// as a starting point for the rest of the generation.
-	if meta.Kind == "Application" && meta.APIVersion == redskyappsv1alpha1.GroupVersion.String() {
+	if meta.Kind == "Application" && meta.APIVersion == optimizeappsv1alpha1.GroupVersion.String() {
 		data, err := node.MarshalJSON()
 		if err != nil {
 			return nil, err
 		}
 
-		app := &redskyappsv1alpha1.Application{}
+		app := &optimizeappsv1alpha1.Application{}
 		if err := json.Unmarshal(data, app); err != nil {
 			return nil, err
 		}
@@ -100,11 +100,11 @@ func (g *Generator) Map(node *yaml.RNode, meta yaml.ResourceMeta) ([]interface{}
 func (g *Generator) Transform(_ []*yaml.RNode, selected []interface{}) ([]*yaml.RNode, error) {
 	result := sfio.ObjectSlice{}
 
-	app := &redskyappsv1alpha1.Application{}
+	app := &optimizeappsv1alpha1.Application{}
 	for _, sel := range selected {
 		switch s := sel.(type) {
 
-		case *redskyappsv1alpha1.Application:
+		case *optimizeappsv1alpha1.Application:
 			g.merge(s, app)
 
 		}
@@ -123,7 +123,7 @@ func (g *Generator) Transform(_ []*yaml.RNode, selected []interface{}) ([]*yaml.
 }
 
 // merge a source application into another application.
-func (g *Generator) merge(src, dst *redskyappsv1alpha1.Application) {
+func (g *Generator) merge(src, dst *optimizeappsv1alpha1.Application) {
 	if src.Name != "" {
 		dst.Name = src.Name
 	}
@@ -154,9 +154,9 @@ func (g *Generator) merge(src, dst *redskyappsv1alpha1.Application) {
 }
 
 // apply adds the generator configuration to the supplied application
-func (g *Generator) apply(app *redskyappsv1alpha1.Application) error {
+func (g *Generator) apply(app *optimizeappsv1alpha1.Application) error {
 	now := time.Now().UTC().Format(time.RFC3339)
-	metav1.SetMetaDataAnnotation(&app.ObjectMeta, redskyappsv1alpha1.AnnotationLastScanned, now)
+	metav1.SetMetaDataAnnotation(&app.ObjectMeta, optimizeappsv1alpha1.AnnotationLastScanned, now)
 
 	if g.Name != "" {
 		app.Name = g.Name
@@ -180,7 +180,7 @@ func (g *Generator) apply(app *redskyappsv1alpha1.Application) error {
 }
 
 // clean ensures that the application state is reasonable.
-func (g *Generator) clean(app *redskyappsv1alpha1.Application) error {
+func (g *Generator) clean(app *optimizeappsv1alpha1.Application) error {
 	var resources []konjure.Resource
 	for _, r := range app.Resources {
 		switch {
@@ -210,7 +210,7 @@ func (g *Generator) clean(app *redskyappsv1alpha1.Application) error {
 }
 
 // readScenario attempts to create a scenario for the application.
-func (g *Generator) readScenario() (*redskyappsv1alpha1.Scenario, error) {
+func (g *Generator) readScenario() (*optimizeappsv1alpha1.Scenario, error) {
 	// If there is no scenario file, do nothing
 	if g.ScenarioFile == "" {
 		return nil, nil
@@ -219,15 +219,15 @@ func (g *Generator) readScenario() (*redskyappsv1alpha1.Scenario, error) {
 	// This is a really basic assumption given we only support two scenario flavors right now
 	switch filepath.Ext(g.ScenarioFile) {
 	case ".js":
-		return &redskyappsv1alpha1.Scenario{
-			StormForger: &redskyappsv1alpha1.StormForgerScenario{
+		return &optimizeappsv1alpha1.Scenario{
+			StormForger: &optimizeappsv1alpha1.StormForgerScenario{
 				TestCaseFile: g.ScenarioFile,
 			},
 		}, nil
 
 	case ".py":
-		return &redskyappsv1alpha1.Scenario{
-			Locust: &redskyappsv1alpha1.LocustScenario{
+		return &optimizeappsv1alpha1.Scenario{
+			Locust: &optimizeappsv1alpha1.LocustScenario{
 				Locustfile: g.ScenarioFile,
 			},
 		}, nil
@@ -237,15 +237,15 @@ func (g *Generator) readScenario() (*redskyappsv1alpha1.Scenario, error) {
 }
 
 // readObjective attempts to create an objective for the application.
-func (g *Generator) readObjective() (*redskyappsv1alpha1.Objective, error) {
+func (g *Generator) readObjective() (*optimizeappsv1alpha1.Objective, error) {
 	if len(g.Goals) == 0 {
 		return nil, nil
 	}
 
-	obj := &redskyappsv1alpha1.Objective{}
+	obj := &optimizeappsv1alpha1.Objective{}
 	for _, goal := range g.Goals {
 		if goal != "" {
-			obj.Goals = append(obj.Goals, redskyappsv1alpha1.Goal{Name: goal})
+			obj.Goals = append(obj.Goals, optimizeappsv1alpha1.Goal{Name: goal})
 		}
 	}
 

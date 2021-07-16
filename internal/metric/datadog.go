@@ -23,11 +23,11 @@ import (
 	"os"
 	"time"
 
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
-	datadog "github.com/zorkian/go-datadog-api"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	"github.com/zorkian/go-datadog-api"
 )
 
-func captureDatadogMetric(m *redskyv1beta1.Metric, startTime, completionTime time.Time) (float64, float64, error) {
+func captureDatadogMetric(m *optimizev1beta2.Metric, startTime, completionTime time.Time) (float64, float64, error) {
 	apiKey := os.Getenv("DATADOG_API_KEY")
 	if apiKey == "" {
 		apiKey = os.Getenv("DD_API_KEY")

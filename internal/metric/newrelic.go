@@ -27,7 +27,7 @@ import (
 
 	"github.com/newrelic/newrelic-client-go/newrelic"
 	"github.com/newrelic/newrelic-client-go/pkg/nrdb"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 )
 
 const query = `
@@ -42,7 +42,7 @@ const query = `
 		}
 	}`
 
-func captureNewRelicMetric(m *redskyv1beta1.Metric, startTime, completionTime time.Time) (float64, float64, error) {
+func captureNewRelicMetric(m *optimizev1beta2.Metric, startTime, completionTime time.Time) (float64, float64, error) {
 	apiKey := os.Getenv("NEW_RELIC_API_KEY")
 	if apiKey == "" {
 		return 0, 0, errors.New("NEW_RELIC_API_KEY environment variable missing")

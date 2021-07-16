@@ -20,17 +20,17 @@ import (
 	"strings"
 	"time"
 
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // IsFinished checks to see if the specified trial is finished
-func IsFinished(t *redskyv1beta1.Trial) bool {
+func IsFinished(t *optimizev1beta2.Trial) bool {
 	for _, c := range t.Status.Conditions {
 		if c.Status == corev1.ConditionTrue {
-			if c.Type == redskyv1beta1.TrialComplete || c.Type == redskyv1beta1.TrialFailed {
+			if c.Type == optimizev1beta2.TrialComplete || c.Type == optimizev1beta2.TrialFailed {
 				return true
 			}
 		}
@@ -39,12 +39,12 @@ func IsFinished(t *redskyv1beta1.Trial) bool {
 }
 
 // IsAbandoned checks to see if the specified trial is abandoned
-func IsAbandoned(t *redskyv1beta1.Trial) bool {
+func IsAbandoned(t *optimizev1beta2.Trial) bool {
 	return !IsFinished(t) && !t.GetDeletionTimestamp().IsZero()
 }
 
 // IsActive checks to see if the specified trial and any setup delete tasks are NOT finished
-func IsActive(t *redskyv1beta1.Trial) bool {
+func IsActive(t *optimizev1beta2.Trial) bool {
 	// Not finished, definitely active
 	if !IsFinished(t) {
 		return true
@@ -52,7 +52,7 @@ func IsActive(t *redskyv1beta1.Trial) bool {
 
 	// Check if a setup delete task exists and has not yet completed (remember the TrialSetupDeleted status is optional!)
 	for _, c := range t.Status.Conditions {
-		if c.Type == redskyv1beta1.TrialSetupDeleted && c.Status != corev1.ConditionTrue {
+		if c.Type == optimizev1beta2.TrialSetupDeleted && c.Status != corev1.ConditionTrue {
 			return true
 		}
 	}
@@ -62,7 +62,7 @@ func IsActive(t *redskyv1beta1.Trial) bool {
 
 // IsTrialJobReference checks to see if the supplied reference likely points to the job of a trial. This is
 // used primarily to give special handling to patch operations so they can refer to trial job before it exists.
-func IsTrialJobReference(t *redskyv1beta1.Trial, ref *corev1.ObjectReference) bool {
+func IsTrialJobReference(t *optimizev1beta2.Trial, ref *corev1.ObjectReference) bool {
 	// Kind _must_ be job
 	if ref.Kind != "Job" {
 		return false
@@ -92,7 +92,7 @@ func IsTrialJobReference(t *redskyv1beta1.Trial, ref *corev1.ObjectReference) bo
 }
 
 // IsBaseline checks to see if the supplied trial is a baseline for an experiment.
-func IsBaseline(t *redskyv1beta1.Trial, exp *redskyv1beta1.Experiment) bool {
+func IsBaseline(t *optimizev1beta2.Trial, exp *optimizev1beta2.Experiment) bool {
 	// Trials that were created as baselines should be labeled as such
 	if t.Labels["baseline"] == "true" {
 		return true
@@ -124,7 +124,7 @@ func IsBaseline(t *redskyv1beta1.Trial, exp *redskyv1beta1.Experiment) bool {
 }
 
 // NeedsCleanup checks to see if a trial's TTL has expired
-func NeedsCleanup(t *redskyv1beta1.Trial) bool {
+func NeedsCleanup(t *optimizev1beta2.Trial) bool {
 	// Already deleted or still active, no cleanup necessary
 	if !t.GetDeletionTimestamp().IsZero() || IsActive(t) {
 		return false
@@ -136,7 +136,7 @@ func NeedsCleanup(t *redskyv1beta1.Trial) bool {
 	for _, c := range t.Status.Conditions {
 		if isFinishTimeCondition(&c) {
 			// Adjust the TTL if specified separately for failures
-			if c.Type == redskyv1beta1.TrialFailed && t.Spec.TTLSecondsAfterFailure != nil {
+			if c.Type == optimizev1beta2.TrialFailed && t.Spec.TTLSecondsAfterFailure != nil {
 				ttlSeconds = t.Spec.TTLSecondsAfterFailure
 			}
 
@@ -158,9 +158,9 @@ func NeedsCleanup(t *redskyv1beta1.Trial) bool {
 }
 
 // isFinishTimeCondition returns true if the condition is relevant to the "finish time"
-func isFinishTimeCondition(c *redskyv1beta1.TrialCondition) bool {
+func isFinishTimeCondition(c *optimizev1beta2.TrialCondition) bool {
 	switch c.Type {
-	case redskyv1beta1.TrialComplete, redskyv1beta1.TrialFailed, redskyv1beta1.TrialSetupDeleted:
+	case optimizev1beta2.TrialComplete, optimizev1beta2.TrialFailed, optimizev1beta2.TrialSetupDeleted:
 		return c.Status == corev1.ConditionTrue
 	default:
 		return false

@@ -20,8 +20,10 @@ import (
 	"path"
 	"runtime"
 	"strings"
+	"time"
 
-	redskyapi "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
+	"github.com/thestormforge/optimize-go/pkg/api"
+	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
@@ -33,9 +35,14 @@ import (
 // RequeueIfUnavailable will return a new result and the supplied error, adjusted for trial unavailable errors
 func RequeueIfUnavailable(err error) (*ctrl.Result, error) {
 	result := &ctrl.Result{}
-	if rse, ok := err.(*redskyapi.Error); ok && rse.Type == redskyapi.ErrTrialUnavailable {
-		result.RequeueAfter = rse.RetryAfter
+	if rse, ok := err.(*api.Error); ok && rse.Type == experimentsv1alpha1.ErrTrialUnavailable {
 		err = nil
+		result.RequeueAfter = rse.RetryAfter
+		if result.RequeueAfter > 2*time.Minute {
+			result.RequeueAfter = 2 * time.Minute
+		} else if result.RequeueAfter < 5*time.Second {
+			result.RequeueAfter = 5 * time.Second
+		}
 	}
 	return result, err
 }

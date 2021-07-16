@@ -21,11 +21,11 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
-	"github.com/thestormforge/optimize-controller/internal/controller"
-	"github.com/thestormforge/optimize-controller/internal/meta"
-	"github.com/thestormforge/optimize-controller/internal/setup"
-	"github.com/thestormforge/optimize-controller/internal/trial"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	"github.com/thestormforge/optimize-controller/v2/internal/controller"
+	"github.com/thestormforge/optimize-controller/v2/internal/meta"
+	"github.com/thestormforge/optimize-controller/v2/internal/setup"
+	"github.com/thestormforge/optimize-controller/v2/internal/trial"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
@@ -43,7 +43,7 @@ type SetupReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=redskyops.dev,resources=trials;trials/finalizers,verbs=get;list;watch;update
+// +kubebuilder:rbac:groups=optimize.stormforge.io,resources=trials;trials/finalizers,verbs=get;list;watch;update
 // +kubebuilder:rbac:groups="",resources=pods,verbs=list
 // +kubebuilder:rbac:groups=batch;extensions,resources=jobs,verbs=list;watch;create
 
@@ -51,7 +51,7 @@ func (r *SetupReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	now := metav1.Now()
 
-	t := &redskyv1beta1.Trial{}
+	t := &optimizev1beta2.Trial{}
 	if err := r.Get(ctx, req.NamespacedName, t); err != nil {
 		return ctrl.Result{}, controller.IgnoreNotFound(err)
 	}
@@ -83,16 +83,16 @@ func (r *SetupReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// TODO Have some type of setting to by-pass this
 	return ctrl.NewControllerManagedBy(mgr).
 		Named("setup").
-		For(&redskyv1beta1.Trial{}).
+		For(&optimizev1beta2.Trial{}).
 		Owns(&batchv1.Job{}).
 		Complete(r)
 }
 
 // inspectSetupJobs will look for the setup jobs and update the trial status accordingly
-func (r *SetupReconciler) inspectSetupJobs(ctx context.Context, t *redskyv1beta1.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
+func (r *SetupReconciler) inspectSetupJobs(ctx context.Context, t *optimizev1beta2.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
 	// Find the setup jobs for this trial
 	list := &batchv1.JobList{}
-	setupJobLabels := map[string]string{redskyv1beta1.LabelTrial: t.Name, redskyv1beta1.LabelTrialRole: "trialSetup"}
+	setupJobLabels := map[string]string{optimizev1beta2.LabelTrial: t.Name, optimizev1beta2.LabelTrialRole: "trialSetup"}
 	if err := r.List(ctx, list, client.InNamespace(t.Namespace), client.MatchingLabels(setupJobLabels)); err != nil {
 		return &ctrl.Result{}, err
 	}
@@ -103,16 +103,16 @@ func (r *SetupReconciler) inspectSetupJobs(ctx context.Context, t *redskyv1beta1
 			// Normally if the trial hasn't been deleted and there are no jobs, the status will already be unknown
 			// NOTE: Do not use ApplyCondition unless we are sure the condition is already there
 			for i := range t.Status.Conditions {
-				if ct := t.Status.Conditions[i].Type; ct == redskyv1beta1.TrialSetupCreated || ct == redskyv1beta1.TrialSetupDeleted {
+				if ct := t.Status.Conditions[i].Type; ct == optimizev1beta2.TrialSetupCreated || ct == optimizev1beta2.TrialSetupDeleted {
 					trial.ApplyCondition(&t.Status, ct, corev1.ConditionUnknown, "", "", probeTime)
 				}
 			}
-		} else if trial.CheckCondition(&t.Status, redskyv1beta1.TrialSetupDeleted, corev1.ConditionFalse) {
+		} else if trial.CheckCondition(&t.Status, optimizev1beta2.TrialSetupDeleted, corev1.ConditionFalse) {
 			// We only need this for the delete job (the corresponding failure for the create job is handled when creating the jobs):
 			// If "setup deleted" condition is "false" then we must have started job, but if the list is empty someone
 			// deleted the job (e.g. the namespace was deleted while the setup delete job was running); mark the setup
 			// deletion as "true" to ensure the finalizers are cleaned up.
-			trial.ApplyCondition(&t.Status, redskyv1beta1.TrialSetupDeleted, corev1.ConditionTrue, "MissingJob", "", probeTime)
+			trial.ApplyCondition(&t.Status, optimizev1beta2.TrialSetupDeleted, corev1.ConditionTrue, "MissingJob", "", probeTime)
 		}
 	}
 
@@ -136,7 +136,7 @@ func (r *SetupReconciler) inspectSetupJobs(ctx context.Context, t *redskyv1beta1
 		// Only fail the trial itself if it isn't already finished; both to prevent overwriting an existing success
 		// or failure status and to avoid updating the probe time (which would get us stuck in a busy loop)
 		if failureMessage != "" && !trial.IsFinished(t) {
-			trial.ApplyCondition(&t.Status, redskyv1beta1.TrialFailed, corev1.ConditionTrue, "SetupJobFailed", failureMessage, probeTime)
+			trial.ApplyCondition(&t.Status, optimizev1beta2.TrialFailed, corev1.ConditionTrue, "SetupJobFailed", failureMessage, probeTime)
 		}
 	}
 
@@ -171,11 +171,11 @@ func (r *SetupReconciler) inspectSetupJobPods(ctx context.Context, j *batchv1.Jo
 }
 
 // createSetupJob determines if a setup job is necessary and creates it
-func (r *SetupReconciler) createSetupJob(ctx context.Context, t *redskyv1beta1.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
+func (r *SetupReconciler) createSetupJob(ctx context.Context, t *optimizev1beta2.Trial, probeTime *metav1.Time) (*ctrl.Result, error) {
 	mode := ""
 
 	// If the created condition is unknown, we may need a create job
-	if trial.CheckCondition(&t.Status, redskyv1beta1.TrialSetupCreated, corev1.ConditionUnknown) {
+	if trial.CheckCondition(&t.Status, optimizev1beta2.TrialSetupCreated, corev1.ConditionUnknown) {
 		// Before we can create the job, we need an initializer/finalizer
 		if trial.AddInitializer(t, setup.Initializer) || meta.AddFinalizer(t, setup.Finalizer) {
 			err := r.Update(ctx, t)
@@ -189,7 +189,7 @@ func (r *SetupReconciler) createSetupJob(ctx context.Context, t *redskyv1beta1.T
 	}
 
 	// If the deleted condition is unknown, we may need a delete job
-	if trial.CheckCondition(&t.Status, redskyv1beta1.TrialSetupDeleted, corev1.ConditionUnknown) {
+	if trial.CheckCondition(&t.Status, optimizev1beta2.TrialSetupDeleted, corev1.ConditionUnknown) {
 		// We do not need the deleted job until the trial is finished or it gets deleted
 		if trial.IsFinished(t) || !t.DeletionTimestamp.IsZero() {
 			mode = setup.ModeDelete
@@ -209,7 +209,7 @@ func (r *SetupReconciler) createSetupJob(ctx context.Context, t *redskyv1beta1.T
 
 		// Forbidden for a delete job indicates that namespace was probably deleted
 		if apierrs.IsForbidden(err) && mode == setup.ModeDelete {
-			trial.ApplyCondition(&t.Status, redskyv1beta1.TrialSetupDeleted, corev1.ConditionTrue, "Forbidden", err.Error(), probeTime)
+			trial.ApplyCondition(&t.Status, optimizev1beta2.TrialSetupDeleted, corev1.ConditionTrue, "Forbidden", err.Error(), probeTime)
 			err := r.Update(ctx, t)
 			return controller.RequeueConflict(err)
 		}
@@ -221,16 +221,16 @@ func (r *SetupReconciler) createSetupJob(ctx context.Context, t *redskyv1beta1.T
 }
 
 // finish takes care of removing initializers and finalizers
-func (r *SetupReconciler) finish(ctx context.Context, t *redskyv1beta1.Trial) (*ctrl.Result, error) {
+func (r *SetupReconciler) finish(ctx context.Context, t *optimizev1beta2.Trial) (*ctrl.Result, error) {
 	// If the create job isn't finished, wait for it (unless the trial is already finished, i.e. failed)
-	if trial.CheckCondition(&t.Status, redskyv1beta1.TrialSetupCreated, corev1.ConditionFalse) {
+	if trial.CheckCondition(&t.Status, optimizev1beta2.TrialSetupCreated, corev1.ConditionFalse) {
 		if !trial.IsFinished(t) && t.DeletionTimestamp.IsZero() {
 			return &ctrl.Result{RequeueAfter: 1 * time.Second}, nil
 		}
 	}
 
 	// If the create job is finished, remove the initializer so the rest of the trial can run
-	if trial.CheckCondition(&t.Status, redskyv1beta1.TrialSetupCreated, corev1.ConditionTrue) {
+	if trial.CheckCondition(&t.Status, optimizev1beta2.TrialSetupCreated, corev1.ConditionTrue) {
 		if trial.RemoveInitializer(t, setup.Initializer) {
 			err := r.Update(ctx, t)
 			return controller.RequeueConflict(err)
@@ -238,7 +238,7 @@ func (r *SetupReconciler) finish(ctx context.Context, t *redskyv1beta1.Trial) (*
 	}
 
 	// Do not remove the finalizer until the delete job is finished
-	if trial.CheckCondition(&t.Status, redskyv1beta1.TrialSetupDeleted, corev1.ConditionTrue) {
+	if trial.CheckCondition(&t.Status, optimizev1beta2.TrialSetupDeleted, corev1.ConditionTrue) {
 		if meta.RemoveFinalizer(t, setup.Finalizer) {
 			err := r.Update(ctx, t)
 			return controller.RequeueConflict(err)
@@ -247,8 +247,8 @@ func (r *SetupReconciler) finish(ctx context.Context, t *redskyv1beta1.Trial) (*
 
 	// The trial is deleted and _both_ jobs are started but not completed; assume the trial job is misconfigured.
 	if !t.DeletionTimestamp.IsZero() &&
-		trial.CheckCondition(&t.Status, redskyv1beta1.TrialSetupCreated, corev1.ConditionFalse) &&
-		trial.CheckCondition(&t.Status, redskyv1beta1.TrialSetupDeleted, corev1.ConditionFalse) {
+		trial.CheckCondition(&t.Status, optimizev1beta2.TrialSetupCreated, corev1.ConditionFalse) &&
+		trial.CheckCondition(&t.Status, optimizev1beta2.TrialSetupDeleted, corev1.ConditionFalse) {
 		// To get into this state, just delete a trial that has a setup job with an invalid volume map (e.g. missing config map).
 		// TODO Is it possible we got here because the create job just never had a chance to finish?
 		if meta.RemoveFinalizer(t, setup.Finalizer) {

@@ -19,13 +19,13 @@ package trial
 import (
 	"strings"
 
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 )
 
 // GetInitializers returns the initializers for the specified trial
-func GetInitializers(t *redskyv1beta1.Trial) []string {
+func GetInitializers(t *optimizev1beta2.Trial) []string {
 	var initializers []string
-	for _, e := range strings.Split(t.GetAnnotations()[redskyv1beta1.AnnotationInitializer], ",") {
+	for _, e := range strings.Split(t.GetAnnotations()[optimizev1beta2.AnnotationInitializer], ",") {
 		e = strings.TrimSpace(e)
 		if e != "" {
 			initializers = append(initializers, e)
@@ -35,21 +35,21 @@ func GetInitializers(t *redskyv1beta1.Trial) []string {
 }
 
 // SetInitializers sets the supplied initializers on the trial
-func SetInitializers(t *redskyv1beta1.Trial, initializers []string) {
+func SetInitializers(t *optimizev1beta2.Trial, initializers []string) {
 	a := t.GetAnnotations()
 	if a == nil {
 		a = make(map[string]string, 1)
 	}
 	if len(initializers) > 0 {
-		a[redskyv1beta1.AnnotationInitializer] = strings.Join(initializers, ",")
+		a[optimizev1beta2.AnnotationInitializer] = strings.Join(initializers, ",")
 	} else {
-		delete(a, redskyv1beta1.AnnotationInitializer)
+		delete(a, optimizev1beta2.AnnotationInitializer)
 	}
 	t.SetAnnotations(a)
 }
 
 // AddInitializer adds an initializer to the trial; returns true only if the trial is changed
-func AddInitializer(t *redskyv1beta1.Trial, initializer string) bool {
+func AddInitializer(t *optimizev1beta2.Trial, initializer string) bool {
 	init := GetInitializers(t)
 	for _, e := range init {
 		if e == initializer {
@@ -61,7 +61,7 @@ func AddInitializer(t *redskyv1beta1.Trial, initializer string) bool {
 }
 
 // RemoveInitializer removes the first occurrence of an initializer from the trial; returns true only if the trial is changed
-func RemoveInitializer(t *redskyv1beta1.Trial, initializer string) bool {
+func RemoveInitializer(t *optimizev1beta2.Trial, initializer string) bool {
 	init := GetInitializers(t)
 	for i, e := range init {
 		if e == initializer {

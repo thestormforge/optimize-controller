@@ -20,9 +20,11 @@ import (
 	"fmt"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
-	redskyapi "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
+	"github.com/thestormforge/optimize-go/pkg/api"
+	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -145,12 +147,12 @@ func TestRequeueIfUnavailable(t *testing.T) {
 		},
 		{
 			desc: "trial unavailable",
-			err: &redskyapi.Error{
-				Type:       redskyapi.ErrTrialUnavailable,
+			err: &api.Error{
+				Type:       experimentsv1alpha1.ErrTrialUnavailable,
 				RetryAfter: 111,
 			},
 			result: &ctrl.Result{
-				RequeueAfter: 111,
+				RequeueAfter: 5 * time.Second, // 5 second minimum
 			},
 			expectedErr: nil,
 		},

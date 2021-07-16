@@ -19,10 +19,10 @@ package experiment
 import (
 	"fmt"
 
-	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
-	"github.com/thestormforge/optimize-controller/internal/application"
-	"github.com/thestormforge/optimize-controller/internal/experiment/generation"
-	"github.com/thestormforge/optimize-controller/internal/scan"
+	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
+	"github.com/thestormforge/optimize-controller/v2/internal/application"
+	"github.com/thestormforge/optimize-controller/v2/internal/experiment/generation"
+	"github.com/thestormforge/optimize-controller/v2/internal/scan"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/kio/filters"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
@@ -31,7 +31,7 @@ import (
 // Generator is used to create an experiment definition.
 type Generator struct {
 	// The definition of the application to generate an experiment for.
-	Application redskyappsv1alpha1.Application
+	Application optimizeappsv1alpha1.Application
 	// The name of the experiment to generate.
 	ExperimentName string
 	// The name of the scenario to generate an experiment for. Required if there are more then one scenario.
@@ -92,12 +92,12 @@ func (g *Generator) Execute(output kio.Writer) error {
 			},
 
 			// Label the generated resources
-			kio.FilterAll(yaml.SetLabel(redskyappsv1alpha1.LabelApplication, g.Application.Name)),
+			kio.FilterAll(yaml.SetLabel(optimizeappsv1alpha1.LabelApplication, g.Application.Name)),
 			kio.FilterAll(generation.SetNamespace(g.Application.Namespace)),
 			kio.FilterAll(generation.SetExperimentName(experimentName)),
-			kio.FilterAll(generation.SetExperimentLabel(redskyappsv1alpha1.LabelApplication, g.Application.Name)),
-			kio.FilterAll(generation.SetExperimentLabel(redskyappsv1alpha1.LabelScenario, scenarioName)),
-			kio.FilterAll(generation.SetExperimentLabel(redskyappsv1alpha1.LabelObjective, objectiveName)),
+			kio.FilterAll(generation.SetExperimentLabel(optimizeappsv1alpha1.LabelApplication, g.Application.Name)),
+			kio.FilterAll(generation.SetExperimentLabel(optimizeappsv1alpha1.LabelScenario, scenarioName)),
+			kio.FilterAll(generation.SetExperimentLabel(optimizeappsv1alpha1.LabelObjective, objectiveName)),
 
 			// Apply Kubernetes formatting conventions and clean up the objects
 			&filters.FormatFilter{UseSchema: true},

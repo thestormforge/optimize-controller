@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	batchv1 "k8s.io/api/batch/v1"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
@@ -31,17 +31,17 @@ import (
 func TestNewJob(t *testing.T) {
 	testCases := []struct {
 		desc               string
-		trial              *redskyv1beta1.Trial
+		trial              *optimizev1beta2.Trial
 		expectedContainers int
 	}{
 		{
 			desc: "no containers",
-			trial: &redskyv1beta1.Trial{
+			trial: &optimizev1beta2.Trial{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "default",
 					Namespace: "default",
 				},
-				Spec: redskyv1beta1.TrialSpec{
+				Spec: optimizev1beta2.TrialSpec{
 					JobTemplate: &batchv1beta1.JobTemplateSpec{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      "trial-job",
@@ -55,12 +55,12 @@ func TestNewJob(t *testing.T) {
 		},
 		{
 			desc: "two containers",
-			trial: &redskyv1beta1.Trial{
+			trial: &optimizev1beta2.Trial{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "default",
 					Namespace: "default",
 				},
-				Spec: redskyv1beta1.TrialSpec{
+				Spec: optimizev1beta2.TrialSpec{
 					JobTemplate: &batchv1beta1.JobTemplateSpec{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      "trial-job",

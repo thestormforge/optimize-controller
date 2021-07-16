@@ -17,9 +17,9 @@ limitations under the License.
 package generation
 
 import (
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
-	"github.com/thestormforge/optimize-controller/internal/scan"
-	"github.com/thestormforge/optimize-controller/internal/sfio"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	"github.com/thestormforge/optimize-controller/v2/internal/scan"
+	"github.com/thestormforge/optimize-controller/v2/internal/sfio"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
@@ -90,7 +90,7 @@ func (p *replicaParameter) Patch(name ParameterNamer) (yaml.Filter, error) {
 	), nil
 }
 
-func (p *replicaParameter) Parameters(name ParameterNamer) ([]redskyv1beta1.Parameter, error) {
+func (p *replicaParameter) Parameters(name ParameterNamer) ([]optimizev1beta2.Parameter, error) {
 	var v int
 	if err := p.value.Decode(&v); err != nil {
 		return nil, err
@@ -107,7 +107,7 @@ func (p *replicaParameter) Parameters(name ParameterNamer) ([]redskyv1beta1.Para
 		maxReplicas = baselineReplicas.IntVal
 	}
 
-	return []redskyv1beta1.Parameter{{
+	return []optimizev1beta2.Parameter{{
 		Name:     name(p.meta, p.fieldPath, "replicas"),
 		Min:      minReplicas,
 		Max:      maxReplicas,

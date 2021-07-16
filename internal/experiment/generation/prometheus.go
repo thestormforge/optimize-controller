@@ -17,9 +17,9 @@ limitations under the License.
 package generation
 
 import (
-	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
-	"github.com/thestormforge/optimize-controller/internal/sfio"
+	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	"github.com/thestormforge/optimize-controller/v2/internal/sfio"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,13 +27,13 @@ import (
 )
 
 type PrometheusMetricsSource struct {
-	Goal *redskyappsv1alpha1.Goal
+	Goal *optimizeappsv1alpha1.Goal
 }
 
 var _ MetricSource = &PrometheusMetricsSource{}
 
-func (s *PrometheusMetricsSource) Metrics() ([]redskyv1beta1.Metric, error) {
-	var result []redskyv1beta1.Metric
+func (s *PrometheusMetricsSource) Metrics() ([]optimizev1beta2.Metric, error) {
+	var result []optimizev1beta2.Metric
 	if s.Goal == nil || s.Goal.Implemented {
 		return result, nil
 	}
@@ -58,11 +58,11 @@ type BuiltInPrometheus struct {
 var _ ExperimentSource = &BuiltInPrometheus{} // Service Account name and Setup Task
 var _ kio.Reader = &BuiltInPrometheus{}       // RBAC
 
-func (p *BuiltInPrometheus) Update(exp *redskyv1beta1.Experiment) error {
+func (p *BuiltInPrometheus) Update(exp *optimizev1beta2.Experiment) error {
 	// Detect if we need built-in Prometheus by checking the generated metrics
 	var needsPrometheus bool
 	for _, m := range exp.Spec.Metrics {
-		if m.Type == redskyv1beta1.MetricPrometheus && m.URL == "" {
+		if m.Type == optimizev1beta2.MetricPrometheus && m.URL == "" {
 			needsPrometheus = true
 			break
 		}
@@ -74,7 +74,7 @@ func (p *BuiltInPrometheus) Update(exp *redskyv1beta1.Experiment) error {
 
 	exp.Spec.TrialTemplate.Spec.SetupServiceAccountName = p.ServiceAccountName
 	exp.Spec.TrialTemplate.Spec.SetupTasks = append(exp.Spec.TrialTemplate.Spec.SetupTasks,
-		redskyv1beta1.SetupTask{
+		optimizev1beta2.SetupTask{
 			Name: p.SetupTaskName,
 			Args: []string{"prometheus", "$(MODE)"},
 		})

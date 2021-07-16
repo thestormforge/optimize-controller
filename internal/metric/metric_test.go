@@ -26,7 +26,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,13 +52,13 @@ func TestCaptureMetric(t *testing.T) {
 
 	testCases := []struct {
 		desc     string
-		metric   *redskyv1beta1.Metric
+		metric   *optimizev1beta2.Metric
 		obj      runtime.Object
 		expected float64
 	}{
 		{
 			desc: "default kubernetes",
-			metric: &redskyv1beta1.Metric{
+			metric: &optimizev1beta2.Metric{
 				Name:  "testMetric",
 				Query: "{{duration .StartTime .CompletionTime}}",
 			},
@@ -66,19 +66,19 @@ func TestCaptureMetric(t *testing.T) {
 		},
 		{
 			desc: "explicit kubernetes",
-			metric: &redskyv1beta1.Metric{
+			metric: &optimizev1beta2.Metric{
 				Name:  "testMetric",
 				Query: "{{duration .StartTime .CompletionTime}}",
-				Type:  redskyv1beta1.MetricKubernetes,
+				Type:  optimizev1beta2.MetricKubernetes,
 			},
 			expected: 5,
 		},
 		{
 			desc: "kubernetes target",
-			metric: &redskyv1beta1.Metric{
+			metric: &optimizev1beta2.Metric{
 				Name:  "testMetric",
 				Query: "{{with index .Target.Items 0}}{{ (indexResource .Usage \"cpu\").MilliValue }}{{ end }}",
-				Type:  redskyv1beta1.MetricKubernetes,
+				Type:  optimizev1beta2.MetricKubernetes,
 			},
 			obj: &metricsv1beta1.NodeMetricsList{
 				Items: []metricsv1beta1.NodeMetrics{
@@ -98,10 +98,10 @@ func TestCaptureMetric(t *testing.T) {
 		},
 		{
 			desc: "prometheus url",
-			metric: &redskyv1beta1.Metric{
+			metric: &optimizev1beta2.Metric{
 				Name:  "testMetric",
 				Query: "scalar(prometheus_build_info)",
-				Type:  redskyv1beta1.MetricPrometheus,
+				Type:  optimizev1beta2.MetricPrometheus,
 				URL:   promHttpTest.URL,
 			},
 			expected: 1,
@@ -109,10 +109,10 @@ func TestCaptureMetric(t *testing.T) {
 
 		{
 			desc: "jsonpath url",
-			metric: &redskyv1beta1.Metric{
+			metric: &optimizev1beta2.Metric{
 				Name:  "testMetric",
 				Query: "{.current_response_time_percentile_95}",
-				Type:  redskyv1beta1.MetricJSONPath,
+				Type:  optimizev1beta2.MetricJSONPath,
 				URL:   jsonHttpTest.URL,
 			},
 			expected: 5,
@@ -122,8 +122,8 @@ func TestCaptureMetric(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("%q", tc.desc), func(t *testing.T) {
 			log := log.WithValues("test", tc.desc)
-			trial := &redskyv1beta1.Trial{
-				Status: redskyv1beta1.TrialStatus{
+			trial := &optimizev1beta2.Trial{
+				Status: optimizev1beta2.TrialStatus{
 					StartTime:      &now,
 					CompletionTime: &later,
 				},

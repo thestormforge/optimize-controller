@@ -23,19 +23,19 @@ import (
 	"os"
 	"path/filepath"
 
-	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
-	"github.com/thestormforge/optimize-controller/internal/application"
+	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	"github.com/thestormforge/optimize-controller/v2/internal/application"
 	"github.com/yujunz/go-getter"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 )
 
 // newGoalMetric creates a new metric for the supplied goal with most fields pre-filled.
-func newGoalMetric(obj *redskyappsv1alpha1.Goal, query string) redskyv1beta1.Metric {
+func newGoalMetric(obj *optimizeappsv1alpha1.Goal, query string) optimizev1beta2.Metric {
 	defer func() { obj.Implemented = true }()
-	return redskyv1beta1.Metric{
-		Type:     redskyv1beta1.MetricPrometheus,
+	return optimizev1beta2.Metric{
+		Type:     optimizev1beta2.MetricPrometheus,
 		Query:    query,
 		Minimize: true,
 		Name:     obj.Name,
@@ -46,7 +46,7 @@ func newGoalMetric(obj *redskyappsv1alpha1.Goal, query string) redskyv1beta1.Met
 }
 
 // ensureTrialJobPod returns the pod template for the trial job, creating the job template if necessary.
-func ensureTrialJobPod(exp *redskyv1beta1.Experiment) *corev1.PodTemplateSpec {
+func ensureTrialJobPod(exp *optimizev1beta2.Experiment) *corev1.PodTemplateSpec {
 	if exp.Spec.TrialTemplate.Spec.JobTemplate == nil {
 		exp.Spec.TrialTemplate.Spec.JobTemplate = &batchv1beta1.JobTemplateSpec{}
 	}
@@ -72,7 +72,7 @@ func trialJobImage(job string) string {
 }
 
 // loadApplicationData loads data (e.g. a supporting test file).
-func loadApplicationData(app *redskyappsv1alpha1.Application, src string) ([]byte, error) {
+func loadApplicationData(app *optimizeappsv1alpha1.Application, src string) ([]byte, error) {
 	dst := filepath.Join(os.TempDir(), fmt.Sprintf("load-application-data-%x", md5.Sum([]byte(src))))
 	defer os.Remove(dst)
 

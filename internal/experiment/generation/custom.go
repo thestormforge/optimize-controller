@@ -23,22 +23,22 @@ import (
 	"strings"
 	"time"
 
-	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type CustomSource struct {
-	Scenario    *redskyappsv1alpha1.Scenario
-	Objective   *redskyappsv1alpha1.Objective
-	Application *redskyappsv1alpha1.Application
+	Scenario    *optimizeappsv1alpha1.Scenario
+	Objective   *optimizeappsv1alpha1.Objective
+	Application *optimizeappsv1alpha1.Application
 }
 
 var _ ExperimentSource = &CustomSource{}
 var _ MetricSource = &CustomSource{}
 
-func (s *CustomSource) Update(exp *redskyv1beta1.Experiment) error {
+func (s *CustomSource) Update(exp *optimizev1beta2.Experiment) error {
 	if s.Scenario == nil || s.Application == nil {
 		return nil
 	}
@@ -81,8 +81,8 @@ func (s *CustomSource) Update(exp *redskyv1beta1.Experiment) error {
 	return nil
 }
 
-func (s *CustomSource) Metrics() ([]redskyv1beta1.Metric, error) {
-	var result []redskyv1beta1.Metric
+func (s *CustomSource) Metrics() ([]optimizev1beta2.Metric, error) {
+	var result []optimizev1beta2.Metric
 	if s.Objective == nil {
 		return result, nil
 	}
@@ -117,7 +117,7 @@ func (s *CustomSource) Metrics() ([]redskyv1beta1.Metric, error) {
 
 			m := newGoalMetric(goal, query)
 			m.Type = ""
-			m.Target = &redskyv1beta1.ResourceTarget{
+			m.Target = &optimizev1beta2.ResourceTarget{
 				APIVersion:    "v1",
 				Kind:          "PodList",
 				LabelSelector: labelSelector,

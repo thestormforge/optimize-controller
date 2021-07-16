@@ -23,7 +23,7 @@ import (
 	"text/template"
 	"time"
 
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -41,7 +41,7 @@ type PatchData struct {
 // MetricData represents a trial during metric evaluation
 type MetricData struct {
 	// Trial is a copy of the trial being evaluated.
-	Trial *redskyv1beta1.Trial
+	Trial *optimizev1beta2.Trial
 	// Target is the object matched by the resource target of a Kubernetes metric.
 	Target runtime.Object
 
@@ -61,7 +61,7 @@ func (m *MetricData) Pods() runtime.Object {
 	return m.Target
 }
 
-func newPatchData(t *redskyv1beta1.Trial) *PatchData {
+func newPatchData(t *optimizev1beta2.Trial) *PatchData {
 	d := &PatchData{}
 
 	t.ObjectMeta.DeepCopyInto(&d.Trial)
@@ -78,7 +78,7 @@ func newPatchData(t *redskyv1beta1.Trial) *PatchData {
 	return d
 }
 
-func newMetricData(t *redskyv1beta1.Trial, target runtime.Object) *MetricData {
+func newMetricData(t *optimizev1beta2.Trial, target runtime.Object) *MetricData {
 	d := &MetricData{
 		Trial:  t.DeepCopy(),
 		Target: target,
@@ -123,7 +123,7 @@ func New() *Engine {
 // of patch templates or metrics (or the experiment itself, trial for HelmValues) and then render the individual values by template name?
 
 // RenderPatch returns the JSON representation of the supplied patch template (input can be a Go template that produces YAML)
-func (e *Engine) RenderPatch(patch *redskyv1beta1.PatchTemplate, trial *redskyv1beta1.Trial) ([]byte, error) {
+func (e *Engine) RenderPatch(patch *optimizev1beta2.PatchTemplate, trial *optimizev1beta2.Trial) ([]byte, error) {
 	data := newPatchData(trial)
 	b, err := e.render("patch", patch.Patch, data) // TODO What should we use for patch template names? Something from the targetRef?
 	if err != nil {
@@ -133,7 +133,7 @@ func (e *Engine) RenderPatch(patch *redskyv1beta1.PatchTemplate, trial *redskyv1
 }
 
 // RenderHelmValue returns a rendered string of the supplied Helm value
-func (e *Engine) RenderHelmValue(helmValue *redskyv1beta1.HelmValue, trial *redskyv1beta1.Trial) (string, error) {
+func (e *Engine) RenderHelmValue(helmValue *optimizev1beta2.HelmValue, trial *optimizev1beta2.Trial) (string, error) {
 	data := newPatchData(trial)
 	b, err := e.render(helmValue.Name, helmValue.Value.String(), data)
 	if err != nil {
@@ -143,7 +143,7 @@ func (e *Engine) RenderHelmValue(helmValue *redskyv1beta1.HelmValue, trial *reds
 }
 
 // RenderMetricQueries returns the metric query and the metric error query
-func (e *Engine) RenderMetricQueries(metric *redskyv1beta1.Metric, trial *redskyv1beta1.Trial, target runtime.Object) (string, string, error) {
+func (e *Engine) RenderMetricQueries(metric *optimizev1beta2.Metric, trial *optimizev1beta2.Trial, target runtime.Object) (string, string, error) {
 	data := newMetricData(trial, target)
 	b1, err := e.render(metric.Name, metric.Query, data)
 	if err != nil {

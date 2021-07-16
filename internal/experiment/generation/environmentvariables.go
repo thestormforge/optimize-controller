@@ -22,9 +22,9 @@ import (
 	"strconv"
 	"strings"
 
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
-	"github.com/thestormforge/optimize-controller/internal/scan"
-	"github.com/thestormforge/optimize-controller/internal/sfio"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	"github.com/thestormforge/optimize-controller/v2/internal/scan"
+	"github.com/thestormforge/optimize-controller/v2/internal/sfio"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
@@ -109,8 +109,8 @@ func (p *environmentVariablesParameter) Patch(name ParameterNamer) (yaml.Filter,
 	), nil
 }
 
-func (p *environmentVariablesParameter) Parameters(name ParameterNamer) ([]redskyv1beta1.Parameter, error) {
-	param := redskyv1beta1.Parameter{
+func (p *environmentVariablesParameter) Parameters(name ParameterNamer) ([]optimizev1beta2.Parameter, error) {
+	param := optimizev1beta2.Parameter{
 		Name:     name(p.meta, p.fieldPath, ""),
 		Baseline: new(intstr.IntOrString),
 	}
@@ -132,7 +132,7 @@ func (p *environmentVariablesParameter) Parameters(name ParameterNamer) ([]redsk
 		param.Max = 4000
 	}
 
-	return []redskyv1beta1.Parameter{param}, nil
+	return []optimizev1beta2.Parameter{param}, nil
 }
 
 func appendMissing(slice []string, elem string) []string {

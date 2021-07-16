@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"strings"
 
-	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
@@ -30,13 +30,13 @@ var zero = resource.MustParse("0")
 const requestsQueryFormat = `({{ cpuRequests . %q }} * %d) + ({{ memoryRequests . %q | GB }} * %d)`
 
 type RequestsMetricsSource struct {
-	Goal *redskyappsv1alpha1.Goal
+	Goal *optimizeappsv1alpha1.Goal
 }
 
 var _ MetricSource = &RequestsMetricsSource{}
 
-func (s *RequestsMetricsSource) Metrics() ([]redskyv1beta1.Metric, error) {
-	var result []redskyv1beta1.Metric
+func (s *RequestsMetricsSource) Metrics() ([]optimizev1beta2.Metric, error) {
+	var result []optimizev1beta2.Metric
 	if s.Goal == nil || s.Goal.Implemented {
 		return result, nil
 	}
@@ -61,11 +61,11 @@ func (s *RequestsMetricsSource) Metrics() ([]redskyv1beta1.Metric, error) {
 
 		nonOptimized := false
 		result = append(result,
-			newGoalMetric(&redskyappsv1alpha1.Goal{
+			newGoalMetric(&optimizeappsv1alpha1.Goal{
 				Name:     result[0].Name + "-cpu-requests",
 				Optimize: &nonOptimized,
 			}, fmt.Sprintf("{{ cpuRequests . %q }}", s.Goal.Requests.Selector)),
-			newGoalMetric(&redskyappsv1alpha1.Goal{
+			newGoalMetric(&optimizeappsv1alpha1.Goal{
 				Name:     result[0].Name + "-memory-requests",
 				Optimize: &nonOptimized,
 			}, fmt.Sprintf("{{ memoryRequests . %q | GB }}", s.Goal.Requests.Selector)),

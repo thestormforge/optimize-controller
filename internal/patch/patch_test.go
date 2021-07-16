@@ -22,8 +22,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	redsky "github.com/thestormforge/optimize-controller/api/v1beta1"
-	"github.com/thestormforge/optimize-controller/internal/template"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	"github.com/thestormforge/optimize-controller/v2/internal/template"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -31,7 +31,7 @@ import (
 func TestPatch(t *testing.T) {
 	te := template.New()
 
-	trial := &redsky.Trial{
+	trial := &optimizev1beta2.Trial{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "mytrial",
 			Namespace: "default",
@@ -63,8 +63,8 @@ metadata:
 
 	testCases := []struct {
 		desc                string
-		trial               *redsky.Trial
-		patchTemplate       *redsky.PatchTemplate
+		trial               *optimizev1beta2.Trial
+		patchTemplate       *optimizev1beta2.PatchTemplate
 		attemptsRemaining   int
 		expectedError       bool
 		expectedRenderError bool
@@ -73,7 +73,7 @@ metadata:
 		{
 			desc:  "default",
 			trial: trial,
-			patchTemplate: &redsky.PatchTemplate{
+			patchTemplate: &optimizev1beta2.PatchTemplate{
 				// Note: defining an empty string ("") results
 				// in a `null` being returned. Think this is valid
 				// but makes testing a little more complicated.
@@ -90,8 +90,8 @@ metadata:
 		{
 			desc:  "strategic w/o targetref",
 			trial: trial,
-			patchTemplate: &redsky.PatchTemplate{
-				Type:      redsky.PatchStrategic,
+			patchTemplate: &optimizev1beta2.PatchTemplate{
+				Type:      optimizev1beta2.PatchStrategic,
 				Patch:     fullPatch,
 				TargetRef: nil,
 			},
@@ -100,8 +100,8 @@ metadata:
 		{
 			desc:  "strategic w/o targetref w/o full",
 			trial: trial,
-			patchTemplate: &redsky.PatchTemplate{
-				Type:      redsky.PatchStrategic,
+			patchTemplate: &optimizev1beta2.PatchTemplate{
+				Type:      optimizev1beta2.PatchStrategic,
 				Patch:     patchSpec,
 				TargetRef: nil,
 			},
@@ -110,8 +110,8 @@ metadata:
 		{
 			desc:  "patchmerge",
 			trial: trial,
-			patchTemplate: &redsky.PatchTemplate{
-				Type:  redsky.PatchMerge,
+			patchTemplate: &optimizev1beta2.PatchTemplate{
+				Type:  optimizev1beta2.PatchMerge,
 				Patch: fullPatch,
 				TargetRef: &corev1.ObjectReference{
 					Kind:       "Deployment",
@@ -125,8 +125,8 @@ metadata:
 		{
 			desc:  "patchjson",
 			trial: trial,
-			patchTemplate: &redsky.PatchTemplate{
-				Type:  redsky.PatchJSON,
+			patchTemplate: &optimizev1beta2.PatchTemplate{
+				Type:  optimizev1beta2.PatchJSON,
 				Patch: jsonPatch,
 				TargetRef: &corev1.ObjectReference{
 					Kind:       "Deployment",
@@ -140,8 +140,8 @@ metadata:
 		{
 			desc:  "patchTrial - json",
 			trial: trial,
-			patchTemplate: &redsky.PatchTemplate{
-				Type:  redsky.PatchJSON,
+			patchTemplate: &optimizev1beta2.PatchTemplate{
+				Type:  optimizev1beta2.PatchJSON,
 				Patch: patchSpec,
 				TargetRef: &corev1.ObjectReference{
 					Kind:       "Job",
@@ -155,8 +155,8 @@ metadata:
 		{
 			desc:  "patchTrial - strategic merge",
 			trial: trial,
-			patchTemplate: &redsky.PatchTemplate{
-				Type:  redsky.PatchStrategic,
+			patchTemplate: &optimizev1beta2.PatchTemplate{
+				Type:  optimizev1beta2.PatchStrategic,
 				Patch: patchSpec,
 				TargetRef: &corev1.ObjectReference{
 					Kind:       "Job",
@@ -170,8 +170,8 @@ metadata:
 		{
 			desc:  "patchTrial - optional name",
 			trial: trial,
-			patchTemplate: &redsky.PatchTemplate{
-				Type:  redsky.PatchStrategic,
+			patchTemplate: &optimizev1beta2.PatchTemplate{
+				Type:  optimizev1beta2.PatchStrategic,
 				Patch: patchSpec,
 				TargetRef: &corev1.ObjectReference{
 					Kind:       "Job",
@@ -201,11 +201,11 @@ metadata:
 			}
 
 			switch tc.patchTemplate.Type {
-			case redsky.PatchStrategic, redsky.PatchMerge:
+			case optimizev1beta2.PatchStrategic, optimizev1beta2.PatchMerge:
 				if !strings.Contains(tc.desc, "patchTrial") {
 					assert.Equal(t, tc.patchTemplate.Patch, fullPatch)
 				}
-			case redsky.PatchJSON:
+			case optimizev1beta2.PatchJSON:
 				if !strings.Contains(tc.desc, "patchTrial") {
 					assert.Equal(t, tc.patchTemplate.Patch, jsonPatch)
 				}

@@ -19,25 +19,25 @@ package generation
 import (
 	"fmt"
 
-	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
-	"github.com/thestormforge/optimize-controller/internal/sfio"
+	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	"github.com/thestormforge/optimize-controller/v2/internal/sfio"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
 type LocustSource struct {
-	Scenario    *redskyappsv1alpha1.Scenario
-	Objective   *redskyappsv1alpha1.Objective
-	Application *redskyappsv1alpha1.Application
+	Scenario    *optimizeappsv1alpha1.Scenario
+	Objective   *optimizeappsv1alpha1.Objective
+	Application *optimizeappsv1alpha1.Application
 }
 
 var _ ExperimentSource = &LocustSource{} // Update trial job
 var _ MetricSource = &LocustSource{}     // Locust specific metrics
 var _ kio.Reader = &LocustSource{}       // ConfigMap for the locustfile.py
 
-func (s *LocustSource) Update(exp *redskyv1beta1.Experiment) error {
+func (s *LocustSource) Update(exp *optimizev1beta2.Experiment) error {
 	if s.Scenario == nil || s.Application == nil {
 		return nil
 	}
@@ -104,8 +104,8 @@ func (s *LocustSource) Read() ([]*yaml.RNode, error) {
 	return result.Read()
 }
 
-func (s *LocustSource) Metrics() ([]redskyv1beta1.Metric, error) {
-	var result []redskyv1beta1.Metric
+func (s *LocustSource) Metrics() ([]optimizev1beta2.Metric, error) {
+	var result []optimizev1beta2.Metric
 	if s.Objective == nil {
 		return result, nil
 	}
@@ -124,7 +124,7 @@ func (s *LocustSource) Metrics() ([]redskyv1beta1.Metric, error) {
 			}
 
 		case goal.ErrorRate != nil:
-			if goal.ErrorRate.ErrorRateType == redskyappsv1alpha1.ErrorRateRequests {
+			if goal.ErrorRate.ErrorRateType == optimizeappsv1alpha1.ErrorRateRequests {
 				query := `scalar(failure_count{job="trialRun",instance="{{ .Trial.Name }}"} / request_count{job="trialRun",instance="{{ .Trial.Name }}"})`
 				result = append(result, newGoalMetric(goal, query))
 			}
@@ -168,19 +168,19 @@ func (s *LocustSource) locustEnv() []corev1.EnvVar {
 	return env
 }
 
-func (s *LocustSource) locustLatency(lt redskyappsv1alpha1.LatencyType) string {
-	switch redskyappsv1alpha1.FixLatency(lt) {
-	case redskyappsv1alpha1.LatencyMinimum:
+func (s *LocustSource) locustLatency(lt optimizeappsv1alpha1.LatencyType) string {
+	switch optimizeappsv1alpha1.FixLatency(lt) {
+	case optimizeappsv1alpha1.LatencyMinimum:
 		return "min_response_time"
-	case redskyappsv1alpha1.LatencyMaximum:
+	case optimizeappsv1alpha1.LatencyMaximum:
 		return "max_response_time"
-	case redskyappsv1alpha1.LatencyMean:
+	case optimizeappsv1alpha1.LatencyMean:
 		return "average_response_time"
-	case redskyappsv1alpha1.LatencyPercentile50:
+	case optimizeappsv1alpha1.LatencyPercentile50:
 		return "p50"
-	case redskyappsv1alpha1.LatencyPercentile95:
+	case optimizeappsv1alpha1.LatencyPercentile95:
 		return "p95"
-	case redskyappsv1alpha1.LatencyPercentile99:
+	case optimizeappsv1alpha1.LatencyPercentile99:
 		return "p99"
 	default:
 		return ""

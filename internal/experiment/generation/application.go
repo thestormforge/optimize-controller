@@ -17,16 +17,16 @@ limitations under the License.
 package generation
 
 import (
-	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
-	"github.com/thestormforge/optimize-controller/internal/scan"
+	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
+	"github.com/thestormforge/optimize-controller/v2/internal/scan"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
 // ApplicationSelector is responsible for "scanning" the application definition itself.
 type ApplicationSelector struct {
-	Application *redskyappsv1alpha1.Application
-	Scenario    *redskyappsv1alpha1.Scenario
-	Objective   *redskyappsv1alpha1.Objective
+	Application *optimizeappsv1alpha1.Application
+	Scenario    *optimizeappsv1alpha1.Scenario
+	Objective   *optimizeappsv1alpha1.Objective
 }
 
 var _ scan.Selector = &ApplicationSelector{}
@@ -73,9 +73,9 @@ func (s *ApplicationSelector) Map(*yaml.RNode, yaml.ResourceMeta) ([]interface{}
 
 	result = append(result, &BuiltInPrometheus{
 		SetupTaskName:          "monitoring",
-		ClusterRoleName:        "redsky-prometheus",
-		ServiceAccountName:     "redsky-setup",
-		ClusterRoleBindingName: "redsky-setup-prometheus",
+		ClusterRoleName:        "optimize-prometheus",
+		ServiceAccountName:     "optimize-setup",
+		ClusterRoleBindingName: "optimize-setup-prometheus",
 	})
 
 	return result, nil

@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
@@ -32,8 +32,8 @@ func mustQuantity(str string) *resource.Quantity {
 func TestCheckMetricBounds(t *testing.T) {
 	cases := []struct {
 		desc     string
-		metric   redskyv1beta1.Metric
-		value    redskyv1beta1.Value
+		metric   optimizev1beta2.Metric
+		value    optimizev1beta2.Value
 		hasError bool
 	}{
 		{
@@ -41,44 +41,44 @@ func TestCheckMetricBounds(t *testing.T) {
 		},
 		{
 			desc:  "no bounds",
-			value: redskyv1beta1.Value{Value: "1.0"},
+			value: optimizev1beta2.Value{Value: "1.0"},
 		},
 
 		{
 			desc:     "value too low",
-			metric:   redskyv1beta1.Metric{Min: mustQuantity("2.0")},
-			value:    redskyv1beta1.Value{Value: "1.0"},
+			metric:   optimizev1beta2.Metric{Min: mustQuantity("2.0")},
+			value:    optimizev1beta2.Value{Value: "1.0"},
 			hasError: true,
 		},
 		{
 			desc:     "value too high",
-			metric:   redskyv1beta1.Metric{Max: mustQuantity("1.0")},
-			value:    redskyv1beta1.Value{Value: "2.0"},
+			metric:   optimizev1beta2.Metric{Max: mustQuantity("1.0")},
+			value:    optimizev1beta2.Value{Value: "2.0"},
 			hasError: true,
 		},
 
 		{
 			desc:   "value above less precise min",
-			metric: redskyv1beta1.Metric{Min: mustQuantity("1.2345")},
-			value:  redskyv1beta1.Value{Value: "1.23456789"},
+			metric: optimizev1beta2.Metric{Min: mustQuantity("1.2345")},
+			value:  optimizev1beta2.Value{Value: "1.23456789"},
 		},
 		{
 			desc:     "value above less precise max ",
-			metric:   redskyv1beta1.Metric{Max: mustQuantity("1.2345")},
-			value:    redskyv1beta1.Value{Value: "1.23456789"},
+			metric:   optimizev1beta2.Metric{Max: mustQuantity("1.2345")},
+			value:    optimizev1beta2.Value{Value: "1.23456789"},
 			hasError: true,
 		},
 
 		{
 			desc:     "suffix max",
-			metric:   redskyv1beta1.Metric{Max: mustQuantity("100m")},
-			value:    redskyv1beta1.Value{Value: "0.2"},
+			metric:   optimizev1beta2.Metric{Max: mustQuantity("100m")},
+			value:    optimizev1beta2.Value{Value: "0.2"},
 			hasError: true,
 		},
 		{
 			desc:   "suffix min",
-			metric: redskyv1beta1.Metric{Min: mustQuantity("100m")},
-			value:  redskyv1beta1.Value{Value: "0.2"},
+			metric: optimizev1beta2.Metric{Min: mustQuantity("100m")},
+			value:  optimizev1beta2.Value{Value: "0.2"},
 		},
 	}
 	for _, c := range cases {

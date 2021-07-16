@@ -23,12 +23,12 @@ import (
 	"strings"
 	"unicode"
 
-	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
+	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
 	"sigs.k8s.io/kustomize/kyaml/kio/kioutil"
 )
 
 // GetScenario returns the named scenario from the application, if possible.
-func GetScenario(app *redskyappsv1alpha1.Application, scenario string) (*redskyappsv1alpha1.Scenario, error) {
+func GetScenario(app *optimizeappsv1alpha1.Application, scenario string) (*optimizeappsv1alpha1.Scenario, error) {
 	if scenario == "" && len(app.Scenarios) == 1 {
 		return &app.Scenarios[0], nil
 	}
@@ -38,7 +38,7 @@ func GetScenario(app *redskyappsv1alpha1.Application, scenario string) (*redskya
 	}
 
 	cleanScenario := cleanName(scenario)
-	var result *redskyappsv1alpha1.Scenario
+	var result *optimizeappsv1alpha1.Scenario
 	var names []string
 	for i := range app.Scenarios {
 		names = append(names, app.Scenarios[i].Name)
@@ -65,7 +65,7 @@ func GetScenario(app *redskyappsv1alpha1.Application, scenario string) (*redskya
 }
 
 // GetObjective returns the goals of an objective, if possible.
-func GetObjective(app *redskyappsv1alpha1.Application, objective string) (*redskyappsv1alpha1.Objective, error) {
+func GetObjective(app *optimizeappsv1alpha1.Application, objective string) (*optimizeappsv1alpha1.Objective, error) {
 	if objective == "" && len(app.Objectives) == 1 {
 		return &app.Objectives[0], nil
 	}
@@ -75,7 +75,7 @@ func GetObjective(app *redskyappsv1alpha1.Application, objective string) (*redsk
 	}
 
 	cleanObjective := cleanName(objective)
-	var result *redskyappsv1alpha1.Objective
+	var result *optimizeappsv1alpha1.Objective
 	var names []string
 	for i := range app.Objectives {
 		names = append(names, app.Objectives[i].Name)
@@ -102,7 +102,7 @@ func GetObjective(app *redskyappsv1alpha1.Application, objective string) (*redsk
 }
 
 // ExperimentName returns the name of an experiment corresponding to the application.
-func ExperimentName(app *redskyappsv1alpha1.Application, scenario, objective string) string {
+func ExperimentName(app *optimizeappsv1alpha1.Application, scenario, objective string) string {
 	name := cleanName(app.Name)
 
 	// Cap name length to 54 so we can add 9 more characters before hitting 63
@@ -120,7 +120,7 @@ func ExperimentName(app *redskyappsv1alpha1.Application, scenario, objective str
 
 // GuessScenarioAndObjective attempts to match an experiment name back to the scenario
 // and objective names used to generate it.
-func GuessScenarioAndObjective(app *redskyappsv1alpha1.Application, experimentName string) (scenario, objective string) {
+func GuessScenarioAndObjective(app *optimizeappsv1alpha1.Application, experimentName string) (scenario, objective string) {
 	for i := range app.Scenarios {
 		for j := range app.Objectives {
 			if ExperimentName(app, app.Scenarios[i].Name, app.Objectives[j].Name) == experimentName {
@@ -135,7 +135,7 @@ func GuessScenarioAndObjective(app *redskyappsv1alpha1.Application, experimentNa
 // WorkingDirectory returns the directory the application was loaded from. This
 // directory should be used as the effective working directory when resolving relative
 // paths found in the application definition.
-func WorkingDirectory(app *redskyappsv1alpha1.Application) string {
+func WorkingDirectory(app *optimizeappsv1alpha1.Application) string {
 	if path := app.Annotations[kioutil.PathAnnotation]; path != "" {
 		return filepath.Dir(path)
 	}

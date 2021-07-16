@@ -18,6 +18,7 @@ package sfio
 
 import (
 	"fmt"
+	"strings"
 
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
@@ -62,6 +63,20 @@ func (f FieldRenamer) Filter(rn *yaml.RNode) (*yaml.RNode, error) {
 		}
 	}
 
+	return nil, nil
+}
+
+// PrefixClearer removes a prefix from a node value.
+type PrefixClearer struct {
+	Value string
+}
+
+// Filter removes the prefix from the node value or returns a nil node.
+func (f *PrefixClearer) Filter(rn *yaml.RNode) (*yaml.RNode, error) {
+	if strings.HasPrefix(rn.YNode().Value, f.Value) {
+		rn.YNode().Value = strings.TrimPrefix(rn.YNode().Value, f.Value)
+		return rn, nil
+	}
 	return nil, nil
 }
 
@@ -166,7 +181,7 @@ func (f TeeMatchedFilter) visitMatched(node *yaml.RNode) error {
 	matches := f.PathMatcher.Matches[node.YNode()]
 	matchIndex := len(matches)
 	for _, p := range f.PathMatcher.Path {
-		if yaml.IsListIndex(p) && matchIndex >= 0 {
+		if yaml.IsListIndex(p) && matchIndex > 0 {
 			matchIndex--
 			name, _, _ := yaml.SplitIndexNameValue(p)
 			p = fmt.Sprintf("[%s=%s]", name, matches[matchIndex])

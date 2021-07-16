@@ -76,44 +76,51 @@ jobs:
             DOCKER_TAG="sha-$(git rev-parse --short HEAD)"
             echo "IMAGE_TAG=edge" >> $GITHUB_ENV
           fi
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login "ghcr.io" -u "${{ github.actor }}" --password-stdin
           echo "IMG=${DOCKER_REGISTRY}/optimize-controller:${DOCKER_TAG}" >> $GITHUB_ENV
-          echo "REDSKYCTL_IMG=${DOCKER_REGISTRY}/redskyctl:${DOCKER_TAG}" >> $GITHUB_ENV
+          echo "CLI_IMG=${DOCKER_REGISTRY}/optimize-cli:${DOCKER_TAG}" >> $GITHUB_ENV
           echo "SETUPTOOLS_IMG=${DOCKER_REGISTRY}/setuptools:${DOCKER_TAG}" >> $GITHUB_ENV
           echo "PULL_POLICY=" >> $GITHUB_ENV
       - name: Build controller
         run: |
-          make docker-build-ci
+          make -o test docker-build
       - name: Build tool
         uses: goreleaser/goreleaser-action@v2
         with:
-          args: release --rm-dist --release-notes hack/changelog.md.txt
+          args: release --rm-dist --release-notes .github/RELEASE_TEMPLATE.md
         env:
           GITHUB_TOKEN: ${{ secrets.BMASTERS_TOKEN }}
           AC_PASSWORD: ${{ secrets.AC_PASSWORD }}
           AC_IDENTITY_P12: ${{ secrets.AC_IDENTITY_P12 }}
       - name: Push Docker images
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login "ghcr.io" -u "${{ github.actor }}" --password-stdin
           make docker-push
           docker-push() {
             docker tag "$1" "$2"
             docker push "$2"
           }
-          docker-push "${IMG}" "${IMG%%:*}:${IMAGE_TAG}"
-          docker-push "${REDSKYCTL_IMG}" "${REDSKYCTL_IMG%%:*}:${IMAGE_TAG}"
-          docker-push "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:${IMAGE_TAG}"
+          if [[ "${IMAGE_TAG}" != "latest" || ! "${VERSION}" =~ "-" ]]; then
+            docker-push "${IMG}" "${IMG%%:*}:${IMAGE_TAG}"
+            docker-push "${CLI_IMG}" "${CLI_IMG%%:*}:${IMAGE_TAG}"
+            docker-push "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:${IMAGE_TAG}"
+          fi
           if [ "${IMG#ghcr.io/}" = "${IMG}" ]; then
             docker-push "${IMG}" "ghcr.io/${IMG}"
-            docker-push "${REDSKYCTL_IMG}" "ghcr.io/${REDSKYCTL_IMG}"
+            docker-push "${CLI_IMG}" "ghcr.io/${CLI_IMG}"
             docker-push "${SETUPTOOLS_IMG}" "ghcr.io/${SETUPTOOLS_IMG}"
           fi
       - name: Upload macOS binary
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v2
         with:
-          name: redskyctl_darwin_amd64
-          path: dist/redskyctl-darwin-amd64.tar.gz
+          name: stormforge_darwin_amd64
+          path: dist/stormforge-darwin-amd64.tar.gz
+      - name: Upload macOS ARM binary
+        uses: actions/upload-artifact@v2
+        with:
+          name: stormforge_darwin_arm64
+          path: dist/stormforge-darwin-arm64.tar.gz
       - name: Upload Linux binary
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v2
         with:
-          name: redskyctl_linux_amd64
-          path: dist/redskyctl-linux-amd64.tar.gz
+          name: stormforge_linux_amd64
+          path: dist/stormforge-linux-amd64.tar.gz

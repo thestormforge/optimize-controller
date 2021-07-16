@@ -22,8 +22,8 @@ import (
 	"os"
 	"path"
 
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
-	"github.com/thestormforge/optimize-controller/internal/template"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	"github.com/thestormforge/optimize-controller/v2/internal/template"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -48,20 +48,20 @@ var (
 // Finally, when using digests, the default of "IfNotPresent" is acceptable as it is unambiguous.
 
 // NewJob returns a new setup job for either create or delete
-func NewJob(t *redskyv1beta1.Trial, mode string) (*batchv1.Job, error) {
+func NewJob(t *optimizev1beta2.Trial, mode string) (*batchv1.Job, error) {
 	job := &batchv1.Job{}
 	job.Namespace = t.Namespace
 	job.Name = fmt.Sprintf("%s-%s", t.Name, mode)
 	job.Labels = map[string]string{
-		redskyv1beta1.LabelExperiment: t.ExperimentNamespacedName().Name,
-		redskyv1beta1.LabelTrial:      t.Name,
-		redskyv1beta1.LabelTrialRole:  "trialSetup",
+		optimizev1beta2.LabelExperiment: t.ExperimentNamespacedName().Name,
+		optimizev1beta2.LabelTrial:      t.Name,
+		optimizev1beta2.LabelTrialRole:  "trialSetup",
 	}
 	job.Spec.BackoffLimit = new(int32)
 	job.Spec.Template.Labels = map[string]string{
-		redskyv1beta1.LabelExperiment: t.ExperimentNamespacedName().Name,
-		redskyv1beta1.LabelTrial:      t.Name,
-		redskyv1beta1.LabelTrialRole:  "trialSetup",
+		optimizev1beta2.LabelExperiment: t.ExperimentNamespacedName().Name,
+		optimizev1beta2.LabelTrial:      t.Name,
+		optimizev1beta2.LabelTrialRole:  "trialSetup",
 	}
 	job.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyNever
 	job.Spec.Template.Spec.ServiceAccountName = t.Spec.SetupServiceAccountName
@@ -235,7 +235,7 @@ type helmGeneratorConfig struct {
 	Values            []helmGeneratorValue `json:"values"`
 }
 
-func newHelmGeneratorConfig(task *redskyv1beta1.SetupTask) *helmGeneratorConfig {
+func newHelmGeneratorConfig(task *optimizev1beta2.SetupTask) *helmGeneratorConfig {
 	if task.HelmChart == "" {
 		return nil
 	}

@@ -23,7 +23,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -35,7 +35,7 @@ func TestContainerResourcesParameter(t *testing.T) {
 	cases := []struct {
 		desc string
 		containerResourcesParameter
-		expectedParameters []redskyv1beta1.Parameter
+		expectedParameters []optimizev1beta2.Parameter
 		expectedPatch      string
 	}{
 		{
@@ -53,7 +53,7 @@ func TestContainerResourcesParameter(t *testing.T) {
 				resources: []corev1.ResourceName{corev1.ResourceMemory},
 			},
 
-			expectedParameters: []redskyv1beta1.Parameter{
+			expectedParameters: []optimizev1beta2.Parameter{
 				{
 					Name:     "memory",
 					Baseline: newInt(2048),
@@ -85,7 +85,7 @@ func TestContainerResourcesParameter(t *testing.T) {
 				resources: []corev1.ResourceName{corev1.ResourceMemory},
 			},
 
-			expectedParameters: []redskyv1beta1.Parameter{
+			expectedParameters: []optimizev1beta2.Parameter{
 				{
 					Name:     "memory",
 					Baseline: newInt(2000),
@@ -117,7 +117,7 @@ func TestContainerResourcesParameter(t *testing.T) {
 				resources: []corev1.ResourceName{corev1.ResourceCPU},
 			},
 
-			expectedParameters: []redskyv1beta1.Parameter{
+			expectedParameters: []optimizev1beta2.Parameter{
 				{
 					Name:     "cpu",
 					Baseline: newInt(2000),
@@ -149,7 +149,7 @@ func TestContainerResourcesParameter(t *testing.T) {
 				resources: []corev1.ResourceName{corev1.ResourceMemory},
 			},
 
-			expectedParameters: []redskyv1beta1.Parameter{
+			expectedParameters: []optimizev1beta2.Parameter{
 				{
 					Name:     "memory",
 					Baseline: newInt(256),
@@ -164,6 +164,38 @@ func TestContainerResourcesParameter(t *testing.T) {
                     memory: "{{ .Values.memory }}Ki"
                   requests:
                     memory: "{{ .Values.memory }}Ki"`),
+		},
+
+		{
+			desc: "tiny cpu",
+
+			containerResourcesParameter: containerResourcesParameter{
+				pnode: pnode{
+					fieldPath: []string{"spec", "resources"},
+					value: encodeResourceRequirements(corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU: resource.MustParse("1.0"),
+						},
+					}),
+				},
+				resources: []corev1.ResourceName{corev1.ResourceCPU},
+			},
+
+			expectedParameters: []optimizev1beta2.Parameter{
+				{
+					Name:     "cpu",
+					Baseline: newInt(1000),
+					Min:      500,
+					Max:      2000,
+				},
+			},
+			expectedPatch: unindent(`
+              spec:
+                resources:
+                  limits:
+                    cpu: "{{ .Values.cpu }}m"
+                  requests:
+                    cpu: "{{ .Values.cpu }}m"`),
 		},
 	}
 	for _, c := range cases {

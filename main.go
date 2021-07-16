@@ -22,11 +22,9 @@ import (
 	"fmt"
 	"os"
 
-	redskyv1alpha1 "github.com/thestormforge/optimize-controller/api/v1alpha1"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
-	"github.com/thestormforge/optimize-controller/controllers"
-	"github.com/thestormforge/optimize-controller/internal/controller"
-	"github.com/thestormforge/optimize-controller/internal/version"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	"github.com/thestormforge/optimize-controller/v2/controllers"
+	"github.com/thestormforge/optimize-controller/v2/internal/version"
 	"github.com/thestormforge/optimize-go/pkg/config"
 	zap2 "go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -44,8 +42,7 @@ var (
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
-	_ = redskyv1alpha1.AddToScheme(scheme)
-	_ = redskyv1beta1.AddToScheme(scheme)
+	_ = optimizev1beta2.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -69,9 +66,9 @@ func main() {
 	}))
 
 	v := version.GetInfo()
-	setupLog.Info("Red Sky Ops Controller", "version", v.String(), "gitCommit", v.GitCommit)
+	setupLog.Info("StormForge Optimize Controller", "version", v.String(), "gitCommit", v.GitCommit)
 
-	mgr, err := ctrl.NewManager(controller.WithConversion(ctrl.GetConfigOrDie(), scheme), ctrl.Options{
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             scheme,
 		MetricsBindAddress: metricsAddr,
 		LeaderElection:     enableLeaderElection,
@@ -157,7 +154,7 @@ func handleDebugArgs() {
 			}
 		} else if os.Args[1] == "config" {
 			// TODO Host live values from the in-memory configuration at `.../debug/config` instead of this
-			cfg := &config.RedSkyConfig{}
+			cfg := &config.OptimizeConfig{}
 			if err := cfg.Load(); err != nil {
 				os.Exit(1)
 			}

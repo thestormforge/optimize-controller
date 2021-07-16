@@ -34,22 +34,22 @@ import (
 
 const (
 	// ConditionTypeAlwaysTrue is a special condition type whose status is always "True"
-	ConditionTypeAlwaysTrue = "redskyops.dev/always-true"
+	ConditionTypeAlwaysTrue = "stormforge.io/always-true"
 	// ConditionTypePodReady is a special condition type whose status is determined by fetching the pods associated
 	// with the target object and checking that they all have a condition type of "Ready" with a status of "True".
-	ConditionTypePodReady = "redskyops.dev/pod-ready"
+	ConditionTypePodReady = "stormforge.io/pod-ready"
 	// ConditionTypeRolloutStatus is a special condition type whose status is determined using the equivalent of a
 	// `kubectl rollout status` call on the target object. This condition will return "True" when evaluated against
 	// an object whose "update strategy" is not "RollingUpdate"; use the "app ready" check to perform a rollout
 	// status that falls back to a pod readiness check in cases where the rollout status cannot be determined.
-	ConditionTypeRolloutStatus = "redskyops.dev/rollout-status"
+	ConditionTypeRolloutStatus = "stormforge.io/rollout-status"
 	// ConditionTypeAppReady is a special condition type that combines the efficiency of the rollout status check,
 	// the compatibility of the pod ready check.
-	ConditionTypeAppReady = "redskyops.dev/app-ready"
+	ConditionTypeAppReady = "stormforge.io/app-ready"
 	// ConditionTypeStatus is a special condition type that can be used to check an arbitrary string on the status
 	// of the target object. The name of the status field and the expected value (indicating a ready state) should
-	// be appended to this constant, e.g. `"redskyops.dev/status-phase-running"` to check for a running pod.
-	ConditionTypeStatus = "redskyops.dev/status-"
+	// be appended to this constant, e.g. `"stormforge.io/status-phase-running"` to check for a running pod.
+	ConditionTypeStatus = "stormforge.io/status-"
 )
 
 // ReadinessChecker is used to check the conditions of runtime objects
@@ -79,7 +79,7 @@ func (e *ReadinessError) Error() string {
 
 // CheckConditions checks to see that all of the listed conditions have a status of true on the specified object. Note
 // that in addition to generically checking in the `status.conditions` field, special conditions are also supported. The
-// special conditions are prefixed with "redskyops.dev/".
+// special conditions are prefixed with "stormforge.io/".
 func (r *ReadinessChecker) CheckConditions(ctx context.Context, obj *unstructured.Unstructured, conditionTypes []string) (string, bool, error) {
 	for _, c := range conditionTypes {
 		var msg string
@@ -166,7 +166,7 @@ func (r *ReadinessChecker) unstructuredConditionStatus(obj *unstructured.Unstruc
 
 // statusField inspects a single top level field on the status
 func (r *ReadinessChecker) statusField(obj *unstructured.Unstructured, conditionType string) (string, corev1.ConditionStatus, error) {
-	// In this case the condition type is "redskyops.dev/status-<FIELD>-<VALUE>" so we must parse out the field and value
+	// In this case the condition type is "stormforge.io/status-<FIELD>-<VALUE>" so we must parse out the field and value
 	kv := strings.SplitN(strings.TrimPrefix(conditionType, ConditionTypeStatus), "-", 2)
 	if len(kv) != 2 {
 		return "", corev1.ConditionFalse, fmt.Errorf("invalid status field condition: %s", conditionType)

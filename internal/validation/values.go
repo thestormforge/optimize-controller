@@ -20,12 +20,12 @@ import (
 	"fmt"
 	"strconv"
 
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 // CheckMetricBounds ensures the specified
-func CheckMetricBounds(m *redskyv1beta1.Metric, v *redskyv1beta1.Value) error {
+func CheckMetricBounds(m *optimizev1beta2.Metric, v *optimizev1beta2.Value) error {
 	// If the value isn't a valid number, ignore the bounds check
 	value, err := strconv.ParseFloat(v.Value, 64)
 	if err != nil {

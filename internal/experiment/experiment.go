@@ -17,16 +17,18 @@ limitations under the License.
 package experiment
 
 import (
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
-	"github.com/thestormforge/optimize-controller/internal/controller"
-	"github.com/thestormforge/optimize-controller/internal/trial"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	"github.com/thestormforge/optimize-controller/v2/internal/controller"
+	"github.com/thestormforge/optimize-controller/v2/internal/trial"
+	"github.com/thestormforge/optimize-go/pkg/api"
+	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
 	// HasTrialFinalizer is a finalizer that indicates an experiment has at least one trial
-	HasTrialFinalizer = "hasTrialFinalizer.redskyops.dev"
+	HasTrialFinalizer = "hasTrialFinalizer.stormforge.io"
 )
 
 // TODO Make the constant names better reflect the code, not the text
@@ -51,7 +53,7 @@ const (
 
 // UpdateStatus will ensure the experiment's status matches what is in the supplied trial list; returns true only if
 // changes were necessary
-func UpdateStatus(exp *redskyv1beta1.Experiment, trialList *redskyv1beta1.TrialList) bool {
+func UpdateStatus(exp *optimizev1beta2.Experiment, trialList *optimizev1beta2.TrialList) bool {
 	// Count the active trials
 	activeTrials := int32(0)
 	for i := range trialList.Items {
@@ -84,18 +86,18 @@ func UpdateStatus(exp *redskyv1beta1.Experiment, trialList *redskyv1beta1.TrialL
 	return false
 }
 
-func summarize(exp *redskyv1beta1.Experiment, activeTrials int32, totalTrials int) string {
+func summarize(exp *optimizev1beta2.Experiment, activeTrials int32, totalTrials int) string {
 	if !exp.GetDeletionTimestamp().IsZero() {
 		return PhaseDeleted
 	}
 
 	for _, c := range exp.Status.Conditions {
 		switch c.Type {
-		case redskyv1beta1.ExperimentComplete:
+		case optimizev1beta2.ExperimentComplete:
 			if c.Status == corev1.ConditionTrue {
 				return PhaseCompleted
 			}
-		case redskyv1beta1.ExperimentFailed:
+		case optimizev1beta2.ExperimentFailed:
 			if c.Status == corev1.ConditionTrue {
 				return PhaseFailed
 			}
@@ -111,7 +113,7 @@ func summarize(exp *redskyv1beta1.Experiment, activeTrials int32, totalTrials in
 	}
 
 	if totalTrials == 0 {
-		if exp.Annotations[redskyv1beta1.AnnotationExperimentURL] != "" {
+		if exp.Annotations[optimizev1beta2.AnnotationExperimentURL] != "" {
 			return PhaseCreated
 		}
 		return PhaseEmpty
@@ -120,10 +122,10 @@ func summarize(exp *redskyv1beta1.Experiment, activeTrials int32, totalTrials in
 	return PhaseIdle
 }
 
-func IsFinished(exp *redskyv1beta1.Experiment) bool {
+func IsFinished(exp *optimizev1beta2.Experiment) bool {
 	for _, c := range exp.Status.Conditions {
 		if c.Status == corev1.ConditionTrue {
-			if c.Type == redskyv1beta1.ExperimentComplete || c.Type == redskyv1beta1.ExperimentFailed {
+			if c.Type == optimizev1beta2.ExperimentComplete || c.Type == optimizev1beta2.ExperimentFailed {
 				return true
 			}
 		}
@@ -131,13 +133,31 @@ func IsFinished(exp *redskyv1beta1.Experiment) bool {
 	return false
 }
 
-func ApplyCondition(status *redskyv1beta1.ExperimentStatus, conditionType redskyv1beta1.ExperimentConditionType, conditionStatus corev1.ConditionStatus, reason, message string, time *metav1.Time) {
+// StopExperiment updates the experiment in the event that it should be paused or halted.
+func StopExperiment(exp *optimizev1beta2.Experiment, err error) bool {
+	if rse, ok := err.(*api.Error); ok && rse.Type == experimentsv1alpha1.ErrExperimentStopped {
+		exp.SetReplicas(0)
+		delete(exp.GetAnnotations(), optimizev1beta2.AnnotationNextTrialURL)
+		ApplyCondition(&exp.Status, optimizev1beta2.ExperimentComplete, corev1.ConditionTrue, "Stopped", err.Error(), nil)
+		return true
+	}
+	return false
+}
+
+// FailExperiment records a recognized error as an experiment failure.
+func FailExperiment(exp *optimizev1beta2.Experiment, reason string, err error) bool {
+	exp.SetReplicas(0)
+	ApplyCondition(&exp.Status, optimizev1beta2.ExperimentFailed, corev1.ConditionTrue, reason, err.Error(), nil)
+	return true
+}
+
+func ApplyCondition(status *optimizev1beta2.ExperimentStatus, conditionType optimizev1beta2.ExperimentConditionType, conditionStatus corev1.ConditionStatus, reason, message string, time *metav1.Time) {
 	if time == nil {
 		now := metav1.Now()
 		time = &now
 	}
 
-	newCondition := redskyv1beta1.ExperimentCondition{
+	newCondition := optimizev1beta2.ExperimentCondition{
 		Type:               conditionType,
 		Status:             conditionStatus,
 		Reason:             reason,

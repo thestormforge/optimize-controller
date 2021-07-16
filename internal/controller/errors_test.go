@@ -21,7 +21,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	redskyapi "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
+	"github.com/thestormforge/optimize-go/pkg/api"
+	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -47,16 +48,16 @@ func TestIgnoreNotFound(t *testing.T) {
 			expectedErr: nil,
 		},
 		{
-			desc: "redskyapi error experiment not found",
-			in: &redskyapi.Error{
-				Type: redskyapi.ErrExperimentNotFound,
+			desc: "api error experiment not found",
+			in: &api.Error{
+				Type: experimentsv1alpha1.ErrExperimentNotFound,
 			},
 			expectedErr: nil,
 		},
 		{
-			desc: "redskyapi error trial not found",
-			in: &redskyapi.Error{
-				Type: redskyapi.ErrTrialNotFound,
+			desc: "api error trial not found",
+			in: &api.Error{
+				Type: experimentsv1alpha1.ErrTrialNotFound,
 			},
 			expectedErr: nil,
 		},
@@ -129,9 +130,9 @@ func TestIgnoreReportError(t *testing.T) {
 			expectedErr: nil,
 		},
 		{
-			desc: "redskyapi error trial already reported",
-			in: &redskyapi.Error{
-				Type: redskyapi.ErrTrialAlreadyReported,
+			desc: "trial already reported",
+			in: &api.Error{
+				Type: experimentsv1alpha1.ErrTrialAlreadyReported,
 			},
 			expectedErr: nil,
 		},

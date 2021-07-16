@@ -572,8 +572,8 @@ github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/
 github.com/subosito/gotenv v1.2.0/go.mod h1:N0PQaV/YGNqwC0u51sEeR/aUtSLEXKX9iv69rRypqCw=
 github.com/thestormforge/konjure v0.3.0 h1:VOUX6te9lbdk8dYJLQpJsvZfuhvwp8+DJMhB1VR46RM=
 github.com/thestormforge/konjure v0.3.0/go.mod h1:8gIqMRKShWB7ejEA+JCN8DUeeDe9CTIc3eXyniFdNj8=
-github.com/thestormforge/optimize-go v0.0.8 h1:nIdz5pSz00eHzBS8Ueti3xmNP9MB9l15/NTob6k6Whg=
-github.com/thestormforge/optimize-go v0.0.8/go.mod h1:ZWRi49lIlw4g3JyP9Aog+zQI/rb7+81HOyHcccVqnfU=
+github.com/thestormforge/optimize-go v0.0.13 h1:m1Nr1+ZuFWmaVO4ltqEsZSs6WAdX6CDc5s+d0HhTkq0=
+github.com/thestormforge/optimize-go v0.0.13/go.mod h1:LhoJFNeHXLWnMp5KVkHJdzUfx76Gwj81/m40IVM9MjA=
 github.com/tidwall/pretty v1.0.0/go.mod h1:XNkn88O1ChpSDQmQeStsy+sBenx6DDtFZJxhVysOjyk=
 github.com/tmc/grpc-websocket-proxy v0.0.0-20170815181823-89b8d40f7ca8/go.mod h1:ncp9v5uamzpCO7NfCPTXjqaC+bZgJeR0sMTm6dMHP7U=
 github.com/tmc/grpc-websocket-proxy v0.0.0-20190109142713-0ad062ec5ee5/go.mod h1:ncp9v5uamzpCO7NfCPTXjqaC+bZgJeR0sMTm6dMHP7U=

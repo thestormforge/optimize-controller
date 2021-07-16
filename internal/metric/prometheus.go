@@ -26,7 +26,7 @@ import (
 	prom "github.com/prometheus/client_golang/api"
 	promv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 )
 
 // CaptureError describes problems that arise while capturing Prometheus metric values.
@@ -45,7 +45,7 @@ func (e *CaptureError) Error() string {
 	return e.Message
 }
 
-func capturePrometheusMetric(ctx context.Context, log logr.Logger, m *redskyv1beta1.Metric, completionTime time.Time) (value float64, valueError float64, err error) {
+func capturePrometheusMetric(ctx context.Context, log logr.Logger, m *optimizev1beta2.Metric, completionTime time.Time) (value float64, valueError float64, err error) {
 	// Get the Prometheus API
 	c, err := prom.NewClient(prom.Config{Address: m.URL})
 	if err != nil {

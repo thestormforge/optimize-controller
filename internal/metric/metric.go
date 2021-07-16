@@ -23,13 +23,13 @@ import (
 	"strconv"
 
 	"github.com/go-logr/logr"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
-	"github.com/thestormforge/optimize-controller/internal/template"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	"github.com/thestormforge/optimize-controller/v2/internal/template"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // CaptureMetric captures a point-in-time metric value and it's error rate.
-func CaptureMetric(ctx context.Context, log logr.Logger, trial *redskyv1beta1.Trial, metric *redskyv1beta1.Metric, target runtime.Object) (float64, float64, error) {
+func CaptureMetric(ctx context.Context, log logr.Logger, trial *optimizev1beta2.Trial, metric *optimizev1beta2.Metric, target runtime.Object) (float64, float64, error) {
 	// Execute the queries as Go templates
 	var err error
 	if metric.Query, metric.ErrorQuery, err = template.New().RenderMetricQueries(metric, trial, target); err != nil {
@@ -38,16 +38,16 @@ func CaptureMetric(ctx context.Context, log logr.Logger, trial *redskyv1beta1.Tr
 
 	// Capture the value based on the metric type
 	switch metric.Type {
-	case redskyv1beta1.MetricKubernetes, "":
+	case optimizev1beta2.MetricKubernetes, "":
 		value, err := strconv.ParseFloat(metric.Query, 64)
 		return value, math.NaN(), err
-	case redskyv1beta1.MetricPrometheus:
+	case optimizev1beta2.MetricPrometheus:
 		return capturePrometheusMetric(ctx, log, metric, trial.Status.CompletionTime.Time)
-	case redskyv1beta1.MetricDatadog:
+	case optimizev1beta2.MetricDatadog:
 		return captureDatadogMetric(metric, trial.Status.StartTime.Time, trial.Status.CompletionTime.Time)
-	case redskyv1beta1.MetricJSONPath:
+	case optimizev1beta2.MetricJSONPath:
 		return captureJSONPathMetric(metric)
-	case redskyv1beta1.MetricNewRelic:
+	case optimizev1beta2.MetricNewRelic:
 		return captureNewRelicMetric(metric, trial.Status.StartTime.Time, trial.Status.CompletionTime.Time)
 	default:
 		return 0, 0, fmt.Errorf("unknown metric type: %s", metric.Type)

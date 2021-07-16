@@ -20,17 +20,17 @@ import (
 	"reflect"
 	"strings"
 
-	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
 func init() {
-	addFieldOrder(&redskyv1beta1.ExperimentSpec{}, 200)
-	addFieldOrder(&redskyv1beta1.Parameter{}, 300)
-	addFieldOrder(&redskyv1beta1.PatchTemplate{}, 400)
-	addFieldOrder(&redskyv1beta1.Metric{}, 500)
-	addFieldOrder(&redskyappsv1alpha1.Application{}, 600)
+	addFieldOrder(&optimizev1beta2.ExperimentSpec{}, 200)
+	addFieldOrder(&optimizev1beta2.Parameter{}, 300)
+	addFieldOrder(&optimizev1beta2.PatchTemplate{}, 400)
+	addFieldOrder(&optimizev1beta2.Metric{}, 500)
+	addFieldOrder(&optimizeappsv1alpha1.Application{}, 600)
 }
 
 // addFieldOrder use reflection to try and make the YAML sort order match the Go struct field order.

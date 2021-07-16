@@ -1,21 +1,25 @@
-project_name: redskyctl
+project_name: stormforge
 before:
   hooks:
     - go mod tidy
 builds:
-  - dir: redskyctl
+  - dir: cli
     env:
       - CGO_ENABLED=0
     goarch:
       - amd64
+      - arm64
+    ignore:
+    - goos: linux
+      goarch: arm64
     ldflags:
       - '-s -w'
-      - '-X github.com/thestormforge/optimize-controller/internal/version.Version=v{{ .Version }}'
-      - '-X github.com/thestormforge/optimize-controller/internal/version.GitCommit={{ .FullCommit }}'
-      - '-X github.com/thestormforge/optimize-controller/internal/version.BuildMetadata={{ .Env.BUILD_METADATA }}'
-      - '-X github.com/thestormforge/optimize-controller/internal/setup.Image={{ .Env.SETUPTOOLS_IMG }}'
-      - '-X github.com/thestormforge/optimize-controller/internal/setup.ImagePullPolicy={{ .Env.PULL_POLICY }}'
-      - '-X github.com/thestormforge/optimize-controller/redskyctl/internal/kustomize.BuildImage={{ .Env.IMG }}'
+      - '-X github.com/thestormforge/optimize-controller/v2/internal/version.Version=v{{ .Version }}'
+      - '-X github.com/thestormforge/optimize-controller/v2/internal/version.GitCommit={{ .FullCommit }}'
+      - '-X github.com/thestormforge/optimize-controller/v2/internal/version.BuildMetadata={{ .Env.BUILD_METADATA }}'
+      - '-X github.com/thestormforge/optimize-controller/v2/internal/setup.Image={{ .Env.SETUPTOOLS_IMG }}'
+      - '-X github.com/thestormforge/optimize-controller/v2/internal/setup.ImagePullPolicy={{ .Env.PULL_POLICY }}'
+      - '-X github.com/thestormforge/optimize-controller/v2/cli/internal/kustomize.BuildImage={{ .Env.IMG }}'
     hooks:
       post:
         - hack/codesign.sh "{{ .Path }}"
@@ -31,10 +35,14 @@ archives:
       - none*
 dockers:
   - image_templates:
-      - '{{ .Env.REDSKYCTL_IMG }}'
+      - '{{ .Env.CLI_IMG }}'
     build_flag_templates:
+      - "--label=org.opencontainers.image.authors=techsuport@stormforge.io"
+      - "--label=org.opencontainers.image.vendor=StormForge"
+      - "--label=org.opencontainers.image.version=v{{.Version}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.source={{.GitURL}}"
-    dockerfile: redskyctl/Dockerfile
+    dockerfile: cli/Dockerfile
 brews:
   - tap:
       owner: thestormforge
@@ -42,7 +50,7 @@ brews:
     folder: Formula
     commit_author:
       name: Butch Masters
-      email: butch@carbonrelay.com
+      email: butch@stormforge.io
     homepage: "https://www.stormforge.io/"
     description: Release with Confidence
 signs:

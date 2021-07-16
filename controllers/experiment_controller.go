@@ -20,11 +20,11 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
-	"github.com/thestormforge/optimize-controller/internal/controller"
-	"github.com/thestormforge/optimize-controller/internal/experiment"
-	"github.com/thestormforge/optimize-controller/internal/meta"
-	"github.com/thestormforge/optimize-controller/internal/trial"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	"github.com/thestormforge/optimize-controller/v2/internal/controller"
+	"github.com/thestormforge/optimize-controller/v2/internal/experiment"
+	"github.com/thestormforge/optimize-controller/v2/internal/meta"
+	"github.com/thestormforge/optimize-controller/v2/internal/trial"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -40,18 +40,18 @@ type ExperimentReconciler struct {
 	Log logr.Logger
 }
 
-// +kubebuilder:rbac:groups=redskyops.dev,resources=experiments;experiments/finalizers,verbs=get;list;watch;update
-// +kubebuilder:rbac:groups=redskyops.dev,resources=trials,verbs=list;watch;update;delete
+// +kubebuilder:rbac:groups=optimize.stormforge.io,resources=experiments;experiments/finalizers,verbs=get;list;watch;update
+// +kubebuilder:rbac:groups=optimize.stormforge.io,resources=trials,verbs=list;watch;update;delete
 
 func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 
-	exp := &redskyv1beta1.Experiment{}
+	exp := &optimizev1beta2.Experiment{}
 	if err := r.Get(ctx, req.NamespacedName, exp); err != nil {
 		return ctrl.Result{}, controller.IgnoreNotFound(err)
 	}
 
-	trialList := &redskyv1beta1.TrialList{}
+	trialList := &optimizev1beta2.TrialList{}
 	if err := r.listTrials(ctx, trialList, exp.TrialSelector()); err != nil {
 		return ctrl.Result{}, err
 	}
@@ -74,21 +74,21 @@ func (r *ExperimentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 func (r *ExperimentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named("experiment").
-		For(&redskyv1beta1.Experiment{}).
-		Watches(&source.Kind{Type: &redskyv1beta1.Trial{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: handler.ToRequestsFunc(trialToExperimentRequest)}).
+		For(&optimizev1beta2.Experiment{}).
+		Watches(&source.Kind{Type: &optimizev1beta2.Trial{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: handler.ToRequestsFunc(trialToExperimentRequest)}).
 		Complete(r)
 }
 
 // trialToExperimentRequest extracts the reconcile request for an experiment of a trial
 func trialToExperimentRequest(o handler.MapObject) []reconcile.Request {
-	if t, ok := o.Object.(*redskyv1beta1.Trial); ok {
+	if t, ok := o.Object.(*optimizev1beta2.Trial); ok {
 		return []reconcile.Request{{NamespacedName: t.ExperimentNamespacedName()}}
 	}
 	return nil
 }
 
 // updateStatus will ensure the experiment and trial status matches the current state
-func (r *ExperimentReconciler) updateStatus(ctx context.Context, exp *redskyv1beta1.Experiment, trialList *redskyv1beta1.TrialList) (*ctrl.Result, error) {
+func (r *ExperimentReconciler) updateStatus(ctx context.Context, exp *optimizev1beta2.Experiment, trialList *optimizev1beta2.TrialList) (*ctrl.Result, error) {
 	var dirty bool
 
 	// Update the HasTrialFinalizer
@@ -111,16 +111,16 @@ func (r *ExperimentReconciler) updateStatus(ctx context.Context, exp *redskyv1be
 }
 
 // updateTrialStatus will update the status of all the experiment trials
-func (r *ExperimentReconciler) updateTrialStatus(ctx context.Context, trialList *redskyv1beta1.TrialList) (*ctrl.Result, error) {
+func (r *ExperimentReconciler) updateTrialStatus(ctx context.Context, trialList *optimizev1beta2.TrialList) (*ctrl.Result, error) {
 	for i := range trialList.Items {
 		t := &trialList.Items[i]
 
 		var dirty bool
 
 		// If the trial is not finished, but it has been observed, mark it as complete
-		if !trial.IsFinished(t) && trial.CheckCondition(&t.Status, redskyv1beta1.TrialObserved, corev1.ConditionTrue) {
+		if !trial.IsFinished(t) && trial.CheckCondition(&t.Status, optimizev1beta2.TrialObserved, corev1.ConditionTrue) {
 			now := metav1.Now()
-			trial.ApplyCondition(&t.Status, redskyv1beta1.TrialComplete, corev1.ConditionTrue, "", "", &now)
+			trial.ApplyCondition(&t.Status, optimizev1beta2.TrialComplete, corev1.ConditionTrue, "", "", &now)
 			dirty = true
 		}
 
@@ -138,7 +138,7 @@ func (r *ExperimentReconciler) updateTrialStatus(ctx context.Context, trialList 
 }
 
 // cleanupTrials will delete any trials whose TTL has expired or are active past
-func (r *ExperimentReconciler) cleanupTrials(ctx context.Context, exp *redskyv1beta1.Experiment, trialList *redskyv1beta1.TrialList) (*ctrl.Result, error) {
+func (r *ExperimentReconciler) cleanupTrials(ctx context.Context, exp *optimizev1beta2.Experiment, trialList *optimizev1beta2.TrialList) (*ctrl.Result, error) {
 	for i := range trialList.Items {
 		t := &trialList.Items[i]
 
@@ -159,7 +159,7 @@ func (r *ExperimentReconciler) cleanupTrials(ctx context.Context, exp *redskyv1b
 }
 
 // listTrials retrieves the list of trial objects matching the specified selector
-func (r *ExperimentReconciler) listTrials(ctx context.Context, trialList *redskyv1beta1.TrialList, selector *metav1.LabelSelector) error {
+func (r *ExperimentReconciler) listTrials(ctx context.Context, trialList *optimizev1beta2.TrialList, selector *metav1.LabelSelector) error {
 	matchingSelector, err := meta.MatchingSelector(selector)
 	if err != nil {
 		return err

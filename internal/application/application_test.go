@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/api/apps/v1alpha1"
+	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -52,7 +52,7 @@ func TestExperimentName(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.applicationName, func(t *testing.T) {
-			actual := ExperimentName(&redskyappsv1alpha1.Application{
+			actual := ExperimentName(&optimizeappsv1alpha1.Application{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: c.applicationName,
 				},

@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	redskyv1beta1 "github.com/thestormforge/optimize-controller/api/v1beta1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,13 +34,13 @@ func TestEngine_RenderPatch(t *testing.T) {
 
 	cases := []struct {
 		desc          string
-		patchTemplate redskyv1beta1.PatchTemplate
-		trial         redskyv1beta1.Trial
+		patchTemplate optimizev1beta2.PatchTemplate
+		trial         optimizev1beta2.Trial
 		expected      []byte
 	}{
 		{
 			desc: "static patch",
-			patchTemplate: redskyv1beta1.PatchTemplate{
+			patchTemplate: optimizev1beta2.PatchTemplate{
 				Patch: "metadata:\n  labels:\n    app: testApp\n",
 				TargetRef: &corev1.ObjectReference{
 					Kind:       "Pod",
@@ -54,12 +54,12 @@ func TestEngine_RenderPatch(t *testing.T) {
 
 		{
 			desc: "numeric assignment",
-			patchTemplate: redskyv1beta1.PatchTemplate{
+			patchTemplate: optimizev1beta2.PatchTemplate{
 				Patch: "spec:\n  replicas: {{ .Values.replicas }}\n",
 			},
-			trial: redskyv1beta1.Trial{
-				Spec: redskyv1beta1.TrialSpec{
-					Assignments: []redskyv1beta1.Assignment{
+			trial: optimizev1beta2.Trial{
+				Spec: optimizev1beta2.TrialSpec{
+					Assignments: []optimizev1beta2.Assignment{
 						{
 							Name:  "replicas",
 							Value: intstr.FromInt(2),
@@ -85,13 +85,13 @@ func TestEngine_RenderHelmValue(t *testing.T) {
 
 	cases := []struct {
 		desc      string
-		helmValue redskyv1beta1.HelmValue
-		trial     redskyv1beta1.Trial
+		helmValue optimizev1beta2.HelmValue
+		trial     optimizev1beta2.Trial
 		expected  string
 	}{
 		{
 			desc: "static string",
-			helmValue: redskyv1beta1.HelmValue{
+			helmValue: optimizev1beta2.HelmValue{
 				Value: intstr.FromString("testing"),
 			},
 			expected: "testing",
@@ -113,20 +113,20 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 
 	cases := []struct {
 		desc               string
-		metric             redskyv1beta1.Metric
-		trial              redskyv1beta1.Trial
+		metric             optimizev1beta2.Metric
+		trial              optimizev1beta2.Trial
 		target             runtime.Object
 		expectedQuery      string
 		expectedErrorQuery string
 	}{
 		{
 			desc: "function duration",
-			metric: redskyv1beta1.Metric{
+			metric: optimizev1beta2.Metric{
 				Name:  "testMetric",
 				Query: "{{duration .StartTime .CompletionTime}}",
 			},
-			trial: redskyv1beta1.Trial{
-				Status: redskyv1beta1.TrialStatus{
+			trial: optimizev1beta2.Trial{
+				Status: optimizev1beta2.TrialStatus{
 					StartTime:      &metav1.Time{Time: now.Add(-5 * time.Second)},
 					CompletionTime: &now,
 				},
@@ -137,13 +137,13 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 
 		{
 			desc: "function percent",
-			metric: redskyv1beta1.Metric{
+			metric: optimizev1beta2.Metric{
 				Name:  "testMetric",
 				Query: "{{percent .Values.test 5}}",
 			},
-			trial: redskyv1beta1.Trial{
-				Spec: redskyv1beta1.TrialSpec{
-					Assignments: []redskyv1beta1.Assignment{
+			trial: optimizev1beta2.Trial{
+				Spec: optimizev1beta2.TrialSpec{
+					Assignments: []optimizev1beta2.Assignment{
 						{
 							Name:  "test",
 							Value: intstr.FromInt(100),
@@ -157,7 +157,7 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 
 		{
 			desc: "function resourceRequests",
-			metric: redskyv1beta1.Metric{
+			metric: optimizev1beta2.Metric{
 				Name:  "testMetric",
 				Query: `{{resourceRequests .Pods "cpu=0.05,memory=0.005"}}`,
 			},
@@ -189,15 +189,15 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 
 		{
 			desc: "function cpuUtilization with parameters",
-			metric: redskyv1beta1.Metric{
+			metric: optimizev1beta2.Metric{
 				Name:  "testMetric",
 				Query: `{{cpuUtilization . "component=bob,component=tom"}}`,
 			},
-			trial: redskyv1beta1.Trial{
+			trial: optimizev1beta2.Trial{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "default",
 				},
-				Status: redskyv1beta1.TrialStatus{
+				Status: optimizev1beta2.TrialStatus{
 					StartTime:      &metav1.Time{Time: now.Add(-5 * time.Second)},
 					CompletionTime: &now,
 				},
@@ -207,15 +207,15 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 
 		{
 			desc: "function cpuUtilization without parameters",
-			metric: redskyv1beta1.Metric{
+			metric: optimizev1beta2.Metric{
 				Name:  "testMetric",
 				Query: `{{cpuUtilization .}}`,
 			},
-			trial: redskyv1beta1.Trial{
+			trial: optimizev1beta2.Trial{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "default",
 				},
-				Status: redskyv1beta1.TrialStatus{
+				Status: optimizev1beta2.TrialStatus{
 					StartTime:      &metav1.Time{Time: now.Add(-5 * time.Second)},
 					CompletionTime: &now,
 				},
@@ -225,15 +225,15 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 
 		{
 			desc: "function memoryUtilization with parameters",
-			metric: redskyv1beta1.Metric{
+			metric: optimizev1beta2.Metric{
 				Name:  "testMetric",
 				Query: `{{memoryUtilization . "component=bob,component=tom"}}`,
 			},
-			trial: redskyv1beta1.Trial{
+			trial: optimizev1beta2.Trial{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "default",
 				},
-				Status: redskyv1beta1.TrialStatus{
+				Status: optimizev1beta2.TrialStatus{
 					StartTime:      &metav1.Time{Time: now.Add(-5 * time.Second)},
 					CompletionTime: &now,
 				},
@@ -243,15 +243,15 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 
 		{
 			desc: "function memoryUtilization without parameters",
-			metric: redskyv1beta1.Metric{
+			metric: optimizev1beta2.Metric{
 				Name:  "testMetric",
 				Query: `{{memoryUtilization .}}`,
 			},
-			trial: redskyv1beta1.Trial{
+			trial: optimizev1beta2.Trial{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "default",
 				},
-				Status: redskyv1beta1.TrialStatus{
+				Status: optimizev1beta2.TrialStatus{
 					StartTime:      &metav1.Time{Time: now.Add(-5 * time.Second)},
 					CompletionTime: &now,
 				},
@@ -261,15 +261,15 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 
 		{
 			desc: "function cpuRequests with parameters",
-			metric: redskyv1beta1.Metric{
+			metric: optimizev1beta2.Metric{
 				Name:  "testMetric",
 				Query: `{{cpuRequests . "component=bob,component=tom"}}`,
 			},
-			trial: redskyv1beta1.Trial{
+			trial: optimizev1beta2.Trial{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "default",
 				},
-				Status: redskyv1beta1.TrialStatus{
+				Status: optimizev1beta2.TrialStatus{
 					StartTime:      &metav1.Time{Time: now.Add(-5 * time.Second)},
 					CompletionTime: &now,
 				},
@@ -279,15 +279,15 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 
 		{
 			desc: "function memoryRequests with parameters",
-			metric: redskyv1beta1.Metric{
+			metric: optimizev1beta2.Metric{
 				Name:  "testMetric",
 				Query: `{{memoryRequests . "component=bob,component=tom"}}`,
 			},
-			trial: redskyv1beta1.Trial{
+			trial: optimizev1beta2.Trial{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "default",
 				},
-				Status: redskyv1beta1.TrialStatus{
+				Status: optimizev1beta2.TrialStatus{
 					StartTime:      &metav1.Time{Time: now.Add(-5 * time.Second)},
 					CompletionTime: &now,
 				},
@@ -297,15 +297,15 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 
 		{
 			desc: "function gb",
-			metric: redskyv1beta1.Metric{
+			metric: optimizev1beta2.Metric{
 				Name:  "testMetric",
 				Query: `{{ "1234" | GB }}`,
 			},
-			trial: redskyv1beta1.Trial{
+			trial: optimizev1beta2.Trial{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "default",
 				},
-				Status: redskyv1beta1.TrialStatus{
+				Status: optimizev1beta2.TrialStatus{
 					StartTime:      &metav1.Time{Time: now.Add(-5 * time.Second)},
 					CompletionTime: &now,
 				},
@@ -315,15 +315,15 @@ func TestEngine_RenderMetricQueries(t *testing.T) {
 
 		{
 			desc: "function gib",
-			metric: redskyv1beta1.Metric{
+			metric: optimizev1beta2.Metric{
 				Name:  "testMetric",
 				Query: `{{ "1234" | GiB }}`,
 			},
-			trial: redskyv1beta1.Trial{
+			trial: optimizev1beta2.Trial{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "default",
 				},
-				Status: redskyv1beta1.TrialStatus{
+				Status: optimizev1beta2.TrialStatus{
 					StartTime:      &metav1.Time{Time: now.Add(-5 * time.Second)},
 					CompletionTime: &now,
 				},
@@ -348,21 +348,21 @@ func TestEngine_RenderMetricQueriesFailures(t *testing.T) {
 
 	cases := []struct {
 		desc   string
-		metric redskyv1beta1.Metric
-		trial  redskyv1beta1.Trial
+		metric optimizev1beta2.Metric
+		trial  optimizev1beta2.Trial
 		target runtime.Object
 	}{
 		{
 			desc: "prometheus label key sanitize",
-			metric: redskyv1beta1.Metric{
+			metric: optimizev1beta2.Metric{
 				Name:  "testMetric",
 				Query: `{{memoryRequests . "my/super.cool.label-with-fluffy/bunnies=789"}}`,
 			},
-			trial: redskyv1beta1.Trial{
+			trial: optimizev1beta2.Trial{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "default",
 				},
-				Status: redskyv1beta1.TrialStatus{
+				Status: optimizev1beta2.TrialStatus{
 					StartTime:      &metav1.Time{Time: now.Add(-5 * time.Second)},
 					CompletionTime: &now,
 				},
