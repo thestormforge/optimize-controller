@@ -18,6 +18,7 @@ package experiment
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os/exec"
 
@@ -92,9 +93,9 @@ func (r *Runner) Run(ctx context.Context) {
 			}
 
 			// Need to fetch top level application so we can get the resources
-			applicationURL := scenario.Link("https://stormforge.io/rel/application")
+			applicationURL := scenario.Link(applications.RelationUp)
 			if applicationURL == "" {
-				r.errCh <- fmt.Errorf("invalid rel/application")
+				r.errCh <- fmt.Errorf("no matching application URL for scenario")
 			}
 
 			apiApp, err := r.apiClient.GetApplication(activityCtx, applicationURL)
@@ -103,35 +104,52 @@ func (r *Runner) Run(ctx context.Context) {
 				continue
 			}
 
-			// apiApp.Resources
-			// apiApp.Name // apiApp.DisplayName
-
-			// scenario.Name // scenario.DisplayName
-			// scenario.Configuration  []
-			// scenario.Objective []
-			// scenario.Locust
-			// scenario.Custom
-			// scenario.StormForgePerformance
-
 			var assembledApp *redskyappsv1alpha1.Application
+			if assembledApp, err = r.scan(apiApp, scenario); err != nil {
+				r.errCh <- err
+				continue
+			}
+
+			assembledBytes, err := r.generateApp(*assembledApp)
+			if err != nil {
+				r.errCh <- err
+				continue
+			}
+
+			exp := &redskyv1beta2.Experiment{}
+			if err := yaml.Unmarshal(assembledBytes, exp); err != nil {
+				r.errCh <- fmt.Errorf("%s: %w", "invalid experiment generated", err)
+				continue
+			}
+
 			switch activity.Tags[0] {
 			case "scan":
-				if assembledApp, err = r.scan(apiApp, scenario); err != nil {
-					r.errCh <- err
-					continue
-				}
+				// TODO move this into a separate function to handle the conversion from
+				// in cluster experiment to api ( Does this already exist in server? )
 
-				// scanResults := applications.Scan{}
+				scanResults := applications.Template{}
+
+				for _, param := range exp.Spec.Parameters {
+					rawParam, err := json.Marshal(param)
+					if err != nil {
+						r.errCh <- err
+						continue
+					}
+
+					scanParam := applications.TemplateParameter{}
+					if err := json.Unmarshal(rawParam, &scanParam); err != nil {
+						r.errCh <- err
+						continue
+					}
+
+					scanResults.Parameters = append(scanResults.Parameters, scanParam)
+
+				}
 				// if err := r.apiClient.UpdateScan(ctx, activity.URL, s); err != nil {
 				// 	r.errCh <- err
 				// 	continue
 				// }
 			case "run":
-				// Need to do scan here to regenerate all of the assets
-				if assembledApp, err = r.scan(apiApp, scenario); err != nil {
-					r.errCh <- err
-					continue
-				}
 				// We wont compare existing scan with current scan
 				// so we can preserve changes via UI
 
@@ -144,18 +162,6 @@ func (r *Runner) Run(ctx context.Context) {
 
 				// Overwrite current scan results with previous scan results
 				// TODO convert scan => results?
-			}
-
-			appBytes, err := r.generateApp(*assembledApp)
-			if err != nil {
-				r.errCh <- err
-				continue
-			}
-
-			exp := &redskyv1beta2.Experiment{}
-			if err := yaml.Unmarshal(appBytes, exp); err != nil {
-				r.errCh <- fmt.Errorf("%s: %w", "invalid experiment generated", err)
-				continue
 			}
 
 			// TODO update scan/template results
