@@ -25,6 +25,7 @@ import (
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
 	"github.com/thestormforge/optimize-controller/v2/internal/scan"
 	applications "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 )
 
@@ -36,7 +37,11 @@ func (r *Runner) scan(app applications.Application, scenario applications.Scenar
 	// TODO this might(?) belong in internal/server
 
 	// Construct a controller representation of an application from the api definition
-	baseApp := &redskyappsv1alpha1.Application{}
+	baseApp := &redskyappsv1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: scenario.Name,
+		},
+	}
 
 	resources, err := r.scanResources(app)
 	if err != nil {
@@ -128,10 +133,12 @@ func (r *Runner) scanResources(app applications.Application) (konjure.Resources,
 		}
 
 		// Only support Kubernetes resources for now
-		if res.Kubernetes != nil {
-			if len(res.Kubernetes.Namespaces) == 0 {
-				return nil, fmt.Errorf("invalid resources, no namespace specified")
-			}
+		if res.Kubernetes == nil {
+			return nil, fmt.Errorf("invalid resources specified, only support for kubernetes")
+		}
+
+		if res.Kubernetes.Namespace == "" {
+			return nil, fmt.Errorf("invalid resources, no namespace specified")
 		}
 
 		kResources = append(kResources, res)
