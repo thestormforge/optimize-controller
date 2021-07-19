@@ -26,6 +26,7 @@ import (
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
 	redskyv1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-controller/v2/internal/server"
+	"github.com/thestormforge/optimize-go/pkg/api"
 	applications "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
@@ -55,7 +56,7 @@ func New(kclient client.Client, logger logr.Logger) (*Runner, error) {
 
 // This doesnt necessarily need to live here, but seemed to make sense
 func (r *Runner) Run(ctx context.Context) {
-	// go handleErrors(ctx)
+	go r.handleErrors(ctx)
 
 	// TODO
 	query := applications.ActivityFeedQuery{}
@@ -93,7 +94,7 @@ func (r *Runner) Run(ctx context.Context) {
 			}
 
 			// Need to fetch top level application so we can get the resources
-			applicationURL := scenario.Link(applications.RelationUp)
+			applicationURL := scenario.Link(api.RelationUp)
 			if applicationURL == "" {
 				r.errCh <- fmt.Errorf("no matching application URL for scenario")
 			}
@@ -123,7 +124,7 @@ func (r *Runner) Run(ctx context.Context) {
 			}
 
 			switch activity.Tags[0] {
-			case "scan":
+			case applications.TagScan:
 				// TODO move this into a separate function to handle the conversion from
 				// in cluster experiment to api ( Does this already exist in server? )
 
@@ -149,7 +150,7 @@ func (r *Runner) Run(ctx context.Context) {
 				// 	r.errCh <- err
 				// 	continue
 				// }
-			case "run":
+			case applications.TagRun:
 				// We wont compare existing scan with current scan
 				// so we can preserve changes via UI
 
@@ -168,6 +169,28 @@ func (r *Runner) Run(ctx context.Context) {
 
 			if err := r.apiClient.DeleteActivity(ctx, activity.URL); err != nil {
 				r.errCh <- err
+				continue
+			}
+		}
+	}
+}
+
+func (r *Runner) handleErrors(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case err := <-r.errCh:
+			r.log.Error(err, "failed to generate experiment from application")
+
+			// TODO how do we want to pass through this additional info
+			// Should we create a new error type ( akin to capture error ) with this additional metadata
+
+			if err := r.apiClient.UpdateApplicationActivity(ctx, "activity url", applications.Activity{}); err != nil {
+				continue
+			}
+
+			if err := r.apiClient.DeleteActivity(ctx, "activity url"); err != nil {
 				continue
 			}
 		}
@@ -320,17 +343,6 @@ func (r *Runner) createExperiment(ctx context.Context, exp *redskyv1beta1.Experi
 		if err := r.client.Update(ctx, exp); err != nil {
 			// api.UpdateStatus("failed")
 			r.errCh <- fmt.Errorf("%s: %w", "unable to start experiment", err)
-		}
-	}
-}
-
-func (r *Runner) handleErrors(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case err := <-errCh:
-			r.log.Error(err, "failed to generate experiment from application")
 		}
 	}
 }
