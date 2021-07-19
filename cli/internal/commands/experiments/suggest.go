@@ -28,7 +28,6 @@ import (
 	"github.com/thestormforge/optimize-controller/v2/internal/validation"
 	"github.com/thestormforge/optimize-go/pkg/api"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
-	"github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1/numstr"
 )
 
 // TODO Accept suggestion inputs from standard input, what formats?
@@ -49,7 +48,7 @@ type SuggestOptions struct {
 	AllowInteractive bool
 	DefaultBehavior  string
 	Labels           string
-	Baselines        map[string]*numstr.NumberOrString
+	Baselines        map[string]*api.NumberOrString
 }
 
 // NewSuggestCommand creates a new suggestion command
@@ -122,7 +121,7 @@ func (o *SuggestOptions) SuggestAssignments(exp *experimentsv1alpha1.Experiment,
 	return nil
 }
 
-func (o *SuggestOptions) assign(p *experimentsv1alpha1.Parameter) (*numstr.NumberOrString, error) {
+func (o *SuggestOptions) assign(p *experimentsv1alpha1.Parameter) (*api.NumberOrString, error) {
 	// Look for explicit assignments
 	if a, ok := o.Assignments[p.Name]; ok {
 		return checkValue(p, a)
@@ -163,7 +162,7 @@ func (o *SuggestOptions) AddLabels(ta *experimentsv1alpha1.TrialAssignments) err
 	return nil
 }
 
-func (o *SuggestOptions) defaultValue(p *experimentsv1alpha1.Parameter) (*numstr.NumberOrString, error) {
+func (o *SuggestOptions) defaultValue(p *experimentsv1alpha1.Parameter) (*api.NumberOrString, error) {
 	switch o.DefaultBehavior {
 	case DefaultNone, "":
 		return nil, nil
@@ -180,7 +179,7 @@ func (o *SuggestOptions) defaultValue(p *experimentsv1alpha1.Parameter) (*numstr
 	}
 }
 
-func (o *SuggestOptions) assignInteractive(p *experimentsv1alpha1.Parameter, def *numstr.NumberOrString) (*numstr.NumberOrString, error) {
+func (o *SuggestOptions) assignInteractive(p *experimentsv1alpha1.Parameter, def *api.NumberOrString) (*api.NumberOrString, error) {
 	_, _ = fmt.Fprint(o.ErrOut, prompt(p, def))
 	s := bufio.NewScanner(o.In)
 	for attempts := 0; attempts < 3; attempts++ {
@@ -207,7 +206,7 @@ func (o *SuggestOptions) assignInteractive(p *experimentsv1alpha1.Parameter, def
 	return nil, fmt.Errorf("no assignment for parameter: %s", p.Name)
 }
 
-func prompt(p *experimentsv1alpha1.Parameter, def *numstr.NumberOrString) string {
+func prompt(p *experimentsv1alpha1.Parameter, def *api.NumberOrString) string {
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("Assignment for %v parameter '%s'", p.Type, p.Name))
 
@@ -227,7 +226,7 @@ func prompt(p *experimentsv1alpha1.Parameter, def *numstr.NumberOrString) string
 	return b.String()
 }
 
-func checkValue(p *experimentsv1alpha1.Parameter, s string) (*numstr.NumberOrString, error) {
+func checkValue(p *experimentsv1alpha1.Parameter, s string) (*api.NumberOrString, error) {
 	v, err := p.ParseValue(s)
 	if err != nil {
 		return nil, err
@@ -239,24 +238,24 @@ func checkValue(p *experimentsv1alpha1.Parameter, s string) (*numstr.NumberOrStr
 	return v, nil
 }
 
-func randomValue(p *experimentsv1alpha1.Parameter) (*numstr.NumberOrString, error) {
+func randomValue(p *experimentsv1alpha1.Parameter) (*api.NumberOrString, error) {
 	switch p.Type {
 	case experimentsv1alpha1.ParameterTypeInteger:
 		min, max, err := intBounds(p.Bounds)
 		if err != nil {
 			return nil, err
 		}
-		r := numstr.FromInt64(rand.Int63n(max-min) + min)
+		r := api.FromInt64(rand.Int63n(max-min) + min)
 		return &r, nil
 	case experimentsv1alpha1.ParameterTypeDouble:
 		min, max, err := floatBounds(p.Bounds)
 		if err != nil {
 			return nil, err
 		}
-		r := numstr.FromFloat64(rand.Float64()*max + min)
+		r := api.FromFloat64(rand.Float64()*max + min)
 		return &r, nil
 	case experimentsv1alpha1.ParameterTypeCategorical:
-		r := numstr.FromString(p.Values[rand.Intn(len(p.Values))])
+		r := api.FromString(p.Values[rand.Intn(len(p.Values))])
 		return &r, nil
 	}
 	return nil, fmt.Errorf("unable to produce random %v", p.Type)

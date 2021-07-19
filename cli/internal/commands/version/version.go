@@ -163,14 +163,14 @@ func (o *Options) ControllerVersion(ctx context.Context) (*version.Info, error) 
 // apiVersion gets the API server metadata via an HTTP OPTIONS request
 func (o *Options) apiVersion(ctx context.Context) (*version.Info, error) {
 	// Get the server metadata
-	sm, err := o.ExperimentsAPI.Options(ctx)
+	sm, err := o.ExperimentsAPI.CheckEndpoint(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	// Try to parse out the server header
 	var info *version.Info
-	parts := strings.SplitN(http.Header(sm.Metadata).Get("Server"), " ", 2)
+	parts := strings.SplitN(http.Header(sm).Get("Server"), " ", 2)
 	parts = strings.SplitN(parts[0], "/", 2)
 	if len(parts) > 1 { // TODO Also check the product name
 		info = &version.Info{}

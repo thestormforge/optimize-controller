@@ -68,7 +68,7 @@ func experimentNames(ctx context.Context, expAPI experimentsv1alpha1.API, ns nam
 	directive = cobra.ShellCompDirectiveNoFileComp
 	addPage := func(list *experimentsv1alpha1.ExperimentList) {
 		for i := range list.Experiments {
-			n := list.Experiments[i].Name()
+			n := list.Experiments[i].Name.String()
 			if ns.suggest(n) {
 				completions = append(completions, n)
 			}
@@ -112,7 +112,7 @@ func trialNames(ctx context.Context, expAPI experimentsv1alpha1.API, ns names) (
 
 	completions := make([]string, 0, len(trials.Trials))
 	for i := range trials.Trials {
-		n := fmt.Sprintf("%s/%d", name.Name(), trials.Trials[i].Number)
+		n := fmt.Sprintf("%s/%d", name.String(), trials.Trials[i].Number)
 		if ns.suggest(n) {
 			completions = append(completions, n)
 		}
@@ -136,7 +136,7 @@ func (ns names) suggest(name string) bool {
 
 func getAllTrials(ctx context.Context, expAPI experimentsv1alpha1.API, name experimentsv1alpha1.ExperimentName) (*experimentsv1alpha1.TrialList, error) {
 	// Check for an empty name as this does not happen automatically
-	if name.Name() == "" {
+	if name.String() == "" {
 		return nil, &api.Error{Type: experimentsv1alpha1.ErrExperimentNotFound}
 	}
 

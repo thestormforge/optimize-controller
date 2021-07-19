@@ -69,7 +69,7 @@ func (o *Options) ping(ctx context.Context) error {
 	_, _ = fmt.Fprintf(o.Out, "PING %s (%s): HTTP/1.1 OPTIONS\n", host, strings.Join(addrs, ", "))
 
 	start := time.Now()
-	_, err = o.ExperimentsAPI.Options(ctx)
+	_, err = o.ExperimentsAPI.CheckEndpoint(ctx)
 	dur := time.Since(start).Round(time.Microsecond)
 	if err != nil {
 		return err

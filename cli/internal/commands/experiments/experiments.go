@@ -108,7 +108,7 @@ type name struct {
 
 // experimentName returns the name as a typed experiment name
 func (n *name) experimentName() experimentsv1alpha1.ExperimentName {
-	return experimentsv1alpha1.NewExperimentName(n.Name)
+	return experimentsv1alpha1.ExperimentName(n.Name)
 }
 
 // trialNumber returns the trial number extracted from the name, values less then zero indicate no
@@ -324,7 +324,7 @@ func (m *experimentsMeta) ExtractValue(obj interface{}, column string) (string, 
 	case *experimentsv1alpha1.ExperimentItem:
 		switch column {
 		case "name":
-			return o.Name(), nil
+			return o.Name.String(), nil
 		case "Name":
 			return o.DisplayName, nil
 		case "observations":

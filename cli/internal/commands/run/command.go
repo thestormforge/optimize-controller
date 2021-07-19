@@ -105,7 +105,7 @@ func (o *Options) checkControllerVersion() tea.Msg {
 func (o *Options) checkOptimizeAuthorization() tea.Msg {
 	ctx := context.TODO()
 
-	if _, err := o.ExperimentsAPI.Options(ctx); err != nil {
+	if _, err := o.ExperimentsAPI.CheckEndpoint(ctx); err != nil {
 		return internal.OptimizeAuthorizationMsg(internal.AuthorizationInvalid)
 	}
 
