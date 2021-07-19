@@ -17,7 +17,6 @@ limitations under the License.
 package server
 
 import (
-	"encoding/json"
 	"fmt"
 	"math"
 	"path"
@@ -45,15 +44,7 @@ const (
 func FromCluster(in *optimizev1beta2.Experiment) (experimentsv1alpha1.ExperimentName, *experimentsv1alpha1.Experiment, *experimentsv1alpha1.TrialAssignments, error) {
 	out := &experimentsv1alpha1.Experiment{}
 
-	baseline := &experimentsv1alpha1.TrialAssignments{Labels: map[string]string{"baseline": "true"}}
-
-	if l := len(in.ObjectMeta.Labels); l > 0 {
-		out.Labels = make(map[string]string, l)
-		for k, v := range in.ObjectMeta.Labels {
-			k = strings.TrimPrefix(k, "stormforge.io/")
-			out.Labels[k] = v
-		}
-	}
+	out.Labels = labels(in)
 
 	out.Optimization = nil
 	for _, o := range in.Spec.Optimization {
@@ -63,97 +54,18 @@ func FromCluster(in *optimizev1beta2.Experiment) (experimentsv1alpha1.Experiment
 		})
 	}
 
-	out.Parameters = nil
-	for _, p := range in.Spec.Parameters {
-		// This is a special case to omit parameters client side
-		if p.Min == p.Max && len(p.Values) == 0 {
-			continue
-		}
+	out.Parameters = parameters(in)
 
-		if len(p.Values) > 0 {
-			out.Parameters = append(out.Parameters, experimentsv1alpha1.Parameter{
-				Type:   experimentsv1alpha1.ParameterTypeCategorical,
-				Name:   p.Name,
-				Values: p.Values,
-			})
-		} else {
-			out.Parameters = append(out.Parameters, experimentsv1alpha1.Parameter{
-				Type: experimentsv1alpha1.ParameterTypeInteger,
-				Name: p.Name,
-				Bounds: &experimentsv1alpha1.Bounds{
-					Min: json.Number(strconv.FormatInt(int64(p.Min), 10)),
-					Max: json.Number(strconv.FormatInt(int64(p.Max), 10)),
-				},
-			})
-		}
-
-		if p.Baseline != nil {
-			var v api.NumberOrString
-			if p.Baseline.Type == intstr.String {
-				vs := p.Baseline.StrVal
-				if !stringSliceContains(p.Values, vs) {
-					return "", nil, nil, fmt.Errorf("baseline out of range for parameter '%s'", p.Name)
-				}
-				v = api.FromString(vs)
-			} else {
-				vi := p.Baseline.IntVal
-				if vi < p.Min || vi > p.Max {
-					return "", nil, nil, fmt.Errorf("baseline out of range for parameter '%s'", p.Name)
-				}
-				v = api.FromInt64(int64(vi))
-			}
-			baseline.Assignments = append(baseline.Assignments, experimentsv1alpha1.Assignment{
-				ParameterName: p.Name,
-				Value:         v,
-			})
-		}
+	var err error
+	baseline := &experimentsv1alpha1.TrialAssignments{Labels: map[string]string{"baseline": "true"}}
+	baseline.Assignments, err = baselines(in)
+	if err != nil {
+		return nil, nil, nil, err
 	}
 
-	out.Constraints = nil
-	for _, c := range in.Spec.Constraints {
-		switch {
-		case c.Order != nil:
-			out.Constraints = append(out.Constraints, experimentsv1alpha1.Constraint{
-				Name:           c.Name,
-				ConstraintType: experimentsv1alpha1.ConstraintOrder,
-				OrderConstraint: &experimentsv1alpha1.OrderConstraint{
-					LowerParameter: c.Order.LowerParameter,
-					UpperParameter: c.Order.UpperParameter,
-				},
-			})
-		case c.Sum != nil:
-			sc := &experimentsv1alpha1.SumConstraint{
-				IsUpperBound: c.Sum.IsUpperBound,
-				Bound:        float64(c.Sum.Bound.MilliValue()) / 1000,
-			}
-			for _, p := range c.Sum.Parameters {
-				// This is a special case to omit parameters client side
-				if p.Weight.IsZero() {
-					continue
-				}
+	out.Constraints = constraints(in)
 
-				sc.Parameters = append(sc.Parameters, experimentsv1alpha1.SumConstraintParameter{
-					ParameterName: p.Name,
-					Weight:        float64(p.Weight.MilliValue()) / 1000,
-				})
-			}
-
-			out.Constraints = append(out.Constraints, experimentsv1alpha1.Constraint{
-				Name:           c.Name,
-				ConstraintType: experimentsv1alpha1.ConstraintSum,
-				SumConstraint:  sc,
-			})
-		}
-	}
-
-	out.Metrics = nil
-	for _, m := range in.Spec.Metrics {
-		out.Metrics = append(out.Metrics, experimentsv1alpha1.Metric{
-			Name:     m.Name,
-			Minimize: m.Minimize,
-			Optimize: m.Optimize,
-		})
-	}
+	out.Metrics = metrics(in)
 
 	// Check that we have the correct number of assignments on the baseline
 	if len(baseline.Assignments) == 0 {
