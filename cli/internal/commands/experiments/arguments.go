@@ -136,7 +136,7 @@ func (ns names) suggest(name string) bool {
 
 func getAllTrials(ctx context.Context, expAPI experimentsv1alpha1.API, name experimentsv1alpha1.ExperimentName) (*experimentsv1alpha1.TrialList, error) {
 	// Check for an empty name as this does not happen automatically
-	if name.String() == "" {
+	if name == "" {
 		return nil, &api.Error{Type: experimentsv1alpha1.ErrExperimentNotFound}
 	}
 
