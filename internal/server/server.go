@@ -60,7 +60,7 @@ func FromCluster(in *optimizev1beta2.Experiment) (experimentsv1alpha1.Experiment
 	baseline := &experimentsv1alpha1.TrialAssignments{Labels: map[string]string{"baseline": "true"}}
 	baseline.Assignments, err = baselines(in)
 	if err != nil {
-		return nil, nil, nil, err
+		return "", nil, nil, err
 	}
 
 	out.Constraints = constraints(in)

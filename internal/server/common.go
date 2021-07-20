@@ -23,8 +23,8 @@ import (
 	"strings"
 
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	"github.com/thestormforge/optimize-go/pkg/api"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
-	"github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1/numstr"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -91,21 +91,21 @@ func baselines(exp *optimizev1beta2.Experiment) ([]experimentsv1alpha1.Assignmen
 		}
 
 		if p.Baseline != nil {
-			var v numstr.NumberOrString
+			var v api.NumberOrString
 			if p.Baseline.Type == intstr.String {
 				vs := p.Baseline.StrVal
 				if !stringSliceContains(p.Values, vs) {
 					return nil, fmt.Errorf("baseline out of range for parameter '%s'", p.Name)
 				}
 
-				v = numstr.FromString(vs)
+				v = api.FromString(vs)
 			} else {
 				vi := p.Baseline.IntVal
 				if vi < p.Min || vi > p.Max {
 					return nil, fmt.Errorf("baseline out of range for parameter '%s'", p.Name)
 				}
 
-				v = numstr.FromInt64(int64(vi))
+				v = api.FromInt64(int64(vi))
 			}
 
 			baselineAssignments = append(baselineAssignments, experimentsv1alpha1.Assignment{
