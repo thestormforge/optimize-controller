@@ -29,6 +29,8 @@ import (
 	"github.com/thestormforge/konjure/pkg/konjure"
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
 	redskyv1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	"github.com/thestormforge/optimize-go/pkg/api"
+	applications "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -87,14 +89,23 @@ func TestRunner(t *testing.T) {
 				err := client.Create(ctx, nginxDeployment())
 				assert.NoError(t, err)
 			*/
-
-			appCh := make(chan *redskyappsv1alpha1.Application)
-			runner, err := New(client, nil)
+			c, err := api.NewClient("http://127.0.0.1:8113", nil)
 			assert.NoError(t, err)
 
-			runner.kubectlExecFn = fakeKubectlExec
+			appCh := make(chan *redskyappsv1alpha1.Application)
+			//runner, err := New(client, nil)
+			//assert.NoError(t, err)
+			runner := &Runner{
+				client:        client,
+				apiClient:     applications.NewAPI(c),
+				kubectlExecFn: fakeKubectlExec,
+				errCh:         make(chan error),
+			}
 
 			expCh := make(chan struct{})
+
+			_, err = runner.apiClient.CheckEndpoint(ctx)
+			assert.NoError(t, err)
 
 			// Start up the runner
 			go func() { runner.Run(ctx) }()
@@ -170,7 +181,7 @@ func TestRunner(t *testing.T) {
 
 					cancel()
 
-				case err := <-errCh:
+				case err := <-runner.errCh:
 					// Handle expected errors
 					if tc.err != nil {
 						assert.Error(t, err)

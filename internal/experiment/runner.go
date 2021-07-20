@@ -18,7 +18,6 @@ package experiment
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os/exec"
 
@@ -28,6 +27,9 @@ import (
 	"github.com/thestormforge/optimize-controller/v2/internal/server"
 	"github.com/thestormforge/optimize-go/pkg/api"
 	applications "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
+	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 )
@@ -60,15 +62,21 @@ func (r *Runner) Run(ctx context.Context) {
 
 	// TODO
 	query := applications.ActivityFeedQuery{}
-	query.SetType("poll")
-
-	feed, err := r.apiClient.ListActivity(ctx, "", query)
+	query.SetType("poll", applications.TagScan, applications.TagRun)
+	subscriber, err := r.apiClient.SubscribeActivity(ctx, query)
 	if err != nil {
-		// This should be a hard error; is panic too hard?
-		panic("unable to query application activity")
+		panic(fmt.Sprintf("unable to query application activity %s", err))
 	}
 
-	subscriber := applications.NewSubscriber(r.apiClient, feed)
+	/*
+		feed, err := r.apiClient.ListActivity(ctx, "", query)
+		if err != nil {
+			// This should be a hard error; is panic too hard?
+			panic(fmt.Sprintf("unable to query application activity %s", err))
+		}
+	*/
+
+	// subscriber := applications.NewSubscriber(r.apiClient, feed)
 	activityCh := make(chan applications.ActivityItem)
 	go subscriber.Subscribe(ctx, activityCh)
 
@@ -77,6 +85,9 @@ func (r *Runner) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case activity := <-activityCh:
+			// TODO might want to consider moving this to a func so we can defer delete activity and maybe
+			// revamp the errCh nonsense
+
 			// Ensure we actually have an action to perform
 			if len(activity.Tags) != 1 {
 				r.errCh <- fmt.Errorf("%s %d", "invalid number of activity tags, expected 1 got", len(activity.Tags))
@@ -125,47 +136,54 @@ func (r *Runner) Run(ctx context.Context) {
 
 			switch activity.Tags[0] {
 			case applications.TagScan:
-				// TODO move this into a separate function to handle the conversion from
-				// in cluster experiment to api ( Does this already exist in server? )
-
-				scanResults := applications.Template{}
-
-				for _, param := range exp.Spec.Parameters {
-					rawParam, err := json.Marshal(param)
-					if err != nil {
-						r.errCh <- err
-						continue
-					}
-
-					scanParam := applications.TemplateParameter{}
-					if err := json.Unmarshal(rawParam, &scanParam); err != nil {
-						r.errCh <- err
-						continue
-					}
-
-					scanResults.Parameters = append(scanResults.Parameters, scanParam)
-
+				template, err := server.ClusterExperimentToAPITemplate(exp)
+				if err != nil {
+					r.errCh <- err
+					continue
 				}
-				// if err := r.apiClient.UpdateScan(ctx, activity.URL, s); err != nil {
-				// 	r.errCh <- err
-				// 	continue
-				// }
+
+				if err := r.apiClient.UpdateTemplate(ctx, activity.URL, *template); err != nil {
+					r.errCh <- err
+					continue
+				}
 			case applications.TagRun:
 				// We wont compare existing scan with current scan
 				// so we can preserve changes via UI
 
-				// Get previous scan results
-				// previousScan, err := r.apiClient.GetScan(ctx, activity.URL)
-				// if err != nil {
-				// 	r.errCh <- err
-				// 	continue
-				// }
+				// Get previous template
+				previousTemplate, err := r.apiClient.GetTemplate(ctx, activity.URL)
+				if err != nil {
+					r.errCh <- err
+					continue
+				}
 
 				// Overwrite current scan results with previous scan results
-				// TODO convert scan => results?
+				if err = server.APITemplateToClusterExperiment(exp, &previousTemplate); err != nil {
+					r.errCh <- err
+					continue
+				}
+
+				// At this point the experiment should be good to create/deploy/run
+				// so let's create all the resources and #profit
+
+				// Create additional RBAC ( primarily for setup task )
+				r.createServiceAccount(ctx, assembledBytes)
+
+				r.createClusterRole(ctx, assembledBytes)
+
+				r.createClusterRoleBinding(ctx, assembledBytes)
+
+				// Create configmap for load test
+				r.createConfigMap(ctx, assembledBytes)
+
+				r.createExperiment(ctx, exp)
+
 			}
 
-			// TODO update scan/template results
+			// if err := r.apiClient.UpdateActivity(ctx, activity.URL, ?); err != nil {
+			//   r.errCh <- err
+			//   continue
+			// }
 
 			if err := r.apiClient.DeleteActivity(ctx, activity.URL); err != nil {
 				r.errCh <- err
@@ -176,25 +194,28 @@ func (r *Runner) Run(ctx context.Context) {
 }
 
 func (r *Runner) handleErrors(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case err := <-r.errCh:
-			r.log.Error(err, "failed to generate experiment from application")
 
-			// TODO how do we want to pass through this additional info
-			// Should we create a new error type ( akin to capture error ) with this additional metadata
+	/*
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case err := <-r.errCh:
+				r.log.Error(err, "failed to generate experiment from application")
 
-			if err := r.apiClient.UpdateApplicationActivity(ctx, "activity url", applications.Activity{}); err != nil {
-				continue
-			}
+				// TODO how do we want to pass through this additional info
+				// Should we create a new error type ( akin to capture error ) with this additional metadata
 
-			if err := r.apiClient.DeleteActivity(ctx, "activity url"); err != nil {
-				continue
+				if err := r.apiClient.UpdateApplicationActivity(ctx, "activity url", applications.Activity{}); err != nil {
+					continue
+				}
+
+				if err := r.apiClient.DeleteActivity(ctx, "activity url"); err != nil {
+					continue
+				}
 			}
 		}
-	}
+	*/
 }
 
 /*
@@ -228,7 +249,7 @@ func (r *Runner) handleErrors(ctx context.Context) {
 
 		generatedApplicationBytes := output.Bytes()
 
-		exp := &redskyv1beta1.Experiment{}
+		exp := &redskyv1beta2.Experiment{}
 		if err := yaml.Unmarshal(generatedApplicationBytes, exp); err != nil {
 			// api.UpdateStatus("failed")
 			r.errCh <- fmt.Errorf("%s: %w", "invalid experiment generated", err)
@@ -264,7 +285,6 @@ func (r *Runner) handleErrors(ctx context.Context) {
 		r.createExperiment(ctx, exp)
 */
 
-/*
 func (r *Runner) createServiceAccount(ctx context.Context, data []byte) {
 	serviceAccount := &corev1.ServiceAccount{}
 	if err := yaml.Unmarshal(data, serviceAccount); err != nil {
@@ -331,8 +351,8 @@ func (r *Runner) createConfigMap(ctx context.Context, data []byte) {
 	}
 }
 
-func (r *Runner) createExperiment(ctx context.Context, exp *redskyv1beta1.Experiment) {
-	existingExperiment := &redskyv1beta1.Experiment{}
+func (r *Runner) createExperiment(ctx context.Context, exp *redskyv1beta2.Experiment) {
+	existingExperiment := &redskyv1beta2.Experiment{}
 	if err := r.client.Get(ctx, types.NamespacedName{Name: exp.Name, Namespace: exp.Namespace}, existingExperiment); err != nil {
 		if err := r.client.Create(ctx, exp); err != nil {
 			// api.UpdateStatus("failed")
@@ -346,4 +366,3 @@ func (r *Runner) createExperiment(ctx context.Context, exp *redskyv1beta1.Experi
 		}
 	}
 }
-*/

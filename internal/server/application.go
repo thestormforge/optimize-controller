@@ -50,3 +50,9 @@ func ClusterExperimentToAPITemplate(exp *optimizev1beta2.Experiment) (*applicati
 
 	return template, nil
 }
+
+func APITemplateToClusterExperiment(exp *optimizev1beta2.Experiment, templ *applications.Template) error {
+	// TODO
+
+	return nil
+}
