@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
-	"time"
 
 	"github.com/go-logr/logr"
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
@@ -70,9 +69,6 @@ func (r *Runner) Run(ctx context.Context) {
 		panic(fmt.Sprintf("unable to query application activity %s", err))
 	}
 
-	// For testing
-	subscriber.(*applications.PollingSubscriber).PollInterval = 1 * time.Second
-
 	activityCh := make(chan applications.ActivityItem)
 	go subscriber.Subscribe(ctx, activityCh)
 
@@ -105,6 +101,7 @@ func (r *Runner) Run(ctx context.Context) {
 			if applicationURL == "" {
 				r.errCh <- fmt.Errorf("no matching application URL for scenario")
 			}
+
 			templateURL := scenario.Link(api.RelationTemplate)
 			if templateURL == "" {
 				r.errCh <- fmt.Errorf("no matching template URL for scenario")

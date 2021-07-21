@@ -18,58 +18,84 @@ package experiment
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
 	"fmt"
 	"os/exec"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	konjurev1beta2 "github.com/thestormforge/konjure/pkg/api/core/v1beta2"
-	"github.com/thestormforge/konjure/pkg/konjure"
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
 	redskyv1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
-	"github.com/thestormforge/optimize-go/pkg/api"
 	applications "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 
 	//lint:ignore SA1019 backed out
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestRunner(t *testing.T) {
+	pfalse := false
 
 	testCases := []struct {
-		desc    string
-		app     *redskyappsv1alpha1.Application
-		err     error
-		expName string
+		desc     string
+		tag      string
+		expected applications.Template
 	}{
 		{
-			desc: "no parameters",
-			app:  invalidExperimentNoParams,
-			err:  errors.New("failed to generate experiment: invalid experiment, no parameters found"),
-		},
-		{
-			desc: "no objectives",
-			app:  invalidExperimentNoObjectives,
-			err:  errors.New("failed to generate experiment: invalid experiment, no metrics found"),
-		},
-		{
-			desc:    "success",
-			app:     success,
-			expName: "sampleapplication-a2987cd6",
-		},
-		{
-			desc:    "confirmed",
-			app:     confirmed,
-			expName: "sampleapplication-a2987cd6",
+			desc: "scan",
+			tag:  "scan",
+			expected: applications.Template{
+				Parameters: []applications.TemplateParameter{
+					{
+						Name: "nginx_cpu",
+						Type: "int",
+						Bounds: &applications.TemplateParameterBounds{
+							Max: json.Number("2000"),
+							Min: json.Number("25"),
+						},
+					},
+					{
+						Name: "nginx_memory",
+						Type: "int",
+						Bounds: &applications.TemplateParameterBounds{
+							Max: json.Number("50"),
+							Min: json.Number("12"),
+						},
+					}, {
+						Name: "replicas",
+						Type: "int",
+						Bounds: &applications.TemplateParameterBounds{
+							Max: json.Number("5"),
+							Min: json.Number("1"),
+						},
+					},
+				},
+				Metrics: []applications.TemplateMetric{
+					{
+						Name:     "p95",
+						Minimize: true,
+					},
+					{
+						Name:     "cost",
+						Minimize: true,
+					},
+					{
+						Name:     "cost-cpu-requests",
+						Minimize: true,
+						Optimize: &pfalse,
+					},
+					{
+						Name:     "cost-memory-requests",
+						Minimize: true,
+						Optimize: &pfalse,
+					},
+				},
+			},
 		},
 	}
 
@@ -82,120 +108,137 @@ func TestRunner(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("%q", tc.desc), func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
+			//lint:ignore SA1029 not important here
+			ctx := context.WithValue(context.Background(), "tag", tc.tag)
 
 			client := fake.NewFakeClientWithScheme(scheme)
-			/*
-				err := client.Create(ctx, nginxDeployment())
-				assert.NoError(t, err)
-			*/
-			c, err := api.NewClient("http://127.0.0.1:8113", nil)
-			assert.NoError(t, err)
 
-			appCh := make(chan *redskyappsv1alpha1.Application)
-			//runner, err := New(client, nil)
-			//assert.NoError(t, err)
+			// appCh := make(chan *redskyappsv1alpha1.Application)
+			fapi := &fakeAPI{templateUpdateCh: make(chan struct{})}
 			runner := &Runner{
-				client:        client,
-				apiClient:     applications.NewAPI(c),
+				client: client,
+				//	apiClient:     applications.NewAPI(c),
+				apiClient:     fapi,
 				kubectlExecFn: fakeKubectlExec,
 				errCh:         make(chan error),
 			}
 
-			expCh := make(chan struct{})
-
-			_, err = runner.apiClient.CheckEndpoint(ctx)
+			_, err := runner.apiClient.CheckEndpoint(ctx)
 			assert.NoError(t, err)
 
 			// Start up the runner
 			go func() { runner.Run(ctx) }()
 
-			// Makeshift watcher; trigger experiment verification tests
-			// when we see the experiment through our fake client
-			go func() {
-				exp := &redskyv1beta2.Experiment{}
-				for {
-					select {
-					case <-time.Tick(100 * time.Millisecond):
-						if err := client.Get(ctx, types.NamespacedName{Namespace: "default", Name: tc.expName}, exp); err == nil {
-							expCh <- struct{}{}
-							return
-						}
-					case <-ctx.Done():
-						return
-					}
-				}
-			}()
-
-			// Trigger runner
-			go func() {
-				var updatedApp *redskyappsv1alpha1.Application
-				if tc.err == nil {
-					// Create a copy of the app
-					updatedApp = &redskyappsv1alpha1.Application{}
-					tc.app.DeepCopyInto(updatedApp)
-				}
-
-				appCh <- tc.app
-
-				// Trigger an update of the existing experiment
-				if updatedApp != nil {
-					appCh <- updatedApp
-				}
-			}()
-
+			// How to best wait for this to be complete
 			for {
 				select {
-				case <-ctx.Done():
+				case <-fapi.templateUpdateCh:
+					// Our fake api wont ever throw an error
+					tmpl, _ := fapi.GetTemplate(ctx, "")
+					assert.Equal(t, tc.expected, tmpl)
 					return
 
-				case <-expCh:
-					exp := &redskyv1beta2.Experiment{}
-					err := client.Get(ctx, types.NamespacedName{Namespace: "default", Name: tc.expName}, exp)
-					assert.NoError(t, err)
-
-					// Since we explicitly set replicas, this should never be nil
-					assert.NotNil(t, exp.Spec.Replicas)
-
-					if _, ok := tc.app.Annotations[redskyappsv1alpha1.AnnotationUserConfirmed]; !ok {
-						assert.Equal(t, int32(0), *exp.Spec.Replicas)
-						return
-					}
-
-					assert.Equal(t, int32(1), *exp.Spec.Replicas)
-
-					serviceAccount := &corev1.ServiceAccount{}
-					err = client.Get(ctx, types.NamespacedName{Namespace: "default", Name: tc.expName}, serviceAccount)
-					assert.NoError(t, err)
-					assert.NotNil(t, serviceAccount)
-
-					clusterRole := &rbacv1.ClusterRole{}
-					err = client.Get(ctx, types.NamespacedName{Namespace: "default", Name: tc.expName}, clusterRole)
-					assert.NoError(t, err)
-					assert.NotNil(t, clusterRole)
-
-					clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
-					err = client.Get(ctx, types.NamespacedName{Namespace: "default", Name: tc.expName}, clusterRoleBinding)
-					assert.NoError(t, err)
-					assert.NotNil(t, clusterRoleBinding)
-
-					cancel()
-
 				case err := <-runner.errCh:
-					// Handle expected errors
-					if tc.err != nil {
-						assert.Error(t, err)
-						assert.Equal(t, tc.err.Error(), err.Error())
-						cancel()
-
-						continue
-					}
-
-					// Handle unexpected errors
 					assert.NoError(t, err)
-					cancel()
+					return
+
+				case <-time.After(2 * time.Second):
+					// Error
+					t.Log("failed to get template update")
+					t.Fail()
+					return
 				}
 			}
+
+			/*
+				expCh := make(chan struct{})
+				// Makeshift watcher; trigger experiment verification tests
+				// when we see the experiment through our fake client
+				go func() {
+					exp := &redskyv1beta2.Experiment{}
+					for {
+						select {
+						case <-time.Tick(100 * time.Millisecond):
+							if err := client.Get(ctx, types.NamespacedName{Namespace: "default", Name: tc.expName}, exp); err == nil {
+								expCh <- struct{}{}
+								return
+							}
+						case <-ctx.Done():
+							return
+						}
+					}
+				}()
+
+				// Trigger runner
+				go func() {
+					var updatedApp *redskyappsv1alpha1.Application
+					if tc.err == nil {
+						// Create a copy of the app
+						updatedApp = &redskyappsv1alpha1.Application{}
+						tc.app.DeepCopyInto(updatedApp)
+					}
+
+					appCh <- tc.app
+
+					// Trigger an update of the existing experiment
+					if updatedApp != nil {
+						appCh <- updatedApp
+					}
+				}()
+
+				for {
+					select {
+					case <-ctx.Done():
+						return
+
+					case <-expCh:
+						exp := &redskyv1beta2.Experiment{}
+						err := client.Get(ctx, types.NamespacedName{Namespace: "default", Name: tc.expName}, exp)
+						assert.NoError(t, err)
+
+						// Since we explicitly set replicas, this should never be nil
+						assert.NotNil(t, exp.Spec.Replicas)
+
+						if _, ok := tc.app.Annotations[redskyappsv1alpha1.AnnotationUserConfirmed]; !ok {
+							assert.Equal(t, int32(0), *exp.Spec.Replicas)
+							return
+						}
+
+						assert.Equal(t, int32(1), *exp.Spec.Replicas)
+
+						serviceAccount := &corev1.ServiceAccount{}
+						err = client.Get(ctx, types.NamespacedName{Namespace: "default", Name: tc.expName}, serviceAccount)
+						assert.NoError(t, err)
+						assert.NotNil(t, serviceAccount)
+
+						clusterRole := &rbacv1.ClusterRole{}
+						err = client.Get(ctx, types.NamespacedName{Namespace: "default", Name: tc.expName}, clusterRole)
+						assert.NoError(t, err)
+						assert.NotNil(t, clusterRole)
+
+						clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
+						err = client.Get(ctx, types.NamespacedName{Namespace: "default", Name: tc.expName}, clusterRoleBinding)
+						assert.NoError(t, err)
+						assert.NotNil(t, clusterRoleBinding)
+
+						cancel()
+
+					case err := <-runner.errCh:
+						// Handle expected errors
+						if tc.err != nil {
+							assert.Error(t, err)
+							assert.Equal(t, tc.err.Error(), err.Error())
+							cancel()
+
+							continue
+						}
+
+						// Handle unexpected errors
+						assert.NoError(t, err)
+						cancel()
+					}
+				}
+			*/
 
 		})
 	}
@@ -235,6 +278,7 @@ spec:
             cpu: 50m`), nil
 }
 
+/*
 var invalidExperimentNoParams = &redskyappsv1alpha1.Application{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      "sampleApplication",
@@ -339,3 +383,4 @@ var confirmed = &redskyappsv1alpha1.Application{
 		},
 	},
 }
+*/
