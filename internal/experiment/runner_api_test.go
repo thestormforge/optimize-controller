@@ -110,13 +110,7 @@ func (f *fakeAPI) GetScenario(ctx context.Context, u string) (applications.Scena
   ]
 }`)
 
-	//apiMd := api.Metadata{}
 	scenario := applications.Scenario{}
-	// if err := api.UnmarshalJSON(scenarioBytes, &apiMd); err != nil {
-	// 	return scenario, err
-	// }
-	// err := json.Unmarshal(scenarioBytes, &scenario)
-	// scenario.Metadata = apiMd
 	err := api.UnmarshalJSON(scenarioBytes, &scenario)
 
 	return scenario, err

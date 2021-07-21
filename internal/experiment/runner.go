@@ -190,7 +190,6 @@ func (r *Runner) Run(ctx context.Context) {
 }
 
 func (r *Runner) handleErrors(ctx context.Context) {
-
 	/*
 		for {
 			select {
@@ -213,73 +212,6 @@ func (r *Runner) handleErrors(ctx context.Context) {
 		}
 	*/
 }
-
-/*
-	case app := <-r.appCh:
-		if app.Namespace == "" {
-			// api.UpdateStatus("failed")
-			fmt.Errorf("invalid app.yaml, missing namespace")
-			continue
-		}
-		if app.Name == "" {
-			// api.UpdateStatus("failed")
-			fmt.Errorf("invalid app.yaml, missing name")
-			continue
-		}
-
-		g := &Generator{
-			Application: *app,
-		}
-
-		// Exposed for testing so we can pass through
-		// fake kubectl output
-		if r.kubectlExecFn != nil {
-			g.FilterOptions = scan.FilterOptions{KubectlExecutor: r.kubectlExecFn}
-		}
-
-		var output bytes.Buffer
-		if err := g.Execute(kio.ByteWriter{Writer: &output}); err != nil {
-			r.errCh <- fmt.Errorf("%s: %w", "failed to generate experiment", err)
-			continue
-		}
-
-		generatedApplicationBytes := output.Bytes()
-
-		exp := &redskyv1beta2.Experiment{}
-		if err := yaml.Unmarshal(generatedApplicationBytes, exp); err != nil {
-			// api.UpdateStatus("failed")
-			r.errCh <- fmt.Errorf("%s: %w", "invalid experiment generated", err)
-			continue
-		}
-
-		// TODO this will get replaced with a api call to get the number of replicas
-		// this will denote that we are OK to run the experiment
-		var replicas int32
-		replicas = 0
-		if _, userConfirmed := app.Annotations[redskyappsv1alpha1.AnnotationUserConfirmed]; userConfirmed {
-			replicas = 1
-		}
-		exp.Spec.Replicas = &replicas
-
-		// TODO get experiment URL from annotation on application
-		// and set it in the experiment annotations
-
-		if exp.Spec.Replicas != nil && *exp.Spec.Replicas > 0 {
-			// Create additional RBAC ( primarily for setup task )
-			r.createServiceAccount(ctx, generatedApplicationBytes)
-
-			r.createClusterRole(ctx, generatedApplicationBytes)
-
-			r.createClusterRoleBinding(ctx, generatedApplicationBytes)
-
-			// Create configmap for load test
-			r.createConfigMap(ctx, generatedApplicationBytes)
-
-			// TODO do we need to handle secrets here as well ( ex, SF JWT )
-		}
-
-		r.createExperiment(ctx, exp)
-*/
 
 func (r *Runner) createServiceAccount(ctx context.Context, data []byte) {
 	serviceAccount := &corev1.ServiceAccount{}
