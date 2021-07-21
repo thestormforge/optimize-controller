@@ -78,6 +78,9 @@ func (r *Runner) scan(app applications.Application, scenario applications.Scenar
 }
 
 func (r *Runner) generateApp(app redskyappsv1alpha1.Application) ([]byte, error) {
+	// Set defaults for application
+	app.Default()
+
 	g := &Generator{
 		Application: app,
 	}
@@ -167,10 +170,13 @@ func (r *Runner) scanObjectives(scenario applications.Scenario) ([]redskyappsv1a
 	if err != nil {
 		return nil, err
 	}
-	objectives := []redskyappsv1alpha1.Objective{}
-	if err := json.Unmarshal(rawObjectives, &objectives); err != nil {
+
+	goals := []redskyappsv1alpha1.Goal{}
+	if err := json.Unmarshal(rawObjectives, &goals); err != nil {
 		return nil, err
 	}
+
+	objectives := []redskyappsv1alpha1.Objective{{Goals: goals}}
 
 	return objectives, nil
 }

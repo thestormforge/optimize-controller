@@ -208,15 +208,18 @@ metadata:
   name: nginx
   labels:
     app: nginx
+    component: api
+  namespace: engineering
 spec:
   selector:
     matchLabels:
-      app: nginx
+      component: api
   replicas: 1
   template:
     metadata:
       labels:
         app: nginx
+        app.kubernetes.io: name=app-1
     spec:
       containers:
       - name: nginx

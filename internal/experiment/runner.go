@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"time"
 
 	"github.com/go-logr/logr"
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
@@ -65,18 +66,13 @@ func (r *Runner) Run(ctx context.Context) {
 	query.SetType("poll", applications.TagScan, applications.TagRun)
 	subscriber, err := r.apiClient.SubscribeActivity(ctx, query)
 	if err != nil {
+		// This should be a hard error; is panic too hard?
 		panic(fmt.Sprintf("unable to query application activity %s", err))
 	}
 
-	/*
-		feed, err := r.apiClient.ListActivity(ctx, "", query)
-		if err != nil {
-			// This should be a hard error; is panic too hard?
-			panic(fmt.Sprintf("unable to query application activity %s", err))
-		}
-	*/
+	// For testing
+	subscriber.(*applications.PollingSubscriber).PollInterval = 1 * time.Second
 
-	// subscriber := applications.NewSubscriber(r.apiClient, feed)
 	activityCh := make(chan applications.ActivityItem)
 	go subscriber.Subscribe(ctx, activityCh)
 
@@ -108,6 +104,10 @@ func (r *Runner) Run(ctx context.Context) {
 			applicationURL := scenario.Link(api.RelationUp)
 			if applicationURL == "" {
 				r.errCh <- fmt.Errorf("no matching application URL for scenario")
+			}
+			templateURL := scenario.Link(api.RelationTemplate)
+			if templateURL == "" {
+				r.errCh <- fmt.Errorf("no matching template URL for scenario")
 			}
 
 			apiApp, err := r.apiClient.GetApplication(activityCtx, applicationURL)
@@ -142,7 +142,7 @@ func (r *Runner) Run(ctx context.Context) {
 					continue
 				}
 
-				if err := r.apiClient.UpdateTemplate(ctx, activity.URL, *template); err != nil {
+				if err := r.apiClient.UpdateTemplate(ctx, templateURL, *template); err != nil {
 					r.errCh <- err
 					continue
 				}
@@ -151,7 +151,7 @@ func (r *Runner) Run(ctx context.Context) {
 				// so we can preserve changes via UI
 
 				// Get previous template
-				previousTemplate, err := r.apiClient.GetTemplate(ctx, activity.URL)
+				previousTemplate, err := r.apiClient.GetTemplate(ctx, templateURL)
 				if err != nil {
 					r.errCh <- err
 					continue
@@ -177,7 +177,6 @@ func (r *Runner) Run(ctx context.Context) {
 				r.createConfigMap(ctx, assembledBytes)
 
 				r.createExperiment(ctx, exp)
-
 			}
 
 			// if err := r.apiClient.UpdateActivity(ctx, activity.URL, ?); err != nil {
@@ -185,10 +184,10 @@ func (r *Runner) Run(ctx context.Context) {
 			//   continue
 			// }
 
-			if err := r.apiClient.DeleteActivity(ctx, activity.URL); err != nil {
-				r.errCh <- err
-				continue
-			}
+			// if err := r.apiClient.DeleteActivity(ctx, activity.URL); err != nil {
+			// 	r.errCh <- err
+			// 	continue
+			// }
 		}
 	}
 }
