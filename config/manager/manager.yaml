@@ -23,9 +23,7 @@ spec:
         control-plane: controller-manager
     spec:
       containers:
-        - command:
-            - /manager
-          image: controller:latest
+        - image: controller:latest
           name: manager
           resources:
             limits:
@@ -35,8 +33,8 @@ spec:
               cpu: 100m
               memory: 250Mi
           securityContext:
-            runAsUser: 65532
-            runAsGroup: 65532
+            runAsUser: 65534
+            runAsGroup: 65534
             runAsNonRoot: true
             readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
