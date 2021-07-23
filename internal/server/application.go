@@ -21,6 +21,8 @@ import (
 
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	applications "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
+	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func ClusterExperimentToAPITemplate(exp *optimizev1beta2.Experiment) (*applications.Template, error) {
@@ -51,8 +53,75 @@ func ClusterExperimentToAPITemplate(exp *optimizev1beta2.Experiment) (*applicati
 	return template, nil
 }
 
-func APITemplateToClusterExperiment(exp *optimizev1beta2.Experiment, templ *applications.Template) error {
-	// TODO
+func APITemplateToClusterExperiment(exp *optimizev1beta2.Experiment, template *applications.Template) error {
+	if exp == nil || template == nil {
+		return nil
+	}
+
+	p, err := apiParamsToClusterParams(template.Parameters)
+	if err != nil {
+		return err
+	}
+
+	exp.Spec.Parameters = p
+
+	// We only allow modifying/overwriting existing metrics by the same name
+	// and we only support changing Optimize, Bounds(Min/Max), Minimize
+	for m := range exp.Spec.Metrics {
+		for tm := range template.Metrics {
+			if template.Metrics[tm].Name != exp.Spec.Metrics[m].Name {
+				continue
+			}
+
+			exp.Spec.Metrics[m].Minimize = template.Metrics[tm].Minimize
+			exp.Spec.Metrics[m].Optimize = template.Metrics[tm].Optimize
+
+			if template.Metrics[tm].Bounds == nil {
+				continue
+			}
+
+			exp.Spec.Metrics[m].Min = resource.NewQuantity(int64(template.Metrics[tm].Bounds.Min), resource.DecimalSI)
+			exp.Spec.Metrics[m].Max = resource.NewQuantity(int64(template.Metrics[tm].Bounds.Max), resource.DecimalSI)
+
+		}
+	}
 
 	return nil
+}
+
+func apiParamsToClusterParams(applicationParams []applications.TemplateParameter) ([]optimizev1beta2.Parameter, error) {
+	cp := make([]optimizev1beta2.Parameter, 0, len(applicationParams))
+
+	for _, ap := range applicationParams {
+		param := optimizev1beta2.Parameter{
+			Name: ap.Name,
+		}
+
+		switch ap.Type {
+		case "categorical":
+			param.Values = ap.Values
+		case "int":
+			min, err := ap.Bounds.Min.Int64()
+			if err != nil {
+				return nil, err
+			}
+
+			max, err := ap.Bounds.Max.Int64()
+			if err != nil {
+				return nil, err
+			}
+
+			param.Min = int32(min)
+			param.Max = int32(max)
+		}
+
+		if ap.Baseline != nil {
+			baseline := intstr.FromString(ap.Baseline.String())
+			param.Baseline = &baseline
+		}
+
+		cp = append(cp, param)
+	}
+
+	return cp, nil
 }
