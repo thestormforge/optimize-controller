@@ -91,7 +91,8 @@ func TestScanObjectives(t *testing.T) {
 
 			res, err := r.scanObjectives(sd)
 			assert.NoError(t, err)
-			assert.Equal(t, 2, len(res))
+			assert.Equal(t, 1, len(res))
+			assert.Equal(t, 2, len(res[0].Goals))
 		})
 	}
 }

@@ -30,44 +30,92 @@ import (
 )
 
 func TestClusterExperimentToAPITemplate(t *testing.T) {
-	one := intstr.FromInt(1)
-	two := intstr.FromInt(2)
-	three := intstr.FromString("three")
-
-	exp := &optimizev1beta2.Experiment{
-		Spec: optimizev1beta2.ExperimentSpec{
-			Parameters: []optimizev1beta2.Parameter{
-				{Name: "one", Min: 111, Max: 222, Baseline: &one},
-				{Name: "two", Min: 1111, Max: 2222, Baseline: &two},
-				{Name: "three", Min: 11111, Max: 22222, Baseline: &three},
-				{Name: "test_case", Min: 1, Max: 1},
-			},
-			Metrics: []optimizev1beta2.Metric{
-				{Name: "one", Minimize: true},
-				{Name: "two", Minimize: false},
-				{Name: "three", Minimize: true},
-			},
-		},
-	}
+	one := intstr.FromInt(200)
+	two := intstr.FromInt(2000)
+	three := intstr.FromInt(20000)
+	four := intstr.FromString("four")
+	pFalse := false
 
 	testCases := []struct {
-		desc string
+		desc            string
+		expectedParams  int
+		expectedMetrics int
+		exp             *optimizev1beta2.Experiment
 	}{
 		{
-			desc: "default",
+			desc:            "default",
+			expectedParams:  4,
+			expectedMetrics: 3,
+			exp: &optimizev1beta2.Experiment{
+				Spec: optimizev1beta2.ExperimentSpec{
+					Parameters: []optimizev1beta2.Parameter{
+						{Name: "one", Min: 111, Max: 222, Baseline: &one},
+						{Name: "two", Min: 1111, Max: 2222, Baseline: &two},
+						{Name: "three", Min: 11111, Max: 22222, Baseline: &three},
+						{Name: "four", Values: []string{"one", "two", "three", "four"}, Baseline: &four},
+						{Name: "test_case", Min: 1, Max: 1},
+					},
+					Metrics: []optimizev1beta2.Metric{
+						{Name: "one", Minimize: true},
+						{Name: "two", Minimize: false},
+						{Name: "three", Optimize: &pFalse},
+					},
+				},
+			},
+		},
+
+		{
+			// TODO
+			// I'm expecting this to fail ( in that we have a parameter without a baseline )
+			// but it doesnt, should we catch this here or later?
+			desc:            "one param missing baseline",
+			expectedParams:  4,
+			expectedMetrics: 3,
+			exp: &optimizev1beta2.Experiment{
+				Spec: optimizev1beta2.ExperimentSpec{
+					Parameters: []optimizev1beta2.Parameter{
+						{Name: "one", Min: 111, Max: 222, Baseline: &one},
+						{Name: "two", Min: 1111, Max: 2222, Baseline: &two},
+						{Name: "three", Min: 11111, Max: 22222, Baseline: &three},
+						{Name: "four", Values: []string{"one", "two", "three", "four"}},
+						{Name: "test_case", Min: 1, Max: 1},
+					},
+					Metrics: []optimizev1beta2.Metric{
+						{Name: "one", Minimize: true},
+						{Name: "two", Minimize: false},
+						{Name: "three", Minimize: true},
+					},
+				},
+			},
+		},
+
+		{
+			desc:            "no valid params",
+			expectedParams:  0,
+			expectedMetrics: 1,
+			exp: &optimizev1beta2.Experiment{
+				Spec: optimizev1beta2.ExperimentSpec{
+					Parameters: []optimizev1beta2.Parameter{
+						{Name: "test_case", Min: 1, Max: 1},
+					},
+					Metrics: []optimizev1beta2.Metric{
+						{Name: "one"},
+					},
+				},
+			},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("%q", tc.desc), func(t *testing.T) {
-			template, err := ClusterExperimentToAPITemplate(exp)
+			template, err := ClusterExperimentToAPITemplate(tc.exp)
 			assert.NoError(t, err)
 			assert.NotNil(t, template.Parameters)
 			assert.NotNil(t, template.Metrics)
 
 			// test_case is silently filters/dropped because min==max
-			assert.Equal(t, 3, len(template.Parameters))
-			assert.Equal(t, 3, len(template.Metrics))
+			assert.Equal(t, tc.expectedParams, len(template.Parameters))
+			assert.Equal(t, tc.expectedMetrics, len(template.Metrics))
 		})
 	}
 }

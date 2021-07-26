@@ -21,6 +21,7 @@ import (
 
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	applications "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
+	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -28,17 +29,29 @@ import (
 func ClusterExperimentToAPITemplate(exp *optimizev1beta2.Experiment) (*applications.Template, error) {
 	template := &applications.Template{}
 
-	// TODO need to handle baselines
-	// This gets handled differently in experiments vs applications
 	params := parameters(exp)
-	paramBytes, err := json.Marshal(params)
+
+	bases, err := baselines(exp)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := json.Unmarshal(paramBytes, &template.Parameters); err != nil {
+	combinedParams, err := combineParamAndBaseline(params, bases)
+	if err != nil {
 		return nil, err
 	}
+
+	/*
+		paramBytes, err := json.Marshal(combinedParams)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := json.Unmarshal(paramBytes, &template.Parameters); err != nil {
+			return nil, err
+		}
+	*/
+	template.Parameters = combinedParams
 
 	metric := metrics(exp)
 	metricBytes, err := json.Marshal(metric)
@@ -124,4 +137,35 @@ func apiParamsToClusterParams(applicationParams []applications.TemplateParameter
 	}
 
 	return cp, nil
+}
+
+func combineParamAndBaseline(params []experimentsv1alpha1.Parameter, baselines []experimentsv1alpha1.Assignment) ([]applications.TemplateParameter, error) {
+
+	combined := make([]applications.TemplateParameter, 0, len(params))
+
+	for _, param := range params {
+		// Marshal / Unmarshal dance(?)
+		expParamBytes, err := json.Marshal(param)
+		if err != nil {
+			return nil, err
+		}
+
+		appTemplate := applications.TemplateParameter{}
+
+		if err := json.Unmarshal(expParamBytes, &appTemplate); err != nil {
+			return nil, err
+		}
+
+		for _, baseline := range baselines {
+			if baseline.ParameterName != param.Name {
+				continue
+			}
+
+			appTemplate.Baseline = &baseline.Value
+		}
+
+		combined = append(combined, appTemplate)
+	}
+
+	return combined, nil
 }

@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
 	redskyv1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	"github.com/thestormforge/optimize-go/pkg/api"
 	applications "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -40,6 +41,7 @@ import (
 
 func TestRunner(t *testing.T) {
 	pfalse := false
+	one := api.FromInt64(1)
 
 	testCases := []struct {
 		desc     string
@@ -58,6 +60,7 @@ func TestRunner(t *testing.T) {
 							Max: json.Number("2000"),
 							Min: json.Number("25"),
 						},
+						Baseline: &one,
 					},
 					{
 						Name: "nginx_memory",
@@ -66,6 +69,7 @@ func TestRunner(t *testing.T) {
 							Max: json.Number("50"),
 							Min: json.Number("12"),
 						},
+						Baseline: &one,
 					}, {
 						Name: "replicas",
 						Type: "int",
@@ -73,6 +77,7 @@ func TestRunner(t *testing.T) {
 							Max: json.Number("5"),
 							Min: json.Number("1"),
 						},
+						Baseline: &one,
 					},
 				},
 				Metrics: []applications.TemplateMetric{
