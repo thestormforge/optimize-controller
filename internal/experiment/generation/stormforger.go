@@ -18,6 +18,7 @@ package generation
 
 import (
 	"fmt"
+	"os"
 	"os/user"
 	"path/filepath"
 	"strings"
@@ -240,6 +241,13 @@ func (s *StormForgerSource) stormForgerAccessToken(org string) *optimizeappsv1al
 	// Use the access token specified in the application
 	if s.Application.StormForger != nil && s.Application.StormForger.AccessToken != nil {
 		return fixRef(s.Application.StormForger.AccessToken.DeepCopy())
+	}
+
+	// If the environment variable is set, take that over the file
+	if tok, ok := os.LookupEnv("STORMFORGER_JWT"); ok {
+		return fixRef(&optimizeappsv1alpha1.StormForgerAccessToken{
+			Literal: tok,
+		})
 	}
 
 	// Check the config file to see if there is something we can use
