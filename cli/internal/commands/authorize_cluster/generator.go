@@ -21,8 +21,11 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"os/user"
+	"path/filepath"
 	"strings"
 
+	"github.com/pelletier/go-toml"
 	"github.com/spf13/cobra"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commander"
 	"github.com/thestormforge/optimize-go/pkg/api"
@@ -181,6 +184,16 @@ func (o *GeneratorOptions) readConfig() (string, *config.Controller, map[string]
 	if err != nil {
 		return "", nil, nil, err
 	}
+
+	// Check for additional configuration
+	if usr, err := user.Current(); err == nil {
+		if cfg, err := toml.LoadFile(filepath.Join(usr.HomeDir, ".stormforger.toml")); err == nil {
+			if v, ok := cfg.Get("jwt").(string); ok {
+				data["STORMFORGER_JWT"] = []byte(v)
+			}
+		}
+	}
+
 	return controllerName, &ctrl, data, nil
 }
 
