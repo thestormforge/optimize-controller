@@ -99,10 +99,6 @@ func (r *ServerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	// Create the experiment on the server
 	if result, err := r.createExperiment(ctx, log, exp); result != nil {
-		if exp.GetAnnotations()[apps.LabelApplication] != "" {
-			// r.ApplicationsAPI.UpdateStatus("failed")
-			log.Info("Update App Service status")
-		}
 		return *result, err
 	}
 

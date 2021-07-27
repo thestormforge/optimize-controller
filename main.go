@@ -137,7 +137,11 @@ func main() {
 	}
 	// +kubebuilder:scaffold:builder
 
-	runner := experiment.New(mgr.GetClient(), ctrl.Log.WithName("generation").WithName("experiment"))
+	runner, err := experiment.New(mgr.GetClient(), ctrl.Log.WithName("generation").WithName("experiment"))
+	if err != nil {
+		setupLog.Error(err, "unable to start applicaiton service runner", "application", "runner")
+		os.Exit(1)
+	}
 
 	ctx := context.Background()
 	go runner.Run(ctx)

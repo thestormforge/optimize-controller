@@ -86,7 +86,7 @@ func (r *Runner) Run(ctx context.Context) {
 				continue
 			}
 
-			activityCtx, _ := context.WithCancel(ctx)
+			activityCtx := ctx
 
 			// Activity feed provides us with a scenario URL
 			scenario, err := r.apiClient.GetScenario(activityCtx, activity.URL)
