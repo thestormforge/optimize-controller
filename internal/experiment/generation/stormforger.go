@@ -244,10 +244,13 @@ func (s *StormForgerSource) stormForgerAccessToken(org string) *optimizeappsv1al
 	}
 
 	// If the environment variable is set, take that over the file
-	if tok, ok := os.LookupEnv("STORMFORGER_JWT"); ok {
-		return fixRef(&optimizeappsv1alpha1.StormForgerAccessToken{
-			Literal: tok,
-		})
+	envOrg := strings.ToUpper(strings.ReplaceAll(org, "-", "_"))
+	for _, key := range []string{"STORMFORGER_" + envOrg + "_JWT", "STORMFORGER_JWT"} {
+		if tok, ok := os.LookupEnv(key); ok {
+			return fixRef(&optimizeappsv1alpha1.StormForgerAccessToken{
+				Literal: tok,
+			})
+		}
 	}
 
 	// Check the config file to see if there is something we can use
