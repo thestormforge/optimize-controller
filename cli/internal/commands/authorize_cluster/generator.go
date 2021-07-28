@@ -292,13 +292,13 @@ func printHelmValues(obj interface{}, w io.Writer) error {
 // map will also be updated with any new tokens.
 func performanceTokens(label, controllerName string, data map[string][]byte) config.Change {
 	var envVars []config.ControllerEnvVar
-	hasEnvVar := func(name string) bool { return len(data[name]) > 0 }
+	hasControllerEnvVar := func(name string) bool { return len(data[name]) > 0 }
 
 	// List all the organizations the user belongs to
 	orgs, err := exec.Command("forge", "organization", "list", "--output", "plain").Output()
 	if err != nil {
 		// Check if we already have a generic token
-		if hasEnvVar("STORMFORGER_JWT") {
+		if hasControllerEnvVar("STORMFORGER_JWT") {
 			return nil
 		}
 
@@ -328,7 +328,7 @@ func performanceTokens(label, controllerName string, data map[string][]byte) con
 
 		// Check to see if we already created a service account
 		name := fmt.Sprintf("STORMFORGER_%s_JWT", strings.Map(toEnv, org))
-		if hasEnvVar(name) {
+		if hasControllerEnvVar(name) {
 			continue
 		}
 
