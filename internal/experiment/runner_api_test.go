@@ -13,6 +13,7 @@ var _ applications.API = &fakeAPI{}
 type fakeAPI struct {
 	template         applications.Template
 	templateUpdateCh chan struct{}
+	failureCh        chan (applications.ActivityFailure)
 }
 
 func (f *fakeAPI) CheckEndpoint(ctx context.Context) (api.Metadata, error) { return nil, nil }
@@ -147,6 +148,12 @@ func (f *fakeAPI) GetApplicationActivity(ctx context.Context, u string) (applica
 func (f *fakeAPI) UpdateApplicationActivity(ctx context.Context, u string, a applications.Activity) error {
 	return nil
 }
+
+func (f *fakeAPI) PatchApplicationActivity(ctx context.Context, u string, a applications.ActivityFailure) error {
+	f.failureCh <- a
+	return nil
+}
+
 func (f *fakeAPI) SubscribeActivity(ctx context.Context, q applications.ActivityFeedQuery) (applications.Subscriber, error) {
 	v := ctx.Value("tag")
 	switch v {

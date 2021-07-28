@@ -113,7 +113,7 @@ func TestScanScenarios(t *testing.T) {
 			err := json.Unmarshal(scenarioData, &sd)
 			assert.NoError(t, err)
 
-			res, _, err := r.scanScenarios(sd)
+			res, err := r.scanScenarios(sd)
 			assert.NoError(t, err)
 			assert.Equal(t, 1, len(res))
 			assert.NotNil(t, res[0].StormForger)

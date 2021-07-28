@@ -64,15 +64,12 @@ func (r *Runner) scan(app applications.Application, scenario applications.Scenar
 
 	baseApp.Objectives = objectives
 
-	scenarios, stormforger, err := r.scanScenarios(scenario)
+	scenarios, err := r.scanScenarios(scenario)
 	if err != nil {
 		return nil, err
 	}
 
 	baseApp.Scenarios = scenarios
-
-	// TODO follow up with note in scanScenarios
-	baseApp.StormForger = stormforger
 
 	return baseApp, nil
 }
@@ -181,15 +178,15 @@ func (r *Runner) scanObjectives(scenario applications.Scenario) ([]redskyappsv1a
 	return objectives, nil
 }
 
-func (r *Runner) scanScenarios(scenario applications.Scenario) ([]redskyappsv1alpha1.Scenario, *redskyappsv1alpha1.StormForger, error) {
+func (r *Runner) scanScenarios(scenario applications.Scenario) ([]redskyappsv1alpha1.Scenario, error) {
 	rawSF, err := json.Marshal(scenario.StormForgePerformance)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	sf := redskyappsv1alpha1.StormForgerScenario{}
 	if err := json.Unmarshal(rawSF, &sf); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	appScenario := []redskyappsv1alpha1.Scenario{
@@ -200,7 +197,5 @@ func (r *Runner) scanScenarios(scenario applications.Scenario) ([]redskyappsv1al
 		},
 	}
 
-	// TODO I feel like we're going to need to populate the StormForger struct but we dont have any information/context from
-	// what the api provides
-	return appScenario, &redskyappsv1alpha1.StormForger{}, nil
+	return appScenario, nil
 }

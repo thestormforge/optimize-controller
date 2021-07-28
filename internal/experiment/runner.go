@@ -60,9 +60,8 @@ func (r *Runner) Run(ctx context.Context) {
 	query.SetType("poll", applications.TagScan, applications.TagRun)
 	subscriber, err := r.apiClient.SubscribeActivity(ctx, query)
 	if err != nil {
-		// Is panic too hard?
-		// Should we just log a message and periodically retry?
-		panic(fmt.Sprintf("unable to query application activity %s", err))
+		r.log.Error(err, "unable to connect to application service")
+		return
 	}
 
 	activityCh := make(chan applications.ActivityItem)
@@ -190,7 +189,7 @@ func (r *Runner) Run(ctx context.Context) {
 func (r *Runner) handleErrors(ctx context.Context, err error, activityURL string) {
 	failure := applications.ActivityFailure{FailureMessage: err.Error()}
 
-	if err := r.apiClient.PatchApplicationActivity(ctx, activity.URL, failure); err != nil {
+	if err := r.apiClient.PatchApplicationActivity(ctx, activityURL, failure); err != nil {
 		r.log.Error(err, "unable to update application activity")
 	}
 }

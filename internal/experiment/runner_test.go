@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"testing"
 	"time"
@@ -113,13 +114,19 @@ func TestRunner(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("%q", tc.desc), func(t *testing.T) {
+			os.Setenv("STORMFORGER_JWT", "funnyjwtjokehere")
+			defer os.Unsetenv("STORMFORGER_JWT")
+
 			//lint:ignore SA1029 not important here
 			ctx := context.WithValue(context.Background(), "tag", tc.tag)
 
 			client := fake.NewFakeClientWithScheme(scheme)
 
 			// appCh := make(chan *redskyappsv1alpha1.Application)
-			fapi := &fakeAPI{templateUpdateCh: make(chan struct{})}
+			fapi := &fakeAPI{
+				templateUpdateCh: make(chan struct{}),
+				failureCh:        make(chan applications.ActivityFailure),
+			}
 			runner := &Runner{
 				client: client,
 				//	apiClient:     applications.NewAPI(c),
@@ -142,12 +149,12 @@ func TestRunner(t *testing.T) {
 					assert.Equal(t, tc.expected, tmpl)
 					return
 
-				// TODO look at activity status
-				// case err := <-runner.errCh:
-				// 	assert.NoError(t, err)
-				// 	return
+				case err := <-fapi.failureCh:
+					t.Log(err)
+					assert.Nil(t, err)
+					return
 
-				case <-time.After(2 * time.Second):
+				case <-time.After(5 * time.Second):
 					// Error
 					t.Log("failed to get template update")
 					t.Fail()
