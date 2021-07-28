@@ -39,7 +39,6 @@ type Runner struct {
 	apiClient     applications.API
 	log           logr.Logger
 	kubectlExecFn func(cmd *exec.Cmd) ([]byte, error)
-	errCh         chan (error)
 }
 
 func New(kclient client.Client, logger logr.Logger) (*Runner, error) {
@@ -52,20 +51,17 @@ func New(kclient client.Client, logger logr.Logger) (*Runner, error) {
 		client:    kclient,
 		apiClient: api,
 		log:       logger,
-		errCh:     make(chan error),
 	}, nil
 }
 
 // This doesnt necessarily need to live here, but seemed to make sense
 func (r *Runner) Run(ctx context.Context) {
-	go r.handleErrors(ctx)
-
-	// TODO
 	query := applications.ActivityFeedQuery{}
 	query.SetType("poll", applications.TagScan, applications.TagRun)
 	subscriber, err := r.apiClient.SubscribeActivity(ctx, query)
 	if err != nil {
-		// This should be a hard error; is panic too hard?
+		// Is panic too hard?
+		// Should we just log a message and periodically retry?
 		panic(fmt.Sprintf("unable to query application activity %s", err))
 	}
 
@@ -77,57 +73,55 @@ func (r *Runner) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case activity := <-activityCh:
-			// TODO might want to consider moving this to a func so we can defer delete activity and maybe
-			// revamp the errCh nonsense
+			// TODO might want to consider moving this to a func so we can defer delete activity
 
 			// Ensure we actually have an action to perform
 			if len(activity.Tags) != 1 {
-				r.errCh <- fmt.Errorf("%s %d", "invalid number of activity tags, expected 1 got", len(activity.Tags))
+				r.handleErrors(ctx, fmt.Errorf("%s %d", "invalid number of activity tags, expected 1 got", len(activity.Tags)), activity.URL)
 				continue
 			}
 
-			activityCtx := ctx
-
 			// Activity feed provides us with a scenario URL
-			scenario, err := r.apiClient.GetScenario(activityCtx, activity.URL)
+			scenario, err := r.apiClient.GetScenario(ctx, activity.ExternalURL)
 			if err != nil {
-				// TODO enrich this later
-				r.errCh <- err
+				r.handleErrors(ctx, fmt.Errorf("%s (%s): %w", "failed to get scenario", activity.ExternalURL, err), activity.URL)
 				continue
 			}
 
 			// Need to fetch top level application so we can get the resources
 			applicationURL := scenario.Link(api.RelationUp)
 			if applicationURL == "" {
-				r.errCh <- fmt.Errorf("no matching application URL for scenario")
+				r.handleErrors(ctx, fmt.Errorf("no matching application URL for scenario"), activity.URL)
+				continue
 			}
 
 			templateURL := scenario.Link(api.RelationTemplate)
 			if templateURL == "" {
-				r.errCh <- fmt.Errorf("no matching template URL for scenario")
+				r.handleErrors(ctx, fmt.Errorf("no matching template URL for scenario"), activity.URL)
+				continue
 			}
 
-			apiApp, err := r.apiClient.GetApplication(activityCtx, applicationURL)
+			apiApp, err := r.apiClient.GetApplication(ctx, applicationURL)
 			if err != nil {
-				r.errCh <- fmt.Errorf("%s (%s): %w", "unable to get application", activity.URL, err)
+				r.handleErrors(ctx, fmt.Errorf("%s (%s): %w", "failed to get application", activity.URL, err), activity.URL)
 				continue
 			}
 
 			var assembledApp *redskyappsv1alpha1.Application
 			if assembledApp, err = r.scan(apiApp, scenario); err != nil {
-				r.errCh <- err
+				r.handleErrors(ctx, fmt.Errorf("%s (%s): %w", "failed to assemble application", activity.URL, err), activity.URL)
 				continue
 			}
 
 			assembledBytes, err := r.generateApp(*assembledApp)
 			if err != nil {
-				r.errCh <- err
+				r.handleErrors(ctx, fmt.Errorf("%s (%s): %w", "failed to generate application", activity.URL, err), activity.URL)
 				continue
 			}
 
 			exp := &redskyv1beta2.Experiment{}
 			if err := yaml.Unmarshal(assembledBytes, exp); err != nil {
-				r.errCh <- fmt.Errorf("%s: %w", "invalid experiment generated", err)
+				r.handleErrors(ctx, fmt.Errorf("%s: %w", "invalid experiment generated", err), activity.URL)
 				continue
 			}
 
@@ -135,12 +129,12 @@ func (r *Runner) Run(ctx context.Context) {
 			case applications.TagScan:
 				template, err := server.ClusterExperimentToAPITemplate(exp)
 				if err != nil {
-					r.errCh <- err
+					r.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to convert experiment template", err), activity.URL)
 					continue
 				}
 
 				if err := r.apiClient.UpdateTemplate(ctx, templateURL, *template); err != nil {
-					r.errCh <- err
+					r.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to save experiment template in server", err), activity.URL)
 					continue
 				}
 			case applications.TagRun:
@@ -150,13 +144,13 @@ func (r *Runner) Run(ctx context.Context) {
 				// Get previous template
 				previousTemplate, err := r.apiClient.GetTemplate(ctx, templateURL)
 				if err != nil {
-					r.errCh <- err
+					r.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to get experiment template from server", err), activity.URL)
 					continue
 				}
 
 				// Overwrite current scan results with previous scan results
 				if err = server.APITemplateToClusterExperiment(exp, &previousTemplate); err != nil {
-					r.errCh <- err
+					r.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to convert experiment template", err), activity.URL)
 					continue
 				}
 
@@ -164,133 +158,125 @@ func (r *Runner) Run(ctx context.Context) {
 				// so let's create all the resources and #profit
 
 				// Create additional RBAC ( primarily for setup task )
-				r.createServiceAccount(ctx, assembledBytes)
+				if err = r.createServiceAccount(ctx, assembledBytes); err != nil {
+					r.handleErrors(ctx, err, activity.URL)
+				}
 
-				r.createClusterRole(ctx, assembledBytes)
+				if err = r.createClusterRole(ctx, assembledBytes); err != nil {
+					r.handleErrors(ctx, err, activity.URL)
+				}
 
-				r.createClusterRoleBinding(ctx, assembledBytes)
+				if err = r.createClusterRoleBinding(ctx, assembledBytes); err != nil {
+					r.handleErrors(ctx, err, activity.URL)
+				}
 
 				// Create configmap for load test
-				r.createConfigMap(ctx, assembledBytes)
+				if err = r.createConfigMap(ctx, assembledBytes); err != nil {
+					r.handleErrors(ctx, err, activity.URL)
+				}
 
-				r.createExperiment(ctx, exp)
+				if err = r.createExperiment(ctx, exp); err != nil {
+					r.handleErrors(ctx, err, activity.URL)
+				}
 			}
 
-			// if err := r.apiClient.UpdateActivity(ctx, activity.URL, ?); err != nil {
-			//   r.errCh <- err
-			//   continue
-			// }
-
-			// if err := r.apiClient.DeleteActivity(ctx, activity.URL); err != nil {
-			// 	r.errCh <- err
-			// 	continue
-			// }
+			if err := r.apiClient.DeleteActivity(ctx, activity.URL); err != nil {
+				r.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to delete activity", err), activity.URL)
+			}
 		}
 	}
 }
 
-func (r *Runner) handleErrors(ctx context.Context) {
-	/*
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case err := <-r.errCh:
-				r.log.Error(err, "failed to generate experiment from application")
+func (r *Runner) handleErrors(ctx context.Context, err error, activityURL string) {
+	failure := applications.ActivityFailure{FailureMessage: err.Error()}
 
-				// TODO how do we want to pass through this additional info
-				// Should we create a new error type ( akin to capture error ) with this additional metadata
-
-				if err := r.apiClient.UpdateApplicationActivity(ctx, "activity url", applications.Activity{}); err != nil {
-					continue
-				}
-
-				if err := r.apiClient.DeleteActivity(ctx, "activity url"); err != nil {
-					continue
-				}
-			}
-		}
-	*/
+	if err := r.apiClient.PatchApplicationActivity(ctx, activity.URL, failure); err != nil {
+		r.log.Error(err, "unable to update application activity")
+	}
 }
 
-func (r *Runner) createServiceAccount(ctx context.Context, data []byte) {
+func (r *Runner) createServiceAccount(ctx context.Context, data []byte) error {
 	serviceAccount := &corev1.ServiceAccount{}
 	if err := yaml.Unmarshal(data, serviceAccount); err != nil {
-		r.errCh <- fmt.Errorf("%s: %w", "invalid service account", err)
-		return
+		return fmt.Errorf("%s: %w", "invalid service account", err)
 	}
 
 	// Only create the service account if it does not exist
 	existingServiceAccount := &corev1.ServiceAccount{}
 	if err := r.client.Get(ctx, types.NamespacedName{Name: serviceAccount.Name, Namespace: serviceAccount.Namespace}, existingServiceAccount); err != nil {
 		if err := r.client.Create(ctx, serviceAccount); err != nil {
-			r.errCh <- fmt.Errorf("%s: %w", "failed to create service account", err)
+			return fmt.Errorf("%s: %w", "failed to create service account", err)
 		}
 	}
+
+	return nil
 }
 
-func (r *Runner) createClusterRole(ctx context.Context, data []byte) {
+func (r *Runner) createClusterRole(ctx context.Context, data []byte) error {
 	clusterRole := &rbacv1.ClusterRole{}
 	if err := yaml.Unmarshal(data, clusterRole); err != nil {
-		r.errCh <- fmt.Errorf("%s: %w", "invalid cluster role", err)
-		return
+		return fmt.Errorf("%s: %w", "invalid cluster role", err)
 	}
 
 	// Only create the service account if it does not exist
 	existingClusterRole := &rbacv1.ClusterRole{}
 	if err := r.client.Get(ctx, types.NamespacedName{Name: clusterRole.Name, Namespace: clusterRole.Namespace}, existingClusterRole); err != nil {
 		if err := r.client.Create(ctx, clusterRole); err != nil {
-			r.errCh <- fmt.Errorf("%s: %w", "failed to create clusterRole", err)
+			return fmt.Errorf("%s: %w", "failed to create clusterRole", err)
 		}
 	}
+
+	return nil
 }
 
-func (r *Runner) createClusterRoleBinding(ctx context.Context, data []byte) {
+func (r *Runner) createClusterRoleBinding(ctx context.Context, data []byte) error {
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
 	if err := yaml.Unmarshal(data, clusterRoleBinding); err != nil {
-		r.errCh <- fmt.Errorf("%s: %w", "invalid cluster role binding", err)
-		return
+		return fmt.Errorf("%s: %w", "invalid cluster role binding", err)
 	}
 
 	existingClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
 	if err := r.client.Get(ctx, types.NamespacedName{Name: clusterRoleBinding.Name, Namespace: clusterRoleBinding.Namespace}, existingClusterRoleBinding); err != nil {
 		if err := r.client.Create(ctx, clusterRoleBinding); err != nil {
-			r.errCh <- fmt.Errorf("%s: %w", "failed to create cluster role binding", err)
+			return fmt.Errorf("%s: %w", "failed to create cluster role binding", err)
 		}
 	}
+
+	return nil
 }
 
-func (r *Runner) createConfigMap(ctx context.Context, data []byte) {
+func (r *Runner) createConfigMap(ctx context.Context, data []byte) error {
 	configMap := &corev1.ConfigMap{}
 	if err := yaml.Unmarshal(data, configMap); err != nil {
-		r.errCh <- fmt.Errorf("%s: %w", "invalid config map", err)
-		return
+		return fmt.Errorf("%s: %w", "invalid config map", err)
 	}
 
 	existingConfigMap := &corev1.ConfigMap{}
 	if err := r.client.Get(ctx, types.NamespacedName{Name: configMap.Name, Namespace: configMap.Namespace}, existingConfigMap); err != nil {
 		if err := r.client.Create(ctx, configMap); err != nil {
-			r.errCh <- fmt.Errorf("%s: %w", "failed to create config map", err)
+			return fmt.Errorf("%s: %w", "failed to create config map", err)
 		}
 	} else {
 		if err := r.client.Update(ctx, configMap); err != nil {
-			r.errCh <- fmt.Errorf("%s: %w", "failed to update config map", err)
+			return fmt.Errorf("%s: %w", "failed to update config map", err)
 		}
 	}
+
+	return nil
 }
 
-func (r *Runner) createExperiment(ctx context.Context, exp *redskyv1beta2.Experiment) {
+func (r *Runner) createExperiment(ctx context.Context, exp *redskyv1beta2.Experiment) error {
 	existingExperiment := &redskyv1beta2.Experiment{}
 	if err := r.client.Get(ctx, types.NamespacedName{Name: exp.Name, Namespace: exp.Namespace}, existingExperiment); err != nil {
 		if err := r.client.Create(ctx, exp); err != nil {
-			// api.UpdateStatus("failed")
-			r.errCh <- fmt.Errorf("%s: %w", "unable to create experiment in cluster", err)
+			return fmt.Errorf("%s: %w", "unable to create experiment in cluster", err)
 		}
 	} else {
 		// Update the experiment ( primarily to set replicas from 0 -> 1 )
 		if err := r.client.Update(ctx, exp); err != nil {
-			// api.UpdateStatus("failed")
-			r.errCh <- fmt.Errorf("%s: %w", "unable to start experiment", err)
+			return fmt.Errorf("%s: %w", "unable to start experiment", err)
 		}
 	}
+
+	return nil
 }

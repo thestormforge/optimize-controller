@@ -125,7 +125,6 @@ func TestRunner(t *testing.T) {
 				//	apiClient:     applications.NewAPI(c),
 				apiClient:     fapi,
 				kubectlExecFn: fakeKubectlExec,
-				errCh:         make(chan error),
 			}
 
 			_, err := runner.apiClient.CheckEndpoint(ctx)
@@ -143,9 +142,10 @@ func TestRunner(t *testing.T) {
 					assert.Equal(t, tc.expected, tmpl)
 					return
 
-				case err := <-runner.errCh:
-					assert.NoError(t, err)
-					return
+				// TODO look at activity status
+				// case err := <-runner.errCh:
+				// 	assert.NoError(t, err)
+				// 	return
 
 				case <-time.After(2 * time.Second):
 					// Error
