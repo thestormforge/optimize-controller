@@ -19,6 +19,8 @@ package sfio
 import (
 	"fmt"
 	"net/url"
+	"regexp"
+	"strings"
 
 	"github.com/thestormforge/konjure/pkg/filters"
 	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
@@ -128,6 +130,11 @@ func (f *ExperimentMigrationFilter) MigrateExperimentV1beta2(node *yaml.RNode) (
 
 // MigrateExperimentV1beta1 converts a resource node from a v1beta1 Experiment to a v1beta2 Experiment.
 func (f *ExperimentMigrationFilter) MigrateExperimentV1beta1(node *yaml.RNode) (*yaml.RNode, error) {
+	labelApplication, labelScenario, err := f.appLabels(node)
+	if err != nil {
+		return nil, err
+	}
+
 	return node.Pipe(
 		// Fix all the nested labels and annotations on the experiment
 		yaml.Tee(
@@ -147,6 +154,11 @@ func (f *ExperimentMigrationFilter) MigrateExperimentV1beta1(node *yaml.RNode) (
 			&PrefixClearer{Value: "redskyops.dev/"},
 			&yaml.PrefixSetter{Value: "stormforge.io/"},
 		),
+
+		// Ensure we have application and scenario labels
+		// NOTE: this MUST happen AFTER the MetadataMigrationFilter to preserve existing values
+		yaml.Tee(yaml.SetLabel(optimizeappsv1alpha1.LabelApplication, labelApplication)),
+		yaml.Tee(yaml.SetLabel(optimizeappsv1alpha1.LabelScenario, labelScenario)),
 
 		// Finally, set the apiVersion
 		yaml.Tee(
@@ -260,6 +272,49 @@ func (f *ExperimentMigrationFilter) migrateMetricsV1alpha1(node *yaml.RNode) (*y
 	}
 
 	return node, nil
+}
+
+func (f *ExperimentMigrationFilter) appLabels(node *yaml.RNode) (labelApplication string, labelScenario string, err error) {
+	// Extract the metadata from the node
+	var md yaml.ResourceMeta
+	md, err = node.GetMeta()
+	if err != nil {
+		return
+	}
+
+	// Guess an application name using the experiment name
+	labelApplication = md.Labels[optimizeappsv1alpha1.LabelApplication]
+	if labelApplication == "" {
+		labelApplication = "default"
+
+		// Filter out buzzwords, and pure integers
+		var appName []string
+		drop := regexp.MustCompile("^example|experiment|final|yolo|[0-9]+$")
+		for _, p := range strings.Split(strings.ToLower(md.Name), "-") {
+			if p != "" && !drop.MatchString(p) {
+				appName = append(appName, p)
+			}
+		}
+
+		if len(appName) > 0 {
+			// TODO We could look at `md.Annotations[kioutil.PathAnnotation]`
+			labelApplication = strings.Join(appName, "-")
+		}
+	}
+
+	// Guess the scenario name
+	labelScenario = md.Labels[optimizeappsv1alpha1.LabelScenario]
+	if labelScenario == "" {
+		labelScenario = "default"
+
+		// Try to get the first container name off the trial job
+		nameNode, err := node.Pipe(yaml.Lookup("spec", "trialTemplate", "spec", "jobTemplate", "spec", "template", "spec", "containers", "0", "name"))
+		if err == nil && nameNode.YNode().Value != "" {
+			labelScenario = nameNode.YNode().Value
+		}
+	}
+
+	return
 }
 
 // metric represents the parts of a v1alpha1 metric required for producing a v1beta1 metric URL.
