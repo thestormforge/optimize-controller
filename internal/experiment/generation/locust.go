@@ -45,7 +45,7 @@ func (s *LocustSource) Update(exp *optimizev1beta2.Experiment) error {
 	pod := &ensureTrialJobPod(exp).Spec
 	pod.Containers = []corev1.Container{
 		{
-			Name:  "locust",
+			Name:  s.Scenario.Name,
 			Image: trialJobImage("locust"),
 			Env:   s.locustEnv(),
 			VolumeMounts: []corev1.VolumeMount{

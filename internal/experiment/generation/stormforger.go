@@ -60,7 +60,7 @@ func (s *StormForgerSource) Update(exp *optimizev1beta2.Experiment) error {
 	pod := &ensureTrialJobPod(exp).Spec
 	pod.Containers = []corev1.Container{
 		{
-			Name:  "stormforger",
+			Name:  s.Scenario.Name,
 			Image: trialJobImage("stormforger"),
 			Env: []corev1.EnvVar{
 				{

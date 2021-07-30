@@ -66,14 +66,15 @@ func (s *CustomSource) Update(exp *optimizev1beta2.Experiment) error {
 	// It is possible we ended up in an invalid state, try to clean things up
 	if exp.Spec.TrialTemplate.Spec.JobTemplate != nil {
 		pod := ensureTrialJobPod(exp)
+		var usedScenarioName bool
 		for i := range pod.Spec.Containers {
 			if pod.Spec.Containers[i].Name == "" {
-				name := pod.Spec.Containers[i].Image
-				name = name[strings.LastIndex(name, "/")+1:]
-				if pos := strings.Index(name, ":"); pos > 0 {
-					name = name[0:pos]
+				if usedScenarioName {
+					return fmt.Errorf("multiple containers are missing names")
 				}
-				pod.Spec.Containers[i].Name = name
+
+				pod.Spec.Containers[i].Name = s.Scenario.Name
+				usedScenarioName = true
 			}
 		}
 	}
