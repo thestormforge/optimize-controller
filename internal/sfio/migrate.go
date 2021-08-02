@@ -297,7 +297,7 @@ func (f *ExperimentMigrationFilter) appLabels(node *yaml.RNode) (labelApplicatio
 
 		// Filter out buzzwords, and pure integers
 		var appName []string
-		drop := regexp.MustCompile("^example|experiment|final|yolo|[0-9]+$")
+		drop := regexp.MustCompile("^(example|experiment|final|yolo|[0-9]+)$")
 		for _, p := range strings.Split(strings.ToLower(md.Name), "-") {
 			if p != "" && !drop.MatchString(p) {
 				appName = append(appName, p)
@@ -317,7 +317,7 @@ func (f *ExperimentMigrationFilter) appLabels(node *yaml.RNode) (labelApplicatio
 
 		// Try to get the first container name off the trial job
 		nameNode, err := node.Pipe(yaml.Lookup("spec", "trialTemplate", "spec", "jobTemplate", "spec", "template", "spec", "containers", "0", "name"))
-		if err == nil && nameNode.YNode().Value != "" {
+		if err == nil && !nameNode.IsNilOrEmpty() && nameNode.YNode().Value != "" {
 			labelScenario = nameNode.YNode().Value
 		}
 	}
