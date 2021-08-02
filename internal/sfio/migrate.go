@@ -39,6 +39,9 @@ func (f *MetadataMigrationFilter) Filter(node *yaml.RNode) (*yaml.RNode, error) 
 
 	replaceFieldPrefix := yaml.FilterFunc(func(rn *yaml.RNode) (*yaml.RNode, error) {
 		return nil, rn.VisitFields(func(node *yaml.MapNode) error {
+			if node.IsNilOrEmpty() {
+				return nil
+			}
 			return node.Key.PipeE(
 				&PrefixClearer{Value: "redskyops.dev/"},
 				&yaml.PrefixSetter{Value: "stormforge.io/"},
@@ -130,12 +133,22 @@ func (f *ExperimentMigrationFilter) MigrateExperimentV1beta2(node *yaml.RNode) (
 
 // MigrateExperimentV1beta1 converts a resource node from a v1beta1 Experiment to a v1beta2 Experiment.
 func (f *ExperimentMigrationFilter) MigrateExperimentV1beta1(node *yaml.RNode) (*yaml.RNode, error) {
-	labelApplication, labelScenario, err := f.appLabels(node)
-	if err != nil {
-		return nil, err
-	}
-
 	return node.Pipe(
+		// Fix all the labels on the experiment itself
+		yaml.Tee(
+			&MetadataMigrationFilter{},
+			yaml.FilterFunc(func(node *yaml.RNode) (*yaml.RNode, error) {
+				labelApplication, labelScenario, err := f.appLabels(node)
+				if err != nil {
+					return nil, err
+				}
+				return node.Pipe(
+					yaml.Tee(yaml.SetLabel(optimizeappsv1alpha1.LabelApplication, labelApplication)),
+					yaml.Tee(yaml.SetLabel(optimizeappsv1alpha1.LabelScenario, labelScenario)),
+				)
+			}),
+		),
+
 		// Fix all the nested labels and annotations on the experiment
 		yaml.Tee(
 			yaml.Lookup("spec", "trialTemplate"), &MetadataMigrationFilter{},
@@ -154,11 +167,6 @@ func (f *ExperimentMigrationFilter) MigrateExperimentV1beta1(node *yaml.RNode) (
 			&PrefixClearer{Value: "redskyops.dev/"},
 			&yaml.PrefixSetter{Value: "stormforge.io/"},
 		),
-
-		// Ensure we have application and scenario labels
-		// NOTE: this MUST happen AFTER the MetadataMigrationFilter to preserve existing values
-		yaml.Tee(yaml.SetLabel(optimizeappsv1alpha1.LabelApplication, labelApplication)),
-		yaml.Tee(yaml.SetLabel(optimizeappsv1alpha1.LabelScenario, labelScenario)),
 
 		// Finally, set the apiVersion
 		yaml.Tee(
