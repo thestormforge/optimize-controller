@@ -310,6 +310,18 @@ func (m generatorModel) applyToApp(app *optimizeappsv1alpha1.Application) {
 		}
 	}
 
+	if m.CustomImage.Enabled() {
+		if image := m.CustomImage.Value(); image != "" {
+			usePushGateway := m.CustomPushGateway.Enabled() && m.CustomPushGateway.Value() == CustomPushGatewayYes
+			app.Scenarios = append(app.Scenarios, optimizeappsv1alpha1.Scenario{
+				Custom: &optimizeappsv1alpha1.CustomScenario{
+					Image:          image,
+					UsePushGateway: usePushGateway,
+				},
+			})
+		}
+	}
+
 	if m.IngressURLInput.Enabled() {
 		if u := m.IngressURLInput.Value(); u != "" {
 			app.Ingress = &optimizeappsv1alpha1.Ingress{
