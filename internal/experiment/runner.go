@@ -17,13 +17,15 @@ limitations under the License.
 package experiment
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os/exec"
 
 	"github.com/go-logr/logr"
-	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
-	redskyv1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	"github.com/thestormforge/optimize-controller/v2/internal/scan"
 	"github.com/thestormforge/optimize-controller/v2/internal/server"
 	"github.com/thestormforge/optimize-go/pkg/api"
 	applications "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
@@ -31,6 +33,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/yaml"
 )
 
@@ -117,8 +120,8 @@ func (r *Runner) handleActivity(ctx context.Context, activity applications.Activ
 		return
 	}
 
-	var assembledApp *redskyappsv1alpha1.Application
-	if assembledApp, err = r.scan(apiApp, scenario); err != nil {
+	var assembledApp *optimizeappsv1alpha1.Application
+	if assembledApp, err = server.APIApplicationToClusterApplication(apiApp, scenario); err != nil {
 		r.handleErrors(ctx, fmt.Errorf("%s (%s): %w", "failed to assemble application", activity.URL, err), activity.URL)
 		return
 	}
@@ -129,7 +132,7 @@ func (r *Runner) handleActivity(ctx context.Context, activity applications.Activ
 		return
 	}
 
-	exp := &redskyv1beta2.Experiment{}
+	exp := &optimizev1beta2.Experiment{}
 	if err := yaml.Unmarshal(assembledBytes, exp); err != nil {
 		r.handleErrors(ctx, fmt.Errorf("%s: %w", "invalid experiment generated", err), activity.URL)
 		return
@@ -205,6 +208,26 @@ func (r *Runner) handleErrors(ctx context.Context, err error, activityURL string
 	}
 }
 
+func (r *Runner) generateApp(app optimizeappsv1alpha1.Application) ([]byte, error) {
+	// Set defaults for application
+	app.Default()
+
+	g := &Generator{
+		Application: app,
+		FilterOptions: scan.FilterOptions{
+			KubectlExecutor: r.kubectlExecFn,
+		},
+	}
+
+	var output bytes.Buffer
+	if err := g.Execute(kio.ByteWriter{Writer: &output}); err != nil {
+		return nil, fmt.Errorf("%s: %w", "failed to generate experiment", err)
+	}
+
+	return output.Bytes(), nil
+
+}
+
 func (r *Runner) createServiceAccount(ctx context.Context, data []byte) error {
 	serviceAccount := &corev1.ServiceAccount{}
 	if err := yaml.Unmarshal(data, serviceAccount); err != nil {
@@ -275,8 +298,8 @@ func (r *Runner) createConfigMap(ctx context.Context, data []byte) error {
 	return nil
 }
 
-func (r *Runner) createExperiment(ctx context.Context, exp *redskyv1beta2.Experiment) error {
-	existingExperiment := &redskyv1beta2.Experiment{}
+func (r *Runner) createExperiment(ctx context.Context, exp *optimizev1beta2.Experiment) error {
+	existingExperiment := &optimizev1beta2.Experiment{}
 	if err := r.client.Get(ctx, types.NamespacedName{Name: exp.Name, Namespace: exp.Namespace}, existingExperiment); err != nil {
 		if err := r.client.Create(ctx, exp); err != nil {
 			return fmt.Errorf("%s: %w", "unable to create experiment in cluster", err)

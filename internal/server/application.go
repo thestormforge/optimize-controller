@@ -18,13 +18,60 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 
+	"github.com/thestormforge/konjure/pkg/konjure"
+	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	applications "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
+
+func APIApplicationToClusterApplication(app applications.Application, scenario applications.Scenario) (*optimizeappsv1alpha1.Application, error) {
+	if err := validateAPIApplication(app, scenario); err != nil {
+		return nil, err
+	}
+
+	// Construct a controller representation of an application from the api definition
+	baseApp := &optimizeappsv1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: app.Name.String(),
+		},
+	}
+
+	resources, err := apiResources(app)
+	if err != nil {
+		return nil, err
+	}
+
+	baseApp.Resources = resources
+
+	params, err := apiParameters(scenario)
+	if err != nil {
+		return nil, err
+	}
+
+	baseApp.Parameters = params
+
+	objectives, err := apiObjectives(scenario)
+	if err != nil {
+		return nil, err
+	}
+
+	baseApp.Objectives = objectives
+
+	scenarios, err := apiScenarios(scenario)
+	if err != nil {
+		return nil, err
+	}
+
+	baseApp.Scenarios = scenarios
+
+	return baseApp, nil
+}
 
 func ClusterExperimentToAPITemplate(exp *optimizev1beta2.Experiment) (*applications.Template, error) {
 	template := &applications.Template{}
@@ -158,4 +205,85 @@ func combineParamAndBaseline(params []experimentsv1alpha1.Parameter, baselines [
 	}
 
 	return combined, nil
+}
+
+func validateAPIApplication(app applications.Application, scenario applications.Scenario) error {
+	if app.Name == "" {
+		return fmt.Errorf("invalid application, missing name")
+	}
+
+	if len(app.Resources) == 0 {
+		return fmt.Errorf("invalid application, no resources specified")
+	}
+
+	if len(scenario.Objective) == 0 {
+		return fmt.Errorf("invalid scenario, no objectives specified")
+	}
+
+	if len(scenario.Configuration) == 0 {
+		return fmt.Errorf("invalid scenario, no configuration specified")
+	}
+
+	return nil
+}
+
+func apiResources(app applications.Application) (konjure.Resources, error) {
+	data, err := json.Marshal(app.Resources)
+	if err != nil {
+		return nil, err
+	}
+
+	var resources konjure.Resources
+
+	if err := json.Unmarshal(data, &resources); err != nil {
+		return nil, err
+	}
+
+	return resources, nil
+}
+
+func apiParameters(scenario applications.Scenario) ([]optimizeappsv1alpha1.Parameter, error) {
+	// Parameters
+	rawParams, err := json.Marshal(scenario.Configuration)
+	if err != nil {
+		return nil, err
+	}
+
+	params := []optimizeappsv1alpha1.Parameter{}
+	if err := json.Unmarshal(rawParams, &params); err != nil {
+		return nil, err
+	}
+
+	return params, nil
+}
+
+func apiObjectives(scenario applications.Scenario) ([]optimizeappsv1alpha1.Objective, error) {
+	rawObjectives, err := json.Marshal(scenario.Objective)
+	if err != nil {
+		return nil, err
+	}
+
+	goals := []optimizeappsv1alpha1.Goal{}
+	if err := json.Unmarshal(rawObjectives, &goals); err != nil {
+		return nil, err
+	}
+
+	objectives := []optimizeappsv1alpha1.Objective{{Goals: goals}}
+
+	return objectives, nil
+}
+
+func apiScenarios(scenario applications.Scenario) ([]optimizeappsv1alpha1.Scenario, error) {
+	data, err := json.Marshal(scenario)
+	if err != nil {
+		return nil, err
+	}
+
+	appScenario := optimizeappsv1alpha1.Scenario{}
+
+	if err = json.Unmarshal(data, &appScenario); err != nil {
+		return nil, err
+	}
+
+	return []optimizeappsv1alpha1.Scenario{appScenario}, nil
 }

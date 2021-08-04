@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-go/pkg/api"
 	applications "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
@@ -240,3 +241,192 @@ func TestAPITemplateToClusterExperiment(t *testing.T) {
 		})
 	}
 }
+
+func TestAPIResources(t *testing.T) {
+	testCases := []struct {
+		desc string
+	}{
+		{
+			desc: "default",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("%q", tc.desc), func(t *testing.T) {
+			ad := applications.Application{}
+			err := json.Unmarshal(appData, &ad)
+			assert.NoError(t, err)
+
+			res, err := apiResources(ad)
+			assert.NoError(t, err)
+			assert.Equal(t, 1, len(res))
+		})
+	}
+}
+
+func TestAPIParameters(t *testing.T) {
+	testCases := []struct {
+		desc string
+	}{
+		{
+			desc: "default",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("%q", tc.desc), func(t *testing.T) {
+			sd := applications.Scenario{}
+			err := json.Unmarshal(scenarioData, &sd)
+			assert.NoError(t, err)
+
+			res, err := apiParameters(sd)
+			assert.NoError(t, err)
+			assert.Equal(t, 2, len(res))
+			assert.NotNil(t, res[0].ContainerResources)
+			assert.NotNil(t, res[1].Replicas)
+		})
+	}
+}
+
+func TestAPIObjectives(t *testing.T) {
+	testCases := []struct {
+		desc string
+	}{
+		{
+			desc: "default",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("%q", tc.desc), func(t *testing.T) {
+			sd := applications.Scenario{}
+			err := json.Unmarshal(scenarioData, &sd)
+			assert.NoError(t, err)
+
+			res, err := apiObjectives(sd)
+			assert.NoError(t, err)
+			assert.Equal(t, 1, len(res))
+			assert.Equal(t, 2, len(res[0].Goals))
+		})
+	}
+}
+
+func TestAPIScenarios(t *testing.T) {
+	testCases := []struct {
+		desc string
+	}{
+		{
+			desc: "default",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("%q", tc.desc), func(t *testing.T) {
+			sd := applications.Scenario{}
+			err := json.Unmarshal(scenarioData, &sd)
+			assert.NoError(t, err)
+
+			res, err := apiScenarios(sd)
+			assert.NoError(t, err)
+			require.Equal(t, 1, len(res))
+			assert.NotNil(t, res[0].StormForger)
+		})
+	}
+}
+
+func TestAPIApplicationToClusterApplication(t *testing.T) {
+	testCases := []struct {
+		desc string
+	}{
+		{
+			desc: "default",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("%q", tc.desc), func(t *testing.T) {
+			ad := applications.Application{}
+			err := json.Unmarshal(appData, &ad)
+			assert.NoError(t, err)
+
+			sd := applications.Scenario{}
+			err = json.Unmarshal(scenarioData, &sd)
+			assert.NoError(t, err)
+
+			res, err := APIApplicationToClusterApplication(ad, sd)
+			assert.NoError(t, err)
+			assert.NotNil(t, res.Name)
+			// Uncomment when we figure out what to do
+			// assert.NotNil(t, res.Namespace)
+			assert.NotNil(t, res.Resources)
+			assert.NotNil(t, res.Parameters)
+			assert.NotNil(t, res.Scenarios)
+			assert.NotNil(t, res.Objectives)
+			// TODO do we need ingress?
+			// assert.NotNil(t,  res.Ingress)
+		})
+	}
+}
+
+var scenarioData = []byte(`
+{
+  "_metadata": {
+    "Last-Modified": "2021-07-16T16:52:07.977747Z",
+    "Link": [
+      "</v2/applications/01FAR3PZBXA1RCXSH7MTA7T30V/scenarios/01FAR3Q0N9M1SPM4Z3V07TE7QD>; rel=\"self\"",
+      "</v2/applications/01FAR3PZBXA1RCXSH7MTA7T30V>; rel=\"up\"",
+      "</v2/applications/01FAR3PZBXA1RCXSH7MTA7T30V/scenarios/01FAR3Q0N9M1SPM4Z3V07TE7QD/template>; rel=\"https://stormforge.io/rel/template\"",
+      "</v2/applications/01FAR3PZBXA1RCXSH7MTA7T30V/scenarios/01FAR3Q0N9M1SPM4Z3V07TE7QD/experiments>; rel=\"https://stormforge.io/rel/experiments\""
+    ],
+    "Title": "Awesome Scenario 1"
+  },
+  "name": "01FAR3Q0N9M1SPM4Z3V07TE7QD",
+  "title": "Awesome Scenario 1",
+  "stormforger": {
+    "testCase": "myorg/large-load-test"
+  },
+  "objective": [
+    {
+      "name": "cost"
+    },
+    {
+      "name": "p95-latency"
+    }
+  ],
+  "configuration": [
+    {
+      "containerResources": {
+        "selector": "component in (api,db,worker)"
+      }
+    },
+    {
+      "replicas": {
+        "selector": "component in (api,worker)"
+      }
+    }
+  ]
+}`)
+
+var appData = []byte(`
+{
+  "_metadata": {
+    "Last-Modified": "2021-07-16T16:52:06.653927Z",
+    "Link": [
+      "</v2/applications/01FAR3PZBXA1RCXSH7MTA7T30V>; rel=\"self\"",
+      "</v2/applications/01FAR3PZBXA1RCXSH7MTA7T30V/scenarios/>; rel=\"https://stormforge.io/rel/scenarios\""
+    ],
+    "Title": "Awesome Application 1"
+  },
+  "name": "01FAR3PZBXA1RCXSH7MTA7T30V",
+  "createdAt": "2021-07-16T16:52:06.653927Z",
+  "title": "Awesome Application 1",
+  "resources": [
+    {
+      "kubernetes": {
+        "selector": "app.kubernetes.io/name=app-1",
+        "namespace": "engineering"
+      }
+    }
+  ],
+  "scenarioCount": 1
+}`)
