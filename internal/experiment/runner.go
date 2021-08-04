@@ -57,7 +57,7 @@ func New(kclient client.Client, logger logr.Logger) (*Runner, error) {
 // This doesnt necessarily need to live here, but seemed to make sense
 func (r *Runner) Run(ctx context.Context) {
 	query := applications.ActivityFeedQuery{}
-	query.SetType("poll", applications.TagScan, applications.TagRun)
+	query.SetType(applications.TagScan, applications.TagRun)
 	subscriber, err := r.apiClient.SubscribeActivity(ctx, query)
 	if err != nil {
 		r.log.Error(err, "unable to connect to application service")
@@ -72,118 +72,129 @@ func (r *Runner) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case activity := <-activityCh:
-			// TODO might want to consider moving this to a func so we can defer delete activity
-
-			// Ensure we actually have an action to perform
-			if len(activity.Tags) != 1 {
-				r.handleErrors(ctx, fmt.Errorf("%s %d", "invalid number of activity tags, expected 1 got", len(activity.Tags)), activity.URL)
-				continue
-			}
-
-			// Activity feed provides us with a scenario URL
-			scenario, err := r.apiClient.GetScenario(ctx, activity.ExternalURL)
-			if err != nil {
-				r.handleErrors(ctx, fmt.Errorf("%s (%s): %w", "failed to get scenario", activity.ExternalURL, err), activity.URL)
-				continue
-			}
-
-			// Need to fetch top level application so we can get the resources
-			applicationURL := scenario.Link(api.RelationUp)
-			if applicationURL == "" {
-				r.handleErrors(ctx, fmt.Errorf("no matching application URL for scenario"), activity.URL)
-				continue
-			}
-
-			templateURL := scenario.Link(api.RelationTemplate)
-			if templateURL == "" {
-				r.handleErrors(ctx, fmt.Errorf("no matching template URL for scenario"), activity.URL)
-				continue
-			}
-
-			apiApp, err := r.apiClient.GetApplication(ctx, applicationURL)
-			if err != nil {
-				r.handleErrors(ctx, fmt.Errorf("%s (%s): %w", "failed to get application", activity.URL, err), activity.URL)
-				continue
-			}
-
-			var assembledApp *redskyappsv1alpha1.Application
-			if assembledApp, err = r.scan(apiApp, scenario); err != nil {
-				r.handleErrors(ctx, fmt.Errorf("%s (%s): %w", "failed to assemble application", activity.URL, err), activity.URL)
-				continue
-			}
-
-			assembledBytes, err := r.generateApp(*assembledApp)
-			if err != nil {
-				r.handleErrors(ctx, fmt.Errorf("%s (%s): %w", "failed to generate application", activity.URL, err), activity.URL)
-				continue
-			}
-
-			exp := &redskyv1beta2.Experiment{}
-			if err := yaml.Unmarshal(assembledBytes, exp); err != nil {
-				r.handleErrors(ctx, fmt.Errorf("%s: %w", "invalid experiment generated", err), activity.URL)
-				continue
-			}
-
-			switch activity.Tags[0] {
-			case applications.TagScan:
-				template, err := server.ClusterExperimentToAPITemplate(exp)
-				if err != nil {
-					r.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to convert experiment template", err), activity.URL)
-					continue
-				}
-
-				if err := r.apiClient.UpdateTemplate(ctx, templateURL, *template); err != nil {
-					r.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to save experiment template in server", err), activity.URL)
-					continue
-				}
-			case applications.TagRun:
-				// We wont compare existing scan with current scan
-				// so we can preserve changes via UI
-
-				// Get previous template
-				previousTemplate, err := r.apiClient.GetTemplate(ctx, templateURL)
-				if err != nil {
-					r.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to get experiment template from server", err), activity.URL)
-					continue
-				}
-
-				// Overwrite current scan results with previous scan results
-				if err = server.APITemplateToClusterExperiment(exp, &previousTemplate); err != nil {
-					r.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to convert experiment template", err), activity.URL)
-					continue
-				}
-
-				// At this point the experiment should be good to create/deploy/run
-				// so let's create all the resources and #profit
-
-				// Create additional RBAC ( primarily for setup task )
-				if err = r.createServiceAccount(ctx, assembledBytes); err != nil {
-					r.handleErrors(ctx, err, activity.URL)
-				}
-
-				if err = r.createClusterRole(ctx, assembledBytes); err != nil {
-					r.handleErrors(ctx, err, activity.URL)
-				}
-
-				if err = r.createClusterRoleBinding(ctx, assembledBytes); err != nil {
-					r.handleErrors(ctx, err, activity.URL)
-				}
-
-				// Create configmap for load test
-				if err = r.createConfigMap(ctx, assembledBytes); err != nil {
-					r.handleErrors(ctx, err, activity.URL)
-				}
-
-				if err = r.createExperiment(ctx, exp); err != nil {
-					r.handleErrors(ctx, err, activity.URL)
-				}
-			}
-
-			if err := r.apiClient.DeleteActivity(ctx, activity.URL); err != nil {
-				r.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to delete activity", err), activity.URL)
-			}
+			r.handleActivity(ctx, activity)
 		}
 	}
+}
+
+func (r *Runner) handleActivity(ctx context.Context, activity applications.ActivityItem) {
+	// We always want to delete the activity after having received it
+	defer func() {
+		if err := r.apiClient.DeleteActivity(ctx, activity.URL); err != nil {
+			r.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to delete activity", err), activity.URL)
+		}
+	}()
+
+	// Ensure we actually have an action to perform
+	if len(activity.Tags) != 1 {
+		r.handleErrors(ctx, fmt.Errorf("%s %d", "invalid number of activity tags, expected 1 got", len(activity.Tags)), activity.URL)
+		return
+	}
+
+	// Activity feed provides us with a scenario URL
+	scenario, err := r.apiClient.GetScenario(ctx, activity.ExternalURL)
+	if err != nil {
+		r.handleErrors(ctx, fmt.Errorf("%s (%s): %w", "failed to get scenario", activity.ExternalURL, err), activity.URL)
+		return
+	}
+
+	// Need to fetch top level application so we can get the resources
+	applicationURL := scenario.Link(api.RelationUp)
+	if applicationURL == "" {
+		r.handleErrors(ctx, fmt.Errorf("no matching application URL for scenario"), activity.URL)
+		return
+	}
+
+	templateURL := scenario.Link(api.RelationTemplate)
+	if templateURL == "" {
+		r.handleErrors(ctx, fmt.Errorf("no matching template URL for scenario"), activity.URL)
+		return
+	}
+
+	apiApp, err := r.apiClient.GetApplication(ctx, applicationURL)
+	if err != nil {
+		r.handleErrors(ctx, fmt.Errorf("%s (%s): %w", "failed to get application", activity.URL, err), activity.URL)
+		return
+	}
+
+	var assembledApp *redskyappsv1alpha1.Application
+	if assembledApp, err = r.scan(apiApp, scenario); err != nil {
+		r.handleErrors(ctx, fmt.Errorf("%s (%s): %w", "failed to assemble application", activity.URL, err), activity.URL)
+		return
+	}
+
+	assembledBytes, err := r.generateApp(*assembledApp)
+	if err != nil {
+		r.handleErrors(ctx, fmt.Errorf("%s (%s): %w", "failed to generate application", activity.URL, err), activity.URL)
+		return
+	}
+
+	exp := &redskyv1beta2.Experiment{}
+	if err := yaml.Unmarshal(assembledBytes, exp); err != nil {
+		r.handleErrors(ctx, fmt.Errorf("%s: %w", "invalid experiment generated", err), activity.URL)
+		return
+	}
+
+	switch activity.Tags[0] {
+	case applications.TagScan:
+		template, err := server.ClusterExperimentToAPITemplate(exp)
+		if err != nil {
+			r.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to convert experiment template", err), activity.URL)
+			return
+		}
+
+		if err := r.apiClient.UpdateTemplate(ctx, templateURL, *template); err != nil {
+			r.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to save experiment template in server", err), activity.URL)
+			return
+		}
+	case applications.TagRun:
+		// We wont compare existing scan with current scan
+		// so we can preserve changes via UI
+
+		// Get previous template
+		previousTemplate, err := r.apiClient.GetTemplate(ctx, templateURL)
+		if err != nil {
+			r.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to get experiment template from server", err), activity.URL)
+			return
+		}
+
+		// Overwrite current scan results with previous scan results
+		if err = server.APITemplateToClusterExperiment(exp, &previousTemplate); err != nil {
+			r.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to convert experiment template", err), activity.URL)
+			return
+		}
+
+		// At this point the experiment should be good to create/deploy/run
+		// so let's create all the resources and #profit
+
+		// Create additional RBAC ( primarily for setup task )
+		if err = r.createServiceAccount(ctx, assembledBytes); err != nil {
+			r.handleErrors(ctx, err, activity.URL)
+			return
+		}
+
+		if err = r.createClusterRole(ctx, assembledBytes); err != nil {
+			r.handleErrors(ctx, err, activity.URL)
+			return
+		}
+
+		if err = r.createClusterRoleBinding(ctx, assembledBytes); err != nil {
+			r.handleErrors(ctx, err, activity.URL)
+			return
+		}
+
+		// Create configmap for load test
+		if err = r.createConfigMap(ctx, assembledBytes); err != nil {
+			r.handleErrors(ctx, err, activity.URL)
+			return
+		}
+
+		if err = r.createExperiment(ctx, exp); err != nil {
+			r.handleErrors(ctx, err, activity.URL)
+			return
+		}
+	}
+
 }
 
 func (r *Runner) handleErrors(ctx context.Context, err error, activityURL string) {

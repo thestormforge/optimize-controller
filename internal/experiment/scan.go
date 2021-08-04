@@ -22,14 +22,14 @@ import (
 	"fmt"
 
 	"github.com/thestormforge/konjure/pkg/konjure"
-	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
+	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
 	"github.com/thestormforge/optimize-controller/v2/internal/scan"
 	applications "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 )
 
-func (r *Runner) scan(app applications.Application, scenario applications.Scenario) (*redskyappsv1alpha1.Application, error) {
+func (r *Runner) scan(app applications.Application, scenario applications.Scenario) (*optimizeappsv1alpha1.Application, error) {
 	if err := validate(app, scenario); err != nil {
 		return nil, err
 	}
@@ -37,9 +37,9 @@ func (r *Runner) scan(app applications.Application, scenario applications.Scenar
 	// TODO this might(?) belong in internal/server
 
 	// Construct a controller representation of an application from the api definition
-	baseApp := &redskyappsv1alpha1.Application{
+	baseApp := &optimizeappsv1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: scenario.Name,
+			Name: app.Name.String(),
 		},
 	}
 
@@ -74,18 +74,15 @@ func (r *Runner) scan(app applications.Application, scenario applications.Scenar
 	return baseApp, nil
 }
 
-func (r *Runner) generateApp(app redskyappsv1alpha1.Application) ([]byte, error) {
+func (r *Runner) generateApp(app optimizeappsv1alpha1.Application) ([]byte, error) {
 	// Set defaults for application
 	app.Default()
 
 	g := &Generator{
 		Application: app,
-	}
-
-	// Exposed for testing so we can pass through
-	// fake kubectl output
-	if r.kubectlExecFn != nil {
-		g.FilterOptions = scan.FilterOptions{KubectlExecutor: r.kubectlExecFn}
+		FilterOptions: scan.FilterOptions{
+			KubectlExecutor: r.kubectlExecFn,
+		},
 	}
 
 	var output bytes.Buffer
@@ -147,14 +144,14 @@ func (r *Runner) scanResources(app applications.Application) (konjure.Resources,
 	return kResources, nil
 }
 
-func (r *Runner) scanParameters(scenario applications.Scenario) ([]redskyappsv1alpha1.Parameter, error) {
+func (r *Runner) scanParameters(scenario applications.Scenario) ([]optimizeappsv1alpha1.Parameter, error) {
 	// Parameters
 	rawParams, err := json.Marshal(scenario.Configuration)
 	if err != nil {
 		return nil, err
 	}
 
-	params := []redskyappsv1alpha1.Parameter{}
+	params := []optimizeappsv1alpha1.Parameter{}
 	if err := json.Unmarshal(rawParams, &params); err != nil {
 		return nil, err
 	}
@@ -162,40 +159,33 @@ func (r *Runner) scanParameters(scenario applications.Scenario) ([]redskyappsv1a
 	return params, nil
 }
 
-func (r *Runner) scanObjectives(scenario applications.Scenario) ([]redskyappsv1alpha1.Objective, error) {
+func (r *Runner) scanObjectives(scenario applications.Scenario) ([]optimizeappsv1alpha1.Objective, error) {
 	rawObjectives, err := json.Marshal(scenario.Objective)
 	if err != nil {
 		return nil, err
 	}
 
-	goals := []redskyappsv1alpha1.Goal{}
+	goals := []optimizeappsv1alpha1.Goal{}
 	if err := json.Unmarshal(rawObjectives, &goals); err != nil {
 		return nil, err
 	}
 
-	objectives := []redskyappsv1alpha1.Objective{{Goals: goals}}
+	objectives := []optimizeappsv1alpha1.Objective{{Goals: goals}}
 
 	return objectives, nil
 }
 
-func (r *Runner) scanScenarios(scenario applications.Scenario) ([]redskyappsv1alpha1.Scenario, error) {
-	rawSF, err := json.Marshal(scenario.StormForgePerformance)
+func (r *Runner) scanScenarios(scenario applications.Scenario) ([]optimizeappsv1alpha1.Scenario, error) {
+	data, err := json.Marshal(scenario)
 	if err != nil {
 		return nil, err
 	}
 
-	sf := redskyappsv1alpha1.StormForgerScenario{}
-	if err := json.Unmarshal(rawSF, &sf); err != nil {
+	appScenario := optimizeappsv1alpha1.Scenario{}
+
+	if err = json.Unmarshal(data, &appScenario); err != nil {
 		return nil, err
 	}
 
-	appScenario := []redskyappsv1alpha1.Scenario{
-		{
-			// TODO Should this be name or title?
-			Name:        scenario.Name,
-			StormForger: &sf,
-		},
-	}
-
-	return appScenario, nil
+	return []optimizeappsv1alpha1.Scenario{appScenario}, nil
 }

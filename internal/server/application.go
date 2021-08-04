@@ -41,16 +41,6 @@ func ClusterExperimentToAPITemplate(exp *optimizev1beta2.Experiment) (*applicati
 		return nil, err
 	}
 
-	/*
-		paramBytes, err := json.Marshal(combinedParams)
-		if err != nil {
-			return nil, err
-		}
-
-		if err := json.Unmarshal(paramBytes, &template.Parameters); err != nil {
-			return nil, err
-		}
-	*/
 	template.Parameters = combinedParams
 
 	metric := metrics(exp)

@@ -73,7 +73,6 @@ type ServerReconciler struct {
 	Log            logr.Logger
 	Scheme         *runtime.Scheme
 	ExperimentsAPI experimentsv1alpha1.API
-	// ApplicationsAPI applicationsv1alpha1.API
 
 	trialCreation *rate.Limiter
 }

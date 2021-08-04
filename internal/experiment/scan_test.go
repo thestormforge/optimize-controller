@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	applications "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
 )
 
@@ -115,7 +116,7 @@ func TestScanScenarios(t *testing.T) {
 
 			res, err := r.scanScenarios(sd)
 			assert.NoError(t, err)
-			assert.Equal(t, 1, len(res))
+			require.Equal(t, 1, len(res))
 			assert.NotNil(t, res[0].StormForger)
 		})
 	}

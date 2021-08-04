@@ -79,7 +79,7 @@ func newClientFromConfig(ctx context.Context, uaComment string) (api.Client, err
 		return nil, err
 	}
 
-	address := strings.TrimSuffix(srv.API.ExperimentsEndpoint, "/v1/experiments/")
+	address := strings.TrimSuffix(srv.API.ApplicationsEndpoint, "/v2/applications/")
 
 	rt, err := cfg.Authorize(ctx, version.UserAgent("optimize-controller", uaComment, nil))
 	if err != nil {
