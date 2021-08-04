@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package experiment
+package controllers
 
 import (
 	"context"
@@ -40,7 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-func TestRunner(t *testing.T) {
+func TestPoller(t *testing.T) {
 	pfalse := false
 	one := api.FromInt64(1)
 
@@ -127,18 +127,21 @@ func TestRunner(t *testing.T) {
 				templateUpdateCh: make(chan struct{}),
 				failureCh:        make(chan applications.ActivityFailure),
 			}
-			runner := &Runner{
+			poller := &Poller{
 				client: client,
 				//	apiClient:     applications.NewAPI(c),
 				apiClient:     fapi,
 				kubectlExecFn: fakeKubectlExec,
 			}
 
-			_, err := runner.apiClient.CheckEndpoint(ctx)
+			_, err := poller.apiClient.CheckEndpoint(ctx)
 			assert.NoError(t, err)
 
-			// Start up the runner
-			go func() { runner.Run(ctx) }()
+			// Start up the poller
+			go func() {
+				ch := make(chan struct{})
+				poller.Start(ch)
+			}()
 
 			// How to best wait for this to be complete
 			for {

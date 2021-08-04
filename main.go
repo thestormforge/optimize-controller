@@ -17,7 +17,6 @@ limitations under the License.
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -25,7 +24,6 @@ import (
 
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-controller/v2/controllers"
-	"github.com/thestormforge/optimize-controller/v2/internal/experiment"
 	"github.com/thestormforge/optimize-controller/v2/internal/version"
 	"github.com/thestormforge/optimize-go/pkg/config"
 	zap2 "go.uber.org/zap"
@@ -137,14 +135,12 @@ func main() {
 	}
 	// +kubebuilder:scaffold:builder
 
-	runner, err := experiment.New(mgr.GetClient(), ctrl.Log.WithName("generation").WithName("experiment"))
+	poller, err := controllers.NewPoller(mgr.GetClient(), ctrl.Log.WithName("controllers").WithName("application poller"))
 	if err != nil {
-		setupLog.Error(err, "unable to start applicaiton service runner", "application", "runner")
+		setupLog.Error(err, "unable to create controller", "controller", "application poller")
 		os.Exit(1)
 	}
-
-	ctx := context.Background()
-	go runner.Run(ctx)
+	mgr.Add(poller)
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
