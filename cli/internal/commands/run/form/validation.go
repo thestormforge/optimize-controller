@@ -19,6 +19,7 @@ package form
 import (
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -122,6 +123,31 @@ func (v *File) ValidateTextField(value string) tea.Msg {
 
 	if v.RegularFile != "" && info.IsDir() {
 		return ValidationMsg(v.RegularFile)
+	}
+
+	return ValidationMsg("")
+}
+
+// containerReferenceRegexp matches a container reference. This regular expression comes from the
+// CNCF Distribution repository (it is the result of `ReferenceRegexp.String()` with arbitrary line breaks).
+// https://github.com/distribution/distribution/blob/01f589cf8726565aa3c5c053be12873bafedbedc/reference/regexp.go#L72
+var containerReferenceRegexp = regexp.MustCompile(`^((?:(?:[a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9])` +
+	`(?:(?:\.(?:[a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]))+)?(?::[0-9]+)?/)?[a-z0-9]+` +
+	`(?:(?:(?:[._]|__|[-]*)[a-z0-9]+)+)?(?:(?:/[a-z0-9]+(?:(?:(?:[._]|__|[-]*)[a-z0-9]+)+)?)+)?)` +
+	`(?::([\w][\w.-]{0,127}))?(?:@([A-Za-z][A-Za-z0-9]*(?:[-_+.][A-Za-z][A-Za-z0-9]*)*[:][[:xdigit:]]{32,}))?$`)
+
+type ContainerImage struct {
+	Required string
+	Valid    string
+}
+
+func (v *ContainerImage) ValidateTextField(value string) tea.Msg {
+	if value == "" {
+		return ValidationMsg(v.Required)
+	}
+
+	if !containerReferenceRegexp.MatchString(value) {
+		return ValidationMsg(v.Valid)
 	}
 
 	return ValidationMsg("")

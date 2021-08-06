@@ -128,6 +128,8 @@ type generatorModel struct {
 	StormForgerTestCaseInput  form.ChoiceField
 	StormForgerGettingStarted form.ExitField
 	LocustfileInput           form.TextField
+	CustomImage               form.TextField
+	CustomPushGateway         form.ChoiceField
 
 	NamespaceInput        form.MultiChoiceField
 	LabelSelectorInputs   []form.TextField
@@ -181,6 +183,12 @@ func (m generatorModel) Update(msg tea.Msg) (generatorModel, tea.Cmd) {
 	m.LocustfileInput, cmd = m.LocustfileInput.Update(msg)
 	cmds = append(cmds, cmd)
 
+	m.CustomImage, cmd = m.CustomImage.Update(msg)
+	cmds = append(cmds, cmd)
+
+	m.CustomPushGateway, cmd = m.CustomPushGateway.Update(msg)
+	cmds = append(cmds, cmd)
+
 	m.NamespaceInput, cmd = m.NamespaceInput.Update(msg)
 	cmds = append(cmds, cmd)
 
@@ -211,6 +219,8 @@ func (m *generatorModel) form() form.Fields {
 	fields = append(fields, &m.StormForgerTestCaseInput)
 	fields = append(fields, &m.StormForgerGettingStarted)
 	fields = append(fields, &m.LocustfileInput)
+	fields = append(fields, &m.CustomImage)
+	fields = append(fields, &m.CustomPushGateway)
 	fields = append(fields, &m.NamespaceInput)
 	for i := range m.LabelSelectorInputs {
 		fields = append(fields, &m.LabelSelectorInputs[i])

@@ -35,6 +35,10 @@ import (
 const (
 	ScenarioTypeStormForger = "StormForge"
 	ScenarioTypeLocust      = "Locust"
+	ScenarioTypeCustom      = "Pod Template"
+
+	CustomPushGatewayNo  = "No, metrics will be propagated manually"
+	CustomPushGatewayYes = "Yes, set the PUSHGATEWAY_URL environment on my container for publishing metrics"
 
 	DestinationCreate  = "Run the experiment"
 	DestinationFile    = "Save the experiment to disk"
@@ -68,6 +72,7 @@ func (o *Options) initializeModel() {
 		Choices: []string{
 			ScenarioTypeStormForger,
 			ScenarioTypeLocust,
+			ScenarioTypeCustom,
 		},
 	}.NewChoiceField(opts...) // TODO This includes the "back" instruction even though it's not possible
 	o.generatorModel.ScenarioType.Select(0)
@@ -98,6 +103,30 @@ https://docs.stormforger.com/guides/getting-started/`,
 		Missing:     "File does not exist",
 		RegularFile: "Must be a file, not a directory",
 	}
+
+	o.generatorModel.CustomImage = out.FormField{
+		Prompt:          "Please enter the container image name of your custom load test:",
+		InputOnSameLine: true,
+	}.NewTextField(opts...)
+	o.generatorModel.CustomImage.Validator = &form.ContainerImage{
+		Required: "Required",
+		Valid:    "Must be a valid image reference",
+	}
+
+	o.generatorModel.CustomPushGateway = out.FormField{
+		Prompt: "Does your custom load test require a Prometheus Push Gateway for storing metric values?",
+		Instructions: []interface{}{
+			"up/down: select",
+		},
+		Choices: []string{
+			CustomPushGatewayNo,
+			CustomPushGatewayYes,
+		},
+	}.NewChoiceField(opts...)
+	o.generatorModel.CustomPushGateway.Validator = &form.Required{
+		Error: "Required",
+	}
+	o.generatorModel.CustomPushGateway.Select(0)
 
 	o.generatorModel.NamespaceInput = out.FormField{
 		Prompt:         "Please select the namespace(s) where your application is running:",
@@ -324,6 +353,7 @@ func (o *Options) updateGeneratorForm() {
 		o.generatorModel.ScenarioType.Enable()
 		useStormForger := o.generatorModel.ScenarioType.Value() == ScenarioTypeStormForger
 		useLocust := o.generatorModel.ScenarioType.Value() == ScenarioTypeLocust
+		useCustom := o.generatorModel.ScenarioType.Value() == ScenarioTypeCustom
 
 		forgeAvailable := o.initializationModel.ForgeVersion.Available() &&
 			o.initializationModel.PerformanceTestAuthorization == internal.AuthorizationValid
@@ -332,6 +362,9 @@ func (o *Options) updateGeneratorForm() {
 
 		o.generatorModel.LocustfileInput.SetEnabled(useLocust)
 		o.generatorModel.IngressURLInput.SetEnabled(useLocust)
+
+		o.generatorModel.CustomImage.SetEnabled(useCustom)
+		o.generatorModel.CustomPushGateway.SetEnabled(useCustom)
 	}
 
 	if len(o.Generator.Application.Resources) == 0 {
