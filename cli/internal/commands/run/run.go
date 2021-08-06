@@ -169,7 +169,7 @@ func (o *Options) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case internal.PerformanceTestAuthorizationMsg:
 		// If forge is authorized, get the test case names
 		if internal.AuthorizationStatus(msg) == internal.AuthorizationValid {
-			cmds = append(cmds, o.listStormForgerTestCaseNames)
+			cmds = append(cmds, o.listStormForgeTestCaseNames)
 		}
 
 	case internal.InitializationFinished:
@@ -290,10 +290,10 @@ func (m generatorModel) applyToApp(app *optimizeappsv1alpha1.Application) {
 		}
 	}
 
-	if m.StormForgerTestCaseInput.Enabled() {
-		if testCase := m.StormForgerTestCaseInput.Value(); testCase != "" {
+	if m.StormForgeTestCaseInput.Enabled() {
+		if testCase := m.StormForgeTestCaseInput.Value(); testCase != "" {
 			app.Scenarios = append(app.Scenarios, optimizeappsv1alpha1.Scenario{
-				StormForger: &optimizeappsv1alpha1.StormForgerScenario{
+				StormForge: &optimizeappsv1alpha1.StormForgeScenario{
 					TestCase: testCase,
 				},
 			})
@@ -335,7 +335,7 @@ func (m generatorModel) applyToApp(app *optimizeappsv1alpha1.Application) {
 		// that empty matches everything (even if other parameters have been specified).
 		// We CANNOT rely on the default behavior of the generator for this, since
 		// the presence of any parameter bypasses the default inclusion of container resources.
-		app.Parameters = append(app.Parameters, optimizeappsv1alpha1.Parameter{
+		app.Configuration = append(app.Configuration, optimizeappsv1alpha1.Parameter{
 			ContainerResources: &optimizeappsv1alpha1.ContainerResources{
 				Selector: m.ContainerResourcesSelectorInput.Value(),
 			},
@@ -344,7 +344,7 @@ func (m generatorModel) applyToApp(app *optimizeappsv1alpha1.Application) {
 
 	if m.ReplicasSelectorInput.Enabled() {
 		if sel := m.ReplicasSelectorInput.Value(); sel != "" {
-			app.Parameters = append(app.Parameters, optimizeappsv1alpha1.Parameter{
+			app.Configuration = append(app.Configuration, optimizeappsv1alpha1.Parameter{
 				Replicas: &optimizeappsv1alpha1.Replicas{
 					Selector: sel,
 				},

@@ -55,9 +55,9 @@ type PerformanceTestAuthorizationMsg AuthorizationStatus
 // namespaces.
 type KubernetesNamespacesMsg []string
 
-// StormForgerTestCasesMsg is used to report the list of available StormForger
+// StormForgeTestCasesMsg is used to report the list of available StormForge Performance
 // test case names.
-type StormForgerTestCasesMsg []string
+type StormForgeTestCasesMsg []string
 
 // ExperimentMsg represents the generated experiment.
 type ExperimentMsg []*yaml.RNode

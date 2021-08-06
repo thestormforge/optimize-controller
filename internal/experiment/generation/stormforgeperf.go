@@ -32,29 +32,29 @@ import (
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
-type StormForgerSource struct {
+type StormForgePerformanceSource struct {
 	Scenario    *optimizeappsv1alpha1.Scenario
 	Objective   *optimizeappsv1alpha1.Objective
 	Application *optimizeappsv1alpha1.Application
 }
 
-var _ ExperimentSource = &StormForgerSource{} // Update trial job
-var _ MetricSource = &StormForgerSource{}     // StormForger specific metrics
-var _ kio.Reader = &StormForgerSource{}       // ConfigMap for the test case file
+var _ ExperimentSource = &StormForgePerformanceSource{} // Update trial job
+var _ MetricSource = &StormForgePerformanceSource{}     // StormForge specific metrics
+var _ kio.Reader = &StormForgePerformanceSource{}       // ConfigMap for the test case file
 
-func (s *StormForgerSource) Update(exp *optimizev1beta2.Experiment) error {
+func (s *StormForgePerformanceSource) Update(exp *optimizev1beta2.Experiment) error {
 	if s.Scenario == nil || s.Application == nil {
 		return nil
 	}
 
-	org, tc := s.stormForgerTestCase()
+	org, tc := s.stormForgePerfTestCase()
 	if org == "" {
-		return fmt.Errorf("missing StormForger organization")
+		return fmt.Errorf("missing StormForge Performance organization")
 	}
 
-	accessToken := s.stormForgerAccessToken(org)
+	accessToken := s.stormForgePerfAccessToken(org)
 	if accessToken == nil {
-		return fmt.Errorf("missing StormForger authorization")
+		return fmt.Errorf("missing StormForge Performance authorization")
 	}
 
 	pod := &ensureTrialJobPod(exp).Spec
@@ -79,8 +79,8 @@ func (s *StormForgerSource) Update(exp *optimizev1beta2.Experiment) error {
 		},
 	}
 
-	// The test case file can be blank, in which case it must be uploaded to StormForger ahead of time
-	if s.Scenario.StormForger.TestCaseFile != "" {
+	// The test case file can be blank, in which case it must be uploaded to StormForge ahead of time
+	if s.Scenario.StormForge.TestCaseFile != "" {
 		pod.Containers[0].VolumeMounts = append(pod.Containers[0].VolumeMounts, corev1.VolumeMount{
 			Name:      "test-case-file",
 			ReadOnly:  true,
@@ -95,7 +95,7 @@ func (s *StormForgerSource) Update(exp *optimizev1beta2.Experiment) error {
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{
-						Name: s.stormForgerConfigMapName(),
+						Name: s.stormForgePerfConfigMapName(),
 					},
 				},
 			},
@@ -109,7 +109,7 @@ func (s *StormForgerSource) Update(exp *optimizev1beta2.Experiment) error {
 	}
 	if ingressURL != "" {
 		if !strings.Contains(ingressURL, ".") {
-			return fmt.Errorf("ingress should be fully qualified when using StormForger scenarios")
+			return fmt.Errorf("ingress should be fully qualified when using StormForge scenarios")
 		}
 		pod.Containers[0].Env = append(pod.Containers[0].Env, corev1.EnvVar{Name: "TARGET", Value: ingressURL})
 	}
@@ -125,26 +125,26 @@ func (s *StormForgerSource) Update(exp *optimizev1beta2.Experiment) error {
 	return nil
 }
 
-func (s *StormForgerSource) Read() ([]*yaml.RNode, error) {
+func (s *StormForgePerformanceSource) Read() ([]*yaml.RNode, error) {
 	result := sfio.ObjectSlice{}
 
-	org, tc := s.stormForgerTestCase()
+	org, tc := s.stormForgePerfTestCase()
 
 	// If there is a test case file, create a ConfigMap for it
-	if s.Scenario.StormForger.TestCaseFile != "" {
-		data, err := loadApplicationData(s.Application, s.Scenario.StormForger.TestCaseFile)
+	if s.Scenario.StormForge.TestCaseFile != "" {
+		data, err := loadApplicationData(s.Application, s.Scenario.StormForge.TestCaseFile)
 		if err != nil {
 			return nil, err
 		}
 
 		cm := &corev1.ConfigMap{}
-		cm.Name = s.stormForgerConfigMapName()
+		cm.Name = s.stormForgePerfConfigMapName()
 		cm.Data = map[string]string{tc + ".js": string(data)}
 		result = append(result, cm)
 	}
 
 	// Include a secret with the access token, if necessary
-	if accessToken := s.stormForgerAccessToken(org); accessToken != nil {
+	if accessToken := s.stormForgePerfAccessToken(org); accessToken != nil {
 		secret := &corev1.Secret{}
 		secret.Name = accessToken.SecretKeyRef.Name
 		switch {
@@ -165,7 +165,7 @@ func (s *StormForgerSource) Read() ([]*yaml.RNode, error) {
 	return result.Read()
 }
 
-func (s *StormForgerSource) Metrics() ([]optimizev1beta2.Metric, error) {
+func (s *StormForgePerformanceSource) Metrics() ([]optimizev1beta2.Metric, error) {
 	var result []optimizev1beta2.Metric
 	if s.Objective == nil {
 		return result, nil
@@ -179,7 +179,7 @@ func (s *StormForgerSource) Metrics() ([]optimizev1beta2.Metric, error) {
 			// Do nothing
 
 		case goal.Latency != nil:
-			if l := s.stormForgerLatency(goal.Latency.LatencyType); l != "" {
+			if l := s.stormForgePerfLatency(goal.Latency.LatencyType); l != "" {
 				query := `scalar(` + l + `{job="trialRun",instance="{{ .Trial.Name }}"})`
 				result = append(result, newGoalMetric(goal, query))
 			}
@@ -195,8 +195,8 @@ func (s *StormForgerSource) Metrics() ([]optimizev1beta2.Metric, error) {
 	return result, nil
 }
 
-func (s *StormForgerSource) stormForgerTestCase() (org, name string) {
-	parts := strings.Split(s.Scenario.StormForger.TestCase, "/")
+func (s *StormForgePerformanceSource) stormForgePerfTestCase() (org, name string) {
+	parts := strings.Split(s.Scenario.StormForge.TestCase, "/")
 	if len(parts) == 2 {
 		org = parts[0]
 		name = parts[1]
@@ -204,8 +204,8 @@ func (s *StormForgerSource) stormForgerTestCase() (org, name string) {
 		name = parts[0]
 	}
 
-	if org == "" && s.Application.StormForger != nil {
-		org = s.Application.StormForger.Organization
+	if org == "" && s.Application.StormForgePerformance != nil {
+		org = s.Application.StormForgePerformance.Organization
 	}
 
 	if name == "" {
@@ -215,20 +215,20 @@ func (s *StormForgerSource) stormForgerTestCase() (org, name string) {
 	return
 }
 
-func (s *StormForgerSource) stormForgerConfigMapName() string {
+func (s *StormForgePerformanceSource) stormForgePerfConfigMapName() string {
 	return fmt.Sprintf("%s-test-case-file", s.Scenario.Name)
 }
 
-// stormForgerAccessToken returns the effective access token information.
-func (s *StormForgerSource) stormForgerAccessToken(org string) *optimizeappsv1alpha1.StormForgerAccessToken {
+// stormForgePerfAccessToken returns the effective access token information.
+func (s *StormForgePerformanceSource) stormForgePerfAccessToken(org string) *optimizeappsv1alpha1.StormForgePerformanceAccessToken {
 	// This helper function ensures we return something with a populated secret key ref
-	fixRef := func(accessToken *optimizeappsv1alpha1.StormForgerAccessToken) *optimizeappsv1alpha1.StormForgerAccessToken {
+	fixRef := func(accessToken *optimizeappsv1alpha1.StormForgePerformanceAccessToken) *optimizeappsv1alpha1.StormForgePerformanceAccessToken {
 		if accessToken.SecretKeyRef == nil {
 			accessToken.SecretKeyRef = &corev1.SecretKeySelector{}
 		}
 
 		if accessToken.SecretKeyRef.Name == "" {
-			accessToken.SecretKeyRef.Name = optimizeappsv1alpha1.StormForgerAccessTokenSecretName
+			accessToken.SecretKeyRef.Name = optimizeappsv1alpha1.StormForgePerformanceAccessTokenSecretName
 		}
 
 		if accessToken.SecretKeyRef.Key == "" {
@@ -239,15 +239,15 @@ func (s *StormForgerSource) stormForgerAccessToken(org string) *optimizeappsv1al
 	}
 
 	// Use the access token specified in the application
-	if s.Application.StormForger != nil && s.Application.StormForger.AccessToken != nil {
-		return fixRef(s.Application.StormForger.AccessToken.DeepCopy())
+	if s.Application.StormForgePerformance != nil && s.Application.StormForgePerformance.AccessToken != nil {
+		return fixRef(s.Application.StormForgePerformance.AccessToken.DeepCopy())
 	}
 
 	// If the environment variable is set, take that over the file
 	envOrg := strings.ToUpper(strings.ReplaceAll(org, "-", "_"))
 	for _, key := range []string{"STORMFORGER_" + envOrg + "_JWT", "STORMFORGER_JWT"} {
 		if tok, ok := os.LookupEnv(key); ok {
-			return fixRef(&optimizeappsv1alpha1.StormForgerAccessToken{
+			return fixRef(&optimizeappsv1alpha1.StormForgePerformanceAccessToken{
 				Literal: tok,
 			})
 		}
@@ -260,7 +260,7 @@ func (s *StormForgerSource) stormForgerAccessToken(org string) *optimizeappsv1al
 			// organizations since service accounts are associated only with a single organization
 			for _, key := range []string{org + ".jwt", "jwt"} {
 				if v := config.Get(key); v != nil {
-					return fixRef(&optimizeappsv1alpha1.StormForgerAccessToken{
+					return fixRef(&optimizeappsv1alpha1.StormForgePerformanceAccessToken{
 						Literal: v.(string),
 					})
 				}
@@ -271,7 +271,7 @@ func (s *StormForgerSource) stormForgerAccessToken(org string) *optimizeappsv1al
 	return nil
 }
 
-func (s *StormForgerSource) stormForgerLatency(lt optimizeappsv1alpha1.LatencyType) string {
+func (s *StormForgePerformanceSource) stormForgePerfLatency(lt optimizeappsv1alpha1.LatencyType) string {
 	switch optimizeappsv1alpha1.FixLatency(lt) {
 	case optimizeappsv1alpha1.LatencyMinimum:
 		return "min"

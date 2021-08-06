@@ -37,29 +37,29 @@ func TestScenario_Default(t *testing.T) {
 			},
 		},
 		{
-			desc: "stormforger testcase",
+			desc: "stormforge testcase",
 			scenario: Scenario{
-				StormForger: &StormForgerScenario{
+				StormForge: &StormForgeScenario{
 					TestCase: "testCase",
 				},
 			},
 			expected: Scenario{
 				Name: "testcase",
-				StormForger: &StormForgerScenario{
+				StormForge: &StormForgeScenario{
 					TestCase: "testCase",
 				},
 			},
 		},
 		{
-			desc: "stormforger testcasefile",
+			desc: "stormforge testcasefile",
 			scenario: Scenario{
-				StormForger: &StormForgerScenario{
+				StormForge: &StormForgeScenario{
 					TestCaseFile: "./cases/testCaseFile.js",
 				},
 			},
 			expected: Scenario{
 				Name: "testcasefile",
-				StormForger: &StormForgerScenario{
+				StormForge: &StormForgeScenario{
 					TestCaseFile: "./cases/testCaseFile.js",
 				},
 			},

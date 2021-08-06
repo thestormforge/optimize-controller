@@ -116,35 +116,35 @@ func (g *Generator) Execute(output kio.Writer) error {
 func (g *Generator) selectors() []scan.Selector {
 	var result []scan.Selector
 
-	for i := range g.Application.Parameters {
+	for i := range g.Application.Configuration {
 		switch {
 
-		case g.Application.Parameters[i].ContainerResources != nil:
+		case g.Application.Configuration[i].ContainerResources != nil:
 			result = append(result, &generation.ContainerResourcesSelector{
 				GenericSelector: scan.GenericSelector{
-					LabelSelector: g.Application.Parameters[i].ContainerResources.Selector,
+					LabelSelector: g.Application.Configuration[i].ContainerResources.Selector,
 				},
-				Resources:          g.Application.Parameters[i].ContainerResources.Resources,
+				Resources:          g.Application.Configuration[i].ContainerResources.Resources,
 				CreateIfNotPresent: true,
 			})
 
-		case g.Application.Parameters[i].Replicas != nil:
+		case g.Application.Configuration[i].Replicas != nil:
 			result = append(result, &generation.ReplicaSelector{
 				GenericSelector: scan.GenericSelector{
-					LabelSelector: g.Application.Parameters[i].Replicas.Selector,
+					LabelSelector: g.Application.Configuration[i].Replicas.Selector,
 				},
 				CreateIfNotPresent: true,
 			})
 
-		case g.Application.Parameters[i].EnvironmentVariable != nil:
+		case g.Application.Configuration[i].EnvironmentVariable != nil:
 			result = append(result, &generation.EnvironmentVariablesSelector{
 				GenericSelector: scan.GenericSelector{
-					LabelSelector: g.Application.Parameters[i].EnvironmentVariable.Selector,
+					LabelSelector: g.Application.Configuration[i].EnvironmentVariable.Selector,
 				},
-				VariableName: g.Application.Parameters[i].EnvironmentVariable.Name,
-				ValuePrefix:  g.Application.Parameters[i].EnvironmentVariable.Prefix,
-				ValueSuffix:  g.Application.Parameters[i].EnvironmentVariable.Suffix,
-				Values:       g.Application.Parameters[i].EnvironmentVariable.Values,
+				VariableName: g.Application.Configuration[i].EnvironmentVariable.Name,
+				ValuePrefix:  g.Application.Configuration[i].EnvironmentVariable.Prefix,
+				ValueSuffix:  g.Application.Configuration[i].EnvironmentVariable.Suffix,
+				Values:       g.Application.Configuration[i].EnvironmentVariable.Values,
 			})
 		}
 
