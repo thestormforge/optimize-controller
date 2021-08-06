@@ -121,6 +121,19 @@ Reference: https://docs.stormforge.io/reference/application/v1alpha1/#ingress
       name: stormforger-service-accounts
       key: myorg`,
 	}
+
+	// Required is a map of field name to required preceding field name.
+	// This is used to ensure even empty (and otherwise omitted) fields can be
+	// included for documentation purposes.
+	required = map[string]string{
+		"resources":   "",
+		"parameters":  "resources",
+		"ingress":     "parameters",
+		"scenarios":   "ingress",
+		"objectives":  "scenarios",
+		"stormForger": "objectives",
+		"":            "stormForger",
+	}
 )
 
 // DocumentationFilter looks for Application instances and attempts to annotate them
@@ -163,29 +176,16 @@ func (f *DocumentationFilter) annotateApplication(app *yaml.RNode) error {
 		n.HeadComment = strings.Join(os.Args, " ")
 	}
 
-	// Required is a map of field name to required preceding field name.
-	// This is used to ensure even empty (and otherwise omitted) fields can be
-	// included for documentation purposes.
-	required := map[string]string{
-		"resources":   "",
-		"parameters":  "resources",
-		"ingress":     "parameters",
-		"scenarios":   "ingress",
-		"objectives":  "scenarios",
-		"stormForger": "objectives",
-		"":            "stormForger",
-	}
-
 	// Each key and value are elements in the content list, iterate over even indices
 	var content []*yaml.Node
 	for i := 0; i < len(n.Content); i = yaml.IncrementFieldIndex(i) {
 		n.Content[i].HeadComment = headComments[n.Content[i].Value]
-		content = append(content, missingRequiredContent(n.Content[i].Value, required)...)
+		content = append(content, missingRequiredContent(n.Content[i].Value)...)
 		content = append(content, n.Content[i], n.Content[i+1])
 	}
 
 	// Make sure all the required content has been produced
-	n.Content = append(content, missingRequiredContent("", required)...)
+	n.Content = append(content, missingRequiredContent("")...)
 
 	return nil
 }
@@ -195,7 +195,7 @@ func (f *DocumentationFilter) annotateApplication(app *yaml.RNode) error {
 // to track which fields have already been encountered and which fields must precede
 // the current field (identified by "key"). The resulting list of nodes are suitable
 // for inclusion in the content of a mapping node.
-func missingRequiredContent(key string, required map[string]string) []*yaml.Node {
+func missingRequiredContent(key string) []*yaml.Node {
 	// As soon as we encounter a key, remove it so it does not get double added
 	for k, v := range required {
 		if v == key {
@@ -211,7 +211,7 @@ func missingRequiredContent(key string, required map[string]string) []*yaml.Node
 
 	// Recursively include missing content first
 	var result []*yaml.Node
-	result = append(result, missingRequiredContent(req, required)...)
+	result = append(result, missingRequiredContent(req)...)
 
 	// Add field name with the appropriate head comment
 	result = append(result, &yaml.Node{
