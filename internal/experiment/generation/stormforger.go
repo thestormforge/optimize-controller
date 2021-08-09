@@ -235,6 +235,10 @@ func (s *StormForgerSource) stormForgerAccessToken(org string) *optimizeappsv1al
 			accessToken.SecretKeyRef.Key = org
 		}
 
+		if accessToken.Literal != "" {
+			accessToken.Literal = strings.TrimSuffix(accessToken.Literal, "\n")
+		}
+
 		return accessToken
 	}
 
