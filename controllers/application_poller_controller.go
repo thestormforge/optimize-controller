@@ -17,7 +17,6 @@ limitations under the License.
 package controllers
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -29,14 +28,13 @@ import (
 	"github.com/thestormforge/optimize-controller/v2/internal/experiment"
 	"github.com/thestormforge/optimize-controller/v2/internal/scan"
 	"github.com/thestormforge/optimize-controller/v2/internal/server"
+	"github.com/thestormforge/optimize-controller/v2/internal/sfio"
 	"github.com/thestormforge/optimize-go/pkg/api"
 	applications "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
-	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/types"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/kustomize/kyaml/kio"
-	"sigs.k8s.io/yaml"
 )
 
 type Poller struct {
@@ -65,7 +63,9 @@ func NewPoller(kclient client.Client, logger logr.Logger) (*Poller, error) {
 }
 
 func (p *Poller) Start(ch <-chan struct{}) error {
+	p.log.Info("Starting application poller")
 	if p.apiClient == nil {
+		<-ch
 		return nil
 	}
 
@@ -87,10 +87,33 @@ func (p *Poller) Start(ch <-chan struct{}) error {
 		case <-ch:
 			return nil
 		case activity := <-activityCh:
+			// We'll skip any janky activities that may come through
+			// TODO we should figure out the why for this
+			if activity.ID == "" {
+				continue
+			}
+
 			p.handleActivity(ctx, activity)
 		}
 	}
 }
+
+// +kubebuilder:rbac:groups=optimize.stormforge.io,resources=experiments,verbs=get;list;watch;create
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=get;list;create;update;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;create;update;delete
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;create;update;delete;watch
+// +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;create;update
+// +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;create;update;delete
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;create;update;delete
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;create;update
+//
+// For prom rbac
+// +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=nodes/metrics,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=nodes/proxy,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=pods,verbs=watch
+// +kubebuilder:rbac:groups="",resources=services,verbs=get;create;delete;list;watch
+// +kubebuilder:rbac:groups="",resources=services,verbs=get;create;delete;list;watch
 
 func (p *Poller) handleActivity(ctx context.Context, activity applications.ActivityItem) {
 	// We always want to delete the activity after having received it
@@ -138,14 +161,21 @@ func (p *Poller) handleActivity(ctx context.Context, activity applications.Activ
 		return
 	}
 
-	assembledBytes, err := p.generateApp(*assembledApp)
+	generatedResources, err := p.generateApp(*assembledApp)
 	if err != nil {
 		p.handleErrors(ctx, fmt.Errorf("%s (%s): %w", "failed to generate application", activity.URL, err), activity.URL)
 		return
 	}
 
-	exp := &optimizev1beta2.Experiment{}
-	if err := yaml.Unmarshal(assembledBytes, exp); err != nil {
+	var exp *optimizev1beta2.Experiment
+	for i := range generatedResources {
+		if expObj, ok := generatedResources[i].(*optimizev1beta2.Experiment); ok {
+			exp = expObj
+			break
+		}
+	}
+
+	if exp == nil {
 		p.handleErrors(ctx, fmt.Errorf("%s: %w", "invalid experiment generated", err), activity.URL)
 		return
 	}
@@ -182,34 +212,42 @@ func (p *Poller) handleActivity(ctx context.Context, activity applications.Activ
 		// At this point the experiment should be good to create/deploy/run
 		// so let's create all the resources and #profit
 
-		// Create additional RBAC ( primarily for setup task )
-		if err = p.createServiceAccount(ctx, assembledBytes); err != nil {
-			p.handleErrors(ctx, err, activity.URL)
-			return
+		// TODO
+		// try to clean up on failure ( might be a simple / blind p.client.Delete(ctx,generatedResources[i])
+		for i := range generatedResources {
+			// TODO generatedResource ( experiment ) does not contain the namespace
+			// not sure why yet
+			objKey, err := client.ObjectKeyFromObject(generatedResources[i])
+			if err != nil {
+				p.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to get object key", err), activity.URL)
+				return
+			}
+
+			holder := &unstructured.Unstructured{}
+			holder.SetGroupVersionKind(generatedResources[i].GetObjectKind().GroupVersionKind())
+			err = p.client.Get(ctx, objKey, holder)
+			switch {
+			case apierrors.IsNotFound(err):
+				if err := p.client.Create(ctx, generatedResources[i]); err != nil {
+					p.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to create object", err), activity.URL)
+					return
+				}
+			case err == nil:
+				// TODO This might need to be a patch instead of an update
+				// {"error":"failed to update object: experiments.optimize.stormforge.io \"01fcj078y60j74m11tnm7ga0yw-2a1d7d90\" is invalid: metadata.resourceVersion: Invalid value: 0x0: must be specified for an update"}
+				if err := p.client.Update(ctx, generatedResources[i]); err != nil {
+					p.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to update object", err), activity.URL)
+					return
+				}
+			default:
+				// Assume this should be a hard error
+				p.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to get object", err), activity.URL)
+				return
+			}
 		}
 
-		if err = p.createClusterRole(ctx, assembledBytes); err != nil {
-			p.handleErrors(ctx, err, activity.URL)
-			return
-		}
-
-		if err = p.createClusterRoleBinding(ctx, assembledBytes); err != nil {
-			p.handleErrors(ctx, err, activity.URL)
-			return
-		}
-
-		// Create configmap for load test
-		if err = p.createConfigMap(ctx, assembledBytes); err != nil {
-			p.handleErrors(ctx, err, activity.URL)
-			return
-		}
-
-		if err = p.createExperiment(ctx, exp); err != nil {
-			p.handleErrors(ctx, err, activity.URL)
-			return
-		}
+		p.log.Info("successfully created in cluster resources", "activity", activity.URL)
 	}
-
 }
 
 func (p *Poller) handleErrors(ctx context.Context, err error, activityURL string) {
@@ -220,9 +258,14 @@ func (p *Poller) handleErrors(ctx context.Context, err error, activityURL string
 	}
 }
 
-func (p *Poller) generateApp(app optimizeappsv1alpha1.Application) ([]byte, error) {
+func (p *Poller) generateApp(app optimizeappsv1alpha1.Application) ([]runtime.Object, error) {
 	// Set defaults for application
 	app.Default()
+
+	// TODO hack from above issue ( missing namespace )
+	if app.Namespace == "" {
+		app.Namespace = "default"
+	}
 
 	g := &experiment.Generator{
 		Application: app,
@@ -231,97 +274,15 @@ func (p *Poller) generateApp(app optimizeappsv1alpha1.Application) ([]byte, erro
 		},
 	}
 
-	var output bytes.Buffer
-	if err := g.Execute(kio.ByteWriter{Writer: &output}); err != nil {
+	objList := sfio.ObjectList{}
+	if err := g.Execute(&objList); err != nil {
 		return nil, fmt.Errorf("%s: %w", "failed to generate experiment", err)
 	}
 
-	return output.Bytes(), nil
-
-}
-
-func (p *Poller) createServiceAccount(ctx context.Context, data []byte) error {
-	serviceAccount := &corev1.ServiceAccount{}
-	if err := yaml.Unmarshal(data, serviceAccount); err != nil {
-		return fmt.Errorf("%s: %w", "invalid service account", err)
+	runtimeObjs := make([]runtime.Object, 0, len(objList.Items))
+	for i := range objList.Items {
+		runtimeObjs = append(runtimeObjs, objList.Items[i].Object)
 	}
 
-	// Only create the service account if it does not exist
-	existingServiceAccount := &corev1.ServiceAccount{}
-	if err := p.client.Get(ctx, types.NamespacedName{Name: serviceAccount.Name, Namespace: serviceAccount.Namespace}, existingServiceAccount); err != nil {
-		if err := p.client.Create(ctx, serviceAccount); err != nil {
-			return fmt.Errorf("%s: %w", "failed to create service account", err)
-		}
-	}
-
-	return nil
-}
-
-func (p *Poller) createClusterRole(ctx context.Context, data []byte) error {
-	clusterRole := &rbacv1.ClusterRole{}
-	if err := yaml.Unmarshal(data, clusterRole); err != nil {
-		return fmt.Errorf("%s: %w", "invalid cluster role", err)
-	}
-
-	// Only create the service account if it does not exist
-	existingClusterRole := &rbacv1.ClusterRole{}
-	if err := p.client.Get(ctx, types.NamespacedName{Name: clusterRole.Name, Namespace: clusterRole.Namespace}, existingClusterRole); err != nil {
-		if err := p.client.Create(ctx, clusterRole); err != nil {
-			return fmt.Errorf("%s: %w", "failed to create clusterRole", err)
-		}
-	}
-
-	return nil
-}
-
-func (p *Poller) createClusterRoleBinding(ctx context.Context, data []byte) error {
-	clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
-	if err := yaml.Unmarshal(data, clusterRoleBinding); err != nil {
-		return fmt.Errorf("%s: %w", "invalid cluster role binding", err)
-	}
-
-	existingClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
-	if err := p.client.Get(ctx, types.NamespacedName{Name: clusterRoleBinding.Name, Namespace: clusterRoleBinding.Namespace}, existingClusterRoleBinding); err != nil {
-		if err := p.client.Create(ctx, clusterRoleBinding); err != nil {
-			return fmt.Errorf("%s: %w", "failed to create cluster role binding", err)
-		}
-	}
-
-	return nil
-}
-
-func (p *Poller) createConfigMap(ctx context.Context, data []byte) error {
-	configMap := &corev1.ConfigMap{}
-	if err := yaml.Unmarshal(data, configMap); err != nil {
-		return fmt.Errorf("%s: %w", "invalid config map", err)
-	}
-
-	existingConfigMap := &corev1.ConfigMap{}
-	if err := p.client.Get(ctx, types.NamespacedName{Name: configMap.Name, Namespace: configMap.Namespace}, existingConfigMap); err != nil {
-		if err := p.client.Create(ctx, configMap); err != nil {
-			return fmt.Errorf("%s: %w", "failed to create config map", err)
-		}
-	} else {
-		if err := p.client.Update(ctx, configMap); err != nil {
-			return fmt.Errorf("%s: %w", "failed to update config map", err)
-		}
-	}
-
-	return nil
-}
-
-func (p *Poller) createExperiment(ctx context.Context, exp *optimizev1beta2.Experiment) error {
-	existingExperiment := &optimizev1beta2.Experiment{}
-	if err := p.client.Get(ctx, types.NamespacedName{Name: exp.Name, Namespace: exp.Namespace}, existingExperiment); err != nil {
-		if err := p.client.Create(ctx, exp); err != nil {
-			return fmt.Errorf("%s: %w", "unable to create experiment in cluster", err)
-		}
-	} else {
-		// Update the experiment ( primarily to set replicas from 0 -> 1 )
-		if err := p.client.Update(ctx, exp); err != nil {
-			return fmt.Errorf("%s: %w", "unable to start experiment", err)
-		}
-	}
-
-	return nil
+	return runtimeObjs, nil
 }

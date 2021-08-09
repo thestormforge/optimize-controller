@@ -25,11 +25,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-logr/zapr"
 	"github.com/stretchr/testify/assert"
 	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
 	redskyv1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-go/pkg/api"
 	applications "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
+	"go.uber.org/zap"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -128,8 +130,8 @@ func TestPoller(t *testing.T) {
 				failureCh:        make(chan applications.ActivityFailure),
 			}
 			poller := &Poller{
-				client: client,
-				//	apiClient:     applications.NewAPI(c),
+				client:        client,
+				log:           zapr.NewLogger(zap.NewNop()),
 				apiClient:     fapi,
 				kubectlExecFn: fakeKubectlExec,
 			}
