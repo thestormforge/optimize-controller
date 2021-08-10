@@ -1,0 +1,39 @@
+apiVersion: optimize.stormforge.io/v1beta2
+kind: Trial
+metadata:
+  name: experiment-sample-001
+  labels:
+    stormforge.io/experiment: experiment-sample
+    stormforge.io/application: my-app
+    stormforge.io/scenario: black-friday
+  annotations:
+    documentation: |-
+      A trial object will be created automatically for every set of
+      parameter assignments based on the `trialTemplate` configured
+      on the Experiment. The trial objects can be used to track the
+      progress of your experiments as it runs in the cluster.
+
+      As a user, you only need to configure your trial specification
+      on the Experiment.
+spec:
+  initialDelaySeconds: 5
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: black-friday
+            image: my-load-test:latest
+            args:
+            - --testCase=black-friday
+            env:
+            - name: LOAD_TEST_URL
+              value: http://my-app/
+  assignments:
+  - name: cpu
+    value: 1000
+  - name: memory
+    value: 2048
+status:
+  phase: Created
+  assignments: 'cpu=1000, memory=2048'

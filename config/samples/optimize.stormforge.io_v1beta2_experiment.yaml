@@ -1,0 +1,60 @@
+apiVersion: optimize.stormforge.io/v1beta2
+kind: Experiment
+metadata:
+  name: experiment-sample
+  labels:
+    stormforge.io/application: my-app
+    stormforge.io/scenario: black-friday
+spec:
+  parameters:
+  - name: cpu
+    baseline: 1000
+    min: 500
+    max: 2000
+  - name: memory
+    baseline: 2048
+    min: 1024
+    max: 4096
+  metrics:
+  - name: duration
+    minimize: true
+    query: "{{ duration .StartTime .CompletionTime }}"
+  - name: resource_requests
+    minimize: true
+    query: '{{ resourceRequests .Target "cpu=0.017,memory=0.000000000003" }}'
+    target:
+      apiVersion: v1
+      kind: PodList
+  patches:
+  - targetRef:
+      name: my-app
+      apiVersion: apps/v1
+      kind: Deployment
+    patch: |
+      spec:
+        template:
+          spec:
+            containers:
+            - name: postgres
+              resources:
+                limits:
+                  cpu: '{{ .Values.cpu }}m'
+                  memory: '{{ .Values.memory }}Mi'
+                requests:
+                  cpu: '{{ .Values.cpu }}m'
+                  memory: '{{ .Values.memory }}Mi'
+  trialTemplate:
+    spec:
+      initialDelaySeconds: 5
+      jobTemplate:
+        spec:
+          template:
+            spec:
+              containers:
+              - name: black-friday
+                image: my-load-test:latest
+                args:
+                - --testCase=black-friday
+                env:
+                - name: LOAD_TEST_URL
+                  value: http://my-app/
