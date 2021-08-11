@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -168,11 +167,8 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 		expAPI, err := server.NewExperimentAPI(context.Background(), comment)
 		if err != nil {
-			if authErr := errors.Unwrap(err); api.IsUnauthorized(authErr) {
-				r.Log.Info(err.Error())
-				return nil
-			}
-			return err
+			r.Log.Info("Experiments API is unavailable, skipping setup", "message", err.Error())
+			return nil
 		}
 
 		r.ExperimentsAPI = expAPI
