@@ -235,6 +235,10 @@ func (s *StormForgePerformanceSource) stormForgePerfAccessToken(org string) *opt
 			accessToken.SecretKeyRef.Key = org
 		}
 
+		if accessToken.Literal != "" {
+			accessToken.Literal = strings.TrimSuffix(accessToken.Literal, "\n")
+		}
+
 		return accessToken
 	}
 
