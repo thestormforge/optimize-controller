@@ -19,7 +19,6 @@ package generation
 import (
 	"crypto/md5"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -92,5 +91,5 @@ func loadApplicationData(app *optimizeappsv1alpha1.Application, src string) ([]b
 		return nil, fmt.Errorf("unable to load file: %w", err)
 	}
 
-	return ioutil.ReadFile(dst)
+	return os.ReadFile(dst)
 }

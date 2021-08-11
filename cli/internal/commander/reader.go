@@ -19,7 +19,6 @@ package commander
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -74,7 +73,7 @@ func (r *ResourceReader) ReadInto(reader io.ReadCloser, target runtime.Object) e
 
 	// Read in the raw bytes
 	defer func() { _ = reader.Close() }()
-	data, err := ioutil.ReadAll(reader)
+	data, err := io.ReadAll(reader)
 	if err != nil {
 		return err
 	}

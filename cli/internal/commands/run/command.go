@@ -22,7 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -328,10 +328,10 @@ func (o *Options) refreshTrialsTick() tea.Cmd {
 // All the tea.Cmd functions are above, helpers are below
 // =============================================================================
 
-// discard is an IOStreams equivalent of ioutil.Discard for combined output.
+// discard is an IOStreams equivalent of io.Discard for combined output.
 var discard = commander.IOStreams{
-	Out:    ioutil.Discard,
-	ErrOut: ioutil.Discard,
+	Out:    io.Discard,
+	ErrOut: io.Discard,
 }
 
 // hideKubernetesNamespace is used to filter the list of namespaces to display

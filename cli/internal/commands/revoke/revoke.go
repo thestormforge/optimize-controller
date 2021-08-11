@@ -21,7 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"github.com/spf13/cobra"
@@ -105,7 +105,7 @@ func revokeToken(ctx context.Context, endpoint, clientID, refreshToken string) e
 		return err
 	}
 
-	_, err = ioutil.ReadAll(resp.Body)
+	_, err = io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 	if err != nil {
 		return fmt.Errorf("cannot read revocation response: %v", err)

@@ -21,7 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"path/filepath"
 	"strings"
 
@@ -137,7 +137,7 @@ func (o *Options) readInput() error {
 		}
 		defer r.Close()
 
-		data, err := ioutil.ReadAll(r)
+		data, err := io.ReadAll(r)
 		if err != nil {
 			return err
 		}
@@ -202,7 +202,7 @@ func (o *Options) extractApplication(trial *trialDetails) error {
 
 	o.application = &optimizeappsv1alpha1.Application{}
 
-	return commander.NewResourceReader().ReadInto(ioutil.NopCloser(&appBuf), o.application)
+	return commander.NewResourceReader().ReadInto(io.NopCloser(&appBuf), o.application)
 }
 
 func (o *Options) extractExperiment(trial *trialDetails) error {
@@ -225,7 +225,7 @@ func (o *Options) extractExperiment(trial *trialDetails) error {
 
 	o.experiment = &optimizev1beta2.Experiment{}
 
-	return commander.NewResourceReader().ReadInto(ioutil.NopCloser(&experimentBuf), o.experiment)
+	return commander.NewResourceReader().ReadInto(io.NopCloser(&experimentBuf), o.experiment)
 }
 
 // filter returns a filter function to exctract a specified `kind` from the input.

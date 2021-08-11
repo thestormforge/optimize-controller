@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -60,7 +59,7 @@ type IOStreams struct {
 // empty (i.e. "-"), the input stream is returned.
 func (s *IOStreams) OpenFile(filename string) (io.ReadCloser, error) {
 	if filename == "-" {
-		return ioutil.NopCloser(s.In), nil
+		return io.NopCloser(s.In), nil
 	}
 	return os.Open(filename)
 }
