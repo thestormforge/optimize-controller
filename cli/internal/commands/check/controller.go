@@ -19,7 +19,7 @@ package check
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -128,7 +128,7 @@ func (o *ControllerOptions) CheckController(ctx context.Context) error {
 		return err
 	}
 
-	kubewait.Stdout = ioutil.Discard
+	kubewait.Stdout = io.Discard
 	if err := kubewait.Run(); err != nil {
 		return fmt.Errorf("could not wait for controller pods: %w", err)
 	}
