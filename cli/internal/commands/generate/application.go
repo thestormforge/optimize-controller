@@ -43,6 +43,7 @@ func NewApplicationCommand(o *ApplicationOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "application",
 		Aliases: []string{"app"},
+		Args:    cobra.ExactArgs(0),
 		Short:   "Generate an application",
 		Long:    "Generate an application descriptor",
 		Hidden:  true, // Application descriptor use is deprecated

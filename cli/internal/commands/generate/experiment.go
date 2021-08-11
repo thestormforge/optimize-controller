@@ -51,6 +51,7 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "experiment",
 		Aliases: []string{"exp"},
+		Args:    cobra.ExactArgs(0),
 		Short:   "Generate an experiment",
 		Long:    "Generate an experiment from an application descriptor",
 		Hidden:  true, // Application descriptor use is deprecated
