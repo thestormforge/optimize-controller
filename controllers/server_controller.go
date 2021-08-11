@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -165,12 +166,16 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			}
 		}
 
-		api, err := server.NewExperimentAPI(context.Background(), comment)
+		expAPI, err := server.NewExperimentAPI(context.Background(), comment)
 		if err != nil {
+			if authErr := errors.Unwrap(err); api.IsUnauthorized(authErr) {
+				r.Log.Info(err.Error())
+				return nil
+			}
 			return err
 		}
 
-		r.ExperimentsAPI = api
+		r.ExperimentsAPI = expAPI
 	}
 
 	// Enforce trial creation rate limit (no burst! that is the whole point)

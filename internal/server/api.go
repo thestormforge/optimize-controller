@@ -46,7 +46,7 @@ func NewExperimentAPI(ctx context.Context, uaComment string) (experimentsv1alpha
 
 	// An unauthorized error means we will never be able to connect without changing the credentials and restarting
 	if _, err := expAPI.Options(ctx); api.IsUnauthorized(err) {
-		return nil, fmt.Errorf("experiments API is unavailable, skipping setup: %s", err.Error())
+		return nil, fmt.Errorf("experiments API is unavailable, skipping setup: %w", err)
 	}
 
 	return expAPI, nil
