@@ -27,8 +27,8 @@ func TestFixRef(t *testing.T) {
 			os.Setenv("STORMFORGER_TESTTESTTEST_JWT", tc.data)
 			defer os.Unsetenv("STORMFORGER_TESTTESTTEST_JWT")
 
-			s := &StormForgerSource{Application: &optimizeappsv1alpha1.Application{}}
-			token := s.stormForgerAccessToken("TESTTESTTEST")
+			s := &StormForgePerformanceSource{Application: &optimizeappsv1alpha1.Application{}}
+			token := s.stormForgePerfAccessToken("TESTTESTTEST")
 
 			assert.Equal(t, tc.expected, token.Literal)
 		})

@@ -223,6 +223,9 @@ func (s *StormForgePerformanceSource) stormForgePerfConfigMapName() string {
 func (s *StormForgePerformanceSource) stormForgePerfAccessToken(org string) *optimizeappsv1alpha1.StormForgePerformanceAccessToken {
 	// This helper function ensures we return something with a populated secret key ref
 	fixRef := func(accessToken *optimizeappsv1alpha1.StormForgePerformanceAccessToken) *optimizeappsv1alpha1.StormForgePerformanceAccessToken {
+		accessToken.File = strings.TrimSpace(accessToken.File)
+		accessToken.Literal = strings.TrimSpace(accessToken.Literal)
+
 		if accessToken.SecretKeyRef == nil {
 			accessToken.SecretKeyRef = &corev1.SecretKeySelector{}
 		}
@@ -233,10 +236,6 @@ func (s *StormForgePerformanceSource) stormForgePerfAccessToken(org string) *opt
 
 		if accessToken.SecretKeyRef.Key == "" {
 			accessToken.SecretKeyRef.Key = org
-		}
-
-		if accessToken.Literal != "" {
-			accessToken.Literal = strings.TrimSuffix(accessToken.Literal, "\n")
 		}
 
 		return accessToken
