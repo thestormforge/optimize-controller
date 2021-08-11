@@ -45,9 +45,7 @@ func NewApplicationCommand(o *ApplicationOptions) *cobra.Command {
 		Aliases: []string{"app"},
 		Short:   "Generate an application",
 		Long:    "Generate an application descriptor",
-
-		Deprecated: "Application descriptor use is deprecated",
-		Hidden:     true,
+		Hidden:  true, // Application descriptor use is deprecated
 
 		PreRunE: func(cmd *cobra.Command, args []string) (err error) {
 			commander.SetStreams(&o.IOStreams, cmd)

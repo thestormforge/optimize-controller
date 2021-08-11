@@ -53,9 +53,7 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 		Aliases: []string{"exp"},
 		Short:   "Generate an experiment",
 		Long:    "Generate an experiment from an application descriptor",
-
-		Deprecated: "Application descriptor use is deprecated",
-		Hidden:     true,
+		Hidden:  true, // Application descriptor use is deprecated
 
 		PreRun: func(cmd *cobra.Command, args []string) {
 			commander.SetStreams(&o.IOStreams, cmd)
