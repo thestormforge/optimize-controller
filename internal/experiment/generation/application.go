@@ -47,8 +47,8 @@ func (s *ApplicationSelector) Map(*yaml.RNode, yaml.ResourceMeta) ([]interface{}
 
 	if s.Scenario != nil {
 		switch {
-		case s.Scenario.StormForger != nil:
-			result = append(result, &StormForgerSource{Scenario: s.Scenario, Objective: s.Objective, Application: s.Application})
+		case s.Scenario.StormForge != nil:
+			result = append(result, &StormForgePerformanceSource{Scenario: s.Scenario, Objective: s.Objective, Application: s.Application})
 		case s.Scenario.Locust != nil:
 			result = append(result, &LocustSource{Scenario: s.Scenario, Objective: s.Objective, Application: s.Application})
 		case s.Scenario.Custom != nil:

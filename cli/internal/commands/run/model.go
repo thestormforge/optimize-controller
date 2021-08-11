@@ -124,12 +124,12 @@ func (m initializationModel) Update(msg tea.Msg) (initializationModel, tea.Cmd) 
 
 // generatorModel holds the inputs for values on the generator.
 type generatorModel struct {
-	ScenarioType              form.ChoiceField
-	StormForgerTestCaseInput  form.ChoiceField
-	StormForgerGettingStarted form.ExitField
-	LocustfileInput           form.TextField
-	CustomImage               form.TextField
-	CustomPushGateway         form.ChoiceField
+	ScenarioType             form.ChoiceField
+	StormForgeTestCaseInput  form.ChoiceField
+	StormForgeGettingStarted form.ExitField
+	LocustfileInput          form.TextField
+	CustomImage              form.TextField
+	CustomPushGateway        form.ChoiceField
 
 	NamespaceInput        form.MultiChoiceField
 	LabelSelectorInputs   []form.TextField
@@ -147,9 +147,9 @@ func (m generatorModel) Update(msg tea.Msg) (generatorModel, tea.Cmd) {
 	var cmds []tea.Cmd
 	switch msg := msg.(type) {
 
-	case internal.StormForgerTestCasesMsg:
-		m.StormForgerTestCaseInput.Choices = msg
-		m.StormForgerTestCaseInput.SelectOnly()
+	case internal.StormForgeTestCasesMsg:
+		m.StormForgeTestCaseInput.Choices = msg
+		m.StormForgeTestCaseInput.SelectOnly()
 
 	case internal.KubernetesNamespacesMsg:
 		m.NamespaceInput.Choices = msg
@@ -174,10 +174,10 @@ func (m generatorModel) Update(msg tea.Msg) (generatorModel, tea.Cmd) {
 	m.ScenarioType, cmd = m.ScenarioType.Update(msg)
 	cmds = append(cmds, cmd)
 
-	m.StormForgerTestCaseInput, cmd = m.StormForgerTestCaseInput.Update(msg)
+	m.StormForgeTestCaseInput, cmd = m.StormForgeTestCaseInput.Update(msg)
 	cmds = append(cmds, cmd)
 
-	m.StormForgerGettingStarted, cmd = m.StormForgerGettingStarted.Update(msg)
+	m.StormForgeGettingStarted, cmd = m.StormForgeGettingStarted.Update(msg)
 	cmds = append(cmds, cmd)
 
 	m.LocustfileInput, cmd = m.LocustfileInput.Update(msg)
@@ -216,8 +216,8 @@ func (m generatorModel) Update(msg tea.Msg) (generatorModel, tea.Cmd) {
 func (m *generatorModel) form() form.Fields {
 	var fields form.Fields
 	fields = append(fields, &m.ScenarioType)
-	fields = append(fields, &m.StormForgerTestCaseInput)
-	fields = append(fields, &m.StormForgerGettingStarted)
+	fields = append(fields, &m.StormForgeTestCaseInput)
+	fields = append(fields, &m.StormForgeGettingStarted)
 	fields = append(fields, &m.LocustfileInput)
 	fields = append(fields, &m.CustomImage)
 	fields = append(fields, &m.CustomPushGateway)

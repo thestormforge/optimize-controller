@@ -37,8 +37,8 @@ or Helm charts.
 # Reference: https://docs.stormforge.io/reference/application/v1alpha1/#application
 `,
 
-		"parameters": `
-Parameters are what our machine learning tunes in order to optimize your
+		"configuration": `
+Configuration is what our machine learning tunes in order to optimize your
 application settings. You can optionally filter where to discover parameters by
 using the selector (the default selector is "").
 Reference: https://docs.stormforge.io/reference/application/v1alpha1/#parameters
@@ -58,10 +58,10 @@ for example: "p95-latency".
 Reference: https://docs.stormforge.io/reference/application/v1alpha1/#objective
 `,
 
-		"stormForger": `
-StormForger contains additional configuration information to set up StormForge
-performance tests. This is only needed when using StormForger scenarios.
-Reference: https://docs.stormforge.io/reference/application/v1alpha1/#stormforger
+		"stormforge-perf-config": `
+StormForge Performance specific configuration information to set up StormForge
+Performance tests. This is only needed when using StormForge scenarios.
+Reference: https://docs.stormforge.io/reference/application/v1alpha1/#stormforge-perf-config
 `,
 
 		"ingress": `
@@ -85,7 +85,7 @@ Reference: https://docs.stormforge.io/reference/application/v1alpha1/#ingress
     chart: nginx
     version: 8.5.4`,
 
-		"parameters": `- containerResources:
+		"configuration": `- containerResources:
     selector: component=postgres # Filters to only discover container resources (memory and CPU) for the specified labels
 - replicas:
     selector: component=postgres # Filters to only discover replicas for the specified labels`,
@@ -93,14 +93,14 @@ Reference: https://docs.stormforge.io/reference/application/v1alpha1/#ingress
 		"ingress": "url: https://localhost # Specifies the entrypoint for your application.",
 
 		"scenarios": `- name: cybermonday # StormForge Performance Test example
-  stormforger:
+  stormforge-perf:
     testCaseFile: foobar.js # You can alternatively specify just the test case name if you provide the access token
 - name: just-another-tuesday # Locust example
   locust:
     locustfile: foobar.py # Can be local or a URL`,
 
 		"objectives": `- goals:
-  # StormForger Metrics: https://github.com/thestormforge/optimize-trials/tree/main/stormforger
+  # StormForge Metrics: https://github.com/thestormforge/optimize-trials/tree/main/stormforge
   # Locust Metrics: https://github.com/thestormforge/optimize-trials/tree/main/locust
   - name: cost
     requests:
@@ -113,13 +113,26 @@ Reference: https://docs.stormforge.io/reference/application/v1alpha1/#ingress
   - latency: p99
     optimize: false # Reports on the metric while not explicitly optimizing for them`,
 
-		"stormForger": `org: myorg # The StormForger organization to use for performance testing
+		"stormforge-perf-config": `org: myorg # The StormForge Performance organization to use for performance testing
   accessToken:
-    file: mytoken.jwt # Read in the StormForger jwt from a file
-    literal: mysupersecretjwt # The raw StormForger JWT. Be mindful of the security implications of including the JWT here.
+    file: mytoken.jwt # Read in the StormForge Performance JWT from a file
+    literal: mysupersecretjwt # The raw StormForge Performance JWT. Be mindful of the security implications of including the JWT here.
     secretKeyRef: # Specify a reference to an in cluster secret and key
-      name: stormforger-service-accounts
+      name: stormforge-perf-service-accounts
       key: myorg`,
+	}
+
+	// Required is a map of field name to required preceding field name.
+	// This is used to ensure even empty (and otherwise omitted) fields can be
+	// included for documentation purposes.
+	required = map[string]string{
+		"resources":              "",
+		"configuration":          "resources",
+		"ingress":                "configuration",
+		"scenarios":              "ingress",
+		"objectives":             "scenarios",
+		"stormforge-perf-config": "objectives",
+		"":                       "stormforge-perf-config",
 	}
 )
 
@@ -163,29 +176,16 @@ func (f *DocumentationFilter) annotateApplication(app *yaml.RNode) error {
 		n.HeadComment = strings.Join(os.Args, " ")
 	}
 
-	// Required is a map of field name to required preceding field name.
-	// This is used to ensure even empty (and otherwise omitted) fields can be
-	// included for documentation purposes.
-	required := map[string]string{
-		"resources":   "",
-		"parameters":  "resources",
-		"ingress":     "parameters",
-		"scenarios":   "ingress",
-		"objectives":  "scenarios",
-		"stormForger": "objectives",
-		"":            "stormForger",
-	}
-
 	// Each key and value are elements in the content list, iterate over even indices
 	var content []*yaml.Node
 	for i := 0; i < len(n.Content); i = yaml.IncrementFieldIndex(i) {
 		n.Content[i].HeadComment = headComments[n.Content[i].Value]
-		content = append(content, missingRequiredContent(n.Content[i].Value, required)...)
+		content = append(content, missingRequiredContent(n.Content[i].Value)...)
 		content = append(content, n.Content[i], n.Content[i+1])
 	}
 
 	// Make sure all the required content has been produced
-	n.Content = append(content, missingRequiredContent("", required)...)
+	n.Content = append(content, missingRequiredContent("")...)
 
 	return nil
 }
@@ -195,7 +195,7 @@ func (f *DocumentationFilter) annotateApplication(app *yaml.RNode) error {
 // to track which fields have already been encountered and which fields must precede
 // the current field (identified by "key"). The resulting list of nodes are suitable
 // for inclusion in the content of a mapping node.
-func missingRequiredContent(key string, required map[string]string) []*yaml.Node {
+func missingRequiredContent(key string) []*yaml.Node {
 	// As soon as we encounter a key, remove it so it does not get double added
 	for k, v := range required {
 		if v == key {
@@ -211,7 +211,7 @@ func missingRequiredContent(key string, required map[string]string) []*yaml.Node
 
 	// Recursively include missing content first
 	var result []*yaml.Node
-	result = append(result, missingRequiredContent(req, required)...)
+	result = append(result, missingRequiredContent(req)...)
 
 	// Add field name with the appropriate head comment
 	result = append(result, &yaml.Node{

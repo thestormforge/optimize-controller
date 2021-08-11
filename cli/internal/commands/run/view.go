@@ -33,9 +33,9 @@ import (
 )
 
 const (
-	ScenarioTypeStormForger = "StormForge"
-	ScenarioTypeLocust      = "Locust"
-	ScenarioTypeCustom      = "Pod Template"
+	ScenarioTypeStormForge = "StormForge"
+	ScenarioTypeLocust     = "Locust"
+	ScenarioTypeCustom     = "Pod Template"
 
 	CustomPushGatewayNo  = "No, metrics will be propagated manually"
 	CustomPushGatewayYes = "Yes, set the PUSHGATEWAY_URL environment on my container for publishing metrics"
@@ -70,23 +70,23 @@ func (o *Options) initializeModel() {
 			"up/down: select",
 		},
 		Choices: []string{
-			ScenarioTypeStormForger,
+			ScenarioTypeStormForge,
 			ScenarioTypeLocust,
 			ScenarioTypeCustom,
 		},
 	}.NewChoiceField(opts...) // TODO This includes the "back" instruction even though it's not possible
 	o.generatorModel.ScenarioType.Select(0)
 
-	o.generatorModel.StormForgerTestCaseInput = out.FormField{
+	o.generatorModel.StormForgeTestCaseInput = out.FormField{
 		Prompt:         "Please select a load test to optimize:",
-		LoadingMessage: "Fetching test cases from StormForger",
+		LoadingMessage: "Fetching test cases from StormForge Performance",
 		Instructions: []interface{}{
 			"up/down: select",
 		},
 	}.NewChoiceField(opts...)
 
-	o.generatorModel.StormForgerGettingStarted = out.FormField{
-		Prompt: `Check this out to see how you can get set up with a StormForge load test:
+	o.generatorModel.StormForgeGettingStarted = out.FormField{
+		Prompt: `Check this out to see how you can get set up with a StormForge Performance load test:
 https://docs.stormforger.com/guides/getting-started/`,
 	}.NewExitField(opts...)
 
@@ -351,14 +351,14 @@ func (o *Options) updateGeneratorForm() {
 
 	if len(o.Generator.Application.Scenarios) == 0 {
 		o.generatorModel.ScenarioType.Enable()
-		useStormForger := o.generatorModel.ScenarioType.Value() == ScenarioTypeStormForger
+		useStormForge := o.generatorModel.ScenarioType.Value() == ScenarioTypeStormForge
 		useLocust := o.generatorModel.ScenarioType.Value() == ScenarioTypeLocust
 		useCustom := o.generatorModel.ScenarioType.Value() == ScenarioTypeCustom
 
 		forgeAvailable := o.initializationModel.ForgeVersion.Available() &&
 			o.initializationModel.PerformanceTestAuthorization == internal.AuthorizationValid
-		o.generatorModel.StormForgerTestCaseInput.SetEnabled(useStormForger && forgeAvailable)
-		o.generatorModel.StormForgerGettingStarted.SetEnabled(useStormForger && !forgeAvailable)
+		o.generatorModel.StormForgeTestCaseInput.SetEnabled(useStormForge && forgeAvailable)
+		o.generatorModel.StormForgeGettingStarted.SetEnabled(useStormForge && !forgeAvailable)
 
 		o.generatorModel.LocustfileInput.SetEnabled(useLocust)
 		o.generatorModel.IngressURLInput.SetEnabled(useLocust)
@@ -372,7 +372,7 @@ func (o *Options) updateGeneratorForm() {
 		o.generatorModel.NamespaceInput.SetEnabled(kubectlAvailable)
 	}
 
-	if o.Generator.Application.Parameters == nil { // Parameters can be defaulted so allow an empty list
+	if o.Generator.Application.Configuration == nil { // Configuration can be defaulted so allow an empty list
 		o.generatorModel.ContainerResourcesSelectorInput.Enable()
 		o.generatorModel.ReplicasSelectorInput.Enable()
 	}

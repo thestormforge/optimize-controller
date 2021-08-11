@@ -32,11 +32,11 @@ func init() {
 }
 
 const (
-	StormForgerAccessTokenSecretName = "stormforger-service-accounts"
-	defaultName                      = "default"
+	StormForgePerformanceAccessTokenSecretName = "stormforge-perf-service-accounts"
+	defaultName                                = "default"
 )
 
-// Register the defaulting function for the application root object.
+// RegisterDefaults registers the defaulting function for the application root object.
 func RegisterDefaults(s *runtime.Scheme) error {
 	s.AddTypeDefaultingFunc(&Application{}, func(obj interface{}) { obj.(*Application).Default() })
 	return nil
@@ -55,8 +55,8 @@ func (in *Application) Default() {
 func (in *Scenario) Default() {
 	if in.Name == "" {
 		switch {
-		case in.StormForger != nil:
-			in.Name = defaultScenarioName(in.StormForger.TestCase, in.StormForger.TestCaseFile)
+		case in.StormForge != nil:
+			in.Name = defaultScenarioName(in.StormForge.TestCase, in.StormForge.TestCaseFile)
 		case in.Locust != nil:
 			in.Name = defaultScenarioName(in.Locust.Locustfile)
 		case in.Custom != nil:

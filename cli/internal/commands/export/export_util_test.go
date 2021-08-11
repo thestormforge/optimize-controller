@@ -109,7 +109,7 @@ func createTempApplication(t *testing.T, filename string) (*optimizeappsv1alpha1
 			Namespace: "default",
 		},
 		Resources: konjure.Resources{konjure.NewResource(filename)},
-		Parameters: []optimizeappsv1alpha1.Parameter{
+		Configuration: []optimizeappsv1alpha1.Parameter{
 			{
 				ContainerResources: &optimizeappsv1alpha1.ContainerResources{
 					Selector: "component=postgres",
@@ -119,13 +119,13 @@ func createTempApplication(t *testing.T, filename string) (*optimizeappsv1alpha1
 		Scenarios: []optimizeappsv1alpha1.Scenario{
 			{
 				Name: "how-do-you-make-a-tissue-dance",
-				StormForger: &optimizeappsv1alpha1.StormForgerScenario{
+				StormForge: &optimizeappsv1alpha1.StormForgeScenario{
 					TestCase: "tissue-box",
 				},
 			},
 			{
 				Name: "put-a-little-boogie-in-it",
-				StormForger: &optimizeappsv1alpha1.StormForgerScenario{
+				StormForge: &optimizeappsv1alpha1.StormForgeScenario{
 					TestCase: "boogie",
 				},
 			},
@@ -155,9 +155,9 @@ func createTempApplication(t *testing.T, filename string) (*optimizeappsv1alpha1
 			// 	},
 			// },
 		},
-		StormForger: &optimizeappsv1alpha1.StormForger{
+		StormForgePerformance: &optimizeappsv1alpha1.StormForgePerformance{
 			Organization: "gotta",
-			AccessToken: &optimizeappsv1alpha1.StormForgerAccessToken{
+			AccessToken: &optimizeappsv1alpha1.StormForgePerformanceAccessToken{
 				Literal: "get down!",
 			},
 		},

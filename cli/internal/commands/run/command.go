@@ -186,10 +186,10 @@ func (o *Options) listKubernetesNamespaces() tea.Msg {
 	return msg
 }
 
-// listStormForgerTestCaseNames returns a list of organization qualified test cases.
-func (o *Options) listStormForgerTestCaseNames() tea.Msg {
+// listStormForgeTestCaseNames returns a list of organization qualified test cases.
+func (o *Options) listStormForgeTestCaseNames() tea.Msg {
 	ctx := context.TODO()
-	msg := internal.StormForgerTestCasesMsg{}
+	msg := internal.StormForgeTestCasesMsg{}
 
 	orgs, err := forge(ctx, "organization", "list")
 	if err != nil {
@@ -350,7 +350,7 @@ func (o *Options) hideKubernetesNamespace(ns string) bool {
 	return false
 }
 
-// forge invokes the StormForger CLI with the supplied arguments.
+// forge invokes the StormForge Performance CLI with the supplied arguments.
 func forge(ctx context.Context, args ...string) (*forgePayload, error) {
 	cmd := exec.CommandContext(ctx, "forge", append(args, "--output", "json")...)
 	data, err := cmd.Output()

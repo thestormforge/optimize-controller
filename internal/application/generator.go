@@ -220,7 +220,7 @@ func (g *Generator) readScenario() (*optimizeappsv1alpha1.Scenario, error) {
 	switch filepath.Ext(g.ScenarioFile) {
 	case ".js":
 		return &optimizeappsv1alpha1.Scenario{
-			StormForger: &optimizeappsv1alpha1.StormForgerScenario{
+			StormForge: &optimizeappsv1alpha1.StormForgeScenario{
 				TestCaseFile: g.ScenarioFile,
 			},
 		}, nil

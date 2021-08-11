@@ -37,8 +37,8 @@ type Application struct {
 	// These strings are the same format as used by Kustomize.
 	Resources konjure.Resources `json:"resources,omitempty"`
 
-	// Parameters specifies additional details about the experiment parameters.
-	Parameters []Parameter `json:"parameters,omitempty"`
+	// Configuration specifies additional details about the experiment parameters.
+	Configuration []Parameter `json:"configuration,omitempty"`
 
 	// Ingress specifies how to find the entry point to the application.
 	Ingress *Ingress `json:"ingress,omitempty"`
@@ -49,8 +49,8 @@ type Application struct {
 	// The list of objectives to optimize the application for.
 	Objectives []Objective `json:"objectives,omitempty"`
 
-	// StormForger allows you to configure StormForger to apply load on your application.
-	StormForger *StormForger `json:"stormForger,omitempty"`
+	// StormForgePerformance allows you to configure StormForge Performance to apply load on your application.
+	StormForgePerformance *StormForgePerformance `json:"stormforge-perf-config,omitempty"`
 }
 
 // Parameter describes the strategy for tuning the application.
@@ -102,21 +102,21 @@ type Ingress struct {
 type Scenario struct {
 	// The name of scenario.
 	Name string `json:"name,omitempty"`
-	// StormForger configuration for the scenario.
-	StormForger *StormForgerScenario `json:"stormforger,omitempty"`
+	// StormForge Performance configuration for the scenario.
+	StormForge *StormForgeScenario `json:"stormforge-perf,omitempty"`
 	// Locust configuration for the scenario.
 	Locust *LocustScenario `json:"locust,omitempty"`
 	// Custom configuration for the scenario.
 	Custom *CustomScenario `json:"custom,omitempty"`
 }
 
-// StormForgerScenario is used to generate load using StormForger.
-type StormForgerScenario struct {
-	// The test case can be used to specify an existing test case in the StormForger API or
+// StormForgeScenario is used to generate load using StormForge Performance testing.
+type StormForgeScenario struct {
+	// The test case can be used to specify an existing test case in the StormForge Performance API or
 	// it can be used to override the generated test case name when specified in conjunction
 	// with the local test case file. The organization is optional if it is configured globally.
 	TestCase string `json:"testCase,omitempty"`
-	// Path to a local test case file used to define a new test case in the StormForger API.
+	// Path to a local test case file used to define a new test case in the StormForge Performance API.
 	TestCaseFile string `json:"testCaseFile,omitempty"`
 }
 
@@ -281,16 +281,16 @@ type DatadogGoal struct {
 	Maximize bool `json:"maximize,omitempty"`
 }
 
-// StormForger describes global configuration related to StormForger.
-type StormForger struct {
-	// The name of the StormForger organization.
+// StormForgePerformance describes global configuration related to StormForge Performance testing.
+type StormForgePerformance struct {
+	// The name of the StormForge Performance organization.
 	Organization string `json:"org,omitempty"`
-	// Configuration for the StormForger service account.
-	AccessToken *StormForgerAccessToken `json:"accessToken,omitempty"`
+	// Configuration for the StormForge Performance service account.
+	AccessToken *StormForgePerformanceAccessToken `json:"accessToken,omitempty"`
 }
 
-// StormForgerAccessToken is used to configure a service account access token for the StormForger API.
-type StormForgerAccessToken struct {
+// StormForgePerformanceAccessToken is used to configure a service account access token for the StormForge Performance API.
+type StormForgePerformanceAccessToken struct {
 	// The path to the file that contains the service account access token.
 	File string `json:"file,omitempty"`
 	// A literal token value, this should only be used for testing as it is not secure.
