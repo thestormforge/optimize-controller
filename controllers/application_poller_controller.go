@@ -29,6 +29,7 @@ import (
 	"github.com/thestormforge/optimize-controller/v2/internal/scan"
 	"github.com/thestormforge/optimize-controller/v2/internal/server"
 	"github.com/thestormforge/optimize-controller/v2/internal/sfio"
+	"github.com/thestormforge/optimize-controller/v2/internal/version"
 	"github.com/thestormforge/optimize-go/pkg/api"
 	applications "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -45,14 +46,14 @@ type Poller struct {
 }
 
 func NewPoller(kclient client.Client, logger logr.Logger) (*Poller, error) {
-	appAPI, err := server.NewApplicationAPI(context.Background(), "TODO - user agent")
+	appAPI, err := server.NewApplicationAPI(context.Background(), version.GetInfo().String())
 	if err != nil {
 		if authErr := errors.Unwrap(err); api.IsUnauthorized(authErr) {
 			logger.Info(err.Error())
-			return &Poller{}, nil
+			return &Poller{log: logger}, nil
 		}
 
-		return nil, err
+		return &Poller{log: logger}, err
 	}
 
 	return &Poller{
@@ -63,11 +64,11 @@ func NewPoller(kclient client.Client, logger logr.Logger) (*Poller, error) {
 }
 
 func (p *Poller) Start(ch <-chan struct{}) error {
-	p.log.Info("Starting application poller")
 	if p.apiClient == nil {
 		<-ch
 		return nil
 	}
+	p.log.Info("Starting application poller")
 
 	ctx := context.Background()
 
@@ -98,23 +99,13 @@ func (p *Poller) Start(ch <-chan struct{}) error {
 	}
 }
 
-// +kubebuilder:rbac:groups=optimize.stormforge.io,resources=experiments,verbs=get;list;watch;create
-// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=get;list;create;update;delete
-// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;create;update;delete
-// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;create;update;delete;watch
-// +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;create;update
-// +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;create;update;delete
-// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;create;update;delete
-// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;create;update
-//
-// For prom rbac
-// +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch
-// +kubebuilder:rbac:groups="",resources=nodes/metrics,verbs=get;list;watch
-// +kubebuilder:rbac:groups="",resources=nodes/proxy,verbs=get;list;watch
-// +kubebuilder:rbac:groups="",resources=pods,verbs=watch
-// +kubebuilder:rbac:groups="",resources=services,verbs=get;create;delete;list;watch
-// +kubebuilder:rbac:groups="",resources=services,verbs=get;create;delete;list;watch
-
+// handleActivity performs the task required for each activity.
+// When an ActivityItem is tagged with scan, the generation workflow is used to generate an experiment and the result
+// is converted into an api.Template consisting of parameters and metrics.
+// When an ActivityItem is tagged with run, the previous scanned template results are merged with
+// the results of an experiment generation workflow. Following this, the generated resources are applied/created
+// in the cluster.
+// note, rbac defined in cli/internal/commands/grant_permissions/generator
 func (p *Poller) handleActivity(ctx context.Context, activity applications.ActivityItem) {
 	// We always want to delete the activity after having received it
 	defer func() {
@@ -203,7 +194,7 @@ func (p *Poller) handleActivity(ctx context.Context, activity applications.Activ
 		// Get previous template
 		previousTemplate, err := p.apiClient.GetTemplate(ctx, templateURL)
 		if err != nil {
-			p.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to get experiment template from server", err), activity.URL)
+			p.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to get experiment template from server, a 'scan' task must be completed first", err), activity.URL)
 			return
 		}
 
