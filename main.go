@@ -134,6 +134,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	// +kubebuilder:scaffold:builder
+
 	poller, err := controllers.NewPoller(mgr.GetClient(), ctrl.Log.WithName("controllers").WithName("application poller"))
 	if err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "application poller")
@@ -141,8 +143,6 @@ func main() {
 	}
 
 	mgr.Add(poller)
-
-	// +kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {

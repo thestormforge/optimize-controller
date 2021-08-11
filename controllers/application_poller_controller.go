@@ -129,6 +129,8 @@ func (p *Poller) handleActivity(ctx context.Context, activity applications.Activ
 		return
 	}
 
+	p.log.Info("starting activity task", "task", activity.Tags[0], "activity", activity.URL)
+
 	// Activity feed provides us with a scenario URL
 	scenario, err := p.apiClient.GetScenario(ctx, activity.ExternalURL)
 	if err != nil {
@@ -192,6 +194,8 @@ func (p *Poller) handleActivity(ctx context.Context, activity applications.Activ
 			p.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to save experiment template in server", err), activity.URL)
 			return
 		}
+
+		p.log.Info("successfully completed resource scan", "activity", activity.URL)
 	case applications.TagRun:
 		// We wont compare existing scan with current scan
 		// so we can preserve changes via UI
