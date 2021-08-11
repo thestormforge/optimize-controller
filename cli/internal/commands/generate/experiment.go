@@ -54,6 +54,9 @@ func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 		Short:   "Generate an experiment",
 		Long:    "Generate an experiment from an application descriptor",
 
+		Deprecated: "Application descriptor use is deprecated",
+		Hidden:     true,
+
 		PreRun: func(cmd *cobra.Command, args []string) {
 			commander.SetStreams(&o.IOStreams, cmd)
 			o.Generator.DefaultReader = cmd.InOrStdin()

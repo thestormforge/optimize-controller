@@ -46,6 +46,9 @@ func NewApplicationCommand(o *ApplicationOptions) *cobra.Command {
 		Short:   "Generate an application",
 		Long:    "Generate an application descriptor",
 
+		Deprecated: "Application descriptor use is deprecated",
+		Hidden:     true,
+
 		PreRunE: func(cmd *cobra.Command, args []string) (err error) {
 			commander.SetStreams(&o.IOStreams, cmd)
 			o.Generator.DefaultReader = cmd.InOrStdin()
