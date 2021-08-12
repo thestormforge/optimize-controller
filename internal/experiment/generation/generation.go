@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
@@ -72,6 +73,12 @@ func trialJobImage(job string) string {
 
 // loadApplicationData loads data (e.g. a supporting test file).
 func loadApplicationData(app *optimizeappsv1alpha1.Application, src string) ([]byte, error) {
+	// As a special case, any multi-line "file name" is recognized as content
+	// instead, allowing small files to be inlined directly in the definition
+	if strings.ContainsRune(src, '\n') {
+		return []byte(src), nil
+	}
+
 	dst := filepath.Join(os.TempDir(), fmt.Sprintf("load-application-data-%x", md5.Sum([]byte(src))))
 	defer os.Remove(dst)
 

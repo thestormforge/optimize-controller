@@ -196,6 +196,10 @@ func defaultDurationGoal(goal *Goal, duration DurationType) {
 
 func defaultScenarioName(values ...string) string {
 	for _, in := range values {
+		if strings.ContainsRune(in, '\n') {
+			continue
+		}
+
 		name := filepath.Base(in)
 		if name == "." || name == "locustfile.py" {
 			continue
