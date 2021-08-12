@@ -165,12 +165,13 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			}
 		}
 
-		api, err := server.NewExperimentAPI(context.Background(), comment)
+		expAPI, err := server.NewExperimentAPI(context.Background(), comment)
 		if err != nil {
-			return err
+			r.Log.Info("Experiments API is unavailable, skipping setup", "message", err.Error())
+			return nil
 		}
 
-		r.ExperimentsAPI = api
+		r.ExperimentsAPI = expAPI
 	}
 
 	// Enforce trial creation rate limit (no burst! that is the whole point)
