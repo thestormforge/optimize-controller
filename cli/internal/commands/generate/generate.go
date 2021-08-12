@@ -45,6 +45,7 @@ func NewCommand(o *Options) *cobra.Command {
 	cmd.AddCommand(NewRBACCommand(&RBACOptions{Config: o.Config, ClusterRole: true, ClusterRoleBinding: true}))
 	cmd.AddCommand(NewApplicationCommand(&ApplicationOptions{Config: o.Config}))
 	cmd.AddCommand(NewExperimentCommand(&ExperimentOptions{Config: o.Config}))
+	cmd.AddCommand(NewSampleCommand(&SampleOptions{}))
 	cmd.AddCommand(NewTrialCommand(&TrialOptions{}))
 
 	return cmd

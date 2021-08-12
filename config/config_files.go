@@ -22,4 +22,5 @@ import "embed"
 //go:embed default
 //go:embed manager
 //go:embed rbac
+//go:embed samples
 var Content embed.FS
