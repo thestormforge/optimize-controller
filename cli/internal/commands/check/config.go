@@ -68,7 +68,7 @@ func (o *ConfigOptions) checkConfig(ctx context.Context) error {
 	}
 
 	// Verify we can connect using the current configuration
-	if _, err := o.ExperimentsAPI.Options(ctx); err != nil {
+	if _, err := o.ExperimentsAPI.CheckEndpoint(ctx); err != nil {
 		return err
 	}
 

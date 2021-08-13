@@ -446,7 +446,7 @@ func (o *Options) getTrialDetails(ctx context.Context) (*trialDetails, error) {
 
 	// Capture details about the trial provenance
 	result := &trialDetails{
-		Experiment:  experimentName.Name(),
+		Experiment:  experimentName.String(),
 		Application: exp.Labels["application"],
 		Scenario:    exp.Labels["scenario"],
 		Objective:   exp.Labels["objective"],

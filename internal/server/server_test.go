@@ -28,7 +28,6 @@ import (
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-go/pkg/api"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
-	"github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1/numstr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -249,9 +248,9 @@ func TestFromCluster(t *testing.T) {
 			baseline: &experimentsv1alpha1.TrialAssignments{
 				Labels: map[string]string{"baseline": "true"},
 				Assignments: []experimentsv1alpha1.Assignment{
-					{ParameterName: "one", Value: numstr.FromInt64(1)},
-					{ParameterName: "two", Value: numstr.FromInt64(2)},
-					{ParameterName: "three", Value: numstr.FromString("three")},
+					{ParameterName: "one", Value: api.FromInt64(1)},
+					{ParameterName: "two", Value: api.FromInt64(2)},
+					{ParameterName: "three", Value: api.FromString("three")},
 				},
 			},
 		},
@@ -260,7 +259,7 @@ func TestFromCluster(t *testing.T) {
 		t.Run(c.desc, func(t *testing.T) {
 			name, out, baseline, err := FromCluster(c.in)
 			if assert.NoError(t, err) {
-				assert.Equal(t, c.in.Name, name.Name())
+				assert.Equal(t, c.in.Name, name.String())
 				assert.Equal(t, c.out, out)
 				assert.Equal(t, c.baseline, baseline)
 			}
@@ -339,9 +338,9 @@ func TestToClusterTrial(t *testing.T) {
 					"Location": []string{"some/path/1"},
 				},
 				Assignments: []experimentsv1alpha1.Assignment{
-					{ParameterName: "one", Value: numstr.FromInt64(111)},
-					{ParameterName: "two", Value: numstr.FromInt64(222)},
-					{ParameterName: "three", Value: numstr.FromInt64(333)},
+					{ParameterName: "one", Value: api.FromInt64(111)},
+					{ParameterName: "two", Value: api.FromInt64(222)},
+					{ParameterName: "three", Value: api.FromInt64(333)},
 				},
 			},
 			trialOut: &optimizev1beta2.Trial{
@@ -381,9 +380,9 @@ func TestToClusterTrial(t *testing.T) {
 					"Location": []string{"some/path/one"},
 				},
 				Assignments: []experimentsv1alpha1.Assignment{
-					{ParameterName: "one", Value: numstr.FromInt64(111)},
-					{ParameterName: "two", Value: numstr.FromInt64(222)},
-					{ParameterName: "three", Value: numstr.FromInt64(333)},
+					{ParameterName: "one", Value: api.FromInt64(111)},
+					{ParameterName: "two", Value: api.FromInt64(222)},
+					{ParameterName: "three", Value: api.FromInt64(333)},
 				},
 			},
 			trialOut: &optimizev1beta2.Trial{
@@ -419,7 +418,7 @@ func TestToClusterTrial(t *testing.T) {
 			},
 			suggestion: &experimentsv1alpha1.TrialAssignments{
 				Assignments: []experimentsv1alpha1.Assignment{
-					{ParameterName: "overflow", Value: numstr.FromInt64(math.MaxInt64)},
+					{ParameterName: "overflow", Value: api.FromInt64(math.MaxInt64)},
 				},
 			},
 			trialOut: &optimizev1beta2.Trial{

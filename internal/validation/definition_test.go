@@ -20,8 +20,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/thestormforge/optimize-go/pkg/api"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
-	"github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1/numstr"
 )
 
 func TestCheckConstraints(t *testing.T) {
@@ -45,8 +45,8 @@ func TestCheckConstraints(t *testing.T) {
 				},
 			},
 			baselines: []experimentsv1alpha1.Assignment{
-				{ParameterName: "a", Value: numstr.FromInt64(1)},
-				{ParameterName: "b", Value: numstr.FromInt64(2)},
+				{ParameterName: "a", Value: api.FromInt64(1)},
+				{ParameterName: "b", Value: api.FromInt64(2)},
 			},
 		},
 		{
@@ -63,8 +63,8 @@ func TestCheckConstraints(t *testing.T) {
 				},
 			},
 			baselines: []experimentsv1alpha1.Assignment{
-				{ParameterName: "a", Value: numstr.FromInt64(2)},
-				{ParameterName: "b", Value: numstr.FromInt64(2)},
+				{ParameterName: "a", Value: api.FromInt64(2)},
+				{ParameterName: "b", Value: api.FromInt64(2)},
 			},
 		},
 		{
@@ -81,8 +81,8 @@ func TestCheckConstraints(t *testing.T) {
 				},
 			},
 			baselines: []experimentsv1alpha1.Assignment{
-				{ParameterName: "a", Value: numstr.FromInt64(3)},
-				{ParameterName: "b", Value: numstr.FromInt64(2)},
+				{ParameterName: "a", Value: api.FromInt64(3)},
+				{ParameterName: "b", Value: api.FromInt64(2)},
 			},
 		},
 
@@ -104,8 +104,8 @@ func TestCheckConstraints(t *testing.T) {
 				},
 			},
 			baselines: []experimentsv1alpha1.Assignment{
-				{ParameterName: "a", Value: numstr.FromInt64(2)},
-				{ParameterName: "b", Value: numstr.FromInt64(2)},
+				{ParameterName: "a", Value: api.FromInt64(2)},
+				{ParameterName: "b", Value: api.FromInt64(2)},
 			},
 		},
 		{
@@ -126,8 +126,8 @@ func TestCheckConstraints(t *testing.T) {
 				},
 			},
 			baselines: []experimentsv1alpha1.Assignment{
-				{ParameterName: "a", Value: numstr.FromInt64(2)},
-				{ParameterName: "b", Value: numstr.FromInt64(3)},
+				{ParameterName: "a", Value: api.FromInt64(2)},
+				{ParameterName: "b", Value: api.FromInt64(3)},
 			},
 		},
 		{
@@ -148,8 +148,8 @@ func TestCheckConstraints(t *testing.T) {
 				},
 			},
 			baselines: []experimentsv1alpha1.Assignment{
-				{ParameterName: "a", Value: numstr.FromInt64(3)},
-				{ParameterName: "b", Value: numstr.FromInt64(3)},
+				{ParameterName: "a", Value: api.FromInt64(3)},
+				{ParameterName: "b", Value: api.FromInt64(3)},
 			},
 		},
 
@@ -170,8 +170,8 @@ func TestCheckConstraints(t *testing.T) {
 				},
 			},
 			baselines: []experimentsv1alpha1.Assignment{
-				{ParameterName: "a", Value: numstr.FromInt64(1)},
-				{ParameterName: "b", Value: numstr.FromInt64(1)},
+				{ParameterName: "a", Value: api.FromInt64(1)},
+				{ParameterName: "b", Value: api.FromInt64(1)},
 			},
 		},
 		{
@@ -191,8 +191,8 @@ func TestCheckConstraints(t *testing.T) {
 				},
 			},
 			baselines: []experimentsv1alpha1.Assignment{
-				{ParameterName: "a", Value: numstr.FromInt64(1)},
-				{ParameterName: "b", Value: numstr.FromInt64(2)},
+				{ParameterName: "a", Value: api.FromInt64(1)},
+				{ParameterName: "b", Value: api.FromInt64(2)},
 			},
 		},
 		{
@@ -212,8 +212,8 @@ func TestCheckConstraints(t *testing.T) {
 				},
 			},
 			baselines: []experimentsv1alpha1.Assignment{
-				{ParameterName: "a", Value: numstr.FromInt64(2)},
-				{ParameterName: "b", Value: numstr.FromInt64(2)},
+				{ParameterName: "a", Value: api.FromInt64(2)},
+				{ParameterName: "b", Value: api.FromInt64(2)},
 			},
 		},
 	}

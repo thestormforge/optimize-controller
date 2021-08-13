@@ -22,7 +22,6 @@ import (
 
 	"github.com/thestormforge/optimize-go/pkg/api"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
-	"github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1/numstr"
 )
 
 var wannabeTrial = experimentsv1alpha1.TrialItem{
@@ -31,11 +30,11 @@ var wannabeTrial = experimentsv1alpha1.TrialItem{
 		Assignments: []experimentsv1alpha1.Assignment{
 			{
 				ParameterName: "cpu",
-				Value:         numstr.FromInt64(100),
+				Value:         api.FromInt64(100),
 			},
 			{
 				ParameterName: "memory",
-				Value:         numstr.FromInt64(200),
+				Value:         api.FromInt64(200),
 			},
 		},
 	},
@@ -48,8 +47,8 @@ type fakeExperimentsAPI struct{}
 
 var _ experimentsv1alpha1.API = &fakeExperimentsAPI{}
 
-func (f *fakeExperimentsAPI) Options(ctx context.Context) (experimentsv1alpha1.Server, error) {
-	return experimentsv1alpha1.Server{}, nil
+func (f *fakeExperimentsAPI) CheckEndpoint(ctx context.Context) (api.Metadata, error) {
+	return api.Metadata{}, nil
 }
 
 func (f *fakeExperimentsAPI) GetAllExperiments(ctx context.Context, query experimentsv1alpha1.ExperimentListQuery) (experimentsv1alpha1.ExperimentList, error) {
@@ -134,11 +133,11 @@ func (f *fakeExperimentsAPI) GetAllTrials(ctx context.Context, name string, quer
 					Assignments: []experimentsv1alpha1.Assignment{
 						{
 							ParameterName: "cpu",
-							Value:         numstr.FromInt64(999),
+							Value:         api.FromInt64(999),
 						},
 						{
 							ParameterName: "memory",
-							Value:         numstr.FromInt64(999),
+							Value:         api.FromInt64(999),
 						},
 					},
 				},
@@ -151,11 +150,11 @@ func (f *fakeExperimentsAPI) GetAllTrials(ctx context.Context, name string, quer
 					Assignments: []experimentsv1alpha1.Assignment{
 						{
 							ParameterName: "cpu",
-							Value:         numstr.FromInt64(999),
+							Value:         api.FromInt64(999),
 						},
 						{
 							ParameterName: "memory",
-							Value:         numstr.FromInt64(999),
+							Value:         api.FromInt64(999),
 						},
 					},
 				},

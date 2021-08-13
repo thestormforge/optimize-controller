@@ -28,8 +28,8 @@ import (
 	"github.com/thestormforge/optimize-controller/v2/internal/server"
 	"github.com/thestormforge/optimize-controller/v2/internal/setup"
 	"github.com/thestormforge/optimize-controller/v2/internal/trial"
+	"github.com/thestormforge/optimize-go/pkg/api"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
-	"github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1/numstr"
 	batchv1 "k8s.io/api/batch/v1"
 )
 
@@ -105,7 +105,7 @@ func (o *TrialOptions) generate() error {
 		return err
 	}
 	if baselines != nil {
-		o.Baselines = make(map[string]*numstr.NumberOrString)
+		o.Baselines = make(map[string]*api.NumberOrString)
 		for _, a := range baselines.Assignments {
 			o.Baselines[a.ParameterName] = &a.Value
 		}
