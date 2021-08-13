@@ -80,7 +80,7 @@ func (o *GeneratorOptions) addFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolVar(&o.CreateTrialNamespaces, "create-trial-namespace", o.CreateTrialNamespaces, "include trial namespace creation permissions")
 	cmd.Flags().StringVar(&o.NamespaceSelector, "ns-selector", o.NamespaceSelector, "bind to matching namespaces")
 	cmd.Flags().BoolVar(&o.IncludeManagerRole, "include-manager", o.IncludeManagerRole, "bind manager to matching namespaces")
-	cmd.Flags().BoolVar(&o.CreatePrometheusRBAC, "prometheus", true, "roles to create Prometheus in cluster")
+	cmd.Flags().BoolVar(&o.CreateApplicationServicesRBAC, "in-cluster", o.CreateApplicationServicesRBAC, "include additional permissions for in cluster generation and experiment creation")
 }
 
 func (o *GeneratorOptions) generate(ctx context.Context) error {
@@ -176,15 +176,8 @@ func (o *GeneratorOptions) generateClusterRole(roleRef *rbacv1.RoleRef) *rbacv1.
 	}
 
 	// :godmode:
-	// if o.CreateApplicationServicesRBAC {
-	if o.CreatePrometheusRBAC {
+	if o.CreateApplicationServicesRBAC {
 		clusterRole.Rules = append(clusterRole.Rules,
-			rbacv1.PolicyRule{
-				Verbs:     []string{""},
-				APIGroups: []string{""},
-				Resources: []string{""},
-			},
-
 			// Prometheus RBAC
 			// // Need controller to have equal to or greater than permissions for roles that it creates.
 			// // So the controller itself doesnt need these permissions, but when we create the clusterrole
