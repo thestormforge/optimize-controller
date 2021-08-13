@@ -54,7 +54,7 @@ func APIApplicationToClusterApplication(app applications.Application, scenario a
 		return nil, err
 	}
 
-	baseApp.Parameters = params
+	baseApp.Configuration = params
 
 	objectives, err := apiObjectives(scenario)
 	if err != nil {

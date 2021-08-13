@@ -102,7 +102,7 @@ func (f *fakeAPI) GetScenario(ctx context.Context, u string) (applications.Scena
   },
   "name": "01FB5229WXA976GSYX1BSJNM8G",
   "title": "Awesome Scenario 1",
-  "stormforger": {
+  "stormforgePerf": {
     "testCase": "myorg/large-load-test"
   },
   "objective": [

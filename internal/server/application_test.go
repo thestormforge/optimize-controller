@@ -329,7 +329,7 @@ func TestAPIScenarios(t *testing.T) {
 			res, err := apiScenarios(sd)
 			assert.NoError(t, err)
 			require.Equal(t, 1, len(res))
-			assert.NotNil(t, res[0].StormForger)
+			assert.NotNil(t, res[0].StormForge)
 		})
 	}
 }
@@ -359,7 +359,7 @@ func TestAPIApplicationToClusterApplication(t *testing.T) {
 			// Uncomment when we figure out what to do
 			// assert.NotNil(t, res.Namespace)
 			assert.NotNil(t, res.Resources)
-			assert.NotNil(t, res.Parameters)
+			assert.NotNil(t, res.Configuration)
 			assert.NotNil(t, res.Scenarios)
 			assert.NotNil(t, res.Objectives)
 			// TODO do we need ingress?
@@ -382,7 +382,7 @@ var scenarioData = []byte(`
   },
   "name": "01FAR3Q0N9M1SPM4Z3V07TE7QD",
   "title": "Awesome Scenario 1",
-  "stormforger": {
+  "stormforgePerf": {
     "testCase": "myorg/large-load-test"
   },
   "objective": [

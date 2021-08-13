@@ -58,7 +58,7 @@ func NewPoller(kclient client.Client, logger logr.Logger) (*Poller, error) {
 
 	return &Poller{
 		client:    kclient,
-		apiClient: api,
+		apiClient: appAPI,
 		log:       logger,
 	}, nil
 }
