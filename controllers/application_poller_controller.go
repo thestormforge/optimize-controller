@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os/exec"
 
@@ -48,12 +47,8 @@ type Poller struct {
 func NewPoller(kclient client.Client, logger logr.Logger) (*Poller, error) {
 	appAPI, err := server.NewApplicationAPI(context.Background(), version.GetInfo().String())
 	if err != nil {
-		if authErr := errors.Unwrap(err); api.IsUnauthorized(authErr) {
-			logger.Info(err.Error())
-			return &Poller{log: logger}, nil
-		}
-
-		return &Poller{log: logger}, err
+		logger.Info(err.Error())
+		return &Poller{log: logger}, nil
 	}
 
 	return &Poller{
