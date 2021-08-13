@@ -126,12 +126,12 @@ func (f *ExperimentMigrationFilter) MigrateRSOApplicationV1alpha1(node *yaml.RNo
 
 		// Rename fields
 		yaml.Tee(RenameField("parameters", "configuration")),
-		yaml.Tee(RenameField("stormForger", "stormforge-perf-config")),
+		yaml.Tee(RenameField("stormForger", "stormforgePerfConfig")),
 		yaml.Tee(
 			yaml.Lookup("scenarios"),
 			yaml.FilterFunc(func(node *yaml.RNode) (*yaml.RNode, error) {
 				return node, node.VisitElements(func(node *yaml.RNode) error {
-					return node.PipeE(RenameField("stormforger", "stormforge-perf"))
+					return node.PipeE(RenameField("stormforger", "stormforgePerf"))
 				})
 			}),
 		),

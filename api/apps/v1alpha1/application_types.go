@@ -50,7 +50,7 @@ type Application struct {
 	Objectives []Objective `json:"objectives,omitempty"`
 
 	// StormForgePerformance allows you to configure StormForge Performance to apply load on your application.
-	StormForgePerformance *StormForgePerformance `json:"stormforge-perf-config,omitempty"`
+	StormForgePerformance *StormForgePerformance `json:"stormforgePerfConfig,omitempty"`
 }
 
 // Parameter describes the strategy for tuning the application.
@@ -103,7 +103,7 @@ type Scenario struct {
 	// The name of scenario.
 	Name string `json:"name,omitempty"`
 	// StormForge Performance configuration for the scenario.
-	StormForge *StormForgeScenario `json:"stormforge-perf,omitempty"`
+	StormForge *StormForgeScenario `json:"stormforgePerf,omitempty"`
 	// Locust configuration for the scenario.
 	Locust *LocustScenario `json:"locust,omitempty"`
 	// Custom configuration for the scenario.
