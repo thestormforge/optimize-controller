@@ -58,10 +58,10 @@ for example: "p95-latency".
 Reference: https://docs.stormforge.io/reference/application/v1alpha1/#objective
 `,
 
-		"stormforge-perf-config": `
+		"stormforgePerfConfig": `
 StormForge Performance specific configuration information to set up StormForge
 Performance tests. This is only needed when using StormForge scenarios.
-Reference: https://docs.stormforge.io/reference/application/v1alpha1/#stormforge-perf-config
+Reference: https://docs.stormforge.io/reference/application/v1alpha1/#stormforgePerfConfig
 `,
 
 		"ingress": `
@@ -93,7 +93,7 @@ Reference: https://docs.stormforge.io/reference/application/v1alpha1/#ingress
 		"ingress": "url: https://localhost # Specifies the entrypoint for your application.",
 
 		"scenarios": `- name: cybermonday # StormForge Performance Test example
-  stormforge-perf:
+  stormforgePerf:
     testCaseFile: foobar.js # You can alternatively specify just the test case name if you provide the access token
 - name: just-another-tuesday # Locust example
   locust:
@@ -113,7 +113,7 @@ Reference: https://docs.stormforge.io/reference/application/v1alpha1/#ingress
   - latency: p99
     optimize: false # Reports on the metric while not explicitly optimizing for them`,
 
-		"stormforge-perf-config": `org: myorg # The StormForge Performance organization to use for performance testing
+		"stormforgePerfConfig": `org: myorg # The StormForge Performance organization to use for performance testing
   accessToken:
     file: mytoken.jwt # Read in the StormForge Performance JWT from a file
     literal: mysupersecretjwt # The raw StormForge Performance JWT. Be mindful of the security implications of including the JWT here.
@@ -126,13 +126,13 @@ Reference: https://docs.stormforge.io/reference/application/v1alpha1/#ingress
 	// This is used to ensure even empty (and otherwise omitted) fields can be
 	// included for documentation purposes.
 	required = map[string]string{
-		"resources":              "",
-		"configuration":          "resources",
-		"ingress":                "configuration",
-		"scenarios":              "ingress",
-		"objectives":             "scenarios",
-		"stormforge-perf-config": "objectives",
-		"":                       "stormforge-perf-config",
+		"resources":            "",
+		"configuration":        "resources",
+		"ingress":              "configuration",
+		"scenarios":            "ingress",
+		"objectives":           "scenarios",
+		"stormforgePerfConfig": "objectives",
+		"":                     "stormforgePerfConfig",
 	}
 )
 
