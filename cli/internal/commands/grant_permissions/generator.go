@@ -47,9 +47,9 @@ type GeneratorOptions struct {
 	NamespaceSelector string
 	// IncludeManagerRole generates an additional binding to the manager role for each matched namespace
 	IncludeManagerRole bool
-	// CreatePrometheusRBAC includes the additional permissions to create the service account, clusterrole, and clusterorlebinding
-	// for the prometheus instance we deploy to gather metrics
-	CreatePrometheusRBAC bool
+	// CreateInClusterGenerationRBAC includes the additional permissions to create the service account, clusterrole, clusterorlebinding
+	// configmaps, and experiments for the in cluster experiment generation and creation.
+	CreateInClusterGenerationRBAC bool
 }
 
 // NewGeneratorCommand creates a command for generating the controller role definitions
@@ -80,7 +80,7 @@ func (o *GeneratorOptions) addFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolVar(&o.CreateTrialNamespaces, "create-trial-namespace", o.CreateTrialNamespaces, "include trial namespace creation permissions")
 	cmd.Flags().StringVar(&o.NamespaceSelector, "ns-selector", o.NamespaceSelector, "bind to matching namespaces")
 	cmd.Flags().BoolVar(&o.IncludeManagerRole, "include-manager", o.IncludeManagerRole, "bind manager to matching namespaces")
-	cmd.Flags().BoolVar(&o.CreateApplicationServicesRBAC, "in-cluster", o.CreateApplicationServicesRBAC, "include additional permissions for in cluster generation and experiment creation")
+	cmd.Flags().BoolVar(&o.CreateInClusterGenerationRBAC, "in-cluster", o.CreateInClusterGenerationRBAC, "include additional permissions for in cluster generation and experiment creation")
 }
 
 func (o *GeneratorOptions) generate(ctx context.Context) error {
@@ -176,7 +176,7 @@ func (o *GeneratorOptions) generateClusterRole(roleRef *rbacv1.RoleRef) *rbacv1.
 	}
 
 	// :godmode:
-	if o.CreateApplicationServicesRBAC {
+	if o.CreateInClusterGenerationRBAC {
 		clusterRole.Rules = append(clusterRole.Rules,
 			// Prometheus RBAC
 			// // Need controller to have equal to or greater than permissions for roles that it creates.

@@ -27,8 +27,8 @@ import (
 
 	"github.com/go-logr/zapr"
 	"github.com/stretchr/testify/assert"
-	redskyappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
-	redskyv1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-go/pkg/api"
 	applications "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
 	"go.uber.org/zap"
@@ -108,8 +108,8 @@ func TestPoller(t *testing.T) {
 	}
 
 	scheme := runtime.NewScheme()
-	redskyv1beta2.AddToScheme(scheme)
-	redskyappsv1alpha1.AddToScheme(scheme)
+	optimizev1beta2.AddToScheme(scheme)
+	optimizeappsv1alpha1.AddToScheme(scheme)
 	corev1.AddToScheme(scheme)
 	rbacv1.AddToScheme(scheme)
 	appsv1.AddToScheme(scheme)
@@ -124,7 +124,6 @@ func TestPoller(t *testing.T) {
 
 			client := fake.NewFakeClientWithScheme(scheme)
 
-			// appCh := make(chan *redskyappsv1alpha1.Application)
 			fapi := &fakeAPI{
 				templateUpdateCh: make(chan struct{}),
 				failureCh:        make(chan applications.ActivityFailure),

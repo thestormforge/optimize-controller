@@ -30,7 +30,9 @@ import (
 const audience = "https://api.carbonrelay.io/v1/"
 
 func NewExperimentAPI(ctx context.Context, uaComment string) (experimentsv1alpha1.API, error) {
-	client, err := newClientFromConfig(ctx, uaComment)
+	client, err := newClientFromConfig(ctx, uaComment, func(srv config.Server) string {
+		return strings.TrimSuffix(srv.API.ExperimentsEndpoint, "/v1/experiments/")
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +48,9 @@ func NewExperimentAPI(ctx context.Context, uaComment string) (experimentsv1alpha
 }
 
 func NewApplicationAPI(ctx context.Context, uaComment string) (applications.API, error) {
-	client, err := newClientFromConfig(ctx, uaComment)
+	client, err := newClientFromConfig(ctx, uaComment, func(srv config.Server) string {
+		return strings.TrimSuffix(srv.API.ApplicationsEndpoint, "/v2/applications/")
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +64,7 @@ func NewApplicationAPI(ctx context.Context, uaComment string) (applications.API,
 	return appAPI, nil
 }
 
-func newClientFromConfig(ctx context.Context, uaComment string) (api.Client, error) {
+func newClientFromConfig(ctx context.Context, uaComment string, address func(config.Server) string) (api.Client, error) {
 	// Load the configuration
 	cfg := &config.OptimizeConfig{}
 	cfg.AuthorizationParameters = map[string][]string{
@@ -79,15 +83,13 @@ func newClientFromConfig(ctx context.Context, uaComment string) (api.Client, err
 		return nil, err
 	}
 
-	address := strings.TrimSuffix(srv.API.ApplicationsEndpoint, "/v2/applications/")
-
 	rt, err := cfg.Authorize(ctx, version.UserAgent("optimize-controller", uaComment, nil))
 	if err != nil {
 		return nil, err
 	}
 
 	// Create a new API client
-	c, err := api.NewClient(address, rt)
+	c, err := api.NewClient(address(srv), rt)
 	if err != nil {
 		return nil, err
 	}

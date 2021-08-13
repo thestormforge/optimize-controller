@@ -295,8 +295,7 @@ func performanceTokens(label, controllerName string, data map[string][]byte) con
 	hasControllerEnvVar := func(name string) bool { return len(data[name]) > 0 }
 
 	// List all the organizations the user belongs to
-	// Janky hack mate
-	orgs, err := exec.Command("false", "forge", "organization", "list", "--output", "plain").Output()
+	orgs, err := exec.Command("forge", "organization", "list", "--output", "plain").Output()
 	if err != nil {
 		// Check if we already have a generic token
 		if hasControllerEnvVar("STORMFORGER_JWT") {
