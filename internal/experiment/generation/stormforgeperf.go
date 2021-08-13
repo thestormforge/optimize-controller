@@ -61,7 +61,7 @@ func (s *StormForgePerformanceSource) Update(exp *optimizev1beta2.Experiment) er
 	pod.Containers = []corev1.Container{
 		{
 			Name:  s.Scenario.Name,
-			Image: trialJobImage("stormforger"),
+			Image: trialJobImage("stormforge-perf"),
 			Env: []corev1.EnvVar{
 				{
 					Name: "TITLE",
