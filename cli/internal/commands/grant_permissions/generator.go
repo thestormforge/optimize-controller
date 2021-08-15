@@ -207,7 +207,7 @@ func (o *GeneratorOptions) generateClusterRole(roleRef *rbacv1.RoleRef) *rbacv1.
 			rbacv1.PolicyRule{
 				Verbs:     []string{"get", "list", "watch", "create", "update", "delete"},
 				APIGroups: []string{""},
-				Resources: []string{"serviceaccounts", "configmaps", "secrets"},
+				Resources: []string{"serviceaccounts", "configmaps", "secrets", "services"},
 			},
 
 			// // _should_ be able to drop statefulsets
