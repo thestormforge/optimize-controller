@@ -177,7 +177,6 @@ func apiParamsToClusterParams(applicationParams []applications.TemplateParameter
 }
 
 func combineParamAndBaseline(params []experimentsv1alpha1.Parameter, baselines []experimentsv1alpha1.Assignment) ([]applications.TemplateParameter, error) {
-
 	combined := make([]applications.TemplateParameter, 0, len(params))
 
 	for _, param := range params {
@@ -193,12 +192,12 @@ func combineParamAndBaseline(params []experimentsv1alpha1.Parameter, baselines [
 			return nil, err
 		}
 
-		for _, baseline := range baselines {
-			if baseline.ParameterName != param.Name {
+		for b := range baselines {
+			if baselines[b].ParameterName != param.Name {
 				continue
 			}
 
-			appTemplate.Baseline = &baseline.Value
+			appTemplate.Baseline = &baselines[b].Value
 		}
 
 		combined = append(combined, appTemplate)

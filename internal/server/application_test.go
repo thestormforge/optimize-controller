@@ -117,6 +117,17 @@ func TestClusterExperimentToAPITemplate(t *testing.T) {
 			// test_case is silently filters/dropped because min==max
 			assert.Equal(t, tc.expectedParams, len(template.Parameters))
 			assert.Equal(t, tc.expectedMetrics, len(template.Metrics))
+
+			for _, templateParam := range template.Parameters {
+				for _, expParam := range tc.exp.Spec.Parameters {
+					if templateParam.Name != expParam.Name {
+						continue
+					}
+
+					assert.Equal(t, expParam.Baseline.String(), templateParam.Baseline.String())
+				}
+			}
+
 		})
 	}
 }
