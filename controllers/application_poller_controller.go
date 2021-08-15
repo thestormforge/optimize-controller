@@ -47,7 +47,7 @@ type Poller struct {
 func NewPoller(kclient client.Client, logger logr.Logger) (*Poller, error) {
 	appAPI, err := server.NewApplicationAPI(context.Background(), version.GetInfo().String())
 	if err != nil {
-		logger.Info(err.Error())
+		logger.Info("Application API is unavailable, skipping setup", "message", err.Error())
 		return &Poller{log: logger}, nil
 	}
 
@@ -241,6 +241,7 @@ func (p *Poller) handleActivity(ctx context.Context, activity applications.Activ
 }
 
 func (p *Poller) handleErrors(ctx context.Context, err error, activityURL string) {
+	p.log.Info("in cluster generation failed", "message", err.Error())
 	failure := applications.ActivityFailure{FailureMessage: err.Error()}
 
 	if err := p.apiClient.PatchApplicationActivity(ctx, activityURL, failure); err != nil {
