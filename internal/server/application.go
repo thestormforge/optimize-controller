@@ -30,6 +30,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+// APIApplicationToClusterApplication converts an API (optimize-go) representation
+// of an Application into an in cluster ( api/apps/v1alpha1 ) representation.
 func APIApplicationToClusterApplication(app applications.Application, scenario applications.Scenario) (*optimizeappsv1alpha1.Application, error) {
 	if err := validateAPIApplication(app, scenario); err != nil {
 		return nil, err
@@ -73,6 +75,8 @@ func APIApplicationToClusterApplication(app applications.Application, scenario a
 	return baseApp, nil
 }
 
+// ClusterExperimentToAPITemplate converts an Application into an in cluster
+// ( api/apps/v1alpha1 ) representation into an API (optimize-go) representation.
 func ClusterExperimentToAPITemplate(exp *optimizev1beta2.Experiment) (*applications.Template, error) {
 	template := &applications.Template{}
 
@@ -103,6 +107,8 @@ func ClusterExperimentToAPITemplate(exp *optimizev1beta2.Experiment) (*applicati
 	return template, nil
 }
 
+// APITemplateToClusterExperiment overlays the results of an application template
+// ( parameters, metrics ) on top of an existing experiment.
 func APITemplateToClusterExperiment(exp *optimizev1beta2.Experiment, template *applications.Template) error {
 	if exp == nil || template == nil {
 		return nil

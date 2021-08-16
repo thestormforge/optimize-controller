@@ -37,6 +37,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// Poller handles checking with the Application Services to trigger an in cluster
+// activity such as scanning resources or running an experiment.
 type Poller struct {
 	client        client.Client
 	log           logr.Logger
@@ -44,6 +46,8 @@ type Poller struct {
 	kubectlExecFn func(cmd *exec.Cmd) ([]byte, error)
 }
 
+// NewPoller returns a new Poller with the given Kubernetes client, logger,
+// and application api client configured.
 func NewPoller(kclient client.Client, logger logr.Logger) (*Poller, error) {
 	appAPI, err := server.NewApplicationAPI(context.Background(), version.GetInfo().String())
 	if err != nil {
@@ -58,9 +62,14 @@ func NewPoller(kclient client.Client, logger logr.Logger) (*Poller, error) {
 	}, nil
 }
 
+// Start is used to initiate the polling loop for new tasks.
+// Start satisfies the controller-runtime/manager.Runnable interface so we
+// can plug into the underlying controller runtime manager that the rest of the
+// controllers use.
+// If there was an issue connecting to the application services, this will immediately
+// return.
 func (p *Poller) Start(ch <-chan struct{}) error {
 	if p.apiClient == nil {
-		<-ch
 		return nil
 	}
 	p.log.Info("Starting application poller")

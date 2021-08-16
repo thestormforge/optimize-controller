@@ -35,16 +35,15 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-
 	"k8s.io/apimachinery/pkg/runtime"
-
-	//lint:ignore SA1019 backed out
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestPoller(t *testing.T) {
 	pfalse := false
 	one := api.FromInt64(1)
+	twentyfive := api.FromInt64(25)
+	fifty := api.FromInt64(50)
 
 	testCases := []struct {
 		desc     string
@@ -63,7 +62,7 @@ func TestPoller(t *testing.T) {
 							Max: json.Number("2000"),
 							Min: json.Number("25"),
 						},
-						Baseline: &one,
+						Baseline: &fifty,
 					},
 					{
 						Name: "nginx_memory",
@@ -72,7 +71,7 @@ func TestPoller(t *testing.T) {
 							Max: json.Number("50"),
 							Min: json.Number("12"),
 						},
-						Baseline: &one,
+						Baseline: &twentyfive,
 					}, {
 						Name: "replicas",
 						Type: "int",
@@ -119,7 +118,6 @@ func TestPoller(t *testing.T) {
 			os.Setenv("STORMFORGER_JWT", "funnyjwtjokehere")
 			defer os.Unsetenv("STORMFORGER_JWT")
 
-			//lint:ignore SA1029 not important here
 			ctx := context.WithValue(context.Background(), "tag", tc.tag)
 
 			client := fake.NewFakeClientWithScheme(scheme)
