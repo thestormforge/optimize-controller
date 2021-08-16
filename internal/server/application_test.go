@@ -140,9 +140,9 @@ func TestAPITemplateToClusterExperiment(t *testing.T) {
 	templateOne := api.FromInt64(500)
 	templateTwo := api.FromInt64(2000)
 	templateThree := api.FromInt64(20000)
-	expOne := intstr.FromString("500")
-	expTwo := intstr.FromString("2000")
-	expThree := intstr.FromString("20000")
+	expOne := intstr.FromInt(500)
+	expTwo := intstr.FromInt(2000)
+	expThree := intstr.FromInt(20000)
 	pTrue := true
 
 	testCases := []struct {

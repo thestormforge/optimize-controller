@@ -156,6 +156,11 @@ func apiParamsToClusterParams(applicationParams []applications.TemplateParameter
 		switch ap.Type {
 		case "categorical":
 			param.Values = ap.Values
+
+			if ap.Baseline != nil {
+				baseline := intstr.FromString(ap.Baseline.String())
+				param.Baseline = &baseline
+			}
 		case "int":
 			min, err := ap.Bounds.Min.Int64()
 			if err != nil {
@@ -169,11 +174,11 @@ func apiParamsToClusterParams(applicationParams []applications.TemplateParameter
 
 			param.Min = int32(min)
 			param.Max = int32(max)
-		}
 
-		if ap.Baseline != nil {
-			baseline := intstr.FromString(ap.Baseline.String())
-			param.Baseline = &baseline
+			if ap.Baseline != nil {
+				baseline := intstr.FromInt(int(ap.Baseline.Int64Value()))
+				param.Baseline = &baseline
+			}
 		}
 
 		cp = append(cp, param)
