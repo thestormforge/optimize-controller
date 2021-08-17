@@ -18,10 +18,13 @@ package controllers
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"os/exec"
+	"strings"
 
 	"github.com/go-logr/logr"
+	"github.com/oklog/ulid"
 	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-controller/v2/internal/experiment"
@@ -114,13 +117,13 @@ func (p *Poller) handleActivity(ctx context.Context, activity applications.Activ
 	// We always want to delete the activity after having received it
 	defer func() {
 		if err := p.apiClient.DeleteActivity(ctx, activity.URL); err != nil {
-			p.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to delete activity", err), activity.URL)
+			p.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to delete activity", err), activity.Tags[0], activity.URL)
 		}
 	}()
 
 	// Ensure we actually have an action to perform
 	if len(activity.Tags) != 1 {
-		p.handleErrors(ctx, fmt.Errorf("%s %d", "invalid number of activity tags, expected 1 got", len(activity.Tags)), activity.URL)
+		p.handleErrors(ctx, fmt.Errorf("%s %d", "invalid number of activity tags, expected 1 got", len(activity.Tags)), "", activity.URL)
 		return
 	}
 
@@ -129,38 +132,44 @@ func (p *Poller) handleActivity(ctx context.Context, activity applications.Activ
 	// Activity feed provides us with a scenario URL
 	scenario, err := p.apiClient.GetScenario(ctx, activity.ExternalURL)
 	if err != nil {
-		p.handleErrors(ctx, fmt.Errorf("%s (%s): %w", "failed to get scenario", activity.ExternalURL, err), activity.URL)
+		p.handleErrors(ctx, fmt.Errorf("%s (%s): %w", "failed to get scenario", activity.ExternalURL, err), activity.Tags[0], activity.URL)
 		return
 	}
 
 	// Need to fetch top level application so we can get the resources
 	applicationURL := scenario.Link(api.RelationUp)
 	if applicationURL == "" {
-		p.handleErrors(ctx, fmt.Errorf("no matching application URL for scenario"), activity.URL)
+		p.handleErrors(ctx, fmt.Errorf("no matching application URL for scenario"), activity.Tags[0], activity.URL)
 		return
 	}
 
 	templateURL := scenario.Link(api.RelationTemplate)
 	if templateURL == "" {
-		p.handleErrors(ctx, fmt.Errorf("no matching template URL for scenario"), activity.URL)
+		p.handleErrors(ctx, fmt.Errorf("no matching template URL for scenario"), activity.Tags[0], activity.URL)
+		return
+	}
+
+	experimentURL := scenario.Link(api.RelationExperiments)
+	if experimentURL == "" {
+		p.handleErrors(ctx, fmt.Errorf("no matching experiment URL for scenario"), activity.Tags[0], activity.URL)
 		return
 	}
 
 	apiApp, err := p.apiClient.GetApplication(ctx, applicationURL)
 	if err != nil {
-		p.handleErrors(ctx, fmt.Errorf("%s (%s): %w", "failed to get application", activity.URL, err), activity.URL)
+		p.handleErrors(ctx, fmt.Errorf("%s (%s): %w", "failed to get application", activity.URL, err), activity.Tags[0], activity.URL)
 		return
 	}
 
 	var assembledApp *optimizeappsv1alpha1.Application
 	if assembledApp, err = server.APIApplicationToClusterApplication(apiApp, scenario); err != nil {
-		p.handleErrors(ctx, fmt.Errorf("%s (%s): %w", "failed to assemble application", activity.URL, err), activity.URL)
+		p.handleErrors(ctx, fmt.Errorf("%s (%s): %w", "failed to assemble application", activity.URL, err), activity.Tags[0], activity.URL)
 		return
 	}
 
 	generatedResources, err := p.generateApp(*assembledApp)
 	if err != nil {
-		p.handleErrors(ctx, fmt.Errorf("%s (%s): %w", "failed to generate application", activity.URL, err), activity.URL)
+		p.handleErrors(ctx, fmt.Errorf("%s (%s): %w", "failed to generate application", activity.URL, err), activity.Tags[0], activity.URL)
 		return
 	}
 
@@ -168,12 +177,18 @@ func (p *Poller) handleActivity(ctx context.Context, activity applications.Activ
 	for i := range generatedResources {
 		if expObj, ok := generatedResources[i].(*optimizev1beta2.Experiment); ok {
 			exp = expObj
+			if exp.ObjectMeta.Annotations == nil {
+				exp.ObjectMeta.Annotations = make(map[string]string)
+			}
+
+			exp.ObjectMeta.Annotations[optimizev1beta2.AnnotationExperimentURL] = fmt.Sprintf("%s/%s", experimentURL, exp.ObjectMeta.Name)
+
 			break
 		}
 	}
 
 	if exp == nil {
-		p.handleErrors(ctx, fmt.Errorf("%s: %w", "invalid experiment generated", err), activity.URL)
+		p.handleErrors(ctx, fmt.Errorf("%s: %w", "invalid experiment generated", err), activity.Tags[0], activity.URL)
 		return
 	}
 
@@ -181,16 +196,16 @@ func (p *Poller) handleActivity(ctx context.Context, activity applications.Activ
 	case applications.TagScan:
 		template, err := server.ClusterExperimentToAPITemplate(exp)
 		if err != nil {
-			p.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to convert experiment template", err), activity.URL)
+			p.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to convert experiment template", err), activity.Tags[0], activity.URL)
 			return
 		}
 
 		if err := p.apiClient.UpdateTemplate(ctx, templateURL, *template); err != nil {
-			p.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to save experiment template in server", err), activity.URL)
+			p.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to save experiment template in server", err), activity.Tags[0], activity.URL)
 			return
 		}
 
-		p.log.Info("successfully completed resource scan", "activity", activity.URL)
+		p.log.Info("successfully completed resource scan", "activity", activity.Tags[0], activity.URL)
 	case applications.TagRun:
 		// We wont compare existing scan with current scan
 		// so we can preserve changes via UI
@@ -198,13 +213,13 @@ func (p *Poller) handleActivity(ctx context.Context, activity applications.Activ
 		// Get previous template
 		previousTemplate, err := p.apiClient.GetTemplate(ctx, templateURL)
 		if err != nil {
-			p.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to get experiment template from server, a 'scan' task must be completed first", err), activity.URL)
+			p.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to get experiment template from server, a 'scan' task must be completed first", err), activity.Tags[0], activity.URL)
 			return
 		}
 
 		// Overwrite current scan results with previous scan results
 		if err = server.APITemplateToClusterExperiment(exp, &previousTemplate); err != nil {
-			p.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to convert experiment template", err), activity.URL)
+			p.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to convert experiment template", err), activity.Tags[0], activity.URL)
 			return
 		}
 
@@ -218,7 +233,7 @@ func (p *Poller) handleActivity(ctx context.Context, activity applications.Activ
 			// not sure why yet
 			objKey, err := client.ObjectKeyFromObject(generatedResources[i])
 			if err != nil {
-				p.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to get object key", err), activity.URL)
+				p.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to get object key", err), activity.Tags[0], activity.URL)
 				return
 			}
 
@@ -228,30 +243,34 @@ func (p *Poller) handleActivity(ctx context.Context, activity applications.Activ
 			switch {
 			case apierrors.IsNotFound(err):
 				if err := p.client.Create(ctx, generatedResources[i]); err != nil {
-					p.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to create object", err), activity.URL)
+					p.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to create object", err), activity.Tags[0], activity.URL)
 					return
 				}
 			case err == nil:
-				// TODO This might need to be a patch instead of an update
-				// {"error":"failed to update object: experiments.optimize.stormforge.io \"01fcj078y60j74m11tnm7ga0yw-2a1d7d90\" is invalid: metadata.resourceVersion: Invalid value: 0x0: must be specified for an update"}
-				if err := p.client.Update(ctx, generatedResources[i]); err != nil {
-					p.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to update object", err), activity.URL)
-					return
-				}
+				p.log.Info("updating application resources is currently not supported", "existing", holder, "new", generatedResources[i])
+				return
 			default:
 				// Assume this should be a hard error
-				p.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to get object", err), activity.URL)
+				p.handleErrors(ctx, fmt.Errorf("%s: %w", "failed to get object", err), activity.Tags[0], activity.URL)
 				return
 			}
 		}
 
-		p.log.Info("successfully created in cluster resources", "activity", activity.URL)
+		p.log.Info("successfully created in cluster resources", "activity", activity.Tags[0], activity.URL)
 	}
 }
 
-func (p *Poller) handleErrors(ctx context.Context, err error, activityURL string) {
-	p.log.Info("in cluster generation failed", "message", err.Error())
+func (p *Poller) handleErrors(ctx context.Context, err error, tag string, activityURL string) {
 	failure := applications.ActivityFailure{FailureMessage: err.Error()}
+
+	switch tag {
+	case applications.TagRun, applications.TagScan:
+		failure.FailureReason = fmt.Sprintf("%s failed", tag)
+	default:
+		failure.FailureReason = fmt.Sprint("invalid data")
+	}
+
+	p.log.Info("in cluster generation failed", "message", failure)
 
 	if err := p.apiClient.PatchApplicationActivity(ctx, activityURL, failure); err != nil {
 		p.log.Error(err, "unable to update application activity")
@@ -268,7 +287,8 @@ func (p *Poller) generateApp(app optimizeappsv1alpha1.Application) ([]runtime.Ob
 	}
 
 	g := &experiment.Generator{
-		Application: app,
+		Application:    app,
+		ExperimentName: strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String()),
 		FilterOptions: scan.FilterOptions{
 			KubectlExecutor: p.kubectlExecFn,
 		},
