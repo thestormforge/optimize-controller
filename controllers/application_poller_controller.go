@@ -35,6 +35,7 @@ import (
 	"github.com/thestormforge/optimize-go/pkg/api"
 	applications "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metameta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -254,8 +255,13 @@ func (p *Poller) handleActivity(ctx context.Context, activity applications.Activ
 					return
 				}
 			case err == nil:
-				log.Info("Updating application resources is currently not supported", "existing", holder, "new", generatedResources[i])
-				return
+				// Most of this gets handled properly for core resources in kube, but seems like there is a gap around
+				// CRD handling. ref: https://github.com/kubernetes/kubernetes/issues/70674
+				metameta.NewAccessor().SetResourceVersion(generatedResources[i], holder.GetResourceVersion())
+				if err := p.client.Update(ctx, generatedResources[i]); err != nil {
+					p.handleErrors(ctx, log, activity.URL, ActivityReasonRunFailed, "Failed to update object", err)
+					return
+				}
 			default:
 				// Assume this should be a hard error
 				p.handleErrors(ctx, log, activity.URL, ActivityReasonRunFailed, "Failed to get object", err)
