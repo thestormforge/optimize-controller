@@ -35,6 +35,7 @@ import (
 	"github.com/thestormforge/optimize-go/pkg/api"
 	applications "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -177,11 +178,8 @@ func (p *Poller) handleActivity(ctx context.Context, activity applications.Activ
 	for i := range generatedResources {
 		if expObj, ok := generatedResources[i].(*optimizev1beta2.Experiment); ok {
 			exp = expObj
-			if exp.ObjectMeta.Annotations == nil {
-				exp.ObjectMeta.Annotations = make(map[string]string)
-			}
 
-			exp.ObjectMeta.Annotations[optimizev1beta2.AnnotationExperimentURL] = fmt.Sprintf("%s/%s", experimentURL, exp.ObjectMeta.Name)
+			metav1.SetMetaDataAnnotation(&exp.ObjectMeta, optimizev1beta2.AnnotationExperimentURL, strings.TrimRight(experimentURL, "/")+"/"+exp.Name)
 
 			break
 		}
@@ -205,7 +203,7 @@ func (p *Poller) handleActivity(ctx context.Context, activity applications.Activ
 			return
 		}
 
-		p.log.Info("successfully completed resource scan", "activity", activity.Tags[0], activity.URL)
+		p.log.Info("successfully completed resource scan", "task", activity.Tags[0], "activity", activity.URL)
 	case applications.TagRun:
 		// We wont compare existing scan with current scan
 		// so we can preserve changes via UI
@@ -256,7 +254,7 @@ func (p *Poller) handleActivity(ctx context.Context, activity applications.Activ
 			}
 		}
 
-		p.log.Info("successfully created in cluster resources", "activity", activity.Tags[0], activity.URL)
+		p.log.Info("successfully created in cluster resources", "task", activity.Tags[0], "activity", activity.URL)
 	}
 }
 
