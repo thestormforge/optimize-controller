@@ -47,6 +47,9 @@ type GeneratorOptions struct {
 	NamespaceSelector string
 	// IncludeManagerRole generates an additional binding to the manager role for each matched namespace
 	IncludeManagerRole bool
+	// CreateInClusterGenerationRBAC includes the additional permissions to create the service account, clusterrole, clusterorlebinding
+	// configmaps, and experiments for the in cluster experiment generation and creation.
+	CreateInClusterGenerationRBAC bool
 }
 
 // NewGeneratorCommand creates a command for generating the controller role definitions
@@ -77,6 +80,7 @@ func (o *GeneratorOptions) addFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolVar(&o.CreateTrialNamespaces, "create-trial-namespace", o.CreateTrialNamespaces, "include trial namespace creation permissions")
 	cmd.Flags().StringVar(&o.NamespaceSelector, "ns-selector", o.NamespaceSelector, "bind to matching namespaces")
 	cmd.Flags().BoolVar(&o.IncludeManagerRole, "include-manager", o.IncludeManagerRole, "bind manager to matching namespaces")
+	cmd.Flags().BoolVar(&o.CreateInClusterGenerationRBAC, "in-cluster", o.CreateInClusterGenerationRBAC, "include additional permissions for in cluster generation and experiment creation")
 }
 
 func (o *GeneratorOptions) generate(ctx context.Context) error {
@@ -167,6 +171,59 @@ func (o *GeneratorOptions) generateClusterRole(roleRef *rbacv1.RoleRef) *rbacv1.
 				Verbs:     []string{"create"},
 				APIGroups: []string{""},
 				Resources: []string{"namespaces,serviceaccounts"},
+			},
+		)
+	}
+
+	// :godmode:
+	if o.CreateInClusterGenerationRBAC {
+		clusterRole.Rules = append(clusterRole.Rules,
+			// Prometheus RBAC
+			// // Need controller to have equal to or greater than permissions for roles that it creates.
+			// // So the controller itself doesnt need these permissions, but when we create the clusterrole
+			// // for prometheus they come into play.
+			rbacv1.PolicyRule{
+				Verbs:     []string{"get", "list", "watch"},
+				APIGroups: []string{""},
+				Resources: []string{"nodes", "nodes/proxy", "nodes/metrics", "services"},
+			},
+
+			rbacv1.PolicyRule{
+				Verbs:     []string{"list", "watch"},
+				APIGroups: []string{""},
+				Resources: []string{"pods"},
+			},
+
+			// In-Cluster Generation RBAC
+			// // This is necessary to create the roles for the prometheus service account
+			rbacv1.PolicyRule{
+				Verbs:     []string{"get", "list", "watch", "create", "update", "delete"},
+				APIGroups: []string{"rbac.authorization.k8s.io"},
+				Resources: []string{"clusterroles", "clusterrolebindings"},
+			},
+
+			// // _may_ be able to drop secrets from this
+			// // This is necessary to create the prometheus service account and configuration
+			rbacv1.PolicyRule{
+				Verbs:     []string{"get", "list", "watch", "create", "update", "delete"},
+				APIGroups: []string{""},
+				Resources: []string{"serviceaccounts", "configmaps", "secrets", "services"},
+			},
+
+			// // _should_ be able to drop statefulsets
+			// // _may_ be able to drop extensions?
+			// // This is necessary to create the prometheus deployment
+			rbacv1.PolicyRule{
+				Verbs:     []string{"get", "list", "watch", "create", "update", "delete"},
+				APIGroups: []string{"apps", "extensions"},
+				Resources: []string{"deployments", "statefulsets"},
+			},
+
+			// // This is necessary to create the roles for the prometheus service account
+			rbacv1.PolicyRule{
+				Verbs:     []string{"get", "list", "watch", "create", "update", "delete"},
+				APIGroups: []string{"optimize.stormforge.io"},
+				Resources: []string{"experiments"},
 			},
 		)
 	}

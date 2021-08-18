@@ -16,6 +16,7 @@ require (
 	github.com/mdp/qrterminal/v3 v3.0.0
 	github.com/muesli/termenv v0.7.4
 	github.com/newrelic/newrelic-client-go v0.58.5
+	github.com/oklog/ulid v1.3.1
 	github.com/pelletier/go-toml v1.2.0
 	github.com/pkg/browser v0.0.0-20180916011732-0a3d74bf9ce4
 	github.com/prometheus/client_golang v1.0.0
@@ -23,8 +24,8 @@ require (
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
-	github.com/thestormforge/konjure v0.3.0
-	github.com/thestormforge/optimize-go v0.0.16
+	github.com/thestormforge/konjure v0.3.2
+	github.com/thestormforge/optimize-go v0.0.17-0.20210816181001-18f48407da76
 	github.com/yujunz/go-getter v1.5.1-lite.0.20201201013212-6d9c071adddf
 	github.com/zorkian/go-datadog-api v2.24.0+incompatible
 	go.uber.org/zap v1.10.0

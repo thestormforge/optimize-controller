@@ -172,11 +172,12 @@ func (o *GeneratorOptions) generateApplication() (io.Reader, error) {
 // `grant_permissions` generator in memory.
 func (o *GeneratorOptions) generateControllerRBAC() io.Reader {
 	opts := grant_permissions.GeneratorOptions{
-		Config:                o.Config,
-		SkipDefault:           !o.IncludeBootstrapRole,
-		CreateTrialNamespaces: o.IncludeExtraPermissions,
-		NamespaceSelector:     o.NamespaceSelector,
-		IncludeManagerRole:    true,
+		Config:                        o.Config,
+		SkipDefault:                   !o.IncludeBootstrapRole,
+		CreateTrialNamespaces:         o.IncludeExtraPermissions,
+		NamespaceSelector:             o.NamespaceSelector,
+		IncludeManagerRole:            true,
+		CreateInClusterGenerationRBAC: true,
 	}
 	return o.newStdoutReader(grant_permissions.NewGeneratorCommand(&opts))
 }
