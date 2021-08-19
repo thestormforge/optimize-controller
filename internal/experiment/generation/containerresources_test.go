@@ -197,6 +197,38 @@ func TestContainerResourcesParameter(t *testing.T) {
                   requests:
                     cpu: "{{ .Values.cpu }}m"`),
 		},
+
+		{
+			desc: "big memory",
+
+			containerResourcesParameter: containerResourcesParameter{
+				pnode: pnode{
+					fieldPath: []string{"spec", "resources"},
+					value: encodeResourceRequirements(corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceMemory: resource.MustParse("6100M"),
+						},
+					}),
+				},
+				resources: []corev1.ResourceName{corev1.ResourceMemory},
+			},
+
+			expectedParameters: []optimizev1beta2.Parameter{
+				{
+					Name:     "memory",
+					Baseline: newInt(6100),
+					Min:      3050,
+					Max:      6100,
+				},
+			},
+			expectedPatch: unindent(`
+              spec:
+                resources:
+                  limits:
+                    memory: "{{ .Values.memory }}M"
+                  requests:
+                    memory: "{{ .Values.memory }}M"`),
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
