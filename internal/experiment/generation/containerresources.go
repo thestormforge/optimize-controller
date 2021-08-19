@@ -291,7 +291,7 @@ type containerResources struct {
 	defaultScale resource.Scale
 }
 
-// Max returns the configured maximum, or twice the baseline (provided it is smaller then the max).
+// Max returns the configured maximum, or twice the baseline (provided it is smaller than the max).
 func (cr containerResources) Max() int32 {
 	max := cr.max
 	max.Format = cr.baseline.Format
@@ -300,12 +300,15 @@ func (cr containerResources) Max() int32 {
 		if max.Value() == 0 || cr.baseline.Value()*2 < max.Value() {
 			max.Set(cr.baseline.Value() * 2)
 		}
+		if cr.baseline.Value() > max.Value() {
+			max.Set(cr.baseline.Value())
+		}
 	}
 
 	return AsScaledInt(max, cr.scale())
 }
 
-// Min returns the the configured minimum or half the baseline.
+// Min returns the configured minimum or half the baseline.
 func (cr containerResources) Min() int32 {
 	if !cr.baseline.IsZero() {
 		return AsScaledInt(cr.baseline, cr.scale()) / 2
