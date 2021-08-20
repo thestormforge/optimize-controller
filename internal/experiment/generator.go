@@ -99,6 +99,8 @@ func (g *Generator) Execute(output kio.Writer) error {
 			kio.FilterAll(generation.SetExperimentLabel(optimizeappsv1alpha1.LabelScenario, scenarioName)),
 			kio.FilterAll(generation.SetExperimentLabel(optimizeappsv1alpha1.LabelObjective, objectiveName)),
 
+			kio.FilterAll(generation.SetHashedName(experimentName)),
+
 			// Apply Kubernetes formatting conventions and clean up the objects
 			&filters.FormatFilter{UseSchema: true},
 			kio.FilterAll(yaml.ClearAnnotation(filters.FmtAnnotation)),

@@ -86,11 +86,76 @@ func SetExperimentName(name string) yaml.Filter {
 	})
 }
 
+// SetHashedName updates all resources and references we generate to append
+// a hashed suffix.
+func SetHashedName(expName string) yaml.Filter {
+	suffix := fmt.Sprintf("-%x", sha256.Sum256([]byte(expName)))[0:7]
+
+	return yaml.FilterFunc(func(node *yaml.RNode) (*yaml.RNode, error) {
+		return node.Pipe(
+			// Change all the names ( meta.Name )
+			// TODO exclude experiment
+			yaml.Tee(
+				isNotExperiment(),
+				yaml.Lookup(yaml.MetadataField, yaml.NameField),
+				yaml.SuffixSetter{Value: suffix},
+			),
+			// Change references in experiment
+			yaml.Tee(
+				isExperiment(),
+				// Service Account
+				yaml.Tee(
+					yaml.Lookup("spec", "trialTemplate", "spec", "setupServiceAccountName"),
+					yaml.SuffixSetter{Value: suffix},
+				),
+				// Perf JWT
+				yaml.Tee(
+					yaml.Lookup("spec", "trialTemplate", "spec", "jobTemplate", "spec", "template", "spec", "containers", "[name=stormforger]", "env", "[name=STORMFORGER_JWT]", "valueFrom", "secretKeyRef", yaml.NameField),
+					yaml.SuffixSetter{Value: suffix},
+				),
+				// Test Case ConfigMap
+				// // Perf
+				yaml.Tee(
+					yaml.Lookup("spec", "trialTemplate", "spec", "jobTemplate", "spec", "template", "spec", "volumes", "[name=test-case-file]", "configMap", yaml.NameField),
+					yaml.SuffixSetter{Value: suffix},
+				),
+				// // Locust
+				yaml.Tee(
+					yaml.Lookup("spec", "trialTemplate", "spec", "jobTemplate", "spec", "template", "spec", "volumes", "[name=locustfile]", "configMap", yaml.NameField),
+					yaml.SuffixSetter{Value: suffix},
+				),
+			),
+			// Change references in clusterrole / clusterrolebinding
+			yaml.Tee(
+				isClusterRoleOrBinding(),
+				yaml.Tee(
+					yaml.Lookup("roleRef", yaml.NameField),
+					yaml.SuffixSetter{Value: suffix},
+				),
+				yaml.Tee(
+					yaml.Get("subjects"),
+					yaml.GetElementByKey("name"),
+					yaml.Lookup(yaml.NameField),
+					yaml.SuffixSetter{Value: suffix},
+				),
+			),
+		)
+	})
+}
+
 func isExperiment() yaml.Filter {
 	return filters.FilterOne(&filters.ResourceMetaFilter{
 		Group:   optimizev1beta2.GroupVersion.Group,
 		Version: optimizev1beta2.GroupVersion.Version,
 		Kind:    "Experiment",
+	})
+}
+
+func isNotExperiment() yaml.Filter {
+	return filters.FilterOne(&filters.ResourceMetaFilter{
+		Group:   optimizev1beta2.GroupVersion.Group,
+		Version: optimizev1beta2.GroupVersion.Version,
+		Kind:    "!Experiment",
 	})
 }
 
