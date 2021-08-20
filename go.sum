@@ -564,10 +564,8 @@ github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/
 github.com/subosito/gotenv v1.2.0/go.mod h1:N0PQaV/YGNqwC0u51sEeR/aUtSLEXKX9iv69rRypqCw=
 github.com/thestormforge/konjure v0.3.2 h1:9h1HsAB9k8ENMHOOlUl2RYPE2+pZ+OqLn/Z0q0/COjM=
 github.com/thestormforge/konjure v0.3.2/go.mod h1:5cZj+F9imDQJrk4TUmXyA+dtSm6L0YdjSWFYvIX/668=
-github.com/thestormforge/optimize-go v0.0.17-0.20210815042453-34f822b9f7de h1:pVbrOsviGNmc/iWPmsSAnKghzIiYPI+YUw3KpQyO+so=
-github.com/thestormforge/optimize-go v0.0.17-0.20210815042453-34f822b9f7de/go.mod h1:LhoJFNeHXLWnMp5KVkHJdzUfx76Gwj81/m40IVM9MjA=
-github.com/thestormforge/optimize-go v0.0.17-0.20210816181001-18f48407da76 h1:B/s/Lh3NLsQyolp5U18WbT9r2CoufRsIwtHd+0TX1x4=
-github.com/thestormforge/optimize-go v0.0.17-0.20210816181001-18f48407da76/go.mod h1:LhoJFNeHXLWnMp5KVkHJdzUfx76Gwj81/m40IVM9MjA=
+github.com/thestormforge/optimize-go v0.0.17 h1:Aib+X9I+aIj4NOPr8yUKU+rIr+CMvPujWfkk+rTsO3w=
+github.com/thestormforge/optimize-go v0.0.17/go.mod h1:LhoJFNeHXLWnMp5KVkHJdzUfx76Gwj81/m40IVM9MjA=
 github.com/tidwall/pretty v1.0.0/go.mod h1:XNkn88O1ChpSDQmQeStsy+sBenx6DDtFZJxhVysOjyk=
 github.com/tmc/grpc-websocket-proxy v0.0.0-20170815181823-89b8d40f7ca8/go.mod h1:ncp9v5uamzpCO7NfCPTXjqaC+bZgJeR0sMTm6dMHP7U=
 github.com/tmc/grpc-websocket-proxy v0.0.0-20190109142713-0ad062ec5ee5/go.mod h1:ncp9v5uamzpCO7NfCPTXjqaC+bZgJeR0sMTm6dMHP7U=
