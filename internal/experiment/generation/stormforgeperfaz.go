@@ -72,7 +72,8 @@ func (az *StormForgePerformanceAuthorization) accessTokenForOrganization(ctx con
 	// Register a new service account
 	sa, err := exec.CommandContext(ctx, "forge", "serviceaccount", "create", org, az.ServiceAccountLabel()).Output()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to create a StormForge Performance service account for the %q organization "+
+			"(the forge CLI must be installed and you must be an organization owner): %w", org, err)
 	}
 
 	// The last line of the output (that contains the two dots) is the JWT
