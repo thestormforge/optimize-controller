@@ -183,19 +183,19 @@ func (s *StormForgePerformanceSource) Metrics() ([]optimizev1beta2.Metric, error
 // testCaseFileConfigMapName is the name to use for the config map that holds
 // the test case definition (JavaScript).
 func (s *StormForgePerformanceSource) testCaseFileConfigMapName() string {
-	return fmt.Sprintf("%s-test-case-file", s.Scenario.Name) // TODO Fix this
+	return "stormforge-perf-test-case"
 }
 
 // accessTokenSecretName returns the name to use for the secret that holds the
 // access token (STORMFORGER_JWT).
 func (s *StormForgePerformanceSource) accessTokenSecretName() string {
-	return "stormforge-perf-service-accounts" // TODO Fix this
+	return "stormforge-perf-access-token"
 }
 
 // serviceAccountLabel returns the label applied to Performance Service Account
 // associated with the access token (when using service accounts).
 func (s *StormForgePerformanceSource) serviceAccountLabel() string {
-	return fmt.Sprintf("optimize-%s", s.Application.Name) // TODO Fix this
+	return fmt.Sprintf("optimize-%s", s.Application.Name)
 }
 
 // testCaseFile returns the path to use for `TEST_CASE_FILE`.
