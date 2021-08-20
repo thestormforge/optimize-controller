@@ -58,12 +58,6 @@ for example: "p95-latency".
 Reference: https://docs.stormforge.io/reference/application/v1alpha1/#objective
 `,
 
-		"stormforgePerfConfig": `
-StormForge Performance specific configuration information to set up StormForge
-Performance tests. This is only needed when using StormForge scenarios.
-Reference: https://docs.stormforge.io/reference/application/v1alpha1/#stormforgePerfConfig
-`,
-
 		"ingress": `
 Ingress defines the destination of the load test. This is typically a public
 facing URL for your application.
@@ -112,27 +106,18 @@ Reference: https://docs.stormforge.io/reference/application/v1alpha1/#ingress
     max: 1000 # Specifies a metric constraint that you do not want your results to go above. This example ensures only results with p95 latency below 1000ms are returned.
   - latency: p99
     optimize: false # Reports on the metric while not explicitly optimizing for them`,
-
-		"stormforgePerfConfig": `org: myorg # The StormForge Performance organization to use for performance testing
-  accessToken:
-    file: mytoken.jwt # Read in the StormForge Performance JWT from a file
-    literal: mysupersecretjwt # The raw StormForge Performance JWT. Be mindful of the security implications of including the JWT here.
-    secretKeyRef: # Specify a reference to an in cluster secret and key
-      name: stormforge-perf-service-accounts
-      key: myorg`,
 	}
 
 	// Required is a map of field name to required preceding field name.
 	// This is used to ensure even empty (and otherwise omitted) fields can be
 	// included for documentation purposes.
 	required = map[string]string{
-		"resources":            "",
-		"configuration":        "resources",
-		"ingress":              "configuration",
-		"scenarios":            "ingress",
-		"objectives":           "scenarios",
-		"stormforgePerfConfig": "objectives",
-		"":                     "stormforgePerfConfig",
+		"resources":     "",
+		"configuration": "resources",
+		"ingress":       "configuration",
+		"scenarios":     "ingress",
+		"objectives":    "scenarios",
+		"":              "objectives",
 	}
 )
 
