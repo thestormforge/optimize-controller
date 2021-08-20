@@ -209,14 +209,14 @@ func (s *StormForgePerformanceSource) testCaseFile() string {
 	}
 
 	// Make sure we strip the optional organization prefix from the test case name
-	_, testCase := path.Split(s.Scenario.StormForge.TestCase)
+	_, testCase := splitTestCase(s.Scenario.StormForge.TestCase)
 	return "/forge-init.d/" + testCase + ".js"
 }
 
 // accessToken returns the value to use for `STORMFORGER_JWT`.
 func (s *StormForgePerformanceSource) accessToken() (string, error) {
 	ctx := context.Background()
-	org, _ := path.Split(s.Scenario.StormForge.TestCase)
+	org, _ := splitTestCase(s.Scenario.StormForge.TestCase)
 
 	// Hide the bodies.
 	return (&StormForgePerformanceAuthorization{ServiceAccountLabel: s.serviceAccountLabel}).AccessToken(ctx, org)
@@ -240,4 +240,17 @@ func (s *StormForgePerformanceSource) stormForgePerfLatency(lt optimizeappsv1alp
 	default:
 		return ""
 	}
+}
+
+// splitTestCase splits the supplied string into an optional organization and test case name.
+func splitTestCase(s string) (org string, testCase string) {
+	parts := strings.SplitN(s, "/", 2)
+	switch len(parts) {
+	case 1:
+		testCase = parts[0]
+	case 2:
+		org = parts[0]
+		testCase = parts[1]
+	}
+	return
 }
