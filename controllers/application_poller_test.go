@@ -115,8 +115,8 @@ func TestPoller(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("%q", tc.desc), func(t *testing.T) {
-			os.Setenv("STORMFORGER_JWT", "funnyjwtjokehere")
-			defer os.Unsetenv("STORMFORGER_JWT")
+			os.Setenv("STORMFORGER_MYORG_JWT", "funnyjwtjokehere")
+			defer os.Unsetenv("STORMFORGER_MYORG_JWT")
 
 			ctx := context.WithValue(context.Background(), "tag", tc.tag)
 

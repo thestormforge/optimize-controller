@@ -48,9 +48,6 @@ type Application struct {
 
 	// The list of objectives to optimize the application for.
 	Objectives []Objective `json:"objectives,omitempty"`
-
-	// StormForgePerformance allows you to configure StormForge Performance to apply load on your application.
-	StormForgePerformance *StormForgePerformance `json:"stormforgePerfConfig,omitempty"`
 }
 
 // Parameter describes the strategy for tuning the application.
@@ -279,24 +276,6 @@ type DatadogGoal struct {
 	Aggregator string `json:"aggregator,omitempty"`
 	// Flag indicating the goal of optimization should be to maximize a metric.
 	Maximize bool `json:"maximize,omitempty"`
-}
-
-// StormForgePerformance describes global configuration related to StormForge Performance testing.
-type StormForgePerformance struct {
-	// The name of the StormForge Performance organization.
-	Organization string `json:"org,omitempty"`
-	// Configuration for the StormForge Performance service account.
-	AccessToken *StormForgePerformanceAccessToken `json:"accessToken,omitempty"`
-}
-
-// StormForgePerformanceAccessToken is used to configure a service account access token for the StormForge Performance API.
-type StormForgePerformanceAccessToken struct {
-	// The path to the file that contains the service account access token.
-	File string `json:"file,omitempty"`
-	// A literal token value, this should only be used for testing as it is not secure.
-	Literal string `json:"literal,omitempty"`
-	// Reference to an existing secret key that contains the access token.
-	SecretKeyRef *corev1.SecretKeySelector `json:"secretKeyRef,omitempty"`
 }
 
 func init() {

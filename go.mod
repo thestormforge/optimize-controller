@@ -17,7 +17,6 @@ require (
 	github.com/muesli/termenv v0.7.4
 	github.com/newrelic/newrelic-client-go v0.58.5
 	github.com/oklog/ulid v1.3.1
-	github.com/pelletier/go-toml v1.2.0
 	github.com/pkg/browser v0.0.0-20180916011732-0a3d74bf9ce4
 	github.com/prometheus/client_golang v1.0.0
 	github.com/prometheus/common v0.4.1

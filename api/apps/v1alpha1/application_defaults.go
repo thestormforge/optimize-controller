@@ -32,8 +32,7 @@ func init() {
 }
 
 const (
-	StormForgePerformanceAccessTokenSecretName = "stormforge-perf-service-accounts"
-	defaultName                                = "default"
+	defaultName = "default"
 )
 
 // RegisterDefaults registers the defaulting function for the application root object.

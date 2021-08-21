@@ -17,13 +17,11 @@ limitations under the License.
 package generation
 
 import (
+	"context"
 	"fmt"
-	"os"
-	"os/user"
-	"path/filepath"
+	"path"
 	"strings"
 
-	"github.com/pelletier/go-toml"
 	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-controller/v2/internal/sfio"
@@ -47,16 +45,6 @@ func (s *StormForgePerformanceSource) Update(exp *optimizev1beta2.Experiment) er
 		return nil
 	}
 
-	org, tc := s.stormForgePerfTestCase()
-	if org == "" {
-		return fmt.Errorf("missing StormForge Performance organization")
-	}
-
-	accessToken := s.stormForgePerfAccessToken(org)
-	if accessToken == nil {
-		return fmt.Errorf("missing StormForge Performance authorization")
-	}
-
 	pod := &ensureTrialJobPod(exp).Spec
 	pod.Containers = []corev1.Container{
 		{
@@ -73,29 +61,29 @@ func (s *StormForgePerformanceSource) Update(exp *optimizev1beta2.Experiment) er
 				},
 				{
 					Name:  "TEST_CASE",
-					Value: fmt.Sprintf("%s/%s", org, tc),
+					Value: s.Scenario.StormForge.TestCase,
 				},
 			},
 		},
 	}
 
-	// The test case file can be blank, in which case it must be uploaded to StormForge ahead of time
-	if s.Scenario.StormForge.TestCaseFile != "" {
+	// The test case file can be blank, in which case it must be uploaded to StormForge Performance ahead of time
+	if testCaseFile := s.testCaseFile(); testCaseFile != "" {
+		pod.Containers[0].Env = append(pod.Containers[0].Env, corev1.EnvVar{
+			Name:  "TEST_CASE_FILE",
+			Value: testCaseFile,
+		})
 		pod.Containers[0].VolumeMounts = append(pod.Containers[0].VolumeMounts, corev1.VolumeMount{
 			Name:      "test-case-file",
 			ReadOnly:  true,
-			MountPath: "/forge-init.d",
-		})
-		pod.Containers[0].Env = append(pod.Containers[0].Env, corev1.EnvVar{
-			Name:  "TEST_CASE_FILE",
-			Value: "/forge-init.d/" + tc + ".js",
+			MountPath: path.Dir(testCaseFile),
 		})
 		pod.Volumes = append(pod.Volumes, corev1.Volume{
 			Name: "test-case-file",
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{
-						Name: s.stormForgePerfConfigMapName(),
+						Name: s.testCaseFileConfigMapName(),
 					},
 				},
 			},
@@ -118,7 +106,12 @@ func (s *StormForgePerformanceSource) Update(exp *optimizev1beta2.Experiment) er
 	pod.Containers[0].Env = append(pod.Containers[0].Env, corev1.EnvVar{
 		Name: "STORMFORGER_JWT",
 		ValueFrom: &corev1.EnvVarSource{
-			SecretKeyRef: accessToken.SecretKeyRef,
+			SecretKeyRef: &corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: s.accessTokenSecretName(),
+				},
+				Key: "STORMFORGER_JWT",
+			},
 		},
 	})
 
@@ -128,38 +121,30 @@ func (s *StormForgePerformanceSource) Update(exp *optimizev1beta2.Experiment) er
 func (s *StormForgePerformanceSource) Read() ([]*yaml.RNode, error) {
 	result := sfio.ObjectSlice{}
 
-	org, tc := s.stormForgePerfTestCase()
+	// Get the test case file path and the access token we need for generating the configuration resources
+	testCaseFile := s.testCaseFile()
+	accessToken, err := s.accessToken()
+	if err != nil {
+		return nil, err
+	}
+
+	// Include a secret with the access token
+	secret := &corev1.Secret{}
+	secret.Name = s.accessTokenSecretName()
+	secret.Data = map[string][]byte{"STORMFORGER_JWT": []byte(accessToken)}
+	result = append(result, secret)
 
 	// If there is a test case file, create a ConfigMap for it
-	if s.Scenario.StormForge.TestCaseFile != "" {
+	if testCaseFile != "" {
 		data, err := loadApplicationData(s.Application, s.Scenario.StormForge.TestCaseFile)
 		if err != nil {
 			return nil, err
 		}
 
 		cm := &corev1.ConfigMap{}
-		cm.Name = s.stormForgePerfConfigMapName()
-		cm.Data = map[string]string{tc + ".js": string(data)}
+		cm.Name = s.testCaseFileConfigMapName()
+		cm.Data = map[string]string{path.Base(testCaseFile): string(data)}
 		result = append(result, cm)
-	}
-
-	// Include a secret with the access token, if necessary
-	if accessToken := s.stormForgePerfAccessToken(org); accessToken != nil {
-		secret := &corev1.Secret{}
-		secret.Name = accessToken.SecretKeyRef.Name
-		switch {
-		case accessToken.File != "":
-			data, err := loadApplicationData(s.Application, accessToken.File)
-			if err != nil {
-				return nil, err
-			}
-			secret.Data = map[string][]byte{accessToken.SecretKeyRef.Key: data}
-			result = append(result, secret)
-
-		case accessToken.Literal != "":
-			secret.Data = map[string][]byte{accessToken.SecretKeyRef.Key: []byte(accessToken.Literal)}
-			result = append(result, secret)
-		}
 	}
 
 	return result.Read()
@@ -195,85 +180,49 @@ func (s *StormForgePerformanceSource) Metrics() ([]optimizev1beta2.Metric, error
 	return result, nil
 }
 
-func (s *StormForgePerformanceSource) stormForgePerfTestCase() (org, name string) {
-	parts := strings.Split(s.Scenario.StormForge.TestCase, "/")
-	if len(parts) == 2 {
-		org = parts[0]
-		name = parts[1]
-	} else {
-		name = parts[0]
-	}
-
-	if org == "" && s.Application.StormForgePerformance != nil {
-		org = s.Application.StormForgePerformance.Organization
-	}
-
-	if name == "" {
-		name = fmt.Sprintf("%s-%s", s.Application.Name, s.Scenario.Name)
-	}
-
-	return
+// testCaseFileConfigMapName is the name to use for the config map that holds
+// the test case definition (JavaScript).
+func (s *StormForgePerformanceSource) testCaseFileConfigMapName() string {
+	return "stormforge-perf-test-case"
 }
 
-func (s *StormForgePerformanceSource) stormForgePerfConfigMapName() string {
-	return fmt.Sprintf("%s-test-case-file", s.Scenario.Name)
+// accessTokenSecretName returns the name to use for the secret that holds the
+// access token (STORMFORGER_JWT).
+func (s *StormForgePerformanceSource) accessTokenSecretName() string {
+	return "stormforge-perf-access-token"
 }
 
-// stormForgePerfAccessToken returns the effective access token information.
-func (s *StormForgePerformanceSource) stormForgePerfAccessToken(org string) *optimizeappsv1alpha1.StormForgePerformanceAccessToken {
-	// This helper function ensures we return something with a populated secret key ref
-	fixRef := func(accessToken *optimizeappsv1alpha1.StormForgePerformanceAccessToken) *optimizeappsv1alpha1.StormForgePerformanceAccessToken {
-		accessToken.File = strings.TrimSpace(accessToken.File)
-		accessToken.Literal = strings.TrimSpace(accessToken.Literal)
-
-		if accessToken.SecretKeyRef == nil {
-			accessToken.SecretKeyRef = &corev1.SecretKeySelector{}
-		}
-
-		if accessToken.SecretKeyRef.Name == "" {
-			accessToken.SecretKeyRef.Name = optimizeappsv1alpha1.StormForgePerformanceAccessTokenSecretName
-		}
-
-		if accessToken.SecretKeyRef.Key == "" {
-			accessToken.SecretKeyRef.Key = org
-		}
-
-		return accessToken
-	}
-
-	// Use the access token specified in the application
-	if s.Application.StormForgePerformance != nil && s.Application.StormForgePerformance.AccessToken != nil {
-		return fixRef(s.Application.StormForgePerformance.AccessToken.DeepCopy())
-	}
-
-	// If the environment variable is set, take that over the file
-	envOrg := strings.ToUpper(strings.ReplaceAll(org, "-", "_"))
-	for _, key := range []string{"STORMFORGER_" + envOrg + "_JWT", "STORMFORGER_JWT"} {
-		if tok, ok := os.LookupEnv(key); ok {
-			return fixRef(&optimizeappsv1alpha1.StormForgePerformanceAccessToken{
-				Literal: tok,
-			})
-		}
-	}
-
-	// Check the config file to see if there is something we can use
-	if usr, err := user.Current(); err == nil {
-		if config, err := toml.LoadFile(filepath.Join(usr.HomeDir, ".stormforger.toml")); err == nil {
-			// NOTE: The `[org].jwt` isn't a thing, but we need a way to configure tokens for multiple
-			// organizations since service accounts are associated only with a single organization
-			for _, key := range []string{org + ".jwt", "jwt"} {
-				if v := config.Get(key); v != nil {
-					return fixRef(&optimizeappsv1alpha1.StormForgePerformanceAccessToken{
-						Literal: v.(string),
-					})
-				}
-			}
-		}
-	}
-
-	return nil
+// serviceAccountLabel returns the label applied to Performance Service Account
+// associated with the access token (when using service accounts).
+func (s *StormForgePerformanceSource) serviceAccountLabel() string {
+	return fmt.Sprintf("optimize-%s", s.Application.Name)
 }
 
+// testCaseFile returns the path to use for `TEST_CASE_FILE`.
+func (s *StormForgePerformanceSource) testCaseFile() string {
+	// NOTE: The `s.Scenario.StormForge.TestCaseFile` might be a URL or even
+	// inline JavaScript content; it should NOT be used to make the file name
+
+	// If there is no test case file information, return an empty path
+	if s.Scenario.StormForge.TestCaseFile == "" {
+		return ""
+	}
+
+	// Make sure we strip the optional organization prefix from the test case name
+	_, testCase := splitTestCase(s.Scenario.StormForge.TestCase)
+	return "/forge-init.d/" + testCase + ".js"
+}
+
+// accessToken returns the value to use for `STORMFORGER_JWT`.
+func (s *StormForgePerformanceSource) accessToken() (string, error) {
+	ctx := context.Background()
+	org, _ := splitTestCase(s.Scenario.StormForge.TestCase)
+
+	// Hide the bodies.
+	return (&StormForgePerformanceAuthorization{ServiceAccountLabel: s.serviceAccountLabel}).AccessToken(ctx, org)
+}
+
+// stormForgePerfLatency normalizes the latency enumeration to match the StormForge Performance values.
 func (s *StormForgePerformanceSource) stormForgePerfLatency(lt optimizeappsv1alpha1.LatencyType) string {
 	switch optimizeappsv1alpha1.FixLatency(lt) {
 	case optimizeappsv1alpha1.LatencyMinimum:
@@ -291,4 +240,17 @@ func (s *StormForgePerformanceSource) stormForgePerfLatency(lt optimizeappsv1alp
 	default:
 		return ""
 	}
+}
+
+// splitTestCase splits the supplied string into an optional organization and test case name.
+func splitTestCase(s string) (org string, testCase string) {
+	parts := strings.SplitN(s, "/", 2)
+	switch len(parts) {
+	case 1:
+		testCase = parts[0]
+	case 2:
+		org = parts[0]
+		testCase = parts[1]
+	}
+	return
 }

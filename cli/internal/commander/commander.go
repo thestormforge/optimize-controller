@@ -27,6 +27,7 @@ import (
 
 	"github.com/spf13/cobra"
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	megahack "github.com/thestormforge/optimize-controller/v2/internal/experiment/generation"
 	"github.com/thestormforge/optimize-go/pkg/api"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"github.com/thestormforge/optimize-go/pkg/config"
@@ -192,6 +193,8 @@ func SetKubePrinter(printer *ResourcePrinter, cmd *cobra.Command, additionalForm
 
 // ConfigGlobals sets up persistent globals for the supplied configuration
 func ConfigGlobals(cfg *config.OptimizeConfig, cmd *cobra.Command) {
+	megahack.DefaultOptimizeConfig = cfg
+
 	// Make sure we get the root to make these globals
 	root := cmd.Root()
 

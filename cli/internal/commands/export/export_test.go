@@ -126,7 +126,9 @@ func TestPatchApplication(t *testing.T) {
 
 	_, appFileBytes, appFile := createTempApplication(t, manifestFile.Name())
 	defer os.Remove(appFile.Name())
-	//fmt.Println(string(b))
+
+	os.Setenv("STORMFORGER_JWT", "funnyjwtjokehere")
+	defer os.Unsetenv("STORMFORGER_JWT")
 
 	testCases := []struct {
 		desc  string

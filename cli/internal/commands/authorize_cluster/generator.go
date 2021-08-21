@@ -17,17 +17,12 @@ limitations under the License.
 package authorize_cluster
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"os/exec"
 	"strings"
-	"unicode"
 
-	"github.com/pelletier/go-toml"
 	"github.com/spf13/cobra"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commander"
 	"github.com/thestormforge/optimize-go/pkg/api"
@@ -129,14 +124,6 @@ func (o *GeneratorOptions) generate(ctx context.Context) error {
 	controllerName, ctrl, data, err := o.readConfig()
 	if err != nil {
 		return err
-	}
-
-	// Ensure Performance Test tokens have been added
-	label := fmt.Sprintf("optimize-%s", strings.Map(toLabel, o.ClientName))
-	if chg := performanceTokens(label, controllerName, data); chg != nil {
-		if err := o.Config.Update(chg); err != nil {
-			return err
-		}
 	}
 
 	// Get the client information (either read or register)
@@ -285,105 +272,4 @@ func printHelmValues(obj interface{}, w io.Writer) error {
 	}
 	_, err = w.Write(b)
 	return err
-}
-
-// performanceTokens returns a configuration change with any new Performance Test
-// tokens or nil if there are no changes necessary. Note that the supplied data
-// map will also be updated with any new tokens.
-func performanceTokens(label, controllerName string, data map[string][]byte) config.Change {
-	var envVars []config.ControllerEnvVar
-	hasControllerEnvVar := func(name string) bool { return len(data[name]) > 0 }
-
-	// List all the organizations the user belongs to
-	orgs, err := exec.Command("forge", "organization", "list", "--output", "plain").Output()
-	if err != nil {
-		// Check if we already have a generic token
-		if hasControllerEnvVar("STORMFORGER_JWT") {
-			return nil
-		}
-
-		// Since we couldn't list the orgs (e.g. no `forge` installed), maybe there is a config file
-		cfg, err := toml.LoadFile(os.ExpandEnv("${HOME}/.stormforger.toml"))
-		if err != nil {
-			return nil
-		}
-
-		// We need the JWT as a string, otherwise there is nothing to add
-		tok, ok := cfg.Get("jwt").(string)
-		if !ok {
-			return nil
-		}
-
-		orgs = nil
-		envVars = append(envVars, config.ControllerEnvVar{Name: "STORMFORGER_JWT", Value: tok})
-	}
-
-	// Scan the organization list to
-	orgScanner := bufio.NewScanner(bytes.NewBuffer(orgs))
-	for orgScanner.Scan() {
-		org := strings.TrimSpace(orgScanner.Text())
-		if org == "" {
-			continue
-		}
-
-		// Check to see if we already created a service account
-		name := fmt.Sprintf("STORMFORGER_%s_JWT", strings.Map(toEnv, org))
-		if hasControllerEnvVar(name) {
-			continue
-		}
-
-		// Register a new service account, ignore errors
-		sa, err := exec.Command("forge", "serviceaccount", "create", org, label).Output()
-		if err != nil {
-			continue
-		}
-
-		// The last line with two dots is the JWT
-		tokenScanner := bufio.NewScanner(bytes.NewBuffer(sa))
-		for tokenScanner.Scan() {
-			// TODO It might be nice to capture the UID values into an annotation on the secret
-			if strings.Count(tokenScanner.Text(), ".") == 2 {
-				envVars = append(envVars, config.ControllerEnvVar{Name: name, Value: tokenScanner.Text()})
-			}
-		}
-	}
-
-	// If we found any new environment variables for the configuration, return a configuration change set
-	if len(envVars) == 0 {
-		return nil
-	}
-	for i := range envVars {
-		data[envVars[i].Name] = []byte(envVars[i].Value)
-	}
-	return func(cfg *config.Config) error {
-		for i := range cfg.Controllers {
-			if cfg.Controllers[i].Name != controllerName {
-				continue
-			}
-
-			cfg.Controllers[i].Controller.Env = append(cfg.Controllers[i].Controller.Env, envVars...)
-			return nil
-		}
-		return nil
-	}
-}
-
-func toLabel(r rune) rune {
-	switch {
-	case unicode.IsSpace(r):
-		return '_'
-	case unicode.IsLetter(r):
-		return unicode.ToLower(r)
-	default:
-		return -1
-	}
-}
-
-func toEnv(r rune) rune {
-	switch {
-	case r == '-':
-		return '_'
-	default:
-		return unicode.ToUpper(r)
-	}
 }

@@ -155,12 +155,6 @@ func createTempApplication(t *testing.T, filename string) (*optimizeappsv1alpha1
 			// 	},
 			// },
 		},
-		StormForgePerformance: &optimizeappsv1alpha1.StormForgePerformance{
-			Organization: "gotta",
-			AccessToken: &optimizeappsv1alpha1.StormForgePerformanceAccessToken{
-				Literal: "get down!",
-			},
-		},
 	}
 
 	tmpfile, err := ioutil.TempFile("", "application-*.yaml")

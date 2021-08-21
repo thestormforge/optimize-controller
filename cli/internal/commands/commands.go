@@ -38,6 +38,7 @@ import (
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/grant_permissions"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/initialize"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/login"
+	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/performance"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/ping"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/reset"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/revoke"
@@ -85,6 +86,7 @@ func NewRootCommand() *cobra.Command {
 	// Administrative Commands
 	rootCmd.AddCommand(login.NewCommand(&login.Options{Config: cfg}))
 	rootCmd.AddCommand(revoke.NewCommand(&revoke.Options{Config: cfg}))
+	rootCmd.AddCommand(performance.NewTokenCommand(&performance.TokenOptions{Config: cfg}))
 	rootCmd.AddCommand(ping.NewCommand(&ping.Options{Config: cfg}))
 	rootCmd.AddCommand(configure.NewCommand(&configure.Options{Config: cfg}))
 	rootCmd.AddCommand(check.NewCommand(&check.Options{Config: cfg}))
