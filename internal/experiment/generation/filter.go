@@ -22,6 +22,7 @@ import (
 
 	"github.com/thestormforge/konjure/pkg/filters"
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	"github.com/thestormforge/optimize-controller/v2/internal/sfio"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"sigs.k8s.io/kustomize/kyaml/openapi"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
@@ -75,12 +76,33 @@ func SetExperimentName(name string) yaml.Filter {
 		return node.Pipe(
 			yaml.Tee(
 				isExperiment(),
+
+				// Set the name of the experiment
 				yaml.SetK8sName(name),
+
+				// Update experiment specific resource references
+				yaml.Tee(
+					yaml.Lookup("spec", "trialTemplate", "spec"),
+					yaml.Tee(yaml.Lookup("setupServiceAccountName"), suffix),
+					yaml.Lookup("jobTemplate", "spec", "template", "spec"),
+					sfio.TeeMatched(sfio.PathMatcher("containers", "[name=]", "env", "[name=STORMFORGER_JWT]", "valueFrom", "secretKeyRef", "name"), suffix),
+					sfio.TeeMatched(sfio.PathMatcher("volumes", "[name=test-case-file|locustfile]", "configMap", "name"), suffix),
+				),
 			),
+
 			yaml.Tee(
 				isClusterRoleOrBinding(),
+
+				// Update experiment specific resource references
+				yaml.Tee(yaml.Lookup("roleRef", "name"), suffix),
+				sfio.TeeMatched(sfio.PathMatcher("subjects", "[name=]", "name"), suffix),
+			),
+
+			yaml.Tee(
+				isExperimentSpecific(),
+
+				// Add a name suffix to all experiment specific resources
 				yaml.Tee(yaml.Lookup(yaml.MetadataField, yaml.NameField), suffix),
-				yaml.Tee(yaml.Lookup("roleRef", yaml.NameField), suffix),
 			),
 		)
 	})
@@ -112,5 +134,11 @@ func isNamespaceScoped() yaml.Filter {
 			return nil, nil
 		}
 		return node, nil
+	})
+}
+
+func isExperimentSpecific() yaml.Filter {
+	return filters.FilterOne(&filters.ResourceMetaFilter{
+		Kind: "ConfigMap|Secret|ServiceAccount|ClusterRole|ClusterRoleBinding",
 	})
 }

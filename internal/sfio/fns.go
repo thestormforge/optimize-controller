@@ -145,6 +145,11 @@ func (f HasFilter) Filter(rn *yaml.RNode) (*yaml.RNode, error) {
 	return rn, nil
 }
 
+// PathMatcher returns a `yaml.PathMatcher` from the supplied path.
+func PathMatcher(p ...string) yaml.PathMatcher {
+	return yaml.PathMatcher{Path: p}
+}
+
 // TeeMatched acts as a "tee" filter for nodes matched by the supplied path matcher:
 // each matched node is processed by the supplied filters and the result of the
 // entire operation is the initial node (or an error).
