@@ -176,6 +176,22 @@ func (p *Poller) handleActivity(ctx context.Context, activity applications.Activ
 		return
 	}
 
+	// Use resource namespaces for application namespace.
+	// defaulting to `default`
+	assembledApp.Namespace = "default"
+
+	if len(assembledApp.Resources) == 1 && assembledApp.Resources[0].Kubernetes != nil {
+		switch {
+		case assembledApp.Resources[0].Kubernetes.Namespace != "":
+			assembledApp.Namespace = assembledApp.Resources[0].Kubernetes.Namespace
+		case len(assembledApp.Resources[0].Kubernetes.Namespaces) > 0:
+			assembledApp.Namespace = assembledApp.Resources[0].Kubernetes.Namespaces[0]
+		}
+	} else {
+		p.handleErrors(ctx, log, activity.URL, ActivityReasonGenerationFailed, "No kubernetes resources defined", nil)
+		return
+	}
+
 	generatedResources, err := p.generateApp(*assembledApp)
 	if err != nil {
 		p.handleErrors(ctx, log, activity.URL, ActivityReasonGenerationFailed, "Failed to generate application", err)
@@ -237,8 +253,6 @@ func (p *Poller) handleActivity(ctx context.Context, activity applications.Activ
 		// TODO
 		// try to clean up on failure ( might be a simple / blind p.client.Delete(ctx,generatedResources[i])
 		for i := range generatedResources {
-			// TODO generatedResource ( experiment ) does not contain the namespace
-			// not sure why yet
 			objKey, err := client.ObjectKeyFromObject(generatedResources[i])
 			if err != nil {
 				p.handleErrors(ctx, log, activity.URL, ActivityReasonRunFailed, "Failed to get object key", err)
@@ -292,11 +306,6 @@ func (p *Poller) handleErrors(ctx context.Context, log logr.Logger, u, reason, m
 func (p *Poller) generateApp(app optimizeappsv1alpha1.Application) ([]runtime.Object, error) {
 	// Set defaults for application
 	app.Default()
-
-	// TODO hack from above issue ( missing namespace )
-	if app.Namespace == "" {
-		app.Namespace = "default"
-	}
 
 	g := &experiment.Generator{
 		Application:    app,
