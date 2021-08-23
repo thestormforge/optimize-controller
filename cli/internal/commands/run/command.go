@@ -234,7 +234,12 @@ func (o *Options) listStormForgeTestCaseNames() tea.Msg {
 		}
 		for j := range testCases.Data {
 			testCase := testCases.Data[j].Attributes.Name
-			msg = append(msg, fmt.Sprintf("%s/%s", org, testCase))
+			if len(orgs.Data) == 1 {
+				// If there is only one organization we can just use the test case name
+				msg = append(msg, testCase)
+			} else {
+				msg = append(msg, fmt.Sprintf("%s/%s", org, testCase))
+			}
 		}
 	}
 
