@@ -117,12 +117,42 @@ func (o *Options) checkOptimizeAuthorization() tea.Msg {
 func (o *Options) checkPerformanceTestAuthorization() tea.Msg {
 	ctx := context.TODO()
 
-	ping, err := forge(ctx, "ping")
-	if err != nil || ping.Response == nil || ping.Response.Status != "ok" {
-		return internal.PerformanceTestAuthorizationMsg(internal.AuthorizationInvalid)
+	tokens := []func() (string, error){
+		// First attempt just uses `forge`
+		func() (string, error) { return "", nil },
+
+		// Second attempt sets the JWT environment variable to an exchange token
+		func() (string, error) {
+			src, err := o.Config.PerformanceAuthorization(ctx)
+			if err != nil {
+				return "", err
+			}
+			t, err := src.Token()
+			if err != nil {
+				return "", err
+			}
+			return t.AccessToken, nil
+		},
 	}
 
-	return internal.PerformanceTestAuthorizationMsg(internal.AuthorizationValid)
+	for _, t := range tokens {
+		tok, err := t()
+		if err != nil {
+			return fmt.Errorf("unable to fetch access token: %w", err)
+		}
+		if tok != "" {
+			if err := os.Setenv("STORMFORGER_JWT", tok); err != nil {
+				return fmt.Errorf("unable to set environment variable: %w", err)
+			}
+		}
+
+		ping, err := forge(ctx, "ping")
+		if err == nil && ping.Response != nil && ping.Response.Status == "ok" {
+			return internal.PerformanceTestAuthorizationMsg(internal.AuthorizationValid)
+		}
+	}
+
+	return internal.PerformanceTestAuthorizationMsg(internal.AuthorizationInvalid)
 }
 
 // initializeController checks to see if the controller is already installed before
