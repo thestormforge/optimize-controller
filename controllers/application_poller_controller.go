@@ -177,19 +177,29 @@ func (p *Poller) handleActivity(ctx context.Context, activity applications.Activ
 	}
 
 	// Use resource namespaces for application namespace.
-	// defaulting to `default`
+	// We'll attempt to discover the namespace for the experiment by looking at
+	// 1. resource.Namespace
+	// 2. resource.Namespaces[0]
+	// 3. #TODO? We may look at evaluating namespace selector since we have
+	//    access to the kube client
 	assembledApp.Namespace = "default"
 
-	if len(assembledApp.Resources) == 1 && assembledApp.Resources[0].Kubernetes != nil {
-		switch {
-		case assembledApp.Resources[0].Kubernetes.Namespace != "":
-			assembledApp.Namespace = assembledApp.Resources[0].Kubernetes.Namespace
-		case len(assembledApp.Resources[0].Kubernetes.Namespaces) > 0:
-			assembledApp.Namespace = assembledApp.Resources[0].Kubernetes.Namespaces[0]
+	for i := range assembledApp.Resources {
+		k := assembledApp.Resources[i].Kubernetes
+		if k == nil {
+			continue
 		}
-	} else {
-		p.handleErrors(ctx, log, activity.URL, ActivityReasonGenerationFailed, "No kubernetes resources defined", nil)
-		return
+
+		// Guess the namespace based on the Kubernetes resource
+		if k.Namespace != "" {
+			assembledApp.Namespace = k.Namespace
+			break
+		}
+
+		if len(k.Namespaces) > 0 && k.Namespaces[0] != "" {
+			assembledApp.Namespace = k.Namespaces[0]
+			break
+		}
 	}
 
 	generatedResources, err := p.generateApp(*assembledApp)
