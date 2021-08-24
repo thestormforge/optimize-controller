@@ -176,6 +176,32 @@ func (p *Poller) handleActivity(ctx context.Context, activity applications.Activ
 		return
 	}
 
+	// Use resource namespaces for application namespace.
+	// We'll attempt to discover the namespace for the experiment by looking at
+	// 1. resource.Namespace
+	// 2. resource.Namespaces[0]
+	// 3. #TODO? We may look at evaluating namespace selector since we have
+	//    access to the kube client
+	assembledApp.Namespace = "default"
+
+	for i := range assembledApp.Resources {
+		k := assembledApp.Resources[i].Kubernetes
+		if k == nil {
+			continue
+		}
+
+		// Guess the namespace based on the Kubernetes resource
+		if k.Namespace != "" {
+			assembledApp.Namespace = k.Namespace
+			break
+		}
+
+		if len(k.Namespaces) > 0 && k.Namespaces[0] != "" {
+			assembledApp.Namespace = k.Namespaces[0]
+			break
+		}
+	}
+
 	generatedResources, err := p.generateApp(*assembledApp)
 	if err != nil {
 		p.handleErrors(ctx, log, activity.URL, ActivityReasonGenerationFailed, "Failed to generate application", err)
@@ -237,8 +263,6 @@ func (p *Poller) handleActivity(ctx context.Context, activity applications.Activ
 		// TODO
 		// try to clean up on failure ( might be a simple / blind p.client.Delete(ctx,generatedResources[i])
 		for i := range generatedResources {
-			// TODO generatedResource ( experiment ) does not contain the namespace
-			// not sure why yet
 			objKey, err := client.ObjectKeyFromObject(generatedResources[i])
 			if err != nil {
 				p.handleErrors(ctx, log, activity.URL, ActivityReasonRunFailed, "Failed to get object key", err)
@@ -292,11 +316,6 @@ func (p *Poller) handleErrors(ctx context.Context, log logr.Logger, u, reason, m
 func (p *Poller) generateApp(app optimizeappsv1alpha1.Application) ([]runtime.Object, error) {
 	// Set defaults for application
 	app.Default()
-
-	// TODO hack from above issue ( missing namespace )
-	if app.Namespace == "" {
-		app.Namespace = "default"
-	}
 
 	g := &experiment.Generator{
 		Application:    app,
