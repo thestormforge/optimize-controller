@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -79,7 +80,14 @@ func (p *Poller) Start(ch <-chan struct{}) error {
 	}
 	p.log.Info("Starting application poller")
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Handle controller-manager signal
+	go func() {
+		for range ch {
+			cancel()
+		}
+	}()
 
 	query := applications.ActivityFeedQuery{}
 	query.SetType(applications.TagScan, applications.TagRun)
@@ -89,16 +97,28 @@ func (p *Poller) Start(ch <-chan struct{}) error {
 		return nil
 	}
 
-	activityCh := make(chan applications.ActivityItem)
-	go subscriber.Subscribe(ctx, activityCh)
-
 	for {
-		select {
-		case <-ch:
-			return nil
-		case activity := <-activityCh:
-			p.handleActivity(ctx, activity)
+		activityCh := make(chan applications.ActivityItem)
+
+		go func() {
+			for activityItem := range activityCh {
+				p.handleActivity(ctx, activityItem)
+			}
+		}()
+
+		if err := subscriber.Subscribe(ctx, activityCh); err != nil {
+			// Clean exit/shutdown
+			if errors.Is(err, context.Canceled) {
+				return nil
+			}
+
+			p.log.Error(err, "Application service connection interrupted, restarting")
+
+			continue
 		}
+
+		// Clean exit from subscriber should end here
+		return nil
 	}
 }
 
