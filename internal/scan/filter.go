@@ -65,7 +65,7 @@ func kubectl(cmd *exec.Cmd) ([]byte, error) {
 	}
 
 	// Kustomize has a clown. We have minikubectl.
-	k := newMinikubectl()
+	k := NewMinikubectl()
 
 	// Create and populate a new flag set
 	flags := pflag.NewFlagSet("minikubectl", pflag.ContinueOnError)

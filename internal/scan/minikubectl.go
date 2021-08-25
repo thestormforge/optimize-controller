@@ -21,24 +21,70 @@ import (
 	"fmt"
 
 	"github.com/spf13/pflag"
+	"k8s.io/client-go/discovery/cached/memory"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/resource"
+	"k8s.io/client-go/discovery"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
-// minikubectl is just a miniature in-process kubectl for us to use to avoid
+// Minikubectl is just a miniature in-process kubectl for us to use to avoid
 // a binary dependency on the tool itself.
-type minikubectl struct {
+type Minikubectl struct {
 	*genericclioptions.ConfigFlags
 	*genericclioptions.ResourceBuilderFlags
 	*genericclioptions.PrintFlags
 	IgnoreNotFound bool
+	Manager        *MiniManager
 }
 
-// newMinikubectl creates a new minikubectl, the empty state is not usable.
-func newMinikubectl() *minikubectl {
+// MiniManager is used to use what we can from controller-runtime.Manager and satisfy the
+// RESTClientGetter interface so we dont need to use another kube client
+type MiniManager struct {
+	Config *rest.Config
+	Mapper meta.RESTMapper
+}
+
+// ToRESTConfig implements the RESTClientGetter interface
+func (m *MiniManager) ToRESTConfig() (*rest.Config, error) {
+	return m.Config, nil
+}
+
+// ToDiscoveryClient implements the RESTClientGetter interface
+func (m *MiniManager) ToDiscoveryClient() (discovery.CachedDiscoveryInterface, error) {
+	return memory.NewMemCacheClient(discovery.NewDiscoveryClientForConfigOrDie(m.Config)), nil
+}
+
+// ToRESTMapper implements the RESTClientGetter interface
+func (m *MiniManager) ToRESTMapper() (meta.RESTMapper, error) {
+	return m.Mapper, nil
+}
+
+// ToRawKubeConfigLoader implements the RESTClientGetter interface
+func (m *MiniManager) ToRawKubeConfigLoader() clientcmd.ClientConfig {
+	// Only ClientConfig.Namespace() is used from cli builder, so we need something
+	// dumb here
+	return &dumbConfig{}
+}
+
+// dumbConfig implments the ClientConfig interface
+type dumbConfig struct{}
+
+func (d *dumbConfig) RawConfig() (clientcmdapi.Config, error) { return clientcmdapi.Config{}, nil }
+func (d *dumbConfig) ClientConfig() (*rest.Config, error)     { return nil, nil }
+func (d *dumbConfig) Namespace() (string, bool, error)        { return "default", false, nil }
+func (d *dumbConfig) ConfigAccess() clientcmd.ConfigAccess    { return nil }
+
+// NewMinikubectl creates a new Minikubectl, the empty state is not usable.
+func NewMinikubectl() *Minikubectl {
 	outputFormat := ""
-	return &minikubectl{
+	return &Minikubectl{
 		ConfigFlags: genericclioptions.NewConfigFlags(false),
 		ResourceBuilderFlags: genericclioptions.NewResourceBuilderFlags().
 			WithLabelSelector("").
@@ -52,32 +98,40 @@ func newMinikubectl() *minikubectl {
 }
 
 // AddFlags configures the supplied flag set with the recognized flags.
-func (k *minikubectl) AddFlags(flags *pflag.FlagSet) {
-	k.ConfigFlags.AddFlags(flags)
-	k.ResourceBuilderFlags.AddFlags(flags)
+func (m *Minikubectl) AddFlags(flags *pflag.FlagSet) {
+	m.ConfigFlags.AddFlags(flags)
+	m.ResourceBuilderFlags.AddFlags(flags)
 
 	// PrintFlags somehow is tied to Cobra...
-	flags.StringVarP(k.PrintFlags.OutputFormat, "output", "o", *k.PrintFlags.OutputFormat, "")
+	flags.StringVarP(m.PrintFlags.OutputFormat, "output", "o", *m.PrintFlags.OutputFormat, "")
 
 	// Don't bother with usage strings here, we aren't showing help to anyone
-	flags.BoolVar(&k.IgnoreNotFound, "ignore-not-found", k.IgnoreNotFound, "")
+	flags.BoolVar(&m.IgnoreNotFound, "ignore-not-found", m.IgnoreNotFound, "")
 }
 
 // Complete validates we can execute against the supplied arguments.
-func (k *minikubectl) Complete(args []string) error {
+func (m *Minikubectl) Complete(args []string) error {
 	if len(args) == 0 || args[0] != "get" {
-		return fmt.Errorf("minikubectl only supports get")
+		return fmt.Errorf("Minikubectl only supports get")
 	}
 
 	return nil
 }
 
 // Run executes the supplied arguments and returns the output as bytes.
-func (k *minikubectl) Run(args []string) ([]byte, error) {
-	v := k.ResourceBuilderFlags.ToBuilder(k.ConfigFlags, args[1:]).Do()
+func (m *Minikubectl) Run(args []string) ([]byte, error) {
+	var rcg genericclioptions.RESTClientGetter
+	if m.Manager != nil {
+		rcg = m.Manager
+	} else {
+		rcg = m.ConfigFlags
+	}
+
+	r := m.ResourceBuilderFlags.ToBuilder(rcg, args[1:])
+	v := r.Do()
 
 	// Create a printer to dump the objects
-	printer, err := k.PrintFlags.ToPrinter()
+	printer, err := m.PrintFlags.ToPrinter()
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +140,7 @@ func (k *minikubectl) Run(args []string) ([]byte, error) {
 	var b bytes.Buffer
 	err = v.Visit(func(info *resource.Info, err error) error {
 		if err != nil {
-			if k.IgnoreNotFound && apierrors.IsNotFound(err) {
+			if m.IgnoreNotFound && apierrors.IsNotFound(err) {
 				return nil
 			}
 			return err

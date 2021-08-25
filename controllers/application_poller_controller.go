@@ -26,6 +26,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/oklog/ulid"
+	"github.com/spf13/pflag"
 	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-controller/v2/internal/experiment"
@@ -40,6 +41,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -50,11 +52,15 @@ type Poller struct {
 	log           logr.Logger
 	apiClient     applications.API
 	kubectlExecFn func(cmd *exec.Cmd) ([]byte, error)
+
+	config     *rest.Config
+	metaMapper metameta.RESTMapper
+	scheme     *runtime.Scheme
 }
 
 // NewPoller returns a new Poller with the given Kubernetes client, logger,
 // and application api client configured.
-func NewPoller(kclient client.Client, logger logr.Logger) (*Poller, error) {
+func NewPoller(kclient client.Client, config *rest.Config, mapper metameta.RESTMapper, scheme *runtime.Scheme, logger logr.Logger) (*Poller, error) {
 	appAPI, err := server.NewApplicationAPI(context.Background(), version.GetInfo().String())
 	if err != nil {
 		logger.Info("Application API is unavailable, skipping setup", "message", err.Error())
@@ -62,9 +68,12 @@ func NewPoller(kclient client.Client, logger logr.Logger) (*Poller, error) {
 	}
 
 	return &Poller{
-		client:    kclient,
-		apiClient: appAPI,
-		log:       logger,
+		client:     kclient,
+		apiClient:  appAPI,
+		log:        logger,
+		config:     config,
+		metaMapper: mapper,
+		scheme:     scheme,
 	}, nil
 }
 
@@ -337,12 +346,17 @@ func (p *Poller) generateApp(app optimizeappsv1alpha1.Application) ([]runtime.Ob
 	// Set defaults for application
 	app.Default()
 
+	filterOpts := scan.FilterOptions{
+		KubectlExecutor: p.kubectlFn(),
+	}
+	if p.kubectlExecFn != nil {
+		filterOpts.KubectlExecutor = p.kubectlExecFn
+	}
+
 	g := &experiment.Generator{
 		Application:    app,
 		ExperimentName: strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String()),
-		FilterOptions: scan.FilterOptions{
-			KubectlExecutor: p.kubectlExecFn,
-		},
+		FilterOptions:  filterOpts,
 	}
 
 	objList := sfio.ObjectList{}
@@ -356,4 +370,33 @@ func (p *Poller) generateApp(app optimizeappsv1alpha1.Application) ([]runtime.Ob
 	}
 
 	return runtimeObjs, nil
+}
+
+func (p *Poller) kubectlFn() func(cmd *exec.Cmd) ([]byte, error) {
+	return func(cmd *exec.Cmd) ([]byte, error) {
+		k := scan.NewMinikubectl()
+		k.Manager = &scan.MiniManager{
+			Config: p.config,
+			Mapper: p.metaMapper,
+		}
+		//k.ResourceBuilderFlags.WithScheme(p.scheme)
+
+		// Create and populate a new flag set
+		flags := pflag.NewFlagSet("minikubectl", pflag.ContinueOnError)
+		k.AddFlags(flags)
+
+		// Parse the arguments on exec.Cmd (ignoring arg[0] which is "kubectl")
+		if err := flags.Parse(cmd.Args[1:]); err != nil {
+			return nil, err
+		}
+
+		// If complete fails, assume it was because we asked too much of minikubectl
+		// and we should just run the real thing in a subprocess
+		if err := k.Complete(flags.Args()); err != nil {
+			return nil, err
+		}
+
+		// Run minikubectl with the remaining arguments
+		return k.Run(flags.Args())
+	}
 }
