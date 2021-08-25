@@ -87,6 +87,7 @@ vet:
 # Generate code
 generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	go generate ./internal/sfio
 
 build: manifests
 	# Build on host so we can make use of the cache
