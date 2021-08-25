@@ -23,7 +23,9 @@ import (
 	"github.com/thestormforge/konjure/pkg/filters"
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-controller/v2/internal/sfio"
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/kustomize/kyaml/openapi"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
@@ -124,21 +126,47 @@ func isClusterRoleOrBinding() yaml.Filter {
 	})
 }
 
+func isExperimentSpecific() yaml.Filter {
+	return filters.FilterOne(&filters.ResourceMetaFilter{
+		Kind: "ConfigMap|Secret|ServiceAccount|ClusterRole|ClusterRoleBinding",
+	})
+}
+
 func isNamespaceScoped() yaml.Filter {
 	return yaml.FilterFunc(func(node *yaml.RNode) (*yaml.RNode, error) {
 		meta, err := node.GetMeta()
 		if err != nil {
 			return nil, err
 		}
-		if ns, ok := openapi.IsNamespaceScoped(meta.TypeMeta); !ns && ok {
-			return nil, nil
+
+		// Check our hard coded cheat sheet first
+		if ns, ok := namespaceScoped[schema.FromAPIVersionAndKind(meta.APIVersion, meta.Kind)]; ok {
+			if !ns {
+				return nil, nil
+			}
+			return node, nil
 		}
+
+		// This is an expensive operation as it requires loading the Kube API schema into memory
+		if ns, ok := openapi.IsNamespaceScoped(meta.TypeMeta); ok {
+			if !ns {
+				return nil, nil
+			}
+			return node, nil
+		}
+
+		// By default, assume it is namespaced
 		return node, nil
 	})
 }
 
-func isExperimentSpecific() yaml.Filter {
-	return filters.FilterOne(&filters.ResourceMetaFilter{
-		Kind: "ConfigMap|Secret|ServiceAccount|ClusterRole|ClusterRoleBinding",
-	})
+// namespaceScoped contains GVK to namespace scoped status (i.e. is the kind global or namespaced).
+var namespaceScoped = map[schema.GroupVersionKind]bool{
+	optimizev1beta2.GroupVersion.WithKind("Experiment"):      true,
+	optimizev1beta2.GroupVersion.WithKind("Trial"):           true,
+	corev1.SchemeGroupVersion.WithKind("Secret"):             true,
+	corev1.SchemeGroupVersion.WithKind("ConfigMap"):          true,
+	corev1.SchemeGroupVersion.WithKind("ServiceAccount"):     true,
+	rbacv1.SchemeGroupVersion.WithKind("ClusterRole"):        false,
+	rbacv1.SchemeGroupVersion.WithKind("ClusterRoleBinding"): false,
 }
