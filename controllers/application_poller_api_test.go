@@ -187,7 +187,7 @@ var _ applications.Subscriber = fakeScanSubscriber{}
 
 type fakeScanSubscriber struct{}
 
-func (f fakeScanSubscriber) Subscribe(ctx context.Context, ch chan<- applications.ActivityItem) {
+func (f fakeScanSubscriber) Subscribe(ctx context.Context, ch chan<- applications.ActivityItem) error {
 	sampleActivity := applications.ActivityItem{
 		ID:    "01FB5DMRW14JNNC7R9EWJEB5FM",
 		URL:   "http://localhost:8113/v2/applications/01FB5227WVRE4RFFDJ4TCZY8Z9/scenarios/01FB5229WXA976GSYX1BSJNM8G",
@@ -197,13 +197,14 @@ func (f fakeScanSubscriber) Subscribe(ctx context.Context, ch chan<- application
 
 	ch <- sampleActivity
 	close(ch)
+	return nil
 }
 
 var _ applications.Subscriber = fakeRunSubscriber{}
 
 type fakeRunSubscriber struct{}
 
-func (f fakeRunSubscriber) Subscribe(ctx context.Context, ch chan<- applications.ActivityItem) {
+func (f fakeRunSubscriber) Subscribe(ctx context.Context, ch chan<- applications.ActivityItem) error {
 	sampleActivity := applications.ActivityItem{
 		ID:    "01FB5DMRW14JNNC7R9EWJEB5FM",
 		URL:   "http://localhost:8113/v2/applications/01FB5227WVRE4RFFDJ4TCZY8Z9/scenarios/01FB5229WXA976GSYX1BSJNM8G",
@@ -213,4 +214,5 @@ func (f fakeRunSubscriber) Subscribe(ctx context.Context, ch chan<- applications
 
 	ch <- sampleActivity
 	close(ch)
+	return nil
 }
