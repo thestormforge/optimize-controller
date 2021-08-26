@@ -58,8 +58,12 @@ func (p *Poller) SetupWithManager(mgr ctrl.Manager) error {
 		p.Log.Info("Application API is unavailable, skipping setup", "message", err.Error())
 		return nil
 	}
+
 	p.apiClient = appAPI
 	p.client = mgr.GetClient()
+	p.filterOpts.KubectlOptions = append(p.filterOpts.KubectlOptions,
+		scan.WithKubectlRESTConfig(mgr.GetConfig()),
+	)
 
 	return mgr.Add(p)
 }

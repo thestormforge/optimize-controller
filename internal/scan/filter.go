@@ -22,6 +22,7 @@ import (
 
 	"github.com/spf13/pflag"
 	"github.com/thestormforge/konjure/pkg/konjure"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/kustomize/api/filesys"
 	"sigs.k8s.io/kustomize/api/krusty"
 	"sigs.k8s.io/kustomize/api/types"
@@ -33,6 +34,8 @@ type FilterOptions struct {
 	DefaultReader io.Reader
 	// An alternate executor for kubectl commands.
 	KubectlExecutor func(cmd *exec.Cmd) ([]byte, error)
+	// Options for the default kubectl executor (ignored when `KubectlExecutor` is non-nil).
+	KubectlOptions []KubectlOption
 	// An alternate executor for kustomize commands.
 	KustomizeExecutor func(cmd *exec.Cmd) ([]byte, error)
 }
@@ -49,7 +52,7 @@ func (o *FilterOptions) NewFilter(workingDirectory string) *konjure.Filter {
 	}
 
 	if f.KubectlExecutor == nil {
-		f.KubectlExecutor = kubectl()
+		f.KubectlExecutor = kubectl(o.KubectlOptions...)
 	}
 
 	if f.KustomizeExecutor == nil {
@@ -59,7 +62,23 @@ func (o *FilterOptions) NewFilter(workingDirectory string) *konjure.Filter {
 	return f
 }
 
-func kubectl() func(cmd *exec.Cmd) ([]byte, error) {
+// KubectlOption is used to control the behavior of the default kubectl executor.
+type KubectlOption func(interface{}) error
+
+// WithKubectlRESTConfig prefers the supplied REST configuration over the default.
+func WithKubectlRESTConfig(restConfig *rest.Config) KubectlOption {
+	return func(k interface{}) error {
+		switch k := k.(type) {
+
+		case *minikubectl:
+			k.restConfig = restConfig
+
+		}
+		return nil
+	}
+}
+
+func kubectl(opts ...KubectlOption) func(cmd *exec.Cmd) ([]byte, error) {
 	return func(cmd *exec.Cmd) ([]byte, error) {
 		// If LookPath found the kubectl binary, it is safer to just use it. That
 		// way the cluster version doesn't need to be in the compatibility range of
@@ -70,6 +89,11 @@ func kubectl() func(cmd *exec.Cmd) ([]byte, error) {
 
 		// Kustomize has a clown. We have minikubectl.
 		k := newMinikubectl()
+		for _, opt := range opts {
+			if err := opt(k); err != nil {
+				return nil, err
+			}
+		}
 
 		// Create and populate a new flag set
 		flags := pflag.NewFlagSet("minikubectl", pflag.ContinueOnError)
