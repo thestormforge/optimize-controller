@@ -21,84 +21,42 @@ import (
 	"fmt"
 
 	"github.com/spf13/pflag"
-	"k8s.io/client-go/discovery/cached/memory"
-
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/discovery"
-	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-
+	"k8s.io/client-go/discovery/cached/memory"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
-// Minikubectl is just a miniature in-process kubectl for us to use to avoid
-// a binary dependency on the tool itself.
-type Minikubectl struct {
+type minikubectl struct {
 	*genericclioptions.ConfigFlags
 	*genericclioptions.ResourceBuilderFlags
 	*genericclioptions.PrintFlags
 	IgnoreNotFound bool
-	Manager        *MiniManager
+	Manager        *miniManager
 }
 
-// MiniManager is used to use what we can from controller-runtime.Manager and satisfy the
-// RESTClientGetter interface so we dont need to use another kube client
-type MiniManager struct {
-	Config *rest.Config
-	Mapper meta.RESTMapper
-}
+// newMinikubectl returns a lite-kubectl
+func newMinikubectl(setters ...Option) (*minikubectl, error) {
+	// Default interface setup
+	minikubectl := defaultOptions()
 
-// ToRESTConfig implements the RESTClientGetter interface
-func (m *MiniManager) ToRESTConfig() (*rest.Config, error) {
-	return m.Config, nil
-}
-
-// ToDiscoveryClient implements the RESTClientGetter interface
-func (m *MiniManager) ToDiscoveryClient() (discovery.CachedDiscoveryInterface, error) {
-	return memory.NewMemCacheClient(discovery.NewDiscoveryClientForConfigOrDie(m.Config)), nil
-}
-
-// ToRESTMapper implements the RESTClientGetter interface
-func (m *MiniManager) ToRESTMapper() (meta.RESTMapper, error) {
-	return m.Mapper, nil
-}
-
-// ToRawKubeConfigLoader implements the RESTClientGetter interface
-func (m *MiniManager) ToRawKubeConfigLoader() clientcmd.ClientConfig {
-	// Only ClientConfig.Namespace() is used from cli builder, so we need something
-	// dumb here
-	return &dumbConfig{}
-}
-
-// dumbConfig implments the ClientConfig interface
-type dumbConfig struct{}
-
-func (d *dumbConfig) RawConfig() (clientcmdapi.Config, error) { return clientcmdapi.Config{}, nil }
-func (d *dumbConfig) ClientConfig() (*rest.Config, error)     { return nil, nil }
-func (d *dumbConfig) Namespace() (string, bool, error)        { return "default", false, nil }
-func (d *dumbConfig) ConfigAccess() clientcmd.ConfigAccess    { return nil }
-
-// NewMinikubectl creates a new Minikubectl, the empty state is not usable.
-func NewMinikubectl() *Minikubectl {
-	outputFormat := ""
-	return &Minikubectl{
-		ConfigFlags: genericclioptions.NewConfigFlags(false),
-		ResourceBuilderFlags: genericclioptions.NewResourceBuilderFlags().
-			WithLabelSelector("").
-			WithAll(true).
-			WithLatest(),
-		PrintFlags: &genericclioptions.PrintFlags{
-			JSONYamlPrintFlags: genericclioptions.NewJSONYamlPrintFlags(),
-			OutputFormat:       &outputFormat,
-		},
+	// Configure interface with any specified options
+	for _, setter := range setters {
+		if err := setter(minikubectl); err != nil {
+			return nil, err
+		}
 	}
+
+	return minikubectl, nil
 }
 
 // AddFlags configures the supplied flag set with the recognized flags.
-func (m *Minikubectl) AddFlags(flags *pflag.FlagSet) {
+func (m *minikubectl) AddFlags(flags *pflag.FlagSet) {
 	m.ConfigFlags.AddFlags(flags)
 	m.ResourceBuilderFlags.AddFlags(flags)
 
@@ -110,16 +68,16 @@ func (m *Minikubectl) AddFlags(flags *pflag.FlagSet) {
 }
 
 // Complete validates we can execute against the supplied arguments.
-func (m *Minikubectl) Complete(args []string) error {
+func (m *minikubectl) Complete(args []string) error {
 	if len(args) == 0 || args[0] != "get" {
-		return fmt.Errorf("Minikubectl only supports get")
+		return fmt.Errorf("minikubectl only supports get")
 	}
 
 	return nil
 }
 
 // Run executes the supplied arguments and returns the output as bytes.
-func (m *Minikubectl) Run(args []string) ([]byte, error) {
+func (m *minikubectl) Run(args []string) ([]byte, error) {
 	var rcg genericclioptions.RESTClientGetter
 	if m.Manager != nil {
 		rcg = m.Manager
@@ -154,3 +112,74 @@ func (m *Minikubectl) Run(args []string) ([]byte, error) {
 
 	return b.Bytes(), nil
 }
+
+// Option is a function that can be used to configure minikubectl
+type Option func(*minikubectl) error
+
+func defaultOptions() *minikubectl {
+	outputFormat := ""
+	return &minikubectl{
+		ConfigFlags: genericclioptions.NewConfigFlags(false),
+		ResourceBuilderFlags: genericclioptions.NewResourceBuilderFlags().
+			WithLabelSelector("").
+			WithAll(true).
+			WithLatest(),
+		PrintFlags: &genericclioptions.PrintFlags{
+			JSONYamlPrintFlags: genericclioptions.NewJSONYamlPrintFlags(),
+			OutputFormat:       &outputFormat,
+		},
+	}
+}
+
+// WithRESTClient can be used to provide an alternative configuration for minikubectl
+func WithRESTClient(cfg *rest.Config, mapper meta.RESTMapper) Option {
+	return func(m *minikubectl) (err error) {
+		m.Manager = &miniManager{
+			config: cfg,
+			mapper: mapper,
+			ns:     *m.ConfigFlags.Namespace,
+		}
+
+		return nil
+	}
+}
+
+// miniManager is used to use what we can from controller-runtime.Manager and satisfy the
+// RESTClientGetter interface so we dont need to use another kube client
+type miniManager struct {
+	config *rest.Config
+	mapper meta.RESTMapper
+	ns     string
+}
+
+// ToRESTConfig implements the RESTClientGetter interface
+func (m *miniManager) ToRESTConfig() (*rest.Config, error) {
+	return m.config, nil
+}
+
+// ToDiscoveryClient implements the RESTClientGetter interface
+func (m *miniManager) ToDiscoveryClient() (discovery.CachedDiscoveryInterface, error) {
+	return memory.NewMemCacheClient(discovery.NewDiscoveryClientForConfigOrDie(m.config)), nil
+}
+
+// ToRESTMapper implements the RESTClientGetter interface
+func (m *miniManager) ToRESTMapper() (meta.RESTMapper, error) {
+	return m.mapper, nil
+}
+
+// ToRawKubeConfigLoader implements the RESTClientGetter interface
+func (m *miniManager) ToRawKubeConfigLoader() clientcmd.ClientConfig {
+	// Only ClientConfig.Namespace() is used from cli builder, so we need something
+	// dumb here
+	return &dumberConfig{ns: m.ns}
+}
+
+// dumberConfig implments the ClientConfig interface
+type dumberConfig struct {
+	ns string
+}
+
+func (d *dumberConfig) RawConfig() (clientcmdapi.Config, error) { return clientcmdapi.Config{}, nil }
+func (d *dumberConfig) ClientConfig() (*rest.Config, error)     { return nil, nil }
+func (d *dumberConfig) Namespace() (string, bool, error)        { return d.ns, false, nil }
+func (d *dumberConfig) ConfigAccess() clientcmd.ConfigAccess    { return nil }

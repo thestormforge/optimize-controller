@@ -26,7 +26,6 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/oklog/ulid"
-	"github.com/spf13/pflag"
 	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-controller/v2/internal/experiment"
@@ -346,17 +345,13 @@ func (p *Poller) generateApp(app optimizeappsv1alpha1.Application) ([]runtime.Ob
 	// Set defaults for application
 	app.Default()
 
-	filterOpts := scan.FilterOptions{
-		KubectlExecutor: p.kubectlFn(),
-	}
-	if p.kubectlExecFn != nil {
-		filterOpts.KubectlExecutor = p.kubectlExecFn
-	}
-
 	g := &experiment.Generator{
 		Application:    app,
 		ExperimentName: strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String()),
-		FilterOptions:  filterOpts,
+		FilterOptions: scan.FilterOptions{
+			KubectlExecutor: p.kubectlExecFn,
+			MinikubeOpts:    []scan.Option{scan.WithRESTClient(p.config, p.metaMapper)},
+		},
 	}
 
 	objList := sfio.ObjectList{}
@@ -370,33 +365,4 @@ func (p *Poller) generateApp(app optimizeappsv1alpha1.Application) ([]runtime.Ob
 	}
 
 	return runtimeObjs, nil
-}
-
-func (p *Poller) kubectlFn() func(cmd *exec.Cmd) ([]byte, error) {
-	return func(cmd *exec.Cmd) ([]byte, error) {
-		k := scan.NewMinikubectl()
-		k.Manager = &scan.MiniManager{
-			Config: p.config,
-			Mapper: p.metaMapper,
-		}
-		//k.ResourceBuilderFlags.WithScheme(p.scheme)
-
-		// Create and populate a new flag set
-		flags := pflag.NewFlagSet("minikubectl", pflag.ContinueOnError)
-		k.AddFlags(flags)
-
-		// Parse the arguments on exec.Cmd (ignoring arg[0] which is "kubectl")
-		if err := flags.Parse(cmd.Args[1:]); err != nil {
-			return nil, err
-		}
-
-		// If complete fails, assume it was because we asked too much of minikubectl
-		// and we should just run the real thing in a subprocess
-		if err := k.Complete(flags.Args()); err != nil {
-			return nil, err
-		}
-
-		// Run minikubectl with the remaining arguments
-		return k.Run(flags.Args())
-	}
 }
