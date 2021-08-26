@@ -136,13 +136,13 @@ func main() {
 
 	// +kubebuilder:scaffold:builder
 
-	poller, err := controllers.NewPoller(mgr.GetClient(), ctrl.Log.WithName("controllers").WithName("application poller"))
-	if err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "application poller")
+	// The Application Poller isn't strictly a reconciler, but it partakes in the manager lifecycle
+	if err = (&controllers.Poller{
+		Log: ctrl.Log.WithName("controllers").WithName("Application"),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Application")
 		os.Exit(1)
 	}
-
-	mgr.Add(poller)
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {

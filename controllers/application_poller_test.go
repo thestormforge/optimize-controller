@@ -29,6 +29,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	"github.com/thestormforge/optimize-controller/v2/internal/scan"
 	"github.com/thestormforge/optimize-go/pkg/api"
 	applications "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
 	"go.uber.org/zap"
@@ -127,10 +128,10 @@ func TestPoller(t *testing.T) {
 				failureCh:        make(chan applications.ActivityFailure),
 			}
 			poller := &Poller{
-				client:        client,
-				log:           zapr.NewLogger(zap.NewNop()),
-				apiClient:     fapi,
-				kubectlExecFn: fakeKubectlExec,
+				client:     client,
+				Log:        zapr.NewLogger(zap.NewNop()),
+				apiClient:  fapi,
+				filterOpts: scan.FilterOptions{KubectlExecutor: fakeKubectlExec},
 			}
 
 			_, err := poller.apiClient.CheckEndpoint(ctx)
