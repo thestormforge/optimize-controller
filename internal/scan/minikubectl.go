@@ -19,27 +19,39 @@ package scan
 import (
 	"bytes"
 	"fmt"
+	"sync"
 
 	"github.com/spf13/pflag"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/resource"
+	"k8s.io/client-go/discovery"
+	memory "k8s.io/client-go/discovery/cached"
+	"k8s.io/client-go/rest"
+	restclient "k8s.io/client-go/rest"
+	"k8s.io/client-go/restmapper"
+	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
 // minikubectl is just a miniature in-process kubectl for us to use to avoid
 // a binary dependency on the tool itself.
 type minikubectl struct {
-	*genericclioptions.ConfigFlags
-	*genericclioptions.ResourceBuilderFlags
-	*genericclioptions.PrintFlags
-	IgnoreNotFound bool
+	ConfigFlags          *genericclioptions.ConfigFlags
+	ResourceBuilderFlags *genericclioptions.ResourceBuilderFlags
+	PrintFlags           *genericclioptions.PrintFlags
+	IgnoreNotFound       bool
+
+	restConfig *rest.Config
+	lock       sync.Mutex
 }
 
 // newMinikubectl creates a new minikubectl, the empty state is not usable.
 func newMinikubectl() *minikubectl {
 	outputFormat := ""
 	return &minikubectl{
-		ConfigFlags: genericclioptions.NewConfigFlags(false),
+		ConfigFlags: genericclioptions.NewConfigFlags(true),
 		ResourceBuilderFlags: genericclioptions.NewResourceBuilderFlags().
 			WithLabelSelector("").
 			WithAll(true).
@@ -74,7 +86,7 @@ func (k *minikubectl) Complete(args []string) error {
 
 // Run executes the supplied arguments and returns the output as bytes.
 func (k *minikubectl) Run(args []string) ([]byte, error) {
-	v := k.ResourceBuilderFlags.ToBuilder(k.ConfigFlags, args[1:]).Do()
+	v := k.ResourceBuilderFlags.ToBuilder(k, args[1:]).Do()
 
 	// Create a printer to dump the objects
 	printer, err := k.PrintFlags.ToPrinter()
@@ -99,4 +111,78 @@ func (k *minikubectl) Run(args []string) ([]byte, error) {
 	}
 
 	return b.Bytes(), nil
+}
+
+// ToRawKubeConfigLoader just defers to the configuration flags.
+func (k *minikubectl) ToRawKubeConfigLoader() clientcmd.ClientConfig {
+	return &namespaceOverrideClientConfig{
+		Delegate:          k.ConfigFlags.ToRawKubeConfigLoader(),
+		NamespaceOverride: k.ConfigFlags.Namespace,
+	}
+}
+
+// ToRESTConfig lazily loads a REST configuration.
+func (k *minikubectl) ToRESTConfig() (*rest.Config, error) {
+	k.lock.Lock()
+	defer k.lock.Unlock()
+
+	var err error
+	if k.restConfig != nil {
+		k.restConfig, err = k.ToRawKubeConfigLoader().ClientConfig()
+
+	}
+	return k.restConfig, err
+}
+
+// ToDiscoveryClient returns an in-memory cached discovery instance instead of an on-disk cached instance.
+func (k *minikubectl) ToDiscoveryClient() (discovery.CachedDiscoveryInterface, error) {
+	config, err := k.ToRESTConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+
+	return memory.NewMemCacheClient(discoveryClient), nil
+}
+
+// ToRESTMapper does the exact same thing as the ConfigFlag implementation, just with a different discovery client.
+func (k *minikubectl) ToRESTMapper() (meta.RESTMapper, error) {
+	discoveryClient, err := k.ToDiscoveryClient()
+	if err != nil {
+		return nil, err
+	}
+
+	mapper := restmapper.NewDeferredDiscoveryRESTMapper(discoveryClient)
+	expander := restmapper.NewShortcutExpander(mapper, discoveryClient)
+	return expander, nil
+}
+
+type namespaceOverrideClientConfig struct {
+	Delegate          clientcmd.ClientConfig
+	NamespaceOverride *string
+}
+
+func (c *namespaceOverrideClientConfig) Namespace() (string, bool, error) {
+	if c.NamespaceOverride != nil && *c.NamespaceOverride != "" {
+		return *c.NamespaceOverride, true, nil
+	}
+	return c.Delegate.Namespace()
+}
+
+// NOTE: Because the interface ClientConfig has a function ClientConfig we cannot simply embed ClientConfig
+
+func (c *namespaceOverrideClientConfig) RawConfig() (clientcmdapi.Config, error) {
+	return c.Delegate.RawConfig()
+}
+
+func (c *namespaceOverrideClientConfig) ConfigAccess() clientcmd.ConfigAccess {
+	return c.Delegate.ConfigAccess()
+}
+
+func (c *namespaceOverrideClientConfig) ClientConfig() (*restclient.Config, error) {
+	return c.Delegate.ClientConfig()
 }

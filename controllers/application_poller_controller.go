@@ -21,7 +21,6 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"os/exec"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -40,32 +39,33 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Poller handles checking with the Application Services to trigger an in cluster
 // activity such as scanning resources or running an experiment.
 type Poller struct {
-	client        client.Client
-	log           logr.Logger
-	apiClient     applications.API
-	kubectlExecFn func(cmd *exec.Cmd) ([]byte, error)
+	Log        logr.Logger
+	client     client.Client
+	apiClient  applications.API
+	filterOpts scan.FilterOptions
 }
 
-// NewPoller returns a new Poller with the given Kubernetes client, logger,
-// and application api client configured.
-func NewPoller(kclient client.Client, logger logr.Logger) (*Poller, error) {
+func (p *Poller) SetupWithManager(mgr ctrl.Manager) error {
 	appAPI, err := server.NewApplicationAPI(context.Background(), version.GetInfo().String())
 	if err != nil {
-		logger.Info("Application API is unavailable, skipping setup", "message", err.Error())
-		return &Poller{log: logger}, nil
+		p.Log.Info("Application API is unavailable, skipping setup", "message", err.Error())
+		return nil
 	}
 
-	return &Poller{
-		client:    kclient,
-		apiClient: appAPI,
-		log:       logger,
-	}, nil
+	p.apiClient = appAPI
+	p.client = mgr.GetClient()
+	p.filterOpts.KubectlOptions = append(p.filterOpts.KubectlOptions,
+		scan.WithKubectlRESTConfig(mgr.GetConfig()),
+	)
+
+	return mgr.Add(p)
 }
 
 // Start is used to initiate the polling loop for new tasks.
@@ -75,10 +75,7 @@ func NewPoller(kclient client.Client, logger logr.Logger) (*Poller, error) {
 // If there was an issue connecting to the application services, this will immediately
 // return.
 func (p *Poller) Start(ch <-chan struct{}) error {
-	if p.apiClient == nil {
-		return nil
-	}
-	p.log.Info("Starting application poller")
+	p.Log.Info("Starting application poller")
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -93,7 +90,7 @@ func (p *Poller) Start(ch <-chan struct{}) error {
 	query.SetType(applications.TagScan, applications.TagRun)
 	subscriber, err := p.apiClient.SubscribeActivity(ctx, query)
 	if err != nil {
-		p.log.Error(err, "Unable to connect to application service")
+		p.Log.Error(err, "Unable to connect to application service")
 		return nil
 	}
 
@@ -112,7 +109,7 @@ func (p *Poller) Start(ch <-chan struct{}) error {
 				return nil
 			}
 
-			p.log.Error(err, "Application service connection interrupted, restarting")
+			p.Log.Error(err, "Application service connection interrupted, restarting")
 
 			continue
 		}
@@ -136,7 +133,7 @@ func (p *Poller) handleActivity(ctx context.Context, activity applications.Activ
 		ActivityReasonScanFailed         = "ScanFailed"
 		ActivityReasonRunFailed          = "RunFailed"
 	)
-	log := p.log.WithValues(
+	log := p.Log.WithValues(
 		"activityId", activity.ID,
 		"activityTags", strings.Join(activity.Tags, ", "),
 		"activityURL", activity.URL,
@@ -340,9 +337,7 @@ func (p *Poller) generateApp(app optimizeappsv1alpha1.Application) ([]runtime.Ob
 	g := &experiment.Generator{
 		Application:    app,
 		ExperimentName: strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String()),
-		FilterOptions: scan.FilterOptions{
-			KubectlExecutor: p.kubectlExecFn,
-		},
+		FilterOptions:  p.filterOpts,
 	}
 
 	objList := sfio.ObjectList{}
