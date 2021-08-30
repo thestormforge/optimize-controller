@@ -19,6 +19,7 @@ package template
 import (
 	"bytes"
 	"fmt"
+	"regexp"
 	"strings"
 	"text/template"
 
@@ -105,6 +106,9 @@ scalar(
 	return renderUtilization(data, labelSelectors, memoryResourcesQueryTemplate)
 }
 
+// https://github.com/prometheus/prometheus/blob/3240cf83f08e448e0b96a4a1f96c0e8b2d51cf61/util/strutil/strconv.go#L23
+var invalidLabelCharRE = regexp.MustCompile(`[^a-zA-Z0-9_]`)
+
 func renderUtilization(metricData MetricData, labelSelectors []string, query string) (string, error) {
 	// We are accepting Kubernetes label selectors and using them to generate a PromQL metric selector
 	sel, err := labels.Parse(strings.Join(labelSelectors, ","))
@@ -119,6 +123,8 @@ func renderUtilization(metricData MetricData, labelSelectors []string, query str
 	for _, req := range requirements {
 		// Force a "label_" prefix
 		key := strings.TrimPrefix(req.Key(), "label_")
+		// Translate kube label into prometheus label
+		key = invalidLabelCharRE.ReplaceAllString(key, "_")
 
 		// If we got this far the cardinality will be correct (e.g. only one element for =)
 		value := strings.Join(req.Values().List(), "|")
