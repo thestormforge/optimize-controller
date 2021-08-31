@@ -65,9 +65,9 @@ func TestContainerResourcesParameter(t *testing.T) {
               spec:
                 resources:
                   limits:
-                    memory: "{{ .Values.memory }}Mi"
+                    memory: '{{ index .Values "memory" }}Mi'
                   requests:
-                    memory: "{{ .Values.memory }}Mi"`),
+                    memory: '{{ index .Values "memory" }}Mi'`),
 		},
 
 		{
@@ -97,9 +97,9 @@ func TestContainerResourcesParameter(t *testing.T) {
               spec:
                 resources:
                   limits:
-                    memory: "{{ .Values.memory }}M"
+                    memory: '{{ index .Values "memory" }}M'
                   requests:
-                    memory: "{{ .Values.memory }}M"`),
+                    memory: '{{ index .Values "memory" }}M'`),
 		},
 
 		{
@@ -129,9 +129,9 @@ func TestContainerResourcesParameter(t *testing.T) {
               spec:
                 resources:
                   limits:
-                    cpu: "{{ .Values.cpu }}m"
+                    cpu: '{{ index .Values "cpu" }}m'
                   requests:
-                    cpu: "{{ .Values.cpu }}m"`),
+                    cpu: '{{ index .Values "cpu" }}m'`),
 		},
 
 		{
@@ -161,9 +161,9 @@ func TestContainerResourcesParameter(t *testing.T) {
               spec:
                 resources:
                   limits:
-                    memory: "{{ .Values.memory }}Ki"
+                    memory: '{{ index .Values "memory" }}Ki'
                   requests:
-                    memory: "{{ .Values.memory }}Ki"`),
+                    memory: '{{ index .Values "memory" }}Ki'`),
 		},
 
 		{
@@ -193,9 +193,9 @@ func TestContainerResourcesParameter(t *testing.T) {
               spec:
                 resources:
                   limits:
-                    cpu: "{{ .Values.cpu }}m"
+                    cpu: '{{ index .Values "cpu" }}m'
                   requests:
-                    cpu: "{{ .Values.cpu }}m"`),
+                    cpu: '{{ index .Values "cpu" }}m'`),
 		},
 
 		{
@@ -225,9 +225,9 @@ func TestContainerResourcesParameter(t *testing.T) {
               spec:
                 resources:
                   limits:
-                    memory: "{{ .Values.memory }}M"
+                    memory: '{{ index .Values "memory" }}M'
                   requests:
-                    memory: "{{ .Values.memory }}M"`),
+                    memory: '{{ index .Values "memory" }}M'`),
 		},
 	}
 	for _, c := range cases {

@@ -102,6 +102,7 @@ func (p *environmentVariablesParameter) Patch(name ParameterNamer) (yaml.Filter,
 	parameterName := name(p.meta, p.fieldPath, "")
 	patch := fmt.Sprintf("%s{{ index .Values %q }}%s", p.prefix, parameterName, p.suffix)
 	value := yaml.NewScalarRNode(patch)
+	value.YNode().Style = yaml.SingleQuotedStyle
 
 	return yaml.Tee(
 		&yaml.PathGetter{Path: p.fieldPath, Create: yaml.ScalarNode},
