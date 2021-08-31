@@ -3,6 +3,8 @@
 TITLE := Optimize Controller
 VENDOR := StormForge
 EMAIL := techsupport@stormforge.io
+VENDOR_URL := https://www.stormforge.io/
+DOCUMENTATION_URL := https://docs.stormforge.io/
 DESCRIPTION := Kubernetes Performance Testing and resource optimization for \
                flawless app performance and cloud efficiency without manual tuning.
 
@@ -100,6 +102,8 @@ docker-build-controller:
 	docker build . -t ${IMG} \
 		--label "org.opencontainers.image.title=${TITLE}" \
 		--label "org.opencontainers.image.description=${DESCRIPTION}" \
+		--label "org.opencontainers.image.documentation=${DOCUMENTATION_URL}" \
+		--label "org.opencontainers.image.url=${VENDOR_URL}" \
 		--label "org.opencontainers.image.authors=${EMAIL}" \
 		--label "org.opencontainers.image.vendor=${VENDOR}" \
 		--label "org.opencontainers.image.version=${VERSION}" \
