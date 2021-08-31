@@ -100,7 +100,7 @@ var _ ParameterSource = &environmentVariablesParameter{}
 func (p *environmentVariablesParameter) Patch(name ParameterNamer) (yaml.Filter, error) {
 	// Since the field path will contain a "[name=ENV_VAR]" we can just leave the name blank
 	parameterName := name(p.meta, p.fieldPath, "")
-	patch := fmt.Sprintf("%s{{ .Values.%s }}%s", p.prefix, parameterName, p.suffix)
+	patch := fmt.Sprintf("%s{{ index .Values %q }}%s", p.prefix, parameterName, p.suffix)
 	value := yaml.NewScalarRNode(patch)
 
 	return yaml.Tee(

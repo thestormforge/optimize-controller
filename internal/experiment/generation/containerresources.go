@@ -183,7 +183,7 @@ func (p *containerResourcesParameter) Patch(name ParameterNamer) (yaml.Filter, e
 	for _, rn := range p.resources {
 		// Create patch filter for each ResourceName (e.g. "cpu: {{ .Values ...")
 		parameterName := name(p.meta, p.fieldPath, string(rn))
-		patch := fmt.Sprintf("{{ .Values.%s }}%s", parameterName, ind[rn].Suffix())
+		patch := fmt.Sprintf("{{ index .Values %q }}%s", parameterName, ind[rn].Suffix())
 		patchFilter := yaml.SetField(string(rn), yaml.NewStringRNode(patch))
 
 		// Apply the same patch filter to both limits and requests
