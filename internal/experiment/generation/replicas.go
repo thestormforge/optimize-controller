@@ -17,6 +17,8 @@ limitations under the License.
 package generation
 
 import (
+	"fmt"
+
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-controller/v2/internal/scan"
 	"github.com/thestormforge/optimize-controller/v2/internal/sfio"
@@ -82,7 +84,7 @@ var _ PatchSource = &replicaParameter{}
 var _ ParameterSource = &replicaParameter{}
 
 func (p *replicaParameter) Patch(name ParameterNamer) (yaml.Filter, error) {
-	value := yaml.NewScalarRNode("{{ .Values." + name(p.meta, p.fieldPath, "replicas") + " }}")
+	value := yaml.NewScalarRNode(fmt.Sprintf("{{ index .Values %q }}", name(p.meta, p.fieldPath, "replicas")))
 	value.YNode().Tag = yaml.NodeTagInt
 	return yaml.Tee(
 		&yaml.PathGetter{Path: p.fieldPath, Create: yaml.ScalarNode},
