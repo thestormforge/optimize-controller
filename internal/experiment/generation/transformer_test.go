@@ -78,12 +78,17 @@ func TestParameterNames(t *testing.T) {
 					meta:      meta("Deployment", "test2"),
 					fieldPath: []string{"spec", "template", "spec", "containers", "[name=test]", "resources"},
 				},
+				{
+					meta:      meta("Deployment", "test1"),
+					fieldPath: []string{"spec", "replicas"},
+				},
 			},
 			expected: []string{
 				"test1_cpu",
 				"test1_memory",
 				"test2_cpu",
 				"test2_memory",
+				"test1_replicas",
 			},
 		},
 
@@ -112,6 +117,29 @@ func TestParameterNames(t *testing.T) {
 				"test2_memory",
 			},
 		},
+
+		{
+			desc: "brad",
+			selected: []pnode{
+				{
+					meta:      meta("Deployment", "a-b"),
+					fieldPath: []string{"spec", "template", "spec", "containers", "[name=c]", "resources"},
+				},
+				{
+					meta:      meta("Deployment", "a"),
+					fieldPath: []string{"spec", "template", "spec", "containers", "[name=b]", "resources"},
+				},
+				{
+					meta:      meta("Deployment", "a"),
+					fieldPath: []string{"spec", "template", "spec", "containers", "[name=c]", "resources"},
+				},
+				{
+					meta:      meta("Deployment", "a-b"),
+					fieldPath: []string{"spec", "replicas"},
+				},
+			},
+			expected: []string{},
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
@@ -123,8 +151,12 @@ func TestParameterNames(t *testing.T) {
 
 			var actual []string
 			for _, sel := range c.selected {
-				actual = append(actual, namer(sel.meta, sel.fieldPath, "cpu"))
-				actual = append(actual, namer(sel.meta, sel.fieldPath, "memory"))
+				if sel.fieldPath[len(sel.fieldPath)-1] == "resources" {
+					actual = append(actual, namer(sel.meta, sel.fieldPath, "cpu"))
+					actual = append(actual, namer(sel.meta, sel.fieldPath, "memory"))
+				} else {
+					actual = append(actual, namer(sel.meta, sel.fieldPath, "replicas"))
+				}
 			}
 			assert.Equal(t, c.expected, actual)
 		})

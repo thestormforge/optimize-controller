@@ -135,11 +135,12 @@ func (t *Transformer) Transform(nodes []*yaml.RNode, selected []interface{}) ([]
 	}
 
 	// Serialize the experiment as a YAML node
-	if expNode, err := (sfio.ObjectSlice{&exp}).Read(); err != nil {
+	expNode, err := (sfio.ObjectSlice{&exp}).Read()
+	if err != nil {
 		return nil, err
-	} else {
-		result = append(expNode, result...) // Put the experiment at the front
 	}
+
+	result = append(expNode, result...) // Put the experiment at the front
 
 	// If requested, append the actual application resources to the output
 	if t.IncludeApplicationResources {
@@ -240,38 +241,42 @@ func parameterNamer(selected []interface{}) ParameterNamer {
 	type targeted interface {
 		TargetRef() *corev1.ObjectReference
 	}
-	needsPath := make(map[string]map[string]int)
+
+	// kind | name | target
+	needsPath := make(map[string]map[string]map[string]int)
+
 	for _, sel := range selected {
 		t, ok := sel.(targeted)
 		if !ok {
 			continue
 		}
+
 		targetRef := t.TargetRef()
 		if ns := needsPath[targetRef.Kind]; ns == nil {
-			needsPath[targetRef.Kind] = make(map[string]int)
+			needsPath[targetRef.Kind] = make(map[string]map[string]int)
 		}
-		needsPath[targetRef.Kind][targetRef.Name]++
-	}
 
-	// Determine which prefixes we need
-	needsKind := len(needsPath) > 1
-	needsName := false
-	for _, v := range needsPath {
-		needsName = needsName || len(v) > 1
+		if np := needsPath[targetRef.Kind][targetRef.Name]; np == nil {
+			needsPath[targetRef.Kind][targetRef.Name] = make(map[string]int)
+		}
+
+		pn, ok := sel.(*pnode)
+		if !ok {
+			continue
+		}
+
+		needsPath[targetRef.Kind][targetRef.Name][pn.fieldPath[len(pn.fieldPath)-1]]++
 	}
 
 	return func(meta yaml.ResourceMeta, path []string, name string) string {
 		var parts []string
 
-		if needsKind {
-			parts = append(parts, meta.Kind)
-		}
+		parts = append(parts, meta.Name)
 
-		if needsName {
-			parts = append(parts, meta.Name)
-		}
-
-		if needsPath[meta.Kind][meta.Name] > 1 {
+		// In this instance we have multiple containers in a pod that we're
+		// dealing with, so we need to add container name to the parameter
+		// name to better namespace it
+		if needsPath[meta.Kind][meta.Name][path[len(path)-1]] > 1 {
 			for _, p := range path {
 				if yaml.IsListIndex(p) {
 					if _, value, _ := yaml.SplitIndexNameValue(p); value != "" {
@@ -289,8 +294,7 @@ func parameterNamer(selected []interface{}) ParameterNamer {
 		// against Go structs, if the template parser encounters a token that is
 		// not a valid Go field name, parsing fails (e.g. "bad character U+002D '-'").
 
-		parameterName := strings.Join(parts, "_")
-		parameterName = strings.ReplaceAll(parameterName, "-", "_")
+		parameterName := strings.Join(parts, "/")
 		parameterName = strings.ToLower(parameterName)
 		return parameterName
 	}
