@@ -137,6 +137,10 @@ func TestParameterNames(t *testing.T) {
 					meta:      meta("Deployment", "a-b"),
 					fieldPath: []string{"spec", "replicas"},
 				},
+				{
+					meta:      meta("Statefulset", "a-b"),
+					fieldPath: []string{"spec", "replicas"},
+				},
 			},
 			expected: []string{},
 		},
