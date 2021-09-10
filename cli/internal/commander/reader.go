@@ -79,8 +79,11 @@ func (r *ResourceReader) ReadInto(reader io.ReadCloser, target runtime.Object) e
 	}
 
 	// Decode the raw data
-	obj, _, err := decoder.Decode(data, &gvk, target)
+	obj, errGvk, err := decoder.Decode(data, &gvk, target)
 	if err != nil {
+		if runtime.IsNotRegisteredError(err) && errGvk.Kind == gvk.Kind {
+			return fmt.Errorf("unsupported %s version, try running '%s fix'", gvk.Kind, os.Args[0])
+		}
 		return err
 	}
 
