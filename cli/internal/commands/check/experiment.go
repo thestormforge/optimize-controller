@@ -185,6 +185,7 @@ func (l *linter) Visit(ctx context.Context, obj interface{}) experiment.Visitor 
 			optimizev1beta2.MetricPrometheus,
 			optimizev1beta2.MetricJSONPath,
 			optimizev1beta2.MetricDatadog,
+			optimizev1beta2.MetricNewRelic,
 			"": // Type is valid
 		default:
 			lint.V(vError).Info("Metric type is invalid", "type", o.Type)
