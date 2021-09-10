@@ -22,6 +22,7 @@ import (
 
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // Visitor is used to inspect individual sections of an experiment.
@@ -30,6 +31,12 @@ type Visitor interface {
 	// to a type on the experiment. The return value is used to halt traversal.
 	Visit(ctx context.Context, obj interface{}) Visitor
 }
+
+// MetadataLabels is a marker type to identify the `ObjectMeta.Labels` map.
+type MetadataLabels map[string]string
+
+// MetadataAnnotations is a marker type to identify the `ObjectMeta.Annotations` map.
+type MetadataAnnotations map[string]string
 
 // Walk traverses an experiment depth first; obj must not be nil; visitor will be invoked
 // with relevant non-nil members of the experiment followed by an invocation with nil.
@@ -41,7 +48,15 @@ func Walk(ctx context.Context, v Visitor, obj interface{}) {
 	switch o := obj.(type) {
 
 	case *optimizev1beta2.Experiment:
+		Walk(withPath(ctx, "metadata"), v, &o.ObjectMeta)
 		Walk(withPath(ctx, "spec"), v, &o.Spec)
+
+	case *metav1.ObjectMeta:
+		Walk(withPath(ctx, "labels"), v, MetadataLabels(o.Labels))
+		Walk(withPath(ctx, "annotations"), v, MetadataAnnotations(o.Annotations))
+
+	case MetadataLabels, MetadataAnnotations:
+		// Do Nothing
 
 	case *optimizev1beta2.ExperimentSpec:
 		Walk(withPath(ctx, "optimization"), v, o.Optimization)

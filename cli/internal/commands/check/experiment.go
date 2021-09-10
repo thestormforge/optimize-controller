@@ -26,6 +26,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
 	"github.com/spf13/cobra"
+	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commander"
 	"github.com/thestormforge/optimize-controller/v2/internal/experiment"
@@ -57,9 +58,10 @@ type ExperimentOptions struct {
 // NewExperimentCommand creates a new command for checking an experiment manifest
 func NewExperimentCommand(o *ExperimentOptions) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "experiment",
-		Short: "Check an experiment",
-		Long:  "Check an experiment manifest",
+		Use:     "experiment",
+		Short:   "Check an experiment",
+		Long:    "Check an experiment manifest",
+		Aliases: []string{"exp"},
 
 		PreRun: commander.StreamsPreRun(&o.IOStreams),
 		RunE:   commander.WithContextE(o.checkExperiment),
@@ -136,6 +138,13 @@ func (l *linter) Visit(ctx context.Context, obj interface{}) experiment.Visitor 
 	lint := l.logger.WithValues("path", strings.Join(experiment.WalkPath(ctx), "/"))
 
 	switch o := obj.(type) {
+
+	case experiment.MetadataLabels:
+		for _, k := range []string{optimizeappsv1alpha1.LabelApplication, optimizeappsv1alpha1.LabelScenario} {
+			if o[k] == "" {
+				lint.V(vError).Info("Experiment label is required", "key", k)
+			}
+		}
 
 	case *optimizev1beta2.Optimization:
 		switch o.Name {
