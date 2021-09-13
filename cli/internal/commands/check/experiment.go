@@ -194,21 +194,7 @@ func (l *linter) Visit(ctx context.Context, obj interface{}) experiment.Visitor 
 		if o.Query == "" {
 			lint.V(vError).Info("Metric query is required")
 		} else {
-			q, _, err := metricQueryDryRun(o)
-			if err != nil {
-				lint.Error(err, "Metric query failed to render", "query", o.Query)
-			}
-
-			switch o.Type {
-			case optimizev1beta2.MetricJSONPath:
-				if !strings.Contains(q, "{") {
-					lint.V(vWarn).Info("JSON Path query should contain an {} expression", "query", o.Query)
-				}
-			case optimizev1beta2.MetricPrometheus:
-				if !strings.Contains(q, "scalar") {
-					lint.V(vWarn).Info("Prometheus query may require explicit scalar conversion", "query", o.Query)
-				}
-			}
+			checkQuery(lint, o)
 		}
 
 		if o.Min != nil && o.Max != nil && o.Min.Cmp(*o.Max) <= 0 {
@@ -283,12 +269,36 @@ func checkBaseline(lint logr.Logger, p *optimizev1beta2.Parameter) {
 	}
 }
 
-func metricQueryDryRun(m *optimizev1beta2.Metric) (string, string, error) {
-	// Try to dummy out the target object to avoid failures
-	target := &unstructured.Unstructured{}
-	if m.Target != nil {
-		target.SetGroupVersionKind(m.Target.GroupVersionKind())
+func checkQuery(lint logr.Logger, m *optimizev1beta2.Metric) {
+	switch m.Type {
+	case optimizev1beta2.MetricKubernetes, "":
+		if strings.Contains(m.Query, "resourceRequests") && (m.Target == nil || m.Target.Kind != "PodList") {
+			lint.V(vWarn).Info("The `resourceRequests` query function expects the 'target.kind' field to be 'PodList'")
+			return
+		}
 	}
 
-	return template.New().RenderMetricQueries(m, &optimizev1beta2.Trial{}, target)
+	// Try to dummy out the target object to avoid failures
+	target := &unstructured.Unstructured{}
+	if m.Target != nil && m.Target.Kind != "" {
+		target.SetGroupVersionKind(m.Target.GroupVersionKind())
+	} else {
+		target.SetGroupVersionKind(optimizev1beta2.GroupVersion.WithKind("Trial"))
+	}
+
+	q, _, err := template.New().RenderMetricQueries(m, &optimizev1beta2.Trial{}, target)
+	if err != nil {
+		lint.Error(err, "Metric query failed to render", "query", m.Query)
+	}
+
+	switch m.Type {
+	case optimizev1beta2.MetricJSONPath:
+		if !strings.Contains(q, "{") {
+			lint.V(vWarn).Info("JSON Path query should contain an {} expression", "query", m.Query)
+		}
+	case optimizev1beta2.MetricPrometheus:
+		if !strings.Contains(q, "scalar") {
+			lint.V(vWarn).Info("Prometheus query may require explicit scalar conversion", "query", m.Query)
+		}
+	}
 }
