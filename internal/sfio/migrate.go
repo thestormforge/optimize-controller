@@ -84,6 +84,14 @@ func (f *ExperimentMigrationFilter) Filter(node *yaml.RNode) (*yaml.RNode, error
 		// Experiment
 		yaml.Tee(
 			filters.FilterOne(&filters.ResourceMetaFilter{
+				Group: "redskyops.dev",
+				Kind:  "Experiment",
+			}),
+			yaml.FilterFunc(f.MayNeedConversionFromV1alpha1),
+		),
+
+		yaml.Tee(
+			filters.FilterOne(&filters.ResourceMetaFilter{
 				Group:   "redskyops.dev",
 				Version: "v1alpha1",
 				Kind:    "Experiment",
@@ -185,6 +193,17 @@ func (f *ExperimentMigrationFilter) MigrateExperimentV1beta1(node *yaml.RNode) (
 		// Finally, set the apiVersion
 		yaml.Tee(
 			yaml.SetField("apiVersion", yaml.NewStringRNode(optimizev1beta2.GroupVersion.String())),
+		),
+	)
+}
+
+// MayNeedConversionFromV1alpha1 mimics the legacy conversion behavior of checking for a "spec.template" field
+// to determine if an Experiment should be treated as if the version were "v1alpha1".
+func (f *ExperimentMigrationFilter) MayNeedConversionFromV1alpha1(node *yaml.RNode) (*yaml.RNode, error) {
+	return node.Pipe(
+		yaml.Tee(
+			Has(yaml.Lookup("spec", "template")),
+			yaml.SetField("apiVersion", yaml.NewStringRNode("redskyops.dev/v1alpha1")),
 		),
 	)
 }
