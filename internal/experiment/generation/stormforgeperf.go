@@ -219,7 +219,11 @@ func (s *StormForgePerformanceSource) accessToken() (string, error) {
 	org, _ := splitTestCase(s.Scenario.StormForge.TestCase)
 
 	// Hide the bodies.
-	return (&StormForgePerformanceAuthorization{ServiceAccountLabel: s.serviceAccountLabel}).AccessToken(ctx, org)
+	token, err := (&StormForgePerformanceAuthorization{ServiceAccountLabel: s.serviceAccountLabel}).AccessToken(ctx, org)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSuffix(token, "\n"), nil
 }
 
 // stormForgePerfLatency normalizes the latency enumeration to match the StormForge Performance values.
