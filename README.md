@@ -7,6 +7,6 @@ This repository contains the StormForge Optimize Controller and CLI implementati
 
 ## Getting Started
 
-Please refer to the documentation for detailed installation instructions: [Installing StormForge Optimize](https://docs.stormforge.io/getting-started/install/).
+Please refer to the documentation for detailed installation instructions: [Installing StormForge Optimize](https://docs.stormforge.io/optimize/getting-started/install/).
 
-You will also find a [quick start](https://docs.stormforge.io/getting-started/quickstart/) guide and additional information about using StormForge Optimize.
+You will also find a [quick start](https://docs.stormforge.io/optimize/getting-started/quickstart/) guide and additional information about using StormForge Optimize.
