@@ -34,20 +34,17 @@ Resources define where you application's Kubernetes resources come from. These
 can be URL-like values such as file paths, HTTP URLs, or Git repository URLs.
 They can also be more complex definitions such references to in-cluster objects
 or Helm charts.
-# Reference: https://docs.stormforge.io/reference/application/v1alpha1/#application
 `,
 
 		"configuration": `
 Configuration is what our machine learning tunes in order to optimize your
 application settings. You can optionally filter where to discover parameters by
 using the selector (the default selector is "").
-Reference: https://docs.stormforge.io/reference/application/v1alpha1/#parameters
 `,
 
 		"scenarios": `
 Scenarios determine which load test will be used to put your application under
 load during the experiment. You can create one by visiting https://app.stormforger.com/
-Reference: https://docs.stormforge.io/reference/application/v1alpha1/#scenario
 `,
 
 		"objectives": `
@@ -55,13 +52,11 @@ Objectives are used to define what you want to optimize for. It's best to
 optimize for metrics with inherent trade-offs such as cost and performance.
 Objectives correspond to metrics observed over the course of a trial,
 for example: "p95-latency".
-Reference: https://docs.stormforge.io/reference/application/v1alpha1/#objective
 `,
 
 		"ingress": `
 Ingress defines the destination of the load test. This is typically a public
 facing URL for your application.
-Reference: https://docs.stormforge.io/reference/application/v1alpha1/#ingress
 `,
 	}
 
