@@ -57,7 +57,7 @@ func TestPoller(t *testing.T) {
 			expected: applications.Template{
 				Parameters: []applications.TemplateParameter{
 					{
-						Name: "nginx_cpu",
+						Name: "deployment/nginx/nginx/cpu",
 						Type: "int",
 						Bounds: &applications.TemplateParameterBounds{
 							Max: json.Number("2000"),
@@ -66,7 +66,7 @@ func TestPoller(t *testing.T) {
 						Baseline: &fifty,
 					},
 					{
-						Name: "nginx_memory",
+						Name: "deployment/nginx/nginx/memory",
 						Type: "int",
 						Bounds: &applications.TemplateParameterBounds{
 							Max: json.Number("50"),
@@ -74,7 +74,7 @@ func TestPoller(t *testing.T) {
 						},
 						Baseline: &twentyfive,
 					}, {
-						Name: "replicas",
+						Name: "deployment/nginx/replicas",
 						Type: "int",
 						Bounds: &applications.TemplateParameterBounds{
 							Max: json.Number("5"),

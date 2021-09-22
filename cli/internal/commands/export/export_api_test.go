@@ -29,11 +29,11 @@ var wannabeTrial = experimentsv1alpha1.TrialItem{
 	TrialAssignments: experimentsv1alpha1.TrialAssignments{
 		Assignments: []experimentsv1alpha1.Assignment{
 			{
-				ParameterName: "cpu",
+				ParameterName: "deployment/postgres/postgres/cpu",
 				Value:         api.FromInt64(100),
 			},
 			{
-				ParameterName: "memory",
+				ParameterName: "deployment/postgres/postgres/memory",
 				Value:         api.FromInt64(200),
 			},
 		},
@@ -84,7 +84,7 @@ func (f *fakeExperimentsAPI) GetExperimentByName(ctx context.Context, name exper
 		Optimization: []experimentsv1alpha1.Optimization{},
 		Parameters: []experimentsv1alpha1.Parameter{
 			{
-				Name: "cpu",
+				Name: "deployment/postgres/postgres/cpu",
 				Type: experimentsv1alpha1.ParameterTypeInteger,
 				Bounds: &experimentsv1alpha1.Bounds{
 					Max: "4000",
@@ -92,7 +92,7 @@ func (f *fakeExperimentsAPI) GetExperimentByName(ctx context.Context, name exper
 				},
 			},
 			{
-				Name: "memory",
+				Name: "deployment/postgres/postgres/memory",
 				Type: experimentsv1alpha1.ParameterTypeInteger,
 				Bounds: &experimentsv1alpha1.Bounds{
 					Max: "4000",
@@ -132,11 +132,11 @@ func (f *fakeExperimentsAPI) GetAllTrials(ctx context.Context, name string, quer
 				TrialAssignments: experimentsv1alpha1.TrialAssignments{
 					Assignments: []experimentsv1alpha1.Assignment{
 						{
-							ParameterName: "cpu",
+							ParameterName: "deployment/postgres/postgres/cpu",
 							Value:         api.FromInt64(999),
 						},
 						{
-							ParameterName: "memory",
+							ParameterName: "deployment/postgres/postgres/memory",
 							Value:         api.FromInt64(999),
 						},
 					},
@@ -149,11 +149,11 @@ func (f *fakeExperimentsAPI) GetAllTrials(ctx context.Context, name string, quer
 				TrialAssignments: experimentsv1alpha1.TrialAssignments{
 					Assignments: []experimentsv1alpha1.Assignment{
 						{
-							ParameterName: "cpu",
+							ParameterName: "deployment/postgres/postgres/cpu",
 							Value:         api.FromInt64(999),
 						},
 						{
-							ParameterName: "memory",
+							ParameterName: "deployment/postgres/postgres/memory",
 							Value:         api.FromInt64(999),
 						},
 					},
