@@ -42,8 +42,8 @@ func TestParameterNames(t *testing.T) {
 				},
 			},
 			expected: []string{
-				"cpu",
-				"memory",
+				"deployment/test/test/cpu",
+				"deployment/test/test/memory",
 			},
 		},
 
@@ -60,10 +60,10 @@ func TestParameterNames(t *testing.T) {
 				},
 			},
 			expected: []string{
-				"test1_cpu",
-				"test1_memory",
-				"test2_cpu",
-				"test2_memory",
+				"deployment/test/test1/cpu",
+				"deployment/test/test1/memory",
+				"deployment/test/test2/cpu",
+				"deployment/test/test2/memory",
 			},
 		},
 
@@ -84,11 +84,11 @@ func TestParameterNames(t *testing.T) {
 				},
 			},
 			expected: []string{
-				"test1_cpu",
-				"test1_memory",
-				"test2_cpu",
-				"test2_memory",
-				"test1_replicas",
+				"deployment/test1/test/cpu",
+				"deployment/test1/test/memory",
+				"deployment/test2/test/cpu",
+				"deployment/test2/test/memory",
+				"deployment/test1/replicas",
 			},
 		},
 
@@ -109,17 +109,17 @@ func TestParameterNames(t *testing.T) {
 				},
 			},
 			expected: []string{
-				"test1_test1_cpu",
-				"test1_test1_memory",
-				"test1_test2_cpu",
-				"test1_test2_memory",
-				"test2_cpu",
-				"test2_memory",
+				"deployment/test1/test1/cpu",
+				"deployment/test1/test1/memory",
+				"deployment/test1/test2/cpu",
+				"deployment/test1/test2/memory",
+				"deployment/test2/test/cpu",
+				"deployment/test2/test/memory",
 			},
 		},
 
 		{
-			desc: "brad",
+			desc: "pythagorean",
 			selected: []pnode{
 				{
 					meta:      meta("Deployment", "a-b"),
@@ -142,7 +142,39 @@ func TestParameterNames(t *testing.T) {
 					fieldPath: []string{"spec", "replicas"},
 				},
 			},
-			expected: []string{},
+			expected: []string{
+				"deployment/a-b/c/cpu",
+				"deployment/a-b/c/memory",
+				"deployment/a/b/cpu",
+				"deployment/a/b/memory",
+				"deployment/a/c/cpu",
+				"deployment/a/c/memory",
+				"deployment/a-b/replicas",
+				"statefulset/a-b/replicas",
+			},
+		},
+
+		{
+			desc: "env",
+			selected: []pnode{
+				{
+					meta:      meta("Deployment", "test1"),
+					fieldPath: []string{"spec", "template", "spec", "containers", "[name=test2]", "env", "[name=MY_ENV_VAR]"},
+				},
+				{
+					meta:      meta("Deployment", "test1"),
+					fieldPath: []string{"spec", "template", "spec", "containers", "[name=test2]", "env", "[name=MY_SECOND_ENV_VAR]"},
+				},
+				{
+					meta:      meta("Deployment", "test2"),
+					fieldPath: []string{"spec", "template", "spec", "containers", "[name=test2]", "env", "[name=MY_ENV_VAR]"},
+				},
+			},
+			expected: []string{
+				"deployment/test1/test2/env/my_env_var",
+				"deployment/test1/test2/env/my_second_env_var",
+				"deployment/test2/test2/env/my_env_var",
+			},
 		},
 	}
 	for _, c := range cases {
@@ -154,12 +186,17 @@ func TestParameterNames(t *testing.T) {
 			namer := parameterNamer(selected)
 
 			var actual []string
+
 			for _, sel := range c.selected {
-				if sel.fieldPath[len(sel.fieldPath)-1] == "resources" {
+				switch sel.fieldPath[len(sel.fieldPath)-1] {
+				case "resources":
 					actual = append(actual, namer(sel.meta, sel.fieldPath, "cpu"))
 					actual = append(actual, namer(sel.meta, sel.fieldPath, "memory"))
-				} else {
+				case "replicas":
 					actual = append(actual, namer(sel.meta, sel.fieldPath, "replicas"))
+				default:
+					// We'll assume this is for environment variables
+					actual = append(actual, namer(sel.meta, sel.fieldPath, ""))
 				}
 			}
 			assert.Equal(t, c.expected, actual)

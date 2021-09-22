@@ -237,57 +237,22 @@ func (p *pnode) TargetRef() *corev1.ObjectReference {
 
 // parameterNamer returns a name generation function for parameters based on scan results.
 func parameterNamer(selected []interface{}) ParameterNamer {
-	// Index the object references by kind and name
-	type targeted interface {
-		TargetRef() *corev1.ObjectReference
-	}
-
-	// name | kind | target
-	needsPath := make(map[string]map[string]map[string]int)
-
-	for _, sel := range selected {
-		t, ok := sel.(targeted)
-		if !ok {
-			continue
-		}
-
-		targetRef := t.TargetRef()
-		if ns := needsPath[targetRef.Name]; ns == nil {
-			needsPath[targetRef.Name] = make(map[string]map[string]int)
-		}
-
-		if np := needsPath[targetRef.Name][targetRef.Kind]; np == nil {
-			needsPath[targetRef.Name][targetRef.Kind] = make(map[string]int)
-		}
-
-		pn, ok := sel.(*pnode)
-		if !ok {
-			continue
-		}
-
-		needsPath[targetRef.Name][targetRef.Kind][pn.fieldPath[len(pn.fieldPath)-1]]++
-	}
-
 	return func(meta yaml.ResourceMeta, path []string, name string) string {
-		var parts []string
-
-		// We have two resources named the same thing, so prefix the kind
-		if len(needsPath[meta.Name]) > 1 {
-			parts = append(parts, meta.Kind)
+		parts := []string{
+			meta.Kind,
+			meta.Name,
 		}
-
-		// Everything needs a name
-		parts = append(parts, meta.Name)
 
 		// In this instance we have multiple containers in a pod that we're
 		// dealing with, so we need to add container name to the parameter
 		// name to better namespace it
-		if needsPath[meta.Name][meta.Kind][path[len(path)-1]] > 1 {
-			for _, p := range path {
-				if yaml.IsListIndex(p) {
-					if _, value, _ := yaml.SplitIndexNameValue(p); value != "" {
-						parts = append(parts, value)
+		for pathIdx, p := range path {
+			if yaml.IsListIndex(p) {
+				if _, value, _ := yaml.SplitIndexNameValue(p); value != "" {
+					if path[pathIdx-1] == "env" {
+						parts = append(parts, "env")
 					}
+					parts = append(parts, value)
 				}
 			}
 		}
