@@ -169,11 +169,26 @@ func TestParameterNames(t *testing.T) {
 					meta:      meta("Deployment", "test2"),
 					fieldPath: []string{"spec", "template", "spec", "containers", "[name=test2]", "env", "[name=MY_ENV_VAR]"},
 				},
+				{
+					meta:      meta("Deployment", "test2"),
+					fieldPath: []string{"spec", "template", "spec", "containers", "[name=env]", "env", "[name=MY_ENV_VAR]"},
+				},
+				{
+					meta:      meta("Deployment", "test2"),
+					fieldPath: []string{"spec", "template", "spec", "containers", "[name=env]", "env", "[name=cpu]"},
+				},
+				{
+					meta:      meta("Deployment", "test2"),
+					fieldPath: []string{"spec", "template", "spec", "containers", "[name=env]", "env", "[name=env]"},
+				},
 			},
 			expected: []string{
-				"deployment/test1/test2/env/my_env_var",
-				"deployment/test1/test2/env/my_second_env_var",
-				"deployment/test2/test2/env/my_env_var",
+				"deployment/test1/test2/env/MY_ENV_VAR",
+				"deployment/test1/test2/env/MY_SECOND_ENV_VAR",
+				"deployment/test2/test2/env/MY_ENV_VAR",
+				"deployment/test2/env/env/MY_ENV_VAR", // :troll:
+				"deployment/test2/env/env/cpu",        // :troll:
+				"deployment/test2/env/env/env",        // :troll:
 			},
 		},
 	}

@@ -140,7 +140,8 @@ func (t *Transformer) Transform(nodes []*yaml.RNode, selected []interface{}) ([]
 		return nil, err
 	}
 
-	result = append(expNode, result...) // Put the experiment at the front
+	// Put the experiment at the front
+	result = append(expNode, result...)
 
 	// If requested, append the actual application resources to the output
 	if t.IncludeApplicationResources {
@@ -236,37 +237,35 @@ func (p *pnode) TargetRef() *corev1.ObjectReference {
 }
 
 // parameterNamer returns a name generation function for parameters based on scan results.
+// This uses a pattern of `kind/name/container name/param` or `kind/name/container name/env/variable`
 func parameterNamer(selected []interface{}) ParameterNamer {
 	return func(meta yaml.ResourceMeta, path []string, name string) string {
 		parts := []string{
-			meta.Kind,
+			strings.ToLower(meta.Kind),
 			meta.Name,
 		}
 
-		// In this instance we have multiple containers in a pod that we're
-		// dealing with, so we need to add container name to the parameter
-		// name to better namespace it
+		// Isolate the container name and optionally environment variable
 		for pathIdx, p := range path {
-			if yaml.IsListIndex(p) {
-				if _, value, _ := yaml.SplitIndexNameValue(p); value != "" {
-					if path[pathIdx-1] == "env" {
-						parts = append(parts, "env")
-					}
-					parts = append(parts, value)
+			if !yaml.IsListIndex(p) {
+				continue
+			}
+
+			if _, value, _ := yaml.SplitIndexNameValue(p); value != "" {
+				// If we're dealing with environment variables, inject a `env/` element in the path
+				if path[pathIdx-1] == "env" {
+					parts = append(parts, "env")
 				}
+
+				parts = append(parts, value)
 			}
 		}
 
+		// cpu / memory / or "" for env variables
 		if name != "" {
 			parts = append(parts, name)
 		}
 
-		// Explainer: Parameter names are used in Go Templates which are executed
-		// against Go structs, if the template parser encounters a token that is
-		// not a valid Go field name, parsing fails (e.g. "bad character U+002D '-'").
-
-		parameterName := strings.Join(parts, "/")
-		parameterName = strings.ToLower(parameterName)
-		return parameterName
+		return strings.Join(parts, "/")
 	}
 }
