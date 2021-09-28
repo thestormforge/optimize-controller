@@ -36,6 +36,7 @@ type TokenOptions struct {
 	commander.IOStreams
 
 	ShellOutput bool
+	TOMLOutput  bool
 }
 
 // NewTokenCommand creates a new command for obtaining a Performance token.
@@ -44,11 +45,16 @@ func NewTokenCommand(o *TokenOptions) *cobra.Command {
 		Use:     "performance-token",
 		Short:   "Generate StormForge Performance tokens",
 		Long:    "Generate a token for accessing StormForge Performance Testing",
-		Aliases: []string{"performance-env"},
+		Aliases: []string{"performance-env", "performance-config"},
 
 		PreRun: func(cmd *cobra.Command, args []string) {
 			commander.SetStreams(&o.IOStreams, cmd)
-			o.ShellOutput = cmd.CalledAs() == "performance-env"
+			switch cmd.CalledAs() {
+			case "performance-env":
+				o.ShellOutput = true
+			case "performance-config":
+				o.TOMLOutput = true
+			}
 		},
 		RunE: commander.WithContextE(o.generate),
 	}
@@ -67,15 +73,23 @@ func (o *TokenOptions) generate(ctx context.Context) error {
 		return err
 	}
 
-	if o.ShellOutput {
+	switch {
+
+	case o.ShellOutput:
 		return kio.Pipeline{
 			Outputs: []kio.Writer{&konjure.EnvWriter{Writer: o.Out}},
 			Inputs: []kio.Reader{sfio.ObjectSlice{&corev1.Secret{
 				Data: map[string][]byte{"STORMFORGER_JWT": []byte(t.AccessToken)},
 			}}},
 		}.Execute()
-	}
 
-	_, _ = fmt.Fprintln(o.Out, t.AccessToken)
-	return nil
+	case o.TOMLOutput:
+		_, _ = fmt.Fprintf(o.Out, "jwt = %q\n", t.AccessToken)
+		return nil
+
+	default:
+		_, _ = fmt.Fprintln(o.Out, t.AccessToken)
+		return nil
+
+	}
 }
