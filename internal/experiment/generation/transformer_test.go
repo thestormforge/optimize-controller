@@ -42,8 +42,8 @@ func TestParameterNames(t *testing.T) {
 				},
 			},
 			expected: []string{
-				"deployment/test/test/cpu",
-				"deployment/test/test/memory",
+				"deployment/test/test/resources/cpu",
+				"deployment/test/test/resources/memory",
 			},
 		},
 
@@ -60,10 +60,10 @@ func TestParameterNames(t *testing.T) {
 				},
 			},
 			expected: []string{
-				"deployment/test/test1/cpu",
-				"deployment/test/test1/memory",
-				"deployment/test/test2/cpu",
-				"deployment/test/test2/memory",
+				"deployment/test/test1/resources/cpu",
+				"deployment/test/test1/resources/memory",
+				"deployment/test/test2/resources/cpu",
+				"deployment/test/test2/resources/memory",
 			},
 		},
 
@@ -84,10 +84,10 @@ func TestParameterNames(t *testing.T) {
 				},
 			},
 			expected: []string{
-				"deployment/test1/test/cpu",
-				"deployment/test1/test/memory",
-				"deployment/test2/test/cpu",
-				"deployment/test2/test/memory",
+				"deployment/test1/test/resources/cpu",
+				"deployment/test1/test/resources/memory",
+				"deployment/test2/test/resources/cpu",
+				"deployment/test2/test/resources/memory",
 				"deployment/test1/replicas",
 			},
 		},
@@ -109,12 +109,12 @@ func TestParameterNames(t *testing.T) {
 				},
 			},
 			expected: []string{
-				"deployment/test1/test1/cpu",
-				"deployment/test1/test1/memory",
-				"deployment/test1/test2/cpu",
-				"deployment/test1/test2/memory",
-				"deployment/test2/test/cpu",
-				"deployment/test2/test/memory",
+				"deployment/test1/test1/resources/cpu",
+				"deployment/test1/test1/resources/memory",
+				"deployment/test1/test2/resources/cpu",
+				"deployment/test1/test2/resources/memory",
+				"deployment/test2/test/resources/cpu",
+				"deployment/test2/test/resources/memory",
 			},
 		},
 
@@ -143,12 +143,12 @@ func TestParameterNames(t *testing.T) {
 				},
 			},
 			expected: []string{
-				"deployment/a-b/c/cpu",
-				"deployment/a-b/c/memory",
-				"deployment/a/b/cpu",
-				"deployment/a/b/memory",
-				"deployment/a/c/cpu",
-				"deployment/a/c/memory",
+				"deployment/a-b/c/resources/cpu",
+				"deployment/a-b/c/resources/memory",
+				"deployment/a/b/resources/cpu",
+				"deployment/a/b/resources/memory",
+				"deployment/a/c/resources/cpu",
+				"deployment/a/c/resources/memory",
 				"deployment/a-b/replicas",
 				"statefulset/a-b/replicas",
 			},
@@ -194,16 +194,13 @@ func TestParameterNames(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			var selected []interface{}
-			for i := range c.selected {
-				selected = append(selected, &c.selected[i])
-			}
-			namer := parameterNamer(selected)
+			namer := parameterNamer()
 
 			var actual []string
 
 			for _, sel := range c.selected {
 				switch sel.fieldPath[len(sel.fieldPath)-1] {
+
 				case "resources":
 					actual = append(actual, namer(sel.meta, sel.fieldPath, "cpu"))
 					actual = append(actual, namer(sel.meta, sel.fieldPath, "memory"))

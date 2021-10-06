@@ -74,8 +74,7 @@ var _ scan.Transformer = &Transformer{}
 func (t *Transformer) Transform(nodes []*yaml.RNode, selected []interface{}) ([]*yaml.RNode, error) {
 	var result []*yaml.RNode
 
-	// Parameter names need to be computed based on what resources were selected by the scan
-	name := parameterNamer(selected)
+	name := parameterNamer()
 
 	// Start with a new experiment and collect the scan results into it
 	exp := optimizev1beta2.Experiment{}
@@ -237,32 +236,38 @@ func (p *pnode) TargetRef() *corev1.ObjectReference {
 }
 
 // parameterNamer returns a name generation function for parameters based on scan results.
-// This uses a pattern of `kind/name/container name/param` or `kind/name/container name/env/variable`
-func parameterNamer(selected []interface{}) ParameterNamer {
+// This uses a pattern of `kind/name/container name/resources/param` or `kind/name/container name/env/variable`
+func parameterNamer() ParameterNamer {
 	return func(meta yaml.ResourceMeta, path []string, name string) string {
 		parts := []string{
 			strings.ToLower(meta.Kind),
 			meta.Name,
 		}
 
-		// Isolate the container name and optionally environment variable
-		for pathIdx, p := range path {
-			if !yaml.IsListIndex(p) {
+		var startAdding bool
+
+		for _, p := range path {
+			if !yaml.IsListIndex(p) && !startAdding {
 				continue
 			}
 
-			if _, value, _ := yaml.SplitIndexNameValue(p); value != "" {
-				// If we're dealing with environment variables, inject a `env/` element in the path
-				if path[pathIdx-1] == "env" {
-					parts = append(parts, "env")
-				}
-
-				parts = append(parts, value)
+			// Key off the first key=value pair ( this should be container name )
+			// to begin adding components of the path to our parameter name.
+			//
+			// The parts we are interested in are [name=container],<resources|env>(,[name=envVar])
+			// so if the result of splitIndex is "", we will replace it with the path
+			_, value, _ := yaml.SplitIndexNameValue(p)
+			if value != "" {
+				startAdding = true
+			} else {
+				value = p
 			}
+
+			parts = append(parts, value)
 		}
 
-		// cpu / memory / or "" for env variables
-		if name != "" {
+		switch name {
+		case "cpu", "memory", "replicas":
 			parts = append(parts, name)
 		}
 
