@@ -19,6 +19,7 @@ package ready
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -177,15 +178,31 @@ func (r *ReadinessChecker) statusField(obj *unstructured.Unstructured, condition
 		return "", corev1.ConditionFalse, fmt.Errorf("unable to locate status")
 	}
 
-	// Use "unknown" if we didn't see the field (or if it wasn't a simple string)
-	v, ok := s[kv[0]].(string)
+	// Use "unknown" if we didn't see the field
+	v, ok := s[kv[0]]
 	if !ok {
 		return "", corev1.ConditionUnknown, nil
 	}
 
-	// Check the value case-insensitively
-	if strings.EqualFold(kv[1], v) {
-		return "", corev1.ConditionTrue, nil
+	// Using the parsed JSON type, compare to the value extracted from the condition type
+	switch v := v.(type) {
+	case string:
+		// Check the value case-insensitively
+		if strings.EqualFold(kv[1], v) {
+			return "", corev1.ConditionTrue, nil
+		}
+	case bool:
+		// Format the boolean first (i.e. "true" or "false")
+		if strings.EqualFold(kv[1], strconv.FormatBool(v)) {
+			return "", corev1.ConditionTrue, nil
+		}
+	case int64:
+		// Format the number first
+		if kv[1] == strconv.FormatInt(v, 10) {
+			return "", corev1.ConditionTrue, nil
+		}
+	default:
+		return "", corev1.ConditionUnknown, nil
 	}
 
 	// Try to collect `{.status.message}` for failures

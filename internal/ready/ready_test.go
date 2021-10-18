@@ -127,6 +127,20 @@ func TestReadinessChecker_CheckConditions(t *testing.T) {
 			},
 		},
 		{
+			desc:           "status-readyReplicas-2",
+			conditionTypes: []string{ConditionTypeStatus + "readyReplicas-2"},
+			ready:          true,
+
+			objs: []runtime.Object{
+				&appsv1.ReplicaSet{
+					ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"test": "test"}},
+					Status: appsv1.ReplicaSetStatus{
+						ReadyReplicas: 2, // NOTE: This is an int32
+					},
+				},
+			},
+		},
+		{
 			desc:           "pod-status-not-ready",
 			conditionTypes: []string{ConditionTypePodReady},
 			ready:          false,
