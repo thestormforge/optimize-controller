@@ -105,7 +105,7 @@ func (o *GeneratorOptions) generate() error {
 			o.labelFilter(),
 		},
 		Outputs: []kio.Writer{
-			kio.ByteWriter{Writer: o.Out},
+			o.YAMLWriter(),
 		},
 	}
 
