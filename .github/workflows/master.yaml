@@ -87,7 +87,6 @@ jobs:
       - name: Build tool
         uses: goreleaser/goreleaser-action@v2
         with:
-          version: v0.181.1 # NOTE: 0.182 changed to Darwin_all which the action doesn't yet support
           args: release --rm-dist --release-notes .github/RELEASE_TEMPLATE.md
         env:
           GITHUB_TOKEN: ${{ secrets.BMASTERS_TOKEN }}
