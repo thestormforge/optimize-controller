@@ -27,6 +27,8 @@ import (
 	"text/template"
 
 	"github.com/thestormforge/optimize-controller/v2/config"
+	config2 "github.com/thestormforge/optimize-go/pkg/config"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/kustomize/api/filesys"
 	"sigs.k8s.io/kustomize/api/krusty"
 	"sigs.k8s.io/kustomize/api/types"
@@ -153,6 +155,58 @@ func WithImage(i string) Option {
 			NewName: imageParts[0],
 			NewTag:  imageParts[1],
 		})
+		return nil
+	}
+}
+
+// WithControllerResources sets the controller container resources.
+func WithControllerResources(res *config2.ControllerResources) Option {
+	return func(k *Kustomize) error {
+		// Validate the resource quantities before we use them
+		if res == nil || len(res.Limits)+len(res.Requests) == 0 {
+			return nil
+		}
+		for n, q := range res.Limits {
+			if _, err := resource.ParseQuantity(q); err != nil {
+				return fmt.Errorf("controller resource limit %q = %q is invalid", n, q)
+			}
+		}
+		for n, q := range res.Requests {
+			if _, err := resource.ParseQuantity(q); err != nil {
+				return fmt.Errorf("controller resource request %q = %q is invalid", n, q)
+			}
+		}
+
+		// Generate a merge patch with the resources
+		t := template.Must(template.New("managerResources").Parse(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: optimize-controller-manager
+  namespace: stormforge-system
+spec:
+  template:
+    spec:
+      containers:
+        - name: manager
+          resources:{{ if .Limits }}
+            limits:{{ range $name, $quantity := .Limits }}
+              {{ $name }}: "{{ $quantity }}"{{ end }}{{ end }}{{ if .Requests }}
+            requests:{{ range $name, $quantity := .Requests }}
+              {{ $name }}: "{{ $quantity }}"{{ end }}{{ end }}
+`))
+
+		var managerResPatch bytes.Buffer
+		if err := t.Execute(&managerResPatch, res); err != nil {
+			return err
+		}
+
+		if err := k.fs.WriteFile(filepath.Join(k.Base, "manager_resources_patch.yaml"), managerResPatch.Bytes()); err != nil {
+			return err
+		}
+
+		k.kustomize.PatchesStrategicMerge = append(k.kustomize.PatchesStrategicMerge, "manager_resources_patch.yaml")
+
 		return nil
 	}
 }

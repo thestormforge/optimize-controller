@@ -157,6 +157,7 @@ func (o *GeneratorOptions) generateApplication() (io.Reader, error) {
 	yamls, err := kustomize.Yamls(
 		kustomize.WithInstall(),
 		kustomize.WithNamespace(ctrl.Namespace),
+		kustomize.WithControllerResources(ctrl.Resources),
 		kustomize.WithImage(o.Image),
 		kustomize.WithImagePullPolicy(setup.ImagePullPolicy),
 		kustomize.WithAPI(apiEnabled),
