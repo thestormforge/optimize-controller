@@ -1,20 +1,21 @@
-#!/bin/sh
+#!/bin/sh -x
 set -e
 
 case "$1" in
   prometheus)
-    # Generate prometheus manifests
-    shift && cd /workspace/prometheus
+	  shift
 
-    namePrefix="optimize-"
-    if [ -n "$NAMESPACE" ]; then
-      namePrefix="optimize-$NAMESPACE-"
-    fi
+    cat <<-EOF >helm.yaml
+		apiVersion: konjure.carbonrelay.com/v1beta1
+		kind: HelmGenerator
+		metadata:
+		  name: prometheus
+		releaseName: prometheus
+		chart: ../prometheus
+		EOF
 
-    kustomize edit set nameprefix "$namePrefix"
-    waitFn() {
-      kubectl wait --for condition=Available=true --timeout 120s deployment.apps ${namePrefix}prometheus-server
-    }
+    export HELM_CONFIG=$(cat helm.yaml | base64 -w0)
+    waitFn() { :; }
   ;;
   *)
     waitFn() { :; }
