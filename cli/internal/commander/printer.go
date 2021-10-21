@@ -18,6 +18,7 @@ package commander
 
 import (
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"io"
 	"sort"
@@ -25,8 +26,6 @@ import (
 	"strings"
 	"text/tabwriter"
 	"time"
-
-	"encoding/json"
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -283,7 +282,7 @@ func (p *marshalPrinter) PrintObj(obj interface{}, w io.Writer) error {
 		if err != nil {
 			return err
 		}
-		_, err = fmt.Fprint(w, string(output))
+		_, err = fmt.Fprint(w, "---\n"+string(output))
 		return err
 	}
 
@@ -553,7 +552,6 @@ func (k *kubePrinter) PrintObj(obj interface{}, w io.Writer) error {
 			if err := k.printer.PrintObj(ul.Items[i].Object, w); err != nil {
 				return err
 			}
-			_, _ = fmt.Fprintln(w, "---")
 		}
 	}
 

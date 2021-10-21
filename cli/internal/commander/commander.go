@@ -132,7 +132,7 @@ type prefixWriter struct {
 
 func (w *prefixWriter) Write(p []byte) (n int, err error) {
 	w.Once.Do(func() {
-		_, err = w.w.Write([]byte("---\n"))
+		n, err = w.w.Write([]byte("---\n"))
 	})
 	if err != nil {
 		return
