@@ -1,5 +1,4 @@
 ---
-# Source: prometheus/templates/configmaps/server.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -9,8 +8,8 @@ metadata:
 data:
   prometheus.yml: |
     global:
-      scrape_interval: 5s
-      scrape_timeout: 3s
+      scrape_interval: "{{ .Values.scrapeInterval }}"
+      scrape_timeout: "{{ .Values.scrapeTimeout }}"
     scrape_configs:
     - job_name: kubernetes-cadvisor
       scheme: https
@@ -60,3 +59,4 @@ data:
       static_configs:
       - targets:
         - localhost:9091
+

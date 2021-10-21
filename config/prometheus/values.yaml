@@ -1,0 +1,59 @@
+nameOverride: ""
+fullnameOverride: ""
+
+storageVolumeSize: 100Mi
+
+scrapeInterval: 10s
+scrapeTimeout: 8s
+
+kubeStateMetrics:
+  image:
+    repository: quay.io/coreos/kube-state-metrics
+    pullPolicy: IfNotPresent
+    tag: v1.9.8
+  resources:
+    requests:
+      cpu: 25m
+      memory: 25M
+    limits:
+      cpu: 100m
+      memory: 200M
+
+pushGateway:
+  image:
+    repository: prom/pushgateway
+    pullPolicy: IfNotPresent
+    tag: v1.4.0
+  resources:
+    requests:
+      cpu: 25m
+      memory: 25M
+    limits:
+      cpu: 100m
+      memory: 50M
+
+promServer:
+  image:
+    repository: prom/prometheus
+    pullPolicy: IfNotPresent
+    tag: v2.25.0
+  resources:
+    requests:
+      cpu: 100m
+      memory: 100M
+    limits:
+      cpu: 200m
+      memory: 1000M
+
+configReload:
+  image:
+    repository: jimmidyson/configmap-reload
+    pullPolicy: IfNotPresent
+    tag: v0.5.0
+  resources:
+    requests:
+      cpu: 25m
+      memory: 25M
+    limits:
+      cpu: 100m
+      memory: 50M

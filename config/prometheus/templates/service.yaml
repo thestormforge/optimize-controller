@@ -1,11 +1,12 @@
 ---
-# Source: prometheus/templates/services/server.yaml
 apiVersion: v1
 kind: Service
 metadata:
   labels:
+    app.kubernetes.io/name: optimize
+    app.kubernetes.io/managed-by: stormforge
     app: prometheus
-  name: prometheus
+  name: "optimize-{{ .Release.Namespace }}-prometheus"
 spec:
   ports:
   - name: server
@@ -17,6 +18,8 @@ spec:
     protocol: TCP
     targetPort: 9091
   selector:
+    app.kubernetes.io/name: optimize
+    app.kubernetes.io/managed-by: stormforge
     app: prometheus
   sessionAffinity: None
   type: ClusterIP
