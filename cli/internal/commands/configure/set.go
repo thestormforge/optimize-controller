@@ -41,7 +41,14 @@ func NewSetCommand(o *SetOptions) *cobra.Command {
 		Use:   "set NAME [VALUE]",
 		Short: "Modify the configuration file",
 		Long:  "Modify the Optimize Configuration file",
-		Args:  cobra.RangeArgs(1, 2),
+
+		Example: `# Add an environment variable to the controller
+stormforge config set controller.default.env.FOOBAR example
+
+# Set the controller memory
+stormforge config set controller.default.resources.memory 512Mi`,
+
+		Args: cobra.RangeArgs(1, 2),
 
 		PreRun: func(cmd *cobra.Command, args []string) {
 			o.Complete(args)
@@ -67,8 +74,14 @@ func (o *SetOptions) Complete(args []string) {
 }
 
 func (o *SetOptions) set() error {
-	if err := o.Config.Update(config.SetProperty(o.Key, o.Value)); err != nil {
-		return err
+	if o.Value != "" {
+		if err := o.Config.Update(config.SetProperty(o.Key, o.Value)); err != nil {
+			return err
+		}
+	} else {
+		if err := o.Config.Update(config.UnsetProperty(o.Key)); err != nil {
+			return err
+		}
 	}
 
 	if err := o.Config.Write(); err != nil {
