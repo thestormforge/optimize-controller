@@ -3,7 +3,7 @@ set -e
 
 case "$1" in
   prometheus)
-	  shift
+    shift
 
     cat <<-EOF >helm.yaml
 		apiVersion: konjure.carbonrelay.com/v1beta1
