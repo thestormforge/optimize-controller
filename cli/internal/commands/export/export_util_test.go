@@ -39,11 +39,11 @@ func createTempExperimentFile(t *testing.T) (*optimizev1beta2.Experiment, []byte
          - name: postgres
            resources:
              limits:
-               cpu: "{{ .Values.cpu }}m"
-               memory: "{{ .Values.memory }}Mi"
+               cpu: {{ index .Values "deployment/postgres/postgres/resources/cpu" }}m
+               memory: {{ index .Values "deployment/postgres/postgres/resources/memory" }}Mi
              requests:
-               cpu: "{{ .Values.cpu }}m"
-               memory: "{{ .Values.memory }}Mi"`
+               cpu: {{ index .Values "deployment/postgres/postgres/resources/cpu" }}m
+               memory: {{ index .Values "deployment/postgres/postgres/resources/memory" }}Mi`
 
 	tm := &metav1.TypeMeta{}
 	tm.SetGroupVersionKind(optimizev1beta2.GroupVersion.WithKind("Experiment"))

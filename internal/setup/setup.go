@@ -147,7 +147,7 @@ func GetConditionStatus(j *batchv1.Job) (corev1.ConditionStatus, string) {
 // AppendAssignmentEnv appends an environment variable for each trial assignment
 func AppendAssignmentEnv(t *optimizev1beta2.Trial, env []corev1.EnvVar) []corev1.EnvVar {
 	for _, a := range t.Spec.Assignments {
-		name := strings.ReplaceAll(strings.ToUpper(a.Name), ".", "_")
+		name := strings.ReplaceAll(strings.ReplaceAll(strings.ToUpper(a.Name), ".", "_"), "/", "_")
 		env = append(env, corev1.EnvVar{Name: name, Value: a.Value.String()})
 	}
 

@@ -74,8 +74,7 @@ var _ scan.Transformer = &Transformer{}
 func (t *Transformer) Transform(nodes []*yaml.RNode, selected []interface{}) ([]*yaml.RNode, error) {
 	var result []*yaml.RNode
 
-	// Parameter names need to be computed based on what resources were selected by the scan
-	name := parameterNamer(selected)
+	name := parameterNamer()
 
 	// Start with a new experiment and collect the scan results into it
 	exp := optimizev1beta2.Experiment{}
@@ -135,11 +134,13 @@ func (t *Transformer) Transform(nodes []*yaml.RNode, selected []interface{}) ([]
 	}
 
 	// Serialize the experiment as a YAML node
-	if expNode, err := (sfio.ObjectSlice{&exp}).Read(); err != nil {
+	expNode, err := (sfio.ObjectSlice{&exp}).Read()
+	if err != nil {
 		return nil, err
-	} else {
-		result = append(expNode, result...) // Put the experiment at the front
 	}
+
+	// Put the experiment at the front
+	result = append(expNode, result...)
 
 	// If requested, append the actual application resources to the output
 	if t.IncludeApplicationResources {
@@ -235,63 +236,41 @@ func (p *pnode) TargetRef() *corev1.ObjectReference {
 }
 
 // parameterNamer returns a name generation function for parameters based on scan results.
-func parameterNamer(selected []interface{}) ParameterNamer {
-	// Index the object references by kind and name
-	type targeted interface {
-		TargetRef() *corev1.ObjectReference
-	}
-	needsPath := make(map[string]map[string]int)
-	for _, sel := range selected {
-		t, ok := sel.(targeted)
-		if !ok {
-			continue
-		}
-		targetRef := t.TargetRef()
-		if ns := needsPath[targetRef.Kind]; ns == nil {
-			needsPath[targetRef.Kind] = make(map[string]int)
-		}
-		needsPath[targetRef.Kind][targetRef.Name]++
-	}
-
-	// Determine which prefixes we need
-	needsKind := len(needsPath) > 1
-	needsName := false
-	for _, v := range needsPath {
-		needsName = needsName || len(v) > 1
-	}
-
+// This uses a pattern of `kind/name/container name/resources/param` or `kind/name/container name/env/variable`
+func parameterNamer() ParameterNamer {
 	return func(meta yaml.ResourceMeta, path []string, name string) string {
-		var parts []string
-
-		if needsKind {
-			parts = append(parts, meta.Kind)
+		parts := []string{
+			strings.ToLower(meta.Kind),
+			meta.Name,
 		}
 
-		if needsName {
-			parts = append(parts, meta.Name)
-		}
+		var startAdding bool
 
-		if needsPath[meta.Kind][meta.Name] > 1 {
-			for _, p := range path {
-				if yaml.IsListIndex(p) {
-					if _, value, _ := yaml.SplitIndexNameValue(p); value != "" {
-						parts = append(parts, value)
-					}
-				}
+		for _, p := range path {
+			if !yaml.IsListIndex(p) && !startAdding {
+				continue
 			}
+
+			// Key off the first key=value pair ( this should be container name )
+			// to begin adding components of the path to our parameter name.
+			//
+			// The parts we are interested in are [name=container],<resources|env>(,[name=envVar])
+			// so if the result of splitIndex is "", we will replace it with the path
+			_, value, _ := yaml.SplitIndexNameValue(p)
+			if value != "" {
+				startAdding = true
+			} else {
+				value = p
+			}
+
+			parts = append(parts, value)
 		}
 
-		if name != "" {
+		switch name {
+		case "cpu", "memory", "replicas":
 			parts = append(parts, name)
 		}
 
-		// Explainer: Parameter names are used in Go Templates which are executed
-		// against Go structs, if the template parser encounters a token that is
-		// not a valid Go field name, parsing fails (e.g. "bad character U+002D '-'").
-
-		parameterName := strings.Join(parts, "_")
-		parameterName = strings.ReplaceAll(parameterName, "-", "_")
-		parameterName = strings.ToLower(parameterName)
-		return parameterName
+		return strings.Join(parts, "/")
 	}
 }

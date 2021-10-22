@@ -42,8 +42,8 @@ func TestParameterNames(t *testing.T) {
 				},
 			},
 			expected: []string{
-				"cpu",
-				"memory",
+				"deployment/test/test/resources/cpu",
+				"deployment/test/test/resources/memory",
 			},
 		},
 
@@ -60,10 +60,10 @@ func TestParameterNames(t *testing.T) {
 				},
 			},
 			expected: []string{
-				"test1_cpu",
-				"test1_memory",
-				"test2_cpu",
-				"test2_memory",
+				"deployment/test/test1/resources/cpu",
+				"deployment/test/test1/resources/memory",
+				"deployment/test/test2/resources/cpu",
+				"deployment/test/test2/resources/memory",
 			},
 		},
 
@@ -78,12 +78,17 @@ func TestParameterNames(t *testing.T) {
 					meta:      meta("Deployment", "test2"),
 					fieldPath: []string{"spec", "template", "spec", "containers", "[name=test]", "resources"},
 				},
+				{
+					meta:      meta("Deployment", "test1"),
+					fieldPath: []string{"spec", "replicas"},
+				},
 			},
 			expected: []string{
-				"test1_cpu",
-				"test1_memory",
-				"test2_cpu",
-				"test2_memory",
+				"deployment/test1/test/resources/cpu",
+				"deployment/test1/test/resources/memory",
+				"deployment/test2/test/resources/cpu",
+				"deployment/test2/test/resources/memory",
+				"deployment/test1/replicas",
 			},
 		},
 
@@ -104,27 +109,107 @@ func TestParameterNames(t *testing.T) {
 				},
 			},
 			expected: []string{
-				"test1_test1_cpu",
-				"test1_test1_memory",
-				"test1_test2_cpu",
-				"test1_test2_memory",
-				"test2_cpu",
-				"test2_memory",
+				"deployment/test1/test1/resources/cpu",
+				"deployment/test1/test1/resources/memory",
+				"deployment/test1/test2/resources/cpu",
+				"deployment/test1/test2/resources/memory",
+				"deployment/test2/test/resources/cpu",
+				"deployment/test2/test/resources/memory",
+			},
+		},
+
+		{
+			desc: "pythagorean",
+			selected: []pnode{
+				{
+					meta:      meta("Deployment", "a-b"),
+					fieldPath: []string{"spec", "template", "spec", "containers", "[name=c]", "resources"},
+				},
+				{
+					meta:      meta("Deployment", "a"),
+					fieldPath: []string{"spec", "template", "spec", "containers", "[name=b]", "resources"},
+				},
+				{
+					meta:      meta("Deployment", "a"),
+					fieldPath: []string{"spec", "template", "spec", "containers", "[name=c]", "resources"},
+				},
+				{
+					meta:      meta("Deployment", "a-b"),
+					fieldPath: []string{"spec", "replicas"},
+				},
+				{
+					meta:      meta("Statefulset", "a-b"),
+					fieldPath: []string{"spec", "replicas"},
+				},
+			},
+			expected: []string{
+				"deployment/a-b/c/resources/cpu",
+				"deployment/a-b/c/resources/memory",
+				"deployment/a/b/resources/cpu",
+				"deployment/a/b/resources/memory",
+				"deployment/a/c/resources/cpu",
+				"deployment/a/c/resources/memory",
+				"deployment/a-b/replicas",
+				"statefulset/a-b/replicas",
+			},
+		},
+
+		{
+			desc: "env",
+			selected: []pnode{
+				{
+					meta:      meta("Deployment", "test1"),
+					fieldPath: []string{"spec", "template", "spec", "containers", "[name=test2]", "env", "[name=MY_ENV_VAR]"},
+				},
+				{
+					meta:      meta("Deployment", "test1"),
+					fieldPath: []string{"spec", "template", "spec", "containers", "[name=test2]", "env", "[name=MY_SECOND_ENV_VAR]"},
+				},
+				{
+					meta:      meta("Deployment", "test2"),
+					fieldPath: []string{"spec", "template", "spec", "containers", "[name=test2]", "env", "[name=MY_ENV_VAR]"},
+				},
+				{
+					meta:      meta("Deployment", "test2"),
+					fieldPath: []string{"spec", "template", "spec", "containers", "[name=env]", "env", "[name=MY_ENV_VAR]"},
+				},
+				{
+					meta:      meta("Deployment", "test2"),
+					fieldPath: []string{"spec", "template", "spec", "containers", "[name=env]", "env", "[name=cpu]"},
+				},
+				{
+					meta:      meta("Deployment", "test2"),
+					fieldPath: []string{"spec", "template", "spec", "containers", "[name=env]", "env", "[name=env]"},
+				},
+			},
+			expected: []string{
+				"deployment/test1/test2/env/MY_ENV_VAR",
+				"deployment/test1/test2/env/MY_SECOND_ENV_VAR",
+				"deployment/test2/test2/env/MY_ENV_VAR",
+				"deployment/test2/env/env/MY_ENV_VAR", // :troll:
+				"deployment/test2/env/env/cpu",        // :troll:
+				"deployment/test2/env/env/env",        // :troll:
 			},
 		},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			var selected []interface{}
-			for i := range c.selected {
-				selected = append(selected, &c.selected[i])
-			}
-			namer := parameterNamer(selected)
+			namer := parameterNamer()
 
 			var actual []string
+
 			for _, sel := range c.selected {
-				actual = append(actual, namer(sel.meta, sel.fieldPath, "cpu"))
-				actual = append(actual, namer(sel.meta, sel.fieldPath, "memory"))
+				switch sel.fieldPath[len(sel.fieldPath)-1] {
+
+				case "resources":
+					actual = append(actual, namer(sel.meta, sel.fieldPath, "cpu"))
+					actual = append(actual, namer(sel.meta, sel.fieldPath, "memory"))
+				case "replicas":
+					actual = append(actual, namer(sel.meta, sel.fieldPath, "replicas"))
+				default:
+					// We'll assume this is for environment variables
+					actual = append(actual, namer(sel.meta, sel.fieldPath, ""))
+				}
 			}
 			assert.Equal(t, c.expected, actual)
 		})
