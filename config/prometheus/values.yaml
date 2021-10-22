@@ -3,6 +3,12 @@ storageVolumeSize: 100Mi
 scrapeInterval: 10s
 scrapeTimeout: 8s
 
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
 kubeStateMetrics:
   image:
     repository: quay.io/coreos/kube-state-metrics
