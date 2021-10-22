@@ -117,12 +117,27 @@ func (r *fileReader) Read(p []byte) (n int, err error) {
 // is configured to strip common annotations used during pipeline processing.
 func (s *IOStreams) YAMLWriter() kio.Writer {
 	return &kio.ByteWriter{
-		Writer: s.Out,
+		Writer: &prefixWriter{w: s.Out},
 		ClearAnnotations: []string{
 			kioutil.PathAnnotation,
 			filters.FmtAnnotation,
 		},
 	}
+}
+
+type prefixWriter struct {
+	sync.Once
+	w io.Writer
+}
+
+func (w *prefixWriter) Write(p []byte) (n int, err error) {
+	w.Once.Do(func() {
+		n, err = w.w.Write([]byte("---\n"))
+	})
+	if err != nil {
+		return
+	}
+	return w.w.Write(p)
 }
 
 // SetStreams updates the streams using the supplied command

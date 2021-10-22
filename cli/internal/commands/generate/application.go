@@ -25,7 +25,6 @@ import (
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commander"
 	"github.com/thestormforge/optimize-controller/v2/internal/application"
 	"github.com/thestormforge/optimize-go/pkg/config"
-	"sigs.k8s.io/kustomize/kyaml/kio"
 )
 
 type ApplicationOptions struct {
@@ -86,7 +85,7 @@ func (o *ApplicationOptions) generate() error {
 	}
 
 	// Generate the application
-	return o.Generator.Execute(&kio.ByteWriter{Writer: o.Out})
+	return o.Generator.Execute(o.YAMLWriter())
 }
 
 func (o *ApplicationOptions) isDefaultResourceEmpty() bool {
