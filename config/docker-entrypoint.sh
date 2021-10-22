@@ -1,4 +1,4 @@
-#!/bin/sh -x
+#!/bin/sh
 set -e
 
 case "$1" in
@@ -11,11 +11,11 @@ case "$1" in
 		metadata:
 		  name: prometheus
 		releaseName: prometheus
+		releaseNamespace: "${NAMESPACE}"
 		chart: ../prometheus
 		EOF
 
     export HELM_CONFIG=$(cat helm.yaml | base64 -w0)
-    waitFn() { :; }
   ;;
   *)
     waitFn() { :; }
@@ -28,7 +28,7 @@ if [ ! -f kustomization.yaml ]; then
   kustomize create
 
   # TODO --autodetect fails with symlinked directories
-  find . -type f -name "*.yaml" ! -name "kustomization.yaml" -exec kustomize edit add resource {} +
+  find . -type f -name "*.yaml" ! -name "kustomization.yaml" ! -name "helm.yaml" -exec kustomize edit add resource {} +
 fi
 
 
@@ -40,6 +40,12 @@ fi
 # Add Helm configuration
 if [ -n "$HELM_CONFIG" ] ; then
     echo "$HELM_CONFIG" | base64 -d > helm.yaml
+
+    # Ensure releaseNamespace is present
+    if [ -z "$(grep releaseNamespace helm.yaml)" ] && [ -n "$NAMESPACE"]; then
+      echo "releaseNamespace: \"${NAMESPACE}\"" >> helm.yaml
+    fi
+
     konjure kustomize edit add generator helm.yaml
 fi
 
@@ -57,7 +63,9 @@ if [ -n "$TRIAL" ]; then
 		  "stormforge.io/trial": $TRIAL
 		  "stormforge.io/trial-role": trialResource
 		EOF
+
     konjure kustomize edit add transformer trial_labels.yaml
+
 fi
 
 
@@ -72,16 +80,26 @@ while [ "$#" != "0" ] ; do
             #    kubectl get sts,deploy,ds --namespace "$NAMESPACE" --selector "stormforge.io/trial=$TRIAL,stormforge.io/trial-role=trialResource" -o name | xargs -n 1 kubectl rollout status --namespace "$NAMESPACE"
             #fi
         }
+
+        waitFn() {
+          if [ -n "$TRIAL" ] && [ -n "$NAMESPACE" ] ; then
+            kubectl wait pods --for=condition=Ready --namespace "$NAMESPACE" --selector="stormforge.io/trial=$TRIAL,stormforge.io/trial-role=trialResource"
+          fi
+        }
+
         shift
         ;;
     delete)
         handle () {
             kubectl delete -f -
+        }
+
+        waitFn () {
             if [ -n "$TRIAL" ] && [ -n "$NAMESPACE" ] ; then
                 kubectl wait pods --for=delete --namespace "$NAMESPACE" --selector "stormforge.io/trial=$TRIAL,stormforge.io/trial-role=trialResource"
             fi
-        }
-        waitFn () { :; }
+				}
+
         shift
         ;;
     build)
@@ -96,7 +114,7 @@ while [ "$#" != "0" ] ; do
     esac
 done
 
-
+# kustomize build --enable_alpha_plugins | cat
 # Run Kustomize and pipe it into the handler
 kustomize build --enable_alpha_plugins | handle
 waitFn
