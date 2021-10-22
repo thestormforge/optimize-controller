@@ -1,0 +1,208 @@
+apiVersion: optimize.stormforge.io/v1beta2
+kind: Experiment
+metadata:
+  name: ci
+  namespace: default
+  labels:
+    stormforge.io/application: 'ci'
+    stormforge.io/objective: 'default'
+    stormforge.io/scenario: '10-user-load'
+spec:
+  parameters:
+  - name: cpu
+    baseline: 50
+    min: 25
+    max: 2000
+  - name: memory
+    baseline: 25
+    min: 12
+    max: 50
+  metrics:
+  - name: latency-p95
+    type: prometheus
+    minimize: true
+    query: scalar(p95{job="trialRun",instance="{{ .Trial.Name }}"})
+  - name: cost
+    type: prometheus
+    minimize: true
+    query: ({{ cpuRequests . "app=nginx" }} * 17) + ({{ memoryRequests . "app=nginx"
+      | GB }} * 3)
+  - name: cost-cpu-requests
+    type: prometheus
+    minimize: true
+    optimize: false
+    query: '{{ cpuRequests . "app=nginx" }}'
+  - name: cost-memory-requests
+    type: prometheus
+    minimize: true
+    optimize: false
+    query: '{{ memoryRequests . "app=nginx" | GB }}'
+  - name: duration
+    minimize: true
+    optimize: false
+    query: '{{ duration .StartTime .CompletionTime }}'
+  patches:
+  - targetRef:
+      name: nginx
+      apiVersion: apps/v1
+      kind: Deployment
+    patch: |
+      spec:
+        template:
+          spec:
+            containers:
+            - name: nginx
+              resources:
+                limits:
+                  cpu: '{{ index .Values "cpu" }}m'
+                  memory: '{{ index .Values "memory" }}Mi'
+                requests:
+                  cpu: '{{ index .Values "cpu" }}m'
+                  memory: '{{ index .Values "memory" }}Mi'
+  trialTemplate:
+    metadata:
+      labels:
+        stormforge.io/application: 'ci'
+        stormforge.io/objective: 'default'
+        stormforge.io/scenario: '10-user-load'
+    spec:
+      jobTemplate:
+        metadata:
+          labels:
+            stormforge.io/application: 'ci'
+            stormforge.io/objective: 'default'
+            stormforge.io/scenario: '10-user-load'
+        spec:
+          template:
+            metadata:
+              labels:
+                stormforge.io/application: 'ci'
+                stormforge.io/objective: 'default'
+                stormforge.io/scenario: '10-user-load'
+            spec:
+              containers:
+              - name: 10-user-load
+                image: thestormforge/optimize-trials:v0.0.3-locust
+                env:
+                - name: NUM_USERS
+                  value: "10"
+                - name: SPAWN_RATE
+                  value: "2"
+                - name: RUN_TIME
+                  value: "30"
+                - name: HOST
+                  value: http://nginx
+                volumeMounts:
+                - name: locustfile
+                  readOnly: true
+                  mountPath: /mnt/locust
+              volumes:
+              - name: locustfile
+                configMap:
+                  name: 10-user-load-locustfile-873d1f
+      setupServiceAccountName: optimize-setup-873d1f
+      setupTasks:
+      - name: monitoring
+        helmChart: ../prometheus
+        helmValues:
+        - name: kubeStateMetrics.resources.requests.cpu
+          value: 30m
+        - name: kubeStateMetrics.resources.requests.memory
+          value: 30Mi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: 10-user-load-locustfile-873d1f
+  namespace: default
+  labels:
+    stormforge.io/application: 'ci'
+data:
+  locustfile.py: |
+    import time
+    from locust import HttpUser, task, between
+
+    class HomieUser(HttpUser):
+        wait_time = between(1, 2.5)
+
+        @task
+        def homie(self):
+            self.client.get("/")
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: optimize-setup-873d1f
+  namespace: default
+  labels:
+    stormforge.io/application: 'ci'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: optimize-prometheus-873d1f
+  labels:
+    stormforge.io/application: 'ci'
+rules:
+- resources:
+  - clusterroles
+  - clusterrolebindings
+  apiGroups:
+  - rbac.authorization.k8s.io
+  verbs:
+  - get
+  - create
+  - delete
+- resources:
+  - serviceaccounts
+  - services
+  - configmaps
+  apiGroups:
+  - ""
+  verbs:
+  - get
+  - create
+  - delete
+- resources:
+  - deployments
+  apiGroups:
+  - apps
+  verbs:
+  - get
+  - create
+  - delete
+  - list
+  - watch
+- resources:
+  - nodes
+  - nodes/metrics
+  - nodes/proxy
+  - services
+  apiGroups:
+  - ""
+  verbs:
+  - list
+  - watch
+  - get
+- resources:
+  - pods
+  apiGroups:
+  - ""
+  verbs:
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: optimize-setup-prometheus-873d1f
+  labels:
+    stormforge.io/application: 'ci'
+roleRef:
+  name: optimize-prometheus-873d1f
+  kind: ClusterRole
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- name: optimize-setup-873d1f
+  namespace: default
+  kind: ServiceAccount

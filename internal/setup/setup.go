@@ -174,5 +174,9 @@ func IsPrometheusSetupTask(st *optimizev1beta2.SetupTask) bool {
 	}
 
 	// Needs to have these arguments
-	return len(st.Args) == 2 && st.Args[0] == "prometheus" && st.Args[1] == "$(MODE)"
+	argsTest := (len(st.Args) == 2 && st.Args[0] == "prometheus" && st.Args[1] == "$(MODE)")
+	// Or be using this chart
+	chartTest := (st.HelmChart == "../prometheus")
+
+	return argsTest || chartTest
 }

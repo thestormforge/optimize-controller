@@ -1,0 +1,31 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    helm.sh/chart: optimize-prometheus
+    app.kubernetes.io/name: optimize-prometheus
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: Helm
+    app: prometheus
+  # We should be using the below, but for transition
+  # purposes we'll need to use the second option
+  #name: {{ .Release.Name }}-server
+  name: "optimize-{{ .Release.Namespace }}-prometheus"
+spec:
+  ports:
+  - name: server
+    port: 9090
+    protocol: TCP
+    targetPort: 9090
+  - name: pushgw
+    port: 9091
+    protocol: TCP
+    targetPort: 9091
+  selector:
+    app.kubernetes.io/name: optimize-prometheus
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: Helm
+    app: prometheus
+  sessionAffinity: None
+  type: ClusterIP

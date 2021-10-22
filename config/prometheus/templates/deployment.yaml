@@ -3,25 +3,37 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
+    helm.sh/chart: optimize-prometheus
+    app.kubernetes.io/name: optimize-prometheus
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: Helm
     app: prometheus
-  name: prometheus-server
+  name: {{ .Release.Name }}-server
 spec:
   selector:
     matchLabels:
       app: prometheus
+      helm.sh/chart: optimize-prometheus
+      app.kubernetes.io/name: optimize-prometheus
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/managed-by: Helm
   replicas: 1
   template:
     metadata:
       labels:
         app: prometheus
+        helm.sh/chart: optimize-prometheus
+        app.kubernetes.io/name: optimize-prometheus
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/managed-by: Helm
     spec:
-      serviceAccountName: prometheus-server
+      serviceAccountName: {{ .Release.Name }}-server
       containers:
       - name: kube-state-metrics
         args:
         - --collectors=pods
-        imagePullPolicy: IfNotPresent
-        image: "quay.io/coreos/kube-state-metrics:v1.9.8"
+        imagePullPolicy: {{ .Values.kubeStateMetrics.image.pullPolicy }}
+        image: "{{ .Values.kubeStateMetrics.image.repository }}:{{ .Values.kubeStateMetrics.image.tag }}"
         ports:
         - containerPort: 8080
         livenessProbe:
@@ -37,15 +49,10 @@ spec:
           initialDelaySeconds: 5
           timeoutSeconds: 5
         resources:
-          requests:
-            cpu: 25m
-            memory: 25M
-          limits:
-            cpu: 100m
-            memory: 200M
+          {{- toYaml .Values.kubeStateMetrics.resources | nindent 10 }}
       - name: prometheus-pushgateway
-        image: "prom/pushgateway:v1.4.0"
-        imagePullPolicy: "IfNotPresent"
+        image: "{{ .Values.pushGateway.image.repository }}:{{ .Values.pushGateway.image.tag }}"
+        imagePullPolicy: {{ .Values.pushGateway.image.pullPolicy }}
         args:
         ports:
           - containerPort: 9091
@@ -62,15 +69,10 @@ spec:
           initialDelaySeconds: 10
           timeoutSeconds: 10
         resources:
-          requests:
-            cpu: 25m
-            memory: 25M
-          limits:
-            cpu: 100m
-            memory: 50M
+          {{- toYaml .Values.pushGateway.resources | nindent 10 }}
       - name: prometheus-server
-        image: "prom/prometheus:v2.25.0"
-        imagePullPolicy: "IfNotPresent"
+        image: "{{ .Values.promServer.image.repository }}:{{ .Values.promServer.image.tag }}"
+        imagePullPolicy: {{ .Values.promServer.image.pullPolicy }}
         args:
           - --storage.tsdb.retention.time=1d
           - --config.file=/etc/config/prometheus.yml
@@ -78,17 +80,12 @@ spec:
         ports:
           - containerPort: 9090
         resources:
-          requests:
-            cpu: 100m
-            memory: 100M
-          limits:
-            cpu: 200m
-            memory: 1G
+          {{- toYaml .Values.promServer.resources | nindent 10 }}
         readinessProbe:
           httpGet:
             path: /-/ready
             port: 9090
-          initialDelaySeconds: 30
+          initialDelaySeconds: 10
           periodSeconds: 5
           timeoutSeconds: 30
           failureThreshold: 3
@@ -97,7 +94,7 @@ spec:
           httpGet:
             path: /-/healthy
             port: 9090
-          initialDelaySeconds: 30
+          initialDelaySeconds: 10
           periodSeconds: 15
           timeoutSeconds: 30
           failureThreshold: 3
@@ -108,18 +105,13 @@ spec:
           - name: storage-volume
             mountPath: /data
       - name: configmap-reloader
-        image: "jimmidyson/configmap-reload:v0.5.0"
-        imagePullPolicy: "IfNotPresent"
+        image: "{{ .Values.configReload.image.repository }}:{{ .Values.configReload.image.tag }}"
+        imagePullPolicy: {{ .Values.configReload.image.pullPolicy }}
         args:
           - --volume-dir=/etc/config
           - --webhook-url=http://127.0.0.1:9090/-/reload
         resources:
-          requests:
-            cpu: 25m
-            memory: 25M
-          limits:
-            cpu: 100m
-            memory: 50M
+          {{- toYaml .Values.promServer.resources | nindent 10 }}
         volumeMounts:
           - name: config-volume
             mountPath: /etc/config
@@ -133,7 +125,7 @@ spec:
       volumes:
         - name: config-volume
           configMap:
-            name: prometheus-server
+            name: {{ .Release.Name }}-server
         - name: storage-volume
           emptyDir:
-            sizeLimit: 100Mi
+            sizeLimit: "{{ .Values.storageVolumeSize }}"
