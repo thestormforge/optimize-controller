@@ -3,30 +3,36 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app.kubernetes.io/name: optimize
-    app.kubernetes.io/managed-by: stormforge
+    helm.sh/chart: optimize-prometheus
+    app.kubernetes.io/name: optimize-prometheus
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: Helm
     app: prometheus
-  name: optimize-prometheus-server
+  name: {{ .Release.Name }}-server
 spec:
   selector:
     matchLabels:
       app: prometheus
-      app.kubernetes.io/name: optimize
-      app.kubernetes.io/managed-by: stormforge
+      helm.sh/chart: optimize-prometheus
+      app.kubernetes.io/name: optimize-prometheus
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/managed-by: Helm
   replicas: 1
   template:
     metadata:
       labels:
         app: prometheus
-        app.kubernetes.io/name: optimize
-        app.kubernetes.io/managed-by: stormforge
+        helm.sh/chart: optimize-prometheus
+        app.kubernetes.io/name: optimize-prometheus
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/managed-by: Helm
     spec:
-      serviceAccountName: prometheus-server
+      serviceAccountName: {{ .Release.Name }}-server
       containers:
       - name: kube-state-metrics
         args:
         - --collectors=pods
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: {{ .Values.kubeStateMetrics.image.pullPolicy }}
         image: "{{ .Values.kubeStateMetrics.image.repository }}:{{ .Values.kubeStateMetrics.image.tag }}"
         ports:
         - containerPort: 8080
@@ -46,7 +52,7 @@ spec:
           {{- toYaml .Values.kubeStateMetrics.resources | nindent 10 }}
       - name: prometheus-pushgateway
         image: "{{ .Values.pushGateway.image.repository }}:{{ .Values.pushGateway.image.tag }}"
-        imagePullPolicy: "IfNotPresent"
+        imagePullPolicy: {{ .Values.pushGateway.image.pullPolicy }}
         args:
         ports:
           - containerPort: 9091
@@ -66,7 +72,7 @@ spec:
           {{- toYaml .Values.pushGateway.resources | nindent 10 }}
       - name: prometheus-server
         image: "{{ .Values.promServer.image.repository }}:{{ .Values.promServer.image.tag }}"
-        imagePullPolicy: "IfNotPresent"
+        imagePullPolicy: {{ .Values.promServer.image.pullPolicy }}
         args:
           - --storage.tsdb.retention.time=1d
           - --config.file=/etc/config/prometheus.yml
@@ -100,7 +106,7 @@ spec:
             mountPath: /data
       - name: configmap-reloader
         image: "{{ .Values.configReload.image.repository }}:{{ .Values.configReload.image.tag }}"
-        imagePullPolicy: "IfNotPresent"
+        imagePullPolicy: {{ .Values.configReload.image.pullPolicy }}
         args:
           - --volume-dir=/etc/config
           - --webhook-url=http://127.0.0.1:9090/-/reload
@@ -119,7 +125,7 @@ spec:
       volumes:
         - name: config-volume
           configMap:
-            name: prometheus-server
+            name: {{ .Release.Name }}-server
         - name: storage-volume
           emptyDir:
             sizeLimit: "{{ .Values.storageVolumeSize }}"

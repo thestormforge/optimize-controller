@@ -3,8 +3,12 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   labels:
+    helm.sh/chart: optimize-prometheus
+    app.kubernetes.io/name: optimize-prometheus
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: Helm
     app: prometheus
-  name: prometheus-server
+  name: {{ .Release.Name }}-server
 data:
   prometheus.yml: |
     global:

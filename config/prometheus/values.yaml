@@ -1,6 +1,3 @@
-nameOverride: ""
-fullnameOverride: ""
-
 storageVolumeSize: 100Mi
 
 scrapeInterval: 10s
