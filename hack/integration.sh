@@ -33,7 +33,7 @@ stats() {
 	kubectl logs -l stormforge.io/trial-role=trialSetup
 }
 
-generateAndWait() {
+generate() {
   echo "Create ci experiment"
   ${CLI_BIN} ${CLI_CONFIG} generate experiment -f "${1}" | \
     kubectl apply -f -
@@ -46,7 +46,9 @@ generateAndWait() {
     kubectl create -f -
 
   kubectl get trial -o wide
+}
 
+waitFn() {
   waitTime=300s
   echo "Wait for trial to complete (${waitTime} timeout)"
   kubectl wait trial \
@@ -56,21 +58,39 @@ generateAndWait() {
 
   echo "Wait for trial deletion tasks to finish running"
   kubectl wait deployment \
-    optimize-default-prometheus-server \
+    -l app.kubernetes.io/name=optimize-prometheus \
     --for=delete \
     --timeout ${waitTime}
   kubectl wait job \
     -l stormforge.io/trial-role=trialSetup \
     --for condition=complete \
     --timeout ${waitTime}
+}
 
+cleanup() {
   echo "Remove default experiment"
   ${CLI_BIN} ${CLI_CONFIG} generate experiment -f "${1}" | \
     kubectl delete -f -
 }
 
+apply() {
+  echo "Create ci experiment"
+  kubectl apply -f "${1}"
+
+  echo "Create new trial"
+  ${CLI_BIN} ${CLI_CONFIG} generate trial \
+    --default base \
+    -f "${1}" | \
+    kubectl create -f -
+
+  kubectl get trial -o wide
+}
+
 trap stats EXIT
 
-generateAndWait hack/app.yaml
-generateAndWait hack/app_kube.yaml
-
+# Application using local resources
+generate hack/app.yaml; waitFn; cleanup hack/app.yaml
+# Application using in cluster resources
+generate hack/app_kube.yaml; waitFn; cleanup hack/app_kube.yaml
+# Experiment using custom settings for included prometheus stack
+apply hack/experiment.yaml; waitFn; kubectl delete -f hack/experiment.yaml

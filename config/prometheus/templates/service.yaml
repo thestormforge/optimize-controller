@@ -8,6 +8,8 @@ metadata:
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/managed-by: Helm
     app: prometheus
+  # We should be using the below, but for transition
+  # purposes we'll need to use the second option
   #name: {{ .Release.Name }}-server
   name: "optimize-{{ .Release.Namespace }}-prometheus"
 spec:

@@ -10,8 +10,8 @@ case "$1" in
 		kind: HelmGenerator
 		metadata:
 		  name: prometheus
-		releaseName: prometheus
-		releaseNamespace: "${NAMESPACE}"
+		releaseName: optimize-${NAMESPACE}-prometheus
+		releaseNamespace: ${NAMESPACE}
 		chart: ../prometheus
 		EOF
 
@@ -41,9 +41,14 @@ fi
 if [ -n "$HELM_CONFIG" ] ; then
     echo "$HELM_CONFIG" | base64 -d > helm.yaml
 
+    # Ensure releaseName is present
+    if [ -z "$(grep -w releaseName helm.yaml)" ] && [ -n "$NAMESPACE" ]; then
+      echo "releaseName: optimize-${NAMESPACE}-prometheus" >> helm.yaml
+    fi
+
     # Ensure releaseNamespace is present
-    if [ -z "$(grep releaseNamespace helm.yaml)" ] && [ -n "$NAMESPACE"]; then
-      echo "releaseNamespace: \"${NAMESPACE}\"" >> helm.yaml
+    if [ -z "$(grep -w releaseNamespace helm.yaml)" ] && [ -n "$NAMESPACE" ]; then
+      echo "releaseNamespace: ${NAMESPACE}" >> helm.yaml
     fi
 
     konjure kustomize edit add generator helm.yaml
