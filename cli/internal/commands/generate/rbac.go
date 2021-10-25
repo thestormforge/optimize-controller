@@ -295,15 +295,6 @@ func (o *RBACOptions) appendRules(rules []*rbacv1.PolicyRule, exp *optimizev1bet
 		}
 	}
 
-	// Readiness gates will be converted to readiness checks; therefore we need the same check on non-empty names
-	for i := range exp.Spec.TrialTemplate.Spec.ReadinessGates {
-		r := &exp.Spec.TrialTemplate.Spec.ReadinessGates[i]
-		if r.Name == "" {
-			ref := &corev1.ObjectReference{Kind: r.Kind, APIVersion: r.APIVersion}
-			rules = append(rules, o.newPolicyRule(ref, "list"))
-		}
-	}
-
 	return rules
 }
 
