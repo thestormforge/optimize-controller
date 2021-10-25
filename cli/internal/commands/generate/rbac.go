@@ -283,14 +283,17 @@ func (o *RBACOptions) appendRules(rules []*rbacv1.PolicyRule, exp *optimizev1bet
 		}
 	}
 
-	// Readiness gates with no name require "list" permissions
+	// Readiness gates with a name require "get" permissions, no name requires "list" permissions
 	for i := range exp.Spec.TrialTemplate.Spec.ReadinessGates {
-		rg := &exp.Spec.TrialTemplate.Spec.ReadinessGates[i]
-		if rg.Name == "" {
-			ref := &corev1.ObjectReference{
-				Kind:       rg.Kind,
-				APIVersion: rg.APIVersion,
-			}
+		ref := &corev1.ObjectReference{
+			Kind:       exp.Spec.TrialTemplate.Spec.ReadinessGates[i].Kind,
+			APIVersion: exp.Spec.TrialTemplate.Spec.ReadinessGates[i].APIVersion,
+			Name:       exp.Spec.TrialTemplate.Spec.ReadinessGates[i].Name,
+		}
+
+		if ref.Name != "" {
+			rules = append(rules, o.newPolicyRule(ref, "get"))
+		} else {
 			rules = append(rules, o.newPolicyRule(ref, "list"))
 		}
 	}
