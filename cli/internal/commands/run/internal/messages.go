@@ -62,6 +62,9 @@ type StormForgeTestCasesMsg []string
 // ApplicationMsg contains the application ULID if an existing application is used.
 type ApplicationMsg []string
 
+// DoScenarioLookup triggers the retrieval of scenario names for an application.
+type DoScenarioLookup struct{}
+
 // ScenarioMsg contains the scenario ULID if an existing scenario is used.
 type ScenarioMsg []string
 

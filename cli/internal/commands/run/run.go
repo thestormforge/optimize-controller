@@ -140,11 +140,6 @@ func (o *Options) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyCtrlC:
 			return o, tea.Quit
 
-		case tea.KeyEnter:
-			if o.generatorModel.ApplicationInput.Focused() {
-				cmds = append(cmds, o.listScenarioNames)
-			}
-
 		default:
 			if o.maybeQuit {
 				switch msg.String() {
@@ -223,6 +218,9 @@ func (o *Options) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case internal.TrialsRefreshMsg:
 		// Refresh the trials list
 		cmds = append(cmds, o.refreshTrials)
+
+	case internal.DoScenarioLookup:
+		cmds = append(cmds, o.listScenarioNames)
 
 	case error:
 		// Handle errors so any command returning tea.Msg can just return an error

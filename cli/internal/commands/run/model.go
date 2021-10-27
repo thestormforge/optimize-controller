@@ -173,6 +173,9 @@ func (m generatorModel) Update(msg tea.Msg) (generatorModel, tea.Cmd) {
 			if m.NamespaceInput.Focused() {
 				m.updateLabelSelectorInputs()
 			}
+			if m.ApplicationInput.Focused() {
+				cmds = append(cmds, func() tea.Msg { return internal.DoScenarioLookup{} })
+			}
 		}
 	}
 
