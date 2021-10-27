@@ -36,6 +36,7 @@ import (
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/kustomize"
 	"github.com/thestormforge/optimize-controller/v2/internal/experiment"
 	"github.com/thestormforge/optimize-controller/v2/internal/version"
+	applications "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"github.com/thestormforge/optimize-go/pkg/config"
 	"github.com/yujunz/go-getter"
@@ -48,6 +49,8 @@ type Options struct {
 	Config *config.OptimizeConfig
 	// ExperimentsAPI is used to interact with the Optimize Experiments API.
 	ExperimentsAPI experimentsv1alpha1.API
+	// ApplicationsAPI is used to interact with the Optimize Experiments API.
+	ApplicationsAPI applications.API
 
 	// Flag indicating we should print verbose prompts.
 	Verbose bool
@@ -77,7 +80,10 @@ func NewCommand(o *Options) *cobra.Command {
 			if err := o.ReadApplication(args); err != nil {
 				return err
 			}
-			return commander.SetExperimentsAPI(&o.ExperimentsAPI, o.Config, cmd)
+			if err := commander.SetExperimentsAPI(&o.ExperimentsAPI, o.Config, cmd); err != nil {
+				return err
+			}
+			return commander.SetApplicationsAPI(&o.ApplicationsAPI, o.Config, cmd)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return tea.NewProgram(o,
@@ -134,6 +140,12 @@ func (o *Options) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyCtrlC:
 			return o, tea.Quit
 
+		case tea.KeyEnter:
+			if o.generatorModel.ApplicationInput.Focused() {
+				fmt.Println("app input focused, enter hit, listing scenario names")
+				cmds = append(cmds, o.listScenarioNames)
+			}
+
 		default:
 			if o.maybeQuit {
 				switch msg.String() {
@@ -175,6 +187,9 @@ func (o *Options) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case internal.InitializationFinished:
 		// If the generation form is enabled, start it, otherwise skip ahead
 		if o.generatorModel.form().Enabled() {
+			// TODO we probably need a separate check for API
+			cmds = append(cmds, o.listApplicationNames)
+
 			cmds = append(cmds, form.Start)
 		} else {
 			cmds = append(cmds, o.generateExperiment)
@@ -272,12 +287,25 @@ func (o *Options) ReadApplication(args []string) error {
 
 // applyToApp takes all of the what is on the model and applies it to an application.
 func (m generatorModel) applyToApp(app *optimizeappsv1alpha1.Application) {
+	if m.ApplicationInput.Enabled() {
+		parts := strings.Fields(m.ApplicationInput.Value())
+		app.Name = strings.Trim(parts[len(parts)-1], "()")
+	}
+
+	var scenarioName string
+	if m.ScenarioInput.Enabled() {
+		parts := strings.Fields(m.ApplicationInput.Value())
+		scenarioName = strings.Trim(parts[len(parts)-1], "()")
+	}
+
 	if m.NamespaceInput.Enabled() {
 
 		// TODO We need a better way to set the name/namespace of the application
 		if namespaces := m.NamespaceInput.Values(); len(namespaces) == 1 {
-			app.Name = namespaces[0]
 			app.Namespace = namespaces[0]
+			if app.Name == "" {
+				app.Name = namespaces[0]
+			}
 		}
 
 		for i, ns := range m.NamespaceInput.Values() {
@@ -293,6 +321,7 @@ func (m generatorModel) applyToApp(app *optimizeappsv1alpha1.Application) {
 	if m.StormForgeTestCaseInput.Enabled() {
 		if testCase := m.StormForgeTestCaseInput.Value(); testCase != "" {
 			app.Scenarios = append(app.Scenarios, optimizeappsv1alpha1.Scenario{
+				Name: scenarioName,
 				StormForge: &optimizeappsv1alpha1.StormForgeScenario{
 					TestCase: testCase,
 				},
@@ -303,6 +332,7 @@ func (m generatorModel) applyToApp(app *optimizeappsv1alpha1.Application) {
 	if m.LocustfileInput.Enabled() {
 		if locustfile := m.LocustfileInput.Value(); locustfile != "" {
 			app.Scenarios = append(app.Scenarios, optimizeappsv1alpha1.Scenario{
+				Name: scenarioName,
 				Locust: &optimizeappsv1alpha1.LocustScenario{
 					Locustfile: locustfile,
 				},
@@ -314,6 +344,7 @@ func (m generatorModel) applyToApp(app *optimizeappsv1alpha1.Application) {
 		if image := m.CustomImage.Value(); image != "" {
 			usePushGateway := m.CustomPushGateway.Enabled() && m.CustomPushGateway.Value() == CustomPushGatewayYes
 			app.Scenarios = append(app.Scenarios, optimizeappsv1alpha1.Scenario{
+				Name: scenarioName,
 				Custom: &optimizeappsv1alpha1.CustomScenario{
 					Image:          image,
 					UsePushGateway: usePushGateway,

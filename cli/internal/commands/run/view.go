@@ -204,6 +204,22 @@ https://docs.stormforger.com/guides/getting-started/`,
 	o.generatorModel.ObjectiveInput.Select(0)
 	o.generatorModel.ObjectiveInput.Select(2)
 
+	o.generatorModel.ApplicationInput = out.FormField{
+		Prompt: "Please select an application name:",
+		Instructions: []interface{}{
+			"up/down: select",
+			out.KeyBinding{Key: tea.Key{Type: tea.KeyRunes, Runes: []rune{'x'}}, Desc: "choose"},
+		},
+	}.NewChoiceField(opts...)
+
+	o.generatorModel.ScenarioInput = out.FormField{
+		Prompt: "Please select a scenario name:",
+		Instructions: []interface{}{
+			"up/down: select",
+			out.KeyBinding{Key: tea.Key{Type: tea.KeyRunes, Runes: []rune{'x'}}, Desc: "choose"},
+		},
+	}.NewChoiceField(opts...)
+
 	o.previewModel.Destination = out.FormField{
 		Prompt: "What would you like to do?",
 		Choices: []string{
@@ -349,7 +365,13 @@ func (o *Options) updateGeneratorForm() {
 		return
 	}
 
+	if o.Generator.Application.Name == "" {
+		o.generatorModel.ApplicationInput.Enable()
+	}
+
 	if len(o.Generator.Application.Scenarios) == 0 {
+		o.generatorModel.ScenarioInput.Enable()
+
 		o.generatorModel.ScenarioType.Enable()
 		useStormForge := o.generatorModel.ScenarioType.Value() == ScenarioTypeStormForge
 		useLocust := o.generatorModel.ScenarioType.Value() == ScenarioTypeLocust

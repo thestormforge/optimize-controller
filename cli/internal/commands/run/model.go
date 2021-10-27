@@ -17,6 +17,8 @@ limitations under the License.
 package run
 
 import (
+	"fmt"
+	"sort"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -141,6 +143,9 @@ type generatorModel struct {
 	ReplicasSelectorInput           form.TextField
 
 	ObjectiveInput form.MultiChoiceField
+
+	ApplicationInput form.ChoiceField
+	ScenarioInput    form.ChoiceField
 }
 
 func (m generatorModel) Update(msg tea.Msg) (generatorModel, tea.Cmd) {
@@ -155,6 +160,24 @@ func (m generatorModel) Update(msg tea.Msg) (generatorModel, tea.Cmd) {
 		m.NamespaceInput.Choices = msg
 		m.NamespaceInput.SelectOnly()
 
+	case internal.ApplicationMsg:
+		choices := make([]string, 0)
+		for ulid, name := range msg {
+			choices = append(choices, fmt.Sprintf("%-32s (%s)", name, ulid))
+		}
+		sort.Strings(choices)
+		m.ApplicationInput.Choices = choices
+		m.ApplicationInput.SelectOnly()
+
+	case internal.ScenarioMsg:
+		choices := make([]string, 0)
+		for ulid, name := range msg {
+			choices = append(choices, fmt.Sprintf("%-32s (%s)", name, ulid))
+		}
+		sort.Strings(choices)
+		m.ScenarioInput.Choices = choices
+		m.ScenarioInput.SelectOnly()
+
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyEnter:
@@ -163,7 +186,6 @@ func (m generatorModel) Update(msg tea.Msg) (generatorModel, tea.Cmd) {
 				m.updateLabelSelectorInputs()
 			}
 		}
-
 	}
 
 	var cmd tea.Cmd
@@ -209,6 +231,12 @@ func (m generatorModel) Update(msg tea.Msg) (generatorModel, tea.Cmd) {
 	m.ObjectiveInput, cmd = m.ObjectiveInput.Update(msg)
 	cmds = append(cmds, cmd)
 
+	m.ApplicationInput, cmd = m.ApplicationInput.Update(msg)
+	cmds = append(cmds, cmd)
+
+	m.ScenarioInput, cmd = m.ScenarioInput.Update(msg)
+	cmds = append(cmds, cmd)
+
 	return m, tea.Batch(cmds...)
 }
 
@@ -229,6 +257,8 @@ func (m *generatorModel) form() form.Fields {
 	fields = append(fields, &m.ContainerResourcesSelectorInput)
 	fields = append(fields, &m.ReplicasSelectorInput)
 	fields = append(fields, &m.ObjectiveInput)
+	fields = append(fields, &m.ApplicationInput)
+	fields = append(fields, &m.ScenarioInput)
 	return fields
 }
 
