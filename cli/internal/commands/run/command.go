@@ -25,6 +25,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 	"time"
 
@@ -256,11 +257,13 @@ func (o *Options) listApplicationNames() tea.Msg {
 		return err
 	}
 
-	msg := internal.ApplicationMsg{}
+	msg := make(internal.ApplicationMsg, len(appList.Applications))
 
-	for _, app := range appList.Applications {
-		msg[app.Name.String()] = app.Metadata.Title()
+	for i := range appList.Applications {
+		msg[i] = fmt.Sprintf("%-32s (%s)", appList.Applications[i].Metadata.Title(), appList.Applications[i].Name.String())
 	}
+
+	sort.Strings(msg)
 
 	return msg
 }
@@ -286,11 +289,13 @@ func (o *Options) listScenarioNames() tea.Msg {
 		return err
 	}
 
-	msg := internal.ScenarioMsg{}
+	msg := make(internal.ScenarioMsg, len(scenarioList.Scenarios))
 
-	for _, scenario := range scenarioList.Scenarios {
-		msg[scenario.Name] = scenario.Metadata.Title()
+	for i := range scenarioList.Scenarios {
+		msg[i] = fmt.Sprintf("%-32s (%s)", scenarioList.Scenarios[i].Metadata.Title(), scenarioList.Scenarios[i].Name)
 	}
+
+	sort.Strings(msg)
 
 	return msg
 }

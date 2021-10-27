@@ -207,10 +207,6 @@ func SetApplicationsAPI(appAPI *applications.API, cfg *config.OptimizeConfig, cm
 
 	*appAPI = applications.NewAPI(c)
 
-	if _, err := (*appAPI).CheckEndpoint(ctx); err != nil {
-		return err
-	}
-
 	return nil
 }
 

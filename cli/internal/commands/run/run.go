@@ -142,7 +142,6 @@ func (o *Options) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case tea.KeyEnter:
 			if o.generatorModel.ApplicationInput.Focused() {
-				fmt.Println("app input focused, enter hit, listing scenario names")
 				cmds = append(cmds, o.listScenarioNames)
 			}
 
@@ -294,7 +293,7 @@ func (m generatorModel) applyToApp(app *optimizeappsv1alpha1.Application) {
 
 	var scenarioName string
 	if m.ScenarioInput.Enabled() {
-		parts := strings.Fields(m.ApplicationInput.Value())
+		parts := strings.Fields(m.ScenarioInput.Value())
 		scenarioName = strings.Trim(parts[len(parts)-1], "()")
 	}
 

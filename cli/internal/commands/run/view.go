@@ -205,7 +205,8 @@ https://docs.stormforger.com/guides/getting-started/`,
 	o.generatorModel.ObjectiveInput.Select(2)
 
 	o.generatorModel.ApplicationInput = out.FormField{
-		Prompt: "Please select an application name:",
+		Prompt:         "Please select an application name:",
+		LoadingMessage: "Fetching applications",
 		Instructions: []interface{}{
 			"up/down: select",
 			out.KeyBinding{Key: tea.Key{Type: tea.KeyRunes, Runes: []rune{'x'}}, Desc: "choose"},
@@ -213,7 +214,8 @@ https://docs.stormforger.com/guides/getting-started/`,
 	}.NewChoiceField(opts...)
 
 	o.generatorModel.ScenarioInput = out.FormField{
-		Prompt: "Please select a scenario name:",
+		Prompt:         "Please select a scenario name:",
+		LoadingMessage: "Fetching scenarios",
 		Instructions: []interface{}{
 			"up/down: select",
 			out.KeyBinding{Key: tea.Key{Type: tea.KeyRunes, Runes: []rune{'x'}}, Desc: "choose"},

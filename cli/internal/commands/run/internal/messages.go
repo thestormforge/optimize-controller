@@ -60,10 +60,10 @@ type KubernetesNamespacesMsg []string
 type StormForgeTestCasesMsg []string
 
 // ApplicationMsg contains the application ULID if an existing application is used.
-type ApplicationMsg map[string]string
+type ApplicationMsg []string
 
 // ScenarioMsg contains the scenario ULID if an existing scenario is used.
-type ScenarioMsg map[string]string
+type ScenarioMsg []string
 
 // ExperimentMsg represents the generated experiment.
 type ExperimentMsg []*yaml.RNode

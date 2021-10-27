@@ -17,8 +17,6 @@ limitations under the License.
 package run
 
 import (
-	"fmt"
-	"sort"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -161,21 +159,11 @@ func (m generatorModel) Update(msg tea.Msg) (generatorModel, tea.Cmd) {
 		m.NamespaceInput.SelectOnly()
 
 	case internal.ApplicationMsg:
-		choices := make([]string, 0)
-		for ulid, name := range msg {
-			choices = append(choices, fmt.Sprintf("%-32s (%s)", name, ulid))
-		}
-		sort.Strings(choices)
-		m.ApplicationInput.Choices = choices
+		m.ApplicationInput.Choices = msg
 		m.ApplicationInput.SelectOnly()
 
 	case internal.ScenarioMsg:
-		choices := make([]string, 0)
-		for ulid, name := range msg {
-			choices = append(choices, fmt.Sprintf("%-32s (%s)", name, ulid))
-		}
-		sort.Strings(choices)
-		m.ScenarioInput.Choices = choices
+		m.ScenarioInput.Choices = msg
 		m.ScenarioInput.SelectOnly()
 
 	case tea.KeyMsg:
