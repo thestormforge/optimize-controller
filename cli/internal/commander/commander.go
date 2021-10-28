@@ -29,6 +29,7 @@ import (
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	megahack "github.com/thestormforge/optimize-controller/v2/internal/experiment/generation"
 	"github.com/thestormforge/optimize-go/pkg/api"
+	applications "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"github.com/thestormforge/optimize-go/pkg/config"
 	"golang.org/x/oauth2"
@@ -178,6 +179,34 @@ func SetExperimentsAPI(expAPI *experimentsv1alpha1.API, cfg *config.OptimizeConf
 	}
 
 	*expAPI = experimentsv1alpha1.NewAPI(c)
+	return nil
+}
+
+// SetApplicationsAPI creates a new application API interface from the supplied configuration
+func SetApplicationsAPI(appAPI *applications.API, cfg *config.OptimizeConfig, cmd *cobra.Command) error {
+	ctx := cmd.Context()
+	srv, err := config.CurrentServer(cfg.Reader())
+	if err != nil {
+		return err
+	}
+
+	// NOTE: We should use `srv.Identifier` but technically this version of the configuration
+	// exposes this double counted "/v1/experiments/" endpoint
+	address := strings.TrimSuffix(srv.API.ApplicationsEndpoint, "/v2/applications/")
+
+	// Reuse the OAuth2 base transport for the API calls
+	t, err := cfg.Authorize(ctx, oauth2.NewClient(ctx, nil).Transport)
+	if err != nil {
+		return err
+	}
+
+	c, err := api.NewClient(address, t)
+	if err != nil {
+		return err
+	}
+
+	*appAPI = applications.NewAPI(c)
+
 	return nil
 }
 

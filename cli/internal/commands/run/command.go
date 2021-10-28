@@ -25,6 +25,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 	"time"
 
@@ -36,6 +37,8 @@ import (
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/initialize"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/run/internal"
 	versioncmd "github.com/thestormforge/optimize-controller/v2/cli/internal/commands/version"
+	"github.com/thestormforge/optimize-go/pkg/api"
+	applications "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
 	"github.com/thestormforge/optimize-go/pkg/config"
 	corev1 "k8s.io/api/core/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -242,6 +245,57 @@ func (o *Options) listStormForgeTestCaseNames() tea.Msg {
 			}
 		}
 	}
+
+	return msg
+}
+
+// listApplicationNames returns a list of applications.
+func (o *Options) listApplicationNames() tea.Msg {
+	ctx := context.TODO()
+	appList, err := o.ApplicationsAPI.ListApplications(ctx, applications.ApplicationListQuery{})
+	if err != nil {
+		return err
+	}
+
+	msg := make(internal.ApplicationMsg, len(appList.Applications))
+
+	for i := range appList.Applications {
+		msg[i] = fmt.Sprintf("%-32s (%s)", appList.Applications[i].Metadata.Title(), appList.Applications[i].Name.String())
+	}
+
+	sort.Strings(msg)
+
+	return msg
+}
+
+// listScenarioNames returns a list of scenarios.
+func (o *Options) listScenarioNames() tea.Msg {
+	ctx := context.TODO()
+
+	// Isolate ULID from selection
+	parts := strings.Fields(o.generatorModel.ApplicationInput.Value())
+	fmt.Println(o.generatorModel.ApplicationInput.Value())
+	fmt.Println(parts)
+	appName := strings.Trim(parts[len(parts)-1], "()")
+
+	// Look up application to find url
+	app, err := o.ApplicationsAPI.GetApplicationByName(ctx, applications.ApplicationName(appName))
+	if err != nil {
+		return err
+	}
+
+	scenarioList, err := o.ApplicationsAPI.ListScenarios(ctx, app.Link(api.RelationScenarios), applications.ScenarioListQuery{})
+	if err != nil {
+		return err
+	}
+
+	msg := make(internal.ScenarioMsg, len(scenarioList.Scenarios))
+
+	for i := range scenarioList.Scenarios {
+		msg[i] = fmt.Sprintf("%-32s (%s)", scenarioList.Scenarios[i].Metadata.Title(), scenarioList.Scenarios[i].Name)
+	}
+
+	sort.Strings(msg)
 
 	return msg
 }

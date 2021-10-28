@@ -141,6 +141,9 @@ type generatorModel struct {
 	ReplicasSelectorInput           form.TextField
 
 	ObjectiveInput form.MultiChoiceField
+
+	ApplicationInput form.ChoiceField
+	ScenarioInput    form.ChoiceField
 }
 
 func (m generatorModel) Update(msg tea.Msg) (generatorModel, tea.Cmd) {
@@ -155,6 +158,14 @@ func (m generatorModel) Update(msg tea.Msg) (generatorModel, tea.Cmd) {
 		m.NamespaceInput.Choices = msg
 		m.NamespaceInput.SelectOnly()
 
+	case internal.ApplicationMsg:
+		m.ApplicationInput.Choices = msg
+		m.ApplicationInput.SelectOnly()
+
+	case internal.ScenarioMsg:
+		m.ScenarioInput.Choices = msg
+		m.ScenarioInput.SelectOnly()
+
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyEnter:
@@ -162,8 +173,10 @@ func (m generatorModel) Update(msg tea.Msg) (generatorModel, tea.Cmd) {
 			if m.NamespaceInput.Focused() {
 				m.updateLabelSelectorInputs()
 			}
+			if m.ApplicationInput.Focused() {
+				cmds = append(cmds, func() tea.Msg { return internal.DoScenarioLookup{} })
+			}
 		}
-
 	}
 
 	var cmd tea.Cmd
@@ -209,6 +222,12 @@ func (m generatorModel) Update(msg tea.Msg) (generatorModel, tea.Cmd) {
 	m.ObjectiveInput, cmd = m.ObjectiveInput.Update(msg)
 	cmds = append(cmds, cmd)
 
+	m.ApplicationInput, cmd = m.ApplicationInput.Update(msg)
+	cmds = append(cmds, cmd)
+
+	m.ScenarioInput, cmd = m.ScenarioInput.Update(msg)
+	cmds = append(cmds, cmd)
+
 	return m, tea.Batch(cmds...)
 }
 
@@ -229,6 +248,8 @@ func (m *generatorModel) form() form.Fields {
 	fields = append(fields, &m.ContainerResourcesSelectorInput)
 	fields = append(fields, &m.ReplicasSelectorInput)
 	fields = append(fields, &m.ObjectiveInput)
+	fields = append(fields, &m.ApplicationInput)
+	fields = append(fields, &m.ScenarioInput)
 	return fields
 }
 
