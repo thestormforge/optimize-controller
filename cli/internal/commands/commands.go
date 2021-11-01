@@ -141,9 +141,9 @@ func authorizationIdentity(issuer string) string {
 		prefix = strings.ReplaceAll(strings.TrimRight(prefix, "/"), "/", "//") + "/"
 		prefix = strings.Map(func(r rune) rune {
 			switch {
-			case r >= 'A' && r <= 'Z':
+			case (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9'):
 				return r
-			case r == '.' || r == '/':
+			case r == '.' || r == '/' || r == '-':
 				return '_'
 			}
 			return -1
