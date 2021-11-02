@@ -130,6 +130,8 @@ func authorizationIdentity(issuer string) string {
 		return "pE3kMKdrMTdW4DOxQHesyAuFGNOWaEke"
 	case "https://auth.stormforge.dev/", "https://auth.carbonrelay.dev/", "https://carbonrelay-dev.auth0.com/":
 		return "fmbRPm2zoQJ64hb37CUJDJVmRLHhE04Y"
+	case "https://auth.dev-1.dev.gramlabs.dev/", "https://stormforge-dev-1.us.auth0.com/":
+		return "moTvJLsYyQ9ZTsu1gAkH04XlSDwna4kB"
 	default:
 		// OAuth specifications warning against mix-ups, instead of using a fixed environment variable name, the name
 		// should be derived from the issuer: this helps ensure we do not send the client identifier to the wrong server.
@@ -139,9 +141,9 @@ func authorizationIdentity(issuer string) string {
 		prefix = strings.ReplaceAll(strings.TrimRight(prefix, "/"), "/", "//") + "/"
 		prefix = strings.Map(func(r rune) rune {
 			switch {
-			case r >= 'A' && r <= 'Z':
+			case (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9'):
 				return r
-			case r == '.' || r == '/':
+			case r == '.' || r == '/' || r == '-':
 				return '_'
 			}
 			return -1
