@@ -74,6 +74,13 @@ func (o *SetOptions) Complete(args []string) {
 }
 
 func (o *SetOptions) set() error {
+	// Allow an explicitly empty key value to just save the configuration. This
+	// is very much an edge case, e.g. a developer wants to explicitly save a
+	// migrated configuration before making further changes.
+	if o.Key == "" {
+		return o.Config.Write()
+	}
+
 	if o.Value != "" {
 		if err := o.Config.Update(config.SetProperty(o.Key, o.Value)); err != nil {
 			return err
