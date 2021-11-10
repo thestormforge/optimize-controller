@@ -73,7 +73,7 @@ func NewRootCommand() *cobra.Command {
 	rootCmd.AddCommand(grant_permissions.NewCommand(&grant_permissions.Options{GeneratorOptions: grant_permissions.GeneratorOptions{Config: cfg}}))
 	rootCmd.AddCommand(authorize_cluster.NewCommand(&authorize_cluster.Options{GeneratorOptions: authorize_cluster.GeneratorOptions{Config: cfg}}))
 	rootCmd.AddCommand(generate.NewCommand(&generate.Options{Config: cfg}))
-	rootCmd.AddCommand(fix.NewCommand(&fix.Options{}))
+	rootCmd.AddCommand(fix.NewCommand(&fix.Options{Config: cfg}))
 	rootCmd.AddCommand(export.NewCommand(&export.Options{Config: cfg}))
 	rootCmd.AddCommand(run.NewCommand(&run.Options{Config: cfg}))
 
