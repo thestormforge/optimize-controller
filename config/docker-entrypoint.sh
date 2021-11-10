@@ -88,7 +88,7 @@ while [ "$#" != "0" ] ; do
 
         waitFn() {
           if [ -n "$TRIAL" ] && [ -n "$NAMESPACE" ] ; then
-            kubectl wait pods --for=condition=Ready --namespace "$NAMESPACE" --selector="stormforge.io/trial=$TRIAL,stormforge.io/trial-role=trialResource"
+            kubectl wait pods --for=condition=Ready --namespace "$NAMESPACE" --selector="stormforge.io/trial=$TRIAL,stormforge.io/trial-role=trialResource" --timeout=5m
           fi
         }
 
@@ -101,7 +101,7 @@ while [ "$#" != "0" ] ; do
 
         waitFn () {
             if [ -n "$TRIAL" ] && [ -n "$NAMESPACE" ] ; then
-                kubectl wait pods --for=delete --namespace "$NAMESPACE" --selector "stormforge.io/trial=$TRIAL,stormforge.io/trial-role=trialResource"
+                kubectl wait pods --for=delete --namespace "$NAMESPACE" --selector "stormforge.io/trial=$TRIAL,stormforge.io/trial-role=trialResource" --timeout=5m
             fi
 				}
 
