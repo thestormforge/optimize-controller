@@ -75,8 +75,8 @@ func (p *BuiltInPrometheus) Update(exp *optimizev1beta2.Experiment) error {
 	exp.Spec.TrialTemplate.Spec.SetupServiceAccountName = p.ServiceAccountName
 	exp.Spec.TrialTemplate.Spec.SetupTasks = append(exp.Spec.TrialTemplate.Spec.SetupTasks,
 		optimizev1beta2.SetupTask{
-			Name: p.SetupTaskName,
-			Args: []string{"prometheus", "$(MODE)"},
+			Name:      p.SetupTaskName,
+			HelmChart: "../prometheus",
 		})
 
 	p.ObjectSlice = append(p.ObjectSlice,
