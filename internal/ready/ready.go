@@ -51,6 +51,10 @@ const (
 	// of the target object. The name of the status field and the expected value (indicating a ready state) should
 	// be appended to this constant, e.g. `"stormforge.io/status-phase-running"` to check for a running pod.
 	ConditionTypeStatus = "stormforge.io/status-"
+
+	// skipUnschedulableAnnotation allows us to ignore a pod that is unschedulable. This can be used in clusters
+	// that have the cluster-autoscaler enabled.
+	skipUnschedulableAnnotation = "stormforge.io/skip-unschedulable"
 )
 
 // ReadinessChecker is used to check the conditions of runtime objects
@@ -289,7 +293,7 @@ func (r *ReadinessChecker) podFailed(ctx context.Context, obj *unstructured.Unst
 
 		for _, c := range p.Status.Conditions {
 			// Check for unschedulable pods
-			if c.Type == corev1.PodScheduled && c.Status == corev1.ConditionFalse && c.Reason == corev1.PodReasonUnschedulable {
+			if c.Type == corev1.PodScheduled && c.Status == corev1.ConditionFalse && c.Reason == corev1.PodReasonUnschedulable && !metav1.HasAnnotation(p.ObjectMeta, skipUnschedulableAnnotation) {
 				return &ReadinessError{error: "pod unschedulable", Reason: c.Reason, Message: c.Message}
 			}
 		}
