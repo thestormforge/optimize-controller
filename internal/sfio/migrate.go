@@ -17,6 +17,7 @@ limitations under the License.
 package sfio
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -25,6 +26,7 @@ import (
 	"github.com/thestormforge/konjure/pkg/filters"
 	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	applications "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
@@ -57,6 +59,7 @@ func (f *MetadataMigrationFilter) Filter(node *yaml.RNode) (*yaml.RNode, error) 
 
 // ExperimentMigrationFilter is a KYAML filter for performing experiment migration.
 type ExperimentMigrationFilter struct {
+	ApplicationsAPI applications.API
 }
 
 // Filter applies migration changes to all recognized experiment nodes in the supplied list.
@@ -150,15 +153,9 @@ func (f *ExperimentMigrationFilter) MigrateRSOApplicationV1alpha1(node *yaml.RNo
 
 // MigrateExperimentV1beta2 converts a resource node from a v1beta1 Experiment to the latest format.
 func (f *ExperimentMigrationFilter) MigrateExperimentV1beta2(node *yaml.RNode) (*yaml.RNode, error) {
-	return node.Pipe()
-}
-
-// MigrateExperimentV1beta1 converts a resource node from a v1beta1 Experiment to a v1beta2 Experiment.
-func (f *ExperimentMigrationFilter) MigrateExperimentV1beta1(node *yaml.RNode) (*yaml.RNode, error) {
 	return node.Pipe(
-		// Fix all the labels on the experiment itself
+		// Ensure the application and scenario labels are set correctly
 		yaml.Tee(
-			&MetadataMigrationFilter{},
 			yaml.FilterFunc(func(node *yaml.RNode) (*yaml.RNode, error) {
 				labelApplication, labelScenario, err := f.appLabels(node)
 				if err != nil {
@@ -169,6 +166,16 @@ func (f *ExperimentMigrationFilter) MigrateExperimentV1beta1(node *yaml.RNode) (
 					yaml.Tee(yaml.SetLabel(optimizeappsv1alpha1.LabelScenario, labelScenario)),
 				)
 			}),
+		),
+	)
+}
+
+// MigrateExperimentV1beta1 converts a resource node from a v1beta1 Experiment to a v1beta2 Experiment.
+func (f *ExperimentMigrationFilter) MigrateExperimentV1beta1(node *yaml.RNode) (*yaml.RNode, error) {
+	return node.Pipe(
+		// Fix all the labels on the experiment itself
+		yaml.Tee(
+			&MetadataMigrationFilter{},
 		),
 
 		// Fix all the nested labels and annotations on the experiment
@@ -322,9 +329,15 @@ func (f *ExperimentMigrationFilter) appLabels(node *yaml.RNode) (labelApplicatio
 	if err != nil {
 		return
 	}
+	labelApplication = md.Labels[optimizeappsv1alpha1.LabelApplication]
+	labelScenario = md.Labels[optimizeappsv1alpha1.LabelScenario]
+
+	// Try to migrate the display names (ignore API errors)
+	if f.ApplicationsAPI != nil && labelApplication != "" {
+		labelApplication, labelScenario = f.resolveDisplayNames(labelApplication, labelScenario)
+	}
 
 	// Guess an application name using the experiment name
-	labelApplication = md.Labels[optimizeappsv1alpha1.LabelApplication]
 	if labelApplication == "" {
 		labelApplication = "default"
 
@@ -344,7 +357,6 @@ func (f *ExperimentMigrationFilter) appLabels(node *yaml.RNode) (labelApplicatio
 	}
 
 	// Guess the scenario name
-	labelScenario = md.Labels[optimizeappsv1alpha1.LabelScenario]
 	if labelScenario == "" {
 		labelScenario = "default"
 
@@ -356,6 +368,26 @@ func (f *ExperimentMigrationFilter) appLabels(node *yaml.RNode) (labelApplicatio
 	}
 
 	return
+}
+
+// resolveDisplayNames returns the supplied values unless they match the display name
+// of a recognized application and scenario. If the display name is ambiguous then
+// no guarantee is made as to which corresponding name will be used.
+func (f *ExperimentMigrationFilter) resolveDisplayNames(appTitle, scnTitle string) (string, string) {
+	ctx := context.Background()
+	l := applications.Lister{API: f.ApplicationsAPI}
+
+	app, err := l.GetApplicationByNameOrTitle(ctx, appTitle)
+	if err != nil {
+		return appTitle, scnTitle
+	}
+
+	scn, err := l.GetScenarioByNameOrTitle(ctx, app, scnTitle)
+	if err != nil {
+		return app.Name.String(), scnTitle
+	}
+
+	return app.Name.String(), scn.Name
 }
 
 // metric represents the parts of a v1alpha1 metric required for producing a v1beta1 metric URL.

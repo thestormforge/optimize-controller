@@ -23,6 +23,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commander"
 	"github.com/thestormforge/optimize-controller/v2/internal/sfio"
+	applications "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
+	"github.com/thestormforge/optimize-go/pkg/config"
 	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/kio/filters"
 	"sigs.k8s.io/kustomize/kyaml/kio/kioutil"
@@ -30,9 +32,11 @@ import (
 )
 
 type Options struct {
+	Config *config.OptimizeConfig
 	commander.IOStreams
-	Filenames []string
-	InPlace   bool
+	ApplicationsAPI applications.API
+	Filenames       []string
+	InPlace         bool
 }
 
 func NewCommand(o *Options) *cobra.Command {
@@ -40,8 +44,11 @@ func NewCommand(o *Options) *cobra.Command {
 		Use:   "fix",
 		Short: "Fix manifests",
 
-		PreRun: commander.StreamsPreRun(&o.IOStreams),
-		RunE:   commander.WithoutArgsE(o.Fix),
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			commander.SetStreams(&o.IOStreams, cmd)
+			return commander.SetApplicationsAPI(&o.ApplicationsAPI, o.Config, cmd)
+		},
+		RunE: commander.WithoutArgsE(o.Fix),
 	}
 
 	cmd.Flags().StringArrayVarP(&o.Filenames, "filename", "f", nil, "manifest `file` to fix")
@@ -56,7 +63,7 @@ func NewCommand(o *Options) *cobra.Command {
 func (o *Options) Fix() error {
 	p := kio.Pipeline{
 		Filters: []kio.Filter{
-			kio.FilterAll(&sfio.ExperimentMigrationFilter{}),
+			kio.FilterAll(&sfio.ExperimentMigrationFilter{ApplicationsAPI: o.ApplicationsAPI}),
 			kio.FilterAll(&sfio.MetadataMigrationFilter{}),
 			filters.FormatFilter{},
 		},
