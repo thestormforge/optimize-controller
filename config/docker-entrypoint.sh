@@ -16,6 +16,11 @@ case "$1" in
 		EOF
 
     export HELM_CONFIG=$(cat helm.yaml | base64 -w0)
+
+    waitFn() {
+      # Wait on {{ releaseName }}-server
+      kubectl wait --for condition=Available=true --namespace "${NAMESPACE}" --timeout 5m deployment.apps "optimize-${NAMESPACE}-prometheus-server"
+    }
   ;;
   *)
     waitFn() { :; }
@@ -41,8 +46,10 @@ fi
 if [ -n "$HELM_CONFIG" ] ; then
     echo "$HELM_CONFIG" | base64 -d > helm.yaml
 
-    # Ensure releaseName is present
-    if [ -z "$(grep -w releaseName helm.yaml)" ] && [ -n "$NAMESPACE" ]; then
+    # Ensure releaseName is present when the chart is our local prometheus
+    if [ -n "$(grep -e 'chart: .*../prometheus' helm.yaml)" ] && \
+       [ -z "$(grep -w releaseName helm.yaml)" ] && \
+       [ -n "$NAMESPACE" ]; then
       echo "releaseName: optimize-${NAMESPACE}-prometheus" >> helm.yaml
     fi
 
@@ -81,15 +88,6 @@ while [ "$#" != "0" ] ; do
         handle () {
             # Note, this *must* be create for `generateName` to work properly
             kubectl create -f -
-            #if [ -n "$TRIAL" ] && [ -n "$NAMESPACE" ] ; then
-            #    kubectl get sts,deploy,ds --namespace "$NAMESPACE" --selector "stormforge.io/trial=$TRIAL,stormforge.io/trial-role=trialResource" -o name | xargs -n 1 kubectl rollout status --namespace "$NAMESPACE"
-            #fi
-        }
-
-        waitFn() {
-          if [ -n "$TRIAL" ] && [ -n "$NAMESPACE" ] ; then
-            kubectl wait pods --for=condition=Ready --namespace "$NAMESPACE" --selector="stormforge.io/trial=$TRIAL,stormforge.io/trial-role=trialResource" --timeout=5m
-          fi
         }
 
         shift
@@ -103,7 +101,7 @@ while [ "$#" != "0" ] ; do
             if [ -n "$TRIAL" ] && [ -n "$NAMESPACE" ] ; then
                 kubectl wait pods --for=delete --namespace "$NAMESPACE" --selector "stormforge.io/trial=$TRIAL,stormforge.io/trial-role=trialResource" --timeout=5m
             fi
-				}
+        }
 
         shift
         ;;
