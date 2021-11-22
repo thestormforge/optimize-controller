@@ -257,10 +257,7 @@ func printHelmValues(obj interface{}, w io.Writer) error {
 	}
 
 	vals := map[string]interface{}{
-		"remoteServer": map[string]interface{}{
-			"enabled":      true,
-			"identifier":   string(secret.Data["STORMFORGE_SERVER_IDENTIFIER"]),
-			"issuer":       string(secret.Data["STORMFORGE_SERVER_ISSUER"]),
+		"authorization": map[string]interface{}{
 			"clientID":     string(secret.Data["STORMFORGE_AUTHORIZATION_CLIENT_ID"]),
 			"clientSecret": string(secret.Data["STORMFORGE_AUTHORIZATION_CLIENT_SECRET"]),
 		},
