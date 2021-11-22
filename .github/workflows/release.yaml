@@ -6,10 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Update Helm Chart
-      run: |-
-        curl \
-          -X POST \
-          -H "Authorization: token ${{ secrets.BMASTERS_TOKEN }}}" \
-          -H "Accept: application/vnd.github.v3+json" \
-          ${GITHUB_API_URL}/repos/thestormforge/helm-charts/actions/workflows/build.yaml/dispatches \
-          -d '{"ref":"main"}'
+      env:
+        GH_TOKEN: ${{ secrets.BMASTERS_TOKEN }}
+        GH_REPO: thestormforge/helm-charts
+      run: gh workflow run build.yaml --ref main
