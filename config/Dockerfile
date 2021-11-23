@@ -17,21 +17,21 @@ ENV HELM_URL="https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" \
     KUSTOMIZE_URL="https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" \
     KONJURE_URL="https://github.com/carbonrelay/konjure/releases/download/${KONJURE_VERSION}/konjure-linux-amd64.tar.gz"
 
+ENV KUSTOMIZE_PLUGIN_HOME="/home/setup/.kustomize"
+
 RUN apk --no-cache add curl && \
-    curl -L "$HELM_URL" | tar xz -C /usr/local/bin --exclude '*/*[^helm]' --strip-components=1 && \
+    curl -L "$HELM_URL" | tar xoz -C /usr/local/bin --exclude '*/*[^helm]' --strip-components=1 && \
     curl -L "$KUBECTL_URL" -o /usr/local/bin/kubectl && chmod +x /usr/local/bin/kubectl && \
-    curl -L "$KUSTOMIZE_URL" | tar xz -C /usr/local/bin && \
-    curl -L "$KONJURE_URL" | tar xz -C /usr/local/bin && \
-    mkdir -p /workspace/base && \
+    curl -L "$KUSTOMIZE_URL" | tar xoz -C /usr/local/bin && \
+    curl -L "$KONJURE_URL" | tar xoz -C /usr/local/bin && \
     addgroup -g 1000 -S setup && \
-    adduser -u 1000 -S setup -G setup
+    adduser -u 1000 -S setup -G setup -h /home/setup
 
-COPY . /workspace/
-RUN chown -R setup /workspace
+COPY --chown=setup:setup . /home/setup
+WORKDIR "/home/setup/base"
+RUN chown setup:setup . && chmod o+w .
+USER 1000:1000
+RUN konjure kustomize init && chmod -R go+rX "${KUSTOMIZE_PLUGIN_HOME}"
 
-USER setup:setup
-RUN konjure kustomize init
-
-WORKDIR "/workspace/base"
-ENTRYPOINT ["/workspace/docker-entrypoint.sh"]
+ENTRYPOINT ["/home/setup/docker-entrypoint.sh"]
 CMD ["build"]
