@@ -1,5 +1,9 @@
 name: Release
-on: release
+
+on:
+  release:
+    types: [published]
+
 jobs:
 
   helmChart:
@@ -10,3 +14,13 @@ jobs:
         GH_TOKEN: ${{ secrets.BMASTERS_TOKEN }}
         GH_REPO: thestormforge/helm-charts
       run: gh workflow run build.yaml --ref main
+
+  redhat:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Update RedHat Partner Image
+      env:
+        GH_TOKEN: ${{ secrets.BMASTERS_TOKEN }}
+        GH_REPO: thestormforge/optimize-controller-redhat
+        IMAGE_TAG: ${{ github.event.tag_name }}
+      run: gh workflow run optimize_controller.yaml --ref main -f image_tag=${IMAGE_TAG#v}
