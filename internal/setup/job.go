@@ -72,8 +72,7 @@ func NewJob(t *optimizev1beta2.Trial, mode string) (*batchv1.Job, error) {
 		volumes[v.Name] = &v
 	}
 
-	// We need to run as a non-root user that has the same UID and GID
-	id := int64(1000)
+	// We need to run as a non-root user
 	allowPrivilegeEscalation := false
 	runAsNonRoot := true
 	job.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{
@@ -96,8 +95,6 @@ func NewJob(t *optimizev1beta2.Trial, mode string) (*batchv1.Job, error) {
 				{Name: "MODE", Value: mode},
 			},
 			SecurityContext: &corev1.SecurityContext{
-				RunAsUser:                &id,
-				RunAsGroup:               &id,
 				AllowPrivilegeEscalation: &allowPrivilegeEscalation,
 			},
 		}
