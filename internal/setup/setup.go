@@ -168,11 +168,6 @@ func AppendPrometheusEnv(t *optimizev1beta2.Trial, env []corev1.EnvVar) []corev1
 
 // IsPrometheusSetupTask checks to see if the supplied setup task is for the built-in Prometheus.
 func IsPrometheusSetupTask(st *optimizev1beta2.SetupTask) bool {
-	// Needs to be the default image
-	if st.Image != "" && st.Image != Image {
-		return false
-	}
-
 	// Needs to have these arguments
 	argsTest := (len(st.Args) == 2 && st.Args[0] == "prometheus" && st.Args[1] == "$(MODE)")
 	// Or be using this chart
