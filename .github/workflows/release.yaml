@@ -22,5 +22,5 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.BMASTERS_TOKEN }}
         GH_REPO: thestormforge/optimize-controller-redhat
-        IMAGE_TAG: ${{ github.event.tag_name }}
+        IMAGE_TAG: ${{ github.event.release.tag_name }}
       run: gh workflow run optimize_controller.yaml --ref main -f image_tag=${IMAGE_TAG#v}
