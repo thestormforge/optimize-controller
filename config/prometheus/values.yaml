@@ -3,6 +3,8 @@ storageVolumeSize: 100Mi
 scrapeInterval: 10s
 scrapeTimeout: 8s
 
+commonLabels: {}
+
 nodeSelector: {}
 
 tolerations: []
