@@ -81,13 +81,12 @@ func NewJob(t *optimizev1beta2.Trial, mode string) (*batchv1.Job, error) {
 			Name:  fmt.Sprintf("%s-%s", job.Name, task.Name),
 			Image: task.Image,
 			Args:  task.Args,
-			Env: append([]corev1.EnvVar{
+			Env: append(task.Env, []corev1.EnvVar{
 				{Name: "NAMESPACE", Value: t.Namespace},
 				{Name: "NAME", Value: task.Name},
 				{Name: "TRIAL", Value: t.Name},
 				{Name: "MODE", Value: mode},
-			},
-				task.Env...,
+			}...,
 			),
 			SecurityContext: &corev1.SecurityContext{
 				AllowPrivilegeEscalation: &allowPrivilegeEscalation,
@@ -246,21 +245,17 @@ func newHelmGeneratorConfig(task *optimizev1beta2.SetupTask) *helmGeneratorConfi
 }
 
 func labels(expName string, trialName string, tasks []optimizev1beta2.SetupTask) map[string]string {
-	labels := map[string]string{
-		optimizev1beta2.LabelExperiment: expName,
-		optimizev1beta2.LabelTrial:      trialName,
-		optimizev1beta2.LabelTrialRole:  "trialSetup",
-	}
+	labels := make(map[string]string, 3)
 
 	for _, task := range tasks {
 		for k, v := range task.Labels {
-			if _, ok := labels[k]; ok {
-				continue
-			}
-
 			labels[k] = v
 		}
 	}
+
+	labels[optimizev1beta2.LabelExperiment] = expName
+	labels[optimizev1beta2.LabelTrial] = trialName
+	labels[optimizev1beta2.LabelTrialRole] = "trialSetup"
 
 	return labels
 }
