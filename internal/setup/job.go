@@ -31,11 +31,11 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-// This is overwritten during builds to point to the actual image
+// This is overwritten during builds to point to the actual image.
 var (
-	// Image is the name of the setuptools image to use
+	// Image is the name of the setuptools image to use.
 	Image = "setuptools:latest"
-	// ImagePullPolicy controls when the default image should be pulled
+	// ImagePullPolicy controls when the default image should be pulled.
 	ImagePullPolicy = string(corev1.PullIfNotPresent)
 )
 
@@ -47,27 +47,20 @@ var (
 // ":latest". To address this we always explicitly specify the pull policy corresponding to the image.
 // Finally, when using digests, the default of "IfNotPresent" is acceptable as it is unambiguous.
 
-// NewJob returns a new setup job for either create or delete
+// NewJob returns a new setup job for either create or delete.
 func NewJob(t *optimizev1beta2.Trial, mode string) (*batchv1.Job, error) {
 	job := &batchv1.Job{}
 	job.Namespace = t.Namespace
 	job.Name = fmt.Sprintf("%s-%s", t.Name, mode)
-	job.Labels = map[string]string{
-		optimizev1beta2.LabelExperiment: t.ExperimentNamespacedName().Name,
-		optimizev1beta2.LabelTrial:      t.Name,
-		optimizev1beta2.LabelTrialRole:  "trialSetup",
-	}
+	job.Labels = labels(t.ExperimentNamespacedName().Name, t.Name, t.Spec.SetupTasks)
+
 	job.Spec.BackoffLimit = new(int32)
-	job.Spec.Template.Labels = map[string]string{
-		optimizev1beta2.LabelExperiment: t.ExperimentNamespacedName().Name,
-		optimizev1beta2.LabelTrial:      t.Name,
-		optimizev1beta2.LabelTrialRole:  "trialSetup",
-	}
+	job.Spec.Template.Labels = labels(t.ExperimentNamespacedName().Name, t.Name, t.Spec.SetupTasks)
 	job.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyNever
 	job.Spec.Template.Spec.ServiceAccountName = t.Spec.SetupServiceAccountName
 
 	// Collect the volumes we need for the pod
-	var volumes = make(map[string]*corev1.Volume)
+	volumes := make(map[string]*corev1.Volume)
 	for _, v := range t.Spec.SetupVolumes {
 		volumes[v.Name] = &v
 	}
@@ -88,12 +81,14 @@ func NewJob(t *optimizev1beta2.Trial, mode string) (*batchv1.Job, error) {
 			Name:  fmt.Sprintf("%s-%s", job.Name, task.Name),
 			Image: task.Image,
 			Args:  task.Args,
-			Env: []corev1.EnvVar{
+			Env: append([]corev1.EnvVar{
 				{Name: "NAMESPACE", Value: t.Namespace},
 				{Name: "NAME", Value: task.Name},
 				{Name: "TRIAL", Value: t.Name},
 				{Name: "MODE", Value: mode},
 			},
+				task.Env...,
+			),
 			SecurityContext: &corev1.SecurityContext{
 				AllowPrivilegeEscalation: &allowPrivilegeEscalation,
 			},
@@ -248,4 +243,24 @@ func newHelmGeneratorConfig(task *optimizev1beta2.SetupTask) *helmGeneratorConfi
 	cfg.Name = task.Name
 
 	return cfg
+}
+
+func labels(expName string, trialName string, tasks []optimizev1beta2.SetupTask) map[string]string {
+	labels := map[string]string{
+		optimizev1beta2.LabelExperiment: expName,
+		optimizev1beta2.LabelTrial:      trialName,
+		optimizev1beta2.LabelTrialRole:  "trialSetup",
+	}
+
+	for _, task := range tasks {
+		for k, v := range task.Labels {
+			if _, ok := labels[k]; ok {
+				continue
+			}
+
+			labels[k] = v
+		}
+	}
+
+	return labels
 }

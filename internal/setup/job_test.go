@@ -23,6 +23,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-controller/v2/internal/setup"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -78,6 +79,30 @@ func TestNewJob(t *testing.T) {
 				},
 			},
 		},
+		{
+			desc: "default with env and labels",
+			trial: &optimizev1beta2.Trial{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "default",
+				},
+				Spec: optimizev1beta2.TrialSpec{
+					SetupTasks: []optimizev1beta2.SetupTask{
+						{
+							Env: []corev1.EnvVar{
+								{
+									Name:  "imalittleteapot",
+									Value: "shortandstout",
+								},
+							},
+							Labels: map[string]string{
+								"thisismyhandle": "andthisismyspout",
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -97,6 +122,16 @@ func TestNewJob(t *testing.T) {
 				assert.Len(t, j.Spec.Template.Spec.Containers[0].Args, len(tc.trial.Spec.SetupTasks[0].Args))
 			}
 
+			if len(tc.trial.Spec.SetupTasks[0].Env) > 0 {
+				// We have 4 specific optimize env variables we inject
+				assert.Len(t, j.Spec.Template.Spec.Containers[0].Env, len(tc.trial.Spec.SetupTasks[0].Env)+4)
+			}
+
+			if len(tc.trial.Spec.SetupTasks[0].Labels) > 0 {
+				// We have 3 specific optimize labels we inject
+				assert.Len(t, j.Labels, len(tc.trial.Spec.SetupTasks[0].Labels)+3)
+				assert.Len(t, j.Spec.Template.Labels, len(tc.trial.Spec.SetupTasks[0].Labels)+3)
+			}
 		})
 	}
 }

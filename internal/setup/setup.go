@@ -27,18 +27,18 @@ import (
 )
 
 const (
-	// ModeCreate is the primary argument to the setup tools container when the task is creating objects
+	// ModeCreate is the primary argument to the setup tools container when the task is creating objects.
 	ModeCreate = "create"
-	// ModeDelete is the primary argument to the setup tools container when the task is deleting objects
+	// ModeDelete is the primary argument to the setup tools container when the task is deleting objects.
 	ModeDelete = "delete"
 
-	// Initializer is used to paused the trial initialization for setup tasks
+	// Initializer is used to paused the trial initialization for setup tasks.
 	Initializer = "setupInitializer.stormforge.io"
-	// Finalizer is used to prevent the trial deletion for setup tasks
+	// Finalizer is used to prevent the trial deletion for setup tasks.
 	Finalizer = "setupFinalizer.stormforge.io"
 )
 
-// UpdateStatus returns true if there are setup tasks
+// UpdateStatus returns true if there are setup tasks.
 func UpdateStatus(t *optimizev1beta2.Trial, probeTime *metav1.Time) bool {
 	var needsCreate, needsDelete bool
 	for _, task := range t.Spec.SetupTasks {
@@ -85,7 +85,7 @@ func UpdateStatus(t *optimizev1beta2.Trial, probeTime *metav1.Time) bool {
 	return true
 }
 
-// GetTrialConditionType returns the trial condition type used to report status for the specified job
+// GetTrialConditionType returns the trial condition type used to report status for the specified job.
 func GetTrialConditionType(j *batchv1.Job) (optimizev1beta2.TrialConditionType, error) {
 	for _, c := range j.Spec.Template.Spec.Containers {
 		for _, env := range c.Env {
@@ -106,7 +106,7 @@ func GetTrialConditionType(j *batchv1.Job) (optimizev1beta2.TrialConditionType, 
 	return "", fmt.Errorf("unable to determine setup job type")
 }
 
-// GetConditionStatus returns condition True for a finished job or condition False for an job in progress
+// GetConditionStatus returns condition True for a finished job or condition False for an job in progress.
 func GetConditionStatus(j *batchv1.Job) (corev1.ConditionStatus, string) {
 	// Never return "ConditionUnknown", that is reserved to mean "a setup task exists"
 
@@ -144,7 +144,7 @@ func GetConditionStatus(j *batchv1.Job) (corev1.ConditionStatus, string) {
 	return corev1.ConditionFalse, ""
 }
 
-// AppendAssignmentEnv appends an environment variable for each trial assignment
+// AppendAssignmentEnv appends an environment variable for each trial assignment.
 func AppendAssignmentEnv(t *optimizev1beta2.Trial, env []corev1.EnvVar) []corev1.EnvVar {
 	for _, a := range t.Spec.Assignments {
 		name := strings.ReplaceAll(strings.ReplaceAll(strings.ToUpper(a.Name), ".", "_"), "/", "_")
@@ -154,7 +154,7 @@ func AppendAssignmentEnv(t *optimizev1beta2.Trial, env []corev1.EnvVar) []corev1
 	return env
 }
 
-// AppendPrometheusEnv appends environment variables to help reference the built in Prometheus
+// AppendPrometheusEnv appends environment variables to help reference the built in Prometheus.
 func AppendPrometheusEnv(t *optimizev1beta2.Trial, env []corev1.EnvVar) []corev1.EnvVar {
 	for i := range t.Spec.SetupTasks {
 		if IsPrometheusSetupTask(&t.Spec.SetupTasks[i]) {
