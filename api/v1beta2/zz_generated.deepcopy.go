@@ -567,6 +567,20 @@ func (in *SetupTask) DeepCopyInto(out *SetupTask) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.Env != nil {
+		in, out := &in.Env, &out.Env
+		*out = make([]corev1.EnvVar, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+	if in.Labels != nil {
+		in, out := &in.Labels, &out.Labels
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	if in.HelmValues != nil {
 		in, out := &in.HelmValues, &out.HelmValues
 		*out = make([]HelmValue, len(*in))

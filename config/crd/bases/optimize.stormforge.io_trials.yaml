@@ -2831,6 +2831,62 @@ spec:
                     type: array
                     items:
                       type: string
+                  env:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                      - name
+                      properties:
+                        name:
+                          type: string
+                        value:
+                          type: string
+                        valueFrom:
+                          type: object
+                          properties:
+                            configMapKeyRef:
+                              type: object
+                              required:
+                              - key
+                              properties:
+                                key:
+                                  type: string
+                                name:
+                                  type: string
+                                optional:
+                                  type: boolean
+                            fieldRef:
+                              type: object
+                              required:
+                              - fieldPath
+                              properties:
+                                apiVersion:
+                                  type: string
+                                fieldPath:
+                                  type: string
+                            resourceFieldRef:
+                              type: object
+                              required:
+                              - resource
+                              properties:
+                                containerName:
+                                  type: string
+                                divisor:
+                                  type: string
+                                resource:
+                                  type: string
+                            secretKeyRef:
+                              type: object
+                              required:
+                              - key
+                              properties:
+                                key:
+                                  type: string
+                                name:
+                                  type: string
+                                optional:
+                                  type: boolean
                   helmChart:
                     type: string
                   helmChartVersion:
@@ -2874,6 +2930,10 @@ spec:
                               type: string
                   image:
                     type: string
+                  labels:
+                    type: object
+                    additionalProperties:
+                      type: string
                   name:
                     type: string
                   skipCreate:
