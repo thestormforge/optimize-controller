@@ -38,6 +38,10 @@ pushGateway:
       memory: 50M
 
 promServer:
+  scrapes:
+    cadvisor: true
+    kubeStateMetrics: true
+    pushGateway: true
   image:
     repository: prom/prometheus
     pullPolicy: IfNotPresent
