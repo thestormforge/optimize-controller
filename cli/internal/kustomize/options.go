@@ -48,7 +48,7 @@ func defaultOptions() *Kustomize {
 	fs := filesys.MakeFsInMemory()
 
 	return &Kustomize{
-		Base:       "/",
+		Base:       string(filepath.Separator),
 		fs:         fs,
 		Kustomizer: krusty.MakeKustomizer(krusty.MakeDefaultOptions()),
 		kustomize:  &types.Kustomization{},
