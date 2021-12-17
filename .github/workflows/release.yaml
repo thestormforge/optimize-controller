@@ -13,7 +13,8 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.BMASTERS_TOKEN }}
         GH_REPO: thestormforge/helm-charts
-      run: gh workflow run build.yaml --ref main
+        IMAGE_TAG: ${{ github.event.release.tag_name }}
+      run: gh workflow run build.yaml --ref main -f image_tag=${IMAGE_TAG#v}
 
   redhat:
     runs-on: ubuntu-latest
