@@ -260,7 +260,8 @@ func (o *Options) listApplicationNames() tea.Msg {
 		return nil
 	})
 	if err != nil {
-		return err
+		// TODO Temporarily return an empty list
+		return msg
 	}
 
 	sort.Strings(msg)
