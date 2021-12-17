@@ -115,6 +115,10 @@ type SetupTask struct {
 	SkipDelete bool `json:"skipDelete,omitempty"`
 	// Volume mounts for the setup task
 	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
+	// Environment variables to expose to the container
+	Env []corev1.EnvVar `json:"env,omitempty"`
+	// Labels to associate with the setup task
+	Labels map[string]string `json:"labels,omitempty"`
 	// The Helm chart reference to release as part of this task
 	HelmChart string `json:"helmChart,omitempty"`
 	// The Helm chart version, empty means use the latest

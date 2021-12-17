@@ -8,6 +8,9 @@ metadata:
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/managed-by: Helm
     app: prometheus
+    {{- with .Values.commonLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
   name: {{ .Release.Name }}-server
 spec:
   selector:
@@ -17,6 +20,9 @@ spec:
       app.kubernetes.io/name: optimize-prometheus
       app.kubernetes.io/instance: {{ .Release.Name }}
       app.kubernetes.io/managed-by: Helm
+      {{- with .Values.commonLabels }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
   replicas: 1
   template:
     metadata:
@@ -26,6 +32,9 @@ spec:
         app.kubernetes.io/name: optimize-prometheus
         app.kubernetes.io/instance: {{ .Release.Name }}
         app.kubernetes.io/managed-by: Helm
+        {{- with .Values.commonLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       serviceAccountName: {{ .Release.Name }}-server
       containers:

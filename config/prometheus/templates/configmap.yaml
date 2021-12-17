@@ -15,6 +15,7 @@ data:
       scrape_interval: "{{ .Values.scrapeInterval }}"
       scrape_timeout: "{{ .Values.scrapeTimeout }}"
     scrape_configs:
+    {{- if .Values.promServer.scrapes.cadvisor }}
     - job_name: kubernetes-cadvisor
       scheme: https
       metrics_path: /metrics/cadvisor
@@ -32,6 +33,8 @@ data:
       - regex: ^container_cpu_usage_seconds_total|container_memory_max_usage_bytes$
         source_labels: [ __name__ ]
         action: keep
+    {{- end }}
+    {{- if .Values.promServer.scrapes.kubeStateMetrics }}
     - job_name: kube-state-metrics
       scheme: http
       static_configs:
@@ -57,10 +60,13 @@ data:
         action: labeldrop
       - regex: ^node$
         action: labeldrop
+    {{- end }}
+    {{- if .Values.promServer.scrapes.pushGateway }}
     - job_name: prometheus-pushgateway
       honor_labels: true
       scheme: http
       static_configs:
       - targets:
         - localhost:9091
+    {{- end }}
 
