@@ -404,6 +404,12 @@ func (o *Options) updateGeneratorForm() {
 	if len(o.Generator.Application.Objectives) == 0 {
 		o.generatorModel.ObjectiveInput.Enable()
 	}
+
+	// TODO Temporarily disable application and scenario name inputs if they are non-nil and still empty
+	if o.generatorModel.ApplicationInput.Choices != nil && len(o.generatorModel.ApplicationInput.Choices) == 0 {
+		o.generatorModel.ApplicationInput.Disable()
+		o.generatorModel.ScenarioInput.Disable()
+	}
 }
 
 // View returns the rendering of the preview model.
