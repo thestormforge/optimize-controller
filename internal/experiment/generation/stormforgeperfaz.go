@@ -139,7 +139,9 @@ func (az *StormForgePerformanceAuthorization) setDefaults() error {
 func (az *StormForgePerformanceAuthorization) lookupEnv(key string) (string, bool) {
 	// Check the actual current environment, if configured
 	if az.LookupEnvFunc != nil {
-		return az.LookupEnvFunc(key)
+		if value, ok := az.LookupEnvFunc(key); ok {
+			return value, true
+		}
 	}
 
 	// Check to see if the environment variable is persisted in the configuration file
