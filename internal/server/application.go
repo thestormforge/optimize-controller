@@ -37,10 +37,16 @@ func APIApplicationToClusterApplication(app applications.Application, scenario a
 		return nil, err
 	}
 
+	var ns string
+	if n, ok := app.Resources[0].(map[string]interface{})["namespace"].(string); ok {
+		ns = n
+	}
+
 	// Construct a controller representation of an application from the api definition
 	baseApp := &optimizeappsv1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: app.Name.String(),
+			Name:      app.Name.String(),
+			Namespace: ns,
 		},
 	}
 
@@ -95,6 +101,7 @@ func ClusterExperimentToAPITemplate(exp *optimizev1beta2.Experiment) (*applicati
 	template.Parameters = combinedParams
 
 	metric := metrics(exp)
+
 	metricBytes, err := json.Marshal(metric)
 	if err != nil {
 		return nil, err
@@ -138,7 +145,6 @@ func APITemplateToClusterExperiment(exp *optimizev1beta2.Experiment, template *a
 
 			exp.Spec.Metrics[m].Min = resource.NewQuantity(int64(template.Metrics[tm].Bounds.Min), resource.DecimalSI)
 			exp.Spec.Metrics[m].Max = resource.NewQuantity(int64(template.Metrics[tm].Bounds.Max), resource.DecimalSI)
-
 		}
 	}
 
@@ -222,8 +228,8 @@ func validateAPIApplication(app applications.Application, scenario applications.
 		return fmt.Errorf("invalid application, missing name")
 	}
 
-	if len(app.Resources) == 0 {
-		return fmt.Errorf("invalid application, no resources specified")
+	if len(app.Resources) != 1 {
+		return fmt.Errorf("invalid application, only one resource may be specified")
 	}
 
 	if len(scenario.Objective) == 0 {

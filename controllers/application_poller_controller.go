@@ -34,10 +34,12 @@ import (
 	"github.com/thestormforge/optimize-controller/v2/internal/version"
 	"github.com/thestormforge/optimize-go/pkg/api"
 	applications "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metameta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -125,7 +127,7 @@ func (p *Poller) Start(ch <-chan struct{}) error {
 // When an ActivityItem is tagged with run, the previous scanned template results are merged with
 // the results of an experiment generation workflow. Following this, the generated resources are applied/created
 // in the cluster.
-// note, rbac defined in cli/internal/commands/grant_permissions/generator
+// Note, rbac defined in cli/internal/commands/grant_permissions/generator.
 func (p *Poller) handleActivity(ctx context.Context, activity applications.ActivityItem) {
 	const (
 		ActivityReasonInvalidApplication = "InvalidApplication"
@@ -193,30 +195,29 @@ func (p *Poller) handleActivity(ctx context.Context, activity applications.Activ
 		return
 	}
 
-	// Use resource namespaces for application namespace.
-	// We'll attempt to discover the namespace for the experiment by looking at
-	// 1. resource.Namespace
-	// 2. resource.Namespaces[0]
-	// 3. #TODO? We may look at evaluating namespace selector since we have
-	//    access to the kube client
-	assembledApp.Namespace = "default"
-
-	for i := range assembledApp.Resources {
-		k := assembledApp.Resources[i].Kubernetes
-		if k == nil {
-			continue
+	if assembledApp.Namespace == "" && apiApp.Resources[0].(map[string]interface{})["selector"] != nil {
+		selector, err := labels.Parse(apiApp.Resources[0].(map[string]interface{})["selector"].(string))
+		if err != nil {
+			p.handleErrors(ctx, log, activity.URL, ActivityReasonInvalidApplication, "Invalid namespace selector", err)
+			return
 		}
 
-		// Guess the namespace based on the Kubernetes resource
-		if k.Namespace != "" {
-			assembledApp.Namespace = k.Namespace
-			break
+		listOpts := &client.ListOptions{}
+		client.MatchingLabelsSelector{selector}.ApplyToList(listOpts)
+
+		nsList := &corev1.NamespaceList{}
+
+		if err := p.client.List(ctx, nsList, listOpts); err != nil {
+			p.handleErrors(ctx, log, activity.URL, ActivityReasonScanFailed, "Failed to list namespaces", err)
+			return
 		}
 
-		if len(k.Namespaces) > 0 && k.Namespaces[0] != "" {
-			assembledApp.Namespace = k.Namespaces[0]
-			break
+		if len(nsList.Items) != 1 {
+			p.handleErrors(ctx, log, activity.URL, ActivityReasonInvalidApplication, "More than 1 namespace matched label selector", nil)
+			return
 		}
+
+		assembledApp.Namespace = nsList.Items[0].ObjectMeta.Name
 	}
 
 	generatedResources, err := p.generateApp(*assembledApp)

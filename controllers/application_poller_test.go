@@ -73,7 +73,8 @@ func TestPoller(t *testing.T) {
 							Min: json.Number("12"),
 						},
 						Baseline: &twentyfive,
-					}, {
+					},
+					{
 						Name: "deployment/nginx/replicas",
 						Type: "int",
 						Bounds: &applications.TemplateParameterBounds{

@@ -131,7 +131,6 @@ func TestClusterExperimentToAPITemplate(t *testing.T) {
 					assert.Equal(t, expParam.Baseline.String(), templateParam.Baseline.String())
 				}
 			}
-
 		})
 	}
 }

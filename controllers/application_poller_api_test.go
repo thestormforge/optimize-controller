@@ -37,12 +37,15 @@ func (f *fakeAPI) CheckEndpoint(ctx context.Context) (api.Metadata, error) { ret
 func (f *fakeAPI) ListApplications(ctx context.Context, q applications.ApplicationListQuery) (applications.ApplicationList, error) {
 	return applications.ApplicationList{}, nil
 }
+
 func (f *fakeAPI) ListApplicationsByPage(ctx context.Context, u string) (applications.ApplicationList, error) {
 	return applications.ApplicationList{}, nil
 }
+
 func (f *fakeAPI) CreateApplication(ctx context.Context, app applications.Application) (api.Metadata, error) {
 	return nil, nil
 }
+
 func (f *fakeAPI) GetApplication(ctx context.Context, u string) (applications.Application, error) {
 	applicationBytes := []byte(`{
   "_metadata": {
@@ -59,7 +62,7 @@ func (f *fakeAPI) GetApplication(ctx context.Context, u string) (applications.Ap
   "resources": [
     {
       "kubernetes": {
-        "selector": "app.kubernetes.io/name=app-1",
+        "selector": "",
         "namespace": "engineering"
       }
     }
@@ -71,12 +74,15 @@ func (f *fakeAPI) GetApplication(ctx context.Context, u string) (applications.Ap
 	err := json.Unmarshal(applicationBytes, &app)
 	return app, err
 }
+
 func (f *fakeAPI) GetApplicationByName(ctx context.Context, n applications.ApplicationName) (applications.Application, error) {
 	return applications.Application{}, nil
 }
+
 func (f *fakeAPI) UpsertApplication(ctx context.Context, u string, app applications.Application) (api.Metadata, error) {
 	return nil, nil
 }
+
 func (f *fakeAPI) UpsertApplicationByName(ctx context.Context, n applications.ApplicationName, app applications.Application) (api.Metadata, error) {
 	return nil, nil
 }
@@ -84,6 +90,7 @@ func (f *fakeAPI) DeleteApplication(ctx context.Context, u string) error { retur
 func (f *fakeAPI) ListScenarios(ctx context.Context, u string, q applications.ScenarioListQuery) (applications.ScenarioList, error) {
 	return applications.ScenarioList{}, nil
 }
+
 func (f *fakeAPI) CreateScenario(ctx context.Context, u string, scn applications.Scenario) (api.Metadata, error) {
 	return nil, nil
 }
@@ -140,20 +147,25 @@ func (f *fakeAPI) DeleteScenario(ctx context.Context, u string) error { return n
 func (f *fakeAPI) PatchScenario(ctx context.Context, u string, scn applications.Scenario) error {
 	return nil
 }
+
 func (f *fakeAPI) GetTemplate(ctx context.Context, u string) (applications.Template, error) {
 	return f.template, nil
 }
+
 func (f *fakeAPI) UpdateTemplate(ctx context.Context, u string, s applications.Template) error {
 	f.template = s
 	close(f.templateUpdateCh)
 	return nil
 }
+
 func (f *fakeAPI) PatchTemplate(ctx context.Context, u string, s applications.Template) error {
 	return nil
 }
+
 func (f *fakeAPI) ListActivity(ctx context.Context, u string, q applications.ActivityFeedQuery) (applications.ActivityFeed, error) {
 	return applications.ActivityFeed{}, nil
 }
+
 func (f *fakeAPI) CreateActivity(ctx context.Context, u string, a applications.Activity) error {
 	return nil
 }
@@ -161,6 +173,7 @@ func (f *fakeAPI) DeleteActivity(ctx context.Context, u string) error { return n
 func (f *fakeAPI) GetApplicationActivity(ctx context.Context, u string) (applications.Activity, error) {
 	return applications.Activity{}, nil
 }
+
 func (f *fakeAPI) UpdateApplicationActivity(ctx context.Context, u string, a applications.Activity) error {
 	return nil
 }
