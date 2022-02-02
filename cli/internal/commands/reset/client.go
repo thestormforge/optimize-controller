@@ -70,6 +70,12 @@ func deleteClientRegistration(u string) config.Change {
 
 			cfg.Controllers[i].Controller.RegistrationClientURI = ""
 			cfg.Controllers[i].Controller.RegistrationAccessToken = ""
+
+			for j := range cfg.Clusters {
+				if cfg.Clusters[j].Cluster.Controller == cfg.Controllers[i].Name {
+					cfg.Clusters[j].Cluster.Controller = ""
+				}
+			}
 		}
 		return nil
 	}
