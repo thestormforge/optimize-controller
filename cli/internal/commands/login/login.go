@@ -149,6 +149,20 @@ func (o *Options) complete() error {
 		}
 	}
 
+	// Allow `--force --env x` to overwrite existing configuration
+	if o.Force && o.Environment != "" {
+		// Avert your gaze.
+		cfg := config.Config{}
+		_ = config.SetExecutionEnvironment(o.Environment)(&cfg)
+		_ = config.SaveServer("", &config.Server{}, cfg.Environment)(&cfg)
+		if o.Server == "" {
+			o.Server = cfg.Servers[0].Server.Identifier
+		}
+		if o.Issuer == "" {
+			o.Issuer = cfg.Servers[0].Server.Authorization.Issuer
+		}
+	}
+
 	return nil
 }
 
