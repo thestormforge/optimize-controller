@@ -1,6 +1,6 @@
 # StormForge Optimize - Controller
 
-[![Main](https://github.com/thestormforge/optimize-controller/workflows/main.yaml/badge.svg)](https://github.com/thestormforge/optimize-controller/actions/workflows/main.yaml)
+[![Main](https://github.com/thestormforge/optimize-controller/actions/workflows/main.yaml/badge.svg)](https://github.com/thestormforge/optimize-controller/actions/workflows/main.yaml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thestormforge/optimize-controller)](https://goreportcard.com/report/github.com/thestormforge/optimize-controller)
 
 This repository contains the StormForge Optimize Controller and CLI implementations. You can learn more about how StormForge can help you optimize your applications from [our website](https://www.stormforge.io/application-optimization/).
