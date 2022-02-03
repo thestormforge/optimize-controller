@@ -263,6 +263,24 @@ func printHelmValues(obj interface{}, w io.Writer) error {
 		},
 	}
 
+	// Remove values we already included
+	delete(secret.Data, "STORMFORGE_AUTHORIZATION_CLIENT_ID")
+	delete(secret.Data, "STORMFORGE_AUTHORIZATION_CLIENT_SECRET")
+
+	// The Helm chart hard codes these to the production default values
+	// NOTE: the server identifier and the issuer should be the same
+	delete(secret.Data, "STORMFORGE_SERVER_IDENTIFIER")
+	delete(secret.Data, "STORMFORGE_SERVER_ISSUER")
+
+	// If there is anything left, add an "extraEnvVars" field
+	if len(secret.Data) > 0 {
+		extraEnvVars := make([]config.ControllerEnvVar, 0, len(secret.Data))
+		for k, v := range secret.Data {
+			extraEnvVars = append(extraEnvVars, config.ControllerEnvVar{Name: k, Value: string(v)})
+		}
+		vals["extraEnvVars"] = extraEnvVars
+	}
+
 	b, err := yaml.Marshal(vals)
 	if err != nil {
 		return err
