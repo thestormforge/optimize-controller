@@ -2,7 +2,7 @@ name: Matrix workflow
 on:
   push:
     branches:
-      - master
+      - main
 jobs:
   test:
     name: Test Kubernetes Versions
@@ -44,11 +44,11 @@ jobs:
       - name: Wait 10s because sleep fixes everything
         run: |
           sleep 10
-      - name: Download artifacts from master workflow
+      - name: Download artifacts from main workflow
         uses: dawidd6/action-download-artifact@v2
         with:
           github_token: ${{secrets.GITHUB_TOKEN}}
-          workflow: master.yaml
+          workflow: main.yaml
           name: stormforge_linux_amd64
           path: dist/stormforge_linux_amd64
           commit: ${{ github.event.pull_request.head.sha || github.sha }}
