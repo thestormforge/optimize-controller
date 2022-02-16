@@ -151,6 +151,18 @@ func (f *fakeAPI) UpdateTemplate(ctx context.Context, u string, s applications.T
 func (f *fakeAPI) PatchTemplate(ctx context.Context, u string, s applications.Template) error {
 	return nil
 }
+func (f *fakeAPI) CreateRecommendation(ctx context.Context, u string) (api.Metadata, error) {
+	return nil, nil
+}
+func (f *fakeAPI) GetRecommendation(ctx context.Context, u string) (applications.Recommendation, error) {
+	return applications.Recommendation{}, nil
+}
+func (f *fakeAPI) ListRecommendations(ctx context.Context, u string) (applications.RecommendationList, error) {
+	return applications.RecommendationList{}, nil
+}
+func (f *fakeAPI) PatchRecommendations(ctx context.Context, u string, details applications.RecommendationList) error {
+	return nil
+}
 func (f *fakeAPI) ListActivity(ctx context.Context, u string, q applications.ActivityFeedQuery) (applications.ActivityFeed, error) {
 	return applications.ActivityFeed{}, nil
 }
