@@ -78,7 +78,14 @@ func (o *Options) reset(ctx context.Context) error {
 	}()
 
 	// Wait for everything to be deleted
-	return kubectlDelete.Run()
+	if err := kubectlDelete.Run(); err != nil {
+		return err
+	}
+
+	// Delete the cluster's client and update the config
+	_ = deleteControllerClient(ctx, o.Config)
+
+	return nil
 }
 
 func (o *Options) generateInstall(out io.Writer) error {
