@@ -88,6 +88,9 @@ func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 	// Provide a more meaningful default client name if possible
 	if o.ClientName == "" {
 		o.ClientName = clusterName()
+		if pos := strings.LastIndexAny(o.ClientName, "/_:"); pos > 0 {
+			o.ClientName = o.ClientName[pos+1:]
+		}
 	}
 
 	o.addFlags(cmd)
