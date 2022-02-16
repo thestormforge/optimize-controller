@@ -178,7 +178,7 @@ func (g *Generator) validate([]*yaml.RNode) error {
 	}
 
 	for i := range objective.Goals {
-		if !objective.Goals[i].Implemented {
+		if !objective.Goals[i].Implemented && !objective.Goals[i].Ignorable {
 			return fmt.Errorf("generated experiment cannot optimize for goal %q", objective.Goals[i].Name)
 		}
 	}

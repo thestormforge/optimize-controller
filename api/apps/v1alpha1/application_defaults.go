@@ -127,6 +127,7 @@ func (in *Objective) enforceErrorRate() {
 		Max:       &maxErrorRate,
 		Optimize:  &nonOptimized,
 		ErrorRate: &ErrorRateGoal{},
+		Ignorable: true,
 	})
 }
 

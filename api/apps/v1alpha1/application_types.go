@@ -185,6 +185,9 @@ type Goal struct {
 	// Internal use field for marking objectives as having been implemented. For example,
 	// it may be impossible to optimize for some objectives based on the current state.
 	Implemented bool `json:"-"`
+	// Internal use field for marking objectives as optional (i.e. do not fail
+	// experiment generation if an ignorable goal is not implemented).
+	Ignorable bool `json:"-"`
 }
 
 // RequestsGoal is used to optimize the resource requests of an application in a specific scenario.
