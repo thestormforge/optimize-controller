@@ -18,8 +18,12 @@ package authorize_cluster
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os/exec"
 	"strings"
 
@@ -31,6 +35,7 @@ import (
 	"golang.org/x/oauth2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
 )
@@ -56,6 +61,8 @@ type GeneratorOptions struct {
 	ClientName string
 	// AllowUnauthorized generates a secret with no authorization information
 	AllowUnauthorized bool
+	// Name of the image pull secret to generate
+	ImagePullSecret string
 }
 
 // NewGeneratorCommand creates a command for generating the cluster authorization secret
@@ -68,11 +75,12 @@ func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 		Annotations: map[string]string{
 			commander.PrinterAllowedFormats: "json,yaml,helm",
 			commander.PrinterOutputFormat:   "yaml",
+			commander.PrinterStreamList:     "true",
 		},
 
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			commander.SetStreams(&o.IOStreams, cmd)
-			return o.complete()
+			return o.complete(cmd)
 		},
 		RunE: commander.WithContextE(o.generate),
 	}
@@ -103,11 +111,13 @@ func clusterName() string {
 func (o *GeneratorOptions) addFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&o.ClientName, "client-name", o.ClientName, "client `name` to use for registration")
 	cmd.Flags().BoolVar(&o.AllowUnauthorized, "allow-unauthorized", o.AllowUnauthorized, "generate a secret without authorization, if necessary")
+	cmd.Flags().StringVar(&o.ImagePullSecret, "image-pull-secret", o.ImagePullSecret, "image pull secret `name` to generate")
+	cmd.Flag("image-pull-secret").NoOptDefVal = "stormforge-registry-key"
 	_ = cmd.Flags().MarkHidden("allow-unauthorized")
 }
 
 // complete fills in the default values for the generator configuration
-func (o *GeneratorOptions) complete() error {
+func (o *GeneratorOptions) complete(cmd *cobra.Command) error {
 	if o.Name == "" {
 		o.Name = "optimize-manager"
 	}
@@ -116,10 +126,17 @@ func (o *GeneratorOptions) complete() error {
 		o.ClientName = "default"
 	}
 
+	// Make sure we generate an image pull secret for Helm
+	if o.ImagePullSecret == "" && cmd.Flag("output").Value.String() == "helm" {
+		o.ImagePullSecret = cmd.Flag("image-pull-secret").NoOptDefVal
+	}
+
 	return nil
 }
 
 func (o *GeneratorOptions) generate(ctx context.Context) error {
+	result := &corev1.List{}
+
 	// Read the initial information from the configuration
 	controllerName, ctrl, data, err := o.readConfig()
 	if err != nil {
@@ -154,8 +171,56 @@ func (o *GeneratorOptions) generate(ctx context.Context) error {
 	// Overwrite the client credentials in the secret
 	mergeString(secret.Data, "STORMFORGE_AUTHORIZATION_CLIENT_ID", info.ClientID)
 	mergeString(secret.Data, "STORMFORGE_AUTHORIZATION_CLIENT_SECRET", info.ClientSecret)
+	result.Items = append(result.Items, runtime.RawExtension{Object: secret})
 
-	return o.Printer.PrintObj(secret, o.Out)
+	// If we aren't generating an image pull secret also, we can exit now
+	if o.ImagePullSecret == "" || o.ImagePullSecret == "-" {
+		return o.Printer.PrintObj(result, o.Out)
+	}
+
+	// Register a robot account with the registry server
+	registry, err := o.Config.RegisterRobot(ctx, info.ClientID)
+	if err != nil {
+		// Ignore unlicensed errors
+		if errors.Is(err, config.ErrUnlicensed) {
+			return o.Printer.PrintObj(secret, o.Out)
+		}
+		return err
+	}
+
+	// Create a Docker configuration file
+	serverURL, err := url.Parse(registry.ServerURL)
+	if err != nil {
+		return fmt.Errorf("invalid registry server URL: %w", err)
+	}
+	auth := base64.StdEncoding.WithPadding(base64.NoPadding).EncodeToString([]byte(registry.Username + ":" + registry.Secret))
+	dockerConfig := map[string]interface{}{
+		"auths": map[string]interface{}{
+			serverURL.Host: map[string]interface{}{
+				"username": registry.Username,
+				"password": registry.Secret,
+				"auth":     auth,
+			},
+		},
+	}
+	dockerConfigJson, err := json.Marshal(dockerConfig)
+	if err != nil {
+		return err
+	}
+
+	// Add a Docker config secret
+	result.Items = append(result.Items, runtime.RawExtension{
+		Object: &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      o.ImagePullSecret,
+				Namespace: ctrl.Namespace,
+			},
+			Type: corev1.SecretTypeDockerConfigJson,
+			Data: map[string][]byte{corev1.DockerConfigJsonKey: dockerConfigJson},
+		},
+	})
+
+	return o.Printer.PrintObj(result, o.Out)
 }
 
 func mergeString(m map[string][]byte, key, value string) {
@@ -249,39 +314,66 @@ func localClientInformation(ctrl *config.Controller) *registration.ClientInforma
 }
 
 func printHelmValues(obj interface{}, w io.Writer) error {
-	secret := &corev1.Secret{}
+	// Allocate our values.yaml file format
+	values := struct {
+		Authorization    map[string]interface{}    `json:"authorization,omitempty"`
+		ImageCredentials map[string]interface{}    `json:"imageCredentials,omitempty"`
+		ExtraEnvVars     []config.ControllerEnvVar `json:"extraEnvVars,omitempty"`
+	}{
+		Authorization:    map[string]interface{}{},
+		ImageCredentials: map[string]interface{}{},
+	}
+
+	// Create a new scheme with just core v1
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)
-	if err := scheme.Convert(obj, secret, nil); err != nil {
-		return err
+
+	// Convert to the list of secrets
+	secretList, ok := obj.(*unstructured.UnstructuredList)
+	if !ok {
+		return fmt.Errorf("unknown type: %T", obj)
 	}
-
-	vals := map[string]interface{}{
-		"authorization": map[string]interface{}{
-			"clientID":     string(secret.Data["STORMFORGE_AUTHORIZATION_CLIENT_ID"]),
-			"clientSecret": string(secret.Data["STORMFORGE_AUTHORIZATION_CLIENT_SECRET"]),
-		},
-	}
-
-	// Remove values we already included
-	delete(secret.Data, "STORMFORGE_AUTHORIZATION_CLIENT_ID")
-	delete(secret.Data, "STORMFORGE_AUTHORIZATION_CLIENT_SECRET")
-
-	// The Helm chart hard codes these to the production default values
-	// NOTE: the server identifier and the issuer should be the same
-	delete(secret.Data, "STORMFORGE_SERVER_IDENTIFIER")
-	delete(secret.Data, "STORMFORGE_SERVER_ISSUER")
-
-	// If there is anything left, add an "extraEnvVars" field
-	if len(secret.Data) > 0 {
-		extraEnvVars := make([]config.ControllerEnvVar, 0, len(secret.Data))
-		for k, v := range secret.Data {
-			extraEnvVars = append(extraEnvVars, config.ControllerEnvVar{Name: k, Value: string(v)})
+	for i := range secretList.Items {
+		secret := &corev1.Secret{}
+		if err := scheme.Convert(&secretList.Items[i], secret, nil); err != nil {
+			return err
 		}
-		vals["extraEnvVars"] = extraEnvVars
+
+		switch secret.Type {
+
+		case corev1.SecretTypeOpaque:
+			for k, v := range secret.Data {
+				switch k {
+				case "STORMFORGE_AUTHORIZATION_CLIENT_ID":
+					values.Authorization["clientID"] = string(v)
+				case "STORMFORGE_AUTHORIZATION_CLIENT_SECRET":
+					values.Authorization["clientSecret"] = string(v)
+				case "STORMFORGE_SERVER_IDENTIFIER", "STORMFORGE_SERVER_ISSUER":
+				// The Helm chart hard codes these to the production default values
+				// NOTE: the server identifier and the issuer should be the same
+				default:
+					values.ExtraEnvVars = append(values.ExtraEnvVars, config.ControllerEnvVar{Name: k, Value: string(v)})
+				}
+			}
+
+		case corev1.SecretTypeDockerConfigJson:
+			// https://helm.sh/docs/howto/charts_tips_and_tricks/#creating-image-pull-secrets
+			var data map[string]interface{}
+			if err := json.Unmarshal(secret.Data[corev1.DockerConfigJsonKey], &data); err != nil {
+				return err
+			}
+			for svr, cfg := range data["auths"].(map[string]interface{}) {
+				if creds, ok := cfg.(map[string]interface{}); ok {
+					values.ImageCredentials["registry"] = svr
+					values.ImageCredentials["username"] = creds["username"]
+					values.ImageCredentials["password"] = creds["password"]
+					break
+				}
+			}
+		}
 	}
 
-	b, err := yaml.Marshal(vals)
+	b, err := yaml.Marshal(values)
 	if err != nil {
 		return err
 	}
