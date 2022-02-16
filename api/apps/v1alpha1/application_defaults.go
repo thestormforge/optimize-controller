@@ -77,20 +77,57 @@ func (in *Objective) Default() {
 		}
 	}
 
+	// Ensure that a bounded error rate is present for applications that do not
+	// fail until runtime when under provisioned
+	in.enforceErrorRate()
+
 	for i := range in.Goals {
 		in.Goals[i].Default()
 	}
 
 	if in.Name == "" {
-		switch len(in.Goals) {
+		// Only consider optimized goals when computing the default name
+		var optimizedGoals []Goal
+		for i := range in.Goals {
+			if in.Goals[i].Optimize == nil || *in.Goals[i].Optimize {
+				optimizedGoals = append(optimizedGoals, in.Goals[i])
+			}
+		}
+
+		switch len(optimizedGoals) {
 		case 1:
-			in.Name = in.Goals[0].Name
+			in.Name = optimizedGoals[0].Name
 		case 2:
-			in.Name = fmt.Sprintf("%s-vs-%s", in.Goals[0].Name, in.Goals[1].Name)
+			in.Name = fmt.Sprintf("%s-vs-%s", optimizedGoals[0].Name, optimizedGoals[1].Name)
 		default:
 			in.Name = defaultName
 		}
 	}
+}
+
+func (in *Objective) enforceErrorRate() {
+	var hasLatency bool
+	var hasErrorRate bool
+	for i := range in.Goals {
+		if in.Goals[i].Latency != nil {
+			hasLatency = true
+		}
+		if in.Goals[i].ErrorRate != nil {
+			hasErrorRate = true
+		}
+	}
+	if !hasLatency || hasErrorRate {
+		return
+	}
+
+	nonOptimized := false
+	maxErrorRate := resource.MustParse("0.05")
+	in.Goals = append(in.Goals, Goal{
+		Name:      "error-ratio",
+		Max:       &maxErrorRate,
+		Optimize:  &nonOptimized,
+		ErrorRate: &ErrorRateGoal{},
+	})
 }
 
 func (in *Goal) Default() {
