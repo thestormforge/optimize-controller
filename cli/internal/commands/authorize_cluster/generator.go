@@ -350,7 +350,9 @@ func printHelmValues(obj interface{}, w io.Writer) error {
 					values.Authorization["clientID"] = string(v)
 				case "STORMFORGE_AUTHORIZATION_CLIENT_SECRET":
 					values.Authorization["clientSecret"] = string(v)
-				case "STORMFORGE_SERVER_IDENTIFIER", "STORMFORGE_SERVER_ISSUER":
+				case "STORMFORGE_SERVER_ISSUER":
+					values.Authorization["issuer"] = string(v)
+				case "STORMFORGE_SERVER_IDENTIFIER":
 				// The Helm chart hard codes these to the production default values
 				// NOTE: the server identifier and the issuer should be the same
 				default:
