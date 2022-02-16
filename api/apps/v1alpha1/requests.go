@@ -27,22 +27,9 @@ import (
 func DefaultCostWeights(name string) corev1.ResourceList {
 	switch strings.Map(toName, name) {
 	case "cost":
-		// TODO This should be smart enough to know if there is application wide cloud provider configuration
 		return corev1.ResourceList{
 			corev1.ResourceCPU:    resource.MustParse("17"),
 			corev1.ResourceMemory: resource.MustParse("3"),
-		}
-
-	case "cost-gcp", "gcp-cost", "cost-gke", "gke-cost":
-		return corev1.ResourceList{
-			corev1.ResourceCPU:    resource.MustParse("17"),
-			corev1.ResourceMemory: resource.MustParse("2"),
-		}
-
-	case "cost-aws", "aws-cost", "cost-eks", "eks-cost":
-		return corev1.ResourceList{
-			corev1.ResourceCPU:    resource.MustParse("18"),
-			corev1.ResourceMemory: resource.MustParse("5"),
 		}
 
 	case "cpu-requests", "cpu":
