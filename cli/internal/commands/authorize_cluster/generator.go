@@ -184,9 +184,8 @@ func (o *GeneratorOptions) generate(ctx context.Context) error {
 	// Register a robot account with the registry server
 	registry, err := o.Config.RegisterRobot(ctx, info.ClientID)
 	if err != nil {
-		// Ignore unlicensed errors
 		if errors.Is(err, config.ErrUnlicensed) {
-			return o.Printer.PrintObj(secret, o.Out)
+			return fmt.Errorf("image pull secrets require a valid Optimize Live license, please contact sales")
 		}
 		return err
 	}
