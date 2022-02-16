@@ -54,29 +54,8 @@ func deleteControllerClient(ctx context.Context, cfg *config.OptimizeConfig) err
 	}
 
 	// Remove all references to the client from the configuration
-	if err := cfg.Update(deleteClientRegistration(ctrl.RegistrationClientURI)); err != nil {
+	if err := cfg.Update(config.DeleteClientRegistration(ctrl.RegistrationClientURI)); err != nil {
 		return err
 	}
 	return cfg.Write()
-}
-
-// deleteClientRegistration removes all references to a client given it's registration URL.
-func deleteClientRegistration(u string) config.Change {
-	return func(cfg *config.Config) error {
-		for i := range cfg.Controllers {
-			if cfg.Controllers[i].Controller.RegistrationClientURI != u {
-				continue
-			}
-
-			cfg.Controllers[i].Controller.RegistrationClientURI = ""
-			cfg.Controllers[i].Controller.RegistrationAccessToken = ""
-
-			for j := range cfg.Clusters {
-				if cfg.Clusters[j].Cluster.Controller == cfg.Controllers[i].Name {
-					cfg.Clusters[j].Cluster.Controller = ""
-				}
-			}
-		}
-		return nil
-	}
 }
