@@ -67,6 +67,16 @@ func (in *Scenario) Default() {
 }
 
 func (in *Objective) Default() {
+	// A single goal will not produce a viable experiment, try to offset
+	if len(in.Goals) == 1 {
+		switch {
+		case in.Goals[0].Latency != nil:
+			in.Goals = append(in.Goals, Goal{Name: "cost"})
+		case in.Goals[0].Requests != nil:
+			in.Goals = append(in.Goals, Goal{Name: "p95-latency"})
+		}
+	}
+
 	for i := range in.Goals {
 		in.Goals[i].Default()
 	}
