@@ -83,7 +83,7 @@ func newClientFromConfig(ctx context.Context, uaComment string, address func(con
 		return nil, err
 	}
 
-	rt, err := cfg.Authorize(ctx, version.UserAgent("optimize-controller", uaComment, nil))
+	rt, err := cfg.Authorize(ctx, version.UserAgent("optimize-pro", uaComment, nil))
 	if err != nil {
 		return nil, err
 	}
