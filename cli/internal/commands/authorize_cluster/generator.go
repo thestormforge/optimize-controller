@@ -318,10 +318,12 @@ func localClientInformation(ctrl *config.Controller) *registration.ClientInforma
 func printHelmValues(obj interface{}, w io.Writer) error {
 	// Allocate our values.yaml file format
 	values := struct {
+		StormForge       map[string]interface{}    `json:"stormforge,omitempty"`
 		Authorization    map[string]interface{}    `json:"authorization,omitempty"`
 		ImageCredentials map[string]interface{}    `json:"imageCredentials,omitempty"`
 		ExtraEnvVars     []config.ControllerEnvVar `json:"extraEnvVars,omitempty"`
 	}{
+		StormForge:       map[string]interface{}{},
 		Authorization:    map[string]interface{}{},
 		ImageCredentials: map[string]interface{}{},
 	}
@@ -346,15 +348,14 @@ func printHelmValues(obj interface{}, w io.Writer) error {
 		case corev1.SecretTypeOpaque:
 			for k, v := range secret.Data {
 				switch k {
+				case "STORMFORGE_SERVER_IDENTIFIER":
+					values.StormForge["address"] = string(v)
+				case "STORMFORGE_SERVER_ISSUER":
+					values.Authorization["issuer"] = string(v)
 				case "STORMFORGE_AUTHORIZATION_CLIENT_ID":
 					values.Authorization["clientID"] = string(v)
 				case "STORMFORGE_AUTHORIZATION_CLIENT_SECRET":
 					values.Authorization["clientSecret"] = string(v)
-				case "STORMFORGE_SERVER_ISSUER":
-					values.Authorization["issuer"] = string(v)
-				case "STORMFORGE_SERVER_IDENTIFIER":
-				// The Helm chart hard codes these to the production default values
-				// NOTE: the server identifier and the issuer should be the same
 				default:
 					values.ExtraEnvVars = append(values.ExtraEnvVars, config.ControllerEnvVar{Name: k, Value: string(v)})
 				}
