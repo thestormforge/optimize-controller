@@ -184,9 +184,8 @@ func (o *GeneratorOptions) generate(ctx context.Context) error {
 	// Register a robot account with the registry server
 	registry, err := o.Config.RegisterRobot(ctx, info.ClientID)
 	if err != nil {
-		// Ignore unlicensed errors
 		if errors.Is(err, config.ErrUnlicensed) {
-			return o.Printer.PrintObj(secret, o.Out)
+			return fmt.Errorf("image pull secrets require a valid Optimize Live license, please contact sales")
 		}
 		return err
 	}
@@ -319,10 +318,12 @@ func localClientInformation(ctrl *config.Controller) *registration.ClientInforma
 func printHelmValues(obj interface{}, w io.Writer) error {
 	// Allocate our values.yaml file format
 	values := struct {
+		StormForge       map[string]interface{}    `json:"stormforge,omitempty"`
 		Authorization    map[string]interface{}    `json:"authorization,omitempty"`
 		ImageCredentials map[string]interface{}    `json:"imageCredentials,omitempty"`
 		ExtraEnvVars     []config.ControllerEnvVar `json:"extraEnvVars,omitempty"`
 	}{
+		StormForge:       map[string]interface{}{},
 		Authorization:    map[string]interface{}{},
 		ImageCredentials: map[string]interface{}{},
 	}
@@ -347,13 +348,14 @@ func printHelmValues(obj interface{}, w io.Writer) error {
 		case corev1.SecretTypeOpaque:
 			for k, v := range secret.Data {
 				switch k {
+				case "STORMFORGE_SERVER_IDENTIFIER":
+					values.StormForge["address"] = string(v)
+				case "STORMFORGE_SERVER_ISSUER":
+					values.Authorization["issuer"] = string(v)
 				case "STORMFORGE_AUTHORIZATION_CLIENT_ID":
 					values.Authorization["clientID"] = string(v)
 				case "STORMFORGE_AUTHORIZATION_CLIENT_SECRET":
 					values.Authorization["clientSecret"] = string(v)
-				case "STORMFORGE_SERVER_IDENTIFIER", "STORMFORGE_SERVER_ISSUER":
-				// The Helm chart hard codes these to the production default values
-				// NOTE: the server identifier and the issuer should be the same
 				default:
 					values.ExtraEnvVars = append(values.ExtraEnvVars, config.ControllerEnvVar{Name: k, Value: string(v)})
 				}
