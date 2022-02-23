@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"path"
 	"runtime"
 	"strings"
 
@@ -83,7 +84,8 @@ func (o *VersionOptions) checkVersion(ctx context.Context) error {
 
 	asset := latest.AssetByName(fmt.Sprintf("stormforge-%s-%s.tar.gz", runtime.GOOS, runtime.GOARCH))
 	if asset != nil {
-		_, _ = fmt.Fprintf(o.Out, "\nDownload the latest version:\n%s\n", asset.BrowserDownloadURL)
+		downloadURL := "https://app.stormforge.io/downloads/" + path.Base(asset.BrowserDownloadURL)
+		_, _ = fmt.Fprintf(o.Out, "\nDownload the latest version:\n%s\n", downloadURL)
 	}
 
 	return nil
