@@ -128,11 +128,6 @@ func (g *Generator) selectors() []scan.Selector {
 		}
 	}
 
-	// Make sure we have at least one selector that will produce parameters
-	if len(result) == 0 {
-		result = append(result, &generation.ContainerResourcesSelector{CreateIfNotPresent: true})
-	}
-
 	return result
 }
 

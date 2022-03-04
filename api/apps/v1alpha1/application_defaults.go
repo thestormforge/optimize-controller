@@ -42,6 +42,13 @@ func RegisterDefaults(s *runtime.Scheme) error {
 }
 
 func (in *Application) Default() {
+	if len(in.Configuration) == 0 {
+		// We need at least one parameter in order to find something
+		in.Configuration = append(in.Configuration, Parameter{
+			ContainerResources: &ContainerResources{CreateIfNotPresent: true},
+		})
+	}
+
 	for i := range in.Configuration {
 		in.Configuration[i].Default()
 	}
