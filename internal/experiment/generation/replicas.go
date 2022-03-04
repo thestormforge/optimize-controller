@@ -19,6 +19,7 @@ package generation
 import (
 	"fmt"
 
+	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-controller/v2/internal/scan"
 	"github.com/thestormforge/optimize-controller/v2/internal/sfio"
@@ -27,24 +28,12 @@ import (
 )
 
 // ReplicaSelector identifies zero or more replica specifications.
-type ReplicaSelector struct {
-	scan.GenericSelector
-	// Path to the replica field.
-	Path string `json:"path,omitempty"`
-	// Create container resource specifications even if the original object does not contain them.
-	CreateIfNotPresent bool `json:"create,omitempty"`
-}
+type ReplicaSelector optimizeappsv1alpha1.Replicas
 
 var _ scan.Selector = &ReplicaSelector{}
 
-func (s *ReplicaSelector) Default() {
-	if s.Kind == "" {
-		s.Group = "apps|extensions"
-		s.Kind = "Deployment|StatefulSet"
-	}
-	if s.Path == "" {
-		s.Path = "/spec/replicas"
-	}
+func (s *ReplicaSelector) Select(nodes []*yaml.RNode) ([]*yaml.RNode, error) {
+	return s.ResourceMetaFilter.Filter(nodes)
 }
 
 func (s *ReplicaSelector) Map(node *yaml.RNode, meta yaml.ResourceMeta) ([]interface{}, error) {

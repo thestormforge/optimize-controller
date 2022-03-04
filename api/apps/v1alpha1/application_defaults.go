@@ -42,12 +42,70 @@ func RegisterDefaults(s *runtime.Scheme) error {
 }
 
 func (in *Application) Default() {
+	for i := range in.Configuration {
+		in.Configuration[i].Default()
+	}
+
 	for i := range in.Scenarios {
 		in.Scenarios[i].Default()
 	}
 
 	for i := range in.Objectives {
 		in.Objectives[i].Default()
+	}
+}
+
+func (in *Parameter) Default() {
+	switch {
+	case in.ContainerResources != nil:
+		in.ContainerResources.Default()
+	case in.Replicas != nil:
+		in.Replicas.Default()
+	case in.EnvironmentVariable != nil:
+		in.EnvironmentVariable.Default()
+	}
+}
+
+func (in *ContainerResources) Default() {
+	if in.Selector != "" {
+		in.LabelSelector = in.Selector
+		in.CreateIfNotPresent = true
+		in.Selector = ""
+	}
+
+	if in.Kind == "" {
+		in.Group = "apps|extensions"
+		in.Kind = "Deployment|StatefulSet"
+		in.Path = "/spec/template/spec/containers/[name={ .ContainerName }]/resources"
+	}
+
+	if len(in.Resources) == 0 {
+		in.Resources = []corev1.ResourceName{corev1.ResourceCPU, corev1.ResourceMemory}
+	}
+}
+
+func (in *Replicas) Default() {
+	if in.Selector != "" {
+		in.LabelSelector = in.Selector
+		in.CreateIfNotPresent = true
+		in.Selector = ""
+	}
+
+	if in.Kind == "" {
+		in.Group = "apps|extensions"
+		in.Kind = "Deployment|StatefulSet"
+	}
+
+	if in.Path == "" {
+		in.Path = "/spec/replicas"
+	}
+}
+
+func (in *EnvironmentVariable) Default() {
+	if in.Kind == "" {
+		in.Group = "apps|extensions"
+		in.Kind = "Deployment|StatefulSet"
+		in.Path = "/spec/template/spec/containers/[name={ .ContainerName }]/env/[name={ .VariableName }]/value"
 	}
 }
 

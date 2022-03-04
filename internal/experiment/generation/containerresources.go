@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	"github.com/thestormforge/konjure/pkg/filters"
+	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-controller/v2/internal/scan"
 	"github.com/thestormforge/optimize-controller/v2/internal/sfio"
@@ -30,36 +31,11 @@ import (
 )
 
 // ContainerResourcesSelector scans for container resources specifications (requests/limits).
-type ContainerResourcesSelector struct {
-	scan.GenericSelector
-	// Regular expression matching the container name.
-	ContainerName string `json:"containerName,omitempty"`
-	// Path to the resource requirements.
-	Path string `json:"path,omitempty"`
-	// Names of the resources to select, defaults to ["cpu", "memory"].
-	Resources []corev1.ResourceName `json:"resources,omitempty"`
-	// Create container resource requirements even if the original object does not contain them.
-	CreateIfNotPresent bool `json:"create,omitempty"`
-	// Per-namespace limit ranges for containers.
-	ContainerLimitRange map[string]corev1.LimitRangeItem `json:"containerLimitRange,omitempty"`
-}
+type ContainerResourcesSelector optimizeappsv1alpha1.ContainerResources
 
 var _ scan.Selector = &ContainerResourcesSelector{}
 
-// Default applies default values to the selector.
-func (s *ContainerResourcesSelector) Default() {
-	if s.Kind == "" {
-		s.Group = "apps|extensions"
-		s.Kind = "Deployment|StatefulSet"
-		s.Path = "/spec/template/spec/containers/[name={ .ContainerName }]/resources"
-	}
-
-	if len(s.Resources) == 0 {
-		s.Resources = []corev1.ResourceName{corev1.ResourceCPU, corev1.ResourceMemory}
-	}
-}
-
-// Select matches all of the generically match nodes plus any `LimitRange` resources
+// Select matches all the generically matched nodes plus any `LimitRange` resources
 // that we can use to collect default values from.
 func (s *ContainerResourcesSelector) Select(nodes []*yaml.RNode) ([]*yaml.RNode, error) {
 	var result []*yaml.RNode
@@ -74,7 +50,7 @@ func (s *ContainerResourcesSelector) Select(nodes []*yaml.RNode) ([]*yaml.RNode,
 	result = append(result, limitRangeNodes...)
 
 	// Select the actual nodes
-	resourceNodes, err := s.GenericSelector.Select(nodes)
+	resourceNodes, err := s.ResourceMetaFilter.Filter(nodes)
 	if err != nil {
 		return nil, err
 	}
