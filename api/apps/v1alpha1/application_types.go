@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	"encoding/json"
 
+	"github.com/thestormforge/konjure/pkg/filters"
 	"github.com/thestormforge/konjure/pkg/konjure"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -63,28 +64,47 @@ type Parameter struct {
 // ContainerResources specifies which resources in the application should have their container
 // resources (CPU and memory) optimized.
 type ContainerResources struct {
+	filters.ResourceMetaFilter
 	// Label selector of Kubernetes objects to consider when generating container resources patches.
+	// Deprecated: use GenericSelector.LabelSelector instead.
 	Selector string `json:"selector,omitempty"`
+	// Regular expression matching the container name.
+	ContainerName string `json:"containerName,omitempty"`
+	// Path to the resource requirements.
+	Path string `json:"path,omitempty"`
 	// The names of the resources to optimize. Defaults to ["memory", "cpu"].
 	Resources []corev1.ResourceName `json:"resources,omitempty"`
+	// Create container resource requirements even if the original object does not contain them.
+	CreateIfNotPresent bool `json:"create,omitempty"`
+	// Per-namespace limit ranges for containers.
+	ContainerLimitRange map[string]corev1.LimitRangeItem `json:"containerLimitRange,omitempty"`
 }
 
 // Replicas specifies which resources in the application should have their replica count optimized.
 type Replicas struct {
+	filters.ResourceMetaFilter
 	// Label selector of Kubernetes objects to consider when generating replica patches.
+	// Deprecated: use GenericSelector.LabelSelector instead.
 	Selector string `json:"selector,omitempty"`
+	// Path to the replica field.
+	Path string `json:"path,omitempty"`
+	// Create container resource specifications even if the original object does not contain them.
+	CreateIfNotPresent bool `json:"create,omitempty"`
 }
 
 // EnvironmentVariable specifies which environment variables in the application should have their value optimized.
 type EnvironmentVariable struct {
-	// Label selector of Kubernetes objects to consider when looking for environment variables.
-	Selector string `json:"selector,omitempty"`
+	filters.ResourceMetaFilter
 	// The name of the environment variable to optimize.
-	Name string `json:"name,omitempty"`
+	VariableName string `json:"variableName,omitempty"`
+	// Regular expression matching the container name.
+	ContainerName string `json:"containerName,omitempty"`
+	// Path to the environment variable's value.
+	Path string `json:"path,omitempty"`
 	// The prefix of the value to use when setting the environment variable.
-	Prefix string `json:"prefix,omitempty"`
+	ValuePrefix string `json:"prefix,omitempty"`
 	// The suffix of the value to use when setting the environment variable.
-	Suffix string `json:"suffix,omitempty"`
+	ValueSuffix string `json:"suffix,omitempty"`
 	// The discrete values of the environment variable.
 	Values []string `json:"values,omitempty"`
 }

@@ -22,6 +22,7 @@ import (
 	"strconv"
 	"strings"
 
+	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-controller/v2/internal/scan"
 	"github.com/thestormforge/optimize-controller/v2/internal/sfio"
@@ -30,30 +31,12 @@ import (
 )
 
 // EnvironmentVariablesSelector scans for environment variables.
-type EnvironmentVariablesSelector struct {
-	scan.GenericSelector
-	// Regular expression matching the container name.
-	ContainerName string `json:"containerName,omitempty"`
-	// Name of the environment variable to match.
-	VariableName string `json:"variableName,omitempty"`
-	// Path to the environment variable's value.
-	Path string `json:"path,omitempty"`
-	// Prefix that appears before the value.
-	ValuePrefix string `json:"valuePrefix,omitempty"`
-	// Suffix that appears after the value.
-	ValueSuffix string `json:"valueSuffix,omitempty"`
-	// Allowed values for categorical parameters.
-	Values []string `json:"values,omitempty"`
-}
+type EnvironmentVariablesSelector optimizeappsv1alpha1.EnvironmentVariable
 
 var _ scan.Selector = &EnvironmentVariablesSelector{}
 
-func (s *EnvironmentVariablesSelector) Default() {
-	if s.Kind == "" {
-		s.Group = "apps|extensions"
-		s.Kind = "Deployment|StatefulSet"
-		s.Path = "/spec/template/spec/containers/[name={ .ContainerName }]/env/[name={ .VariableName }]/value"
-	}
+func (s *EnvironmentVariablesSelector) Select(nodes []*yaml.RNode) ([]*yaml.RNode, error) {
+	return s.ResourceMetaFilter.Filter(nodes)
 }
 
 func (s *EnvironmentVariablesSelector) Map(node *yaml.RNode, meta yaml.ResourceMeta) ([]interface{}, error) {

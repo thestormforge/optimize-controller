@@ -116,49 +116,15 @@ func (g *Generator) Execute(output kio.Writer) error {
 func (g *Generator) selectors() []scan.Selector {
 	var result []scan.Selector
 
+	// Cast the data types over to the "*Selector" types which have the implementations we need
 	for i := range g.Application.Configuration {
 		switch {
-
 		case g.Application.Configuration[i].ContainerResources != nil:
-			result = append(result, &generation.ContainerResourcesSelector{
-				GenericSelector: scan.GenericSelector{
-					LabelSelector: g.Application.Configuration[i].ContainerResources.Selector,
-				},
-				Resources:          g.Application.Configuration[i].ContainerResources.Resources,
-				CreateIfNotPresent: true,
-			})
-
+			result = append(result, (*generation.ContainerResourcesSelector)(g.Application.Configuration[i].ContainerResources))
 		case g.Application.Configuration[i].Replicas != nil:
-			result = append(result, &generation.ReplicaSelector{
-				GenericSelector: scan.GenericSelector{
-					LabelSelector: g.Application.Configuration[i].Replicas.Selector,
-				},
-				CreateIfNotPresent: true,
-			})
-
+			result = append(result, (*generation.ReplicaSelector)(g.Application.Configuration[i].Replicas))
 		case g.Application.Configuration[i].EnvironmentVariable != nil:
-			result = append(result, &generation.EnvironmentVariablesSelector{
-				GenericSelector: scan.GenericSelector{
-					LabelSelector: g.Application.Configuration[i].EnvironmentVariable.Selector,
-				},
-				VariableName: g.Application.Configuration[i].EnvironmentVariable.Name,
-				ValuePrefix:  g.Application.Configuration[i].EnvironmentVariable.Prefix,
-				ValueSuffix:  g.Application.Configuration[i].EnvironmentVariable.Suffix,
-				Values:       g.Application.Configuration[i].EnvironmentVariable.Values,
-			})
-		}
-
-	}
-
-	// Make sure we have at least one selector that will produce parameters
-	if len(result) == 0 {
-		result = append(result, &generation.ContainerResourcesSelector{CreateIfNotPresent: true})
-	}
-
-	// Apply defaults to any selector that supports it
-	for i := range result {
-		if def, ok := result[i].(interface{ Default() }); ok {
-			def.Default()
+			result = append(result, (*generation.EnvironmentVariablesSelector)(g.Application.Configuration[i].EnvironmentVariable))
 		}
 	}
 
