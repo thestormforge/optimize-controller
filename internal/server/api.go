@@ -18,6 +18,7 @@ package server
 
 import (
 	"context"
+	"os"
 	"strings"
 
 	"github.com/thestormforge/optimize-controller/v2/internal/version"
@@ -26,8 +27,6 @@ import (
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"github.com/thestormforge/optimize-go/pkg/config"
 )
-
-const audience = "https://api.carbonrelay.io/v1/"
 
 func NewExperimentAPI(ctx context.Context, uaComment string) (experimentsv1alpha1.API, error) {
 	client, err := newClientFromConfig(ctx, uaComment, func(srv config.Server) string {
@@ -65,10 +64,16 @@ func NewApplicationAPI(ctx context.Context, uaComment string) (applications.API,
 }
 
 func newClientFromConfig(ctx context.Context, uaComment string, address func(config.Server) string) (api.Client, error) {
+	// TODO This is temporary while we migrate the audience value
+	aud := os.Getenv("STORMFORGE_AUDIENCE")
+	if aud == "" {
+		aud = "https://api.carbonrelay.io/v1/"
+	}
+
 	// Load the configuration
 	cfg := &config.OptimizeConfig{}
 	cfg.AuthorizationParameters = map[string][]string{
-		"audience": {audience},
+		"audience": {aud},
 	}
 
 	if err := cfg.Load(); err != nil {
