@@ -62,7 +62,7 @@ func NewRootCommand() *cobra.Command {
 	commander.ConfigGlobals(cfg, rootCmd)
 
 	// TODO This is temporary while we migrate the audience value
-	aud := os.Getenv("STORMFORGE_AUDIENCE")
+	aud := os.Getenv("STORMFORGE_AUTHORIZATION_AUDIENCE")
 	if aud == "" {
 		aud = "https://api.carbonrelay.io/v1/"
 	}
