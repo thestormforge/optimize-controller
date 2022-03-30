@@ -27,12 +27,12 @@ require (
 	golang.org/x/net v0.0.0-20201110031124-69a78807bb2b
 	golang.org/x/oauth2 v0.0.0-20200902213428-5d25da1a8d43
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
-	k8s.io/api v0.17.2
-	k8s.io/apimachinery v0.17.2
-	k8s.io/cli-runtime v0.17.2
-	k8s.io/client-go v0.17.2
-	k8s.io/kubectl v0.17.2
-	k8s.io/metrics v0.17.2
+	k8s.io/api v0.17.17
+	k8s.io/apimachinery v0.17.17
+	k8s.io/cli-runtime v0.17.17
+	k8s.io/client-go v0.17.17
+	k8s.io/kubectl v0.17.17
+	k8s.io/metrics v0.17.17
 	sigs.k8s.io/controller-runtime v0.5.0
 	sigs.k8s.io/kustomize/api v0.8.6
 	sigs.k8s.io/kustomize/kyaml v0.10.17
@@ -53,7 +53,7 @@ require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/emicklei/go-restful v2.9.5+incompatible // indirect
-	github.com/evanphx/json-patch v4.5.0+incompatible // indirect
+	github.com/evanphx/json-patch v4.9.0+incompatible // indirect
 	github.com/fatih/camelcase v1.0.0 // indirect
 	github.com/fatih/color v1.9.0 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
@@ -124,15 +124,19 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
-	k8s.io/apiextensions-apiserver v0.17.2 // indirect
+	k8s.io/apiextensions-apiserver v0.17.17 // indirect
 	k8s.io/klog v1.0.0 // indirect
-	k8s.io/kube-openapi v0.0.0-20191107075043-30be4d16710a // indirect
+	k8s.io/kube-openapi v0.0.0-20200410145947-bcb3869e6f29 // indirect
 	k8s.io/utils v0.0.0-20191114184206-e782cd3c129f // indirect
 	rsc.io/qr v0.2.0 // indirect
 	sigs.k8s.io/kustomize v2.0.3+incompatible // indirect
 )
 
+// Consolidate loggers by sending klog to zap
 replace k8s.io/klog => github.com/istio/klog v0.0.0-20190424230111-fb7481ea8bcf
 
 // Do not advance yaml.v3 past KYAML, otherwise our formatting will be off
 replace gopkg.in/yaml.v3 => gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
+
+// Vulnerabilities
+replace github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
