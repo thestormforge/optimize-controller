@@ -215,7 +215,7 @@ func (o *Options) runDeviceCodeFlow(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	az.Scopes = append(az.Scopes, "register:clients", "offline_access") // TODO Where or what do we want to do here?
+	az.Scopes = append(az.Scopes, "offline_access", "register:clients", "manage:clients")
 
 	t, err := az.Token(ctx, o.generateValidatationRequest)
 	if err != nil {
@@ -230,7 +230,7 @@ func (o *Options) runAuthorizationCodeFlow(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	c.Scopes = append(c.Scopes, "register:clients", "offline_access") // TODO Where or what do we want to do here?
+	c.Scopes = append(c.Scopes, "offline_access", "register:clients", "manage:clients")
 	c.RedirectURL = "http://127.0.0.1:8085/"
 
 	// Create a context we can use to shutdown the server and the OAuth authorization code callback endpoint
