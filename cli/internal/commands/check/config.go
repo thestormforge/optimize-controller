@@ -101,8 +101,12 @@ func tenantID(r config.Reader) (string, error) {
 		return "", err
 	}
 
-	if tenant, ok := token.PrivateClaims()["https://carbonrelay.com/claims/namespace"]; ok {
-		th := sha1.Sum([]byte(tenant.(string)))
+	tenant, ok := token.PrivateClaims()["https://stormforge.io/claims/tenant"]
+	if !ok {
+		tenant, ok = token.PrivateClaims()["https://carbonrelay.com/claims/namespace"]
+	}
+	if t, ok := tenant.(string); ok {
+		th := sha1.Sum([]byte(t))
 		return fmt.Sprintf("%x", th[0:4]), nil
 	}
 	return "", fmt.Errorf("unable to determine tenant identifier")
