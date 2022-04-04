@@ -292,8 +292,12 @@ func (o *Options) takeOffline(t *oauth2.Token) error {
 		return err
 	}
 
-	ns, ok := token.PrivateClaims()["https://carbonrelay.com/claims/namespace"]
-	if !ok || ns.(string) == "default" || ns.(string) == "" {
+	tenant, ok := token.PrivateClaims()["https://stormforge.io/claims/tenant"]
+	if !ok {
+		tenant, ok = token.PrivateClaims()["https://carbonrelay.com/claims/namespace"]
+	}
+	if !ok || tenant.(string) == "default" || tenant.(string) == "" {
+		// TODO This error text matches what optimize-go produces, there should be an error we can use
 		return fmt.Errorf("account is not activated")
 	}
 
