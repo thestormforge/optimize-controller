@@ -1,6 +1,6 @@
 module github.com/thestormforge/optimize-controller/v2
 
-go 1.17
+go 1.18
 
 require (
 	github.com/Masterminds/sprig v2.20.0+incompatible
