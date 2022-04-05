@@ -22,7 +22,7 @@ jobs:
           - v1.14.10
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: KinD (Kubernetes in Docker) Initialization
         uses: helm/kind-action@v1.1.0
         with:

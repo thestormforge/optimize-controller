@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
@@ -39,7 +39,7 @@ jobs:
       GIT_COMMIT: ${{ github.sha }}
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Unshallow
         run: git fetch --prune --unshallow
       # Launch KinD early so we can do other things while the control plane converges

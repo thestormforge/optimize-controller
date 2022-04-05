@@ -14,7 +14,7 @@ jobs:
       GIT_COMMIT: ${{ github.sha }}
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Unshallow
         run: git fetch --prune --unshallow
       - name: Set up Go
