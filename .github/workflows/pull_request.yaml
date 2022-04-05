@@ -15,14 +15,14 @@ jobs:
         with:
           go-version: ~1.18
       - name: Cache Go Modules
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
       - name: Cache Go Cache
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ~/.cache
           key: ${{ runner.os }}-gotestcache-${{ hashFiles('**.go') }}
@@ -53,14 +53,14 @@ jobs:
         with:
           go-version: ~1.18
       - name: Cache Go Modules
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
       - name: Cache Go Cache
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ~/.cache
           key: ${{ runner.os }}-gobuildcache-${{ hashFiles('**.go') }}
@@ -95,17 +95,17 @@ jobs:
           docker-push "${CLI_IMG}" "${CLI_IMG%%:*}:${IMAGE_TAG}"
           docker-push "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:${IMAGE_TAG}"
       - name: Upload macOS binary
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: stormforge_darwin_amd64
           path: dist/stormforge-darwin-amd64.tar.gz
       - name: Upload macOS ARM binary
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: stormforge_darwin_arm64
           path: dist/stormforge-darwin-arm64.tar.gz
       - name: Upload Linux binary
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: stormforge_linux_amd64
           path: dist/stormforge-linux-amd64.tar.gz

@@ -30,7 +30,7 @@ jobs:
           brew install hyperkit docker
           echo "::set-output name=cache-key::$(minikube version | md5)"
       - name: Cache minikube
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ~/.minikube/cache
@@ -44,14 +44,14 @@ jobs:
           minikube start --vm-driver hyperkit --wait all
           minikube docker-env | sed '/^#/d;s/="\(.*\)"/=\1/g;s/export //g' >> $GITHUB_ENV
       - name: Cache Go Modules
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
       - name: Cache Go Cache
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ~/.cache
           key: ${{ runner.os }}-gobuildcache-${{ hashFiles('**.go') }}
@@ -110,17 +110,17 @@ jobs:
             docker-push "${SETUPTOOLS_IMG}" "ghcr.io/${SETUPTOOLS_IMG}"
           fi
       - name: Upload macOS binary
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: stormforge_darwin_amd64
           path: dist/stormforge-darwin-amd64.tar.gz
       - name: Upload macOS ARM binary
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: stormforge_darwin_arm64
           path: dist/stormforge-darwin-arm64.tar.gz
       - name: Upload Linux binary
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: stormforge_linux_amd64
           path: dist/stormforge-linux-amd64.tar.gz
