@@ -2,7 +2,7 @@
 
 set -ex
 
-CLI_BIN="${CLI_BIN:-dist/stormforge_linux_amd64/stormforge}"
+CLI_BIN="${CLI_BIN:-dist/stormforge_linux_amd64_v1/stormforge}"
 #${CLI_CONFIG-...} allows us to test just for parameter existance which means we can rely on
 # the default and overwrite as needed ( for those pesky cases where you want to do
 # CLI_CONFIG="--stormforgeconfig /dev/null" hack/integration.sh
