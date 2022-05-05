@@ -257,6 +257,11 @@ func (o *GeneratorOptions) clientInfo(ctx context.Context, ctrl *config.Controll
 		return resp, nil
 	}
 
+	// Try to load a secret from kubectl
+	if resp := o.clusterClientInformation(ctx, ctrl); resp != nil {
+		return resp, nil
+	}
+
 	// Register a new client
 	client := &registration.ClientMetadata{
 		ClientName:    o.ClientName,
@@ -265,6 +270,41 @@ func (o *GeneratorOptions) clientInfo(ctx context.Context, ctrl *config.Controll
 		ResponseTypes: []string{},
 	}
 	return o.Config.RegisterClient(ctx, client)
+}
+
+// clusterClientInformation reads the registered client from the cluster, allowing it to be re-used.
+func (o *GeneratorOptions) clusterClientInformation(ctx context.Context, ctrl *config.Controller) *registration.ClientInformationResponse {
+	cmd, err := o.Config.Kubectl(ctx, "get", "secret", "--namespace", ctrl.Namespace, o.Name,
+		"--output", "go-template", "--template",
+		"{{ .data.STORMFORGE_AUTHORIZATION_CLIENT_ID }}/{{.data.STORMFORGE_AUTHORIZATION_CLIENT_SECRET }}")
+	if err != nil {
+		return nil
+	}
+
+	data, err := cmd.Output()
+	if err != nil {
+		return nil
+	}
+
+	parts := strings.Split(string(data), "/")
+	if len(parts) != 2 {
+		return nil
+	}
+
+	clientID, err := base64.StdEncoding.DecodeString(parts[0])
+	if err != nil {
+		return nil
+	}
+
+	clientSecret, err := base64.StdEncoding.DecodeString(parts[1])
+	if err != nil {
+		return nil
+	}
+
+	return &registration.ClientInformationResponse{
+		ClientID:     string(clientID),
+		ClientSecret: string(clientSecret),
+	}
 }
 
 // registeredClientInformation read an already registered client, allowing it to be re-used.
