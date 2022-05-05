@@ -141,7 +141,7 @@ func (o *GeneratorOptions) generate(ctx context.Context) error {
 	result := &corev1.List{}
 
 	// Read the initial information from the configuration
-	controllerName, ctrl, data, err := o.readConfig()
+	ctrl, data, err := o.readConfig()
 	if err != nil {
 		return err
 	}
@@ -153,12 +153,6 @@ func (o *GeneratorOptions) generate(ctx context.Context) error {
 		info = &registration.ClientInformationResponse{}
 	} else if err != nil {
 		return err
-	} else {
-		// Save any changes we made to the configuration (even if we didn't register, the access token might have rolled)
-		_ = o.Config.Update(config.SaveClientRegistration(controllerName, info))
-		if err := o.Config.Write(); err != nil {
-			_, _ = fmt.Fprintln(o.ErrOut, "Could not update configuration with controller registration information")
-		}
 	}
 
 	// Create a new secret object
@@ -233,22 +227,23 @@ func mergeString(m map[string][]byte, key, value string) {
 	}
 }
 
-func (o *GeneratorOptions) readConfig() (string, *config.Controller, map[string][]byte, error) {
+func (o *GeneratorOptions) readConfig() (*config.Controller, map[string][]byte, error) {
 	// Read the initial information from the configuration
 	r := o.Config.Reader()
 	controllerName, err := r.ControllerName(r.ContextName())
 	if err != nil {
-		return "", nil, nil, err
+		return nil, nil, err
 	}
 	ctrl, err := r.Controller(controllerName)
 	if err != nil {
-		return "", nil, nil, err
+		return nil, nil, err
 	}
+
 	data, err := config.EnvironmentMapping(r, true)
 	if err != nil {
-		return "", nil, nil, err
+		return nil, nil, err
 	}
-	return controllerName, &ctrl, data, nil
+	return &ctrl, data, nil
 }
 
 func (o *GeneratorOptions) clientInfo(ctx context.Context, ctrl *config.Controller) (*registration.ClientInformationResponse, error) {
