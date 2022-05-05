@@ -17,6 +17,8 @@ limitations under the License.
 package authorize_cluster
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -273,7 +275,8 @@ func (o *GeneratorOptions) clientInfo(ctx context.Context, ctrl *config.Controll
 func (o *GeneratorOptions) clusterClientInformation(ctx context.Context, ctrl *config.Controller) *registration.ClientInformationResponse {
 	cmd, err := o.Config.Kubectl(ctx, "get", "secret", "--namespace", ctrl.Namespace, o.Name,
 		"--output", "go-template", "--template",
-		"{{ .data.STORMFORGE_AUTHORIZATION_CLIENT_ID }}/{{ .data.STORMFORGE_AUTHORIZATION_CLIENT_SECRET }}")
+		`{{ .data.STORMFORGE_AUTHORIZATION_CLIENT_ID | base64decode }}
+{{ .data.STORMFORGE_AUTHORIZATION_CLIENT_SECRET | base64decode }}`)
 	if err != nil {
 		return nil
 	}
@@ -283,25 +286,20 @@ func (o *GeneratorOptions) clusterClientInformation(ctx context.Context, ctrl *c
 		return nil
 	}
 
-	parts := strings.Split(string(data), "/")
-	if len(parts) != 2 {
-		return nil
+	result := &registration.ClientInformationResponse{}
+
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	if scanner.Scan() {
+		result.ClientID = scanner.Text()
+	}
+	if scanner.Scan() {
+		result.ClientSecret = scanner.Text()
 	}
 
-	clientID, err := base64.StdEncoding.DecodeString(parts[0])
-	if err != nil {
-		return nil
+	if result.ClientID != "" && result.ClientSecret != "" {
+		return result
 	}
-
-	clientSecret, err := base64.StdEncoding.DecodeString(parts[1])
-	if err != nil {
-		return nil
-	}
-
-	return &registration.ClientInformationResponse{
-		ClientID:     string(clientID),
-		ClientSecret: string(clientSecret),
-	}
+	return nil
 }
 
 // registeredClientInformation read an already registered client, allowing it to be re-used.
