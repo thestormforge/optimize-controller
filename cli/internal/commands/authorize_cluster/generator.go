@@ -228,13 +228,9 @@ func mergeString(m map[string][]byte, key, value string) {
 }
 
 func (o *GeneratorOptions) readConfig() (*config.Controller, map[string][]byte, error) {
-	// Read the initial information from the configuration
 	r := o.Config.Reader()
-	controllerName, err := r.ControllerName(r.ContextName())
-	if err != nil {
-		return nil, nil, err
-	}
-	ctrl, err := r.Controller(controllerName)
+
+	ctrl, err := config.CurrentController(r)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -243,6 +239,7 @@ func (o *GeneratorOptions) readConfig() (*config.Controller, map[string][]byte, 
 	if err != nil {
 		return nil, nil, err
 	}
+
 	return &ctrl, data, nil
 }
 
@@ -276,7 +273,7 @@ func (o *GeneratorOptions) clientInfo(ctx context.Context, ctrl *config.Controll
 func (o *GeneratorOptions) clusterClientInformation(ctx context.Context, ctrl *config.Controller) *registration.ClientInformationResponse {
 	cmd, err := o.Config.Kubectl(ctx, "get", "secret", "--namespace", ctrl.Namespace, o.Name,
 		"--output", "go-template", "--template",
-		"{{ .data.STORMFORGE_AUTHORIZATION_CLIENT_ID }}/{{.data.STORMFORGE_AUTHORIZATION_CLIENT_SECRET }}")
+		"{{ .data.STORMFORGE_AUTHORIZATION_CLIENT_ID }}/{{ .data.STORMFORGE_AUTHORIZATION_CLIENT_SECRET }}")
 	if err != nil {
 		return nil
 	}
