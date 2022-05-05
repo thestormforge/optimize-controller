@@ -17,6 +17,8 @@ limitations under the License.
 package authorize_cluster
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -141,7 +143,7 @@ func (o *GeneratorOptions) generate(ctx context.Context) error {
 	result := &corev1.List{}
 
 	// Read the initial information from the configuration
-	controllerName, ctrl, data, err := o.readConfig()
+	ctrl, data, err := o.readConfig()
 	if err != nil {
 		return err
 	}
@@ -153,12 +155,6 @@ func (o *GeneratorOptions) generate(ctx context.Context) error {
 		info = &registration.ClientInformationResponse{}
 	} else if err != nil {
 		return err
-	} else {
-		// Save any changes we made to the configuration (even if we didn't register, the access token might have rolled)
-		_ = o.Config.Update(config.SaveClientRegistration(controllerName, info))
-		if err := o.Config.Write(); err != nil {
-			_, _ = fmt.Fprintln(o.ErrOut, "Could not update configuration with controller registration information")
-		}
 	}
 
 	// Create a new secret object
@@ -233,22 +229,20 @@ func mergeString(m map[string][]byte, key, value string) {
 	}
 }
 
-func (o *GeneratorOptions) readConfig() (string, *config.Controller, map[string][]byte, error) {
-	// Read the initial information from the configuration
+func (o *GeneratorOptions) readConfig() (*config.Controller, map[string][]byte, error) {
 	r := o.Config.Reader()
-	controllerName, err := r.ControllerName(r.ContextName())
+
+	ctrl, err := config.CurrentController(r)
 	if err != nil {
-		return "", nil, nil, err
+		return nil, nil, err
 	}
-	ctrl, err := r.Controller(controllerName)
-	if err != nil {
-		return "", nil, nil, err
-	}
+
 	data, err := config.EnvironmentMapping(r, true)
 	if err != nil {
-		return "", nil, nil, err
+		return nil, nil, err
 	}
-	return controllerName, &ctrl, data, nil
+
+	return &ctrl, data, nil
 }
 
 func (o *GeneratorOptions) clientInfo(ctx context.Context, ctrl *config.Controller) (*registration.ClientInformationResponse, error) {
@@ -262,6 +256,11 @@ func (o *GeneratorOptions) clientInfo(ctx context.Context, ctrl *config.Controll
 		return resp, nil
 	}
 
+	// Try to load a secret from kubectl
+	if resp := o.clusterClientInformation(ctx, ctrl); resp != nil {
+		return resp, nil
+	}
+
 	// Register a new client
 	client := &registration.ClientMetadata{
 		ClientName:    o.ClientName,
@@ -270,6 +269,37 @@ func (o *GeneratorOptions) clientInfo(ctx context.Context, ctrl *config.Controll
 		ResponseTypes: []string{},
 	}
 	return o.Config.RegisterClient(ctx, client)
+}
+
+// clusterClientInformation reads the registered client from the cluster, allowing it to be re-used.
+func (o *GeneratorOptions) clusterClientInformation(ctx context.Context, ctrl *config.Controller) *registration.ClientInformationResponse {
+	cmd, err := o.Config.Kubectl(ctx, "get", "secret", "--namespace", ctrl.Namespace, o.Name,
+		"--output", "go-template", "--template",
+		`{{ .data.STORMFORGE_AUTHORIZATION_CLIENT_ID | base64decode }}
+{{ .data.STORMFORGE_AUTHORIZATION_CLIENT_SECRET | base64decode }}`)
+	if err != nil {
+		return nil
+	}
+
+	data, err := cmd.Output()
+	if err != nil {
+		return nil
+	}
+
+	result := &registration.ClientInformationResponse{}
+
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	if scanner.Scan() {
+		result.ClientID = scanner.Text()
+	}
+	if scanner.Scan() {
+		result.ClientSecret = scanner.Text()
+	}
+
+	if result.ClientID != "" && result.ClientSecret != "" {
+		return result
+	}
+	return nil
 }
 
 // registeredClientInformation read an already registered client, allowing it to be re-used.
