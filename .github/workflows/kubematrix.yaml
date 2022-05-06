@@ -50,13 +50,13 @@ jobs:
           github_token: ${{secrets.GITHUB_TOKEN}}
           workflow: main.yaml
           name: stormforge_linux_amd64
-          path: dist/stormforge_linux_amd64
+          path: dist
           commit: ${{ github.event.pull_request.head.sha || github.sha }}
           repo: ${{github.repository}}
       - name: Rename binary because dumbness
         run: |
-          tar -zxf dist/stormforge_linux_amd64/stormforge-linux-amd64.tar.gz \
-              -C dist/stormforge_linux_amd64
+          cd dist
+          tar -xf stormforge-linux-amd64.tar.gz -C stormforge_linux_amd64_v1
       - name: Run integration tests
         run: |
           hack/integration.sh
