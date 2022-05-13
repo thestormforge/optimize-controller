@@ -387,7 +387,7 @@ func (f *ExperimentMigrationFilter) resolveDisplayNames(appTitle, scnTitle strin
 		return app.Name.String(), scnTitle
 	}
 
-	return app.Name.String(), scn.Name
+	return app.Name.String(), scn.Name.String()
 }
 
 // metric represents the parts of a v1alpha1 metric required for producing a v1beta1 metric URL.

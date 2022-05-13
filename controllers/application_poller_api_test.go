@@ -133,6 +133,14 @@ func (f *fakeAPI) GetScenario(ctx context.Context, u string) (applications.Scena
 	return scenario, err
 }
 
+func (f *fakeAPI) GetScenarioByName(ctx context.Context, u string, n applications.ScenarioName) (applications.Scenario, error) {
+	return applications.Scenario{}, nil
+}
+
+func (f *fakeAPI) UpsertScenarioByName(ctx context.Context, u string, n applications.ScenarioName, scn applications.Scenario) (applications.Scenario, error) {
+	return applications.Scenario{}, nil
+}
+
 func (f *fakeAPI) UpsertScenario(ctx context.Context, u string, scn applications.Scenario) (applications.Scenario, error) {
 	return applications.Scenario{}, nil
 }
@@ -193,6 +201,26 @@ func (f *fakeAPI) SubscribeActivity(ctx context.Context, q applications.Activity
 	default:
 		return fakeScanSubscriber{}, nil
 	}
+}
+
+func (f *fakeAPI) GetCluster(ctx context.Context, u string) (applications.Cluster, error) {
+	return applications.Cluster{}, nil
+}
+
+func (f *fakeAPI) GetClusterByName(ctx context.Context, n applications.ClusterName) (applications.Cluster, error) {
+	return applications.Cluster{}, nil
+}
+
+func (f *fakeAPI) ListClusters(ctx context.Context, q applications.ClusterListQuery) (applications.ClusterList, error) {
+	return applications.ClusterList{}, nil
+}
+
+func (f *fakeAPI) PatchCluster(ctx context.Context, u string, c applications.ClusterTitle) error {
+	return nil
+}
+
+func (f *fakeAPI) DeleteCluster(ctx context.Context, u string) error {
+	return nil
 }
 
 var _ applications.Subscriber = fakeScanSubscriber{}
