@@ -159,7 +159,7 @@ func (r *ServerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 }
 
 func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	if r.ExperimentsAPI == nil {
+	if r.ExperimentsAPI == nil || r.ApplicationsAPI == nil {
 		// Compute the UA string comment using the Kube API server information
 		var comment string
 		if dc, err := discovery.NewDiscoveryClientForConfig(mgr.GetConfig()); err == nil {
@@ -168,13 +168,24 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			}
 		}
 
-		expAPI, err := server.NewExperimentAPI(context.Background(), comment)
-		if err != nil {
-			r.Log.Info("Experiments API is unavailable, skipping setup", "message", err.Error())
-			return nil
+		if r.ExperimentsAPI == nil {
+			expAPI, err := server.NewExperimentAPI(context.Background(), comment)
+			if err != nil {
+				r.Log.Info("Experiments API is unavailable, skipping setup", "message", err.Error())
+				return nil
+			}
+
+			r.ExperimentsAPI = expAPI
 		}
 
-		r.ExperimentsAPI = expAPI
+		if r.ApplicationsAPI == nil {
+			appAPI, err := server.NewApplicationAPI(context.Background(), comment)
+			if err != nil {
+				r.Log.Info("Applications API is unavailable, skipping setup", "message", err.Error())
+			} else {
+				r.ApplicationsAPI = appAPI
+			}
+		}
 	}
 
 	// Enforce trial creation rate limit (no burst! that is the whole point)
@@ -279,7 +290,7 @@ func (r *ServerReconciler) createApplication(ctx context.Context, exp *optimizev
 	appName := applications.ApplicationName(exp.GetLabels()[optimizeappsv1alpha1.LabelApplication])
 	scnName := applications.ScenarioName(exp.GetLabels()[optimizeappsv1alpha1.LabelScenario])
 
-	if appName == "" {
+	if appName == "" || r.ApplicationsAPI == nil {
 		return nil
 	}
 
