@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-controller/v2/internal/controller"
 	"github.com/thestormforge/optimize-controller/v2/internal/experiment"
@@ -32,7 +33,8 @@ import (
 	"github.com/thestormforge/optimize-controller/v2/internal/trial"
 	"github.com/thestormforge/optimize-controller/v2/internal/validation"
 	"github.com/thestormforge/optimize-go/pkg/api"
-	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
+	applications "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
+	experiments "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"golang.org/x/time/rate"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -70,9 +72,10 @@ func trialCreationRateLimit(log logr.Logger) rate.Limit {
 // ServerReconciler reconciles a experiment and trial objects with a remote server
 type ServerReconciler struct {
 	client.Client
-	Log            logr.Logger
-	Scheme         *runtime.Scheme
-	ExperimentsAPI experimentsv1alpha1.API
+	Log             logr.Logger
+	Scheme          *runtime.Scheme
+	ExperimentsAPI  experiments.API
+	ApplicationsAPI applications.API
 
 	trialCreation *rate.Limiter
 }
@@ -156,7 +159,7 @@ func (r *ServerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 }
 
 func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	if r.ExperimentsAPI == nil {
+	if r.ExperimentsAPI == nil || r.ApplicationsAPI == nil {
 		// Compute the UA string comment using the Kube API server information
 		var comment string
 		if dc, err := discovery.NewDiscoveryClientForConfig(mgr.GetConfig()); err == nil {
@@ -165,13 +168,24 @@ func (r *ServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			}
 		}
 
-		expAPI, err := server.NewExperimentAPI(context.Background(), comment)
-		if err != nil {
-			r.Log.Info("Experiments API is unavailable, skipping setup", "message", err.Error())
-			return nil
+		if r.ExperimentsAPI == nil {
+			expAPI, err := server.NewExperimentAPI(context.Background(), comment)
+			if err != nil {
+				r.Log.Info("Experiments API is unavailable, skipping setup", "message", err.Error())
+				return nil
+			}
+
+			r.ExperimentsAPI = expAPI
 		}
 
-		r.ExperimentsAPI = expAPI
+		if r.ApplicationsAPI == nil {
+			appAPI, err := server.NewApplicationAPI(context.Background(), comment)
+			if err != nil {
+				r.Log.Info("Applications API is unavailable, skipping setup", "message", err.Error())
+			} else {
+				r.ApplicationsAPI = appAPI
+			}
+		}
 	}
 
 	// Enforce trial creation rate limit (no burst! that is the whole point)
@@ -228,7 +242,7 @@ func (r *ServerReconciler) createExperiment(ctx context.Context, log logr.Logger
 	}
 
 	// Create the experiment remotely
-	var ee experimentsv1alpha1.Experiment
+	var ee experiments.Experiment
 	if u := exp.GetAnnotations()[optimizev1beta2.AnnotationExperimentURL]; u != "" {
 		ee, err = r.ExperimentsAPI.CreateExperiment(ctx, u, *e)
 	} else {
@@ -254,6 +268,12 @@ func (r *ServerReconciler) createExperiment(ctx context.Context, log logr.Logger
 		}
 	}
 
+	// If the experiment references an application and scenario, make sure they both exist
+	// NOTE: Applications are not required here, so we are just going to ignore errors
+	if err := r.createApplication(ctx, exp); err != nil {
+		log.Error(err, "Failed to create application scenario")
+	}
+
 	// Apply the server response to the cluster state
 	server.ToCluster(exp, &ee)
 
@@ -264,6 +284,57 @@ func (r *ServerReconciler) createExperiment(ctx context.Context, log logr.Logger
 
 	log.Info("Created remote experiment", "experimentURL", exp.Annotations[optimizev1beta2.AnnotationExperimentURL])
 	return nil, nil
+}
+
+func (r *ServerReconciler) createApplication(ctx context.Context, exp *optimizev1beta2.Experiment) error {
+	appName := applications.ApplicationName(exp.GetLabels()[optimizeappsv1alpha1.LabelApplication])
+	scnName := applications.ScenarioName(exp.GetLabels()[optimizeappsv1alpha1.LabelScenario])
+
+	if appName == "" || r.ApplicationsAPI == nil {
+		return nil
+	}
+
+	// Check to see if the application exists
+	app, err := r.ApplicationsAPI.GetApplicationByName(ctx, appName)
+	if controller.IgnoreNotFound(err) != nil {
+		return err
+	}
+
+	// A non-nil error here means it was not found, try creating it
+	if err != nil {
+		if _, err := r.ApplicationsAPI.UpsertApplicationByName(ctx, appName, applications.Application{}); err != nil {
+			return err
+		}
+		app, err = r.ApplicationsAPI.GetApplicationByName(ctx, appName)
+		if err != nil {
+			return err
+		}
+	}
+
+	if scnName == "" {
+		return nil
+	}
+
+	scenarioURL := app.Link(api.RelationScenarios)
+	if scenarioURL == "" {
+		return fmt.Errorf("malformed application, missing scenarios link")
+	}
+
+	// Check to see if the scenario exists
+	_, err = r.ApplicationsAPI.GetScenarioByName(ctx, scenarioURL, scnName)
+	if controller.IgnoreNotFound(err) != nil {
+		return err
+	}
+
+	// A non-nil error here means it was not found, try creating it
+	if err != nil {
+		_, err = r.ApplicationsAPI.UpsertScenarioByName(ctx, scenarioURL, scnName, applications.Scenario{})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // unlinkExperiment will delete the experiment from the server using the URLs recorded in the cluster; the finalizer

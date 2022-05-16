@@ -17,8 +17,11 @@ limitations under the License.
 package controller
 
 import (
+	"errors"
+
 	"github.com/thestormforge/optimize-go/pkg/api"
-	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
+	applications "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
+	experiments "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 )
 
@@ -27,11 +30,18 @@ func IgnoreNotFound(err error) error {
 	if apierrs.IsNotFound(err) {
 		return nil
 	}
-	if rserr, ok := err.(*api.Error); ok {
-		if rserr.Type == experimentsv1alpha1.ErrExperimentNotFound || rserr.Type == experimentsv1alpha1.ErrTrialNotFound {
+
+	var apierr *api.Error
+	if errors.As(err, &apierr) {
+		switch apierr.Type {
+		case experiments.ErrExperimentNotFound,
+			experiments.ErrTrialNotFound,
+			applications.ErrApplicationNotFound,
+			applications.ErrScenarioNotFound:
 			return nil
 		}
 	}
+
 	return err
 }
 
@@ -48,10 +58,14 @@ func IgnoreReportError(err error) error {
 	if IgnoreNotFound(err) == nil {
 		return nil
 	}
-	if rserr, ok := err.(*api.Error); ok {
-		if rserr.Type == experimentsv1alpha1.ErrTrialAlreadyReported {
+
+	var apierr *api.Error
+	if errors.As(err, &apierr) {
+		switch apierr.Type {
+		case experiments.ErrTrialAlreadyReported:
 			return nil
 		}
 	}
+	
 	return err
 }
