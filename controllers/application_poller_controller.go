@@ -18,15 +18,18 @@ package controllers
 
 import (
 	"context"
-	"crypto/rand"
+	"encoding/base32"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"math/rand"
 	"strings"
+	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/oklog/ulid"
 	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	"github.com/thestormforge/optimize-controller/v2/internal/application"
 	"github.com/thestormforge/optimize-controller/v2/internal/experiment"
 	"github.com/thestormforge/optimize-controller/v2/internal/scan"
 	"github.com/thestormforge/optimize-controller/v2/internal/server"
@@ -219,7 +222,7 @@ func (p *Poller) handleActivity(ctx context.Context, activity applications.Activ
 		}
 	}
 
-	generatedResources, err := p.generateApp(*assembledApp)
+	generatedResources, err := p.generateApp(*assembledApp, scenario.Name.String())
 	if err != nil {
 		p.handleErrors(ctx, log, activity.URL, ActivityReasonGenerationFailed, "Failed to generate application", err)
 		return
@@ -330,13 +333,30 @@ func (p *Poller) handleErrors(ctx context.Context, log logr.Logger, u, reason, m
 	}
 }
 
-func (p *Poller) generateApp(app optimizeappsv1alpha1.Application) ([]runtime.Object, error) {
+const tsEncoder = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+
+func (p *Poller) generateApp(app optimizeappsv1alpha1.Application, scenario string) ([]runtime.Object, error) {
 	// Set defaults for application
 	app.Default()
 
+	// Lookup the scenario
+	scn, err := application.GetScenario(&app, scenario)
+	if err != nil {
+		return nil, err
+	}
+
+	// Use the base32 encoding of the current time as a suffix,
+	// right pad to a length of 8 with pseudo random characters
+	ts := make([]byte, 8)
+	binary.BigEndian.PutUint64(ts, uint64(time.Now().Unix()))
+	suffix := strings.TrimLeft(base32.NewEncoding(tsEncoder).WithPadding(base32.NoPadding).EncodeToString(ts), "0")
+	for len(suffix) < 8 {
+		suffix += string(tsEncoder[rand.Intn(len(tsEncoder))])
+	}
+
 	g := &experiment.Generator{
 		Application:    app,
-		ExperimentName: strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String()),
+		ExperimentName: fmt.Sprintf("%s-%s", scn.Name, suffix),
 		FilterOptions:  p.filterOpts,
 	}
 
