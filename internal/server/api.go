@@ -64,16 +64,14 @@ func NewApplicationAPI(ctx context.Context, uaComment string) (applications.API,
 }
 
 func newClientFromConfig(ctx context.Context, uaComment string, address func(config.Server) string) (api.Client, error) {
-	// TODO This is temporary while we migrate the audience value
-	aud := os.Getenv("STORMFORGE_AUTHORIZATION_AUDIENCE")
-	if aud == "" {
-		aud = "https://api.carbonrelay.io/v1/"
-	}
-
 	// Load the configuration
 	cfg := &config.OptimizeConfig{}
-	cfg.AuthorizationParameters = map[string][]string{
-		"audience": {aud},
+
+	// TODO This is temporary while we migrate the audience value
+	if aud := os.Getenv("STORMFORGE_AUTHORIZATION_AUDIENCE"); aud != "" {
+		cfg.AuthorizationParameters = map[string][]string{
+			"audience": {aud},
+		}
 	}
 
 	if err := cfg.Load(); err != nil {
