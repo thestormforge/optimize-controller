@@ -119,13 +119,13 @@ func (az *StormForgePerformanceAuthorization) setDefaults() error {
 
 	// If we still need a configuration, load a fresh instance
 	if az.Config == nil {
-		aud := os.Getenv("STORMFORGE_AUTHORIZATION_AUDIENCE")
-		if aud == "" {
-			aud = "https://api.carbonrelay.io/v1/"
+		az.Config = &config.OptimizeConfig{}
+
+		// TODO This is temporary while we migrate the audience value
+		if aud := os.Getenv("STORMFORGE_AUTHORIZATION_AUDIENCE"); aud != "" {
+			az.Config.AuthorizationParameters = map[string][]string{"audience": {aud}}
 		}
-		az.Config = &config.OptimizeConfig{
-			AuthorizationParameters: map[string][]string{"audience": {aud}},
-		}
+
 		if err := az.Config.Load(); err != nil {
 			return err
 		}

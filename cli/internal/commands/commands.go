@@ -61,16 +61,14 @@ func NewRootCommand() *cobra.Command {
 	cfg := &config.OptimizeConfig{}
 	commander.ConfigGlobals(cfg, rootCmd)
 
-	// TODO This is temporary while we migrate the audience value
-	aud := os.Getenv("STORMFORGE_AUTHORIZATION_AUDIENCE")
-	if aud == "" {
-		aud = "https://api.carbonrelay.io/v1/"
-	}
-
 	// Establish OAuth client identity
 	cfg.ClientIdentity = authorizationIdentity
-	cfg.AuthorizationParameters = map[string][]string{
-		"audience": {aud},
+
+	// TODO This is temporary while we migrate the audience value
+	if aud := os.Getenv("STORMFORGE_AUTHORIZATION_AUDIENCE"); aud != "" {
+		cfg.AuthorizationParameters = map[string][]string{
+			"audience": {aud},
+		}
 	}
 
 	// Kubernetes Commands
