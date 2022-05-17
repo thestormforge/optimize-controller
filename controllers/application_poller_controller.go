@@ -333,7 +333,7 @@ func (p *Poller) handleErrors(ctx context.Context, log logr.Logger, u, reason, m
 	}
 }
 
-const tsEncoder = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+const tsEncoder = "0123456789abcdefghjkmnpqrstvwxyz"
 
 func (p *Poller) generateApp(app optimizeappsv1alpha1.Application, scenario string) ([]runtime.Object, error) {
 	// Set defaults for application
