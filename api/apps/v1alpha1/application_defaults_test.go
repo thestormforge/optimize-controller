@@ -74,6 +74,59 @@ func TestScenario_Default(t *testing.T) {
 	}
 }
 
+func TestObjective_Default(t *testing.T) {
+	cases := []struct {
+		desc      string
+		objective Objective
+		expected  Objective
+	}{
+		{
+			desc: "default for latency",
+			objective: Objective{
+				Goals: []Goal{
+					{
+						Name: "p95",
+					},
+				},
+			},
+			expected: Objective{
+				Name: "p95-vs-cost",
+				Goals: []Goal{
+					{
+						Name: "p95",
+						Latency: &LatencyGoal{
+							LatencyType: LatencyPercentile95,
+						},
+					},
+					{
+						Name: "cost",
+						Requests: &RequestsGoal{
+							Weights: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("17"),
+								corev1.ResourceMemory: resource.MustParse("3"),
+							},
+						},
+					},
+					{
+						Name:      "error-ratio",
+						Max:       resource.NewScaledQuantity(5, -2),
+						Optimize:  new(bool),
+						ErrorRate: &ErrorRateGoal{},
+						Ignorable: true,
+					},
+				},
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			actual := c.objective
+			actual.Default()
+			assert.Equal(t, c.expected, actual)
+		})
+	}
+}
+
 func TestGoal_Default(t *testing.T) {
 	cases := []struct {
 		desc     string
