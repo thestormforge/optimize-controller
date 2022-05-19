@@ -87,6 +87,7 @@ jobs:
       - name: Build tool
         uses: goreleaser/goreleaser-action@v2
         with:
+          version: 1.8
           args: release --rm-dist --release-notes .github/RELEASE_TEMPLATE.md
         env:
           GITHUB_TOKEN: ${{ secrets.BMASTERS_TOKEN }}
