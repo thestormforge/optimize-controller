@@ -132,23 +132,24 @@ func (in *Scenario) Default() {
 }
 
 func (in *Objective) Default() {
+	// Make sure the existing goals are defaulted before we check the fields
+	for i := range in.Goals {
+		in.Goals[i].Default()
+	}
+
 	// A single goal will not produce a viable experiment, try to offset
 	if len(in.Goals) == 1 {
 		switch {
 		case in.Goals[0].Latency != nil:
-			in.Goals = append(in.Goals, Goal{Name: "cost"})
+			in.Goals = appendDefaultedGoal(in.Goals, Goal{Name: "cost"})
 		case in.Goals[0].Requests != nil:
-			in.Goals = append(in.Goals, Goal{Name: "p95-latency"})
+			in.Goals = appendDefaultedGoal(in.Goals, Goal{Name: "p95-latency"})
 		}
 	}
 
 	// Ensure that a bounded error rate is present for applications that do not
 	// fail until runtime when under provisioned
 	in.enforceErrorRate()
-
-	for i := range in.Goals {
-		in.Goals[i].Default()
-	}
 
 	if in.Name == "" {
 		// Only consider optimized goals when computing the default name
@@ -187,13 +188,18 @@ func (in *Objective) enforceErrorRate() {
 
 	nonOptimized := false
 	maxErrorRate := resource.MustParse("0.05")
-	in.Goals = append(in.Goals, Goal{
+	in.Goals = appendDefaultedGoal(in.Goals, Goal{
 		Name:      "error-ratio",
 		Max:       &maxErrorRate,
 		Optimize:  &nonOptimized,
 		ErrorRate: &ErrorRateGoal{},
 		Ignorable: true,
 	})
+}
+
+func appendDefaultedGoal(goals []Goal, goal Goal) []Goal {
+	goal.Default()
+	return append(goals, goal)
 }
 
 func (in *Goal) Default() {
