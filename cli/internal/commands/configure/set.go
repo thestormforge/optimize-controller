@@ -81,6 +81,17 @@ func (o *SetOptions) set() error {
 		return o.Config.Write()
 	}
 
+	// Allow the controller name to match via the context name
+	if parts := strings.Split(o.Key, "."); len(parts) > 1 && parts[0] == "controller" {
+		r := o.Config.Reader()
+		if _, err := r.Controller(parts[1]); err != nil {
+			if name, err := r.ControllerName(parts[1]); err == nil {
+				parts[1] = name
+				o.Key = strings.Join(parts, ".")
+			}
+		}
+	}
+
 	if o.Value != "" {
 		if err := o.Config.Update(config.SetProperty(o.Key, o.Value)); err != nil {
 			return err
