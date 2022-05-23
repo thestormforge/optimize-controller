@@ -72,8 +72,6 @@ func (o *Options) initializeModel() {
 			out.KeyBinding{Key: tea.Key{Type: tea.KeyRunes, Runes: []rune{'x'}}, Desc: "choose"},
 		},
 	}.NewChoiceField(opts...)
-	o.generatorModel.ExistingApplications.Choices = []string{"\tCreate a new application"}
-	o.generatorModel.ExistingApplications.Select(0)
 
 	o.generatorModel.ApplicationName = out.FormField{
 		Prompt:          "Enter an application name:",

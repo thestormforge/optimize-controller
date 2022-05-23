@@ -165,7 +165,7 @@ func (m generatorModel) Update(msg tea.Msg) (generatorModel, tea.Cmd) {
 			m.ExistingApplications.Disable()
 			m.ApplicationName.Enable()
 		} else {
-			m.ExistingApplications.Choices = append(msg, m.ExistingApplications.Choices[len(m.ExistingApplications.Choices)-1])
+			m.ExistingApplications.Choices = append(msg, "\tCreate a new application")
 			m.ExistingApplications.SelectLast()
 		}
 
