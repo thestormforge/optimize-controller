@@ -54,6 +54,7 @@ func (o *Options) initializeModel() {
 		opts = append(opts, out.VerbosePrompts)
 	}
 	opts = append(opts, out.GlobalInstructions(
+		// TODO The first field includes the "back" instruction even though it's not possible
 		out.KeyBinding{
 			Key:  tea.Key{Type: tea.KeyPgUp},
 			Desc: "back",
@@ -64,27 +65,26 @@ func (o *Options) initializeModel() {
 		},
 	))
 
-	o.generatorModel.ExistingApplications = out.FormField{
-		Prompt:         "Please select an existing application (or create a new one):",
-		LoadingMessage: "Fetching applications",
-		Instructions: []interface{}{
-			"up/down: select",
-			out.KeyBinding{Key: tea.Key{Type: tea.KeyRunes, Runes: []rune{'x'}}, Desc: "choose"},
-		},
-	}.NewChoiceField(opts...)
-
 	o.generatorModel.ApplicationName = out.FormField{
 		Prompt:          "Enter an application name:",
+		LoadingMessage:  "Fetching applications",
 		InputOnSameLine: true,
-	}.NewTextField(opts...)
+		Instructions: []interface{}{
+			"up/down: select",
+		},
+	}.NewChoiceField(opts...)
+	o.generatorModel.ApplicationName.Editable = true
 	o.generatorModel.ApplicationName.Validator = &form.Name{
 		Required: "Required",
 		Valid:    "Must be valid name (lowercase alphanumerics and '-' only)",
 	}
 
 	o.generatorModel.ScenarioName = out.FormField{
-		Prompt:          "Enter a scenario name (optional):",
+		Prompt:          "Enter a scenario name:",
 		InputOnSameLine: true,
+		Instructions: []interface{}{
+			"Leave blank to generate a name",
+		},
 	}.NewTextField(opts...)
 	o.generatorModel.ScenarioName.Validator = &form.Name{
 		Valid: "Must be valid name (lowercase alphanumerics and '-' only)",
@@ -100,7 +100,7 @@ func (o *Options) initializeModel() {
 			ScenarioTypeLocust,
 			ScenarioTypeCustom,
 		},
-	}.NewChoiceField(opts...) // TODO This includes the "back" instruction even though it's not possible
+	}.NewChoiceField(opts...)
 	o.generatorModel.ScenarioType.Select(0)
 
 	o.generatorModel.StormForgeTestCaseInput = out.FormField{
@@ -376,7 +376,7 @@ func (o *Options) updateGeneratorForm() {
 	}
 
 	if o.Generator.Application.Name == "" {
-		o.generatorModel.ExistingApplications.Enable()
+		o.generatorModel.ApplicationName.Enable()
 	}
 
 	if len(o.Generator.Application.Scenarios) == 0 {

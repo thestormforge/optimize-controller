@@ -37,8 +37,11 @@ type Model struct {
 
 	// Spinner to use while loading.
 	LoadingSpinner spinner.Model
-	// Message to display while loading.
+	// Message to display while loading (choices is nil).
 	LoadingMessage string
+
+	// Message to display if there are no results (choices is empty).
+	NoResultsMessage string
 
 	selected int
 }
@@ -63,7 +66,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	)
 
 	// Only update the text input if there are choices present
-	if _, isKey := msg.(tea.KeyMsg); (m.Editable && len(m.Choices) > 0) || !isKey {
+	if _, isKey := msg.(tea.KeyMsg); (m.Editable && m.Choices != nil) || !isKey {
 		m.Model, cmd = m.Model.Update(msg)
 		cmds = append(cmds, cmd)
 	}
@@ -84,6 +87,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 		case "down":
 			m.Select(m.selected + 1)
+
+		default:
+			if m.Editable {
+				m.selected = -1
+			}
 
 		}
 	}
@@ -129,15 +137,20 @@ func (m Model) View() string {
 	var lines []string
 
 	// Only render the whole text input if we allow edits
-	if m.Editable && len(m.Choices) > 0 {
+	if m.Editable && m.Choices != nil {
 		lines = append(lines, m.Model.View())
 	} else {
 		lines = append(lines, m.Model.Prompt)
 	}
 
 	// If there are no choices yet, show the loading spinner/message
-	if len(m.Choices) == 0 {
+	if m.Choices == nil {
 		lines = append(lines, "\n", m.LoadingSpinner.View(), m.LoadingMessage)
+	} else if len(m.Choices) == 0 {
+		lines = append(lines, m.NoResultsMessage)
+	} else if m.Editable && !strings.HasSuffix(m.Prompt, "\n") {
+		// TODO Normally we put the newline on the prompt, maybe it's not such a good idea
+		lines = append(lines, "\n")
 	}
 
 	// Render the list of choices

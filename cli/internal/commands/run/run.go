@@ -282,9 +282,7 @@ func (o *Options) ReadApplication(args []string) error {
 
 // applyToApp takes all of the what is on the model and applies it to an application.
 func (m generatorModel) applyToApp(app *optimizeappsv1alpha1.Application) {
-	if name := m.ExistingApplications.Value(); m.ExistingApplications.Enabled() && name != "" {
-		app.Name = name
-	} else if m.ApplicationName.Enabled() {
+	if m.ApplicationName.Enabled() {
 		app.Name = m.ApplicationName.Value()
 	}
 

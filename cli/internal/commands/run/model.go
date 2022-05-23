@@ -124,8 +124,7 @@ func (m initializationModel) Update(msg tea.Msg) (initializationModel, tea.Cmd) 
 
 // generatorModel holds the inputs for values on the generator.
 type generatorModel struct {
-	ExistingApplications form.ChoiceField
-	ApplicationName      form.TextField
+	ApplicationName form.ChoiceField
 
 	ScenarioName             form.TextField
 	ScenarioType             form.ChoiceField
@@ -151,6 +150,9 @@ func (m generatorModel) Update(msg tea.Msg) (generatorModel, tea.Cmd) {
 	var cmds []tea.Cmd
 	switch msg := msg.(type) {
 
+	case internal.ApplicationMsg:
+		m.ApplicationName.Choices = msg
+
 	case internal.StormForgeTestCasesMsg:
 		m.StormForgeTestCaseInput.Choices = msg
 		m.StormForgeTestCaseInput.SelectOnly()
@@ -159,26 +161,9 @@ func (m generatorModel) Update(msg tea.Msg) (generatorModel, tea.Cmd) {
 		m.NamespaceInput.Choices = msg
 		m.NamespaceInput.SelectOnly()
 
-	case internal.ApplicationMsg:
-		if len(msg) == 0 {
-			// No existing application, use name input
-			m.ExistingApplications.Disable()
-			m.ApplicationName.Enable()
-		} else {
-			m.ExistingApplications.Choices = append(msg, "\tCreate a new application")
-			m.ExistingApplications.SelectLast()
-		}
-
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyEnter:
-			// If "create new application" was selected, enable the name input
-			if m.ExistingApplications.Focused() {
-				if m.ExistingApplications.Value() == "" {
-					m.ApplicationName.Enable()
-				}
-			}
-
 			// If we just completed namespace selection, create the per-namespace label selector inputs
 			if m.NamespaceInput.Focused() {
 				m.updateLabelSelectorInputs()
@@ -189,9 +174,6 @@ func (m generatorModel) Update(msg tea.Msg) (generatorModel, tea.Cmd) {
 	var cmd tea.Cmd
 
 	cmd = m.form().Update(msg)
-	cmds = append(cmds, cmd)
-
-	m.ExistingApplications, cmd = m.ExistingApplications.Update(msg)
 	cmds = append(cmds, cmd)
 
 	m.ApplicationName, cmd = m.ApplicationName.Update(msg)
@@ -244,7 +226,6 @@ func (m generatorModel) Update(msg tea.Msg) (generatorModel, tea.Cmd) {
 // form returns a slice of everything on the model that implements `form.Field`.
 func (m *generatorModel) form() form.Fields {
 	var fields form.Fields
-	fields = append(fields, &m.ExistingApplications)
 	fields = append(fields, &m.ApplicationName)
 	fields = append(fields, &m.ScenarioName)
 	fields = append(fields, &m.ScenarioType)

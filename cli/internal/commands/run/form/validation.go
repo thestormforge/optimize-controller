@@ -171,3 +171,7 @@ func (v *Name) ValidateTextField(value string) tea.Msg {
 
 	return ValidationMsg("")
 }
+
+func (v *Name) ValidateChoiceField(value string) tea.Msg {
+	return v.ValidateTextField(value)
+}
