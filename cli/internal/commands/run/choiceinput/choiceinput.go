@@ -119,6 +119,12 @@ func (m *Model) SelectOnly() {
 	}
 }
 
+func (m *Model) SelectLast() {
+	if len(m.Choices) > 0 {
+		m.Select(len(m.Choices) - 1)
+	}
+}
+
 func (m Model) View() string {
 	var lines []string
 
