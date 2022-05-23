@@ -143,6 +143,14 @@ func (m Model) View() string {
 	return strings.Join(lines, "")
 }
 
+func (m Model) Value() string {
+	value := m.Model.Value()
+	if pos := strings.IndexRune(value, '\t'); pos >= 0 {
+		value = value[0:pos]
+	}
+	return value
+}
+
 func viewChoice(value string, selected, highlighted, focused bool) string {
 	var choice strings.Builder
 	var checkboxStyle, choiceStyle termenv.Style
@@ -154,6 +162,9 @@ func viewChoice(value string, selected, highlighted, focused bool) string {
 	if highlighted && focused {
 		checkboxStyle = checkboxStyle.Bold()
 		choiceStyle = choiceStyle.Bold()
+	}
+	if pos := strings.IndexRune(value, '\t'); pos >= 0 {
+		value = value[pos+1:]
 	}
 
 	choice.WriteString("\n")
