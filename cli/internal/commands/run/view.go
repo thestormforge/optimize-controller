@@ -64,6 +64,34 @@ func (o *Options) initializeModel() {
 		},
 	))
 
+	o.generatorModel.ExistingApplications = out.FormField{
+		Prompt:         "Please select an existing application (or create a new one):",
+		LoadingMessage: "Fetching applications",
+		Instructions: []interface{}{
+			"up/down: select",
+			out.KeyBinding{Key: tea.Key{Type: tea.KeyRunes, Runes: []rune{'x'}}, Desc: "choose"},
+		},
+	}.NewChoiceField(opts...)
+	o.generatorModel.ExistingApplications.Choices = []string{"\tCreate a new application"}
+	o.generatorModel.ExistingApplications.Select(0)
+
+	o.generatorModel.ApplicationName = out.FormField{
+		Prompt:          "Enter an application name:",
+		InputOnSameLine: true,
+	}.NewTextField(opts...)
+	o.generatorModel.ApplicationName.Validator = &form.Name{
+		Required: "Required",
+		Valid:    "Must be valid name (lowercase alphanumerics and '-' only)",
+	}
+
+	o.generatorModel.ScenarioName = out.FormField{
+		Prompt:          "Enter a scenario name (optional):",
+		InputOnSameLine: true,
+	}.NewTextField(opts...)
+	o.generatorModel.ScenarioName.Validator = &form.Name{
+		Valid: "Must be valid name (lowercase alphanumerics and '-' only)",
+	}
+
 	o.generatorModel.ScenarioType = out.FormField{
 		Prompt: "Where do you want to get your load test from?",
 		Instructions: []interface{}{
@@ -203,24 +231,6 @@ https://docs.stormforger.com/guides/getting-started/`,
 	}.NewMultiChoiceField(opts...)
 	o.generatorModel.ObjectiveInput.Select(0)
 	o.generatorModel.ObjectiveInput.Select(2)
-
-	o.generatorModel.ApplicationInput = out.FormField{
-		Prompt:         "Please select an application name:",
-		LoadingMessage: "Fetching applications",
-		Instructions: []interface{}{
-			"up/down: select",
-			out.KeyBinding{Key: tea.Key{Type: tea.KeyRunes, Runes: []rune{'x'}}, Desc: "choose"},
-		},
-	}.NewChoiceField(opts...)
-
-	o.generatorModel.ScenarioInput = out.FormField{
-		Prompt:         "Please select a scenario name:",
-		LoadingMessage: "Fetching scenarios",
-		Instructions: []interface{}{
-			"up/down: select",
-			out.KeyBinding{Key: tea.Key{Type: tea.KeyRunes, Runes: []rune{'x'}}, Desc: "choose"},
-		},
-	}.NewChoiceField(opts...)
 
 	o.previewModel.Destination = out.FormField{
 		Prompt: "What would you like to do?",
@@ -368,11 +378,11 @@ func (o *Options) updateGeneratorForm() {
 	}
 
 	if o.Generator.Application.Name == "" {
-		o.generatorModel.ApplicationInput.Enable()
+		o.generatorModel.ExistingApplications.Enable()
 	}
 
 	if len(o.Generator.Application.Scenarios) == 0 {
-		o.generatorModel.ScenarioInput.Enable()
+		o.generatorModel.ScenarioName.Enable()
 
 		o.generatorModel.ScenarioType.Enable()
 		useStormForge := o.generatorModel.ScenarioType.Value() == ScenarioTypeStormForge
@@ -403,12 +413,6 @@ func (o *Options) updateGeneratorForm() {
 
 	if len(o.Generator.Application.Objectives) == 0 {
 		o.generatorModel.ObjectiveInput.Enable()
-	}
-
-	// TODO Temporarily disable application and scenario name inputs if they are non-nil and still empty
-	if o.generatorModel.ApplicationInput.Choices != nil && len(o.generatorModel.ApplicationInput.Choices) == 0 {
-		o.generatorModel.ApplicationInput.Disable()
-		o.generatorModel.ScenarioInput.Disable()
 	}
 }
 

@@ -255,45 +255,28 @@ func (o *Options) listApplicationNames() tea.Msg {
 	l := applications.Lister{API: o.ApplicationsAPI}
 	q := applications.ApplicationListQuery{}
 	err := l.ForEachApplication(ctx, q, func(item *applications.ApplicationItem) error {
-		msg = append(msg, fmt.Sprintf("%-32s (%s)", item.Title(), item.Name))
+		switch {
+		case item.Title() != "":
+			msg = append(msg, fmt.Sprintf("%s\t%s", item.Name, item.Title()))
+		default:
+			msg = append(msg, item.Name.String())
+		}
 		return nil
 	})
 	if err != nil {
-		// TODO Temporarily return an empty list
 		return msg
 	}
 
-	sort.Strings(msg)
-
-	return msg
-}
-
-// listScenarioNames returns a list of scenarios.
-func (o *Options) listScenarioNames() tea.Msg {
-	ctx := context.TODO()
-	msg := internal.ScenarioMsg{}
-
-	// Isolate ULID from selection
-	parts := strings.Fields(o.generatorModel.ApplicationInput.Value())
-	appName := strings.Trim(parts[len(parts)-1], "()")
-
-	// Look up application to find url
-	app, err := o.ApplicationsAPI.GetApplicationByName(ctx, applications.ApplicationName(appName))
-	if err != nil {
-		return err
-	}
-
-	l := applications.Lister{API: o.ApplicationsAPI}
-	q := applications.ScenarioListQuery{}
-	err = l.ForEachScenario(ctx, &app, q, func(item *applications.ScenarioItem) error {
-		msg = append(msg, fmt.Sprintf("%-32s (%s)", item.Title(), item.Name))
-		return nil
+	sort.Slice(msg, func(i, j int) bool {
+		vi, vj := msg[i], msg[j]
+		if pos := strings.IndexRune(vi, '\t'); pos >= 0 {
+			vi = vi[pos+1:]
+		}
+		if pos := strings.IndexRune(vj, '\t'); pos >= 0 {
+			vj = vj[pos+1:]
+		}
+		return vi < vj
 	})
-	if err != nil {
-		return err
-	}
-
-	sort.Strings(msg)
 
 	return msg
 }

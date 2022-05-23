@@ -124,6 +124,10 @@ func (m initializationModel) Update(msg tea.Msg) (initializationModel, tea.Cmd) 
 
 // generatorModel holds the inputs for values on the generator.
 type generatorModel struct {
+	ExistingApplications form.ChoiceField
+	ApplicationName      form.TextField
+
+	ScenarioName             form.TextField
 	ScenarioType             form.ChoiceField
 	StormForgeTestCaseInput  form.ChoiceField
 	StormForgeGettingStarted form.ExitField
@@ -141,9 +145,6 @@ type generatorModel struct {
 	ReplicasSelectorInput           form.TextField
 
 	ObjectiveInput form.MultiChoiceField
-
-	ApplicationInput form.ChoiceField
-	ScenarioInput    form.ChoiceField
 }
 
 func (m generatorModel) Update(msg tea.Msg) (generatorModel, tea.Cmd) {
@@ -159,22 +160,28 @@ func (m generatorModel) Update(msg tea.Msg) (generatorModel, tea.Cmd) {
 		m.NamespaceInput.SelectOnly()
 
 	case internal.ApplicationMsg:
-		m.ApplicationInput.Choices = msg
-		m.ApplicationInput.SelectOnly()
-
-	case internal.ScenarioMsg:
-		m.ScenarioInput.Choices = msg
-		m.ScenarioInput.SelectOnly()
+		if len(msg) == 0 {
+			// No existing application, use name input
+			m.ExistingApplications.Disable()
+			m.ApplicationName.Enable()
+		} else {
+			m.ExistingApplications.Choices = append(msg, m.ExistingApplications.Choices[len(m.ExistingApplications.Choices)-1])
+			m.ExistingApplications.SelectLast()
+		}
 
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyEnter:
+			// If "create new application" was selected, enable the name input
+			if m.ExistingApplications.Focused() {
+				if m.ExistingApplications.Value() == "" {
+					m.ApplicationName.Enable()
+				}
+			}
+
 			// If we just completed namespace selection, create the per-namespace label selector inputs
 			if m.NamespaceInput.Focused() {
 				m.updateLabelSelectorInputs()
-			}
-			if m.ApplicationInput.Focused() {
-				cmds = append(cmds, func() tea.Msg { return internal.DoScenarioLookup{} })
 			}
 		}
 	}
@@ -182,6 +189,15 @@ func (m generatorModel) Update(msg tea.Msg) (generatorModel, tea.Cmd) {
 	var cmd tea.Cmd
 
 	cmd = m.form().Update(msg)
+	cmds = append(cmds, cmd)
+
+	m.ExistingApplications, cmd = m.ExistingApplications.Update(msg)
+	cmds = append(cmds, cmd)
+
+	m.ApplicationName, cmd = m.ApplicationName.Update(msg)
+	cmds = append(cmds, cmd)
+
+	m.ScenarioName, cmd = m.ScenarioName.Update(msg)
 	cmds = append(cmds, cmd)
 
 	m.ScenarioType, cmd = m.ScenarioType.Update(msg)
@@ -222,18 +238,15 @@ func (m generatorModel) Update(msg tea.Msg) (generatorModel, tea.Cmd) {
 	m.ObjectiveInput, cmd = m.ObjectiveInput.Update(msg)
 	cmds = append(cmds, cmd)
 
-	m.ApplicationInput, cmd = m.ApplicationInput.Update(msg)
-	cmds = append(cmds, cmd)
-
-	m.ScenarioInput, cmd = m.ScenarioInput.Update(msg)
-	cmds = append(cmds, cmd)
-
 	return m, tea.Batch(cmds...)
 }
 
 // form returns a slice of everything on the model that implements `form.Field`.
 func (m *generatorModel) form() form.Fields {
 	var fields form.Fields
+	fields = append(fields, &m.ExistingApplications)
+	fields = append(fields, &m.ApplicationName)
+	fields = append(fields, &m.ScenarioName)
 	fields = append(fields, &m.ScenarioType)
 	fields = append(fields, &m.StormForgeTestCaseInput)
 	fields = append(fields, &m.StormForgeGettingStarted)
@@ -248,8 +261,6 @@ func (m *generatorModel) form() form.Fields {
 	fields = append(fields, &m.ContainerResourcesSelectorInput)
 	fields = append(fields, &m.ReplicasSelectorInput)
 	fields = append(fields, &m.ObjectiveInput)
-	fields = append(fields, &m.ApplicationInput)
-	fields = append(fields, &m.ScenarioInput)
 	return fields
 }
 

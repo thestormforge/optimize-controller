@@ -59,14 +59,8 @@ type KubernetesNamespacesMsg []string
 // test case names.
 type StormForgeTestCasesMsg []string
 
-// ApplicationMsg contains the application ULID if an existing application is used.
+// ApplicationMsg contains the names (and optional titles) of existing applications.
 type ApplicationMsg []string
-
-// DoScenarioLookup triggers the retrieval of scenario names for an application.
-type DoScenarioLookup struct{}
-
-// ScenarioMsg contains the scenario ULID if an existing scenario is used.
-type ScenarioMsg []string
 
 // ExperimentMsg represents the generated experiment.
 type ExperimentMsg []*yaml.RNode
