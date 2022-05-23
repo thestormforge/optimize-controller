@@ -28,6 +28,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 	konjurev1beta2 "github.com/thestormforge/konjure/pkg/api/core/v1beta2"
+	"github.com/thestormforge/konjure/pkg/filters"
 	"github.com/thestormforge/konjure/pkg/konjure"
 	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commander"
@@ -365,7 +366,9 @@ func (m generatorModel) applyToApp(app *optimizeappsv1alpha1.Application) {
 		// the presence of any parameter bypasses the default inclusion of container resources.
 		app.Configuration = append(app.Configuration, optimizeappsv1alpha1.Parameter{
 			ContainerResources: &optimizeappsv1alpha1.ContainerResources{
-				Selector: m.ContainerResourcesSelectorInput.Value(),
+				ResourceMetaFilter: filters.ResourceMetaFilter{
+					LabelSelector: m.ContainerResourcesSelectorInput.Value(),
+				},
 			},
 		})
 	}
@@ -374,7 +377,9 @@ func (m generatorModel) applyToApp(app *optimizeappsv1alpha1.Application) {
 		if sel := m.ReplicasSelectorInput.Value(); sel != "" {
 			app.Configuration = append(app.Configuration, optimizeappsv1alpha1.Parameter{
 				Replicas: &optimizeappsv1alpha1.Replicas{
-					Selector: sel,
+					ResourceMetaFilter: filters.ResourceMetaFilter{
+						LabelSelector: sel,
+					},
 				},
 			})
 		}
