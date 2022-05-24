@@ -66,7 +66,7 @@ type Parameter struct {
 type ContainerResources struct {
 	filters.ResourceMetaFilter
 	// Label selector of Kubernetes objects to consider when generating container resources patches.
-	// Deprecated: use GenericSelector.LabelSelector instead.
+	// Deprecated: use ResourceMetaFilter.LabelSelector instead.
 	Selector string `json:"selector,omitempty"`
 	// Regular expression matching the container name.
 	ContainerName string `json:"containerName,omitempty"`
@@ -84,7 +84,7 @@ type ContainerResources struct {
 type Replicas struct {
 	filters.ResourceMetaFilter
 	// Label selector of Kubernetes objects to consider when generating replica patches.
-	// Deprecated: use GenericSelector.LabelSelector instead.
+	// Deprecated: use ResourceMetaFilter.LabelSelector instead.
 	Selector string `json:"selector,omitempty"`
 	// Path to the replica field.
 	Path string `json:"path,omitempty"`

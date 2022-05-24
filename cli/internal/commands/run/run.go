@@ -28,6 +28,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 	konjurev1beta2 "github.com/thestormforge/konjure/pkg/api/core/v1beta2"
+	"github.com/thestormforge/konjure/pkg/filters"
 	"github.com/thestormforge/konjure/pkg/konjure"
 	optimizeappsv1alpha1 "github.com/thestormforge/optimize-controller/v2/api/apps/v1alpha1"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commander"
@@ -219,9 +220,6 @@ func (o *Options) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Refresh the trials list
 		cmds = append(cmds, o.refreshTrials)
 
-	case internal.DoScenarioLookup:
-		cmds = append(cmds, o.listScenarioNames)
-
 	case error:
 		// Handle errors so any command returning tea.Msg can just return an error
 		o.lastErr = msg
@@ -284,19 +282,16 @@ func (o *Options) ReadApplication(args []string) error {
 
 // applyToApp takes all of the what is on the model and applies it to an application.
 func (m generatorModel) applyToApp(app *optimizeappsv1alpha1.Application) {
-	if m.ApplicationInput.Enabled() {
-		parts := strings.Fields(m.ApplicationInput.Value())
-		app.Name = strings.Trim(parts[len(parts)-1], "()")
+	if m.ApplicationName.Enabled() {
+		app.Name = m.ApplicationName.Value()
 	}
 
 	var scenarioName string
-	if m.ScenarioInput.Enabled() {
-		parts := strings.Fields(m.ScenarioInput.Value())
-		scenarioName = strings.Trim(parts[len(parts)-1], "()")
+	if m.ScenarioName.Enabled() {
+		scenarioName = m.ScenarioName.Value()
 	}
 
 	if m.NamespaceInput.Enabled() {
-
 		// TODO We need a better way to set the name/namespace of the application
 		if namespaces := m.NamespaceInput.Values(); len(namespaces) == 1 {
 			app.Namespace = namespaces[0]
@@ -365,7 +360,9 @@ func (m generatorModel) applyToApp(app *optimizeappsv1alpha1.Application) {
 		// the presence of any parameter bypasses the default inclusion of container resources.
 		app.Configuration = append(app.Configuration, optimizeappsv1alpha1.Parameter{
 			ContainerResources: &optimizeappsv1alpha1.ContainerResources{
-				Selector: m.ContainerResourcesSelectorInput.Value(),
+				ResourceMetaFilter: filters.ResourceMetaFilter{
+					LabelSelector: m.ContainerResourcesSelectorInput.Value(),
+				},
 			},
 		})
 	}
@@ -374,7 +371,9 @@ func (m generatorModel) applyToApp(app *optimizeappsv1alpha1.Application) {
 		if sel := m.ReplicasSelectorInput.Value(); sel != "" {
 			app.Configuration = append(app.Configuration, optimizeappsv1alpha1.Parameter{
 				Replicas: &optimizeappsv1alpha1.Replicas{
-					Selector: sel,
+					ResourceMetaFilter: filters.ResourceMetaFilter{
+						LabelSelector: sel,
+					},
 				},
 			})
 		}

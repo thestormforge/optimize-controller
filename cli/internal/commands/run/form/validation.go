@@ -152,3 +152,26 @@ func (v *ContainerImage) ValidateTextField(value string) tea.Msg {
 
 	return ValidationMsg("")
 }
+
+var nameRegexp = regexp.MustCompile(`^[a-z\d](?:[-a-z\d]{0,61}[a-z\d])?$`)
+
+type Name struct {
+	Required string
+	Valid    string
+}
+
+func (v *Name) ValidateTextField(value string) tea.Msg {
+	if value == "" {
+		return ValidationMsg(v.Required)
+	}
+
+	if !nameRegexp.MatchString(value) {
+		return ValidationMsg(v.Valid)
+	}
+
+	return ValidationMsg("")
+}
+
+func (v *Name) ValidateChoiceField(value string) tea.Msg {
+	return v.ValidateTextField(value)
+}
