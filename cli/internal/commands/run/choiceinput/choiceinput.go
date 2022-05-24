@@ -114,7 +114,11 @@ func (m *Model) Select(i int) {
 	}
 
 	if len(m.Choices) > 0 {
-		m.Model.SetValue(m.Choices[m.selected])
+		value := m.Choices[m.selected]
+		if pos := strings.IndexRune(value, '\t'); pos >= 0 {
+			value = value[0:pos]
+		}
+		m.Model.SetValue(value)
 	} else {
 		m.Model.SetValue("")
 	}
@@ -160,14 +164,6 @@ func (m Model) View() string {
 	}
 
 	return strings.Join(lines, "")
-}
-
-func (m Model) Value() string {
-	value := m.Model.Value()
-	if pos := strings.IndexRune(value, '\t'); pos >= 0 {
-		value = value[0:pos]
-	}
-	return value
 }
 
 func viewChoice(value string, selected, highlighted, focused bool) string {
