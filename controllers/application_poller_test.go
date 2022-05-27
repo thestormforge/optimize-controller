@@ -89,6 +89,14 @@ func TestPoller(t *testing.T) {
 						Minimize: true,
 					},
 					{
+						Name:     "error-ratio",
+						Minimize: true,
+						Optimize: &pfalse,
+						Bounds: &applications.TemplateMetricBounds{
+							Max: 0.05,
+						},
+					},
+					{
 						Name:     "cost",
 						Minimize: true,
 					},

@@ -94,14 +94,25 @@ func ClusterExperimentToAPITemplate(exp *optimizev1beta2.Experiment) (*applicati
 
 	template.Parameters = combinedParams
 
-	metric := metrics(exp)
-	metricBytes, err := json.Marshal(metric)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := json.Unmarshal(metricBytes, &template.Metrics); err != nil {
-		return nil, err
+	// Template metrics have additional bounds information that must be propagated
+	for i := range exp.Spec.Metrics {
+		m := &exp.Spec.Metrics[i]
+		var b *applications.TemplateMetricBounds
+		if m.Max != nil || m.Min != nil {
+			b = &applications.TemplateMetricBounds{}
+			if m.Max != nil {
+				b.Max = float64(m.Max.MilliValue()) / 1000
+			}
+			if m.Min != nil {
+				b.Min = float64(m.Min.MilliValue()) / 1000
+			}
+		}
+		template.Metrics = append(template.Metrics, applications.TemplateMetric{
+			Name:     m.Name,
+			Minimize: m.Minimize,
+			Optimize: m.Optimize,
+			Bounds:   b,
+		})
 	}
 
 	return template, nil
