@@ -108,10 +108,12 @@ func TestObjective_Default(t *testing.T) {
 						},
 					},
 					{
-						Name:      "error-ratio",
-						Max:       resource.NewScaledQuantity(5, -2),
-						Optimize:  new(bool),
-						ErrorRate: &ErrorRateGoal{},
+						Name:     "error-ratio",
+						Max:      resource.NewScaledQuantity(5, -2),
+						Optimize: new(bool),
+						ErrorRate: &ErrorRateGoal{
+							ErrorRateType: ErrorRateRequests,
+						},
 						Ignorable: true,
 					},
 				},
