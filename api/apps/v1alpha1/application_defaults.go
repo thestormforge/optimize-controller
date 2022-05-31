@@ -189,10 +189,12 @@ func (in *Objective) enforceErrorRate() {
 	nonOptimized := false
 	maxErrorRate := resource.MustParse("0.05")
 	in.Goals = appendDefaultedGoal(in.Goals, Goal{
-		Name:      "error-ratio",
-		Max:       &maxErrorRate,
-		Optimize:  &nonOptimized,
-		ErrorRate: &ErrorRateGoal{},
+		Name:     "error-ratio",
+		Max:      &maxErrorRate,
+		Optimize: &nonOptimized,
+		ErrorRate: &ErrorRateGoal{
+			ErrorRateType: ErrorRateRequests,
+		},
 		Ignorable: true,
 	})
 }
