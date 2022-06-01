@@ -20,6 +20,7 @@ import (
 	"context"
 	"net/url"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -222,6 +223,9 @@ func (l *linter) Visit(ctx context.Context, obj interface{}) experiment.Visitor 
 			}
 		}
 
+		if ok, _ := regexp.MatchString(`(?m) +$`, o.Patch); ok {
+			lint.V(vWarn).Info("Patch lines contains trailing space which may cause formatting issues")
+		}
 		if _, err := template.New().RenderPatch(o, &optimizev1beta2.Trial{}); err != nil {
 			lint.Error(err, "Patch is not valid")
 		}
