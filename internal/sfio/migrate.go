@@ -151,7 +151,7 @@ func (f *ExperimentMigrationFilter) MigrateRSOApplicationV1alpha1(node *yaml.RNo
 	)
 }
 
-// MigrateExperimentV1beta2 converts a resource node from a v1beta1 Experiment to the latest format.
+// MigrateExperimentV1beta2 converts a resource node from a v1beta2 Experiment to the latest format.
 func (f *ExperimentMigrationFilter) MigrateExperimentV1beta2(node *yaml.RNode) (*yaml.RNode, error) {
 	return node.Pipe(
 		// Ensure the application and scenario labels are set correctly
@@ -165,6 +165,15 @@ func (f *ExperimentMigrationFilter) MigrateExperimentV1beta2(node *yaml.RNode) (
 					yaml.Tee(yaml.SetLabel(optimizeappsv1alpha1.LabelApplication, labelApplication)),
 					yaml.Tee(yaml.SetLabel(optimizeappsv1alpha1.LabelScenario, labelScenario)),
 				)
+			}),
+		),
+
+		// Trim white space at the end of patch lines
+		TeeMatched(
+			yaml.PathMatcher{Path: []string{"spec", "patches", "[patch=]", "patch"}},
+			yaml.FilterFunc(func(node *yaml.RNode) (*yaml.RNode, error) {
+				node.YNode().Value = regexp.MustCompile(`(?m) +$`).ReplaceAllString(node.YNode().Value, "")
+				return node, nil
 			}),
 		),
 	)
