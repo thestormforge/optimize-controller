@@ -166,6 +166,23 @@ func AppendPrometheusEnv(t *optimizev1beta2.Trial, env []corev1.EnvVar) []corev1
 	return env
 }
 
+// AppendStatusEnv appends the trial status as environment variables.
+func AppendStatusEnv(t *optimizev1beta2.Trial, env []corev1.EnvVar) []corev1.EnvVar {
+	for i := range t.Status.Conditions {
+		c := t.Status.Conditions[i]
+		if c.Type == optimizev1beta2.TrialFailed && c.Status == corev1.ConditionTrue {
+			failureReason := c.Reason
+			if failureReason == "" {
+				failureReason = "Failed"
+			}
+
+			env = append(env, corev1.EnvVar{Name: "FAILURE_REASON", Value: failureReason})
+		}
+	}
+
+	return env
+}
+
 // IsPrometheusSetupTask checks to see if the supplied setup task is for the built-in Prometheus.
 func IsPrometheusSetupTask(st *optimizev1beta2.SetupTask) bool {
 	// Needs to have these arguments

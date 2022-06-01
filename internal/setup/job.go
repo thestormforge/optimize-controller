@@ -116,6 +116,9 @@ func NewJob(t *optimizev1beta2.Trial, mode string) (*batchv1.Job, error) {
 		// Add the trial assignments to the environment
 		c.Env = AppendAssignmentEnv(t, c.Env)
 
+		// Include the trial status as environment variables
+		c.Env = AppendStatusEnv(t, c.Env)
+
 		// Add the configured volume mounts
 		c.VolumeMounts = append(c.VolumeMounts, task.VolumeMounts...)
 
