@@ -20,7 +20,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: ~1.18
+          go-version-file: go.mod
+          cache: true
       - name: Install minikube
         id: install-minikube
         run: |
@@ -43,20 +44,6 @@ jobs:
           minikube delete
           minikube start --vm-driver hyperkit --wait all
           minikube docker-env | sed '/^#/d;s/="\(.*\)"/=\1/g;s/export //g' >> $GITHUB_ENV
-      - name: Cache Go Modules
-        uses: actions/cache@v3
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-      - name: Cache Go Cache
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache
-          key: ${{ runner.os }}-gobuildcache-${{ hashFiles('**.go') }}
-          restore-keys: |
-            ${{ runner.os }}-gobuildcache-
       - name: Import GPG key
         id: import_gpg
         uses: crazy-max/ghaction-import-gpg@v2
@@ -87,7 +74,6 @@ jobs:
       - name: Build tool
         uses: goreleaser/goreleaser-action@v2
         with:
-          version: 1.8
           args: release --rm-dist --release-notes .github/RELEASE_TEMPLATE.md
         env:
           GITHUB_TOKEN: ${{ secrets.BMASTERS_TOKEN }}
