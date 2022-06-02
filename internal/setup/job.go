@@ -61,8 +61,8 @@ func NewJob(t *optimizev1beta2.Trial, mode string) (*batchv1.Job, error) {
 
 	// Collect the volumes we need for the pod
 	volumes := make(map[string]*corev1.Volume)
-	for _, v := range t.Spec.SetupVolumes {
-		volumes[v.Name] = &v
+	for i := range t.Spec.SetupVolumes {
+		volumes[t.Spec.SetupVolumes[i].Name] = &t.Spec.SetupVolumes[i]
 	}
 
 	// We need to run as a non-root user
