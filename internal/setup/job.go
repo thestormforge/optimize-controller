@@ -61,9 +61,12 @@ func NewJob(t *optimizev1beta2.Trial, mode string) (*batchv1.Job, error) {
 
 	// Collect the volumes we need for the pod
 	volumes := make(map[string]*corev1.Volume)
-	for _, v := range t.Spec.SetupVolumes {
-		volumes[v.Name] = &v
+	for i := range t.Spec.SetupVolumes {
+		volumes[t.Spec.SetupVolumes[i].Name] = &t.Spec.SetupVolumes[i]
 	}
+
+	// Do not include volume references that are only necessary for skipped tasks
+	referencedVolumes := make(map[string]bool)
 
 	// We need to run as a non-root user
 	allowPrivilegeEscalation := false
@@ -201,12 +204,19 @@ func NewJob(t *optimizev1beta2.Trial, mode string) (*batchv1.Job, error) {
 			c.Env = append(c.Env, corev1.EnvVar{Name: "HELM_CONFIG", Value: base64.StdEncoding.EncodeToString(b)})
 		}
 
+		// Keep track of the volume names we actually used
+		for _, vm := range c.VolumeMounts {
+			referencedVolumes[vm.Name] = true
+		}
+
 		job.Spec.Template.Spec.Containers = append(job.Spec.Template.Spec.Containers, c)
 	}
 
-	// Add all of the volumes we collected to the pod
-	for _, v := range volumes {
-		job.Spec.Template.Spec.Volumes = append(job.Spec.Template.Spec.Volumes, *v)
+	// Add all the referenced volumes we collected to the pod
+	for n, v := range volumes {
+		if referencedVolumes[n] {
+			job.Spec.Template.Spec.Volumes = append(job.Spec.Template.Spec.Volumes, *v)
+		}
 	}
 
 	return job, nil
