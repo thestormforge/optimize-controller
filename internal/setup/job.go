@@ -47,6 +47,19 @@ var (
 // ":latest". To address this we always explicitly specify the pull policy corresponding to the image.
 // Finally, when using digests, the default of "IfNotPresent" is acceptable as it is unambiguous.
 
+// getImage returns the effective image and pull policy.
+func getImage(image string, pullPolicy corev1.PullPolicy) (string, corev1.PullPolicy) {
+	if image != "" {
+		return image, pullPolicy
+	}
+
+	if image = os.Getenv("DEFAULT_SETUP_IMAGE"); image != "" {
+		return image, corev1.PullPolicy(os.Getenv("DEFAULT_SETUP_IMAGE_PULL_POLICY"))
+	}
+
+	return Image, corev1.PullPolicy(ImagePullPolicy)
+}
+
 // NewJob returns a new setup job for either create or delete.
 func NewJob(t *optimizev1beta2.Trial, mode string) (*batchv1.Job, error) {
 	job := &batchv1.Job{}
@@ -104,17 +117,8 @@ func NewJob(t *optimizev1beta2.Trial, mode string) (*batchv1.Job, error) {
 			c.Command = task.Command
 		}
 
-		// Check the environment for a default setup tools image name
-		if c.Image == "" {
-			c.Image = os.Getenv("DEFAULT_SETUP_IMAGE")
-			c.ImagePullPolicy = corev1.PullPolicy(os.Getenv("DEFAULT_SETUP_IMAGE_PULL_POLICY"))
-		}
-
 		// Make sure we have an image
-		if c.Image == "" {
-			c.Image = Image
-			c.ImagePullPolicy = corev1.PullPolicy(ImagePullPolicy)
-		}
+		c.Image, c.ImagePullPolicy = getImage(c.Image, c.ImagePullPolicy)
 
 		// Add the trial assignments to the environment
 		c.Env = AppendAssignmentEnv(t, c.Env)
@@ -209,6 +213,19 @@ func NewJob(t *optimizev1beta2.Trial, mode string) (*batchv1.Job, error) {
 			referencedVolumes[vm.Name] = true
 		}
 
+		job.Spec.Template.Spec.Containers = append(job.Spec.Template.Spec.Containers, c)
+	}
+
+	// Instead of checking ahead of time for setup tasks, check the number of containers
+	// on the job. This will better account for things like the "skip" settings.
+	if len(job.Spec.Template.Spec.Containers) == 0 {
+		// We need to run something so the trial job status gets updated
+		c := corev1.Container{
+			Name:    "default-setup-task",
+			Command: []string{"/bin/echo"},
+			Args:    []string{"All setup tasks were skipped"},
+		}
+		c.Image, c.ImagePullPolicy = getImage(c.Image, c.ImagePullPolicy)
 		job.Spec.Template.Spec.Containers = append(job.Spec.Template.Spec.Containers, c)
 	}
 

@@ -160,11 +160,5 @@ func newJob(t *optimizev1beta2.Trial, mode string, trialNumber int) (*batchv1.Jo
 		return nil, err
 	}
 
-	// Instead of checking ahead of time for setup tasks, check the number of containers
-	// on the job. This will better account for things like the "skip" settings.
-	if len(job.Spec.Template.Spec.Containers) == 0 {
-		return nil, nil
-	}
-
 	return job, nil
 }
