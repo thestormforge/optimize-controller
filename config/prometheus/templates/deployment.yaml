@@ -65,7 +65,6 @@ spec:
       - name: prometheus-pushgateway
         image: "{{ .Values.pushGateway.image.repository }}:{{ .Values.pushGateway.image.tag }}"
         imagePullPolicy: {{ .Values.pushGateway.image.pullPolicy }}
-        args:
         ports:
           - containerPort: 9091
         livenessProbe:
