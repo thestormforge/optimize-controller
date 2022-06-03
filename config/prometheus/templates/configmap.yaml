@@ -14,6 +14,8 @@ data:
     global:
       scrape_interval: "{{ .Values.scrapeInterval }}"
       scrape_timeout: "{{ .Values.scrapeTimeout }}"
+    rule_files:
+    - /etc/config/rules.yml
     scrape_configs:
     {{- if .Values.promServer.scrapes.cadvisor }}
     - job_name: kubernetes-cadvisor
@@ -73,4 +75,10 @@ data:
       - targets:
         - localhost:9091
     {{- end }}
-
+    {{- with .Values.promServer.extraScrapeConfigs }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  rules.yml: |
+    groups: {{ with .Values.promServer.extraRuleGroups }}
+    {{- toYaml . | nindent 4 }}
+    {{- else }}[]{{ end }}

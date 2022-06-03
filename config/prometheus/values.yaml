@@ -42,6 +42,8 @@ promServer:
     cadvisor: true
     kubeStateMetrics: true
     pushGateway: true
+  extraScrapeConfigs: []
+  extraRuleGroups: []
   image:
     repository: prom/prometheus
     pullPolicy: IfNotPresent
