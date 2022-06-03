@@ -53,6 +53,7 @@ promServer:
     limits:
       cpu: 200m
       memory: 1000M
+  kubeconfigSecret: {}
 
 configReload:
   image:

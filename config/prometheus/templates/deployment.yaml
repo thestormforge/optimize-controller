@@ -38,6 +38,7 @@ spec:
     spec:
       serviceAccountName: {{ .Release.Name }}-server
       containers:
+      {{- if .Values.promServer.scrapes.kubeStateMetrics }}
       - name: kube-state-metrics
         args:
         - --collectors=pods
@@ -59,10 +60,17 @@ spec:
           timeoutSeconds: 5
         resources:
           {{- toYaml .Values.kubeStateMetrics.resources | nindent 10 }}
+        {{- if .Values.promServer.kubeconfigSecret }}
+        volumeMounts:
+        - name: kubeconfig-volume
+          mountPath: /.kube
+          readOnly: true
+        {{- end }}
+      {{- end }}
+      {{- if .Values.promServer.scrapes.pushGateway }}
       - name: prometheus-pushgateway
         image: "{{ .Values.pushGateway.image.repository }}:{{ .Values.pushGateway.image.tag }}"
         imagePullPolicy: {{ .Values.pushGateway.image.pullPolicy }}
-        args:
         ports:
           - containerPort: 9091
         livenessProbe:
@@ -79,6 +87,7 @@ spec:
           timeoutSeconds: 10
         resources:
           {{- toYaml .Values.pushGateway.resources | nindent 10 }}
+      {{- end }}
       - name: prometheus-server
         image: "{{ .Values.promServer.image.repository }}:{{ .Values.promServer.image.tag }}"
         imagePullPolicy: {{ .Values.promServer.image.pullPolicy }}
@@ -113,6 +122,11 @@ spec:
             mountPath: /etc/config
           - name: storage-volume
             mountPath: /data
+          {{- if .Values.promServer.kubeconfigSecret }}
+          - name: kubeconfig-volume
+            mountPath: /.kube
+            readOnly: true
+          {{- end }}
       - name: configmap-reloader
         image: "{{ .Values.configReload.image.repository }}:{{ .Values.configReload.image.tag }}"
         imagePullPolicy: {{ .Values.configReload.image.pullPolicy }}
@@ -138,6 +152,11 @@ spec:
         - name: storage-volume
           emptyDir:
             sizeLimit: "{{ .Values.storageVolumeSize }}"
+        {{- with .Values.promServer.kubeconfigSecret }}
+        - name: kubeconfig-volume
+          secret:
+            {{- toYaml . | nindent 12 }}
+        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
