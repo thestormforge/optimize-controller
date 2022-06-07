@@ -114,6 +114,7 @@ func clusterName() string {
 }
 
 func (o *GeneratorOptions) addFlags(cmd *cobra.Command) {
+	cmd.Flags().StringVar(&o.Name, "name", o.Name, "secret `name` to generate")
 	cmd.Flags().StringVar(&o.ClientName, "client-name", o.ClientName, "client `name` to use for registration")
 	cmd.Flags().BoolVar(&o.AllowUnauthorized, "allow-unauthorized", o.AllowUnauthorized, "generate a secret without authorization, if necessary")
 	cmd.Flags().StringVar(&o.ImagePullSecret, "image-pull-secret", o.ImagePullSecret, "image pull secret `name` to generate")
