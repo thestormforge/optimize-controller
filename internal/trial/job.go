@@ -67,6 +67,12 @@ func NewJob(t *optimizev1beta2.Trial) *batchv1.Job {
 		job.Spec.BackoffLimit = new(int32)
 	}
 
+	// Expose the current assignments as environment variables to the init containers
+	for i := range job.Spec.Template.Spec.InitContainers {
+		c := &job.Spec.Template.Spec.InitContainers[i]
+		c.Env = setup.AppendAssignmentEnv(t, c.Env)
+	}
+
 	// Expose the current assignments as environment variables to every container (except the default sleep container added below)
 	for i := range job.Spec.Template.Spec.Containers {
 		c := &job.Spec.Template.Spec.Containers[i]
