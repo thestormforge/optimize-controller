@@ -42,7 +42,7 @@ spec:
       - name: kube-state-metrics
         args:
         {{- if .Values.promServer.kubeconfigSecret }}
-        - --kubeconfig /.kube/config
+        - --kubeconfig=/.kube/config
         {{- end }}
         - --collectors=pods
         imagePullPolicy: {{ .Values.kubeStateMetrics.image.pullPolicy }}
