@@ -21,9 +21,7 @@ data:
     - job_name: kubernetes-cadvisor
       scheme: https
       metrics_path: /metrics/cadvisor
-      {{-  if .Values.promServer.kubeconfigSecret }}
-      kubeconfig_file: /.kube/config
-      {{- else }}
+      {{-  if not .Values.promServer.kubeconfigSecret }}
       tls_config:
         ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
         insecure_skip_verify: true
@@ -31,6 +29,9 @@ data:
       {{- end }}
       kubernetes_sd_configs:
       - role: node
+        {{-  if .Values.promServer.kubeconfigSecret }}
+        kubeconfig_file: /.kube/config
+        {{- end }}
       relabel_configs:
       - action: labelmap
         regex: __meta_kubernetes_node_label_(.+)
