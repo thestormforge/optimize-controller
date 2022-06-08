@@ -28,7 +28,7 @@ pushGateway:
   image:
     repository: prom/pushgateway
     pullPolicy: IfNotPresent
-    tag: v1.4.0
+    tag: v1.4.3
   resources:
     requests:
       cpu: 25m
@@ -47,7 +47,7 @@ promServer:
   image:
     repository: prom/prometheus
     pullPolicy: IfNotPresent
-    tag: v2.25.0
+    tag: v2.36.0
   resources:
     requests:
       cpu: 100m
@@ -61,7 +61,7 @@ configReload:
   image:
     repository: jimmidyson/configmap-reload
     pullPolicy: IfNotPresent
-    tag: v0.5.0
+    tag: v0.7.1
   resources:
     requests:
       cpu: 25m
