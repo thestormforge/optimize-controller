@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math"
 	"path"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -38,6 +39,11 @@ const (
 	Finalizer = "serverFinalizer.stormforge.io"
 )
 
+var (
+	// nameRegexp is used to validate the experiment labels that are required to be names.
+	nameRegexp = regexp.MustCompile(`^[a-z\d](?:[-a-z\d]{0,61}[a-z\d])?$`)
+)
+
 // TODO Split this into trial.go and experiment.go ?
 
 // FromCluster converts cluster state to API state
@@ -45,6 +51,14 @@ func FromCluster(in *optimizev1beta2.Experiment) (experimentsv1alpha1.Experiment
 	out := &experimentsv1alpha1.Experiment{}
 
 	out.Labels = labels(in)
+	for k, v := range out.Labels {
+		switch k {
+		case "application", "scenario", "objective":
+			if !nameRegexp.MatchString(v) {
+				return "", nil, nil, fmt.Errorf("invalid label value for %q: %q (must be a valid Kubernetes object name", k, v)
+			}
+		}
+	}
 
 	out.Optimization = nil
 	for _, o := range in.Spec.Optimization {
