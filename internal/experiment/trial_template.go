@@ -78,13 +78,13 @@ func PopulateTrialFromTemplate(exp *optimizev1beta2.Experiment, t *optimizev1bet
 // on the server.
 func ParameterConstant(p optimizev1beta2.Parameter) *intstr.IntOrString {
 	switch {
-	case p.Min != p.Max || len(p.Values) > 1:
-		return nil
+	case p.Min == p.Max && len(p.Values) == 0:
+		v := intstr.FromInt(int(p.Max))
+		return &v
 	case len(p.Values) == 1:
 		v := intstr.FromString(p.Values[0])
 		return &v
 	default:
-		v := intstr.FromInt(int(p.Max))
-		return &v
+		return nil
 	}
 }
