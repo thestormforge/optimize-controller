@@ -20,6 +20,7 @@ import (
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // PopulateTrialFromTemplate creates a new trial for an experiment
@@ -58,5 +59,32 @@ func PopulateTrialFromTemplate(exp *optimizev1beta2.Experiment, t *optimizev1bet
 	// Default trial namespace only if the experiment is not configured to find or create a namespace to run in
 	if t.Namespace == "" && exp.Spec.NamespaceSelector == nil && exp.Spec.NamespaceTemplate == nil {
 		t.Namespace = exp.Namespace
+	}
+
+	// Constant parameters are only part of the experiment, so they must be added here
+	for _, p := range exp.Spec.Parameters {
+		if v := ParameterConstant(p); v != nil {
+			t.Spec.Assignments = append(t.Spec.Assignments, optimizev1beta2.Assignment{
+				Name:  p.Name,
+				Value: *v,
+			})
+		}
+	}
+}
+
+// ParameterConstant returns the value of the supplied parameter if it is constant.
+// A constant parameter has a domain which includes exactly 1 value (i.e. min==max
+// for numeric, or len(values)==1 for categorical); these parameters are not processed
+// on the server.
+func ParameterConstant(p optimizev1beta2.Parameter) *intstr.IntOrString {
+	switch {
+	case p.Min != p.Max || len(p.Values) > 1:
+		return nil
+	case len(p.Values) == 1:
+		v := intstr.FromString(p.Values[0])
+		return &v
+	default:
+		v := intstr.FromInt(int(p.Max))
+		return &v
 	}
 }

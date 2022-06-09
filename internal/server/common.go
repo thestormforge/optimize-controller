@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	"github.com/thestormforge/optimize-controller/v2/internal/experiment"
 	"github.com/thestormforge/optimize-go/pkg/api"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -52,7 +53,7 @@ func parameters(exp *optimizev1beta2.Experiment) []experimentsv1alpha1.Parameter
 
 	for _, p := range exp.Spec.Parameters {
 		// This is a special case to omit parameters client side
-		if p.Min == p.Max && len(p.Values) == 0 {
+		if experiment.ParameterConstant(p) != nil {
 			continue
 		}
 
