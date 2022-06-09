@@ -37,6 +37,8 @@ import (
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/initialize"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commands/run/internal"
 	versioncmd "github.com/thestormforge/optimize-controller/v2/cli/internal/commands/version"
+	"github.com/thestormforge/optimize-controller/v2/internal/application"
+	"github.com/thestormforge/optimize-go/pkg/api"
 	applications "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
 	"github.com/thestormforge/optimize-go/pkg/config"
 	corev1 "k8s.io/api/core/v1"
@@ -294,6 +296,52 @@ func (o *Options) generateExperiment() tea.Msg {
 	}
 
 	return msg
+}
+
+// createApplicationAndScenario ensures the application and scenario are
+// created on the API server.
+func (o *Options) createApplicationAndScenario() tea.Msg {
+	ctx := context.TODO()
+	roundTripJSON := func(src, dest interface{}) error {
+		data, err := json.Marshal(src)
+		if err != nil {
+			return err
+		}
+		return json.Unmarshal(data, dest)
+	}
+	
+	app := applications.Application{
+		Name: applications.ApplicationName(o.Generator.Application.Name),
+	}
+	if err := roundTripJSON(o.Generator.Application.Resources, &app.Resources); err != nil {
+		return err
+	}
+
+	scnSrc, err := application.GetScenario(&o.Generator.Application, o.Generator.Scenario)
+	if err != nil {
+		return err
+	}
+	scn := applications.Scenario{}
+	if err := roundTripJSON(scnSrc, &scn); err != nil {
+		return err
+	}
+
+	appMeta, err := o.ApplicationsAPI.UpsertApplicationByName(ctx, app.Name, app)
+	if err != nil {
+		return err
+	}
+
+	scenarioURL := appMeta.Link(api.RelationScenarios)
+	if scenarioURL == "" {
+		return fmt.Errorf("missing scenario link")
+	}
+
+	_, err = o.ApplicationsAPI.UpsertScenarioByName(ctx, scenarioURL, scn.Name, scn)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // createExperimentInCluster creates the raw experiment manifests in the cluster.

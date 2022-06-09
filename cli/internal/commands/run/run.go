@@ -23,6 +23,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -62,6 +63,7 @@ type Options struct {
 
 	maybeQuit bool
 	lastErr   error
+	createApp sync.Once
 
 	initializationModel initializationModel
 	generatorModel      generatorModel
@@ -182,9 +184,7 @@ func (o *Options) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case internal.InitializationFinished:
 		// If the generation form is enabled, start it, otherwise skip ahead
 		if o.generatorModel.form().Enabled() {
-			// TODO we probably need a separate check for API
 			cmds = append(cmds, o.listApplicationNames)
-
 			cmds = append(cmds, form.Start)
 		} else {
 			cmds = append(cmds, o.generateExperiment)
@@ -197,6 +197,11 @@ func (o *Options) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case internal.ExperimentReadyMsg:
+		// Create the application/scenario remotely (only call this once)
+		o.createApp.Do(func() {
+			cmds = append(cmds, o.createApplicationAndScenario)
+		})
+
 		switch {
 		case msg.Cluster:
 			// User wants the experiment run in the cluster
@@ -280,7 +285,7 @@ func (o *Options) ReadApplication(args []string) error {
 	return nil
 }
 
-// applyToApp takes all of the what is on the model and applies it to an application.
+// applyToApp takes all of what is on the model and applies it to an application.
 func (m generatorModel) applyToApp(app *optimizeappsv1alpha1.Application) {
 	if m.ApplicationName.Enabled() {
 		app.Name = m.ApplicationName.Value()
@@ -301,10 +306,11 @@ func (m generatorModel) applyToApp(app *optimizeappsv1alpha1.Application) {
 		}
 
 		for i, ns := range m.NamespaceInput.Values() {
+			// TODO Minimize the number of resources, e.g. group all the namespaces with an empty label selector into one resource
 			app.Resources = append(app.Resources, konjure.Resource{
 				Kubernetes: &konjurev1beta2.Kubernetes{
-					Namespaces: []string{ns},
-					Selector:   m.LabelSelectorInputs[i].Value(),
+					Namespace: ns,
+					Selector:  m.LabelSelectorInputs[i].Value(),
 				},
 			})
 		}
