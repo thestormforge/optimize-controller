@@ -41,9 +41,6 @@ spec:
       {{- if .Values.promServer.scrapes.kubeStateMetrics }}
       - name: kube-state-metrics
         args:
-        {{- if .Values.promServer.kubeconfigSecret }}
-        - --kubeconfig=/.kube/config
-        {{- end }}
         - --collectors=pods
         imagePullPolicy: {{ .Values.kubeStateMetrics.image.pullPolicy }}
         image: "{{ .Values.kubeStateMetrics.image.repository }}:{{ .Values.kubeStateMetrics.image.tag }}"
@@ -63,12 +60,6 @@ spec:
           timeoutSeconds: 5
         resources:
           {{- toYaml .Values.kubeStateMetrics.resources | nindent 10 }}
-        {{- if .Values.promServer.kubeconfigSecret }}
-        volumeMounts:
-        - name: kubeconfig-volume
-          mountPath: /.kube
-          readOnly: true
-        {{- end }}
       {{- end }}
       {{- if .Values.promServer.scrapes.pushGateway }}
       - name: prometheus-pushgateway
@@ -125,11 +116,6 @@ spec:
             mountPath: /etc/config
           - name: storage-volume
             mountPath: /data
-          {{- if .Values.promServer.kubeconfigSecret }}
-          - name: kubeconfig-volume
-            mountPath: /.kube
-            readOnly: true
-          {{- end }}
       - name: configmap-reloader
         image: "{{ .Values.configReload.image.repository }}:{{ .Values.configReload.image.tag }}"
         imagePullPolicy: {{ .Values.configReload.image.pullPolicy }}
@@ -155,11 +141,6 @@ spec:
         - name: storage-volume
           emptyDir:
             sizeLimit: "{{ .Values.storageVolumeSize }}"
-        {{- with .Values.promServer.kubeconfigSecret }}
-        - name: kubeconfig-volume
-          secret:
-            {{- toYaml . | nindent 12 }}
-        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
