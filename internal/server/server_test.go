@@ -222,7 +222,7 @@ func TestFromCluster(t *testing.T) {
 					Parameters: []optimizev1beta2.Parameter{
 						{Name: "one", Min: 0, Max: 1, Baseline: &one},
 						{Name: "two", Min: 0, Max: 2, Baseline: &two},
-						{Name: "three", Values: []string{"three"}, Baseline: &three},
+						{Name: "three", Values: []string{"three", "four"}, Baseline: &three},
 					},
 				},
 			},
@@ -241,7 +241,7 @@ func TestFromCluster(t *testing.T) {
 					{
 						Type:   experimentsv1alpha1.ParameterTypeCategorical,
 						Name:   "three",
-						Values: []string{"three"},
+						Values: []string{"three", "four"},
 					},
 				},
 			},
