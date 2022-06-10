@@ -72,9 +72,9 @@ data:
         - localhost:9091
     {{- end }}
     {{- with .Values.promServer.extraScrapeConfigs }}
-    {{- toYaml . | nindent 4 }}
+    {{- tpl . $ | nindent 4 }}
     {{- end }}
   rules.yml: |
     groups: {{ with .Values.promServer.extraRuleGroups }}
-    {{- toYaml . | nindent 4 }}
+    {{- tpl . $ | nindent 4 }}
     {{- else }}[]{{ end }}
