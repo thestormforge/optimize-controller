@@ -21,23 +21,22 @@ import (
 	"math"
 
 	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
+	"github.com/thestormforge/optimize-controller/v2/internal/experiment"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 )
 
 // CheckDefinition will make sure the cluster and API experiment definitions are compatible
 func CheckDefinition(exp *optimizev1beta2.Experiment, ee *experimentsv1alpha1.Experiment) error {
-	if len(exp.Spec.Parameters) == len(ee.Parameters) {
-		parameters := make(map[string]bool, len(exp.Spec.Parameters))
-		for i := range exp.Spec.Parameters {
+	parameters := make(map[string]bool, len(exp.Spec.Parameters))
+	for i := range exp.Spec.Parameters {
+		if experiment.ParameterConstant(exp.Spec.Parameters[i]) == nil {
 			parameters[exp.Spec.Parameters[i].Name] = true
 		}
-		for i := range ee.Parameters {
-			delete(parameters, ee.Parameters[i].Name)
-		}
-		if len(parameters) > 0 {
-			return fmt.Errorf("server and cluster have incompatible parameter definitions")
-		}
-	} else {
+	}
+	for i := range ee.Parameters {
+		delete(parameters, ee.Parameters[i].Name)
+	}
+	if len(parameters) > 0 {
 		return fmt.Errorf("server and cluster have incompatible parameter definitions")
 	}
 
