@@ -27,25 +27,16 @@ import (
 
 // CheckDefinition will make sure the cluster and API experiment definitions are compatible
 func CheckDefinition(exp *optimizev1beta2.Experiment, ee *experimentsv1alpha1.Experiment) error {
-	parameterCount := len(exp.Spec.Parameters)
-	for _, p := range exp.Spec.Parameters {
-		if experiment.ParameterConstant(p) != nil {
-			parameterCount--
-		}
-	}
-
-	if parameterCount == len(ee.Parameters) {
-		parameters := make(map[string]bool, len(exp.Spec.Parameters))
-		for i := range exp.Spec.Parameters {
+	parameters := make(map[string]bool, len(exp.Spec.Parameters))
+	for i := range exp.Spec.Parameters {
+		if experiment.ParameterConstant(exp.Spec.Parameters[i]) == nil {
 			parameters[exp.Spec.Parameters[i].Name] = true
 		}
-		for i := range ee.Parameters {
-			delete(parameters, ee.Parameters[i].Name)
-		}
-		if len(parameters) > 0 {
-			return fmt.Errorf("server and cluster have incompatible parameter definitions")
-		}
-	} else {
+	}
+	for i := range ee.Parameters {
+		delete(parameters, ee.Parameters[i].Name)
+	}
+	if len(parameters) > 0 {
 		return fmt.Errorf("server and cluster have incompatible parameter definitions")
 	}
 

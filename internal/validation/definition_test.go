@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	optimizev1beta2 "github.com/thestormforge/optimize-controller/v2/api/v1beta2"
 	"github.com/thestormforge/optimize-go/pkg/api"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 )
@@ -220,6 +221,96 @@ func TestCheckConstraints(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
 			err := CheckConstraints(c.constraints, c.baselines)
+			if c.expectErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestCheckDefinition_ConstantParameters(t *testing.T) {
+	cases := []struct {
+		desc              string
+		clusterParameters []optimizev1beta2.Parameter
+		serverParameters  []experimentsv1alpha1.Parameter
+		expectErr         bool
+	}{
+		{
+			desc: "no constant",
+			clusterParameters: []optimizev1beta2.Parameter{
+				{
+					Name: "foo",
+					Min:  0,
+					Max:  1,
+				},
+				{
+					Name: "bar",
+					Min:  0,
+					Max:  1,
+				},
+			},
+			serverParameters: []experimentsv1alpha1.Parameter{
+				{
+					Name: "foo",
+				},
+				{
+					Name: "bar",
+				},
+			},
+		},
+		{
+			desc: "constant and non-constant compatible",
+			clusterParameters: []optimizev1beta2.Parameter{
+				{
+					Name: "foo",
+					Min:  0,
+					Max:  1,
+				},
+				{
+					Name: "bar",
+					Min:  1,
+					Max:  1,
+				},
+			},
+			serverParameters: []experimentsv1alpha1.Parameter{
+				{
+					Name: "foo",
+				},
+			},
+		},
+		{
+			desc:      "constant and non-constant not compatible",
+			expectErr: true,
+			clusterParameters: []optimizev1beta2.Parameter{
+				{
+					Name: "foo",
+					Min:  0,
+					Max:  1,
+				},
+				{
+					Name: "bar",
+					Min:  1,
+					Max:  1,
+				},
+			},
+			serverParameters: []experimentsv1alpha1.Parameter{
+				{
+					Name: "bar",
+				},
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			err := CheckDefinition(&optimizev1beta2.Experiment{
+				Spec: optimizev1beta2.ExperimentSpec{
+					Parameters: c.clusterParameters,
+				},
+			}, &experimentsv1alpha1.Experiment{
+				Parameters: c.serverParameters,
+			})
 			if c.expectErr {
 				assert.Error(t, err)
 			} else {
