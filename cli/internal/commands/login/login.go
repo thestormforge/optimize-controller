@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"os/user"
 	"strings"
 	"time"
@@ -215,7 +216,14 @@ func (o *Options) runDeviceCodeFlow(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	az.Scopes = append(az.Scopes, "offline_access", "register:clients", "manage:clients")
+	az.Scopes = append(az.Scopes, "offline_access")
+
+	// TODO This is temporary while we migrate the audience value
+	if aud := os.Getenv("STORMFORGE_AUTHORIZATION_AUDIENCE"); aud == "https://api.carbonrelay.io/v1/" {
+		az.Scopes = append(az.Scopes, "register:clients")
+	} else {
+		az.Scopes = append(az.Scopes, "manage:clients")
+	}
 
 	t, err := az.Token(ctx, o.generateValidatationRequest)
 	if err != nil {
@@ -230,8 +238,15 @@ func (o *Options) runAuthorizationCodeFlow(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	c.Scopes = append(c.Scopes, "offline_access", "register:clients", "manage:clients")
 	c.RedirectURL = "http://127.0.0.1:8085/"
+	c.Scopes = append(c.Scopes, "offline_access")
+
+	// TODO This is temporary while we migrate the audience value
+	if aud := os.Getenv("STORMFORGE_AUTHORIZATION_AUDIENCE"); aud == "https://api.carbonrelay.io/v1/" {
+		c.Scopes = append(c.Scopes, "register:clients")
+	} else {
+		c.Scopes = append(c.Scopes, "manage:clients")
+	}
 
 	// Create a context we can use to shutdown the server and the OAuth authorization code callback endpoint
 	ctx, o.shutdown = context.WithCancel(ctx)
