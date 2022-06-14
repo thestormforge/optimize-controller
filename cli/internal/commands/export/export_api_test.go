@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"github.com/thestormforge/optimize-go/pkg/api"
+	applicationsv2 "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 )
 
@@ -187,5 +188,146 @@ func (f *fakeExperimentsAPI) LabelExperiment(ctx context.Context, name string, l
 }
 
 func (f *fakeExperimentsAPI) LabelTrial(ctx context.Context, name string, labels experimentsv1alpha1.TrialLabels) error {
+	return nil
+}
+
+// Implement the api interface
+type fakeApplicationsAPI struct{}
+
+var _ applicationsv2.API = &fakeApplicationsAPI{}
+
+func (f fakeApplicationsAPI) CheckEndpoint(ctx context.Context) (api.Metadata, error) {
+	return nil, nil
+}
+
+func (f fakeApplicationsAPI) ListApplications(ctx context.Context, q applicationsv2.ApplicationListQuery) (applicationsv2.ApplicationList, error) {
+	return applicationsv2.ApplicationList{}, nil
+}
+
+func (f fakeApplicationsAPI) ListApplicationsByPage(ctx context.Context, u string) (applicationsv2.ApplicationList, error) {
+	return applicationsv2.ApplicationList{}, nil
+}
+
+func (f fakeApplicationsAPI) CreateApplication(ctx context.Context, app applicationsv2.Application) (api.Metadata, error) {
+	return nil, nil
+}
+
+func (f fakeApplicationsAPI) GetApplication(ctx context.Context, u string) (applicationsv2.Application, error) {
+	return applicationsv2.Application{}, nil
+}
+
+func (f fakeApplicationsAPI) GetApplicationByName(ctx context.Context, n applicationsv2.ApplicationName) (applicationsv2.Application, error) {
+	return applicationsv2.Application{}, nil
+}
+
+func (f fakeApplicationsAPI) UpsertApplication(ctx context.Context, u string, app applicationsv2.Application) (api.Metadata, error) {
+	return nil, nil
+}
+
+func (f fakeApplicationsAPI) UpsertApplicationByName(ctx context.Context, n applicationsv2.ApplicationName, app applicationsv2.Application) (api.Metadata, error) {
+	return nil, nil
+}
+
+func (f fakeApplicationsAPI) DeleteApplication(ctx context.Context, u string) error {
+	return nil
+}
+
+func (f fakeApplicationsAPI) ListScenarios(ctx context.Context, u string, q applicationsv2.ScenarioListQuery) (applicationsv2.ScenarioList, error) {
+	return applicationsv2.ScenarioList{}, nil
+}
+
+func (f fakeApplicationsAPI) CreateScenario(ctx context.Context, u string, scn applicationsv2.Scenario) (api.Metadata, error) {
+	return nil, nil
+}
+
+func (f fakeApplicationsAPI) GetScenario(ctx context.Context, u string) (applicationsv2.Scenario, error) {
+	return applicationsv2.Scenario{}, nil
+}
+
+func (f fakeApplicationsAPI) GetScenarioByName(ctx context.Context, u string, n applicationsv2.ScenarioName) (applicationsv2.Scenario, error) {
+	return applicationsv2.Scenario{}, nil
+}
+
+func (f fakeApplicationsAPI) UpsertScenario(ctx context.Context, u string, scn applicationsv2.Scenario) (applicationsv2.Scenario, error) {
+	return applicationsv2.Scenario{}, nil
+}
+
+func (f fakeApplicationsAPI) UpsertScenarioByName(ctx context.Context, u string, n applicationsv2.ScenarioName, scn applicationsv2.Scenario) (applicationsv2.Scenario, error) {
+	return applicationsv2.Scenario{}, nil
+}
+
+func (f fakeApplicationsAPI) DeleteScenario(ctx context.Context, u string) error {
+	return nil
+}
+
+func (f fakeApplicationsAPI) PatchScenario(ctx context.Context, u string, scn applicationsv2.Scenario) error {
+	return nil
+}
+
+func (f fakeApplicationsAPI) GetTemplate(ctx context.Context, u string) (applicationsv2.Template, error) {
+	return applicationsv2.Template{}, nil
+}
+
+func (f fakeApplicationsAPI) UpdateTemplate(ctx context.Context, u string, s applicationsv2.Template) error {
+	return nil
+}
+
+func (f fakeApplicationsAPI) PatchTemplate(ctx context.Context, u string, s applicationsv2.Template) error {
+	return nil
+}
+
+func (f fakeApplicationsAPI) ListActivity(ctx context.Context, u string, q applicationsv2.ActivityFeedQuery) (applicationsv2.ActivityFeed, error) {
+	return applicationsv2.ActivityFeed{}, nil
+}
+
+func (f fakeApplicationsAPI) CreateActivity(ctx context.Context, u string, a applicationsv2.Activity) error {
+	return nil
+}
+
+func (f fakeApplicationsAPI) DeleteActivity(ctx context.Context, u string) error {
+	return nil
+}
+
+func (f fakeApplicationsAPI) PatchApplicationActivity(ctx context.Context, u string, a applicationsv2.ActivityFailure) error {
+	return nil
+}
+
+func (f fakeApplicationsAPI) SubscribeActivity(ctx context.Context, q applicationsv2.ActivityFeedQuery) (applicationsv2.Subscriber, error) {
+	return nil, nil
+}
+
+func (f fakeApplicationsAPI) CreateRecommendation(ctx context.Context, u string) (api.Metadata, error) {
+	return nil, nil
+}
+
+func (f fakeApplicationsAPI) GetRecommendation(ctx context.Context, u string) (applicationsv2.Recommendation, error) {
+	return applicationsv2.Recommendation{}, nil
+}
+
+func (f fakeApplicationsAPI) ListRecommendations(ctx context.Context, u string) (applicationsv2.RecommendationList, error) {
+	return applicationsv2.RecommendationList{}, nil
+}
+
+func (f fakeApplicationsAPI) PatchRecommendations(ctx context.Context, u string, details applicationsv2.RecommendationList) error {
+	return nil
+}
+
+func (f fakeApplicationsAPI) GetCluster(ctx context.Context, u string) (applicationsv2.Cluster, error) {
+	return applicationsv2.Cluster{}, nil
+}
+
+func (f fakeApplicationsAPI) GetClusterByName(ctx context.Context, n applicationsv2.ClusterName) (applicationsv2.Cluster, error) {
+	return applicationsv2.Cluster{}, nil
+}
+
+func (f fakeApplicationsAPI) ListClusters(ctx context.Context, q applicationsv2.ClusterListQuery) (applicationsv2.ClusterList, error) {
+	return applicationsv2.ClusterList{}, nil
+}
+
+func (f fakeApplicationsAPI) PatchCluster(ctx context.Context, u string, c applicationsv2.ClusterTitle) error {
+	return nil
+}
+
+func (f fakeApplicationsAPI) DeleteCluster(ctx context.Context, u string) error {
 	return nil
 }
