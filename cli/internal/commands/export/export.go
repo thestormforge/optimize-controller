@@ -716,18 +716,18 @@ func createRecommendationKustomizePatches(mapper meta.RESTMapper, params []appli
 			if limits, err := spec.GetLimits(); err != nil {
 				return nil, err
 			} else if limits != nil {
-				fns = append(fns, yaml.FieldSetter{Name: "limits", Value: limits})
+				fns = append(fns, yaml.Tee(yaml.FieldSetter{Name: "limits", Value: limits}))
 			}
 
 			// Add the requests
 			if requests, err := spec.GetRequests(); err != nil {
 				return nil, err
 			} else if requests != nil {
-				fns = append(fns, yaml.FieldSetter{Name: "requests", Value: requests})
+				fns = append(fns, yaml.Tee(yaml.FieldSetter{Name: "requests", Value: requests}))
 			}
 
 			// Apply the filter functions
-			if err := p.PipeE(yaml.Tee(fns...)); err != nil {
+			if err := p.PipeE(fns...); err != nil {
 				return nil, err
 			}
 		}
@@ -787,14 +787,14 @@ func (s *containerResourceSpec) GetPath(gvks []schema.GroupVersionKind) ([]strin
 }
 
 func (s *containerResourceSpec) GetLimits() (*yaml.RNode, error) {
-	return s.getResourceList(s.Limits)
+	return getResourceList(s.Limits)
 }
 
 func (s *containerResourceSpec) GetRequests() (*yaml.RNode, error) {
-	return s.getResourceList(s.Requests)
+	return getResourceList(s.Requests)
 }
 
-func (s *containerResourceSpec) getResourceList(rl corev1.ResourceList) (*yaml.RNode, error) {
+func getResourceList(rl corev1.ResourceList) (*yaml.RNode, error) {
 	if len(rl) == 0 {
 		return nil, nil
 	}
