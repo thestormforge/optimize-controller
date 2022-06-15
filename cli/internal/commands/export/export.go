@@ -17,12 +17,16 @@ limitations under the License.
 package export
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
+	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -39,10 +43,13 @@ import (
 	"github.com/thestormforge/optimize-controller/v2/internal/sfio"
 	"github.com/thestormforge/optimize-controller/v2/internal/template"
 	"github.com/thestormforge/optimize-go/pkg/api"
+	applicationsv2 "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"github.com/thestormforge/optimize-go/pkg/config"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/kustomize/api/filesys"
 	"sigs.k8s.io/kustomize/api/resid"
 	"sigs.k8s.io/kustomize/api/types"
@@ -57,13 +64,16 @@ type Options struct {
 	Config *config.OptimizeConfig
 	// ExperimentsAPI is used to interact with the Optimize Experiments API
 	ExperimentsAPI experimentsv1alpha1.API
+	// ApplicationsAPI is used to interact with the Optimize Applications API
+	ApplicationsAPI applicationsv2.API
 	// IOStreams are used to access the standard process streams
 	commander.IOStreams
 
-	inputFiles    []string
-	trialName     string
-	patchOnly     bool
-	patchedTarget bool
+	inputFiles         []string
+	trialName          string
+	recommendationName string
+	patchOnly          bool
+	patchedTarget      bool
 
 	// This is used for testing
 	Fs          filesys.FileSystem
@@ -82,12 +92,16 @@ type trialDetails struct {
 	Objective   string
 }
 
+type recommendationDetails struct {
+	Recommendation *applicationsv2.Recommendation
+}
+
 // NewCommand creates a command for performing an export
 func NewCommand(o *Options) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "export TRIAL_NAME",
-		Short: "Export trial parameters to an application or experiment",
-		Long:  "Export trial parameters to an application or experiment from the specified trial",
+		Use:   "export TRIAL_NAME|APP_NAME|REC_NAME",
+		Short: "Export or apply a patch",
+		Long:  "Export trial parameters or a recommendation as a patch",
 
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			commander.SetStreams(&o.IOStreams, cmd)
@@ -96,23 +110,33 @@ func NewCommand(o *Options) *cobra.Command {
 			if o.ExperimentsAPI == nil {
 				err = commander.SetExperimentsAPI(&o.ExperimentsAPI, o.Config, cmd)
 			}
-
-			if len(args) != 1 {
-				return fmt.Errorf("a trial name must be specified")
+			if o.ApplicationsAPI == nil {
+				err = commander.SetApplicationsAPI(&o.ApplicationsAPI, o.Config, cmd)
 			}
 
-			o.trialName = args[0]
+			if len(args) != 1 || args[0] == "" {
+				return fmt.Errorf("a name (trial, application, or recommendation) must be specified")
+			}
+
+			// Inspect the argument and try to figure if it is a trial or recommendation
+			_, rn := applicationsv2.SplitRecommendationName(args[0])
+			if _, err := strconv.ParseInt(rn, 10, 64); err != nil && rn != "" {
+				o.recommendationName = args[0]
+			} else if _, num := experimentsv1alpha1.SplitTrialName(args[0]); num >= 0 {
+				o.trialName = args[0]
+			} else {
+				o.recommendationName = args[0]
+			}
 
 			return err
 		},
 		RunE: commander.WithContextE(o.runner),
 	}
 
-	cmd.Flags().StringSliceVarP(&o.inputFiles, "filename", "f", []string{""}, "experiment and related manifest `files` to export, - for stdin")
+	cmd.Flags().StringSliceVarP(&o.inputFiles, "filename", "f", nil, "experiment and related manifest `files` to export, - for stdin")
 	cmd.Flags().BoolVarP(&o.patchOnly, "patch", "p", false, "export only the patch")
 	cmd.Flags().BoolVarP(&o.patchedTarget, "patched-target", "t", false, "export only the patched resource")
 
-	_ = cmd.MarkFlagRequired("filename")
 	_ = cmd.MarkFlagFilename("filename", "yml", "yaml")
 
 	return cmd
@@ -269,54 +293,74 @@ func filterPatch(patches []types.Patch) kio.FilterFunc {
 }
 
 func (o *Options) runner(ctx context.Context) error {
+	if err := o.readInput(); err != nil {
+		return err
+	}
+
 	// look up trial from api
 	trialDetails, err := o.getTrialDetails(ctx)
 	if err != nil {
 		return err
 	}
 
-	if err := o.readInput(); err != nil {
-		return err
-	}
-
-	// See if we have been given an experiment
-	if err := o.extractExperiment(trialDetails); err != nil {
-		return fmt.Errorf("got an error when looking for experiment: %w", err)
-	}
-
-	// See if we have been given an application
-	if o.experiment == nil {
-		if err := o.extractApplication(trialDetails); err != nil {
-			return fmt.Errorf("got an error when looking for application: %w", err)
+	var recDetails *recommendationDetails
+	if trialDetails != nil {
+		// See if we have been given an experiment
+		if err := o.extractExperiment(trialDetails); err != nil {
+			return fmt.Errorf("got an error when looking for experiment: %w", err)
 		}
 
-		if o.application == nil {
-			return fmt.Errorf("unable to find an application %q", trialDetails.Application)
-		}
+		// Still no experiment, we may need to generate it from an application
+		if o.experiment == nil {
+			if err := o.extractApplication(trialDetails); err != nil {
+				return fmt.Errorf("got an error when looking for application: %w", err)
+			}
 
-		if err := o.generateExperiment(trialDetails); err != nil {
+			if o.application == nil {
+				return fmt.Errorf("unable to find an application %q", trialDetails.Application)
+			}
+
+			if err := o.generateExperiment(trialDetails); err != nil {
+				return err
+			}
+		}
+	} else {
+		recDetails, err = o.getRecommendationDetails(ctx)
+		if err != nil {
 			return err
 		}
 	}
 
-	// At this point we must have an experiment
-	if o.experiment == nil {
-		return fmt.Errorf("unable to find an experiment %q", trialDetails.Experiment)
+	var patches []types.Patch
+	if trialDetails != nil {
+		if o.experiment == nil {
+			return fmt.Errorf("unable to find an experiment %q", trialDetails.Experiment)
+		}
+
+		trial := &optimizev1beta2.Trial{}
+		experiment.PopulateTrialFromTemplate(o.experiment, trial)
+		server.ToClusterTrial(trial, trialDetails.Assignments)
+
+		// render patches
+		if pp, err := createTrialKustomizePatches(o.experiment.Spec.Patches, trial); err != nil {
+			return err
+		} else {
+			patches = append(patches, pp...)
+		}
 	}
-
-	trial := &optimizev1beta2.Trial{}
-	experiment.PopulateTrialFromTemplate(o.experiment, trial)
-	server.ToClusterTrial(trial, trialDetails.Assignments)
-
-	// render patches
-	patches, err := createKustomizePatches(o.experiment.Spec.Patches, trial)
-	if err != nil {
-		return err
+	if recDetails != nil {
+		// render patches
+		mapper := o.mapper(ctx)
+		if pp, err := createRecommendationKustomizePatches(mapper, recDetails.Recommendation.Parameters); err != nil {
+			return err
+		} else {
+			patches = append(patches, pp...)
+		}
 	}
 
 	if o.patchOnly {
-		for _, patch := range patches {
-			fmt.Fprintln(o.Out, patch.Patch)
+		for _, p := range patches {
+			fmt.Fprintln(o.Out, p.Patch)
 		}
 
 		return nil
@@ -341,17 +385,11 @@ func (o *Options) runner(ctx context.Context) error {
 		return nil
 	}
 
-	output := kio.Pipeline{
+	return kio.Pipeline{
 		Inputs:  []kio.Reader{&kio.ByteReader{Reader: bytes.NewReader(yamls)}},
-		Filters: []kio.Filter{kio.FilterFunc(filterPatch(patches))},
+		Filters: []kio.Filter{filterPatch(patches)},
 		Outputs: []kio.Writer{o.YAMLWriter()},
-	}
-	if err := output.Execute(); err != nil {
-		return err
-	}
-
-	// We don't want to bail if we cant find an application since we'll handle this later
-	return nil
+	}.Execute()
 }
 
 func (o *Options) generateExperiment(trial *trialDetails) error {
@@ -425,7 +463,7 @@ func (o *Options) generateExperiment(trial *trialDetails) error {
 // getTrialDetails returns information about the requested trial.
 func (o *Options) getTrialDetails(ctx context.Context) (*trialDetails, error) {
 	if o.trialName == "" {
-		return nil, fmt.Errorf("a trial name must be specified")
+		return nil, nil
 	}
 	if o.ExperimentsAPI == nil {
 		return nil, fmt.Errorf("unable to connect to api server")
@@ -472,8 +510,8 @@ func (o *Options) getTrialDetails(ctx context.Context) (*trialDetails, error) {
 	return result, nil
 }
 
-// createKustomizePatches translates a patchTemplate into a kustomize (json) patch
-func createKustomizePatches(patchSpec []optimizev1beta2.PatchTemplate, trial *optimizev1beta2.Trial) ([]types.Patch, error) {
+// createTrialKustomizePatches translates a patchTemplate into a kustomize (json) patch
+func createTrialKustomizePatches(patchSpec []optimizev1beta2.PatchTemplate, trial *optimizev1beta2.Trial) ([]types.Patch, error) {
 	te := template.New()
 	patches := make([]types.Patch, len(patchSpec))
 
@@ -536,4 +574,246 @@ func createKustomizePatches(patchSpec []optimizev1beta2.PatchTemplate, trial *op
 	}
 
 	return patches, nil
+}
+
+// getRecommendationDetails fetches the full recommendation from the server.
+func (o *Options) getRecommendationDetails(ctx context.Context) (*recommendationDetails, error) {
+	if o.recommendationName == "" {
+		return nil, nil
+	}
+	if o.ApplicationsAPI == nil {
+		return nil, fmt.Errorf("unable to connect to api server")
+	}
+
+	applicationName, recommendationName := applicationsv2.SplitRecommendationName(o.recommendationName)
+
+	app, err := o.ApplicationsAPI.GetApplicationByName(ctx, applicationName)
+	if err != nil {
+		return nil, err
+	}
+	if app.Link(api.RelationRecommendations) == "" {
+		return nil, fmt.Errorf("unable to find recommendations for application (missing link)")
+	}
+
+	result := &recommendationDetails{}
+
+	var recURL string
+
+	if recommendationName != "" {
+		u, err := url.Parse(app.Link(api.RelationRecommendations))
+		if err != nil {
+			return nil, fmt.Errorf("unable to find recommendations for application (bad link): %w", err)
+		}
+		u.Path = path.Join(u.Path, recommendationName)
+		recURL = u.String()
+	}
+
+	if recURL == "" {
+		recList, err := o.ApplicationsAPI.ListRecommendations(ctx, app.Link(api.RelationRecommendations))
+		if err != nil {
+			return nil, err
+		}
+		if len(recList.Recommendations) == 0 {
+			return nil, fmt.Errorf("unable to find recommendations for application (none available)")
+		}
+		recURL = recList.Recommendations[0].Link(api.RelationSelf)
+
+		// TODO This is a dumb bug to have to workaround; the links come with self and up swapped...
+		if up := recList.Recommendations[0].Link(api.RelationUp); len(up) > len(recURL) {
+			recURL = up
+		}
+	}
+
+	rec, err := o.ApplicationsAPI.GetRecommendation(ctx, recURL)
+	if err != nil {
+		return nil, err
+	}
+	result.Recommendation = &rec
+
+	return result, nil
+}
+
+// mapper returns REST mapper using the scheme baked in to the code plus any CRDs
+// installed on the server. This code is borrowed from the RBAC generator which
+// also needs to map between GVRs and GVKs.
+func (o *Options) mapper(ctx context.Context) meta.RESTMapper {
+	rm := meta.NewDefaultRESTMapper(sfio.Scheme.PrioritizedVersionsAllGroups())
+	for gvk := range sfio.Scheme.AllKnownTypes() {
+		rm.Add(gvk, meta.RESTScopeRoot)
+	}
+
+	cmd, err := o.Config.Kubectl(ctx, "get", "crds", "--output", "jsonpath", "--template",
+		`{range .items[*].spec}{.group}/{.version} {.names.kind} {.names.plural} {.names.singular}{"\n"}{end}`)
+	if err != nil {
+		return rm
+	}
+
+	stdout, _ := cmd.StdoutPipe()
+	if err := cmd.Start(); err != nil {
+		return rm
+	}
+
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		f := strings.Fields(scanner.Text())
+
+		gv, err := schema.ParseGroupVersion(f[0])
+		if err != nil {
+			continue
+		}
+
+		rm.AddSpecific(gv.WithKind(f[1]), gv.WithResource(f[2]), gv.WithResource(f[3]), meta.RESTScopeRoot)
+	}
+
+	return rm
+}
+
+// createRecommendationKustomizePatches constructs patches from recommendation parameters.
+func createRecommendationKustomizePatches(mapper meta.RESTMapper, params []applicationsv2.Parameter) ([]types.Patch, error) {
+	result := make([]types.Patch, len(params))
+	for i := range params {
+		// Lookup the GVK from the resource name
+		gvks, err := mapper.KindsFor(schema.GroupVersionResource{Resource: params[i].Target.Kind})
+		if err != nil {
+			return nil, err
+		}
+
+		// Start a new patch document
+		p := yaml.NewRNode(&yaml.Node{
+			Kind:    yaml.DocumentNode,
+			Content: []*yaml.Node{{Kind: yaml.MappingNode}},
+		})
+
+		// We need to embed the GVK into the patch (see comments for trials)
+		apiVersion, kind := gvks[0].ToAPIVersionAndKind()
+		if err := p.PipeE(
+			yaml.Tee(yaml.SetField("apiVersion", yaml.NewStringRNode(apiVersion))),
+			yaml.Tee(yaml.SetField("kind", yaml.NewStringRNode(kind))),
+			yaml.Tee(yaml.SetK8sName(params[i].Target.Workload)),
+			yaml.Tee(yaml.SetK8sNamespace(params[i].Target.Namespace)),
+		); err != nil {
+			return nil, err
+		}
+
+		for cri := range params[i].ContainerResources {
+			// Make the container resources something useful
+			spec := containerResourceSpec{}
+			if err := spec.Encode(params[i].ContainerResources[cri]); err != nil {
+				return nil, err
+			}
+
+			// Assume that the spec is not empty (i.e. there are either requests or limits)
+			var fns []yaml.Filter
+
+			// Add the path (MUST be first to get the limits/requests in the right spot)
+			if p, err := spec.GetPath(gvks); err != nil {
+				return nil, err
+			} else {
+				fns = append(fns, yaml.PathGetter{Path: p, Create: yaml.MappingNode})
+			}
+
+			// Add the limits
+			if limits, err := spec.GetLimits(); err != nil {
+				return nil, err
+			} else if limits != nil {
+				fns = append(fns, yaml.Tee(yaml.FieldSetter{Name: "limits", Value: limits}))
+			}
+
+			// Add the requests
+			if requests, err := spec.GetRequests(); err != nil {
+				return nil, err
+			} else if requests != nil {
+				fns = append(fns, yaml.Tee(yaml.FieldSetter{Name: "requests", Value: requests}))
+			}
+
+			// Apply the filter functions
+			if err := p.PipeE(fns...); err != nil {
+				return nil, err
+			}
+		}
+
+		// Encode the result as JSON for the patch
+		data, err := p.MarshalJSON()
+		if err != nil {
+			return nil, err
+		}
+
+		// Create the Kustomize patch
+		result[i] = types.Patch{
+			Patch: string(data),
+			Target: &types.Selector{
+				KrmId: types.KrmId{
+					Gvk:  resid.Gvk{Group: gvks[0].Group, Version: gvks[0].Version, Kind: gvks[0].Kind},
+					Name: params[i].Target.Workload,
+				},
+			},
+		}
+	}
+
+	return result, nil
+}
+
+// Required spec for container resources
+type containerResourceSpec struct {
+	Name     string
+	Path     string
+	Limits   corev1.ResourceList
+	Requests corev1.ResourceList
+}
+
+func (s *containerResourceSpec) Encode(v interface{}) error {
+	data, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, s)
+}
+
+func (s *containerResourceSpec) GetPath(gvks []schema.GroupVersionKind) ([]string, error) {
+	p := s.Path
+	if p == "" {
+		switch gvks[0].Kind {
+		// TODO ReplicaSet
+		case "Deployment", "StatefulSet":
+			p = "/spec/template/spec/containers/[name={ .ContainerName }]/resources"
+		default:
+			return nil, fmt.Errorf("unable to build container resources patch for %q", gvks[0].Kind)
+		}
+	}
+
+	return sfio.FieldPath(p, map[string]string{
+		"ContainerName": s.Name,
+	})
+}
+
+func (s *containerResourceSpec) GetLimits() (*yaml.RNode, error) {
+	return getResourceList(s.Limits)
+}
+
+func (s *containerResourceSpec) GetRequests() (*yaml.RNode, error) {
+	return getResourceList(s.Requests)
+}
+
+func getResourceList(rl corev1.ResourceList) (*yaml.RNode, error) {
+	if len(rl) == 0 {
+		return nil, nil
+	}
+
+	rn := yaml.NewMapRNode(nil)
+	if data, err := json.Marshal(rl); err != nil {
+		return nil, err
+	} else if err := yaml.Unmarshal(data, rn.YNode()); err != nil {
+		return nil, err
+	}
+
+	resetStyleAndTag := yaml.FilterFunc(func(n *yaml.RNode) (*yaml.RNode, error) {
+		n.YNode().Style = 0
+		n.YNode().Tag = ""
+		return n, nil
+	})
+
+	return rn.Pipe(
+		yaml.Tee(yaml.Get("cpu"), resetStyleAndTag),
+		yaml.Tee(yaml.Get("memory"), resetStyleAndTag),
+	)
 }

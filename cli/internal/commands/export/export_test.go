@@ -90,6 +90,7 @@ func TestPatchExperiment(t *testing.T) {
 
 			opts := &export.Options{Config: cfg}
 			opts.ExperimentsAPI = &fakeExperimentsAPI{}
+			opts.ApplicationsAPI = &fakeApplicationsAPI{}
 			cmd := export.NewCommand(opts)
 			commander.ConfigGlobals(cfg, cmd)
 
@@ -172,6 +173,7 @@ func TestPatchApplication(t *testing.T) {
 
 			opts := &export.Options{Config: cfg, Fs: fs}
 			opts.ExperimentsAPI = &fakeExperimentsAPI{}
+			opts.ApplicationsAPI = &fakeApplicationsAPI{}
 			cmd := export.NewCommand(opts)
 			commander.ConfigGlobals(cfg, cmd)
 
