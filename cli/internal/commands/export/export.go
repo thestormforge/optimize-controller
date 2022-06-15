@@ -670,14 +670,6 @@ func (o *Options) mapper(ctx context.Context) meta.RESTMapper {
 
 // createRecommendationKustomizePatches constructs patches from recommendation parameters.
 func createRecommendationKustomizePatches(mapper meta.RESTMapper, params []applicationsv2.Parameter) ([]types.Patch, error) {
-	// Required spec for container resources
-	type containerResourceSpec struct {
-		Name     string
-		Path     string
-		Limits   corev1.ResourceList
-		Requests corev1.ResourceList
-	}
-
 	result := make([]types.Patch, len(params))
 	for i := range params {
 		// Lookup the GVK from the resource name
@@ -706,56 +698,35 @@ func createRecommendationKustomizePatches(mapper meta.RESTMapper, params []appli
 		for cri := range params[i].ContainerResources {
 			// Make the container resources something useful
 			spec := containerResourceSpec{}
-			if data, err := json.Marshal(params[i].ContainerResources[cri]); err != nil {
-				return nil, err
-			} else if err := json.Unmarshal(data, &spec); err != nil {
+			if err := spec.Encode(params[i].ContainerResources[cri]); err != nil {
 				return nil, err
 			}
 
 			// Assume that the spec is not empty (i.e. there are either requests or limits)
 			var fns []yaml.Filter
 
-			// Provide a default path if necessary
-			if spec.Path == "" {
-				switch gvks[0].Kind {
-				// TODO ReplicaSet
-				case "Deployment", "StatefulSet":
-					spec.Path = "/spec/template/spec/containers/[name={ .ContainerName }]/resources"
-				default:
-					return nil, fmt.Errorf("unable to build patch for %q container resources", params[i].Target.Kind)
-				}
-			}
-
-			// Parse the field path
-			fp, err := sfio.FieldPath(spec.Path, map[string]string{"ContainerName": spec.Name})
-			if err != nil {
+			// Add the path (MUST be first to get the limits/requests in the right spot)
+			if p, err := spec.GetPath(gvks); err != nil {
 				return nil, err
+			} else {
+				fns = append(fns, yaml.PathGetter{Path: p, Create: yaml.MappingNode})
 			}
-			fns = append(fns, yaml.PathGetter{Path: fp, Create: yaml.MappingNode})
 
 			// Add the limits
-			if len(spec.Limits) > 0 {
-				limits := yaml.NewMapRNode(nil)
-				if data, err := json.Marshal(spec.Limits); err != nil {
-					return nil, err
-				} else if err := yaml.Unmarshal(data, limits.YNode()); err != nil {
-					return nil, err
-				}
+			if limits, err := spec.GetLimits(); err != nil {
+				return nil, err
+			} else if limits != nil {
 				fns = append(fns, yaml.FieldSetter{Name: "limits", Value: limits})
 			}
 
 			// Add the requests
-			if len(spec.Requests) > 0 {
-				requests := yaml.NewMapRNode(nil)
-				if data, err := json.Marshal(spec.Requests); err != nil {
-					return nil, err
-				} else if err := yaml.Unmarshal(data, requests.YNode()); err != nil {
-					return nil, err
-				}
+			if requests, err := spec.GetRequests(); err != nil {
+				return nil, err
+			} else if requests != nil {
 				fns = append(fns, yaml.FieldSetter{Name: "requests", Value: requests})
 			}
 
-			// Convert container resource into patch...
+			// Apply the filter functions
 			if err := p.PipeE(yaml.Tee(fns...)); err != nil {
 				return nil, err
 			}
@@ -780,4 +751,69 @@ func createRecommendationKustomizePatches(mapper meta.RESTMapper, params []appli
 	}
 
 	return result, nil
+}
+
+// Required spec for container resources
+type containerResourceSpec struct {
+	Name     string
+	Path     string
+	Limits   corev1.ResourceList
+	Requests corev1.ResourceList
+}
+
+func (s *containerResourceSpec) Encode(v interface{}) error {
+	data, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, s)
+}
+
+func (s *containerResourceSpec) GetPath(gvks []schema.GroupVersionKind) ([]string, error) {
+	p := s.Path
+	if p == "" {
+		switch gvks[0].Kind {
+		// TODO ReplicaSet
+		case "Deployment", "StatefulSet":
+			p = "/spec/template/spec/containers/[name={ .ContainerName }]/resources"
+		default:
+			return nil, fmt.Errorf("unable to build container resources patch for %q", gvks[0].Kind)
+		}
+	}
+
+	return sfio.FieldPath(p, map[string]string{
+		"ContainerName": s.Name,
+	})
+}
+
+func (s *containerResourceSpec) GetLimits() (*yaml.RNode, error) {
+	return s.getResourceList(s.Limits)
+}
+
+func (s *containerResourceSpec) GetRequests() (*yaml.RNode, error) {
+	return s.getResourceList(s.Requests)
+}
+
+func (s *containerResourceSpec) getResourceList(rl corev1.ResourceList) (*yaml.RNode, error) {
+	if len(rl) == 0 {
+		return nil, nil
+	}
+
+	rn := yaml.NewMapRNode(nil)
+	if data, err := json.Marshal(rl); err != nil {
+		return nil, err
+	} else if err := yaml.Unmarshal(data, rn.YNode()); err != nil {
+		return nil, err
+	}
+
+	resetStyleAndTag := yaml.FilterFunc(func(n *yaml.RNode) (*yaml.RNode, error) {
+		n.YNode().Style = 0
+		n.YNode().Tag = ""
+		return n, nil
+	})
+
+	return rn.Pipe(
+		yaml.Tee(yaml.Get("cpu"), resetStyleAndTag),
+		yaml.Tee(yaml.Get("memory"), resetStyleAndTag),
+	)
 }
