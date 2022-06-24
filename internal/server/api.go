@@ -18,14 +18,17 @@ package server
 
 import (
 	"context"
+	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/thestormforge/optimize-controller/v2/internal/version"
 	"github.com/thestormforge/optimize-go/pkg/api"
 	applications "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
 	experimentsv1alpha1 "github.com/thestormforge/optimize-go/pkg/api/experiments/v1alpha1"
 	"github.com/thestormforge/optimize-go/pkg/config"
+	"golang.org/x/oauth2"
 )
 
 func NewExperimentAPI(ctx context.Context, uaComment string) (experimentsv1alpha1.API, error) {
@@ -85,6 +88,14 @@ func newClientFromConfig(ctx context.Context, uaComment string, address func(con
 	if err != nil {
 		return nil, err
 	}
+
+	// Update the context to include an explicit OAuth2 client which includes a
+	// partial UA string (no comment for authorization requests) and a lower
+	// timeout then what SF client will use
+	ctx = context.WithValue(ctx, oauth2.HTTPClient, &http.Client{
+		Transport: version.UserAgent("optimize-pro", "", nil),
+		Timeout:   5 * time.Second,
+	})
 
 	rt, err := cfg.Authorize(ctx, version.UserAgent("optimize-pro", uaComment, nil))
 	if err != nil {

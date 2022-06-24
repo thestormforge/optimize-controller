@@ -40,6 +40,7 @@ type Transport struct {
 
 // RoundTrip sets the incoming request header and delegates to the base transport
 func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
+	req = req.Clone(req.Context())
 	req.Header.Set("User-Agent", t.userAgent())
 	return t.base().RoundTrip(req)
 }
