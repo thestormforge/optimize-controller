@@ -239,7 +239,7 @@ func (o *GeneratorOptions) generateClusterRoleBinding(roleRef *rbacv1.RoleRef, s
 	return &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   roleRef.Name + "binding",
-			Labels: map[string]string{"app.kubernetes.io/name": "optimize-controller"},
+			Labels: map[string]string{"app.kubernetes.io/name": "optimize"},
 		},
 		Subjects: []rbacv1.Subject{*subject},
 		RoleRef:  *roleRef,
@@ -272,7 +272,7 @@ func (o *GeneratorOptions) generateRoleBindings(ctx context.Context, roleRef *rb
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      roleRef.Name + "binding",
 					Namespace: scanner.Text(),
-					Labels:    map[string]string{"app.kubernetes.io/name": "optimize-controller"},
+					Labels:    map[string]string{"app.kubernetes.io/name": "optimize"},
 				},
 				Subjects: []rbacv1.Subject{*subject},
 				RoleRef:  *roleRef,
@@ -285,7 +285,7 @@ func (o *GeneratorOptions) generateRoleBindings(ctx context.Context, roleRef *rb
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "optimize-manager-rolebinding",
 					Namespace: scanner.Text(),
-					Labels:    map[string]string{"app.kubernetes.io/name": "optimize-controller"},
+					Labels:    map[string]string{"app.kubernetes.io/name": "optimize"},
 				},
 				Subjects: []rbacv1.Subject{*subject},
 				RoleRef: rbacv1.RoleRef{
