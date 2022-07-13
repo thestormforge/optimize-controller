@@ -209,6 +209,8 @@ kind: Secret
 metadata:
   name: optimize-manager
   namespace: {{ .Namespace }}
+  labels:
+    app.kubernetes.io/name: optimize
 type: Opaque
 data: {}
 `))
