@@ -163,6 +163,7 @@ func (o *GeneratorOptions) generate(ctx context.Context) error {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      o.Name,
 			Namespace: ctrl.Namespace,
+			Labels:    map[string]string{"app.kubernetes.io/name": "optimize"},
 		},
 		Data: data,
 		Type: corev1.SecretTypeOpaque,
@@ -213,6 +214,7 @@ func (o *GeneratorOptions) generate(ctx context.Context) error {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      o.ImagePullSecret,
 				Namespace: ctrl.Namespace,
+				Labels:    map[string]string{"app.kubernetes.io/name": "optimize"},
 			},
 			Type: corev1.SecretTypeDockerConfigJson,
 			Data: map[string][]byte{corev1.DockerConfigJsonKey: dockerConfigJson},

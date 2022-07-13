@@ -146,8 +146,12 @@ func (o *GeneratorOptions) generateClusterRole(roleRef *rbacv1.RoleRef) *rbacv1.
 		return nil
 	}
 
-	clusterRole := &rbacv1.ClusterRole{}
-	clusterRole.Name = roleRef.Name
+	clusterRole := &rbacv1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   roleRef.Name,
+			Labels: map[string]string{"app.kubernetes.io/name": "optimize"},
+		},
+	}
 
 	// Include the default rules
 	if !o.SkipDefault {
