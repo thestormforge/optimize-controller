@@ -280,8 +280,8 @@ type marshalPrinter struct {
 // PrintObj will marshal the supplied object
 func (p *marshalPrinter) PrintObj(obj interface{}, w io.Writer) error {
 	if strings.ToLower(p.outputFormat) == "yaml" {
-		// Hack to perform field ordering on maps
-		if m, ok := obj.(map[string]interface{}); ok {
+		// Hack to perform field ordering on maps that look like resources
+		if m, ok := obj.(map[string]interface{}); ok && m["kind"] != nil && m["apiVersion"] != nil {
 			node, err := kyaml.FromMap(m)
 			if err != nil {
 				return err
