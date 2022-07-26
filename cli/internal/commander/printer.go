@@ -33,6 +33,9 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/duration"
+	"sigs.k8s.io/kustomize/kyaml/kio"
+	"sigs.k8s.io/kustomize/kyaml/kio/filters"
+	kyaml "sigs.k8s.io/kustomize/kyaml/yaml"
 	"sigs.k8s.io/yaml"
 )
 
@@ -276,8 +279,20 @@ type marshalPrinter struct {
 
 // PrintObj will marshal the supplied object
 func (p *marshalPrinter) PrintObj(obj interface{}, w io.Writer) error {
-	// TODO It would be really nice if we could fix the field ordering for Unstructured objects
 	if strings.ToLower(p.outputFormat) == "yaml" {
+		// Hack to perform field ordering on maps that look like resources
+		if m, ok := obj.(map[string]interface{}); ok && m["kind"] != nil && m["apiVersion"] != nil {
+			node, err := kyaml.FromMap(m)
+			if err != nil {
+				return err
+			}
+			return kio.Pipeline{
+				Inputs:  []kio.Reader{kio.ResourceNodeSlice{node}},
+				Filters: []kio.Filter{filters.FormatFilter{}},
+				Outputs: []kio.Writer{&kio.ByteWriter{Writer: &prefixWriter{w: w}}},
+			}.Execute()
+		}
+
 		output, err := yaml.Marshal(obj)
 		if err != nil {
 			return err
