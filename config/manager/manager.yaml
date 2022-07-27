@@ -22,9 +22,10 @@ spec:
       labels:
         control-plane: controller-manager
     spec:
+      terminationGracePeriodSeconds: 10
       containers:
-        - image: controller:latest
-          name: manager
+        - name: manager
+          image: controller:latest
           resources:
             limits:
               cpu: 100m
@@ -36,4 +37,3 @@ spec:
             runAsNonRoot: true
             readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
-      terminationGracePeriodSeconds: 10
