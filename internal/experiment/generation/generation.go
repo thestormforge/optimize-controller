@@ -55,8 +55,14 @@ func ensureTrialJobPod(exp *optimizev1beta2.Experiment) *corev1.PodTemplateSpec 
 
 // trialJobImage returns the image name for a type of job.
 func trialJobImage(job string) string {
-	// Allow the image name to be overridden using environment variables, primarily for development work
-	imageName := os.Getenv("OPTIMIZE_TRIALS_IMAGE_REPOSITORY")
+	// Allow the image name to be overridden using an environment variable, primarily for making the image name discoverable
+	imageName := os.Getenv("OPTIMIZE_TRIALS_" + strings.ToUpper(strings.ReplaceAll(job, "-", "_")) + "_IMAGE")
+	if imageName != "" {
+		return imageName
+	}
+
+	// Also allow the image name to be overridden using environment variables, primarily for development work
+	imageName = os.Getenv("OPTIMIZE_TRIALS_IMAGE_REPOSITORY")
 	if imageName == "" {
 		imageName = "thestormforge/optimize-trials"
 	}
