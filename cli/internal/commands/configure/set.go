@@ -86,7 +86,7 @@ func (o *SetOptions) set() error {
 		r := o.Config.Reader()
 		if _, err := r.Controller(parts[1]); err != nil {
 			if name, err := r.ControllerName(parts[1]); err == nil {
-				parts[1] = name
+				parts[1] = strings.ReplaceAll(name, ".", "\\.")
 				o.Key = strings.Join(parts, ".")
 			}
 		}
