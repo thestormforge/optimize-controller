@@ -37,9 +37,10 @@ type Options struct {
 // NewCommand creates a new command for authorizing a cluster
 func NewCommand(o *Options) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "authorize-cluster",
-		Short: "Authorize a cluster",
-		Long:  "Authorize StormForge Optimize in a cluster",
+		Use:        "authorize-cluster",
+		Short:      "Authorize a cluster",
+		Long:       "Authorize StormForge Optimize in a cluster",
+		Deprecated: "it will be removed in v3.0.0",
 
 		PreRun: commander.StreamsPreRun(&o.IOStreams),
 		RunE:   commander.WithContextE(o.authorizeCluster),

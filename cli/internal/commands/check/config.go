@@ -43,9 +43,10 @@ type ConfigOptions struct {
 // NewConfigCommand creates a new command for checking the Optimize Configuration
 func NewConfigCommand(o *ConfigOptions) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "config",
-		Short: "Check the configuration",
-		Long:  "Check the StormForge Optimize Configuration",
+		Use:        "config",
+		Short:      "Check the configuration",
+		Long:       "Check the StormForge Optimize Configuration",
+		Deprecated: "it will be removed in v3.0.0",
 
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			// TODO We should have an option to overwrite the configuration using stdin (e.g. to test connections using the controller config)

@@ -55,9 +55,10 @@ type GeneratorOptions struct {
 // NewGeneratorCommand creates a command for generating the controller role definitions
 func NewGeneratorCommand(o *GeneratorOptions) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "controller-rbac",
-		Short: "Generate Optimize permissions",
-		Long:  "Generate RBAC for StormForge Optimize",
+		Use:        "controller-rbac",
+		Short:      "Generate Optimize permissions",
+		Long:       "Generate RBAC for StormForge Optimize",
+		Deprecated: "it will be removed in v3.0.0",
 
 		Annotations: map[string]string{
 			commander.PrinterAllowedFormats: "json,yaml",

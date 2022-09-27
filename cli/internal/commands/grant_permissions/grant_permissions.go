@@ -32,9 +32,10 @@ type Options struct {
 // NewCommand creates a new command for granting controller permissions
 func NewCommand(o *Options) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "grant-permissions",
-		Short: "Grant permissions",
-		Long:  "Grant the StormForge Optimize Controller permissions",
+		Use:        "grant-permissions",
+		Short:      "Grant permissions",
+		Long:       "Grant the StormForge Optimize Controller permissions",
+		Deprecated: "it will be removed in v3.0.0",
 
 		PreRun: commander.StreamsPreRun(&o.IOStreams),
 		RunE:   commander.WithContextE(o.grantPermissions),

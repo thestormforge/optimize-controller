@@ -41,9 +41,10 @@ type EnvOptions struct {
 // NewEnvCommand creates a new command for viewing a configuration as environment variables
 func NewEnvCommand(o *EnvOptions) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "env",
-		Short: "Generate environment variables from configuration",
-		Long:  "View the Optimize Configuration file as environment variables",
+		Use:        "env",
+		Short:      "Generate environment variables from configuration",
+		Long:       "View the Optimize Configuration file as environment variables",
+		Deprecated: "it will be removed in v3.0.0",
 
 		PreRun: commander.StreamsPreRun(&o.IOStreams),
 		RunE:   commander.WithoutArgsE(o.env),

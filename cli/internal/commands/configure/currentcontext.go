@@ -35,9 +35,10 @@ type CurrentContextOptions struct {
 // NewCurrentContextCommand creates a new command for viewing the current context
 func NewCurrentContextCommand(o *CurrentContextOptions) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "current-context",
-		Short: "Displays the current context",
-		Long:  "Displays the current context",
+		Use:        "current-context",
+		Short:      "Displays the current context",
+		Long:       "Displays the current context",
+		Deprecated: "it will be removed in v3.0.0",
 
 		PreRun: commander.StreamsPreRun(&o.IOStreams),
 		RunE:   commander.WithoutArgsE(o.currentContext),

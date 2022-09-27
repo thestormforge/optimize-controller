@@ -44,9 +44,10 @@ type VersionOptions struct {
 // NewVersionCommand creates a new command for checking the current version of the product
 func NewVersionCommand(o *VersionOptions) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "version",
-		Short: "Check for the latest version number",
-		Long:  "Check the current version number against the latest",
+		Use:        "version",
+		Short:      "Check for the latest version number",
+		Long:       "Check the current version number against the latest",
+		Deprecated: "it will be removed in v3.0.0",
 
 		PreRun: commander.StreamsPreRun(&o.IOStreams),
 		RunE:   commander.WithContextE(o.checkVersion),

@@ -38,9 +38,10 @@ type SetOptions struct {
 // NewSetCommand creates a new command for setting a configuration property
 func NewSetCommand(o *SetOptions) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "set NAME [VALUE]",
-		Short: "Modify the configuration file",
-		Long:  "Modify the Optimize Configuration file",
+		Use:        "set NAME [VALUE]",
+		Short:      "Modify the configuration file",
+		Long:       "Modify the Optimize Configuration file",
+		Deprecated: "it will be removed in v3.0.0",
 
 		Example: `# Add an environment variable to the controller
 stormforge config set controller.default.env.FOOBAR example

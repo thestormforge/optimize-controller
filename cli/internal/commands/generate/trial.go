@@ -43,9 +43,10 @@ type TrialOptions struct {
 
 func NewTrialCommand(o *TrialOptions) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "trial",
-		Short: "Generate experiment trials",
-		Long:  "Generate a trial from an experiment manifest",
+		Use:        "trial",
+		Short:      "Generate experiment trials",
+		Long:       "Generate a trial from an experiment manifest",
+		Deprecated: "it will be removed in v3.0.0",
 
 		Annotations: map[string]string{
 			commander.PrinterAllowedFormats: "json,yaml",
