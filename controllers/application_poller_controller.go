@@ -34,7 +34,6 @@ import (
 	"github.com/thestormforge/optimize-controller/v2/internal/scan"
 	"github.com/thestormforge/optimize-controller/v2/internal/server"
 	"github.com/thestormforge/optimize-controller/v2/internal/sfio"
-	"github.com/thestormforge/optimize-controller/v2/internal/version"
 	"github.com/thestormforge/optimize-go/pkg/api"
 	applications "github.com/thestormforge/optimize-go/pkg/api/applications/v2"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -42,6 +41,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/discovery"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -56,7 +56,15 @@ type Poller struct {
 }
 
 func (p *Poller) SetupWithManager(mgr ctrl.Manager) error {
-	appAPI, err := server.NewApplicationAPI(context.Background(), version.GetInfo().String())
+	// Compute the UA string comment using the Kube API server information
+	var comment string
+	if dc, err := discovery.NewDiscoveryClientForConfig(mgr.GetConfig()); err == nil {
+		if serverVersion, err := dc.ServerVersion(); err == nil && serverVersion.GitVersion != "" {
+			comment = fmt.Sprintf("Kubernetes %s", strings.TrimPrefix(serverVersion.GitVersion, "v"))
+		}
+	}
+
+	appAPI, err := server.NewApplicationAPI(context.Background(), comment)
 	if err != nil {
 		p.Log.Info("Application API is unavailable, skipping setup", "message", err.Error())
 		return nil
