@@ -10,6 +10,7 @@ require (
 	github.com/go-logr/zapr v0.1.1
 	github.com/lestrrat-go/jwx v1.0.6
 	github.com/mdp/qrterminal/v3 v3.0.0
+	github.com/mmcdole/gofeed v1.1.3
 	github.com/muesli/termenv v0.7.4
 	github.com/newrelic/newrelic-client-go v0.58.5
 	github.com/pkg/browser v0.0.0-20180916011732-0a3d74bf9ce4
@@ -23,6 +24,7 @@ require (
 	github.com/yujunz/go-getter v1.5.1-lite.0.20201201013212-6d9c071adddf
 	github.com/zorkian/go-datadog-api v2.24.0+incompatible
 	go.uber.org/zap v1.10.0
+	golang.org/x/mod v0.3.0
 	golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4
 	golang.org/x/oauth2 v0.0.0-20210402161424-2e8d93401602
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
@@ -42,8 +44,10 @@ require (
 	cloud.google.com/go v0.65.0 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver/v3 v3.1.1 // indirect
+	github.com/PuerkitoBio/goquery v1.5.1 // indirect
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
+	github.com/andybalholm/cascadia v1.1.0 // indirect
 	github.com/atotto/clipboard v0.1.2 // indirect
 	github.com/beorn7/perks v1.0.0 // indirect
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
@@ -81,7 +85,7 @@ require (
 	github.com/huandu/xstrings v1.3.1 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
-	github.com/json-iterator/go v1.1.8 // indirect
+	github.com/json-iterator/go v1.1.10 // indirect
 	github.com/jsonnet-bundler/jsonnet-bundler v0.4.0 // indirect
 	github.com/lestrrat-go/iter v0.0.0-20200422075355-fc1769541911 // indirect
 	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
@@ -95,6 +99,7 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-testing-interface v1.0.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
+	github.com/mmcdole/goxpp v0.0.0-20181012175147-0068e33feabf // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00 // indirect
