@@ -18,22 +18,17 @@ package check
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
+	"net/url"
 	"path"
 	"runtime"
-	"strings"
 
+	"github.com/mmcdole/gofeed"
 	"github.com/spf13/cobra"
 	"github.com/thestormforge/optimize-controller/v2/cli/internal/commander"
 	"github.com/thestormforge/optimize-controller/v2/internal/version"
+	"golang.org/x/mod/semver"
 )
-
-// TODO Should we have the option to initiate the download?
-// TODO Should we also check the controller version and tell them to `init` to make the versions match?
-
-var GitHubReleasesURL = "https://api.github.com/repos/thestormforge/optimize-controller/releases"
 
 // VersionOptions are the options for checking the current version of the product
 type VersionOptions struct {
@@ -56,105 +51,28 @@ func NewVersionCommand(o *VersionOptions) *cobra.Command {
 }
 
 func (o *VersionOptions) checkVersion(ctx context.Context) error {
-	var releases ReleaseList
-	if err := getJSON(ctx, GitHubReleasesURL, &releases); err != nil {
-		return err
-	}
-
-	// Get the current version and strip any prerelease information
-	versionInfo := version.GetInfo()
-	cur := versionInfo.Version
-	if i := strings.IndexRune(cur, '-'); i >= 0 {
-		cur = cur[:i]
-	}
-
-	// Get the latest release
-	latest := releases.Latest()
-	if latest == nil {
+	feed, err := gofeed.NewParser().ParseURLWithContext("https://downloads.stormforge.io/stormforge-cli/index.xml", ctx)
+	if err != nil {
 		return fmt.Errorf("unable to find latest version")
 	}
 
-	// Just exit
-	if latest.TagName == cur {
-		_, _ = fmt.Fprintf(o.Out, "Version %s is the latest version\n", versionInfo.String())
+	versionInfo := version.GetInfo()
+	for _, item := range feed.Items {
+		if !semver.IsValid(item.Title) || semver.Prerelease(item.Title) != "" || semver.Compare(item.Title, versionInfo.Version) < 0 {
+			continue
+		}
+
+		downloadURL, err := url.Parse(item.Link)
+		if err != nil {
+			return err
+		}
+		downloadURL.Path = path.Join(downloadURL.Path, fmt.Sprintf("stormforge_%s_%s_%s.tar.gz", item.Title, runtime.GOOS, runtime.GOARCH))
+
+		_, _ = fmt.Fprintf(o.Out, "A newer version (%s) is available (you have %s)\n\n", item.Title, versionInfo.String())
+		_, _ = fmt.Fprintf(o.Out, "Download the latest version:\n%s\n", downloadURL)
 		return nil
 	}
 
-	_, _ = fmt.Fprintf(o.Out, "A newer version (%s) is available (you have %s)\n", latest.Name, versionInfo.String())
-
-	asset := latest.AssetByName(fmt.Sprintf("stormforge-%s-%s.tar.gz", runtime.GOOS, runtime.GOARCH))
-	if asset != nil {
-		downloadURL := "https://app.stormforge.io/downloads/" + path.Base(asset.BrowserDownloadURL)
-		_, _ = fmt.Fprintf(o.Out, "\nDownload the latest version:\n%s\n", downloadURL)
-	}
-
+	_, _ = fmt.Fprintf(o.Out, "Version %s is the latest version\n", versionInfo.String())
 	return nil
-}
-
-func getJSON(ctx context.Context, url string, obj interface{}) error {
-	client := &http.Client{Transport: version.UserAgent("StormForgeOptimize", "", nil)}
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return err
-	}
-	resp, err := client.Do(req.WithContext(ctx))
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	body := json.NewDecoder(resp.Body)
-
-	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		err := &APIError{StatusCode: resp.StatusCode}
-		_ = body.Decode(err)
-		return err
-	}
-	return body.Decode(obj)
-}
-
-type ReleaseList []Release
-
-type Release struct {
-	Name       string  `json:"name"`
-	TagName    string  `json:"tag_name"`
-	Draft      bool    `json:"draft"`
-	Prerelease bool    `json:"prerelease"`
-	Assets     []Asset `json:"assets"`
-}
-
-type Asset struct {
-	Name               string `json:"name"`
-	BrowserDownloadURL string `json:"browser_download_url"`
-}
-
-type APIError struct {
-	StatusCode       int    `json:"-"`
-	Message          string `json:"message"`
-	DocumentationURL string `json:"documentation_url"`
-}
-
-func (rl ReleaseList) Latest() *Release {
-	for i := range rl {
-		if rl[i].Draft || rl[i].Prerelease {
-			continue
-		}
-		return &rl[i]
-	}
-	return nil
-}
-
-func (r *Release) AssetByName(name string) *Asset {
-	for i := range r.Assets {
-		if r.Assets[i].Name == name {
-			return &r.Assets[i]
-		}
-	}
-	return nil
-}
-
-func (e *APIError) Error() string {
-	if e.Message != "" {
-		return e.Message
-	}
-	return fmt.Sprintf("unexpected response (%d)", e.StatusCode)
 }
