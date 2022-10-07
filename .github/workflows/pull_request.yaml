@@ -16,8 +16,8 @@ jobs:
           go-version-file: go.mod
           cache: true
       - name: Run tests
-        run: |
-          make test
+        run: make test
+
   build:
     name: Build and Deploy
     runs-on: ubuntu-latest
@@ -27,8 +27,6 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v3
-      - name: Unshallow
-        run: git fetch --prune --unshallow
       # Launch KinD early so we can do other things while the control plane converges
       - name: KinD (Kubernetes in Docker) Initialization
         uses: helm/kind-action@v1.1.0
@@ -40,6 +38,10 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - name: Set up GoReleaser
+        uses: goreleaser/goreleaser-action@v2
+        with:
+          install-only: true
       - name: Bootstrap
         run: |
           DOCKER_REGISTRY="ghcr.io/thestormforge"
@@ -47,16 +49,11 @@ jobs:
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login "ghcr.io" -u "${{ github.actor }}" --password-stdin
           echo "IMAGE_TAG=pr-${{ github.event.number }}" >> $GITHUB_ENV
           echo "IMG=${DOCKER_REGISTRY}/optimize-controller:${DOCKER_TAG}" >> $GITHUB_ENV
-          echo "CLI_IMG=${DOCKER_REGISTRY}/optimize-cli:${DOCKER_TAG}" >> $GITHUB_ENV
           echo "SETUPTOOLS_IMG=${DOCKER_REGISTRY}/setuptools:${DOCKER_TAG}" >> $GITHUB_ENV
           echo "PULL_POLICY=" >> $GITHUB_ENV
       - name: Build controller
         run: |
           make -o test docker-build
-      - name: Build tool
-        uses: goreleaser/goreleaser-action@v2
-        with:
-          args: release --skip-sign --rm-dist
       - name: Push Docker images
         if: github.event.pull_request.head.repo.fork == false
         run: |
@@ -66,23 +63,6 @@ jobs:
             docker push "$2"
           }
           docker-push "${IMG}" "${IMG%%:*}:${IMAGE_TAG}"
-          docker-push "${CLI_IMG}" "${CLI_IMG%%:*}:${IMAGE_TAG}"
           docker-push "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:${IMAGE_TAG}"
-      - name: Upload macOS binary
-        uses: actions/upload-artifact@v3
-        with:
-          name: stormforge_darwin_amd64
-          path: dist/stormforge-darwin-amd64.tar.gz
-      - name: Upload macOS ARM binary
-        uses: actions/upload-artifact@v3
-        with:
-          name: stormforge_darwin_arm64
-          path: dist/stormforge-darwin-arm64.tar.gz
-      - name: Upload Linux binary
-        uses: actions/upload-artifact@v3
-        with:
-          name: stormforge_linux_amd64
-          path: dist/stormforge-linux-amd64.tar.gz
       - name: Run integration tests
-        run: |
-          hack/integration.sh
+        run: hack/integration.sh
