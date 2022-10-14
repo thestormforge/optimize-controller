@@ -37,10 +37,10 @@ jobs:
 
     - name: Build and push controller
       run: |
-        VERSION="${GITHUB_REF_NAME}"
-        IMG="thestormforge/optimize-controller:${GITHUB_REF_NAME#v}"
-        SETUPTOOLS_IMG="thestormforge/setuptools:${GITHUB_REF_NAME#v}"
-        PULL_POLICY=""
+        export VERSION="${GITHUB_REF_NAME}"
+        export IMG="thestormforge/optimize-controller:${GITHUB_REF_NAME#v}"
+        export SETUPTOOLS_IMG="thestormforge/setuptools:${GITHUB_REF_NAME#v}"
+        export PULL_POLICY=""
         
         make -o test docker-build
         make docker-push

@@ -42,9 +42,9 @@ jobs:
 
     - name: Build and push controller
       run: |
-        IMG="ghcr.io/thestormforge/optimize-controller:sha-$(git rev-parse --short HEAD)"
-        SETUPTOOLS_IMG="ghcr.io/thestormforge/setuptools:sha-$(git rev-parse --short HEAD)"
-        PULL_POLICY=""
+        export IMG="ghcr.io/thestormforge/optimize-controller:sha-$(git rev-parse --short HEAD)"
+        export SETUPTOOLS_IMG="ghcr.io/thestormforge/setuptools:sha-$(git rev-parse --short HEAD)"
+        export PULL_POLICY=""
         
         make docker-build
         make docker-push
