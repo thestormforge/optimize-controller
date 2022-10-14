@@ -10,7 +10,6 @@ DESCRIPTION := Kubernetes Performance Testing and resource optimization for \
 
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
-CLI_IMG ?= cli:latest
 SETUPTOOLS_IMG ?= setuptools:latest
 PULL_POLICY ?= Never
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
@@ -52,9 +51,8 @@ cli: manifests
 	BUILD_METADATA=${BUILD_METADATA} \
 	SETUPTOOLS_IMG=${SETUPTOOLS_IMG} \
 	PULL_POLICY=${PULL_POLICY} \
-	CLI_IMG=${CLI_IMG} \
 	IMG=${IMG} \
-	goreleaser build --snapshot --rm-dist
+	goreleaser build --snapshot --rm-dist --single-target
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate manifests fmt vet
@@ -122,7 +120,6 @@ docker-build-setuptools:
 docker-push:
 	docker push ${IMG}
 	docker push ${SETUPTOOLS_IMG}
-	docker push ${CLI_IMG}
 
 # find or download controller-gen
 # download controller-gen if necessary
