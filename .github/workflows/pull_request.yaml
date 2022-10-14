@@ -2,21 +2,9 @@ name: Pull Request
 on:
   pull_request:
     branches:
-      - main
+    - main
+
 jobs:
-  test:
-    name: Unit Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v3
-      - name: Set up Go
-        uses: actions/setup-go@v3
-        with:
-          go-version-file: go.mod
-          cache: true
-      - name: Run tests
-        run: make test
 
   build:
     name: Build and Deploy
@@ -25,44 +13,50 @@ jobs:
       BUILD_METADATA: build.${{ github.run_number }}
       GIT_COMMIT: ${{ github.sha }}
     steps:
-      - name: Check out code
-        uses: actions/checkout@v3
-      # Launch KinD early so we can do other things while the control plane converges
-      - name: KinD (Kubernetes in Docker) Initialization
-        uses: helm/kind-action@v1.1.0
-        with:
-          version: v0.11.1
-          wait: 0s
-      - name: Set up Go
-        uses: actions/setup-go@v3
-        with:
-          go-version-file: go.mod
-          cache: true
-      - name: Set up GoReleaser
-        uses: goreleaser/goreleaser-action@v2
-        with:
-          install-only: true
-      - name: Bootstrap
-        run: |
-          DOCKER_REGISTRY="ghcr.io/thestormforge"
-          DOCKER_TAG="sha-$(git rev-parse --short HEAD)"
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login "ghcr.io" -u "${{ github.actor }}" --password-stdin
-          echo "IMAGE_TAG=pr-${{ github.event.number }}" >> $GITHUB_ENV
-          echo "IMG=${DOCKER_REGISTRY}/optimize-controller:${DOCKER_TAG}" >> $GITHUB_ENV
-          echo "SETUPTOOLS_IMG=${DOCKER_REGISTRY}/setuptools:${DOCKER_TAG}" >> $GITHUB_ENV
-          echo "PULL_POLICY=" >> $GITHUB_ENV
-      - name: Build controller
-        run: |
-          make -o test docker-build
-      - name: Push Docker images
-        if: github.event.pull_request.head.repo.fork == false
-        run: |
-          make docker-push
-          docker-push() {
-            docker tag "$1" "$2"
-            docker push "$2"
-          }
-          docker-push "${IMG}" "${IMG%%:*}:${IMAGE_TAG}"
-          docker-push "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:${IMAGE_TAG}"
-      - name: Run integration tests
-        run: hack/integration.sh
+    - name: Check out code
+      uses: actions/checkout@v3
+
+    - name: KinD (Kubernetes in Docker) Initialization
+      uses: helm/kind-action@v1.1.0
+      with:
+        version: v0.11.1
+        wait: 0s
+
+    - name: Set up Go
+      uses: actions/setup-go@v3
+      with:
+        go-version-file: go.mod
+        cache: true
+
+    - name: Set up GoReleaser
+      uses: goreleaser/goreleaser-action@v2
+      with:
+        install-only: true
+
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ghcr.io
+        username: '${{ github.actor }}'
+        password: '${{ github.token }}'
+
+    - name: Build and push controller
+      run: |
+        IMG="ghcr.io/thestormforge/optimize-controller:sha-$(git rev-parse --short HEAD)"
+        SETUPTOOLS_IMG="ghcr.io/thestormforge/setuptools:sha-$(git rev-parse --short HEAD)"
+        PULL_POLICY=""
+        
+        make docker-build
+        make docker-push
+        
+        skopeo copy "docker://${IMG}" "docker://${IMG%%:*}:pr-${{ github.event.number }}"
+        skopeo copy "docker://${SETUPTOOLS_IMG}" "docker://${SETUPTOOLS_IMG%%:*}:pr-${{ github.event.number }}"
+        
+        echo "IMG=${IMG}" >> $GITHUB_ENV
+        echo "SETUPTOOLS_IMG=${SETUPTOOLS_IMG}" >> $GITHUB_ENV
+        echo "PULL_POLICY=${PULL_POLICY}" >> $GITHUB_ENV
+
+    - name: Run integration tests
+      run: |
+        make cli
+        hack/integration.sh
