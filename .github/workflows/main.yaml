@@ -39,14 +39,9 @@ jobs:
             echo "IMAGE_TAG=edge" >> $GITHUB_ENV
           fi
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login "ghcr.io" -u "${{ github.actor }}" --password-stdin
-          echo "::set-output name=IMG::${DOCKER_REGISTRY}/optimize-controller:${DOCKER_TAG}"
-          echo "::set-output name=SETUPTOOLS_IMG::${DOCKER_REGISTRY}/setuptools:${DOCKER_TAG}"
-          echo "::set-output name=PULL_POLICY::"
-      - name: Bootstrap Env
-        run: |
-          echo "IMG=${{ steps.bootstrap.outputs.IMG }}" >> $GITHUB_ENV
-          echo "SETUPTOOLS_IMG=${{ steps.bootstrap.outputs.SETUPTOOLS_IMG }}" >> $GITHUB_ENV
-          echo "PULL_POLICY=${{ steps.bootstrap.outputs.PULL_POLICY }}" >> $GITHUB_ENV
+          echo "IMG=${DOCKER_REGISTRY}/optimize-controller:${DOCKER_TAG}" | tee -a $GITHUB_OUTPUT $GITHUB_ENV > /dev/null
+          echo "SETUPTOOLS_IMG=${DOCKER_REGISTRY}/setuptools:${DOCKER_TAG}" | tee -a $GITHUB_OUTPUT $GITHUB_ENV > /dev/null
+          echo "PULL_POLICY=" | tee -a $GITHUB_OUTPUT $GITHUB_ENV > /dev/null
       - name: Build controller
         run: |
           make -o test docker-build
@@ -108,7 +103,10 @@ jobs:
       with:
         install-only: true
     - name: Run integration tests
-      run: hack/integration.sh
+      run: |
+        docker pull ${IMG}
+        docker pull ${SETUPTOOLS_IMG}
+        hack/integration.sh
     - name: The job has failed
       if: ${{ failure() }}
       run: |
