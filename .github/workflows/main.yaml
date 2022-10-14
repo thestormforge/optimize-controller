@@ -2,10 +2,10 @@ name: Main
 on:
   push:
     branches:
-      - main
-    tags:
-      - v*
+    - main
+
 jobs:
+
   build:
     name: Build and Deploy
     runs-on: ubuntu-latest
@@ -13,53 +13,42 @@ jobs:
       BUILD_METADATA: build.${{ github.run_number }}
       GIT_COMMIT: ${{ github.sha }}
     outputs:
-      IMG: ${{ steps.bootstrap.outputs.IMG }}
-      SETUPTOOLS_IMG: ${{ steps.bootstrap.outputs.SETUPTOOLS_IMG }}
-      PULL_POLICY: ${{ steps.bootstrap.outputs.PULL_POLICY}}
+      IMG: ${{ steps.controller.outputs.IMG }}
+      SETUPTOOLS_IMG: ${{ steps.controller.outputs.SETUPTOOLS_IMG }}
+      PULL_POLICY: ${{ steps.controller.outputs.PULL_POLICY}}
     steps:
-      - name: Check out code
-        uses: actions/checkout@v3
-      - name: Set up Go
-        uses: actions/setup-go@v3
-        with:
-          go-version-file: go.mod
-          cache: true
-      - name: Bootstrap
-        id: bootstrap
-        run: |
-          if [ -z "${GITHUB_REF/refs\/tags\/*/}" ]; then
-            DOCKER_REGISTRY="thestormforge"
-            DOCKER_TAG=${GITHUB_REF##*/v}
-            echo "IMAGE_TAG=latest" >> $GITHUB_ENV
-            echo "VERSION=v${DOCKER_TAG}" >> $GITHUB_ENV
-            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
-          else
-            DOCKER_REGISTRY="ghcr.io/thestormforge"
-            DOCKER_TAG="sha-$(git rev-parse --short HEAD)"
-            echo "IMAGE_TAG=edge" >> $GITHUB_ENV
-          fi
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login "ghcr.io" -u "${{ github.actor }}" --password-stdin
-          echo "IMG=${DOCKER_REGISTRY}/optimize-controller:${DOCKER_TAG}" | tee -a $GITHUB_OUTPUT $GITHUB_ENV > /dev/null
-          echo "SETUPTOOLS_IMG=${DOCKER_REGISTRY}/setuptools:${DOCKER_TAG}" | tee -a $GITHUB_OUTPUT $GITHUB_ENV > /dev/null
-          echo "PULL_POLICY=" | tee -a $GITHUB_OUTPUT $GITHUB_ENV > /dev/null
-      - name: Build controller
-        run: |
-          make -o test docker-build
-      - name: Push Docker images
-        run: |
-          make docker-push
-          docker-push() {
-            docker tag "$1" "$2"
-            docker push "$2"
-          }
-          if [[ "${IMAGE_TAG}" != "latest" || ! "${VERSION}" =~ "-" ]]; then
-            docker-push "${IMG}" "${IMG%%:*}:${IMAGE_TAG}"
-            docker-push "${SETUPTOOLS_IMG}" "${SETUPTOOLS_IMG%%:*}:${IMAGE_TAG}"
-          fi
-          if [ "${IMG#ghcr.io/}" = "${IMG}" ]; then
-            docker-push "${IMG}" "ghcr.io/${IMG}"
-            docker-push "${SETUPTOOLS_IMG}" "ghcr.io/${SETUPTOOLS_IMG}"
-          fi
+    - name: Check out code
+      uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v3
+      with:
+        go-version-file: go.mod
+        cache: true
+
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ghcr.io
+        username: '${{ github.actor }}'
+        password: '${{ github.token }}'
+
+    - name: Build and push controller
+      id: controller
+      run: |
+        export IMG="ghcr.io/thestormforge/optimize-controller:sha-$(git rev-parse --short HEAD)"
+        export SETUPTOOLS_IMG="ghcr.io/thestormforge/setuptools:sha-$(git rev-parse --short HEAD)"
+        export PULL_POLICY=""
+        
+        make -o test docker-build
+        make docker-push
+        
+        skopeo copy "docker://${IMG}" "docker://${IMG%%:*}:edge"
+        skopeo copy "docker://${SETUPTOOLS_IMG}" "docker://${SETUPTOOLS_IMG%%:*}:edge"
+        
+        echo "IMG=${IMG}" >> $GITHUB_OUTPUT
+        echo "SETUPTOOLS_IMG=${SETUPTOOLS_IMG}" >> $GITHUB_OUTPUT
+        echo "PULL_POLICY=${PULL_POLICY}" >> $GITHUB_OUTPUT
 
   test:
     name: Test Kubernetes Versions
@@ -88,26 +77,32 @@ jobs:
     steps:
     - name: Check out code
       uses: actions/checkout@v3
+
     - name: KinD (Kubernetes in Docker) Initialization
       uses: helm/kind-action@v1.1.0
       with:
         version: v0.11.1
         node_image: kindest/node:${{ matrix.node }}
+
     - name: Set up Go
       uses: actions/setup-go@v3
       with:
         go-version-file: go.mod
         cache: true
+
     - name: Set up GoReleaser
       uses: goreleaser/goreleaser-action@v2
       with:
         install-only: true
+
     - name: Run integration tests
       run: |
         docker pull ${IMG}
         docker pull ${SETUPTOOLS_IMG}
+        make cli
         hack/integration.sh
-    - name: The job has failed
+
+    - name: Dump state on fail
       if: ${{ failure() }}
       run: |
         kubectl get trial,experiment,svc,pod -o wide

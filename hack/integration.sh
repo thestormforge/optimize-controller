@@ -2,7 +2,6 @@
 
 set -ex
 
-make cli
 CLI_BIN="${CLI_BIN:-dist/optimize-controller_$(go env GOOS)_amd64_v1/stormforge}"
 #${CLI_CONFIG-...} allows us to test just for parameter existance which means we can rely on
 # the default and overwrite as needed ( for those pesky cases where you want to do
