@@ -1,17 +1,23 @@
-## Changelog
-
-### ✨ New Features
+### ✨ Added
 
 *
 
-### 🏗 Improvements
+### 🏗 Changed
 
 *
 
-### 🐛 Bug Fixes
+### ⏳ Deprecated
 
 *
 
-### 🛑 Breaking Changes
+### 🛑 Removed
+
+*
+
+### 🐛 Fixed
+
+*
+
+### 🗝 Security
 
 *

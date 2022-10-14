@@ -57,3 +57,6 @@ jobs:
         GH_TOKEN: ${{ secrets.BMASTERS_TOKEN }}
         GH_REPO: thestormforge/helm-charts
       run: gh workflow run build.yaml --ref main -f image_tag=${GITHUB_REF_NAME#v}
+
+    - name: Draft release
+      run: gh release create "${GITHUB_REF_NAME}" --draft --notes-file ./.github/RELEASE_TEMPLATE.md
