@@ -70,7 +70,7 @@ func trialJobImage(job string) string {
 	if imageTag == "" {
 		imageTagBase := os.Getenv("OPTIMIZE_TRIALS_IMAGE_TAG_BASE")
 		if imageTagBase == "" {
-			imageTagBase = "v0.0.3"
+			imageTagBase = "v0.0.5"
 		}
 		imageTag = imageTagBase + "-" + job
 	}
