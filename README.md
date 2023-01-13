@@ -1,11 +1,9 @@
-# StormForge Optimize Pro - Controller
+# StormForge Optimize Pro
 
-[![Main](https://github.com/thestormforge/optimize-controller/actions/workflows/main.yaml/badge.svg)](https://github.com/thestormforge/optimize-controller/actions/workflows/main.yaml)
-
-This repository contains the StormForge Optimize Pro Controller implementation. You can learn more about how StormForge can help you optimize your applications from [our website](https://www.stormforge.io/kubernetes-optimization/).
+This code base has been deprecated and is no longer supported.
 
 ## Getting Started
 
-Please refer to the documentation for detailed installation instructions: [Installing StormForge Optimize Pro](https://docs.stormforge.io/optimize-pro/getting-started/install/).
+Please [download the latest version of the StormForge CLI](https://downloads.stormforge.io/stormforge-cli/latest/) and install the Optimize Pro Controller that is compatible with Kubernetes version 1.16 and later. For installation instructions, see [Installing StormForge Optimize Pro](https://docs.stormforge.io/optimize-pro/getting-started/install/) in the StormForge documentation.
 
-You will also find a [quick start](https://docs.stormforge.io/optimize-pro/getting-started/quickstart/) guide and additional information about using StormForge Optimize Pro.
+For more information about using StormForge Optimize Pro, check out the [Quick Start](https://docs.stormforge.io/optimize-pro/getting-started/quickstart/) guide in the StormForge documentation.
